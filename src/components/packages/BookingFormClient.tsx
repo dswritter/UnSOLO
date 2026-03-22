@@ -1,0 +1,312 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { createRazorpayOrder, confirmPayment, submitCustomDateRequest } from '@/actions/booking'
+import { formatPrice, formatDate, formatDateRange, validateIndianPhone, getMaxDate } from '@/lib/utils'
+import { toast } from 'sonner'
+import Script from 'next/script'
+import { Calendar, Phone, Mail, Users, Send } from 'lucide-react'
+
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void
+      on: (event: string, handler: () => void) => void
+    }
+  }
+}
+
+interface BookingFormClientProps {
+  packageId: string
+  packageSlug: string
+  pricePerPersonPaise: number
+  maxGroupSize: number
+  packageTitle?: string
+  departureDates?: string[] | null
+  durationDays?: number
+}
+
+export function BookingFormClient({
+  packageId,
+  packageSlug,
+  pricePerPersonPaise,
+  maxGroupSize,
+  packageTitle,
+  departureDates,
+  durationDays,
+}: BookingFormClientProps) {
+  const [tab, setTab] = useState<'fixed' | 'custom'>('fixed')
+  const [guests, setGuests] = useState(1)
+  const [selectedDate, setSelectedDate] = useState('')
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  // Custom date request fields
+  const [customDate, setCustomDate] = useState('')
+  const [customGuests, setCustomGuests] = useState(1)
+  const [contactNumber, setContactNumber] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [customLoading, setCustomLoading] = useState(false)
+
+  const total = pricePerPersonPaise * guests
+  const today = new Date().toISOString().split('T')[0]
+  const maxDate = getMaxDate()
+
+  // Filter only future dates
+  const futureDates = (departureDates || []).filter((d) => d >= today)
+
+  async function handleBook() {
+    if (!selectedDate) {
+      toast.error('Please select a departure date')
+      return
+    }
+    if (new Date(selectedDate) <= new Date()) {
+      toast.error('Travel date must be in the future')
+      return
+    }
+    setLoading(true)
+
+    try {
+      const result = await createRazorpayOrder(packageId, selectedDate, guests)
+
+      if ('error' in result) {
+        toast.error(result.error)
+        setLoading(false)
+        return
+      }
+
+      const options = {
+        key: result.keyId,
+        amount: result.amount,
+        currency: result.currency,
+        name: 'UnSOLO',
+        description: packageTitle || 'Trip Booking',
+        order_id: result.orderId,
+        prefill: result.prefill,
+        notes: result.notes,
+        theme: { color: '#FFAA00', backdrop_color: '#000000' },
+        handler: async (response: {
+          razorpay_order_id: string
+          razorpay_payment_id: string
+          razorpay_signature: string
+        }) => {
+          const verification = await confirmPayment(
+            response.razorpay_order_id,
+            response.razorpay_payment_id,
+            response.razorpay_signature,
+          )
+          if (verification.success) {
+            toast.success('Booking confirmed!')
+            router.push(`/book/success?booking_id=${verification.bookingId}`)
+          } else {
+            toast.error(verification.error || 'Payment verification failed')
+          }
+          setLoading(false)
+        },
+        modal: { ondismiss: () => setLoading(false) },
+      }
+
+      const rzp = new window.Razorpay(options)
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.')
+        setLoading(false)
+      })
+      rzp.open()
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  async function handleCustomRequest() {
+    if (!customDate) { toast.error('Please select a date'); return }
+    if (new Date(customDate) <= new Date()) { toast.error('Date must be in the future'); return }
+    if (new Date(customDate) > new Date(maxDate)) { toast.error('Date cannot be more than 2 years in the future'); return }
+    if (!validateIndianPhone(contactNumber)) { toast.error('Enter a valid 10-digit Indian mobile number (starting with 6-9)'); return }
+    if (!contactEmail || !contactEmail.includes('@')) { toast.error('Please enter a valid email'); return }
+
+    setCustomLoading(true)
+    const result = await submitCustomDateRequest(packageId, customDate, customGuests, contactNumber, contactEmail)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success(`Request submitted! Check ${contactEmail} for confirmation.`)
+      setCustomDate('')
+      setContactNumber('')
+      setContactEmail('')
+    }
+    setCustomLoading(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+      {/* Tabs */}
+      <div className="flex rounded-lg bg-secondary/50 p-1">
+        <button
+          onClick={() => setTab('fixed')}
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
+            tab === 'fixed' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          Fixed Dates
+        </button>
+        <button
+          onClick={() => setTab('custom')}
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
+            tab === 'custom' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          Request Custom
+        </button>
+      </div>
+
+      {tab === 'fixed' ? (
+        <>
+          {/* Departure date selection */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-primary" /> Select Departure
+            </label>
+            {futureDates.length > 0 ? (
+              <div className="grid gap-2">
+                {futureDates.map((date) => (
+                  <button
+                    key={date}
+                    onClick={() => setSelectedDate(date)}
+                    className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                      selectedDate === date
+                        ? 'border-primary bg-primary/10 text-white'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-white'
+                    }`}
+                  >
+                    {durationDays ? formatDateRange(date, durationDays) : formatDate(date)}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground py-2">
+                No upcoming dates scheduled. Try requesting a custom date.
+              </p>
+            )}
+          </div>
+
+          {/* Guests */}
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Guests</label>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.max(1, guests - 1))}>-</Button>
+              <span className="font-bold text-lg min-w-[2rem] text-center">{guests}</span>
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.min(maxGroupSize, guests + 1))}>+</Button>
+              <span className="text-xs text-muted-foreground">Max {maxGroupSize}</span>
+            </div>
+          </div>
+
+          {/* Price breakdown */}
+          <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>{formatPrice(pricePerPersonPaise)} x {guests} person{guests > 1 ? 's' : ''}</span>
+              <span>{formatPrice(total)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-white pt-1 border-t border-border">
+              <span>Total</span>
+              <span className="text-primary">{formatPrice(total)}</span>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleBook}
+            disabled={loading || !selectedDate}
+            className="w-full bg-primary text-black font-bold hover:bg-primary/90 glow-gold"
+            size="lg"
+          >
+            {loading ? 'Processing...' : 'Book This Trip'}
+          </Button>
+
+          <p className="text-xs text-muted-foreground text-center">
+            Secure payment via Razorpay. UPI, Cards, Netbanking accepted.
+          </p>
+        </>
+      ) : (
+        /* Custom date request tab */
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Want a different date? Submit a request and we&apos;ll get back to you.
+          </p>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-primary" /> Preferred Date
+            </label>
+            <Input
+              type="date"
+              min={today}
+              max={maxDate}
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              className="bg-secondary border-border"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary" /> Number of People
+            </label>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setCustomGuests(Math.max(1, customGuests - 1))}>-</Button>
+              <span className="font-bold text-lg min-w-[2rem] text-center">{customGuests}</span>
+              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setCustomGuests(Math.min(maxGroupSize, customGuests + 1))}>+</Button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5 text-primary" /> Contact Number
+            </label>
+            <Input
+              type="tel"
+              placeholder="9876543210"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              maxLength={10}
+              inputMode="numeric"
+              className="bg-secondary border-border"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5 text-primary" /> Email
+            </label>
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="bg-secondary border-border"
+            />
+          </div>
+
+          <Button
+            onClick={handleCustomRequest}
+            disabled={customLoading}
+            className="w-full bg-secondary text-white font-bold hover:bg-secondary/80 border border-border"
+            size="lg"
+          >
+            {customLoading ? 'Submitting...' : (
+              <><Send className="mr-2 h-4 w-4" /> Submit Request</>
+            )}
+          </Button>
+
+          <p className="text-xs text-muted-foreground text-center">
+            No payment required. We&apos;ll contact you to confirm availability.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
