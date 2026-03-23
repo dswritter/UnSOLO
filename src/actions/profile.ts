@@ -244,6 +244,31 @@ export async function requestPhoneAccess(targetUserId: string) {
   }, { onConflict: 'requester_id,target_id' })
 
   if (error) return { error: error.message }
+
+  // Send a DM notification to the target user
+  const { data: requesterProfile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+
+  if (requesterProfile) {
+    // Get or create DM room
+    const { data: roomId } = await supabase.rpc('get_or_create_dm_room', {
+      user_a: user.id,
+      user_b: targetUserId,
+    })
+
+    if (roomId) {
+      await supabase.from('messages').insert({
+        room_id: roomId,
+        user_id: user.id,
+        content: `📱 ${requesterProfile.full_name || requesterProfile.username} has requested access to your phone number. Go to Edit Profile → Phone settings to manage requests.`,
+        message_type: 'system',
+      })
+    }
+  }
+
   return { success: true }
 }
 

@@ -461,7 +461,7 @@ function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: 
           </button>
         )}
         <div
-          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
             isOwn
               ? 'bg-primary text-black rounded-tr-sm'
               : 'bg-card border border-border rounded-tl-sm'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings, updateStatus } from '@/actions/profile'
+import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings, updateStatus, getPhoneRequests, respondToPhoneRequest } from '@/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,6 +44,9 @@ export default function EditProfilePage() {
   const [statesPrivate, setStatesPrivate] = useState(false)
   const [privacySaving, setPrivacySaving] = useState(false)
 
+  // Phone requests
+  const [phoneRequests, setPhoneRequests] = useState<{ id: string; requester: { username: string; full_name: string | null; avatar_url: string | null } | null }[]>([])
+
   // Status settings
   const [statusText, setStatusText] = useState('Still deciding my next trip')
   const [statusVisibility, setStatusVisibility] = useState<'public' | 'followers'>('public')
@@ -67,6 +70,14 @@ export default function EditProfilePage() {
             setStatusText((p as Record<string, unknown>).status_text as string || 'Still deciding my next trip')
             setStatusVisibility(((p as Record<string, unknown>).status_visibility as string || 'public') as 'public' | 'followers')
             setCustomStatus((p as Record<string, unknown>).custom_status as boolean || false)
+
+            // Fetch phone requests
+            getPhoneRequests().then(reqs => {
+              setPhoneRequests(reqs.map((r: Record<string, unknown>) => ({
+                id: r.id as string,
+                requester: r.requester as { username: string; full_name: string | null; avatar_url: string | null } | null,
+              })))
+            })
           }
         })
     })
@@ -342,6 +353,47 @@ export default function EditProfilePage() {
                   {phoneSaving ? 'Saving...' : 'Save Phone Settings'}
                 </Button>
               </div>
+
+              {/* Pending phone requests */}
+              {phoneRequests.length > 0 && (
+                <div className="border-t border-border pt-3 mt-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">📱 Phone Number Requests ({phoneRequests.length})</p>
+                  <div className="space-y-2">
+                    {phoneRequests.map(req => (
+                      <div key={req.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                        <div className="text-sm">
+                          <span className="font-medium">{req.requester?.full_name || req.requester?.username || 'Someone'}</span>
+                          <span className="text-muted-foreground"> wants your number</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm" variant="outline"
+                            className="border-green-500/40 text-green-400 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await respondToPhoneRequest(req.id, true)
+                              setPhoneRequests(prev => prev.filter(r => r.id !== req.id))
+                              toast.success('Request approved!')
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            className="border-red-500/40 text-red-400 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await respondToPhoneRequest(req.id, false)
+                              setPhoneRequests(prev => prev.filter(r => r.id !== req.id))
+                              toast.success('Request denied')
+                            }}
+                          >
+                            Deny
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

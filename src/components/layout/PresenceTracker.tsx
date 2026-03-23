@@ -5,46 +5,42 @@ import { createClient } from '@/lib/supabase/client'
 
 export function PresenceTracker({ userId }: { userId: string }) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const mountedRef = useRef(true)
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    if (!userId) return
-    mountedRef.current = true
+    if (!userId || initializedRef.current) return
+    initializedRef.current = true
 
     const supabase = createClient()
 
-    // Direct DB upsert (client-side) — faster than server action
-    async function markOnline() {
-      await supabase
-        .from('user_presence')
-        .upsert({ user_id: userId, last_seen: new Date().toISOString(), is_online: true }, { onConflict: 'user_id' })
-    }
-
-    async function markOffline() {
-      await supabase
-        .from('user_presence')
-        .upsert({ user_id: userId, last_seen: new Date().toISOString(), is_online: false }, { onConflict: 'user_id' })
+    // Use the SECURITY DEFINER function — bypasses RLS reliably
+    async function setPresence(online: boolean) {
+      try {
+        await supabase.rpc('upsert_presence', { p_user_id: userId, p_online: online })
+      } catch {
+        // Silently fail — presence is non-critical
+      }
     }
 
     // Mark online immediately
-    markOnline()
+    setPresence(true)
 
-    // Heartbeat every 90 seconds
+    // Heartbeat every 60 seconds
     intervalRef.current = setInterval(() => {
-      if (mountedRef.current) markOnline()
-    }, 90 * 1000)
+      setPresence(true)
+    }, 60 * 1000)
 
     // Mark offline on tab close
     const handleUnload = () => {
       navigator.sendBeacon?.('/api/presence-offline', JSON.stringify({ userId }))
     }
 
-    // Only mark offline on tab hidden, re-mark online on visible
+    // Tab visibility
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
-        markOffline()
+        setPresence(false)
       } else {
-        markOnline()
+        setPresence(true)
       }
     }
 
@@ -52,11 +48,11 @@ export function PresenceTracker({ userId }: { userId: string }) {
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      mountedRef.current = false
       if (intervalRef.current) clearInterval(intervalRef.current)
       window.removeEventListener('beforeunload', handleUnload)
       document.removeEventListener('visibilitychange', handleVisibility)
-      // Do NOT mark offline on component unmount — Next.js remounts on navigation
+      // Do NOT call setPresence(false) here — Next.js remounts components on navigation
+      initializedRef.current = false
     }
   }, [userId])
 
