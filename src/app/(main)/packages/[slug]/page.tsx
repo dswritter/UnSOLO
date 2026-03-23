@@ -19,10 +19,13 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 
 export default async function PackageDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ group?: string }>
 }) {
   const { slug } = await params
+  const { group: groupId } = await searchParams
   const supabase = await createClient()
 
   const { data: pkg } = await supabase
@@ -35,6 +38,25 @@ export default async function PackageDetailPage({
   if (!pkg) notFound()
 
   const package_ = pkg as Package
+
+  // Fetch group invite data if arriving via group invite link
+  let groupInvite: { id: string; travel_date: string; organizer_name: string } | null = null
+  if (groupId) {
+    const { data: gData } = await supabase
+      .from('group_bookings')
+      .select('id, travel_date, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+      .eq('id', groupId)
+      .eq('status', 'open')
+      .single()
+    if (gData) {
+      const org = gData.organizer as unknown as { full_name: string | null; username: string }
+      groupInvite = {
+        id: gData.id,
+        travel_date: gData.travel_date,
+        organizer_name: org?.full_name || org?.username || 'Someone',
+      }
+    }
+  }
 
   // Get reviews
   const { data: reviews } = await supabase
@@ -225,6 +247,7 @@ export default async function PackageDetailPage({
                       packageTitle={package_.title}
                       departureDates={package_.departure_dates}
                       durationDays={package_.duration_days}
+                      groupInvite={groupInvite}
                     />
                   ) : (
                     <div className="space-y-3">

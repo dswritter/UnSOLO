@@ -21,6 +21,12 @@ declare global {
   }
 }
 
+interface GroupInvite {
+  id: string
+  travel_date: string
+  organizer_name: string
+}
+
 interface BookingFormClientProps {
   packageId: string
   packageSlug: string
@@ -29,6 +35,7 @@ interface BookingFormClientProps {
   packageTitle?: string
   departureDates?: string[] | null
   durationDays?: number
+  groupInvite?: GroupInvite | null
 }
 
 export function BookingFormClient({
@@ -39,8 +46,9 @@ export function BookingFormClient({
   packageTitle,
   departureDates,
   durationDays,
+  groupInvite,
 }: BookingFormClientProps) {
-  const [tab, setTab] = useState<'fixed' | 'custom' | 'group'>('fixed')
+  const [tab, setTab] = useState<'fixed' | 'custom' | 'group'>(groupInvite ? 'fixed' : 'fixed')
   const [guests, setGuests] = useState(1)
   const [selectedDate, setSelectedDate] = useState('')
   const [loading, setLoading] = useState(false)
@@ -186,6 +194,89 @@ export function BookingFormClient({
       setContactEmail('')
     }
     setCustomLoading(false)
+  }
+
+  // ── Group Invite Mode ──────────────────────────────────
+  if (groupInvite) {
+    const inviteDate = new Date(groupInvite.travel_date)
+    const returnDate = durationDays ? new Date(inviteDate.getTime() + (durationDays - 1) * 86400000) : null
+
+    return (
+      <div className="space-y-4">
+        <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+        <div className="p-3 rounded-xl border border-primary/30 bg-primary/5">
+          <p className="text-sm font-bold text-primary mb-1">Group Trip Invite</p>
+          <p className="text-xs text-muted-foreground">
+            {groupInvite.organizer_name} invited you to this trip!
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Travel Date</span>
+            <span className="font-medium">
+              {formatDate(groupInvite.travel_date)}
+              {returnDate ? ` — ${formatDate(returnDate.toISOString())}` : ''}
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Guests</span>
+            <span className="font-medium">1</span>
+          </div>
+          <div className="flex justify-between text-sm border-t border-border pt-2">
+            <span className="font-bold">Your Share</span>
+            <span className="font-bold text-primary">{formatPrice(pricePerPersonPaise)}</span>
+          </div>
+        </div>
+
+        <Button
+          onClick={async () => {
+            setLoading(true)
+            const result = await createRazorpayOrder(packageId, groupInvite.travel_date, 1)
+            if ('error' in result) {
+              toast.error(result.error)
+              setLoading(false)
+              return
+            }
+            const options = {
+              key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+              amount: result.amount,
+              currency: 'INR',
+              name: 'UnSOLO',
+              description: packageTitle || 'Group Trip Payment',
+              order_id: result.orderId,
+              handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+                const confirmation = await confirmPayment(
+                  response.razorpay_order_id,
+                  response.razorpay_payment_id,
+                  response.razorpay_signature,
+                )
+                if ('error' in confirmation) {
+                  toast.error(confirmation.error)
+                } else {
+                  // Mark group member as paid
+                  const { completeGroupPayment } = await import('@/actions/group-booking')
+                  await completeGroupPayment(groupInvite.id)
+                  toast.success('Payment complete!')
+                  router.push('/bookings')
+                }
+              },
+              prefill: {},
+              theme: { color: '#D4A017' },
+            }
+            const rzp = new (window as unknown as { Razorpay: new (opts: unknown) => { open: () => void } }).Razorpay(options)
+            rzp.open()
+            setLoading(false)
+          }}
+          disabled={loading}
+          className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+          size="lg"
+        >
+          {loading ? 'Processing...' : 'Complete Payment'}
+        </Button>
+      </div>
+    )
   }
 
   return (

@@ -89,7 +89,14 @@ export function NotificationBell({ userId }: { userId: string }) {
     setUnreadCount(0)
   }
 
-  function handleClick(n: Notification) {
+  async function handleClick(n: Notification) {
+    // Mark as read immediately
+    if (!n.is_read) {
+      const supabase = createClient()
+      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
+      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
+      setUnreadCount(c => Math.max(0, c - 1))
+    }
     if (n.link) router.push(n.link)
     setOpen(false)
   }

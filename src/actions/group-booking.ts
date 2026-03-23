@@ -64,13 +64,13 @@ export async function createGroupBooking(
         amount_paise: perPerson,
       })
 
-      // Send notification
+      // Send notification with group invite link
       await supabase.rpc('create_notification', {
         p_user_id: friendId,
         p_type: 'group_invite',
         p_title: 'Group Trip Invite!',
         p_body: `${organizerName} invited you to ${pkg.title} on ${new Date(travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Your share: ${priceFormatted}`,
-        p_link: `/packages/${pkg.slug}`,
+        p_link: `/packages/${pkg.slug}?group=${group.id}`,
       })
     }
   }
@@ -220,5 +220,75 @@ export async function addExpenseToGroup(groupId: string, description: string, am
     })
   }
 
+  return { success: true }
+}
+
+export async function completeGroupPayment(groupId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Mark member as paid
+  await supabase
+    .from('group_members')
+    .update({ status: 'paid', paid_at: new Date().toISOString() })
+    .eq('group_id', groupId)
+    .eq('user_id', user.id)
+
+  // Get payer's name
+  const { data: payer } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const payerName = payer?.full_name || payer?.username || 'A member'
+
+  // Get group and package info
+  const { data: group } = await supabase
+    .from('group_bookings')
+    .select('organizer_id, package:packages(title)')
+    .eq('id', groupId)
+    .single()
+
+  if (group) {
+    const pkgTitle = (group.package as unknown as { title: string })?.title || 'the trip'
+
+    // Notify organizer
+    await supabase.rpc('create_notification', {
+      p_user_id: group.organizer_id,
+      p_type: 'split_payment',
+      p_title: 'Payment Received!',
+      p_body: `${payerName} completed their payment for ${pkgTitle}`,
+      p_link: '/bookings',
+    })
+
+    // Check if ALL members have paid
+    const { data: allMembers } = await supabase
+      .from('group_members')
+      .select('status')
+      .eq('group_id', groupId)
+      .neq('status', 'declined')
+
+    const allPaid = allMembers?.every(m => m.status === 'paid' || m.status === 'accepted')
+
+    if (allPaid) {
+      // Update group status to confirmed
+      await supabase
+        .from('group_bookings')
+        .update({ status: 'confirmed', updated_at: new Date().toISOString() })
+        .eq('id', groupId)
+
+      // Notify organizer that all payments are in
+      await supabase.rpc('create_notification', {
+        p_user_id: group.organizer_id,
+        p_type: 'booking',
+        p_title: 'All Payments Complete!',
+        p_body: `Everyone has paid for ${pkgTitle}. The group trip is confirmed!`,
+        p_link: '/bookings',
+      })
+    }
+  }
+
+  revalidatePath('/bookings')
   return { success: true }
 }
