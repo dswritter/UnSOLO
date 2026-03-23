@@ -13,7 +13,6 @@ export function PresenceTracker({ userId }: { userId: string }) {
 
     const supabase = createClient()
 
-    // Use the SECURITY DEFINER function — bypasses RLS reliably
     async function setPresence(online: boolean) {
       try {
         await supabase.rpc('upsert_presence', { p_user_id: userId, p_online: online })
@@ -25,23 +24,28 @@ export function PresenceTracker({ userId }: { userId: string }) {
     // Mark online immediately
     setPresence(true)
 
-    // Heartbeat every 60 seconds
+    // Heartbeat every 30 seconds — keeps last_seen fresh
     intervalRef.current = setInterval(() => {
-      setPresence(true)
-    }, 60 * 1000)
+      // Only heartbeat if tab is visible (don't count background tabs)
+      if (document.visibilityState === 'visible') {
+        setPresence(true)
+      }
+    }, 30 * 1000)
 
-    // Mark offline on tab close
+    // Mark offline ONLY on tab/window close (not on tab switch)
     const handleUnload = () => {
+      // sendBeacon is fire-and-forget, works even during page unload
       navigator.sendBeacon?.('/api/presence-offline', JSON.stringify({ userId }))
     }
 
-    // Tab visibility
+    // On tab becoming visible again, re-mark as online
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        setPresence(false)
-      } else {
+      if (document.visibilityState === 'visible') {
         setPresence(true)
       }
+      // NOTE: We intentionally do NOT mark offline on hidden —
+      // switching tabs doesn't mean the user left the site.
+      // The heartbeat stopping + 2min threshold handles stale sessions.
     }
 
     window.addEventListener('beforeunload', handleUnload)
@@ -51,7 +55,6 @@ export function PresenceTracker({ userId }: { userId: string }) {
       if (intervalRef.current) clearInterval(intervalRef.current)
       window.removeEventListener('beforeunload', handleUnload)
       document.removeEventListener('visibilitychange', handleVisibility)
-      // Do NOT call setPresence(false) here — Next.js remounts components on navigation
       initializedRef.current = false
     }
   }, [userId])

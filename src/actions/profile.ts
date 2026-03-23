@@ -447,13 +447,13 @@ export async function updatePresence(online: boolean) {
 
 export async function getOnlineUsers() {
   const supabase = await createClient()
-  // Users who were online in last 5 minutes
-  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  // Users who were online in last 2 minutes (matches heartbeat interval)
+  const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
   const { data } = await supabase
     .from('user_presence')
     .select('user_id, last_seen, is_online, profile:profiles(id, username, full_name, avatar_url)')
     .eq('is_online', true)
-    .gte('last_seen', fiveMinAgo)
+    .gte('last_seen', twoMinAgo)
     .limit(50)
 
   return data || []

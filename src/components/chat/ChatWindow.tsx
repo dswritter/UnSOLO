@@ -35,9 +35,16 @@ export interface ChatMemberProfile {
 }
 
 // ── Linkify helper ─────────────────────────────────────────
-function renderMessageContent(content: string) {
-  // First split by lines to preserve newlines, then linkify each line
+function renderMessageContent(content: string, isOwn: boolean = false) {
   const lines = content.split('\n')
+
+  // On sender bubble (amber bg), links must be dark; on receiver (dark bg), links are amber
+  const linkClass = isOwn
+    ? 'text-black underline font-semibold hover:text-black/70 break-all'
+    : 'text-primary underline hover:text-primary/80 break-all'
+  const pkgBtnClass = isOwn
+    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/15 text-black text-xs font-semibold hover:bg-black/25 transition-colors'
+    : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
   return lines.map((line, lineIdx) => {
     const urlRegex = /(https?:\/\/[^\s<]+)/g
@@ -49,26 +56,14 @@ function renderMessageContent(content: string) {
         const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
         if (pkgMatch) {
           return (
-            <Link
-              key={key}
-              href={`/packages/${pkgMatch[1]}`}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors"
-              onClick={e => e.stopPropagation()}
-            >
+            <Link key={key} href={`/packages/${pkgMatch[1]}`} className={pkgBtnClass} onClick={e => e.stopPropagation()}>
               <Package className="h-3 w-3" />
               View Trip Package
             </Link>
           )
         }
         return (
-          <a
-            key={key}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline hover:text-primary/80 break-all"
-            onClick={e => e.stopPropagation()}
-          >
+          <a key={key} href={part} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={e => e.stopPropagation()}>
             {part.length > 60 ? part.slice(0, 57) + '...' : part}
           </a>
         )
@@ -110,13 +105,13 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
     async function checkPresence() {
       const supabase = (await import('@/lib/supabase/client')).createClient()
-      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
       const { data } = await supabase
         .from('user_presence')
         .select('user_id')
         .in('user_id', memberIds)
         .eq('is_online', true)
-        .gte('last_seen', fiveMinAgo)
+        .gte('last_seen', twoMinAgo)
       if (data) {
         setDbOnlineUsers(new Set(data.map(d => d.user_id)))
       }
@@ -225,7 +220,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   return (
-    <div className="flex flex-col h-full bg-black border-l border-border">
+    <div className="flex flex-col h-full bg-black border-l border-border relative">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>
@@ -461,7 +456,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
-function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }) {
+function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
 
@@ -504,7 +499,7 @@ function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: 
               : 'bg-card border border-border rounded-tl-sm'
           }`}
         >
-          {renderMessageContent(message.content)}
+          {renderMessageContent(message.content, isOwn)}
         </div>
         <span className="text-xs text-muted-foreground">{timeAgo(message.created_at)}</span>
       </div>

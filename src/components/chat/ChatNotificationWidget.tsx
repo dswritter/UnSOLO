@@ -135,7 +135,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const activeRoomNotifications = activeRoom ? (roomMap.get(activeRoom.id) || []) : []
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)]">
       {minimized ? (
         <button
           onClick={() => setMinimized(false)}
@@ -147,7 +147,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           </span>
         </button>
       ) : (
-        <div className="w-[400px] bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 bg-secondary/50 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold flex items-center gap-2">
@@ -163,6 +163,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
               <Link href={activeRoom ? `/chat/${activeRoom.id}` : '/chat'} className="text-muted-foreground hover:text-white p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
+              <button onClick={() => { setMinimized(true) }} className="text-muted-foreground hover:text-white p-1" title="Minimize">
+                <Minimize2 className="h-3.5 w-3.5" />
+              </button>
               <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-white p-1">
                 <X className="h-3.5 w-3.5" />
               </button>

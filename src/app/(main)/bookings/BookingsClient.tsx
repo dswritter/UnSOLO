@@ -9,8 +9,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight } from 'lucide-react'
 import { formatPrice, formatDate, formatDateRange } from '@/lib/utils'
 import { submitReview } from '@/actions/profile'
+import { joinGroupByInvite } from '@/actions/group-booking'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { Booking } from '@/types'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,6 +31,9 @@ export function BookingsClient({ bookings, reviewedBookingIds }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewed, setReviewed] = useState<Set<string>>(new Set(reviewedBookingIds))
+  const [joinCode, setJoinCode] = useState('')
+  const [joining, setJoining] = useState(false)
+  const router = useRouter()
 
   // Review form state
   const [ratingDest, setRatingDest] = useState(0)
@@ -89,6 +94,41 @@ export function BookingsClient({ bookings, reviewedBookingIds }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* Join Group Trip */}
+      <div className="p-4 rounded-xl border border-border bg-card/50">
+        <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          Join a Group Trip
+        </h3>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (!joinCode.trim()) return
+            setJoining(true)
+            const result = await joinGroupByInvite(joinCode.trim())
+            if ('error' in result) {
+              toast.error(result.error)
+            } else {
+              toast.success('Joined group trip!')
+              setJoinCode('')
+              router.refresh()
+            }
+            setJoining(false)
+          }}
+          className="flex gap-2"
+        >
+          <Input
+            value={joinCode}
+            onChange={e => setJoinCode(e.target.value)}
+            placeholder="Enter invite code..."
+            className="bg-secondary border-border flex-1"
+          />
+          <Button type="submit" disabled={joining || !joinCode.trim()} className="bg-primary text-black font-bold hover:bg-primary/90">
+            {joining ? '...' : 'Join'}
+          </Button>
+        </form>
+      </div>
+
       {upcoming.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4">Upcoming Trips</h2>

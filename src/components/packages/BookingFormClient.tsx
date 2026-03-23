@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createRazorpayOrder, confirmPayment, submitCustomDateRequest } from '@/actions/booking'
+import { createGroupBooking } from '@/actions/group-booking'
 import { formatPrice, formatDate, formatDateRange, validateIndianPhone, getMaxDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import Script from 'next/script'
-import { Calendar, Phone, Mail, Users, Send } from 'lucide-react'
+import { Calendar, Phone, Mail, Users, Send, Copy, Check } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -38,10 +39,17 @@ export function BookingFormClient({
   departureDates,
   durationDays,
 }: BookingFormClientProps) {
-  const [tab, setTab] = useState<'fixed' | 'custom'>('fixed')
+  const [tab, setTab] = useState<'fixed' | 'custom' | 'group'>('fixed')
   const [guests, setGuests] = useState(1)
   const [selectedDate, setSelectedDate] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Group booking state
+  const [groupDate, setGroupDate] = useState('')
+  const [groupMaxMembers, setGroupMaxMembers] = useState(4)
+  const [groupLoading, setGroupLoading] = useState(false)
+  const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [codeCopied, setCodeCopied] = useState(false)
   const router = useRouter()
 
   // Custom date request fields
@@ -161,11 +169,20 @@ export function BookingFormClient({
             tab === 'custom' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
           }`}
         >
-          Request Custom
+          Custom
+        </button>
+        <button
+          onClick={() => setTab('group')}
+          className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
+            tab === 'group' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          <Users className="h-3 w-3 inline mr-1" />
+          Group
         </button>
       </div>
 
-      {tab === 'fixed' ? (
+      {tab === 'fixed' && (
         <>
           {/* Departure date selection */}
           <div className="space-y-2">
@@ -231,7 +248,9 @@ export function BookingFormClient({
             Secure payment via Razorpay. UPI, Cards, Netbanking accepted.
           </p>
         </>
-      ) : (
+      )}
+
+      {tab === 'custom' && (
         /* Custom date request tab */
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
@@ -305,6 +324,128 @@ export function BookingFormClient({
           <p className="text-xs text-muted-foreground text-center">
             No payment required. We&apos;ll contact you to confirm availability.
           </p>
+        </div>
+      )}
+
+      {tab === 'group' && (
+        /* Group booking tab */
+        <div className="space-y-3">
+          {inviteCode ? (
+            <div className="space-y-3">
+              <div className="text-center p-4 rounded-xl border border-green-500/30 bg-green-500/10">
+                <p className="text-green-400 font-bold text-sm mb-2">Group Trip Created!</p>
+                <p className="text-xs text-muted-foreground mb-3">Share this invite code with your friends:</p>
+                <div className="flex items-center justify-center gap-2">
+                  <code className="text-xl font-mono font-bold text-primary bg-secondary px-4 py-2 rounded-lg tracking-widest">
+                    {inviteCode}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(inviteCode)
+                      setCodeCopied(true)
+                      setTimeout(() => setCodeCopied(false), 2000)
+                    }}
+                    className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+                    title="Copy code"
+                  >
+                    {codeCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Friends can join from their My Trips page using this code. Each member pays {formatPrice(pricePerPersonPaise)} individually.
+                </p>
+              </div>
+              <Button
+                onClick={() => router.push('/bookings')}
+                className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+              >
+                Go to My Trips
+              </Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Create a group trip and invite friends. Everyone pays their share individually — like Splitwise for travel!
+              </p>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-primary" /> Travel Date
+                </label>
+                {futureDates.length > 0 ? (
+                  <select
+                    value={groupDate}
+                    onChange={e => setGroupDate(e.target.value)}
+                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                  >
+                    <option value="">Select a date</option>
+                    {futureDates.map(d => (
+                      <option key={d} value={d}>
+                        {durationDays ? formatDateRange(d, durationDays) : formatDate(d)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input
+                    type="date"
+                    min={today}
+                    max={maxDate}
+                    value={groupDate}
+                    onChange={e => setGroupDate(e.target.value)}
+                    className="bg-secondary border-border"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-primary" /> Max Group Members
+                </label>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGroupMaxMembers(Math.max(2, groupMaxMembers - 1))}>-</Button>
+                  <span className="font-bold text-lg min-w-[2rem] text-center">{groupMaxMembers}</span>
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGroupMaxMembers(Math.min(maxGroupSize, groupMaxMembers + 1))}>+</Button>
+                </div>
+              </div>
+
+              <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Per person</span>
+                  <span>{formatPrice(pricePerPersonPaise)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Max members</span>
+                  <span>{groupMaxMembers}</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={async () => {
+                  if (!groupDate) { toast.error('Select a travel date'); return }
+                  setGroupLoading(true)
+                  const result = await createGroupBooking(packageId, groupDate, groupMaxMembers)
+                  if ('error' in result) {
+                    toast.error(result.error)
+                  } else {
+                    setInviteCode(result.inviteCode!)
+                    toast.success('Group trip created!')
+                  }
+                  setGroupLoading(false)
+                }}
+                disabled={groupLoading || !groupDate}
+                className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                size="lg"
+              >
+                {groupLoading ? 'Creating...' : (
+                  <><Users className="mr-2 h-4 w-4" /> Create Group Trip</>
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                No payment now. Each member pays when they join.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>
