@@ -25,12 +25,41 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Record<string, string>>({})
+  const [searchUser, setSearchUser] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterYear, setFilterYear] = useState('')
 
-  const filtered = filter === 'all'
+  // Apply all filters
+  let filtered = filter === 'all'
     ? initialBookings
     : filter === 'cancellation_requested'
     ? initialBookings.filter(b => b.cancellation_status === 'requested')
     : initialBookings.filter(b => b.status === filter)
+
+  // Username/name search
+  if (searchUser.trim()) {
+    const q = searchUser.toLowerCase()
+    filtered = filtered.filter(b => {
+      const usr = b.user as Profile | null
+      return usr?.username?.toLowerCase().includes(q) || usr?.full_name?.toLowerCase().includes(q) || usr?.email?.toLowerCase().includes(q)
+    })
+  }
+
+  // Month filter
+  if (filterMonth) {
+    filtered = filtered.filter(b => {
+      const d = new Date(b.travel_date)
+      return d.getMonth() === parseInt(filterMonth)
+    })
+  }
+
+  // Year filter
+  if (filterYear) {
+    filtered = filtered.filter(b => {
+      const d = new Date(b.travel_date)
+      return d.getFullYear() === parseInt(filterYear)
+    })
+  }
 
   function handleProcessCancellation(bookingId: string, approve: boolean, refundPaise?: number, note?: string) {
     startTransition(async () => {
@@ -125,6 +154,46 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
             )}
           </button>
         ))}
+      </div>
+
+      {/* Advanced filters */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Search user/email..."
+          value={searchUser}
+          onChange={e => setSearchUser(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary w-44"
+        />
+        <select
+          value={filterMonth}
+          onChange={e => setFilterMonth(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+        >
+          <option value="">All Months</option>
+          {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+            <option key={i} value={i}>{m}</option>
+          ))}
+        </select>
+        <select
+          value={filterYear}
+          onChange={e => setFilterYear(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+        >
+          <option value="">All Years</option>
+          {[2025, 2026, 2027, 2028].map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </select>
+        {(searchUser || filterMonth || filterYear) && (
+          <button
+            onClick={() => { setSearchUser(''); setFilterMonth(''); setFilterYear('') }}
+            className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300"
+          >
+            Clear filters
+          </button>
+        )}
+        <span className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} results</span>
       </div>
 
       {/* Bookings list */}

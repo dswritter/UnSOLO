@@ -64,5 +64,56 @@ export async function POST(request: Request) {
       .eq('stripe_session_id', payment.order_id)
   }
 
+  // Auto-update refund status when Razorpay processes refund
+  if (event.event === 'refund.processed') {
+    const refund = event.payload.refund.entity
+    const paymentId = refund.payment_id
+
+    // Find booking by payment ID
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, user_id, package:packages(title)')
+      .eq('stripe_payment_intent', paymentId)
+      .single()
+
+    if (booking) {
+      // Mark refund as completed
+      await supabase
+        .from('bookings')
+        .update({
+          refund_status: 'completed',
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.id)
+
+      const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+
+      // Notify customer
+      await supabase.from('notifications').insert({
+        user_id: booking.user_id,
+        type: 'booking',
+        title: 'Refund Completed',
+        body: `Your refund for ${pkgTitle} has been processed. It will reflect in your account within 5-7 business days.`,
+        link: '/bookings',
+      })
+
+      // Notify admins
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin'])
+      for (const admin of admins || []) {
+        await supabase.from('notifications').insert({
+          user_id: admin.id,
+          type: 'booking',
+          title: 'Refund Processed',
+          body: `Razorpay processed refund for ${pkgTitle} (₹${(refund.amount / 100).toLocaleString('en-IN')})`,
+          link: '/admin/bookings',
+        })
+      }
+    }
+  }
+
   return NextResponse.json({ received: true })
 }

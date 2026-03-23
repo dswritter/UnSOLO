@@ -53,11 +53,17 @@ export async function createGroupBooking(
   const organizerName = organizer?.full_name || organizer?.username || 'Someone'
   const priceFormatted = '₹' + (perPerson / 100).toLocaleString('en-IN')
 
-  // Add friends as invited members and notify them
+  // Add friends as invited members and notify them (use service role to bypass RLS)
   if (friendIds && friendIds.length > 0) {
+    const { createClient: createSC } = await import('@supabase/supabase-js')
+    const serviceSupabase = createSC(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+
     for (const friendId of friendIds) {
-      // Add as group member
-      await supabase.from('group_members').insert({
+      // Add as group member (service role bypasses auth.uid() != friendId check)
+      await serviceSupabase.from('group_members').insert({
         group_id: group.id,
         user_id: friendId,
         status: 'invited',
@@ -65,12 +71,12 @@ export async function createGroupBooking(
       })
 
       // Send notification with group invite link
-      await supabase.rpc('create_notification', {
-        p_user_id: friendId,
-        p_type: 'group_invite',
-        p_title: 'Group Trip Invite!',
-        p_body: `${organizerName} invited you to ${pkg.title} on ${new Date(travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Your share: ${priceFormatted}`,
-        p_link: `/packages/${pkg.slug}?group=${group.id}`,
+      await serviceSupabase.from('notifications').insert({
+        user_id: friendId,
+        type: 'group_invite',
+        title: 'Group Trip Invite!',
+        body: `${organizerName} invited you to ${pkg.title} on ${new Date(travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Your share: ${priceFormatted}`,
+        link: `/packages/${pkg.slug}?group=${group.id}`,
       })
     }
   }

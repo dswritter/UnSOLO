@@ -17,6 +17,13 @@ export async function createRazorpayOrder(
     return { error: 'Not authenticated' }
   }
 
+  // Get user profile for prefill
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, phone_number')
+    .eq('id', user.id)
+    .single()
+
   const { data: pkg } = await supabase
     .from('packages')
     .select('*, destination:destinations(*)')
@@ -27,12 +34,25 @@ export async function createRazorpayOrder(
     return { error: 'Package not found' }
   }
 
-  // Server-side date validation
+  // Server-side date validation — must be at least 1 day in the future
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const selectedDate = new Date(travelDate)
   if (selectedDate <= today) {
     return { error: 'Travel date must be in the future' }
+  }
+
+  // Check if max bookings reached for this date
+  if (pkg.max_group_size) {
+    const { count } = await supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('package_id', packageId)
+      .eq('travel_date', travelDate)
+      .in('status', ['pending', 'confirmed', 'completed'])
+    if ((count || 0) + guests > pkg.max_group_size) {
+      return { error: `Only ${pkg.max_group_size - (count || 0)} spots left for this date` }
+    }
   }
   const maxDate = new Date()
   maxDate.setFullYear(maxDate.getFullYear() + 2)
@@ -79,6 +99,8 @@ export async function createRazorpayOrder(
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
       email: user.email || '',
+      contact: profile?.phone_number || '',
+      name: profile?.full_name || '',
     },
     notes: {
       userId: user.id,
@@ -424,19 +446,24 @@ export async function requestCancellation(bookingId: string, reason: string) {
     .single()
   const customerName = customerProfile?.full_name || customerProfile?.username || 'A user'
 
-  // Notify ALL admins and staff
-  const { data: admins } = await supabase
+  // Notify ALL admins and staff using service role (bypasses RLS)
+  const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+  const serviceSupabase = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  const { data: admins } = await serviceSupabase
     .from('profiles')
     .select('id')
     .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
 
   const pkgTitle = (booking.package as unknown as { title: string })?.title || 'a trip'
   for (const admin of admins || []) {
-    // Direct insert instead of RPC for reliability
-    await supabase.from('notifications').insert({
+    await serviceSupabase.from('notifications').insert({
       user_id: admin.id,
       type: 'booking',
-      title: '⚠️ Cancellation Request',
+      title: 'Cancellation Request',
       body: `${customerName} requested cancellation for ${pkgTitle}. Review and take action.`,
       link: '/admin/bookings',
     })
