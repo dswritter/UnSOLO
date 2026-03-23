@@ -509,8 +509,7 @@ export default function EditProfilePage() {
           </CardContent>
         </Card>
 
-        {/* ── Refer & Earn ───────────────────────────────── */}
-        <ReferralDashboard />
+        {/* Refer & Earn moved to /referrals page */}
       </div>
     </div>
   )

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users } from 'lucide-react'
+import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users, Gift, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -83,11 +83,17 @@ export function Navbar({ user }: NavbarProps) {
                       <p className="text-xs text-muted-foreground">@{user.username}</p>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push('/profile')}>
+                    <DropdownMenuItem onClick={() => router.push(`/profile/${user.username}`)}>
                       <User className="mr-2 h-4 w-4" /> My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/profile')}>
+                      <Pencil className="mr-2 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => router.push('/bookings')}>
                       <BookOpen className="mr-2 h-4 w-4" /> My Trips
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => router.push('/referrals')}>
+                      <Gift className="mr-2 h-4 w-4 text-primary" /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
                       <DropdownMenuItem onClick={() => router.push('/admin')}>
