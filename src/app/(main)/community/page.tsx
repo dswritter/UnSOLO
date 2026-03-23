@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { searchCommunityMembers } from '@/actions/profile'
+import { useState, useEffect } from 'react'
+import { searchCommunityMembers, getFrequentContacts } from '@/actions/profile'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
-import { Search, MapPin, Users } from 'lucide-react'
+import { Search, MapPin, Users, Clock, MessageCircle } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -16,6 +16,43 @@ type Member = {
   avatar_url: string | null
   bio: string | null
   location: string | null
+  messageCount?: number
+}
+
+function MemberCard({ member }: { member: Member }) {
+  return (
+    <Link href={`/profile/${member.username}`}>
+      <Card className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer p-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={member.avatar_url || ''} />
+            <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+              {getInitials(member.full_name || member.username)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium">{member.full_name || member.username}</div>
+            <div className="text-xs text-muted-foreground">@{member.username}</div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {member.location && (
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> {member.location}
+              </div>
+            )}
+            {member.messageCount && (
+              <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <MessageCircle className="h-2.5 w-2.5" /> {member.messageCount} msgs
+              </div>
+            )}
+          </div>
+        </div>
+        {member.bio && (
+          <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{member.bio}</p>
+        )}
+      </Card>
+    </Link>
+  )
 }
 
 export default function CommunityPage() {
@@ -23,6 +60,22 @@ export default function CommunityPage() {
   const [results, setResults] = useState<Member[]>([])
   const [searched, setSearched] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [recentContacts, setRecentContacts] = useState<Member[]>([])
+  const [frequentContacts, setFrequentContacts] = useState<Member[]>([])
+  const [contactsLoading, setContactsLoading] = useState(true)
+
+  // Load frequent & recent contacts on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const { recent, frequent } = await getFrequentContacts()
+        setRecentContacts(recent as Member[])
+        setFrequentContacts(frequent as Member[])
+      } catch { /* ignore */ }
+      setContactsLoading(false)
+    }
+    load()
+  }, [])
 
   async function handleSearch(value: string) {
     setQuery(value)
@@ -59,7 +112,7 @@ export default function CommunityPage() {
           />
         </div>
 
-        {/* Results */}
+        {/* Search Results */}
         {loading && (
           <div className="text-center py-8 text-muted-foreground text-sm">Searching...</div>
         )}
@@ -74,38 +127,53 @@ export default function CommunityPage() {
         {!loading && results.length > 0 && (
           <div className="space-y-3">
             {results.map(member => (
-              <Link key={member.id} href={`/profile/${member.username}`}>
-                <Card className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={member.avatar_url || ''} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-                        {getInitials(member.full_name || member.username)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium">{member.full_name || member.username}</div>
-                      <div className="text-xs text-muted-foreground">@{member.username}</div>
-                    </div>
-                    {member.location && (
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {member.location}
-                      </div>
-                    )}
-                  </div>
-                  {member.bio && (
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-1">{member.bio}</p>
-                  )}
-                </Card>
-              </Link>
+              <MemberCard key={member.id} member={member} />
             ))}
           </div>
         )}
 
+        {/* Frequent & Recent — only show when NOT searching */}
         {!searched && !loading && (
-          <div className="text-center py-16">
-            <Users className="h-16 w-16 text-primary/20 mx-auto mb-4" />
-            <p className="text-muted-foreground">Type at least 2 characters to search for community members</p>
+          <div className="space-y-8">
+            {/* Frequent Contacts */}
+            {!contactsLoading && frequentContacts.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-primary" /> Frequent Contacts
+                </h2>
+                <div className="space-y-2">
+                  {frequentContacts.map(member => (
+                    <MemberCard key={member.id} member={member} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Contacts */}
+            {!contactsLoading && recentContacts.length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" /> Recent Conversations
+                </h2>
+                <div className="space-y-2">
+                  {recentContacts.map(member => (
+                    <MemberCard key={member.id} member={member} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {contactsLoading && (
+              <div className="text-center py-8 text-muted-foreground text-sm">Loading contacts...</div>
+            )}
+
+            {!contactsLoading && frequentContacts.length === 0 && recentContacts.length === 0 && (
+              <div className="text-center py-16">
+                <Users className="h-16 w-16 text-primary/20 mx-auto mb-4" />
+                <p className="text-muted-foreground">Start chatting with members to see your contacts here</p>
+                <p className="text-muted-foreground text-sm mt-1">Or search above to find fellow travelers</p>
+              </div>
+            )}
           </div>
         )}
       </div>

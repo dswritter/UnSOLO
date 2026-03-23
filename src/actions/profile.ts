@@ -487,3 +487,76 @@ export async function searchCommunityMembers(query: string) {
 
   return data || []
 }
+
+// ── Frequent & Recent Contacts ──────────────────────────────
+
+export async function getFrequentContacts() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { recent: [], frequent: [] }
+
+  // Get all my messages in DM rooms (most recent first)
+  const { data: recentDMs } = await supabase
+    .from('messages')
+    .select('room_id, created_at, chat_room:chat_rooms!inner(type)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  const dmMessages = (recentDMs || []).filter(
+    (m) => (m.chat_room as unknown as { type: string })?.type === 'direct'
+  )
+
+  // Unique room IDs ordered by most recent
+  const seenRooms = new Set<string>()
+  const recentRoomIds: string[] = []
+  const roomMessageCount: Record<string, number> = {}
+  for (const m of dmMessages) {
+    roomMessageCount[m.room_id] = (roomMessageCount[m.room_id] || 0) + 1
+    if (!seenRooms.has(m.room_id)) {
+      seenRooms.add(m.room_id)
+      recentRoomIds.push(m.room_id)
+    }
+  }
+
+  // Helper: get the other person in a DM room
+  async function getPartner(roomId: string) {
+    const { data: members } = await supabase
+      .from('chat_room_members')
+      .select('user_id, profile:profiles(id, username, full_name, avatar_url, bio, location)')
+      .eq('room_id', roomId)
+      .neq('user_id', user!.id)
+      .limit(1)
+    if (members && members.length > 0) {
+      return members[0].profile as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null; bio: string | null; location: string | null }
+    }
+    return null
+  }
+
+  // Recent contacts (up to 8)
+  const recentContacts: { id: string; username: string; full_name: string | null; avatar_url: string | null; bio: string | null; location: string | null }[] = []
+  const seenIds = new Set<string>()
+  for (const roomId of recentRoomIds.slice(0, 8)) {
+    const p = await getPartner(roomId)
+    if (p && !seenIds.has(p.id)) {
+      seenIds.add(p.id)
+      recentContacts.push(p)
+    }
+  }
+
+  // Frequent contacts (sorted by message count, up to 8)
+  const frequentRoomIds = Object.entries(roomMessageCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([roomId]) => roomId)
+
+  const frequentContacts: { id: string; username: string; full_name: string | null; avatar_url: string | null; bio: string | null; location: string | null; messageCount: number }[] = []
+  for (const roomId of frequentRoomIds) {
+    const p = await getPartner(roomId)
+    if (p && !frequentContacts.find(c => c.id === p.id)) {
+      frequentContacts.push({ ...p, messageCount: roomMessageCount[roomId] })
+    }
+  }
+
+  return { recent: recentContacts, frequent: frequentContacts }
+}
