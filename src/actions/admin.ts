@@ -360,6 +360,111 @@ export async function getStaffMembers() {
   return data || []
 }
 
+// ── Package Management ───────────────────────────────────────
+
+export async function getAdminPackages() {
+  const { supabase } = await requireStaff()
+
+  const { data } = await supabase
+    .from('packages')
+    .select('*, destination:destinations(*)')
+    .order('created_at', { ascending: false })
+
+  return data || []
+}
+
+export async function getDestinations() {
+  const { supabase } = await requireStaff()
+  const { data } = await supabase.from('destinations').select('*').order('name')
+  return data || []
+}
+
+export async function createPackage(formData: {
+  title: string
+  slug: string
+  destination_id: string
+  description: string
+  short_description: string
+  price_paise: number
+  duration_days: number
+  max_group_size: number
+  difficulty: string
+  includes: string[]
+  images: string[]
+  departure_dates: string[]
+  is_featured: boolean
+}) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase.from('packages').insert({
+    ...formData,
+    is_active: true,
+  })
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function updatePackage(
+  packageId: string,
+  updates: {
+    title?: string
+    slug?: string
+    destination_id?: string
+    description?: string
+    short_description?: string
+    price_paise?: number
+    duration_days?: number
+    max_group_size?: number
+    difficulty?: string
+    includes?: string[]
+    images?: string[]
+    departure_dates?: string[]
+    is_featured?: boolean
+    is_active?: boolean
+  },
+) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('packages')
+    .update(updates)
+    .eq('id', packageId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function togglePackageActive(packageId: string, isActive: boolean) {
+  const { supabase } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('packages')
+    .update({ is_active: isActive })
+    .eq('id', packageId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function createDestination(name: string, state: string, description?: string, imageUrl?: string) {
+  const { supabase } = await requireAdmin()
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+  const { error } = await supabase.from('destinations').insert({
+    name,
+    state,
+    country: 'India',
+    slug,
+    description: description || null,
+    image_url: imageUrl || null,
+  })
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
 // ── Check admin access ───────────────────────────────────────
 
 export async function checkAdminAccess() {

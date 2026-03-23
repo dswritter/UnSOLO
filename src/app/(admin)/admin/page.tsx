@@ -48,6 +48,13 @@ export default async function AdminDashboardPage() {
           <p className="text-sm text-zinc-400">Review and respond to custom date requests</p>
         </a>
         <a
+          href="/admin/packages"
+          className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 transition-colors"
+        >
+          <h3 className="font-semibold mb-1">Manage Packages →</h3>
+          <p className="text-sm text-zinc-400">Create, edit, activate/deactivate travel packages & destinations</p>
+        </a>
+        <a
           href="/admin/team"
           className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 transition-colors"
         >
