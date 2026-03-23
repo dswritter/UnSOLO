@@ -45,7 +45,6 @@ export function NavigationProgress() {
       }
 
       // Check for dropdown menu items / buttons that trigger navigation
-      // These use router.push() so we monkey-patch it
       const menuItem = target.closest('[role="menuitem"]')
       if (menuItem) {
         startProgress()
@@ -53,8 +52,18 @@ export function NavigationProgress() {
       }
     }
 
+    // Monkey-patch pushState to catch router.push() calls
+    const origPush = history.pushState.bind(history)
+    history.pushState = function(...args) {
+      startProgress()
+      return origPush(...args)
+    }
+
     document.addEventListener('click', handleClick, true) // capture phase
-    return () => document.removeEventListener('click', handleClick, true)
+    return () => {
+      document.removeEventListener('click', handleClick, true)
+      history.pushState = origPush
+    }
   }, [pathname, startProgress])
 
   if (progress === 0) return null

@@ -361,53 +361,69 @@ export async function requestGroupCancellation(groupId: string, reason: string) 
 
   const { data: group } = await supabase
     .from('group_bookings')
-    .select('status, package:packages(title)')
+    .select('status, package_id, travel_date, package:packages(title)')
     .eq('id', groupId)
     .single()
 
   if (!group) return { error: 'Group not found' }
   if (group.status === 'cancelled') return { error: 'Already cancelled' }
 
-  // Update group status
-  const { error } = await supabase
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  // Get all group members
+  const { data: members } = await supabase
+    .from('group_members')
+    .select('user_id')
+    .eq('group_id', groupId)
+    .neq('status', 'declined')
+
+  // Mark cancellation_status on ALL individual bookings for this group
+  // so they appear in admin "Cancellation Requested" filter
+  for (const m of members || []) {
+    await svcSupabase
+      .from('bookings')
+      .update({
+        cancellation_status: 'requested',
+        cancellation_reason: `Group cancellation by member. Reason: ${reason}`,
+        cancellation_requested_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', m.user_id)
+      .eq('package_id', group.package_id)
+      .eq('travel_date', group.travel_date)
+  }
+
+  // Update group status to cancellation_requested (not directly cancelled)
+  await supabase
     .from('group_bookings')
     .update({ status: 'cancelled', updated_at: new Date().toISOString() })
     .eq('id', groupId)
 
-  if (error) return { error: error.message }
-
-  // Notify admins
-  const { createClient: createSC } = await import('@supabase/supabase-js')
-  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
+  // Get user profile for notifications
   const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
   const customerName = profile?.full_name || profile?.username || 'A user'
   const pkgTitle = (group.package as unknown as { title: string })?.title || 'a group trip'
 
+  // Notify admins
   const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
   for (const admin of admins || []) {
     await svcSupabase.from('notifications').insert({
       user_id: admin.id,
       type: 'booking',
       title: 'Group Cancellation Request',
-      body: `${customerName} requested cancellation for ${pkgTitle}. Reason: ${reason}`,
+      body: `${customerName} requested cancellation for group trip: ${pkgTitle}. Reason: ${reason}`,
       link: '/admin/bookings',
     })
   }
 
-  // Notify all group members
-  const { data: members } = await supabase
-    .from('group_members')
-    .select('user_id')
-    .eq('group_id', groupId)
-    .neq('user_id', user.id)
-
-  for (const m of members || []) {
+  // Notify all other group members
+  for (const m of (members || []).filter(m => m.user_id !== user.id)) {
     await svcSupabase.from('notifications').insert({
       user_id: m.user_id,
       type: 'booking',
-      title: 'Group Trip Cancellation',
-      body: `${customerName} requested cancellation for ${pkgTitle}. Refund will be processed.`,
+      title: 'Group Trip Cancellation Requested',
+      body: `${customerName} requested cancellation for ${pkgTitle}. Admin will review and process refund.`,
       link: '/bookings',
     })
   }
