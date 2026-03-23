@@ -281,6 +281,61 @@ export async function confirmPayment(
     }
   } catch { /* non-critical */ }
 
+  // ── Referral Credit: Credit referrer on first booking ────────
+  try {
+    const { createClient: createSC2 } = await import('@supabase/supabase-js')
+    const svcSupa = createSC2(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { REFERRAL_CREDIT_PAISE } = await import('@/lib/constants')
+
+    // Check if this is user's first confirmed booking
+    const { count: confirmedCount } = await svcSupa
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'confirmed')
+
+    if (confirmedCount === 1) {
+      // First booking! Check if user was referred
+      const { data: userProfile } = await svcSupa
+        .from('profiles')
+        .select('referred_by')
+        .eq('id', user.id)
+        .single()
+
+      if (userProfile?.referred_by) {
+        // Credit the referrer
+        const { data: referrer } = await svcSupa
+          .from('profiles')
+          .select('referral_credits_paise')
+          .eq('id', userProfile.referred_by)
+          .single()
+
+        await svcSupa
+          .from('profiles')
+          .update({
+            referral_credits_paise: (referrer?.referral_credits_paise || 0) + REFERRAL_CREDIT_PAISE,
+          })
+          .eq('id', userProfile.referred_by)
+
+        // Update referral status
+        await svcSupa
+          .from('referrals')
+          .update({ status: 'credited', credited_at: new Date().toISOString(), booking_id: booking.id })
+          .eq('referrer_id', userProfile.referred_by)
+          .eq('referred_id', user.id)
+
+        // Notify referrer
+        await svcSupa.from('notifications').insert({
+          user_id: userProfile.referred_by,
+          type: 'booking',
+          title: 'Referral Reward!',
+          body: `Your friend completed their first trip! You earned ₹${REFERRAL_CREDIT_PAISE / 100}!`,
+          link: '/profile',
+        })
+      }
+    }
+  } catch { /* non-critical */ }
+
   return {
     success: true,
     confirmationCode,

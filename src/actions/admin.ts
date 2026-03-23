@@ -531,3 +531,128 @@ export async function checkAdminAccess() {
     role,
   }
 }
+
+// ── Discount Management ──────────────────────────────────────
+
+export async function getDiscountOffers() {
+  const { supabase } = await requireAdmin()
+  const { data } = await supabase
+    .from('discount_offers')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return data || []
+}
+
+export async function createDiscountOffer(formData: FormData) {
+  const { supabase, user } = await requireAdmin()
+
+  const name = formData.get('name') as string
+  const type = formData.get('type') as string
+  const discountPaise = parseInt(formData.get('discountPaise') as string)
+  const minTrips = parseInt(formData.get('minTrips') as string) || 0
+  const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim() || null
+  const maxUses = formData.get('maxUses') ? parseInt(formData.get('maxUses') as string) : null
+  const validUntil = formData.get('validUntil') as string || null
+
+  if (!name || !type || !discountPaise || discountPaise <= 0) {
+    return { error: 'Name, type, and discount amount are required' }
+  }
+
+  const { error } = await supabase.from('discount_offers').insert({
+    name,
+    type,
+    discount_paise: discountPaise,
+    min_trips: minTrips,
+    promo_code: promoCode,
+    max_uses: maxUses,
+    valid_until: validUntil || null,
+    created_by: user.id,
+  })
+
+  if (error) return { error: error.message }
+
+  await logAuditEvent(user.id, 'discount_created', 'discount_offer', name, { type, discountPaise })
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/discounts')
+  return { success: true }
+}
+
+export async function toggleDiscountOffer(offerId: string, isActive: boolean) {
+  const { supabase, user } = await requireAdmin()
+
+  await supabase
+    .from('discount_offers')
+    .update({ is_active: isActive })
+    .eq('id', offerId)
+
+  await logAuditEvent(user.id, isActive ? 'discount_activated' : 'discount_deactivated', 'discount_offer', offerId)
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/discounts')
+  return { success: true }
+}
+
+export async function grantUserCredits(username: string, amountPaise: number, reason: string) {
+  const { user } = await requireAdmin()
+  const svcSupabase = await createServiceClient()
+
+  const { data: targetUser } = await svcSupabase
+    .from('profiles')
+    .select('id, referral_credits_paise, full_name')
+    .ilike('username', username)
+    .single()
+
+  if (!targetUser) return { error: `User @${username} not found` }
+
+  await svcSupabase
+    .from('profiles')
+    .update({ referral_credits_paise: (targetUser.referral_credits_paise || 0) + amountPaise })
+    .eq('id', targetUser.id)
+
+  // Notify the user
+  await svcSupabase.from('notifications').insert({
+    user_id: targetUser.id,
+    type: 'booking',
+    title: 'Credits Added!',
+    body: `You received ₹${(amountPaise / 100).toLocaleString('en-IN')} in credits. ${reason}`,
+    link: '/profile',
+  })
+
+  await logAuditEvent(user.id, 'credits_granted', 'profile', targetUser.id, { amountPaise, reason, username })
+
+  return { success: true, userName: targetUser.full_name || username }
+}
+
+// Validate promo code at checkout
+export async function validatePromoCode(code: string) {
+  const supabase = (await import('@/lib/supabase/server')).createClient
+  const supa = await supabase()
+
+  const { data: offer } = await supa
+    .from('discount_offers')
+    .select('*')
+    .eq('promo_code', code.toUpperCase().trim())
+    .eq('is_active', true)
+    .single()
+
+  if (!offer) return { error: 'Invalid promo code' }
+
+  // Check max uses
+  if (offer.max_uses && offer.used_count >= offer.max_uses) {
+    return { error: 'This promo code has expired' }
+  }
+
+  // Check validity dates
+  const now = new Date()
+  if (offer.valid_until && new Date(offer.valid_until) < now) {
+    return { error: 'This promo code has expired' }
+  }
+
+  return {
+    valid: true,
+    discountPaise: offer.discount_paise,
+    name: offer.name,
+    offerId: offer.id,
+  }
+}

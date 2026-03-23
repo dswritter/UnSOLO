@@ -27,6 +27,13 @@ export async function GET(request: Request) {
           full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || username,
           avatar_url: data.user.user_metadata?.avatar_url || null,
         })
+
+        // Link referral if code was passed via OAuth metadata
+        const refCode = data.user.user_metadata?.referral_code
+        if (refCode) {
+          const { linkReferral } = await import('@/actions/auth')
+          await linkReferral(data.user.id, refCode)
+        }
       }
 
       return NextResponse.redirect(`${origin}${next}`)

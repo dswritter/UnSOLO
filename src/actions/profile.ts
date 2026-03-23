@@ -560,3 +560,69 @@ export async function getFrequentContacts() {
 
   return { recent: recentContacts, frequent: frequentContacts }
 }
+
+// ── Referral Dashboard ────────────────────────────────────────
+
+export async function getReferralDashboard() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('referral_code, referral_credits_paise')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) return null
+
+  // Count referrals by status
+  const { data: referrals } = await supabase
+    .from('referrals')
+    .select('status, referred:profiles!referrals_referred_id_fkey(username, full_name)')
+    .eq('referrer_id', user.id)
+
+  const total = referrals?.length || 0
+  const pending = referrals?.filter(r => r.status === 'pending').length || 0
+  const credited = referrals?.filter(r => r.status === 'credited').length || 0
+
+  return {
+    referralCode: profile.referral_code,
+    creditsPaise: profile.referral_credits_paise || 0,
+    totalReferred: total,
+    pendingReferred: pending,
+    creditedReferred: credited,
+    referrals: (referrals || []).map(r => ({
+      status: r.status,
+      username: (r.referred as unknown as { username: string })?.username,
+      fullName: (r.referred as unknown as { full_name: string | null })?.full_name,
+    })),
+  }
+}
+
+// ── Get user's available credits for checkout ─────────────────
+
+export async function getUserCredits() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { credits: 0, isReferred: false, isFirstBooking: false }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('referral_credits_paise, referred_by')
+    .eq('id', user.id)
+    .single()
+
+  // Check if first booking
+  const { count } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .in('status', ['confirmed', 'completed'])
+
+  return {
+    credits: profile?.referral_credits_paise || 0,
+    isReferred: !!profile?.referred_by,
+    isFirstBooking: (count || 0) === 0,
+  }
+}

@@ -28,6 +28,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/bookings', label: 'Bookings', roles: staffRoles },
     { href: '/admin/requests', label: 'Custom Requests', roles: ['admin', 'social_media_manager', 'field_person'] as UserRole[] },
     { href: '/admin/packages', label: 'Packages', roles: ['admin'] as UserRole[] },
+    { href: '/admin/discounts', label: 'Discounts', roles: ['admin'] as UserRole[] },
     { href: '/admin/team', label: 'Team', roles: ['admin'] as UserRole[] },
   ]
 

@@ -118,8 +118,10 @@ export function BookingFormClient({
   const today = tomorrowStr // min date for date inputs
   const maxDate = getMaxDate()
 
-  // Filter only future dates (must be after today, not including today)
-  const futureDates = (departureDates || []).filter((d) => d >= tomorrowStr)
+  // All departure dates (past dates shown as disabled)
+  const allDates = departureDates || []
+  // Only future dates are bookable
+  const futureDates = allDates.filter((d) => d >= tomorrowStr)
 
   async function handleBook() {
     if (!selectedDate) {
@@ -358,18 +360,22 @@ export function BookingFormClient({
             <label className="text-sm font-medium flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-primary" /> Select Departure
             </label>
-            {futureDates.length > 0 ? (
+            {allDates.length > 0 ? (
               <div className="grid gap-2">
-                {futureDates.map((date) => {
+                {allDates.map((date) => {
+                  const isPast = date < tomorrowStr
                   const slots = availableSlots[date] ?? maxGroupSize
-                  const soldOut = slots <= 0
+                  const soldOut = !isPast && slots <= 0
+                  const isDisabled = isPast || soldOut
                   return (
                   <button
                     key={date}
-                    onClick={() => !soldOut && setSelectedDate(date)}
-                    disabled={soldOut}
+                    onClick={() => !isDisabled && setSelectedDate(date)}
+                    disabled={isDisabled}
                     className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
-                      soldOut
+                      isPast
+                        ? 'opacity-40 cursor-not-allowed border-border bg-secondary/20 line-through'
+                        : soldOut
                         ? 'opacity-40 cursor-not-allowed border-border bg-secondary/30'
                         : selectedDate === date
                         ? 'border-primary bg-primary/10 text-white'
@@ -378,8 +384,10 @@ export function BookingFormClient({
                   >
                     <span className="flex items-center justify-between w-full">
                       <span>{durationDays ? formatDateRange(date, durationDays) : formatDate(date)}</span>
-                      <span className={`text-[10px] font-medium ${soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
-                        {soldOut ? 'Sold out' : `${slots} spots left`}
+                      <span className={`text-[10px] font-medium ${
+                        isPast ? 'text-muted-foreground' : soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {isPast ? 'Passed' : soldOut ? 'Sold out' : `${slots} spots left`}
                       </span>
                     </span>
                   </button>

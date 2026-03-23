@@ -238,7 +238,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                 <div className="border-t border-border p-4 space-y-4">
                   {/* Feedback */}
                   {feedback[booking.id] && (
-                    <p className={`text-sm px-3 py-2 rounded-lg ${feedback[booking.id].startsWith('Error') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
+                    <p className={`text-sm px-3 py-2 rounded-lg border ${feedback[booking.id].startsWith('Error') ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700' : 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700'}`}>
                       {feedback[booking.id]}
                     </p>
                   )}

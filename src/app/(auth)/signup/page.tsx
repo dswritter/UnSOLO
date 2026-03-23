@@ -1,15 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mountain } from 'lucide-react'
+import { Mountain, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 
-export default function SignupPage() {
+function SignupForm() {
   const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') || ''
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -35,13 +38,24 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <Link href="/">
             <span className="text-4xl font-black">
-              <span className="text-primary">UN</span><span className="text-white">SOLO</span>
+              <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
             </span>
           </Link>
           <p className="text-muted-foreground text-sm mt-2">Change the way you travel.</p>
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-8 space-y-6">
+          {/* Referral banner */}
+          {refCode && (
+            <div className="flex items-center gap-3 bg-primary/10 border border-primary/30 rounded-xl p-3">
+              <Gift className="h-5 w-5 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-primary">You&apos;ve been invited!</p>
+                <p className="text-xs text-muted-foreground">Get ₹200 off your first booking</p>
+              </div>
+            </div>
+          )}
+
           <div>
             <h1 className="text-2xl font-bold">Create your account</h1>
             <p className="text-sm text-muted-foreground mt-1">Join India&apos;s solo travel community</p>
@@ -51,7 +65,7 @@ export default function SignupPage() {
             type="button"
             variant="outline"
             className="w-full border-border"
-            onClick={() => signInWithGoogle()}
+            onClick={() => signInWithGoogle(refCode || undefined)}
           >
             <Mountain className="mr-2 h-4 w-4 text-primary" />
             Continue with Google
@@ -67,6 +81,9 @@ export default function SignupPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Hidden referral code field */}
+            {refCode && <input type="hidden" name="referralCode" value={refCode} />}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Full Name</label>
@@ -91,7 +108,7 @@ export default function SignupPage() {
             </div>
             <Button
               type="submit"
-              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+              className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
               disabled={loading}
             >
               {loading ? 'Creating account...' : 'Create Account'}
@@ -109,5 +126,13 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <SignupForm />
+    </Suspense>
   )
 }

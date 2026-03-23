@@ -33,6 +33,9 @@ export type Profile = {
   phone_number?: string | null
   phone_public?: boolean
   email?: string | null
+  referral_code?: string | null
+  referred_by?: string | null
+  referral_credits_paise?: number
   created_at: string
   updated_at: string
 }

@@ -56,19 +56,19 @@
   --card-foreground: oklch(0.10 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.10 0 0);
-  /* Amber/Gold — deep for light bg readability */
-  --primary: oklch(0.55 0.22 65);
-  --primary-foreground: oklch(1 0 0);
+  /* Amber/Gold — same hue 75 as dark theme, slightly darker for light bg */
+  --primary: oklch(0.62 0.19 75);
+  --primary-foreground: oklch(0.10 0 0);
   --secondary: oklch(0.88 0.015 75);
   --secondary-foreground: oklch(0.12 0 0);
   --muted: oklch(0.86 0.01 75);
   --muted-foreground: oklch(0.35 0 0);
-  --accent: oklch(0.55 0.22 65);
-  --accent-foreground: oklch(1 0 0);
+  --accent: oklch(0.62 0.19 75);
+  --accent-foreground: oklch(0.10 0 0);
   --destructive: oklch(0.50 0.22 25);
-  --border: oklch(0.75 0.03 75);
-  --input: oklch(0.88 0.015 75);
-  --ring: oklch(0.55 0.22 65);
+  --border: oklch(0.78 0.03 75);
+  --input: oklch(0.90 0.015 75);
+  --ring: oklch(0.62 0.19 75);
   --chart-1: oklch(0.65 0.20 70);
   --chart-2: oklch(0.55 0.18 65);
   --chart-3: oklch(0.75 0.16 80);
@@ -154,41 +154,24 @@
   background: #ffaa00;
 }
 
-/* ── Light Mode Form Element Fixes ──────────────────────────── */
+/* ── Light Mode Form Contrast ──────────────────────────────── */
 :root select,
-:root input[type="date"],
-:root input[type="text"],
-:root input[type="email"],
-:root input[type="tel"],
-:root input[type="number"],
+:root input,
 :root textarea {
-  border-color: oklch(0.75 0.03 75) !important;
-  background-color: oklch(0.94 0.008 75) !important;
-  color: oklch(0.10 0 0) !important;
+  border-color: var(--border);
+  background-color: var(--input);
+  color: var(--foreground);
 }
 :root select:hover,
 :root input:hover,
 :root textarea:hover {
-  border-color: oklch(0.55 0.22 65) !important;
+  border-color: var(--ring);
 }
 :root select:focus,
 :root input:focus,
 :root textarea:focus {
-  border-color: oklch(0.55 0.22 65) !important;
-  box-shadow: 0 0 0 2px oklch(0.55 0.22 65 / 0.2) !important;
-}
-/* Selected date slot in light mode */
-:root button[class*="border-primary"] {
-  border-width: 2px;
-}
-/* Dark mode: revert to existing styles */
-.dark select,
-.dark input,
-.dark textarea {
-  border-color: unset !important;
-  background-color: unset !important;
-  color: unset !important;
-  box-shadow: unset !important;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px oklch(0.62 0.19 75 / 0.25);
 }
 
 /* Gold gradient text */
