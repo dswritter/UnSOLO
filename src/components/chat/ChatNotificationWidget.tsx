@@ -135,7 +135,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const activeRoomNotifications = activeRoom ? (roomMap.get(activeRoom.id) || []) : []
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] pointer-events-none">
+    <div className="fixed bottom-0 right-0 z-50 p-4 pointer-events-none" style={{ maxHeight: '100vh' }}>
       {minimized ? (
         <button
           onClick={() => setMinimized(false)}
@@ -147,7 +147,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           </span>
         </button>
       ) : (
-        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
           {/* Header */}
           <div className="px-4 py-3 bg-secondary/50 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold flex items-center gap-2">
@@ -173,7 +173,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           </div>
 
           {/* Messages */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {activeRoom ? (
               // Show messages for active room
               activeRoomNotifications.length > 0 ? (

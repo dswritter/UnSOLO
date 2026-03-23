@@ -534,6 +534,7 @@ export function BookingFormClient({
                     packageId,
                     groupDate,
                     addedFriends.length + 1,
+                    addedFriends.map(f => f.id),
                   )
                   if ('error' in result) {
                     toast.error(result.error)

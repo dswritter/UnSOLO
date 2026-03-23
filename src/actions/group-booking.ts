@@ -7,13 +7,14 @@ export async function createGroupBooking(
   packageId: string,
   travelDate: string,
   maxMembers: number,
+  friendIds?: string[],
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Get package price
-  const { data: pkg } = await supabase.from('packages').select('price_paise, title').eq('id', packageId).single()
+  // Get package price and title
+  const { data: pkg } = await supabase.from('packages').select('price_paise, title, slug').eq('id', packageId).single()
   if (!pkg) return { error: 'Package not found' }
 
   const totalAmount = pkg.price_paise * maxMembers
@@ -35,13 +36,44 @@ export async function createGroupBooking(
 
   if (error) return { error: error.message }
 
-  // Add organizer as first member (paid)
+  // Add organizer as first member
   await supabase.from('group_members').insert({
     group_id: group.id,
     user_id: user.id,
     status: 'accepted',
     amount_paise: perPerson,
   })
+
+  // Get organizer profile for notification message
+  const { data: organizer } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const organizerName = organizer?.full_name || organizer?.username || 'Someone'
+  const priceFormatted = '₹' + (perPerson / 100).toLocaleString('en-IN')
+
+  // Add friends as invited members and notify them
+  if (friendIds && friendIds.length > 0) {
+    for (const friendId of friendIds) {
+      // Add as group member
+      await supabase.from('group_members').insert({
+        group_id: group.id,
+        user_id: friendId,
+        status: 'invited',
+        amount_paise: perPerson,
+      })
+
+      // Send notification
+      await supabase.rpc('create_notification', {
+        p_user_id: friendId,
+        p_type: 'group_invite',
+        p_title: 'Group Trip Invite!',
+        p_body: `${organizerName} invited you to ${pkg.title} on ${new Date(travelDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}. Your share: ${priceFormatted}`,
+        p_link: `/packages/${pkg.slug}`,
+      })
+    }
+  }
 
   revalidatePath('/bookings')
   return { groupId: group.id, inviteCode: group.invite_code }

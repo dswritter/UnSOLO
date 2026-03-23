@@ -293,6 +293,15 @@ export async function respondToPhoneRequest(requestId: string, approve: boolean)
     .eq('target_id', user.id)
 
   if (error) return { error: error.message }
+
+  // Mark related phone_request notifications as read
+  await supabase
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('type', 'phone_request')
+    .eq('is_read', false)
+
   return { success: true }
 }
 
