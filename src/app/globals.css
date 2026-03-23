@@ -50,25 +50,25 @@
 
 /* ── UnSOLO Light Theme ──────────────────────────────────── */
 :root {
-  --background: oklch(0.97 0.005 75);
-  --foreground: oklch(0.12 0 0);
+  --background: oklch(0.96 0.005 75);
+  --foreground: oklch(0.10 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.12 0 0);
+  --card-foreground: oklch(0.10 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.12 0 0);
-  /* Amber/Gold — deeper for light bg readability */
-  --primary: oklch(0.58 0.20 65);
-  --primary-foreground: oklch(0.1 0 0);
-  --secondary: oklch(0.92 0.01 75);
-  --secondary-foreground: oklch(0.15 0 0);
-  --muted: oklch(0.90 0.005 75);
-  --muted-foreground: oklch(0.40 0 0);
-  --accent: oklch(0.58 0.20 65);
-  --accent-foreground: oklch(0.1 0 0);
+  --popover-foreground: oklch(0.10 0 0);
+  /* Amber/Gold — deep for light bg readability */
+  --primary: oklch(0.55 0.22 65);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.88 0.015 75);
+  --secondary-foreground: oklch(0.12 0 0);
+  --muted: oklch(0.86 0.01 75);
+  --muted-foreground: oklch(0.35 0 0);
+  --accent: oklch(0.55 0.22 65);
+  --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.50 0.22 25);
-  --border: oklch(0.82 0.02 75);
-  --input: oklch(0.92 0.015 75);
-  --ring: oklch(0.58 0.20 65);
+  --border: oklch(0.75 0.03 75);
+  --input: oklch(0.88 0.015 75);
+  --ring: oklch(0.55 0.22 65);
   --chart-1: oklch(0.65 0.20 70);
   --chart-2: oklch(0.55 0.18 65);
   --chart-3: oklch(0.75 0.16 80);
@@ -152,6 +152,43 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #ffaa00;
+}
+
+/* ── Light Mode Form Element Fixes ──────────────────────────── */
+:root select,
+:root input[type="date"],
+:root input[type="text"],
+:root input[type="email"],
+:root input[type="tel"],
+:root input[type="number"],
+:root textarea {
+  border-color: oklch(0.75 0.03 75) !important;
+  background-color: oklch(0.94 0.008 75) !important;
+  color: oklch(0.10 0 0) !important;
+}
+:root select:hover,
+:root input:hover,
+:root textarea:hover {
+  border-color: oklch(0.55 0.22 65) !important;
+}
+:root select:focus,
+:root input:focus,
+:root textarea:focus {
+  border-color: oklch(0.55 0.22 65) !important;
+  box-shadow: 0 0 0 2px oklch(0.55 0.22 65 / 0.2) !important;
+}
+/* Selected date slot in light mode */
+:root button[class*="border-primary"] {
+  border-width: 2px;
+}
+/* Dark mode: revert to existing styles */
+.dark select,
+.dark input,
+.dark textarea {
+  border-color: unset !important;
+  background-color: unset !important;
+  color: unset !important;
+  box-shadow: unset !important;
 }
 
 /* Gold gradient text */

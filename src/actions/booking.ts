@@ -528,6 +528,21 @@ export async function processCancellation(
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) return { error: 'Unauthorized' }
 
+  // Validate refund amount
+  if (approve && refundAmountPaise !== undefined) {
+    const { data: bookingCheck } = await supabase
+      .from('bookings')
+      .select('total_amount_paise')
+      .eq('id', bookingId)
+      .single()
+    if (bookingCheck && refundAmountPaise > bookingCheck.total_amount_paise) {
+      return { error: `Refund amount cannot exceed booking amount (₹${(bookingCheck.total_amount_paise / 100).toLocaleString('en-IN')})` }
+    }
+    if (refundAmountPaise < 0) {
+      return { error: 'Refund amount cannot be negative' }
+    }
+  }
+
   const updateData: Record<string, unknown> = {
     cancellation_status: approve ? 'approved' : 'denied',
     admin_cancellation_note: adminNote || null,

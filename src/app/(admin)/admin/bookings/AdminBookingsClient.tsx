@@ -340,7 +340,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                             min={0}
                             max={Math.round(booking.total_amount_paise / 100)}
                           />
-                          <span className="text-xs text-muted-foreground">of {formatPrice(booking.total_amount_paise)} paid</span>
+                          <span className="text-xs text-muted-foreground">Max: ₹{Math.round(booking.total_amount_paise / 100).toLocaleString('en-IN')}</span>
                         </div>
                         <textarea
                           id={`cancel-note-${booking.id}`}

@@ -111,11 +111,15 @@ export function BookingFormClient({
   const [customLoading, setCustomLoading] = useState(false)
 
   const total = pricePerPersonPaise * guests
-  const today = new Date().toISOString().split('T')[0]
+  // Tomorrow is the earliest bookable date (not today)
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const tomorrowStr = tomorrow.toISOString().split('T')[0]
+  const today = tomorrowStr // min date for date inputs
   const maxDate = getMaxDate()
 
-  // Filter only future dates
-  const futureDates = (departureDates || []).filter((d) => d >= today)
+  // Filter only future dates (must be after today, not including today)
+  const futureDates = (departureDates || []).filter((d) => d >= tomorrowStr)
 
   async function handleBook() {
     if (!selectedDate) {
