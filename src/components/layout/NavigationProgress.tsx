@@ -59,9 +59,14 @@ export function NavigationProgress() {
       return origPush(...args)
     }
 
+    // Listen for custom navigation events (from NotificationBell, etc.)
+    function handleCustomNav() { startProgress() }
+    window.addEventListener('unsolo:navigate', handleCustomNav)
+
     document.addEventListener('click', handleClick, true) // capture phase
     return () => {
       document.removeEventListener('click', handleClick, true)
+      window.removeEventListener('unsolo:navigate', handleCustomNav)
       history.pushState = origPush
     }
   }, [pathname, startProgress])

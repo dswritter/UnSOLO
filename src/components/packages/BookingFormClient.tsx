@@ -54,6 +54,7 @@ export function BookingFormClient({
   const [guests, setGuests] = useState(1)
   const [selectedDate, setSelectedDate] = useState('')
   const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   // Group booking state
   const [groupDate, setGroupDate] = useState('')
@@ -151,6 +152,7 @@ export function BookingFormClient({
           razorpay_payment_id: string
           razorpay_signature: string
         }) => {
+          setVerifying(true)
           const verification = await confirmPayment(
             response.razorpay_order_id,
             response.razorpay_payment_id,
@@ -162,6 +164,7 @@ export function BookingFormClient({
           } else {
             toast.error(verification.error || 'Payment verification failed')
           }
+          setVerifying(false)
           setLoading(false)
         },
         modal: { ondismiss: () => setLoading(false) },
@@ -301,6 +304,19 @@ export function BookingFormClient({
   return (
     <div className="space-y-4">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+      {/* Payment verification overlay */}
+      {verifying && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-card border border-border rounded-2xl p-8 text-center space-y-4 max-w-sm mx-4 shadow-2xl">
+            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+            <div>
+              <p className="font-bold text-lg">Confirming your booking...</p>
+              <p className="text-sm text-muted-foreground mt-1">Please wait while we verify your payment. Do not close this page.</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex rounded-lg bg-secondary/50 p-1">

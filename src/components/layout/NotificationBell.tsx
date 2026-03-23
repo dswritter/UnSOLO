@@ -104,7 +104,10 @@ export function NotificationBell({ userId }: { userId: string }) {
         setUnreadCount(c => Math.max(0, c - 1))
       }
     }
-    if (n.link) router.push(n.link)
+    if (n.link) {
+      window.dispatchEvent(new Event('unsolo:navigate'))
+      router.push(n.link)
+    }
     setOpen(false)
   }
 
