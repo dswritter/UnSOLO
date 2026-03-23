@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { TravelStats } from '@/components/profile/TravelStats'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -390,6 +391,9 @@ export default async function ProfilePage({
             )}
           </div>
         </div>
+
+        {/* Travel Stats — Points, Tiers, States, Achievements */}
+        <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} />
       </div>
     </div>
   )

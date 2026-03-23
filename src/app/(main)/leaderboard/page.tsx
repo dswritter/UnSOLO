@@ -53,18 +53,18 @@ export default async function LeaderboardPage() {
         {/* Score guide */}
         <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-card border border-border rounded-xl">
           <div className="text-center text-sm">
+            <Trophy className="h-4 w-4 text-primary mx-auto mb-1" />
+            <div className="font-bold">+25 pts</div>
+            <div className="text-xs text-muted-foreground">Completed Trip</div>
+          </div>
+          <div className="text-center text-sm">
             <MapPin className="h-4 w-4 text-primary mx-auto mb-1" />
             <div className="font-bold">+15 pts</div>
             <div className="text-xs text-muted-foreground">New Destination</div>
           </div>
           <div className="text-center text-sm">
-            <Trophy className="h-4 w-4 text-primary mx-auto mb-1" />
-            <div className="font-bold">+10 pts</div>
-            <div className="text-xs text-muted-foreground">Completed Trip</div>
-          </div>
-          <div className="text-center text-sm">
             <Star className="h-4 w-4 text-primary mx-auto mb-1" />
-            <div className="font-bold">+5 pts</div>
+            <div className="font-bold">+10 pts</div>
             <div className="text-xs text-muted-foreground">Review Written</div>
           </div>
         </div>

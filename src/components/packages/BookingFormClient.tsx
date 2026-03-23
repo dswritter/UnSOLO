@@ -446,8 +446,8 @@ export function BookingFormClient({
                         : soldOut
                         ? 'opacity-40 cursor-not-allowed border-border bg-secondary/30'
                         : selectedDate === date
-                        ? 'border-primary bg-primary/10 text-white'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-white'
+                        ? 'border-primary bg-primary/15 text-foreground font-medium'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
                     }`}
                   >
                     <span className="flex items-center justify-between w-full">
