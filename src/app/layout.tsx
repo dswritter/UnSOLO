@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
+import { Suspense } from 'react'
+import { NavigationProgress } from '@/components/layout/NavigationProgress'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,6 +51,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         {children}
         <Toaster richColors position="top-center" />
       </body>

@@ -202,7 +202,23 @@ export function BookingFormClient({
   // ── Group Invite Mode ──────────────────────────────────
   if (groupInvite) {
     const inviteDate = new Date(groupInvite.travel_date)
+    const todayCheck = new Date()
+    todayCheck.setHours(0, 0, 0, 0)
+    const isExpired = inviteDate <= todayCheck
     const returnDate = durationDays ? new Date(inviteDate.getTime() + (durationDays - 1) * 86400000) : null
+
+    if (isExpired) {
+      return (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-center">
+            <p className="text-red-400 font-bold text-sm mb-1">Invite Expired</p>
+            <p className="text-xs text-muted-foreground">
+              The travel date ({formatDate(groupInvite.travel_date)}) has already passed. This group invite is no longer valid.
+            </p>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="space-y-4">

@@ -289,6 +289,22 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                         All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
                       </p>
                     )}
+
+                    {/* Group trip actions — same as individual bookings */}
+                    {group.total_paid === group.total_members && group.package?.slug && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                        <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                          <Link href={`/packages/${group.package.slug}`}>
+                            <ArrowRight className="mr-1 h-3 w-3" /> View Package
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                          <Link href="/chat">
+                            <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -434,7 +450,7 @@ function BookingItem({
                   </Link>
                 </Button>
                 {showReview && onReview && (
-                  <Button size="sm" className="bg-primary text-black text-xs" onClick={onReview}>
+                  <Button size="sm" className="bg-primary text-primary-foreground text-xs relative z-10" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReview(); }}>
                     <Star className="mr-1 h-3 w-3" /> Write Review
                   </Button>
                 )}

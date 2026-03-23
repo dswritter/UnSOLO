@@ -145,12 +145,7 @@ export default async function PackageDetailPage({
             <div className="grid grid-cols-3 gap-4">
               {[
                 { icon: Clock, label: 'Duration', value: `${package_.duration_days} days` },
-                { icon: Users, label: 'Availability', value: (() => {
-                  const slots = Object.values(availableSlotsMap)
-                  if (slots.length === 0) return `Max ${package_.max_group_size}`
-                  const minSlots = Math.min(...slots)
-                  return minSlots > 0 ? `${minSlots} spots left` : 'Sold out'
-                })() },
+                { icon: Users, label: 'Group Size', value: `Up to ${package_.max_group_size}` },
                 { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
