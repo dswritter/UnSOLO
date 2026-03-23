@@ -56,19 +56,19 @@
   --card-foreground: oklch(0.10 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.10 0 0);
-  /* Amber/Gold — same hue 75 as dark theme, slightly darker for light bg */
-  --primary: oklch(0.62 0.19 75);
-  --primary-foreground: oklch(0.10 0 0);
-  --secondary: oklch(0.88 0.015 75);
-  --secondary-foreground: oklch(0.12 0 0);
-  --muted: oklch(0.86 0.01 75);
-  --muted-foreground: oklch(0.35 0 0);
-  --accent: oklch(0.62 0.19 75);
-  --accent-foreground: oklch(0.10 0 0);
-  --destructive: oklch(0.50 0.22 25);
-  --border: oklch(0.78 0.03 75);
-  --input: oklch(0.90 0.015 75);
-  --ring: oklch(0.62 0.19 75);
+  /* Brand Gold — SAME as dark theme to match logo #FFAA00 */
+  --primary: oklch(0.77 0.18 75);
+  --primary-foreground: oklch(0 0 0);
+  --secondary: oklch(0.92 0.01 80);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.90 0.005 80);
+  --muted-foreground: oklch(0.40 0 0);
+  --accent: oklch(0.77 0.18 75);
+  --accent-foreground: oklch(0 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.80 0.02 80);
+  --input: oklch(0.93 0.01 80);
+  --ring: oklch(0.77 0.18 75);
   --chart-1: oklch(0.65 0.20 70);
   --chart-2: oklch(0.55 0.18 65);
   --chart-3: oklch(0.75 0.16 80);
@@ -159,19 +159,22 @@
 :root input,
 :root textarea {
   border-color: var(--border);
-  background-color: var(--input);
   color: var(--foreground);
 }
 :root select:hover,
 :root input:hover,
 :root textarea:hover {
-  border-color: var(--ring);
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.12);
 }
 :root select:focus,
 :root input:focus,
 :root textarea:focus {
   border-color: var(--ring);
-  box-shadow: 0 0 0 2px oklch(0.62 0.19 75 / 0.25);
+  box-shadow: 0 0 0 2px oklch(0.77 0.18 75 / 0.25);
+}
+/* Light mode: date slot hover visible */
+:root button:hover {
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.08);
 }
 
 /* Gold gradient text */

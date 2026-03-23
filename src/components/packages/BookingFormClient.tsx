@@ -9,8 +9,11 @@ import { createGroupBooking } from '@/actions/group-booking'
 import { formatPrice, formatDate, formatDateRange, validateIndianPhone, getMaxDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import Script from 'next/script'
-import { Calendar, Phone, Mail, Users, Send, Copy, Check, X, UserPlus } from 'lucide-react'
+import { Calendar, Phone, Mail, Users, Send, Copy, Check, X, UserPlus, Gift, Tag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { getUserCredits } from '@/actions/profile'
+import { validatePromoCode } from '@/actions/admin'
+import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 
 declare global {
   interface Window {
@@ -55,6 +58,17 @@ export function BookingFormClient({
   const [selectedDate, setSelectedDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
+
+  // Discount state
+  const [promoCode, setPromoCode] = useState('')
+  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoName, setPromoName] = useState('')
+  const [promoValidating, setPromoValidating] = useState(false)
+  const [userCredits, setUserCredits] = useState(0)
+  const [applyCredits, setApplyCredits] = useState(false)
+  const [isReferred, setIsReferred] = useState(false)
+  const [isFirstBooking, setIsFirstBooking] = useState(false)
+  const [showPromoInput, setShowPromoInput] = useState(false)
 
   // Group booking state
   const [groupDate, setGroupDate] = useState('')
@@ -101,6 +115,37 @@ export function BookingFormClient({
   function removeFriend(id: string) {
     setAddedFriends(prev => prev.filter(f => f.id !== id))
   }
+
+  // Fetch user credits on mount
+  useState(() => {
+    getUserCredits().then(data => {
+      setUserCredits(data.credits)
+      setIsReferred(data.isReferred)
+      setIsFirstBooking(data.isFirstBooking)
+    })
+  })
+
+  async function handleValidatePromo() {
+    if (!promoCode.trim()) return
+    setPromoValidating(true)
+    const result = await validatePromoCode(promoCode)
+    if ('error' in result) {
+      toast.error(result.error)
+      setPromoDiscount(0)
+      setPromoName('')
+    } else {
+      setPromoDiscount(result.discountPaise!)
+      setPromoName(result.name!)
+      toast.success(`Promo applied: ${result.name} — ₹${(result.discountPaise! / 100).toLocaleString('en-IN')} off!`)
+    }
+    setPromoValidating(false)
+  }
+
+  // Calculate total discount
+  const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
+  const creditsToApply = applyCredits ? Math.min(userCredits, pricePerPersonPaise * guests) : 0
+  const totalDiscount = promoDiscount + referredDiscount + creditsToApply
+
   const router = useRouter()
 
   // Custom date request fields
@@ -419,22 +464,89 @@ export function BookingFormClient({
             })()}
           </div>
 
+          {/* Discounts & Promo */}
+          <div className="space-y-2">
+            {/* Referred user first-booking discount */}
+            {referredDiscount > 0 && (
+              <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-2 text-xs">
+                <Gift className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
+                <span className="text-green-400 font-medium">Referral discount: -{formatPrice(referredDiscount)}</span>
+              </div>
+            )}
+
+            {/* Credits */}
+            {userCredits > 0 && (
+              <label className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={applyCredits}
+                  onChange={e => setApplyCredits(e.target.checked)}
+                  className="accent-primary"
+                />
+                <span className="text-xs">Apply ₹{(userCredits / 100).toLocaleString('en-IN')} referral credits</span>
+              </label>
+            )}
+
+            {/* Promo code */}
+            <button
+              onClick={() => setShowPromoInput(!showPromoInput)}
+              className="text-xs text-primary hover:underline"
+            >
+              {showPromoInput ? 'Hide promo code' : 'Have a promo code?'}
+            </button>
+            {showPromoInput && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter code"
+                  value={promoCode}
+                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                  className="bg-secondary border-border text-xs uppercase flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleValidatePromo}
+                  disabled={promoValidating || !promoCode.trim()}
+                  className="border-border text-xs px-3"
+                >
+                  {promoValidating ? '...' : 'Apply'}
+                </Button>
+              </div>
+            )}
+            {promoDiscount > 0 && (
+              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs">
+                <Tag className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
+                <span className="text-blue-400 font-medium">{promoName}: -{formatPrice(promoDiscount)}</span>
+                <button onClick={() => { setPromoDiscount(0); setPromoCode(''); setPromoName('') }} className="ml-auto text-muted-foreground hover:text-foreground">
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Price breakdown */}
           <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span>{formatPrice(pricePerPersonPaise)} x {guests} person{guests > 1 ? 's' : ''}</span>
               <span>{formatPrice(total)}</span>
             </div>
-            <div className="flex justify-between font-bold text-white pt-1 border-t border-border">
+            {totalDiscount > 0 && (
+              <div className="flex justify-between text-green-500 text-xs">
+                <span>Discount</span>
+                <span>-{formatPrice(totalDiscount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold text-foreground pt-1 border-t border-border">
               <span>Total</span>
-              <span className="text-primary">{formatPrice(total)}</span>
+              <span className="text-primary">{formatPrice(Math.max(0, total - totalDiscount))}</span>
             </div>
           </div>
 
           <Button
             onClick={handleBook}
             disabled={loading || !selectedDate}
-            className="w-full bg-primary text-black font-bold hover:bg-primary/90 glow-gold"
+            className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 glow-gold"
             size="lg"
           >
             {loading ? 'Processing...' : 'Book This Trip'}
