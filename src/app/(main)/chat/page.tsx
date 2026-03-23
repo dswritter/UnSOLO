@@ -2,12 +2,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, Users, Clock, Zap, User } from 'lucide-react'
+import { MessageCircle, Users, Clock, User } from 'lucide-react'
 import Link from 'next/link'
 import { timeAgo } from '@/lib/utils'
-import { getOnlineUsers } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
+import { ActiveUnSOLOs } from '@/components/chat/ActiveUnSOLOs'
 
 export default async function ChatPage() {
   const supabase = await createClient()
@@ -123,11 +123,6 @@ export default async function ChatPage() {
       return bTime.localeCompare(aTime)
     })
 
-  // Get online users
-  const onlineUsers = await getOnlineUsers()
-  // Filter out current user
-  const activeUsers = onlineUsers.filter(u => u.user_id !== user.id)
-
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-10">
@@ -138,37 +133,8 @@ export default async function ChatPage() {
           <p className="text-muted-foreground mt-1">Connect with fellow travelers in real-time</p>
         </div>
 
-        {/* Active UnSOLOs */}
-        {activeUsers.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <Zap className="h-5 w-5 text-green-400" /> Active UnSOLOs
-              <span className="text-xs text-green-400 font-normal ml-1">({activeUsers.length} online)</span>
-            </h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide">
-              {activeUsers.map((u) => {
-                const profile = u.profile as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-                if (!profile) return null
-                return (
-                  <Link key={u.user_id} href={`/profile/${profile.username}`} className="flex-shrink-0">
-                    <div className="flex flex-col items-center gap-1.5 w-16 text-center">
-                      <div className="relative">
-                        <Avatar className="h-12 w-12 ring-2 ring-green-500/50">
-                          <AvatarImage src={profile.avatar_url || ''} />
-                          <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-                            {getInitials(profile.full_name || profile.username)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-black" />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground truncate w-full">{profile.full_name?.split(' ')[0] || profile.username}</span>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        )}
+        {/* Active UnSOLOs — real-time client component */}
+        <ActiveUnSOLOs currentUserId={user.id} />
 
         {/* Recent chats */}
         {recentRooms.length > 0 && (

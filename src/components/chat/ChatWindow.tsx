@@ -12,6 +12,7 @@ import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package } from 'luci
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
 
 interface ChatWindowProps {
@@ -103,24 +104,37 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     const memberIds = memberProfiles.map(m => m.id)
     if (memberIds.length === 0) return
 
+    const sb = createBrowserClient()
+
     async function checkPresence() {
-      const supabase = (await import('@/lib/supabase/client')).createClient()
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-      const { data } = await supabase
+      const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString()
+      const { data } = await sb
         .from('user_presence')
         .select('user_id')
         .in('user_id', memberIds)
         .eq('is_online', true)
-        .gte('last_seen', twoMinAgo)
+        .gte('last_seen', oneMinAgo)
       if (data) {
-        setDbOnlineUsers(new Set(data.map(d => d.user_id)))
+        setDbOnlineUsers(new Set(data.map((d: { user_id: string }) => d.user_id)))
       }
     }
 
     checkPresence()
-    const interval = setInterval(checkPresence, 30000) // every 30s
-    return () => clearInterval(interval)
-  }, [memberProfiles])
+    const interval = setInterval(checkPresence, 15000)
+
+    // Subscribe to presence table changes for instant updates
+    const channel = sb
+      .channel('chat-presence-' + roomId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_presence' }, () => {
+        checkPresence()
+      })
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      sb.removeChannel(channel)
+    }
+  }, [memberProfiles, roomId])
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()

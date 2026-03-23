@@ -60,20 +60,28 @@ export function BookingFormClient({
     if (!friendUsername.trim()) return
     setFriendSearching(true)
     const supabase = createClient()
+
+    // Case-insensitive username search
     const { data } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url')
-      .eq('username', friendUsername.trim().toLowerCase())
+      .ilike('username', friendUsername.trim())
       .single()
 
     if (!data) {
       toast.error(`User @${friendUsername} not found`)
-    } else if (addedFriends.find(f => f.id === data.id)) {
-      toast.error('Already added')
     } else {
-      setAddedFriends(prev => [...prev, data])
-      setFriendUsername('')
-      toast.success(`Added @${data.username}`)
+      // Check if trying to add self
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (currentUser && data.id === currentUser.id) {
+        toast.error("You're already in the group!")
+      } else if (addedFriends.find(f => f.id === data.id)) {
+        toast.error('Already added')
+      } else {
+        setAddedFriends(prev => [...prev, data])
+        setFriendUsername('')
+        toast.success(`Added @${data.username}`)
+      }
     }
     setFriendSearching(false)
   }

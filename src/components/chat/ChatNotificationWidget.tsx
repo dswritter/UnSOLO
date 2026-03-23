@@ -147,7 +147,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           </span>
         </button>
       ) : (
-        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-4 py-3 bg-secondary/50 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold flex items-center gap-2">
