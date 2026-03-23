@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay/client'
 
@@ -351,4 +352,148 @@ export async function getInterestData(packageId: string) {
   }
 
   return { count: count || 0, isInterested }
+}
+
+// ── Date Change (only for pending bookings) ─────────────────
+export async function changeBookingDate(bookingId: string, newDate: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Verify booking belongs to user and is pending
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('status')
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status !== 'pending') return { error: 'Can only change dates for pending bookings' }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (new Date(newDate) <= today) return { error: 'Date must be in the future' }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({ travel_date: newDate, updated_at: new Date().toISOString() })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/bookings')
+  return { success: true }
+}
+
+// ── Cancellation Request ────────────────────────────────────
+export async function requestCancellation(bookingId: string, reason: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('status, package:packages(title)')
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'Already cancelled' }
+  if (booking.status === 'completed') return { error: 'Cannot cancel a completed trip' }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      cancellation_status: 'requested',
+      cancellation_reason: reason,
+      cancellation_requested_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  // Notify admins
+  const { data: admins } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', 'admin')
+
+  const pkgTitle = (booking.package as unknown as { title: string })?.title || 'a trip'
+  for (const admin of admins || []) {
+    await supabase.rpc('create_notification', {
+      p_user_id: admin.id,
+      p_type: 'booking',
+      p_title: 'Cancellation Request',
+      p_body: `A user requested cancellation for ${pkgTitle}`,
+      p_link: '/admin/bookings',
+    })
+  }
+
+  revalidatePath('/bookings')
+  return { success: true }
+}
+
+// ── Admin: Process Cancellation ─────────────────────────────
+export async function processCancellation(
+  bookingId: string,
+  approve: boolean,
+  refundAmountPaise?: number,
+  adminNote?: string,
+) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Verify admin role
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
+
+  const updateData: Record<string, unknown> = {
+    cancellation_status: approve ? 'approved' : 'denied',
+    admin_cancellation_note: adminNote || null,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (approve) {
+    updateData.status = 'cancelled'
+    updateData.refund_amount_paise = refundAmountPaise || 0
+    updateData.refund_note = adminNote || null
+  }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update(updateData)
+    .eq('id', bookingId)
+
+  if (error) return { error: error.message }
+
+  // Get booking to notify user
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('user_id, package:packages(title), total_amount_paise')
+    .eq('id', bookingId)
+    .single()
+
+  if (booking) {
+    const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+    const refundFormatted = refundAmountPaise ? `₹${(refundAmountPaise / 100).toLocaleString('en-IN')}` : '₹0'
+
+    await supabase.rpc('create_notification', {
+      p_user_id: booking.user_id,
+      p_type: 'booking',
+      p_title: approve ? 'Cancellation Approved' : 'Cancellation Denied',
+      p_body: approve
+        ? `Your cancellation for ${pkgTitle} was approved. Refund: ${refundFormatted}. ${adminNote || ''}`
+        : `Your cancellation for ${pkgTitle} was denied. ${adminNote || ''}`,
+      p_link: '/bookings',
+    })
+  }
+
+  revalidatePath('/admin/bookings')
+  revalidatePath('/bookings')
+  return { success: true }
 }

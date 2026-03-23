@@ -109,6 +109,12 @@ export type Booking = {
   assigned_poc: string | null
   poc_shared_at: string | null
   admin_notes: string | null
+  cancellation_status?: 'requested' | 'approved' | 'denied' | null
+  cancellation_reason?: string | null
+  cancellation_requested_at?: string | null
+  refund_amount_paise?: number | null
+  refund_note?: string | null
+  admin_cancellation_note?: string | null
   created_at: string
   updated_at: string
   package?: Package

@@ -57,6 +57,7 @@ export function BookingFormClient({
   const [groupDate, setGroupDate] = useState('')
   const [groupLoading, setGroupLoading] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
+  const [createdGroupId, setCreatedGroupId] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
   const [groupPayMode, setGroupPayMode] = useState<'full' | 'split'>('split')
   // Add friends by username
@@ -485,7 +486,19 @@ export function BookingFormClient({
                   </button>
                 </div>
               </div>
-              <Button onClick={() => router.push('/bookings')} className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90">
+              {groupPayMode === 'split' && createdGroupId && (
+                <Button
+                  onClick={() => router.push(`/packages/${packageSlug}?group=${createdGroupId}`)}
+                  className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+                >
+                  Pay Your Share ({formatPrice(pricePerPersonPaise)})
+                </Button>
+              )}
+              <Button
+                onClick={() => router.push('/bookings')}
+                variant={groupPayMode === 'split' ? 'outline' : 'default'}
+                className={groupPayMode === 'split' ? 'w-full border-border' : 'w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90'}
+              >
                 Go to My Trips
               </Button>
             </div>
@@ -631,6 +644,7 @@ export function BookingFormClient({
                     toast.error(result.error)
                   } else {
                     setInviteCode(result.inviteCode!)
+                    setCreatedGroupId(result.groupId!)
                     toast.success('Group trip created! Friends notified.')
                   }
                   setGroupLoading(false)

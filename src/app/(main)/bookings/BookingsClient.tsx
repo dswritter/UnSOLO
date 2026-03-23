@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2 } from 'lucide-react'
 import { formatPrice, formatDate, formatDateRange } from '@/lib/utils'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
+import { requestCancellation, changeBookingDate } from '@/actions/booking'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -326,14 +327,139 @@ function BookingItem({
               </div>
             )}
 
-            <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-              <Link href={`/packages/${pkg?.slug}`}>
-                View Full Package <ArrowRight className="ml-1 h-3 w-3" />
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                <Link href={`/packages/${pkg?.slug}`}>
+                  View Full Package <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+
+              {/* Date change - only for pending bookings */}
+              {booking.status === 'pending' && (
+                <DateChanger bookingId={booking.id} currentDate={booking.travel_date} />
+              )}
+
+              {/* Cancellation - for pending or confirmed bookings */}
+              {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (
+                <CancelRequester bookingId={booking.id} />
+              )}
+
+              {booking.cancellation_status === 'requested' && (
+                <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
+                  <AlertTriangle className="mr-1 h-3 w-3" /> Cancellation Pending
+                </Badge>
+              )}
+              {booking.cancellation_status === 'approved' && (
+                <div className="text-xs text-muted-foreground">
+                  <span className="text-red-400 font-medium">Cancelled</span>
+                  {booking.refund_amount_paise ? ` — Refund: ${formatPrice(booking.refund_amount_paise)}` : ''}
+                  {booking.refund_note && <span className="block mt-0.5">{booking.refund_note}</span>}
+                </div>
+              )}
+              {booking.cancellation_status === 'denied' && (
+                <div className="text-xs">
+                  <span className="text-red-400 font-medium">Cancellation Denied</span>
+                  {booking.admin_cancellation_note && (
+                    <span className="text-muted-foreground block mt-0.5">{booking.admin_cancellation_note}</span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+// ── Date Changer (inline) ───────────────────────────────────
+function DateChanger({ bookingId, currentDate }: { bookingId: string; currentDate: string }) {
+  const [editing, setEditing] = useState(false)
+  const [newDate, setNewDate] = useState(currentDate)
+  const [saving, setSaving] = useState(false)
+  const router = useRouter()
+
+  async function save() {
+    if (newDate === currentDate) { setEditing(false); return }
+    setSaving(true)
+    const result = await changeBookingDate(bookingId, newDate)
+    if (result.error) toast.error(result.error)
+    else { toast.success('Date updated!'); router.refresh() }
+    setSaving(false)
+    setEditing(false)
+  }
+
+  if (!editing) {
+    return (
+      <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => setEditing(true)}>
+        <Edit2 className="mr-1 h-3 w-3" /> Change Date
+      </Button>
+    )
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="date"
+        value={newDate}
+        min={today}
+        onChange={e => setNewDate(e.target.value)}
+        className="bg-secondary border border-border rounded px-2 py-1 text-xs focus:outline-none focus:border-primary"
+      />
+      <Button size="sm" className="bg-primary text-primary-foreground text-xs h-7" onClick={save} disabled={saving}>
+        {saving ? '...' : 'Save'}
+      </Button>
+      <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-white">
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
+// ── Cancellation Requester (inline) ─────────────────────────
+function CancelRequester({ bookingId }: { bookingId: string }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const router = useRouter()
+
+  async function submit() {
+    if (!reason.trim()) { toast.error('Please provide a reason'); return }
+    setSubmitting(true)
+    const result = await requestCancellation(bookingId, reason)
+    if (result.error) toast.error(result.error)
+    else { toast.success('Cancellation request submitted'); router.refresh() }
+    setSubmitting(false)
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10" onClick={() => setOpen(true)}>
+        <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
+      </Button>
+    )
+  }
+
+  return (
+    <div className="w-full space-y-2 mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+      <p className="text-xs font-medium text-red-400">Why do you want to cancel?</p>
+      <Textarea
+        value={reason}
+        onChange={e => setReason(e.target.value)}
+        placeholder="Reason for cancellation..."
+        rows={2}
+        className="bg-secondary border-border resize-none text-xs"
+      />
+      <div className="flex gap-2">
+        <Button size="sm" className="bg-red-500 text-white text-xs hover:bg-red-600" onClick={submit} disabled={submitting}>
+          {submitting ? 'Submitting...' : 'Submit Request'}
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   )
 }
