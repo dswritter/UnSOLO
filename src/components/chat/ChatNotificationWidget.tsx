@@ -135,11 +135,11 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const activeRoomNotifications = activeRoom ? (roomMap.get(activeRoom.id) || []) : []
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] pointer-events-none">
       {minimized ? (
         <button
           onClick={() => setMinimized(false)}
-          className="relative bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
+          className="pointer-events-auto relative bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
         >
           <MessageCircle className="h-6 w-6" />
           <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -147,7 +147,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           </span>
         </button>
       ) : (
-        <div className="w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="px-4 py-3 bg-secondary/50 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold flex items-center gap-2">

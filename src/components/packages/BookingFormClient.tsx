@@ -9,7 +9,8 @@ import { createGroupBooking } from '@/actions/group-booking'
 import { formatPrice, formatDate, formatDateRange, validateIndianPhone, getMaxDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import Script from 'next/script'
-import { Calendar, Phone, Mail, Users, Send, Copy, Check } from 'lucide-react'
+import { Calendar, Phone, Mail, Users, Send, Copy, Check, X, UserPlus } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 declare global {
   interface Window {
@@ -46,10 +47,40 @@ export function BookingFormClient({
 
   // Group booking state
   const [groupDate, setGroupDate] = useState('')
-  const [groupMaxMembers, setGroupMaxMembers] = useState(4)
   const [groupLoading, setGroupLoading] = useState(false)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [codeCopied, setCodeCopied] = useState(false)
+  const [groupPayMode, setGroupPayMode] = useState<'full' | 'split'>('split')
+  // Add friends by username
+  const [friendUsername, setFriendUsername] = useState('')
+  const [friendSearching, setFriendSearching] = useState(false)
+  const [addedFriends, setAddedFriends] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
+
+  async function searchAndAddFriend() {
+    if (!friendUsername.trim()) return
+    setFriendSearching(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .eq('username', friendUsername.trim().toLowerCase())
+      .single()
+
+    if (!data) {
+      toast.error(`User @${friendUsername} not found`)
+    } else if (addedFriends.find(f => f.id === data.id)) {
+      toast.error('Already added')
+    } else {
+      setAddedFriends(prev => [...prev, data])
+      setFriendUsername('')
+      toast.success(`Added @${data.username}`)
+    }
+    setFriendSearching(false)
+  }
+
+  function removeFriend(id: string) {
+    setAddedFriends(prev => prev.filter(f => f.id !== id))
+  }
   const router = useRouter()
 
   // Custom date request fields
@@ -328,15 +359,19 @@ export function BookingFormClient({
       )}
 
       {tab === 'group' && (
-        /* Group booking tab */
         <div className="space-y-3">
           {inviteCode ? (
             <div className="space-y-3">
               <div className="text-center p-4 rounded-xl border border-green-500/30 bg-green-500/10">
                 <p className="text-green-400 font-bold text-sm mb-2">Group Trip Created!</p>
-                <p className="text-xs text-muted-foreground mb-3">Share this invite code with your friends:</p>
-                <div className="flex items-center justify-center gap-2">
-                  <code className="text-xl font-mono font-bold text-primary bg-secondary px-4 py-2 rounded-lg tracking-widest">
+                <p className="text-xs text-muted-foreground mb-2">
+                  {groupPayMode === 'full'
+                    ? 'You paid for the full group. Your friends have been notified!'
+                    : 'Payment links sent to your friends via notifications.'}
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <span className="text-xs text-muted-foreground">Invite code:</span>
+                  <code className="text-sm font-mono font-bold text-primary bg-secondary px-3 py-1 rounded-lg tracking-widest">
                     {inviteCode}
                   </code>
                   <button
@@ -345,29 +380,23 @@ export function BookingFormClient({
                       setCodeCopied(true)
                       setTimeout(() => setCodeCopied(false), 2000)
                     }}
-                    className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-                    title="Copy code"
+                    className="p-1 rounded bg-secondary hover:bg-secondary/80"
                   >
-                    {codeCopied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+                    {codeCopied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Friends can join from their My Trips page using this code. Each member pays {formatPrice(pricePerPersonPaise)} individually.
-                </p>
               </div>
-              <Button
-                onClick={() => router.push('/bookings')}
-                className="w-full bg-primary text-black font-bold hover:bg-primary/90"
-              >
+              <Button onClick={() => router.push('/bookings')} className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90">
                 Go to My Trips
               </Button>
             </div>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                Create a group trip and invite friends. Everyone pays their share individually — like Splitwise for travel!
+                Plan a group trip — add friends by username and choose how to pay.
               </p>
 
+              {/* Travel date */}
               <div className="space-y-1">
                 <label className="text-sm font-medium flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-primary" /> Travel Date
@@ -386,64 +415,134 @@ export function BookingFormClient({
                     ))}
                   </select>
                 ) : (
-                  <Input
-                    type="date"
-                    min={today}
-                    max={maxDate}
-                    value={groupDate}
-                    onChange={e => setGroupDate(e.target.value)}
-                    className="bg-secondary border-border"
-                  />
+                  <Input type="date" min={today} max={maxDate} value={groupDate} onChange={e => setGroupDate(e.target.value)} className="bg-secondary border-border" />
                 )}
               </div>
 
+              {/* Add friends */}
               <div className="space-y-1">
                 <label className="text-sm font-medium flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-primary" /> Max Group Members
+                  <UserPlus className="h-3.5 w-3.5 text-primary" /> Add Friends
                 </label>
-                <div className="flex items-center gap-3">
-                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGroupMaxMembers(Math.max(2, groupMaxMembers - 1))}>-</Button>
-                  <span className="font-bold text-lg min-w-[2rem] text-center">{groupMaxMembers}</span>
-                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGroupMaxMembers(Math.min(maxGroupSize, groupMaxMembers + 1))}>+</Button>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter username..."
+                    value={friendUsername}
+                    onChange={e => setFriendUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), searchAndAddFriend())}
+                    className="bg-secondary border-border flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={searchAndAddFriend}
+                    disabled={friendSearching || !friendUsername.trim()}
+                    className="border-border px-3"
+                  >
+                    {friendSearching ? '...' : 'Add'}
+                  </Button>
                 </div>
               </div>
 
+              {/* Added friends list */}
+              {addedFriends.length > 0 && (
+                <div className="space-y-1.5">
+                  {addedFriends.map(f => (
+                    <div key={f.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                          {(f.full_name || f.username).charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">{f.full_name || f.username}</span>
+                          <span className="text-xs text-muted-foreground ml-1">@{f.username}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => removeFriend(f.id)} className="text-muted-foreground hover:text-red-400">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Payment mode */}
+              {addedFriends.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Payment</label>
+                  <div className="flex rounded-lg bg-secondary/50 p-1">
+                    <button
+                      onClick={() => setGroupPayMode('split')}
+                      className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+                        groupPayMode === 'split' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Split Payment
+                    </button>
+                    <button
+                      onClick={() => setGroupPayMode('full')}
+                      className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-colors ${
+                        groupPayMode === 'full' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Pay Full
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Price breakdown */}
               <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Per person</span>
                   <span>{formatPrice(pricePerPersonPaise)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Max members</span>
-                  <span>{groupMaxMembers}</span>
+                  <span>Total members</span>
+                  <span>{addedFriends.length + 1} (you + {addedFriends.length})</span>
                 </div>
+                <div className="flex justify-between font-bold text-foreground pt-1 border-t border-border">
+                  <span>{groupPayMode === 'full' ? 'You pay' : 'Your share'}</span>
+                  <span className="text-primary">
+                    {groupPayMode === 'full'
+                      ? formatPrice(pricePerPersonPaise * (addedFriends.length + 1))
+                      : formatPrice(pricePerPersonPaise)}
+                  </span>
+                </div>
+                {groupPayMode === 'split' && addedFriends.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground pt-1">
+                    Each friend gets a payment notification for {formatPrice(pricePerPersonPaise)}
+                  </p>
+                )}
               </div>
 
               <Button
                 onClick={async () => {
                   if (!groupDate) { toast.error('Select a travel date'); return }
+                  if (addedFriends.length === 0) { toast.error('Add at least one friend'); return }
                   setGroupLoading(true)
-                  const result = await createGroupBooking(packageId, groupDate, groupMaxMembers)
+                  const result = await createGroupBooking(
+                    packageId,
+                    groupDate,
+                    addedFriends.length + 1,
+                  )
                   if ('error' in result) {
                     toast.error(result.error)
                   } else {
                     setInviteCode(result.inviteCode!)
-                    toast.success('Group trip created!')
+                    toast.success('Group trip created! Friends notified.')
                   }
                   setGroupLoading(false)
                 }}
-                disabled={groupLoading || !groupDate}
-                className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+                disabled={groupLoading || !groupDate || addedFriends.length === 0}
+                className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
                 size="lg"
               >
                 {groupLoading ? 'Creating...' : (
-                  <><Users className="mr-2 h-4 w-4" /> Create Group Trip</>
+                  <><Users className="mr-2 h-4 w-4" /> {groupPayMode === 'full' ? 'Pay & Create Group' : 'Create & Send Payment Links'}</>
                 )}
               </Button>
-
-              <p className="text-xs text-muted-foreground text-center">
-                No payment now. Each member pays when they join.
-              </p>
             </>
           )}
         </div>

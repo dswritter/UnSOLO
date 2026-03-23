@@ -24,36 +24,50 @@ export function PresenceTracker({ userId }: { userId: string }) {
     // Mark online immediately
     setPresence(true)
 
-    // Heartbeat every 30 seconds — keeps last_seen fresh
+    // Heartbeat every 20 seconds — keeps last_seen fresh
     intervalRef.current = setInterval(() => {
-      // Only heartbeat if tab is visible (don't count background tabs)
       if (document.visibilityState === 'visible') {
         setPresence(true)
       }
-    }, 30 * 1000)
+    }, 20 * 1000)
 
-    // Mark offline ONLY on tab/window close (not on tab switch)
-    const handleUnload = () => {
-      // sendBeacon is fire-and-forget, works even during page unload
-      navigator.sendBeacon?.('/api/presence-offline', JSON.stringify({ userId }))
+    // Mark offline on tab/window close — use BOTH events for max reliability
+    function markOfflineBeacon() {
+      const url = '/api/presence-offline'
+      const body = JSON.stringify({ userId })
+
+      // Try sendBeacon first (most reliable for unload)
+      if (navigator.sendBeacon) {
+        const blob = new Blob([body], { type: 'application/json' })
+        navigator.sendBeacon(url, blob)
+      } else {
+        // Fallback: sync XHR (deprecated but works in old browsers)
+        try {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', url, false) // sync
+          xhr.setRequestHeader('Content-Type', 'application/json')
+          xhr.send(body)
+        } catch { /* ignore */ }
+      }
     }
 
-    // On tab becoming visible again, re-mark as online
-    const handleVisibility = () => {
+    // On tab becoming visible, re-mark as online
+    function handleVisibility() {
       if (document.visibilityState === 'visible') {
         setPresence(true)
       }
-      // NOTE: We intentionally do NOT mark offline on hidden —
-      // switching tabs doesn't mean the user left the site.
-      // The heartbeat stopping + 2min threshold handles stale sessions.
+      // Don't mark offline on hidden — switching tabs is not leaving
     }
 
-    window.addEventListener('beforeunload', handleUnload)
+    // pagehide is more reliable than beforeunload on mobile Safari & Chrome
+    window.addEventListener('pagehide', markOfflineBeacon)
+    window.addEventListener('beforeunload', markOfflineBeacon)
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
-      window.removeEventListener('beforeunload', handleUnload)
+      window.removeEventListener('pagehide', markOfflineBeacon)
+      window.removeEventListener('beforeunload', markOfflineBeacon)
       document.removeEventListener('visibilitychange', handleVisibility)
       initializedRef.current = false
     }

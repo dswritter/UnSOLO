@@ -456,9 +456,10 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
-function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }): React.ReactNode {
+function MessageBubble({ message, isOwn, isOnline }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
+  const profileUrl = user?.username ? `/profile/${user.username}` : '#'
 
   if (message.message_type === 'system') {
     return (
@@ -472,25 +473,36 @@ function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: 
 
   return (
     <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
-      <button onClick={onClickProfile} className="focus:outline-none flex-shrink-0 mt-0.5" disabled={isOwn}>
-        <div className="relative">
-          <Avatar className={`h-7 w-7 ${!isOwn ? 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all' : ''}`}>
+      {!isOwn ? (
+        <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0.5">
+          <div className="relative">
+            <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all">
+              <AvatarImage src={user?.avatar_url || ''} />
+              <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                {getInitials(name)}
+              </AvatarFallback>
+            </Avatar>
+            {isOnline && (
+              <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-background" />
+            )}
+          </div>
+        </Link>
+      ) : (
+        <div className="flex-shrink-0 mt-0.5">
+          <Avatar className="h-7 w-7">
             <AvatarImage src={user?.avatar_url || ''} />
             <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
               {getInitials(name)}
             </AvatarFallback>
           </Avatar>
-          {isOnline && !isOwn && (
-            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-black" />
-          )}
         </div>
-      </button>
+      )}
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <button onClick={onClickProfile} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1">
+          <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1">
             {name}
             {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block" />}
-          </button>
+          </Link>
         )}
         <div
           className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
