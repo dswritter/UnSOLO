@@ -1,3 +1,21 @@
+export type UserRole = 'user' | 'admin' | 'social_media_manager' | 'field_person' | 'chat_responder'
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  user: 'User',
+  admin: 'Admin',
+  social_media_manager: 'Social Media Manager',
+  field_person: 'Field Person',
+  chat_responder: 'Chat Responder',
+}
+
+export const ROLE_COLORS: Record<UserRole, string> = {
+  user: 'bg-zinc-700 text-zinc-200',
+  admin: 'bg-red-900/50 text-red-300 border border-red-700',
+  social_media_manager: 'bg-purple-900/50 text-purple-300 border border-purple-700',
+  field_person: 'bg-green-900/50 text-green-300 border border-green-700',
+  chat_responder: 'bg-blue-900/50 text-blue-300 border border-blue-700',
+}
+
 export type Profile = {
   id: string
   username: string
@@ -10,9 +28,22 @@ export type Profile = {
   instagram_url: string | null
   website_url: string | null
   is_verified: boolean
+  role: UserRole
   username_changed_at: string | null
   created_at: string
   updated_at: string
+}
+
+export type TeamMember = {
+  id: string
+  user_id: string
+  role: UserRole
+  added_by: string | null
+  is_active: boolean
+  notes: string | null
+  created_at: string
+  updated_at: string
+  profile?: Profile
 }
 
 export type Destination = {
@@ -56,7 +87,11 @@ export type CustomDateRequest = {
   contact_number: string
   contact_email: string
   status: 'pending' | 'approved' | 'rejected'
+  assigned_to: string | null
+  admin_notes: string | null
   created_at: string
+  user?: Profile
+  package?: Package
 }
 
 export type Booking = {
@@ -71,10 +106,14 @@ export type Booking = {
   stripe_payment_intent: string | null
   confirmation_code: string | null
   special_requests: string | null
+  assigned_poc: string | null
+  poc_shared_at: string | null
+  admin_notes: string | null
   created_at: string
   updated_at: string
   package?: Package
   user?: Profile
+  poc?: Profile
 }
 
 export type ChatRoom = {

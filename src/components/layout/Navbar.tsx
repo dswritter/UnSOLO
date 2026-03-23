@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail } from 'lucide-react'
+import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -86,6 +86,11 @@ export function Navbar({ user }: NavbarProps) {
                     <DropdownMenuItem onClick={() => router.push('/bookings')}>
                       <BookOpen className="mr-2 h-4 w-4" /> My Trips
                     </DropdownMenuItem>
+                    {user.role && user.role !== 'user' && (
+                      <DropdownMenuItem onClick={() => router.push('/admin')}>
+                        <Shield className="mr-2 h-4 w-4 text-red-400" /> Admin Panel
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="text-destructive"
