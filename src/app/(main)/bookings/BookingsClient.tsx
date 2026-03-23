@@ -219,26 +219,39 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
               return (
                 <Card key={group.id} className="bg-card border-border">
                   <CardContent className="p-5 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h3 className="font-bold text-lg">{pkg?.title || 'Group Trip'}</h3>
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
-                          {pkg?.destination && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" /> {group.total_members} members
-                          </span>
+                    {/* Header with thumbnail — same style as individual bookings */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {pkg?.images?.[0] && (
+                        <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <Link href={pkg?.slug ? `/packages/${pkg.slug}` : '#'} className="font-bold text-lg hover:text-primary transition-colors">
+                              {pkg?.title || 'Group Trip'}
+                            </Link>
+                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                              {pkg?.destination && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" /> {group.total_members} members
+                              </span>
+                            </div>
+                          </div>
+                          <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                            {group.total_paid}/{group.total_members} paid
+                          </Badge>
                         </div>
                       </div>
-                      <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
-                        {group.total_paid}/{group.total_members} paid
-                      </Badge>
                     </div>
 
                     {/* Price breakdown */}
@@ -291,17 +304,22 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                     )}
 
                     {/* Group trip actions — same as individual bookings */}
-                    {group.total_paid === group.total_members && group.package?.slug && (
+                    {group.total_paid === group.total_members && (
                       <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                        <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                          <Link href={`/packages/${group.package.slug}`}>
-                            <ArrowRight className="mr-1 h-3 w-3" /> View Package
-                          </Link>
-                        </Button>
+                        {group.package?.slug && (
+                          <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                            <Link href={`/packages/${group.package.slug}`}>
+                              <ArrowRight className="mr-1 h-3 w-3" /> View Package
+                            </Link>
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" className="border-border text-xs" asChild>
                           <Link href="/chat">
                             <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                           </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10">
+                          <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
                         </Button>
                       </div>
                     )}

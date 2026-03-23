@@ -206,11 +206,18 @@ export default async function PackageDetailPage({
                   {reviews.map((review) => (
                     <div key={review.id} className="border-b border-border pb-4 last:border-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                          {(review.user?.full_name || review.user?.username || 'U')[0].toUpperCase()}
-                        </div>
+                        <Link href={`/profile/${review.user?.username || ''}`} className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary hover:ring-2 hover:ring-primary/40 transition-all">
+                          {review.user?.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={review.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            (review.user?.full_name || review.user?.username || 'U')[0].toUpperCase()
+                          )}
+                        </Link>
                         <div className="flex-1">
-                          <div className="text-sm font-medium">{review.user?.full_name || review.user?.username}</div>
+                          <Link href={`/profile/${review.user?.username || ''}`} className="text-sm font-medium hover:text-primary transition-colors">
+                            {review.user?.full_name || review.user?.username}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{formatDate(review.created_at)}</div>
                         </div>
                         <div className="text-right text-xs space-y-0.5">

@@ -101,9 +101,11 @@ export async function createRazorpayOrder(
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
       email: user.email || '',
-      contact: profile?.phone_number
-        ? (profile.phone_number.startsWith('+91') ? profile.phone_number : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}`)
-        : '',
+      ...(profile?.phone_number ? {
+        contact: profile.phone_number.startsWith('+91')
+          ? profile.phone_number
+          : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}`
+      } : {}),
       name: profile?.full_name || '',
     },
     notes: {
