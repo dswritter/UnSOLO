@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield } from 'lucide-react'
+import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -27,7 +27,8 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/chat', label: 'Community', icon: MessageCircle },
+    { href: '/chat', label: 'Chat', icon: MessageCircle },
+    { href: '/community', label: 'Community', icon: Users },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/contact', label: 'Contact', icon: Mail },
   ]

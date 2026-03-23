@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ChatWindow } from '@/components/chat/ChatWindow'
+import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { joinRoom } from '@/actions/chat'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, MessageCircle } from 'lucide-react'
@@ -70,6 +70,36 @@ export default async function ChatRoomPage({
 
   if (!profile) redirect('/login')
 
+  // Fetch all room members with profile info + phone visibility
+  const { data: members } = await supabase
+    .from('chat_room_members')
+    .select('user_id')
+    .eq('room_id', roomId)
+
+  const memberIds = (members || []).map(m => m.user_id).filter(Boolean)
+
+  let memberProfiles: ChatMemberProfile[] = []
+  if (memberIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
+      .in('id', memberIds)
+
+    // Get phone request statuses for current user
+    const { data: phoneRequests } = await supabase
+      .from('phone_requests')
+      .select('target_id, status')
+      .eq('requester_id', user.id)
+      .in('target_id', memberIds)
+
+    const requestMap = new Map((phoneRequests || []).map(r => [r.target_id, r.status]))
+
+    memberProfiles = (profiles || []).map(p => ({
+      ...p,
+      phone_request_status: requestMap.get(p.id) || null,
+    })) as ChatMemberProfile[]
+  }
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <div className="px-4 py-2 border-b border-border flex items-center gap-3">
@@ -85,12 +115,13 @@ export default async function ChatRoomPage({
           )}
         </div>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         <ChatWindow
           roomId={roomId}
           roomName={room.name}
           initialMessages={(msgs || []) as Message[]}
           currentUser={profile as Profile}
+          memberProfiles={memberProfiles}
         />
       </div>
     </div>

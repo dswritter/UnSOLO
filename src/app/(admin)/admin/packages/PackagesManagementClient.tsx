@@ -1,42 +1,64 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { formatPrice, formatDate, type Package, type Destination } from '@/types'
-import { createPackage, updatePackage, togglePackageActive, createDestination } from '@/actions/admin'
+import { useState, useTransition, useRef } from 'react'
+import { formatPrice, type Package, type Destination } from '@/types'
+import { createPackage, updatePackage, togglePackageActive, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Eye, EyeOff, Star, MapPin, Edit2, X } from 'lucide-react'
+import { Plus, Eye, EyeOff, Star, MapPin, Edit2, X, Upload, Image as ImageIcon } from 'lucide-react'
+
+interface IncludesOption {
+  id: string
+  label: string
+}
 
 interface Props {
   packages: Package[]
   destinations: Destination[]
+  includesOptions: IncludesOption[]
 }
 
-export function PackagesManagementClient({ packages: initial, destinations }: Props) {
+export function PackagesManagementClient({ packages: initial, destinations: initDest, includesOptions: initIncludes }: Props) {
   const [showForm, setShowForm] = useState(false)
-  const [showDestForm, setShowDestForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [destinations, setDestinations] = useState(initDest)
+  const [includesOptions, setIncludesOptions] = useState(initIncludes)
 
   // Form state
   const [form, setForm] = useState({
     title: '', slug: '', destination_id: '', description: '', short_description: '',
     price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
-    includes: '', images: '', departure_dates: '', is_featured: false,
+    selectedIncludes: [] as string[],
+    images: [] as string[],
+    departureDates: [] as { departure: string; }[],
+    is_featured: false,
   })
 
-  const [destForm, setDestForm] = useState({ name: '', state: '', description: '', image_url: '' })
+  // Inline new destination
+  const [showNewDest, setShowNewDest] = useState(false)
+  const [newDest, setNewDest] = useState({ name: '', state: '' })
+
+  // New includes option
+  const [newInclude, setNewInclude] = useState('')
+
+  // Image upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [imageUrlInput, setImageUrlInput] = useState('')
 
   function resetForm() {
     setForm({
       title: '', slug: '', destination_id: '', description: '', short_description: '',
       price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
-      includes: '', images: '', departure_dates: '', is_featured: false,
+      selectedIncludes: [], images: [],
+      departureDates: [], is_featured: false,
     })
     setEditingId(null)
     setShowForm(false)
+    setImageUrlInput('')
   }
 
   function autoSlug(title: string) {
@@ -54,9 +76,9 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
       duration_days: String(pkg.duration_days),
       max_group_size: String(pkg.max_group_size),
       difficulty: pkg.difficulty,
-      includes: (pkg.includes || []).join(', '),
-      images: (pkg.images || []).join('\n'),
-      departure_dates: (pkg.departure_dates || []).join(', '),
+      selectedIncludes: pkg.includes || [],
+      images: pkg.images || [],
+      departureDates: (pkg.departure_dates || []).map(d => ({ departure: d })),
       is_featured: pkg.is_featured,
     })
     setEditingId(pkg.id)
@@ -79,9 +101,9 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
       duration_days: parseInt(form.duration_days),
       max_group_size: parseInt(form.max_group_size) || 12,
       difficulty: form.difficulty,
-      includes: form.includes.split(',').map(s => s.trim()).filter(Boolean),
-      images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
-      departure_dates: form.departure_dates.split(',').map(s => s.trim()).filter(Boolean),
+      includes: form.selectedIncludes,
+      images: form.images,
+      departure_dates: form.departureDates.map(d => d.departure).filter(Boolean),
       is_featured: form.is_featured,
     }
 
@@ -109,18 +131,105 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
     })
   }
 
-  function handleCreateDest() {
-    if (!destForm.name || !destForm.state) return
+  function handleCreateDestInline() {
+    if (!newDest.name || !newDest.state) return
     startTransition(async () => {
-      const res = await createDestination(destForm.name, destForm.state, destForm.description, destForm.image_url)
-      if (res.error) setMessage({ type: 'error', text: res.error })
-      else {
-        setMessage({ type: 'success', text: 'Destination created! Reload to see it in dropdown.' })
-        setDestForm({ name: '', state: '', description: '', image_url: '' })
-        setShowDestForm(false)
+      const res = await createDestination(newDest.name, newDest.state)
+      if (res.error) {
+        setMessage({ type: 'error', text: res.error })
+      } else {
+        // Optimistic: add to local list
+        const fakeId = `new-${Date.now()}`
+        const created = { id: fakeId, name: newDest.name, state: newDest.state, country: 'India', slug: '', image_url: null, description: null, created_at: '' }
+        setDestinations(prev => [...prev, created])
+        setForm(f => ({ ...f, destination_id: fakeId }))
+        setNewDest({ name: '', state: '' })
+        setShowNewDest(false)
+        setMessage({ type: 'success', text: `Destination "${newDest.name}" created! Reload page to get real ID for the dropdown.` })
       }
     })
   }
+
+  function handleAddInclude() {
+    const trimmed = newInclude.trim()
+    if (!trimmed) return
+    startTransition(async () => {
+      const res = await addIncludesOption(trimmed)
+      if (res.error) {
+        setMessage({ type: 'error', text: res.error })
+      } else {
+        const fakeOpt = { id: `new-${Date.now()}`, label: trimmed }
+        setIncludesOptions(prev => [...prev, fakeOpt].sort((a, b) => a.label.localeCompare(b.label)))
+        setForm(f => ({ ...f, selectedIncludes: [...f.selectedIncludes, trimmed] }))
+        setNewInclude('')
+      }
+    })
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files?.length) return
+    setUploading(true)
+
+    for (const file of Array.from(files)) {
+      const fd = new FormData()
+      fd.append('file', file)
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd })
+        const json = await res.json()
+        if (json.url) {
+          setForm(f => ({ ...f, images: [...f.images, json.url] }))
+        } else {
+          setMessage({ type: 'error', text: json.error || 'Upload failed' })
+        }
+      } catch {
+        setMessage({ type: 'error', text: 'Upload failed' })
+      }
+    }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function addImageUrl() {
+    const url = imageUrlInput.trim()
+    if (!url) return
+    // Convert unsplash page URLs to raw image URLs
+    let finalUrl = url
+    if (url.includes('unsplash.com/photos/') && !url.includes('images.unsplash.com')) {
+      // Extract photo ID from URL like /photos/man-raising-xxx or /photos/abcdef
+      const parts = url.split('/photos/')
+      if (parts[1]) {
+        const slug = parts[1].split('?')[0].split('/')[0]
+        // The last segment after the last hyphen is the photo ID
+        const photoId = slug.includes('-') ? slug.split('-').pop() : slug
+        finalUrl = `https://images.unsplash.com/photo-${photoId}?w=1200&q=80`
+      }
+    }
+    setForm(f => ({ ...f, images: [...f.images, finalUrl] }))
+    setImageUrlInput('')
+  }
+
+  function removeImage(idx: number) {
+    setForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }))
+  }
+
+  function addDepartureDate() {
+    setForm(f => ({ ...f, departureDates: [...f.departureDates, { departure: '' }] }))
+  }
+
+  function updateDepartureDate(idx: number, value: string) {
+    setForm(f => ({
+      ...f,
+      departureDates: f.departureDates.map((d, i) => i === idx ? { departure: value } : d),
+    }))
+  }
+
+  function removeDepartureDate(idx: number) {
+    setForm(f => ({ ...f, departureDates: f.departureDates.filter((_, i) => i !== idx) }))
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const maxDateStr = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 2); return d.toISOString().split('T')[0] })()
 
   return (
     <div className="space-y-6">
@@ -138,54 +247,17 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
         >
           <Plus className="h-4 w-4" /> New Package
         </Button>
-        <Button
-          variant="outline"
-          className="border-zinc-700 gap-1"
-          onClick={() => setShowDestForm(!showDestForm)}
-        >
-          <MapPin className="h-4 w-4" /> New Destination
-        </Button>
       </div>
-
-      {/* New destination form */}
-      {showDestForm && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Add New Destination</h3>
-            <button onClick={() => setShowDestForm(false)}><X className="h-4 w-4 text-zinc-500" /></button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Name *</label>
-              <Input value={destForm.name} onChange={e => setDestForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Kasol" className="bg-zinc-800 border-zinc-700" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">State *</label>
-              <Input value={destForm.state} onChange={e => setDestForm(f => ({ ...f, state: e.target.value }))} placeholder="e.g. Himachal Pradesh" className="bg-zinc-800 border-zinc-700" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Description</label>
-              <Input value={destForm.description} onChange={e => setDestForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description" className="bg-zinc-800 border-zinc-700" />
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Image URL</label>
-              <Input value={destForm.image_url} onChange={e => setDestForm(f => ({ ...f, image_url: e.target.value }))} placeholder="https://..." className="bg-zinc-800 border-zinc-700" />
-            </div>
-          </div>
-          <Button onClick={handleCreateDest} disabled={isPending || !destForm.name || !destForm.state} className="bg-primary text-black hover:bg-primary/90">
-            {isPending ? 'Creating...' : 'Create Destination'}
-          </Button>
-        </div>
-      )}
 
       {/* Package form */}
       {showForm && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-4">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
+            <h3 className="font-semibold text-lg">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
             <button onClick={resetForm}><X className="h-4 w-4 text-zinc-500" /></button>
           </div>
 
+          {/* Basic info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-zinc-500 mb-1 block">Title *</label>
@@ -205,13 +277,43 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
               <select
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
                 value={form.destination_id}
-                onChange={e => setForm(f => ({ ...f, destination_id: e.target.value }))}
+                onChange={e => {
+                  if (e.target.value === '__new__') {
+                    setShowNewDest(true)
+                  } else {
+                    setForm(f => ({ ...f, destination_id: e.target.value }))
+                  }
+                }}
               >
                 <option value="">Select destination...</option>
                 {destinations.map(d => (
                   <option key={d.id} value={d.id}>{d.name}, {d.state}</option>
                 ))}
+                <option value="__new__">+ Add New Destination</option>
               </select>
+
+              {showNewDest && (
+                <div className="mt-2 p-3 bg-zinc-800/50 rounded-lg border border-zinc-700 space-y-2">
+                  <Input
+                    placeholder="Destination name (e.g. Kasol)"
+                    value={newDest.name}
+                    onChange={e => setNewDest(n => ({ ...n, name: e.target.value }))}
+                    className="bg-zinc-800 border-zinc-700 text-sm"
+                  />
+                  <Input
+                    placeholder="State (e.g. Himachal Pradesh)"
+                    value={newDest.state}
+                    onChange={e => setNewDest(n => ({ ...n, state: e.target.value }))}
+                    className="bg-zinc-800 border-zinc-700 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleCreateDestInline} disabled={isPending || !newDest.name || !newDest.state} className="bg-primary text-black text-xs">
+                      Create
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs text-zinc-500" onClick={() => setShowNewDest(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs text-zinc-500 mb-1 block">Price (₹) *</label>
@@ -238,13 +340,7 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
               </select>
             </div>
             <div className="flex items-center gap-2 self-end pb-2">
-              <input
-                type="checkbox"
-                checked={form.is_featured}
-                onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))}
-                className="accent-primary"
-                id="is_featured"
-              />
+              <input type="checkbox" checked={form.is_featured} onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))} className="accent-primary" id="is_featured" />
               <label htmlFor="is_featured" className="text-sm">Featured</label>
             </div>
           </div>
@@ -265,26 +361,131 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Includes (comma-separated)</label>
-              <Input value={form.includes} onChange={e => setForm(f => ({ ...f, includes: e.target.value }))} placeholder="Accommodation, Meals, Transport, Guide" className="bg-zinc-800 border-zinc-700" />
+          {/* What's Included — checkbox grid */}
+          <div>
+            <label className="text-xs text-zinc-500 mb-2 block">What&apos;s Included (check applicable)</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
+              {includesOptions.map(opt => (
+                <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-white text-zinc-400">
+                  <input
+                    type="checkbox"
+                    className="accent-primary"
+                    checked={form.selectedIncludes.includes(opt.label)}
+                    onChange={e => {
+                      setForm(f => ({
+                        ...f,
+                        selectedIncludes: e.target.checked
+                          ? [...f.selectedIncludes, opt.label]
+                          : f.selectedIncludes.filter(i => i !== opt.label),
+                      }))
+                    }}
+                  />
+                  {opt.label}
+                </label>
+              ))}
             </div>
-            <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Departure Dates (comma-separated)</label>
-              <Input value={form.departure_dates} onChange={e => setForm(f => ({ ...f, departure_dates: e.target.value }))} placeholder="2026-04-15, 2026-05-01" className="bg-zinc-800 border-zinc-700" />
+            <div className="flex gap-2 items-center">
+              <Input
+                value={newInclude}
+                onChange={e => setNewInclude(e.target.value)}
+                placeholder="Add custom facility..."
+                className="bg-zinc-800 border-zinc-700 text-sm max-w-xs"
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddInclude() } }}
+              />
+              <Button size="sm" variant="outline" className="border-zinc-700 text-xs" onClick={handleAddInclude} disabled={isPending}>
+                <Plus className="h-3 w-3 mr-1" /> Add
+              </Button>
             </div>
           </div>
 
+          {/* Images — upload + URL */}
           <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Image URLs (one per line)</label>
-            <textarea
-              value={form.images}
-              onChange={e => setForm(f => ({ ...f, images: e.target.value }))}
-              rows={2}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none font-mono text-xs"
-            />
+            <label className="text-xs text-zinc-500 mb-2 block">
+              Images <span className="text-zinc-600">(Recommended: 1200×800px, max 5MB each, JPEG/PNG/WebP)</span>
+            </label>
+
+            {/* Current images */}
+            {form.images.length > 0 && (
+              <div className="flex gap-2 flex-wrap mb-3">
+                {form.images.map((url, i) => (
+                  <div key={i} className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" className="h-20 w-28 rounded-lg object-cover border border-zinc-700" />
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 items-center flex-wrap">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/avif"
+                multiple
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-zinc-700 text-xs gap-1"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Upload className="h-3 w-3" /> {uploading ? 'Uploading...' : 'Upload from Device'}
+              </Button>
+              <span className="text-zinc-600 text-xs">or</span>
+              <Input
+                value={imageUrlInput}
+                onChange={e => setImageUrlInput(e.target.value)}
+                placeholder="Paste image URL..."
+                className="bg-zinc-800 border-zinc-700 text-sm max-w-sm"
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addImageUrl() } }}
+              />
+              <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" onClick={addImageUrl}>
+                <ImageIcon className="h-3 w-3" /> Add URL
+              </Button>
+            </div>
+            <p className="text-xs text-zinc-600 mt-1">
+              Tip: For Unsplash, use the image URL (images.unsplash.com/...), not the page URL.
+            </p>
+          </div>
+
+          {/* Departure Dates — date pickers */}
+          <div>
+            <label className="text-xs text-zinc-500 mb-2 block">Departure Dates</label>
+            <div className="space-y-2 mb-2">
+              {form.departureDates.map((d, i) => {
+                const returnDate = d.departure && form.duration_days
+                  ? (() => { const r = new Date(d.departure + 'T00:00:00'); r.setDate(r.getDate() + parseInt(form.duration_days || '0') - 1); return r.toISOString().split('T')[0] })()
+                  : ''
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      min={today}
+                      max={maxDateStr}
+                      value={d.departure}
+                      onChange={e => updateDepartureDate(i, e.target.value)}
+                      className="bg-zinc-800 border-zinc-700 text-sm max-w-[180px]"
+                    />
+                    {returnDate && (
+                      <span className="text-xs text-zinc-500">→ Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                    )}
+                    <button onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300"><X className="h-4 w-4" /></button>
+                  </div>
+                )
+              })}
+            </div>
+            <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" onClick={addDepartureDate}>
+              <Plus className="h-3 w-3" /> Add Date
+            </Button>
           </div>
 
           <Button onClick={handleSubmit} disabled={isPending} className="bg-primary text-black hover:bg-primary/90">
@@ -299,6 +500,7 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
           <div key={pkg.id} className={`rounded-xl border bg-zinc-900/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${pkg.is_active ? 'border-zinc-800' : 'border-red-900/30 opacity-60'}`}>
             <div className="flex items-center gap-3 min-w-0">
               {pkg.images?.[0] && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={pkg.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
               )}
               <div className="min-w-0">
@@ -318,17 +520,11 @@ export function PackagesManagementClient({ packages: initial, destinations }: Pr
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-primary font-bold text-sm">{formatPrice(pkg.price_paise)}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-zinc-400 hover:text-white"
-                onClick={() => loadForEdit(pkg)}
-              >
+              <Button size="sm" variant="ghost" className="text-zinc-400 hover:text-white" onClick={() => loadForEdit(pkg)}>
                 <Edit2 className="h-4 w-4" />
               </Button>
               <Button
-                size="sm"
-                variant="ghost"
+                size="sm" variant="ghost"
                 className={pkg.is_active ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'}
                 onClick={() => handleToggleActive(pkg.id, pkg.is_active)}
                 disabled={isPending}

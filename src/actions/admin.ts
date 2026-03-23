@@ -465,6 +465,33 @@ export async function createDestination(name: string, state: string, description
   return { success: true }
 }
 
+// ── Includes Options Management ─────────────────────────────
+
+export async function getIncludesOptions() {
+  const { supabase } = await requireStaff()
+  const { data } = await supabase
+    .from('includes_options')
+    .select('*')
+    .order('label')
+  return data || []
+}
+
+export async function addIncludesOption(label: string) {
+  const { supabase } = await requireAdmin()
+  const trimmed = label.trim()
+  if (!trimmed) return { error: 'Label is required' }
+
+  const { error } = await supabase
+    .from('includes_options')
+    .insert({ label: trimmed })
+
+  if (error) {
+    if (error.message.includes('duplicate')) return { error: 'This option already exists' }
+    return { error: error.message }
+  }
+  return { success: true }
+}
+
 // ── Check admin access ───────────────────────────────────────
 
 export async function checkAdminAccess() {

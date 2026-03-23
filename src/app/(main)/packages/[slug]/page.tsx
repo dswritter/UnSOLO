@@ -45,6 +45,12 @@ export default async function PackageDetailPage({
   const avgRating = reviews?.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : 0
+  const avgDest = reviews?.length
+    ? reviews.reduce((sum, r) => sum + (r.rating_destination || r.rating), 0) / reviews.length
+    : 0
+  const avgExp = reviews?.length
+    ? reviews.reduce((sum, r) => sum + (r.rating_experience || r.rating), 0) / reviews.length
+    : 0
 
   // Get the auth user
   const { data: { user } } = await supabase.auth.getUser()
@@ -122,10 +128,29 @@ export default async function PackageDetailPage({
             )}
 
             {/* Reviews */}
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div id="review" className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-xl font-bold mb-4">
                 Reviews {reviews?.length ? `(${reviews.length})` : ''}
               </h2>
+
+              {/* Rating summary */}
+              {reviews && reviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 mb-6 p-4 bg-secondary/30 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-black text-primary">{avgRating.toFixed(1)}</div>
+                    <div className="text-xs text-muted-foreground">Overall</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{avgDest.toFixed(1)}</div>
+                    <div className="text-xs text-muted-foreground">Destination</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{avgExp.toFixed(1)}</div>
+                    <div className="text-xs text-muted-foreground">Experience</div>
+                  </div>
+                </div>
+              )}
+
               {reviews && reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.map((review) => (
@@ -134,17 +159,27 @@ export default async function PackageDetailPage({
                         <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                           {(review.user?.full_name || review.user?.username || 'U')[0].toUpperCase()}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <div className="text-sm font-medium">{review.user?.full_name || review.user?.username}</div>
                           <div className="text-xs text-muted-foreground">{formatDate(review.created_at)}</div>
                         </div>
-                        <div className="ml-auto flex gap-0.5">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3.5 w-3.5 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
-                            />
-                          ))}
+                        <div className="text-right text-xs space-y-0.5">
+                          <div className="flex items-center gap-1 justify-end">
+                            <span className="text-muted-foreground">Destination</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star key={i} className={`h-3 w-3 ${i < (review.rating_destination || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 justify-end">
+                            <span className="text-muted-foreground">Experience</span>
+                            <div className="flex gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <Star key={i} className={`h-3 w-3 ${i < (review.rating_experience || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       {review.title && <h4 className="text-sm font-semibold mb-1">{review.title}</h4>}
