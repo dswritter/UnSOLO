@@ -40,7 +40,7 @@ function renderMessageContent(content: string) {
   const parts = content.split(urlRegex)
 
   return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
+    if (/^https?:\/\//.test(part)) {
       // Check if it's a package link
       const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
       if (pkgMatch) {
@@ -142,9 +142,13 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
   function sharePackage(slug: string, title: string) {
     const url = `${window.location.origin}/packages/${slug}`
-    setInput(`Check out this trip: ${title}\n${url}`)
+    const shareText = `Check out this trip: ${title}\n${url}`
+    // Append to existing text instead of overriding
+    setInput(prev => prev.trim() ? `${prev}\n${shareText}` : shareText)
     setShowPackagePicker(false)
     setPkgSearch('')
+    // Auto-resize after appending
+    setTimeout(autoResizeTextarea, 50)
   }
 
   async function handleRequestPhone(targetId: string) {

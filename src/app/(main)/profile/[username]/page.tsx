@@ -4,13 +4,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, MessageCircle } from 'lucide-react'
+import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, MessageCircle, Phone } from 'lucide-react'
 import { getInitials, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { ACHIEVEMENTS } from '@/types'
 import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
+import { PhoneRequestButton } from './PhoneRequestButton'
 
 export default async function ProfilePage({
   params,
@@ -53,6 +54,26 @@ export default async function ProfilePage({
 
   // Get follow data
   const followData = await getFollowData(profile.id)
+
+  // Get phone visibility for other profiles
+  let phoneVisible = false
+  let phoneNumber: string | null = profile.phone_number || null
+  let phoneRequestStatus: string | null = null
+  if (!isOwnProfile && phoneNumber) {
+    if (profile.phone_public === true) {
+      phoneVisible = true
+    } else if (user) {
+      // Check if there's an approved phone request
+      const { data: req } = await supabase
+        .from('phone_requests')
+        .select('status')
+        .eq('requester_id', user.id)
+        .eq('target_id', profile.id)
+        .single()
+      phoneRequestStatus = req?.status || null
+      phoneVisible = req?.status === 'approved'
+    }
+  }
 
   // Extract user objects for modals
   const followerUsers = (followData.followers || []).map((f: Record<string, unknown>) => {
@@ -172,6 +193,26 @@ export default async function ProfilePage({
                   </a>
                 )}
               </div>
+
+              {/* Phone number */}
+              {!isOwnProfile && phoneNumber && (
+                <div className="flex items-center gap-2 text-sm mb-2">
+                  <Phone className="h-3.5 w-3.5 text-primary" />
+                  {phoneVisible ? (
+                    <a href={`tel:${phoneNumber}`} className="hover:text-primary transition-colors">{phoneNumber}</a>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">{phoneNumber.slice(0, 2)}****{phoneNumber.slice(-2)}</span>
+                      <Lock className="h-3 w-3 text-zinc-500" />
+                      {phoneRequestStatus === 'pending' ? (
+                        <span className="text-[10px] text-yellow-400">Request pending</span>
+                      ) : phoneRequestStatus !== 'approved' && user ? (
+                        <PhoneRequestButton targetId={profile.id} />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {profile.travel_style && profile.travel_style.length > 0 && (
                 <div className="flex flex-wrap gap-2">

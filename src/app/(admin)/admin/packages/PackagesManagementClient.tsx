@@ -20,6 +20,7 @@ interface Props {
 }
 
 export function PackagesManagementClient({ packages: initial, destinations: initDest, includesOptions: initIncludes }: Props) {
+  const [packages, setPackages] = useState(initial)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -124,10 +125,17 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   }
 
   function handleToggleActive(pkgId: string, current: boolean) {
+    // Optimistic update
+    setPackages(prev => prev.map(p => p.id === pkgId ? { ...p, is_active: !current } : p))
     startTransition(async () => {
       const res = await togglePackageActive(pkgId, !current)
-      if (res.error) setMessage({ type: 'error', text: res.error })
-      else setMessage({ type: 'success', text: `Package ${!current ? 'activated' : 'deactivated'}. Reload to see changes.` })
+      if (res.error) {
+        setMessage({ type: 'error', text: res.error })
+        // Revert on error
+        setPackages(prev => prev.map(p => p.id === pkgId ? { ...p, is_active: current } : p))
+      } else {
+        setMessage({ type: 'success', text: `Package ${!current ? 'activated' : 'deactivated'}` })
+      }
     })
   }
 
@@ -496,7 +504,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
       {/* Package list */}
       <div className="space-y-3">
-        {initial.map(pkg => (
+        {packages.map(pkg => (
           <div key={pkg.id} className={`rounded-xl border bg-zinc-900/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${pkg.is_active ? 'border-zinc-800' : 'border-red-900/30 opacity-60'}`}>
             <div className="flex items-center gap-3 min-w-0">
               {pkg.images?.[0] && (

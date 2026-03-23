@@ -97,19 +97,12 @@ export default async function PackageDetailPage({
             </div>
 
             {/* Interested button */}
-            <div className="flex items-center gap-4">
-              <InterestButton
-                packageId={package_.id}
-                initialCount={interestData.count}
-                initialInterested={interestData.isInterested}
-                isLoggedIn={!!user}
-              />
-              {interestData.count > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {interestData.count} {interestData.count === 1 ? 'person is' : 'people are'} interested
-                </span>
-              )}
-            </div>
+            <InterestButton
+              packageId={package_.id}
+              initialCount={interestData.count}
+              initialInterested={interestData.isInterested}
+              isLoggedIn={!!user}
+            />
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">

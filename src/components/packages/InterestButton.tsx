@@ -40,22 +40,29 @@ export function InterestButton({ packageId, initialCount, initialInterested, isL
   }
 
   return (
-    <button
-      onClick={handleToggle}
-      disabled={loading}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
-        interested
-          ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20'
-          : 'bg-secondary border-border text-muted-foreground hover:text-white hover:border-primary/40'
-      }`}
-    >
-      <Heart className={`h-4 w-4 transition-all ${interested ? 'fill-red-400 text-red-400' : ''}`} />
-      <span>{interested ? 'Interested' : "I'm Interested"}</span>
+    <div className="flex items-center gap-4">
+      <button
+        onClick={handleToggle}
+        disabled={loading}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+          interested
+            ? 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20'
+            : 'bg-secondary border-border text-muted-foreground hover:text-white hover:border-primary/40'
+        }`}
+      >
+        <Heart className={`h-4 w-4 transition-all ${interested ? 'fill-red-400 text-red-400' : ''}`} />
+        <span>{interested ? 'Interested' : "I'm Interested"}</span>
+        {count > 0 && (
+          <span className={`text-xs px-1.5 py-0.5 rounded-full ${interested ? 'bg-red-500/20' : 'bg-secondary'}`}>
+            {count}
+          </span>
+        )}
+      </button>
       {count > 0 && (
-        <span className={`text-xs px-1.5 py-0.5 rounded-full ${interested ? 'bg-red-500/20' : 'bg-secondary'}`}>
-          {count}
+        <span className="text-xs text-muted-foreground">
+          {count} {count === 1 ? 'person is' : 'people are'} interested
         </span>
       )}
-    </button>
+    </div>
   )
 }
