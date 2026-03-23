@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock } from 'lucide-react'
-import { formatPrice, formatDate, formatDateRange } from '@/lib/utils'
+import { formatPrice, formatDate, formatDateRange, getTripCountdown } from '@/lib/utils'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import { requestCancellation, changeBookingDate } from '@/actions/booking'
@@ -245,6 +245,14 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
                           </span>
+                          {group.status === 'confirmed' && (() => {
+                            const countdown = getTripCountdown(group.travel_date, pkg?.duration_days || 1)
+                            return countdown ? (
+                              <span className="flex items-center gap-1 text-primary font-medium">
+                                {countdown.emoji} {countdown.text}
+                              </span>
+                            ) : null
+                          })()}
                           <span className="flex items-center gap-1">
                             <Users className="h-3 w-3" /> {group.total_members} member{group.total_members > 1 ? 's' : ''}
                           </span>
@@ -451,6 +459,14 @@ function BookingItem({
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" /> {duration > 0 ? formatDateRange(booking.travel_date, duration) : formatDate(booking.travel_date)}
               </span>
+              {booking.status === 'confirmed' && (() => {
+                const countdown = getTripCountdown(booking.travel_date, duration || 1)
+                return countdown ? (
+                  <span className="flex items-center gap-1 text-primary font-medium">
+                    {countdown.emoji} {countdown.text}
+                  </span>
+                ) : null
+              })()}
               <span className="flex items-center gap-1">
                 <Users className="h-3 w-3" /> {booking.guests} guest{booking.guests > 1 ? 's' : ''}
               </span>

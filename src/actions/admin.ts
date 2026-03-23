@@ -3,6 +3,25 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/types'
 
+// ── Audit Log ─────────────────────────────────────────────────
+
+export async function logAuditEvent(
+  adminId: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  details?: Record<string, unknown>
+) {
+  const supabase = await createServiceClient()
+  await supabase.from('audit_logs').insert({
+    admin_id: adminId,
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    details: details || {},
+  })
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 async function requireAdmin() {

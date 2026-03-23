@@ -58,10 +58,65 @@ export async function POST(request: Request) {
 
   if (event.event === 'payment.failed') {
     const payment = event.payload.payment.entity
+    const orderId = payment.order_id
+
+    // Find and cancel the booking
+    const { data: failedBooking } = await supabase
+      .from('bookings')
+      .select('id, user_id, package:packages(title)')
+      .eq('stripe_session_id', orderId)
+      .single()
+
     await supabase
       .from('bookings')
       .update({ status: 'cancelled' })
-      .eq('stripe_session_id', payment.order_id)
+      .eq('stripe_session_id', orderId)
+
+    // Notify customer about failed payment
+    if (failedBooking) {
+      const pkgTitle = (failedBooking.package as unknown as { title: string })?.title || 'your trip'
+      await supabase.from('notifications').insert({
+        user_id: failedBooking.user_id,
+        type: 'booking',
+        title: 'Payment Failed',
+        body: `Your payment for ${pkgTitle} failed. Please try booking again.`,
+        link: '/explore',
+      })
+    }
+  }
+
+  // Handle failed refund — notify admins for manual intervention
+  if (event.event === 'refund.failed') {
+    const refund = event.payload.refund.entity
+    const paymentId = refund.payment_id
+
+    const { data: refundBooking } = await supabase
+      .from('bookings')
+      .select('id, user_id, package:packages(title)')
+      .eq('stripe_payment_intent', paymentId)
+      .single()
+
+    if (refundBooking) {
+      // Update refund status
+      await supabase
+        .from('bookings')
+        .update({ refund_status: 'failed', updated_at: new Date().toISOString() })
+        .eq('id', refundBooking.id)
+
+      const pkgTitle = (refundBooking.package as unknown as { title: string })?.title || 'a booking'
+
+      // Notify all admins
+      const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin'])
+      for (const admin of admins || []) {
+        await supabase.from('notifications').insert({
+          user_id: admin.id,
+          type: 'booking',
+          title: 'Refund Failed!',
+          body: `Razorpay refund failed for ${pkgTitle}. Manual intervention needed.`,
+          link: '/admin/bookings',
+        })
+      }
+    }
   }
 
   // Auto-update refund status when Razorpay processes refund

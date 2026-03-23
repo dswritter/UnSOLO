@@ -8,6 +8,7 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { InterestButton } from '@/components/packages/InterestButton'
+import { ShareButton } from '@/components/packages/ShareButton'
 import { getInterestData } from '@/actions/booking'
 import type { Package } from '@/types'
 
@@ -133,13 +134,22 @@ export default async function PackageDetailPage({
               </div>
             </div>
 
-            {/* Interested button */}
-            <InterestButton
-              packageId={package_.id}
-              initialCount={interestData.count}
-              initialInterested={interestData.isInterested}
-              isLoggedIn={!!user}
-            />
+            {/* Interested + Share */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <InterestButton
+                packageId={package_.id}
+                initialCount={interestData.count}
+                initialInterested={interestData.isInterested}
+                isLoggedIn={!!user}
+              />
+              <ShareButton
+                slug={package_.slug}
+                title={package_.title}
+                location={`${package_.destination?.name}, ${package_.destination?.state}`}
+                pricePaise={package_.price_paise}
+                durationDays={package_.duration_days}
+              />
+            </div>
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">

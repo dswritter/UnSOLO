@@ -62,9 +62,34 @@ export function formatDateRange(departureDateStr: string, durationDays: number):
 }
 
 export function getMaxDate(): string {
+  const { MAX_BOOKING_FUTURE_YEARS } = require('@/lib/constants')
   const d = new Date()
-  d.setFullYear(d.getFullYear() + 2)
+  d.setFullYear(d.getFullYear() + MAX_BOOKING_FUTURE_YEARS)
   return d.toISOString().split('T')[0]
+}
+
+export function getTripCountdown(travelDate: string, durationDays: number = 1): { text: string; emoji: string } | null {
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const departure = new Date(travelDate)
+  departure.setHours(0, 0, 0, 0)
+  const returnDate = new Date(departure)
+  returnDate.setDate(returnDate.getDate() + durationDays)
+
+  const msPerDay = 86400000
+  const daysUntilDep = Math.ceil((departure.getTime() - now.getTime()) / msPerDay)
+  const daysUntilReturn = Math.ceil((returnDate.getTime() - now.getTime()) / msPerDay)
+
+  if (daysUntilReturn < 0) return null // trip is over
+
+  if (daysUntilDep <= 0 && daysUntilReturn >= 0) {
+    return { text: "You're on the trip right now!", emoji: '🏔️' }
+  }
+
+  if (daysUntilDep === 0) return { text: 'TODAY! Have an amazing trip!', emoji: '🚀' }
+  if (daysUntilDep <= 7) return { text: `${daysUntilDep} day${daysUntilDep > 1 ? 's' : ''}! Almost there!`, emoji: '🎉' }
+  if (daysUntilDep <= 30) return { text: `${daysUntilDep} days to go! Start packing!`, emoji: '🎒' }
+  return { text: `${daysUntilDep} days to go`, emoji: '📅' }
 }
 
 export function timeAgo(dateStr: string): string {

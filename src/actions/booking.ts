@@ -42,6 +42,19 @@ export async function createRazorpayOrder(
     return { error: 'Travel date must be in the future' }
   }
 
+  // Duplicate booking prevention
+  const { data: existingBooking } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('package_id', packageId)
+    .eq('travel_date', travelDate)
+    .in('status', ['pending', 'confirmed'])
+    .maybeSingle()
+  if (existingBooking) {
+    return { error: 'You already have a booking for this package on this date' }
+  }
+
   // Check if max spots reached for this date (sum of guests, not count of bookings)
   if (pkg.max_group_size) {
     const { data: existingBookings } = await supabase
@@ -557,6 +570,15 @@ export async function processCancellation(
     })
   }
 
+  // Audit log
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, approve ? 'cancellation_approved' : 'cancellation_denied', 'booking', bookingId, {
+      refundAmountPaise: refundAmountPaise || 0,
+      adminNote: adminNote || '',
+    })
+  } catch { /* non-critical */ }
+
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')
   return { success: true }
@@ -575,13 +597,17 @@ export async function initiateRefund(bookingId: string) {
   // Get booking with payment ID and refund amount
   const { data: booking } = await supabase
     .from('bookings')
-    .select('stripe_payment_intent, refund_amount_paise, user_id, package:packages(title)')
+    .select('stripe_payment_intent, refund_amount_paise, refund_status, user_id, package:packages(title)')
     .eq('id', bookingId)
     .single()
 
   if (!booking) return { error: 'Booking not found' }
   if (!booking.stripe_payment_intent) return { error: 'No payment ID found — manual refund required' }
   if (!booking.refund_amount_paise || booking.refund_amount_paise <= 0) return { error: 'No refund amount set' }
+
+  // Double refund prevention
+  if (booking.refund_status === 'processing') return { error: 'Refund already initiated and processing' }
+  if (booking.refund_status === 'completed') return { error: 'Refund already completed' }
 
   try {
     // Call Razorpay Refund API
@@ -612,6 +638,7 @@ export async function initiateRefund(bookingId: string) {
       .update({
         refund_status: 'processing',
         refund_razorpay_id: result.id,
+        refund_initiated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', bookingId)
