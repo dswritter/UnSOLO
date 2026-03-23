@@ -1,4 +1,4 @@
-import { getDiscountOffers, createDiscountOffer, toggleDiscountOffer, grantUserCredits } from '@/actions/admin'
+import { getDiscountOffers, createDiscountOffer, toggleDiscountOffer, grantUserCredits, editDiscountOffer } from '@/actions/admin'
 import { DiscountsClient } from './DiscountsClient'
 
 export default async function AdminDiscountsPage() {
@@ -15,6 +15,7 @@ export default async function AdminDiscountsPage() {
         createOffer={createDiscountOffer}
         toggleOffer={toggleDiscountOffer}
         grantCredits={grantUserCredits}
+        editOffer={editDiscountOffer}
       />
     </div>
   )

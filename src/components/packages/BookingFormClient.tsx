@@ -69,6 +69,8 @@ export function BookingFormClient({
   const [isReferred, setIsReferred] = useState(false)
   const [isFirstBooking, setIsFirstBooking] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
+  const [availablePromos, setAvailablePromos] = useState<{ code: string; name: string; discountPaise: number }[]>([])
+  const [promosLoaded, setPromosLoaded] = useState(false)
 
   // Group booking state
   const [groupDate, setGroupDate] = useState('')
@@ -116,13 +118,34 @@ export function BookingFormClient({
     setAddedFriends(prev => prev.filter(f => f.id !== id))
   }
 
-  // Fetch user credits on mount
+  // Fetch user credits and available promos on mount
   useState(() => {
     getUserCredits().then(data => {
       setUserCredits(data.credits)
       setIsReferred(data.isReferred)
       setIsFirstBooking(data.isFirstBooking)
     })
+    // Fetch available promo codes
+    const supabase = createClient()
+    supabase
+      .from('discount_offers')
+      .select('promo_code, name, discount_paise, max_uses, used_count, valid_until')
+      .eq('is_active', true)
+      .eq('type', 'promo')
+      .not('promo_code', 'is', null)
+      .then(({ data }) => {
+        const now = new Date()
+        const valid = (data || []).filter(d =>
+          (!d.max_uses || d.used_count < d.max_uses) &&
+          (!d.valid_until || new Date(d.valid_until) > now)
+        )
+        setAvailablePromos(valid.map(d => ({
+          code: d.promo_code!,
+          name: d.name,
+          discountPaise: d.discount_paise,
+        })))
+        setPromosLoaded(true)
+      })
   })
 
   async function handleValidatePromo() {
@@ -488,31 +511,57 @@ export function BookingFormClient({
             )}
 
             {/* Promo code */}
-            <button
-              onClick={() => setShowPromoInput(!showPromoInput)}
-              className="text-xs text-primary hover:underline"
-            >
-              {showPromoInput ? 'Hide promo code' : 'Have a promo code?'}
-            </button>
-            {showPromoInput && (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter code"
-                  value={promoCode}
-                  onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                  className="bg-secondary border-border text-xs uppercase flex-1"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleValidatePromo}
-                  disabled={promoValidating || !promoCode.trim()}
-                  className="border-border text-xs px-3"
+            {promoDiscount === 0 && (
+              <>
+                <button
+                  onClick={() => setShowPromoInput(!showPromoInput)}
+                  className="text-xs text-primary hover:underline"
                 >
-                  {promoValidating ? '...' : 'Apply'}
-                </Button>
-              </div>
+                  {showPromoInput ? 'Hide promo codes' : 'Have a promo code?'}
+                </button>
+                {showPromoInput && (
+                  <div className="space-y-2">
+                    {/* Available promos dropdown */}
+                    {availablePromos.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground">Available offers:</span>
+                        {availablePromos.map(p => (
+                          <button
+                            key={p.code}
+                            onClick={() => { setPromoCode(p.code); setPromoDiscount(p.discountPaise); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
+                            className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:border-primary/40 transition-colors text-left"
+                          >
+                            <div>
+                              <span className="text-xs font-medium">{p.name}</span>
+                              <code className="text-[10px] text-muted-foreground ml-2 font-mono">{p.code}</code>
+                            </div>
+                            <span className="text-xs text-green-500 font-medium">-{formatPrice(p.discountPaise)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Manual entry */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Or enter code manually"
+                        value={promoCode}
+                        onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                        className="bg-secondary border-border text-xs uppercase flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleValidatePromo}
+                        disabled={promoValidating || !promoCode.trim()}
+                        className="border-border text-xs px-3"
+                      >
+                        {promoValidating ? '...' : 'Apply'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             {promoDiscount > 0 && (
               <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs">

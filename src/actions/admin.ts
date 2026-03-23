@@ -593,6 +593,36 @@ export async function toggleDiscountOffer(offerId: string, isActive: boolean) {
   return { success: true }
 }
 
+export async function editDiscountOffer(offerId: string, formData: FormData) {
+  const { supabase, user } = await requireAdmin()
+
+  const updates: Record<string, unknown> = {}
+  const name = formData.get('name') as string
+  const discountRupees = formData.get('discountRupees') as string
+  const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim()
+  const maxUses = formData.get('maxUses') as string
+  const validUntil = formData.get('validUntil') as string
+
+  if (name) updates.name = name
+  if (discountRupees) updates.discount_paise = parseInt(discountRupees) * 100
+  if (promoCode) updates.promo_code = promoCode
+  if (maxUses) updates.max_uses = parseInt(maxUses)
+  if (validUntil) updates.valid_until = validUntil
+
+  const { error } = await supabase
+    .from('discount_offers')
+    .update(updates)
+    .eq('id', offerId)
+
+  if (error) return { error: error.message }
+
+  await logAuditEvent(user.id, 'discount_edited', 'discount_offer', offerId, updates)
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/discounts')
+  return { success: true }
+}
+
 export async function grantUserCredits(username: string, amountPaise: number, reason: string) {
   const { user } = await requireAdmin()
   const svcSupabase = await createServiceClient()

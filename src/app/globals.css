@@ -172,9 +172,20 @@
   border-color: var(--ring);
   box-shadow: 0 0 0 2px oklch(0.77 0.18 75 / 0.25);
 }
-/* Light mode: date slot hover visible */
+/* Light mode: hover makes text bolder/darker instead of white */
+:root a:hover,
 :root button:hover {
-  box-shadow: 0 1px 4px oklch(0 0 0 / 0.08);
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.06);
+}
+/* Override hover:text-white in light mode — make text darker + bolder */
+:root .hover\:text-white:hover {
+  color: var(--foreground) !important;
+  font-weight: 600;
+}
+/* Keep dark mode hover:text-white working */
+.dark .hover\:text-white:hover {
+  color: white !important;
+  font-weight: inherit;
 }
 
 /* Gold gradient text */

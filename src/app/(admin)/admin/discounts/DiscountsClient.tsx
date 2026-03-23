@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import React, { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Gift, Tag, Trophy, Users, ToggleLeft, ToggleRight, CreditCard } from 'lucide-react'
+import { Plus, Gift, Tag, Trophy, Users, ToggleLeft, ToggleRight, CreditCard, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Offer {
@@ -40,11 +40,13 @@ interface Props {
   createOffer: (fd: FormData) => Promise<{ error?: string; success?: boolean }>
   toggleOffer: (id: string, isActive: boolean) => Promise<{ success?: boolean }>
   grantCredits: (username: string, amount: number, reason: string) => Promise<{ error?: string; success?: boolean; userName?: string }>
+  editOffer: (id: string, fd: FormData) => Promise<{ error?: string; success?: boolean }>
 }
 
-export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits }: Props) {
+export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits, editOffer }: Props) {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showGrantForm, setShowGrantForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(e: React.FormEvent<HTMLFormElement>) {
@@ -171,7 +173,8 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
         {offers.map(offer => {
           const Icon = TYPE_ICONS[offer.type] || Tag
           return (
-            <div key={offer.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+            <React.Fragment key={offer.id}>
+            <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Icon className="h-5 w-5 text-primary" />
@@ -193,20 +196,76 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => startTransition(async () => {
-                  await toggleOffer(offer.id, !offer.is_active)
-                  toast.success(offer.is_active ? 'Offer deactivated' : 'Offer activated')
-                })}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                title={offer.is_active ? 'Deactivate' : 'Activate'}
-              >
-                {offer.is_active
-                  ? <ToggleRight className="h-6 w-6 text-green-500" />
-                  : <ToggleLeft className="h-6 w-6 text-muted-foreground" />
-                }
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditingId(editingId === offer.id ? null : offer.id)}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  title="Edit"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => startTransition(async () => {
+                    await toggleOffer(offer.id, !offer.is_active)
+                    toast.success(offer.is_active ? 'Offer deactivated' : 'Offer activated')
+                  })}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title={offer.is_active ? 'Deactivate' : 'Activate'}
+                >
+                  {offer.is_active
+                    ? <ToggleRight className="h-6 w-6 text-green-500" />
+                    : <ToggleLeft className="h-6 w-6 text-muted-foreground" />
+                  }
+                </button>
+              </div>
             </div>
+            {/* Inline edit form */}
+            {editingId === offer.id && (
+              <form
+                onSubmit={e => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  startTransition(async () => {
+                    const res = await editOffer(offer.id, fd)
+                    if (res.error) toast.error(res.error)
+                    else { toast.success('Offer updated!'); setEditingId(null) }
+                  })
+                }}
+                className="bg-card border border-border rounded-xl p-4 space-y-3"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Name</label>
+                    <Input name="name" defaultValue={offer.name} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Discount (₹)</label>
+                    <Input name="discountRupees" type="number" min="1" defaultValue={Math.round(offer.discount_paise / 100)} className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Promo Code</label>
+                    <Input name="promoCode" defaultValue={offer.promo_code || ''} className="bg-secondary border-border text-sm uppercase" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Max Uses</label>
+                    <Input name="maxUses" type="number" min="1" defaultValue={offer.max_uses || ''} placeholder="Unlimited" className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Valid Until</label>
+                    <Input name="validUntil" type="date" defaultValue={offer.valid_until?.split('T')[0] || ''} className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={isPending} className="bg-primary text-primary-foreground text-xs">
+                    {isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setEditingId(null)} className="border-border text-xs">Cancel</Button>
+                </div>
+              </form>
+            )}
+          </React.Fragment>
           )
         })}
       </div>
