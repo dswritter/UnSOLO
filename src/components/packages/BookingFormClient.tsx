@@ -657,6 +657,10 @@ export function BookingFormClient({
                   <><Users className="mr-2 h-4 w-4" /> {groupPayMode === 'full' ? 'Pay & Create Group' : 'Create & Send Payment Links'}</>
                 )}
               </Button>
+              <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+                ⏰ All members (including you) must complete payment within <strong>24 hours</strong>.
+                Unpaid group trips are auto-cancelled with full refund for those who paid.
+              </p>
             </>
           )}
         </div>

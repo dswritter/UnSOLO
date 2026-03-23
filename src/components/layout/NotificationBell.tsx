@@ -51,9 +51,9 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     load()
 
-    // Subscribe to new notifications
+    // Subscribe to new notifications via realtime
     const channel = supabase
-      .channel('user-notifications')
+      .channel(`notif-${userId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
@@ -62,7 +62,6 @@ export function NotificationBell({ userId }: { userId: string }) {
           setNotifications(prev => [n, ...prev].slice(0, 20))
           setUnreadCount(c => c + 1)
 
-          // Browser notification if permission granted
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(n.title, { body: n.body || undefined, icon: '/favicon.ico' })
           }
@@ -70,7 +69,13 @@ export function NotificationBell({ userId }: { userId: string }) {
       )
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    // Also poll every 15s as fallback (realtime can miss events with RLS)
+    const pollInterval = setInterval(load, 15000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(pollInterval)
+    }
   }, [userId])
 
   // Close on outside click

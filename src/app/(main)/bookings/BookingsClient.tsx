@@ -6,11 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2 } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock } from 'lucide-react'
 import { formatPrice, formatDate, formatDateRange } from '@/lib/utils'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import { requestCancellation, changeBookingDate } from '@/actions/booking'
+import type { GroupBookingInfo } from './page'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -26,9 +27,11 @@ const STATUS_COLORS: Record<string, string> = {
 interface Props {
   bookings: Booking[]
   reviewedBookingIds: string[]
+  groupBookings?: GroupBookingInfo[]
+  currentUserId?: string
 }
 
-export function BookingsClient({ bookings, reviewedBookingIds }: Props) {
+export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [], currentUserId }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewed, setReviewed] = useState<Set<string>>(new Set(reviewedBookingIds))
@@ -129,6 +132,98 @@ export function BookingsClient({ bookings, reviewedBookingIds }: Props) {
           </Button>
         </form>
       </div>
+
+      {/* Group Bookings */}
+      {groupBookings.filter(g => g.status === 'open').length > 0 && (
+        <div>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" /> Group Trips
+          </h2>
+          <div className="space-y-4">
+            {groupBookings.filter(g => g.status === 'open').map(group => {
+              const pkg = group.package
+              const myStatus = group.my_status
+              const isOrganizer = currentUserId === group.organizer_id
+              const needsPayment = myStatus === 'invited' || myStatus === 'accepted'
+
+              return (
+                <Card key={group.id} className="bg-card border-border">
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-bold text-lg">{pkg?.title || 'Group Trip'}</h3>
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+                          {pkg?.destination && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {group.total_members} members
+                          </span>
+                        </div>
+                      </div>
+                      <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                        {group.total_paid}/{group.total_members} paid
+                      </Badge>
+                    </div>
+
+                    {/* Price breakdown */}
+                    <div className="bg-secondary/50 rounded-lg p-3 text-xs space-y-1">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Total group ({group.total_members} × {formatPrice(group.per_person_paise)})</span>
+                        <span>{formatPrice(group.per_person_paise * group.total_members)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
+                        <span>Your share</span>
+                        <span className="text-primary">{formatPrice(group.per_person_paise)}</span>
+                      </div>
+                    </div>
+
+                    {/* Members list */}
+                    <div className="space-y-1">
+                      <span className="text-xs text-muted-foreground font-medium">Members:</span>
+                      {group.members.map(m => (
+                        <div key={m.user_id} className="flex items-center justify-between text-xs">
+                          <span>
+                            {m.full_name || m.username}
+                            {m.user_id === group.organizer_id && <span className="text-primary ml-1">(organizer)</span>}
+                            {m.user_id === currentUserId && <span className="text-muted-foreground ml-1">(you)</span>}
+                          </span>
+                          <span className={m.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}>
+                            {m.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pay button for unpaid members */}
+                    {needsPayment && (
+                      <Button
+                        className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+                        asChild
+                      >
+                        <Link href={`/packages/${pkg?.slug}?group=${group.id}`}>
+                          <CreditCard className="mr-2 h-4 w-4" /> Pay Your Share ({formatPrice(group.per_person_paise)})
+                        </Link>
+                      </Button>
+                    )}
+
+                    {/* 24hr policy note */}
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
+                    </p>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {upcoming.length > 0 && (
         <div>

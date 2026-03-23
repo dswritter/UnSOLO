@@ -1,18 +1,27 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Calendar, Users, BookOpen } from 'lucide-react'
-import { formatPrice, formatDate } from '@/lib/utils'
+import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  confirmed: 'bg-green-500/20 text-green-400 border-green-500/30',
-  cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
-  completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+export type GroupBookingInfo = {
+  id: string
+  package_id: string
+  travel_date: string
+  per_person_paise: number
+  max_members: number
+  status: string
+  invite_code: string
+  organizer_id: string
+  created_at: string
+  my_status: string // invited | accepted | paid
+  package?: { title: string; slug: string; images?: string[]; duration_days?: number; destination?: { name: string; state: string } }
+  organizer?: { full_name: string | null; username: string }
+  members: { user_id: string; status: string; full_name: string | null; username: string }[]
+  total_paid: number
+  total_members: number
 }
 
 export default async function BookingsPage() {
@@ -33,8 +42,58 @@ export default async function BookingsPage() {
     .eq('user_id', user.id)
 
   const reviewedBookingIds = new Set((reviews || []).map(r => r.booking_id))
-
   const bookings = (data || []) as Booking[]
+
+  // Fetch group bookings where user is a member
+  const { data: myMemberships } = await supabase
+    .from('group_members')
+    .select('group_id, status')
+    .eq('user_id', user.id)
+
+  const groupBookings: GroupBookingInfo[] = []
+  if (myMemberships && myMemberships.length > 0) {
+    for (const mem of myMemberships) {
+      const { data: group } = await supabase
+        .from('group_bookings')
+        .select('*, package:packages(title, slug, images, duration_days, destination:destinations(name, state)), organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+        .eq('id', mem.group_id)
+        .single()
+
+      if (!group) continue
+
+      const { data: members } = await supabase
+        .from('group_members')
+        .select('user_id, status, user:profiles(full_name, username)')
+        .eq('group_id', mem.group_id)
+
+      const memberList = (members || []).map(m => ({
+        user_id: m.user_id,
+        status: m.status,
+        full_name: (m.user as unknown as { full_name: string | null })?.full_name,
+        username: (m.user as unknown as { username: string })?.username,
+      }))
+
+      groupBookings.push({
+        id: group.id,
+        package_id: group.package_id,
+        travel_date: group.travel_date,
+        per_person_paise: group.per_person_paise,
+        max_members: group.max_members,
+        status: group.status,
+        invite_code: group.invite_code,
+        organizer_id: group.organizer_id,
+        created_at: group.created_at,
+        my_status: mem.status,
+        package: group.package as GroupBookingInfo['package'],
+        organizer: group.organizer as unknown as { full_name: string | null; username: string },
+        members: memberList,
+        total_paid: memberList.filter(m => m.status === 'paid').length,
+        total_members: memberList.filter(m => m.status !== 'declined').length,
+      })
+    }
+  }
+
+  const hasContent = bookings.length > 0 || groupBookings.length > 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,7 +103,7 @@ export default async function BookingsPage() {
           <p className="text-muted-foreground mt-1">Your travel history and upcoming adventures</p>
         </div>
 
-        {bookings.length === 0 ? (
+        {!hasContent ? (
           <div className="text-center py-24">
             <BookOpen className="h-16 w-16 text-primary/30 mx-auto mb-4" />
             <h3 className="text-xl font-bold mb-2">No trips yet</h3>
@@ -54,7 +113,12 @@ export default async function BookingsPage() {
             </Button>
           </div>
         ) : (
-          <BookingsClient bookings={bookings} reviewedBookingIds={Array.from(reviewedBookingIds)} />
+          <BookingsClient
+            bookings={bookings}
+            reviewedBookingIds={Array.from(reviewedBookingIds)}
+            groupBookings={groupBookings}
+            currentUserId={user.id}
+          />
         )}
       </div>
     </div>

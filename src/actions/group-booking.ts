@@ -262,29 +262,41 @@ export async function completeGroupPayment(groupId: string) {
       p_link: '/bookings',
     })
 
-    // Check if ALL members have paid
+    // Check payment status of all members
     const { data: allMembers } = await supabase
       .from('group_members')
-      .select('status')
+      .select('user_id, status')
       .eq('group_id', groupId)
       .neq('status', 'declined')
 
-    const allPaid = allMembers?.every(m => m.status === 'paid' || m.status === 'accepted')
+    const allPaid = allMembers?.every(m => m.status === 'paid')
+    const othersExceptOrganizer = allMembers?.filter(m => m.user_id !== group.organizer_id)
+    const allOthersPaid = othersExceptOrganizer?.every(m => m.status === 'paid')
+    const organizerPaid = allMembers?.find(m => m.user_id === group.organizer_id)?.status === 'paid'
 
     if (allPaid) {
-      // Update group status to confirmed
+      // ALL members including organizer have paid
       await supabase
         .from('group_bookings')
         .update({ status: 'confirmed', updated_at: new Date().toISOString() })
         .eq('id', groupId)
 
-      // Notify organizer that all payments are in
-      await supabase.rpc('create_notification', {
-        p_user_id: group.organizer_id,
-        p_type: 'booking',
-        p_title: 'All Payments Complete!',
-        p_body: `Everyone has paid for ${pkgTitle}. The group trip is confirmed!`,
-        p_link: '/bookings',
+      // Notify organizer
+      await supabase.from('notifications').insert({
+        user_id: group.organizer_id,
+        type: 'booking',
+        title: 'Group Trip Confirmed!',
+        body: `Everyone has paid for ${pkgTitle}. The group trip is confirmed!`,
+        link: '/bookings',
+      })
+    } else if (allOthersPaid && !organizerPaid) {
+      // Everyone else paid but organizer hasn't
+      await supabase.from('notifications').insert({
+        user_id: group.organizer_id,
+        type: 'split_payment',
+        title: 'Everyone else has paid!',
+        body: `All friends have paid for ${pkgTitle}. Complete your payment to confirm the group trip.`,
+        link: '/bookings',
       })
     }
   }
