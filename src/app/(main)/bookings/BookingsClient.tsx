@@ -216,10 +216,12 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
               const isOrganizer = currentUserId === group.organizer_id
               const needsPayment = myStatus === 'invited' || myStatus === 'accepted'
 
+              const isGroupExpanded = expandedId === `group-${group.id}`
+
               return (
-                <Card key={group.id} className="bg-card border-border">
-                  <CardContent className="p-5 space-y-3">
-                    {/* Header with thumbnail — same style as individual bookings */}
+                <Card key={group.id} className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={() => setExpandedId(isGroupExpanded ? null : `group-${group.id}`)}>
+                  <CardContent className="p-5">
+                    {/* Collapsed header — same layout as solo cards */}
                     <div className="flex flex-col sm:flex-row gap-4">
                       {pkg?.images?.[0] && (
                         <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
@@ -228,99 +230,98 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <Link href={pkg?.slug ? `/packages/${pkg.slug}` : '#'} className="font-bold text-lg hover:text-primary transition-colors">
-                              {pkg?.title || 'Group Trip'}
-                            </Link>
-                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
-                              {pkg?.destination && (
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Users className="h-3 w-3" /> {group.total_members} members
-                              </span>
-                            </div>
-                          </div>
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Group Trip'}</h3>
                           <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
                             {group.total_paid}/{group.total_members} paid
                           </Badge>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Price breakdown */}
-                    <div className="bg-secondary/50 rounded-lg p-3 text-xs space-y-1">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Total group ({group.total_members} × {formatPrice(group.per_person_paise)})</span>
-                        <span>{formatPrice(group.per_person_paise * group.total_members)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
-                        <span>Your share</span>
-                        <span className="text-primary">{formatPrice(group.per_person_paise)}</span>
-                      </div>
-                    </div>
-
-                    {/* Members list */}
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground font-medium">Members:</span>
-                      {group.members.map(m => (
-                        <div key={m.user_id} className="flex items-center justify-between text-xs">
-                          <span>
-                            {m.full_name || m.username}
-                            {m.user_id === group.organizer_id && <span className="text-primary ml-1">(organizer)</span>}
-                            {m.user_id === currentUserId && <span className="text-muted-foreground ml-1">(you)</span>}
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
+                          {pkg?.destination && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
                           </span>
-                          <span className={m.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}>
-                            {m.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3" /> {group.total_members} member{group.total_members > 1 ? 's' : ''}
                           </span>
                         </div>
-                      ))}
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
+                          <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                            <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                              <Link href="/chat">
+                                <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
+                              </Link>
+                            </Button>
+                            {needsPayment && (
+                              <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
+                                <Link href={`/packages/${pkg?.slug}?group=${group.id}`}>
+                                  <CreditCard className="mr-1 h-3 w-3" /> Pay Share
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Pay button for unpaid members */}
-                    {needsPayment && (
-                      <Button
-                        className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
-                        asChild
-                      >
-                        <Link href={`/packages/${pkg?.slug}?group=${group.id}`}>
-                          <CreditCard className="mr-2 h-4 w-4" /> Pay Your Share ({formatPrice(group.per_person_paise)})
-                        </Link>
-                      </Button>
-                    )}
+                    {/* Expanded details */}
+                    {isGroupExpanded && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-3" onClick={e => e.stopPropagation()}>
+                        {/* Price breakdown */}
+                        <div className="bg-secondary/50 rounded-lg p-3 text-xs space-y-1">
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Total group ({group.total_members} × {formatPrice(group.per_person_paise)})</span>
+                            <span>{formatPrice(group.per_person_paise * group.total_members)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
+                            <span>Your share</span>
+                            <span className="text-primary">{formatPrice(group.per_person_paise)}</span>
+                          </div>
+                        </div>
 
-                    {/* 24hr policy note — hide when all paid */}
-                    {group.total_paid < group.total_members && (
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
-                      </p>
-                    )}
+                        {/* Members list */}
+                        <div className="space-y-1">
+                          <span className="text-xs text-muted-foreground font-medium">Members:</span>
+                          {group.members.map(m => (
+                            <div key={m.user_id} className="flex items-center justify-between text-xs">
+                              <span>
+                                {m.full_name || m.username}
+                                {m.user_id === group.organizer_id && <span className="text-primary ml-1">(organizer)</span>}
+                                {m.user_id === currentUserId && <span className="text-muted-foreground ml-1">(you)</span>}
+                              </span>
+                              <span className={m.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}>
+                                {m.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
 
-                    {/* Group trip actions — same as individual bookings */}
-                    {group.total_paid === group.total_members && (
-                      <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                        {group.package?.slug && (
-                          <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                            <Link href={`/packages/${group.package.slug}`}>
-                              <ArrowRight className="mr-1 h-3 w-3" /> View Package
-                            </Link>
-                          </Button>
+                        {/* 24hr policy note — hide when all paid */}
+                        {group.total_paid < group.total_members && (
+                          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
+                          </p>
                         )}
-                        <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                          <Link href="/chat">
-                            <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10">
-                          <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
-                        </Button>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                          {group.package?.slug && (
+                            <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                              <Link href={`/packages/${group.package.slug}`}>
+                                <ArrowRight className="mr-1 h-3 w-3" /> View Full Package
+                              </Link>
+                            </Button>
+                          )}
+                          {group.total_paid === group.total_members && (
+                            <GroupCancellationButton groupId={group.id} />
+                          )}
+                        </div>
                       </div>
                     )}
                   </CardContent>
@@ -653,6 +654,58 @@ function CancelRequester({ bookingId }: { bookingId: string }) {
   return (
     <div className="w-full space-y-2 mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
       <p className="text-xs font-medium text-red-400">Why do you want to cancel?</p>
+      <Textarea
+        value={reason}
+        onChange={e => setReason(e.target.value)}
+        placeholder="Reason for cancellation..."
+        rows={2}
+        className="bg-secondary border-border resize-none text-xs"
+      />
+      <div className="flex gap-2">
+        <Button size="sm" className="bg-red-500 text-white text-xs hover:bg-red-600" onClick={submit} disabled={submitting}>
+          {submitting ? 'Submitting...' : 'Submit Request'}
+        </Button>
+        <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ── Group Cancellation ──────────────────────────────────────
+function GroupCancellationButton({ groupId }: { groupId: string }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const router = useRouter()
+
+  async function submit() {
+    if (!reason.trim()) { toast.error('Please provide a reason'); return }
+    setSubmitting(true)
+    try {
+      const { requestGroupCancellation } = await import('@/actions/group-booking')
+      const result = await requestGroupCancellation(groupId, reason)
+      if (result.error) toast.error(result.error)
+      else { toast.success('Group cancellation request submitted'); router.refresh() }
+    } catch {
+      toast.error('Something went wrong')
+    }
+    setSubmitting(false)
+    setOpen(false)
+  }
+
+  if (!open) {
+    return (
+      <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10" onClick={() => setOpen(true)}>
+        <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
+      </Button>
+    )
+  }
+
+  return (
+    <div className="w-full space-y-2 mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+      <p className="text-xs font-medium text-red-400">Why do you want to cancel the group trip?</p>
       <Textarea
         value={reason}
         onChange={e => setReason(e.target.value)}

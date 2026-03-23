@@ -352,3 +352,66 @@ export async function completeGroupPayment(groupId: string) {
   revalidatePath('/bookings')
   return { success: true }
 }
+
+// ── Group Cancellation Request ──────────────────────────────
+export async function requestGroupCancellation(groupId: string, reason: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: group } = await supabase
+    .from('group_bookings')
+    .select('status, package:packages(title)')
+    .eq('id', groupId)
+    .single()
+
+  if (!group) return { error: 'Group not found' }
+  if (group.status === 'cancelled') return { error: 'Already cancelled' }
+
+  // Update group status
+  const { error } = await supabase
+    .from('group_bookings')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('id', groupId)
+
+  if (error) return { error: error.message }
+
+  // Notify admins
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+  const customerName = profile?.full_name || profile?.username || 'A user'
+  const pkgTitle = (group.package as unknown as { title: string })?.title || 'a group trip'
+
+  const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+  for (const admin of admins || []) {
+    await svcSupabase.from('notifications').insert({
+      user_id: admin.id,
+      type: 'booking',
+      title: 'Group Cancellation Request',
+      body: `${customerName} requested cancellation for ${pkgTitle}. Reason: ${reason}`,
+      link: '/admin/bookings',
+    })
+  }
+
+  // Notify all group members
+  const { data: members } = await supabase
+    .from('group_members')
+    .select('user_id')
+    .eq('group_id', groupId)
+    .neq('user_id', user.id)
+
+  for (const m of members || []) {
+    await svcSupabase.from('notifications').insert({
+      user_id: m.user_id,
+      type: 'booking',
+      title: 'Group Trip Cancellation',
+      body: `${customerName} requested cancellation for ${pkgTitle}. Refund will be processed.`,
+      link: '/bookings',
+    })
+  }
+
+  revalidatePath('/bookings')
+  return { success: true }
+}
