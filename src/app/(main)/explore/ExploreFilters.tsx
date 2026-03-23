@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Filter, ChevronDown, X } from 'lucide-react'
+import { Filter, ChevronDown, X, Heart } from 'lucide-react'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -191,6 +191,25 @@ export function ExploreFilters({ params, resultCount }: Props) {
           ))}
         </div>
       </FilterDropdown>
+
+      {/* Interested toggle */}
+      <button
+        onClick={() => {
+          if (params.interested) {
+            router.push(buildUrl({ interested: null }))
+          } else {
+            router.push(buildUrl({ interested: 'true' }))
+          }
+        }}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors whitespace-nowrap ${
+          params.interested
+            ? 'bg-red-500/15 border-red-500/40 text-red-400'
+            : 'bg-secondary border-border text-muted-foreground hover:text-white hover:border-red-500/30'
+        }`}
+      >
+        <Heart className={`h-3.5 w-3.5 ${params.interested ? 'fill-red-400' : ''}`} />
+        My Interests
+      </button>
 
       {/* Clear all + count */}
       {hasFilters && (

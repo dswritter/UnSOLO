@@ -362,7 +362,7 @@ export default function EditProfilePage() {
                     {phoneRequests.map(req => (
                       <div key={req.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
                         <div className="text-sm">
-                          <span className="font-medium">{req.requester?.full_name || req.requester?.username || 'Someone'}</span>
+                          <a href={`/profile/${req.requester?.username}`} className="font-medium text-primary hover:underline">{req.requester?.full_name || req.requester?.username || 'Someone'}</a>
                           <span className="text-muted-foreground"> wants your number</span>
                         </div>
                         <div className="flex gap-1.5">

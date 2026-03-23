@@ -36,45 +36,58 @@ export interface ChatMemberProfile {
 
 // ── Linkify helper ─────────────────────────────────────────
 function renderMessageContent(content: string) {
-  const urlRegex = /(https?:\/\/[^\s<]+)/g
-  const parts = content.split(urlRegex)
+  // First split by lines to preserve newlines, then linkify each line
+  const lines = content.split('\n')
 
-  return parts.map((part, i) => {
-    if (/^https?:\/\//.test(part)) {
-      // Check if it's a package link
-      const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
-      if (pkgMatch) {
+  return lines.map((line, lineIdx) => {
+    const urlRegex = /(https?:\/\/[^\s<]+)/g
+    const parts = line.split(urlRegex)
+
+    const lineContent = parts.map((part, partIdx) => {
+      const key = `${lineIdx}-${partIdx}`
+      if (/^https?:\/\//.test(part)) {
+        const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
+        if (pkgMatch) {
+          return (
+            <Link
+              key={key}
+              href={`/packages/${pkgMatch[1]}`}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors"
+              onClick={e => e.stopPropagation()}
+            >
+              <Package className="h-3 w-3" />
+              View Trip Package
+            </Link>
+          )
+        }
         return (
-          <Link
-            key={i}
-            href={`/packages/${pkgMatch[1]}`}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors"
+          <a
+            key={key}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline hover:text-primary/80 break-all"
             onClick={e => e.stopPropagation()}
           >
-            <Package className="h-3 w-3" />
-            View Trip Package
-          </Link>
+            {part.length > 60 ? part.slice(0, 57) + '...' : part}
+          </a>
         )
       }
-      return (
-        <a
-          key={i}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline hover:text-primary/80 break-all"
-          onClick={e => e.stopPropagation()}
-        >
-          {part.length > 60 ? part.slice(0, 57) + '...' : part}
-        </a>
-      )
-    }
-    return <span key={i}>{part}</span>
+      return part ? <span key={key}>{part}</span> : null
+    })
+
+    return (
+      <span key={lineIdx}>
+        {lineContent}
+        {lineIdx < lines.length - 1 && <br />}
+      </span>
+    )
   })
 }
 
 export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -89,6 +102,30 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Poll presence table for accurate online status (not just realtime channel)
+  useEffect(() => {
+    const memberIds = memberProfiles.map(m => m.id)
+    if (memberIds.length === 0) return
+
+    async function checkPresence() {
+      const supabase = (await import('@/lib/supabase/client')).createClient()
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const { data } = await supabase
+        .from('user_presence')
+        .select('user_id')
+        .in('user_id', memberIds)
+        .eq('is_online', true)
+        .gte('last_seen', fiveMinAgo)
+      if (data) {
+        setDbOnlineUsers(new Set(data.map(d => d.user_id)))
+      }
+    }
+
+    checkPresence()
+    const interval = setInterval(checkPresence, 30000) // every 30s
+    return () => clearInterval(interval)
+  }, [memberProfiles])
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
@@ -169,7 +206,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   function isUserOnline(userId: string): boolean {
-    return onlineUsers.includes(userId)
+    return onlineUsers.includes(userId) || dbOnlineUsers.has(userId)
   }
 
   const popupMember = profilePopup ? getMemberProfile(profilePopup) : null
@@ -349,9 +386,9 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         </div>
       </ScrollArea>
 
-      {/* Package Picker Popup */}
+      {/* Package Picker Popup — absolute positioned above input */}
       {showPackagePicker && (
-        <div className="border-t border-border bg-card/95 backdrop-blur px-4 py-4 max-h-80 overflow-y-auto">
+        <div className="absolute bottom-16 left-0 right-0 z-30 mx-4 mb-2 bg-card border border-border rounded-xl shadow-2xl px-4 py-4 max-h-[320px] overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold">Share a Trip Package</p>
             <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-4 w-4 text-zinc-500 hover:text-white" /></button>

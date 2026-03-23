@@ -245,6 +245,15 @@ export async function requestPhoneAccess(targetUserId: string) {
 
   if (error) return { error: error.message }
 
+  // Create in-app notification
+  await supabase.rpc('create_notification', {
+    p_user_id: targetUserId,
+    p_type: 'phone_request',
+    p_title: 'Phone Number Request',
+    p_body: 'Someone requested access to your phone number',
+    p_link: '/profile',
+  })
+
   // Send a DM notification to the target user
   const { data: requesterProfile } = await supabase
     .from('profiles')

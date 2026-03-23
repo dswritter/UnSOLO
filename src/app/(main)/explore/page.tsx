@@ -50,6 +50,19 @@ async function getPackages(searchParams: Record<string, string>) {
     })
   }
 
+  // Filter by user's interested packages
+  if (searchParams.interested) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: interests } = await supabase
+        .from('package_interests')
+        .select('package_id')
+        .eq('user_id', user.id)
+      const interestedIds = new Set((interests || []).map(i => i.package_id))
+      packages = packages.filter(pkg => interestedIds.has(pkg.id))
+    }
+  }
+
   return packages
 }
 

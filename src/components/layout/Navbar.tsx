@@ -16,6 +16,7 @@ import { signOut } from '@/actions/auth'
 import { getInitials } from '@/lib/utils'
 import { useState } from 'react'
 import type { Profile } from '@/types'
+import { NotificationBell } from './NotificationBell'
 
 interface NavbarProps {
   user?: Profile | null
@@ -66,6 +67,7 @@ export function Navbar({ user }: NavbarProps) {
                 <Link href="/chat" className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-white">
                   <MessageCircle className="h-5 w-5" />
                 </Link>
+                <NotificationBell userId={user.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger>
                     <Avatar className="h-9 w-9 border border-border cursor-pointer">
