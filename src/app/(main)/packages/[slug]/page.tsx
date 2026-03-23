@@ -58,6 +58,21 @@ export default async function PackageDetailPage({
     }
   }
 
+  // Calculate available slots per departure date
+  const availableSlotsMap: Record<string, number> = {}
+  if (package_.departure_dates && package_.max_group_size) {
+    for (const date of package_.departure_dates) {
+      const { data: dateBookings } = await supabase
+        .from('bookings')
+        .select('guests')
+        .eq('package_id', pkg.id)
+        .eq('travel_date', date)
+        .in('status', ['pending', 'confirmed', 'completed'])
+      const totalBooked = (dateBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
+      availableSlotsMap[date] = Math.max(0, package_.max_group_size - totalBooked)
+    }
+  }
+
   // Get reviews
   const { data: reviews } = await supabase
     .from('reviews')
@@ -130,7 +145,12 @@ export default async function PackageDetailPage({
             <div className="grid grid-cols-3 gap-4">
               {[
                 { icon: Clock, label: 'Duration', value: `${package_.duration_days} days` },
-                { icon: Users, label: 'Group Size', value: `Max ${package_.max_group_size}` },
+                { icon: Users, label: 'Availability', value: (() => {
+                  const slots = Object.values(availableSlotsMap)
+                  if (slots.length === 0) return `Max ${package_.max_group_size}`
+                  const minSlots = Math.min(...slots)
+                  return minSlots > 0 ? `${minSlots} spots left` : 'Sold out'
+                })() },
                 { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
@@ -248,6 +268,7 @@ export default async function PackageDetailPage({
                       departureDates={package_.departure_dates}
                       durationDays={package_.duration_days}
                       groupInvite={groupInvite}
+                      availableSlots={availableSlotsMap}
                     />
                   ) : (
                     <div className="space-y-3">
@@ -271,7 +292,7 @@ export default async function PackageDetailPage({
                     </div>
                     <div className="flex justify-between">
                       <span>Max Group</span>
-                      <span className="text-white">{package_.max_group_size} people</span>
+                      <span className="text-foreground">{package_.max_group_size} people</span>
                     </div>
                   </div>
                 </CardContent>

@@ -94,13 +94,15 @@ export function NotificationBell({ userId }: { userId: string }) {
     setUnreadCount(0)
   }
 
-  async function handleClick(n: Notification) {
-    // Mark as read immediately
+  async function onNotificationClick(n: Notification) {
+    // Mark as read immediately and update badge
     if (!n.is_read) {
       const supabase = createClient()
-      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
-      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
-      setUnreadCount(c => Math.max(0, c - 1))
+      const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
+      if (!error) {
+        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
+        setUnreadCount(c => Math.max(0, c - 1))
+      }
     }
     if (n.link) router.push(n.link)
     setOpen(false)
@@ -154,7 +156,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                 return (
                   <button
                     key={n.id}
-                    onClick={() => handleClick(n)}
+                    onClick={() => onNotificationClick(n)}
                     className={`flex items-start gap-3 px-4 py-3 w-full text-left hover:bg-secondary/30 transition-colors border-b border-border/50 last:border-0 ${
                       !n.is_read ? 'bg-primary/5' : ''
                     }`}

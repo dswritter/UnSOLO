@@ -36,6 +36,7 @@ interface BookingFormClientProps {
   departureDates?: string[] | null
   durationDays?: number
   groupInvite?: GroupInvite | null
+  availableSlots?: Record<string, number>
 }
 
 export function BookingFormClient({
@@ -47,6 +48,7 @@ export function BookingFormClient({
   departureDates,
   durationDays,
   groupInvite,
+  availableSlots = {},
 }: BookingFormClientProps) {
   const [tab, setTab] = useState<'fixed' | 'custom' | 'group'>(groupInvite ? 'fixed' : 'fixed')
   const [guests, setGuests] = useState(1)
@@ -322,19 +324,31 @@ export function BookingFormClient({
             </label>
             {futureDates.length > 0 ? (
               <div className="grid gap-2">
-                {futureDates.map((date) => (
+                {futureDates.map((date) => {
+                  const slots = availableSlots[date] ?? maxGroupSize
+                  const soldOut = slots <= 0
+                  return (
                   <button
                     key={date}
-                    onClick={() => setSelectedDate(date)}
+                    onClick={() => !soldOut && setSelectedDate(date)}
+                    disabled={soldOut}
                     className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
-                      selectedDate === date
+                      soldOut
+                        ? 'opacity-40 cursor-not-allowed border-border bg-secondary/30'
+                        : selectedDate === date
                         ? 'border-primary bg-primary/10 text-white'
                         : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-white'
                     }`}
                   >
-                    {durationDays ? formatDateRange(date, durationDays) : formatDate(date)}
+                    <span className="flex items-center justify-between w-full">
+                      <span>{durationDays ? formatDateRange(date, durationDays) : formatDate(date)}</span>
+                      <span className={`text-[10px] font-medium ${soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'}`}>
+                        {soldOut ? 'Sold out' : `${slots} spots left`}
+                      </span>
+                    </span>
                   </button>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground py-2">
@@ -346,12 +360,19 @@ export function BookingFormClient({
           {/* Guests */}
           <div className="space-y-1">
             <label className="text-sm font-medium">Guests</label>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.max(1, guests - 1))}>-</Button>
-              <span className="font-bold text-lg min-w-[2rem] text-center">{guests}</span>
-              <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.min(maxGroupSize, guests + 1))}>+</Button>
-              <span className="text-xs text-muted-foreground">Max {maxGroupSize}</span>
-            </div>
+            {(() => {
+              const maxAllowed = selectedDate ? (availableSlots[selectedDate] ?? maxGroupSize) : maxGroupSize
+              return (
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.max(1, guests - 1))}>-</Button>
+                  <span className="font-bold text-lg min-w-[2rem] text-center">{guests}</span>
+                  <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setGuests(Math.min(maxAllowed, guests + 1))}>+</Button>
+                  <span className="text-xs text-muted-foreground">
+                    {selectedDate ? `${maxAllowed} available` : `Max ${maxGroupSize}`}
+                  </span>
+                </div>
+              )
+            })()}
           </div>
 
           {/* Price breakdown */}
