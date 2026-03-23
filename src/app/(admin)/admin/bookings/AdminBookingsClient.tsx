@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { formatPrice, formatDate, ROLE_LABELS, type Booking, type Profile } from '@/types'
 import { assignPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes } from '@/actions/admin'
-import { processCancellation } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign } from 'lucide-react'
@@ -36,7 +36,23 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
     startTransition(async () => {
       const res = await processCancellation(bookingId, approve, refundPaise, note)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
-      else showFeedback(bookingId, approve ? 'Cancellation approved & user notified' : 'Cancellation denied & user notified')
+      else showFeedback(bookingId, approve ? 'Cancellation approved — user notified. Now initiate refund.' : 'Cancellation denied & user notified')
+    })
+  }
+
+  function handleInitiateRefund(bookingId: string) {
+    startTransition(async () => {
+      const res = await initiateRefund(bookingId)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(bookingId, `Refund initiated via Razorpay! ID: ${res.refundId}`)
+    })
+  }
+
+  function handleMarkRefundComplete(bookingId: string) {
+    startTransition(async () => {
+      const res = await markRefundComplete(bookingId)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(bookingId, 'Refund marked complete — customer notified!')
     })
   }
 
@@ -291,6 +307,61 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                           </Button>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Refund Tracking — for approved cancellations */}
+                  {booking.cancellation_status === 'approved' && booking.refund_amount_paise && booking.refund_amount_paise > 0 && (
+                    <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold">Refund: {formatPrice(booking.refund_amount_paise)}</span>
+                        <Badge className={
+                          booking.refund_status === 'completed' ? 'bg-green-900/50 text-green-300 border-green-700' :
+                          booking.refund_status === 'processing' ? 'bg-blue-900/50 text-blue-300 border-blue-700' :
+                          'bg-yellow-900/50 text-yellow-300 border-yellow-700'
+                        }>
+                          {booking.refund_status === 'completed' ? '✅ Refunded' :
+                           booking.refund_status === 'processing' ? '⏳ Processing' :
+                           '⏸ Pending'}
+                        </Badge>
+                      </div>
+
+                      {(!booking.refund_status || booking.refund_status === 'pending') && (
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                          onClick={() => handleInitiateRefund(booking.id)}
+                          disabled={isPending}
+                        >
+                          💳 Initiate Razorpay Refund
+                        </Button>
+                      )}
+
+                      {booking.refund_status === 'processing' && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`refund-done-${booking.id}`}
+                            className="rounded border-zinc-600"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                handleMarkRefundComplete(booking.id)
+                              }
+                            }}
+                            disabled={isPending}
+                          />
+                          <label htmlFor={`refund-done-${booking.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                            Mark refund as credited to customer
+                          </label>
+                          {booking.refund_razorpay_id && (
+                            <span className="text-[10px] text-zinc-600 font-mono ml-auto">{booking.refund_razorpay_id}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {booking.refund_status === 'completed' && (
+                        <p className="text-xs text-green-400">Refund credited to customer&apos;s account</p>
+                      )}
                     </div>
                   )}
 

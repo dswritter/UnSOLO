@@ -117,6 +117,8 @@ export type Booking = {
   cancellation_requested_at?: string | null
   refund_amount_paise?: number | null
   refund_note?: string | null
+  refund_status?: 'pending' | 'processing' | 'completed' | null
+  refund_razorpay_id?: string | null
   admin_cancellation_note?: string | null
   created_at: string
   updated_at: string

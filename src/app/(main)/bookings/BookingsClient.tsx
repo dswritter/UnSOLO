@@ -350,10 +350,17 @@ function BookingItem({
                 </Badge>
               )}
               {booking.cancellation_status === 'approved' && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs space-y-0.5">
                   <span className="text-red-400 font-medium">Cancelled</span>
-                  {booking.refund_amount_paise ? ` — Refund: ${formatPrice(booking.refund_amount_paise)}` : ''}
-                  {booking.refund_note && <span className="block mt-0.5">{booking.refund_note}</span>}
+                  {booking.refund_amount_paise ? (
+                    <span className="block">
+                      Refund: {formatPrice(booking.refund_amount_paise)}
+                      {booking.refund_status === 'completed' && <span className="text-green-400 ml-1">✅ Credited</span>}
+                      {booking.refund_status === 'processing' && <span className="text-blue-400 ml-1">⏳ In process</span>}
+                      {(!booking.refund_status || booking.refund_status === 'pending') && <span className="text-yellow-400 ml-1">⏸ Pending</span>}
+                    </span>
+                  ) : null}
+                  {booking.refund_note && <span className="block text-muted-foreground">{booking.refund_note}</span>}
                 </div>
               )}
               {booking.cancellation_status === 'denied' && (

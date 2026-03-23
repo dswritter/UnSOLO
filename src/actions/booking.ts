@@ -416,20 +416,29 @@ export async function requestCancellation(bookingId: string, reason: string) {
 
   if (error) return { error: error.message }
 
-  // Notify admins
+  // Get customer name for notification
+  const { data: customerProfile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const customerName = customerProfile?.full_name || customerProfile?.username || 'A user'
+
+  // Notify ALL admins and staff
   const { data: admins } = await supabase
     .from('profiles')
     .select('id')
-    .eq('role', 'admin')
+    .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
 
   const pkgTitle = (booking.package as unknown as { title: string })?.title || 'a trip'
   for (const admin of admins || []) {
-    await supabase.rpc('create_notification', {
-      p_user_id: admin.id,
-      p_type: 'booking',
-      p_title: 'Cancellation Request',
-      p_body: `A user requested cancellation for ${pkgTitle}`,
-      p_link: '/admin/bookings',
+    // Direct insert instead of RPC for reliability
+    await supabase.from('notifications').insert({
+      user_id: admin.id,
+      type: 'booking',
+      title: '⚠️ Cancellation Request',
+      body: `${customerName} requested cancellation for ${pkgTitle}. Review and take action.`,
+      link: '/admin/bookings',
     })
   }
 
@@ -448,9 +457,9 @@ export async function processCancellation(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify admin role
+  // Verify admin/staff role
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
+  if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) return { error: 'Unauthorized' }
 
   const updateData: Record<string, unknown> = {
     cancellation_status: approve ? 'approved' : 'denied',
@@ -462,6 +471,7 @@ export async function processCancellation(
     updateData.status = 'cancelled'
     updateData.refund_amount_paise = refundAmountPaise || 0
     updateData.refund_note = adminNote || null
+    updateData.refund_status = 'pending' // new: tracks refund progress
   }
 
   const { error } = await supabase
@@ -474,7 +484,7 @@ export async function processCancellation(
   // Get booking to notify user
   const { data: booking } = await supabase
     .from('bookings')
-    .select('user_id, package:packages(title), total_amount_paise')
+    .select('user_id, package:packages(title), total_amount_paise, stripe_payment_intent')
     .eq('id', bookingId)
     .single()
 
@@ -482,16 +492,127 @@ export async function processCancellation(
     const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
     const refundFormatted = refundAmountPaise ? `₹${(refundAmountPaise / 100).toLocaleString('en-IN')}` : '₹0'
 
-    await supabase.rpc('create_notification', {
-      p_user_id: booking.user_id,
-      p_type: 'booking',
-      p_title: approve ? 'Cancellation Approved' : 'Cancellation Denied',
-      p_body: approve
-        ? `Your cancellation for ${pkgTitle} was approved. Refund: ${refundFormatted}. ${adminNote || ''}`
+    await supabase.from('notifications').insert({
+      user_id: booking.user_id,
+      type: 'booking',
+      title: approve ? 'Cancellation Approved' : 'Cancellation Denied',
+      body: approve
+        ? `Your cancellation for ${pkgTitle} was approved. Refund of ${refundFormatted} is being processed. ${adminNote || ''}`
         : `Your cancellation for ${pkgTitle} was denied. ${adminNote || ''}`,
-      p_link: '/bookings',
+      link: '/bookings',
     })
   }
+
+  revalidatePath('/admin/bookings')
+  revalidatePath('/bookings')
+  return { success: true }
+}
+
+// ── Admin: Initiate Razorpay Refund ─────────────────────────
+export async function initiateRefund(bookingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Verify admin
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
+
+  // Get booking with payment ID and refund amount
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('stripe_payment_intent, refund_amount_paise, user_id, package:packages(title)')
+    .eq('id', bookingId)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (!booking.stripe_payment_intent) return { error: 'No payment ID found — manual refund required' }
+  if (!booking.refund_amount_paise || booking.refund_amount_paise <= 0) return { error: 'No refund amount set' }
+
+  try {
+    // Call Razorpay Refund API
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payments/${booking.stripe_payment_intent}/refund`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
+        },
+        body: JSON.stringify({
+          amount: booking.refund_amount_paise,
+          notes: { booking_id: bookingId, reason: 'Cancellation refund' },
+        }),
+      }
+    )
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      return { error: result.error?.description || 'Razorpay refund failed' }
+    }
+
+    // Update booking with refund status
+    await supabase
+      .from('bookings')
+      .update({
+        refund_status: 'processing',
+        refund_razorpay_id: result.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bookingId)
+
+    // Notify customer
+    const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+    const refundFormatted = `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}`
+    await supabase.from('notifications').insert({
+      user_id: booking.user_id,
+      type: 'booking',
+      title: 'Refund Initiated',
+      body: `Refund of ${refundFormatted} for ${pkgTitle} has been initiated. It will reach your account in 5-7 business days.`,
+      link: '/bookings',
+    })
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/bookings')
+    return { success: true, refundId: result.id }
+  } catch (err) {
+    return { error: `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}` }
+  }
+}
+
+// ── Admin: Mark Refund as Complete ──────────────────────────
+export async function markRefundComplete(bookingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
+
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('user_id, refund_amount_paise, package:packages(title)')
+    .eq('id', bookingId)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+
+  await supabase
+    .from('bookings')
+    .update({ refund_status: 'completed', updated_at: new Date().toISOString() })
+    .eq('id', bookingId)
+
+  // Notify customer
+  const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+  const refundFormatted = booking.refund_amount_paise ? `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}` : ''
+  await supabase.from('notifications').insert({
+    user_id: booking.user_id,
+    type: 'booking',
+    title: 'Refund Completed!',
+    body: `Your refund of ${refundFormatted} for ${pkgTitle} has been credited to your account.`,
+    link: '/bookings',
+  })
 
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')
