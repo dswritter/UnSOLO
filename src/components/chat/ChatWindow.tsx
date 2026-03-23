@@ -73,11 +73,15 @@ function renderMessageContent(content: string) {
 }
 
 export function ChatWindow({ roomId, roomName, initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
-  const { messages, typingUsers, isConnected, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
+  const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [profilePopup, setProfilePopup] = useState<string | null>(null)
   const [showMembers, setShowMembers] = useState(false)
+  const [showPackagePicker, setShowPackagePicker] = useState(false)
+  const [packages, setPackages] = useState<{ slug: string; title: string; destination_name: string }[]>([])
+  const [pkgSearch, setPkgSearch] = useState('')
+  const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -103,6 +107,40 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
       e.preventDefault()
       handleSend(e as unknown as React.FormEvent)
     }
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value)
+    // Throttle typing broadcast to once every 2s
+    if (!typingThrottleRef.current) {
+      broadcastTyping()
+      typingThrottleRef.current = setTimeout(() => {
+        typingThrottleRef.current = null
+      }, 2000)
+    }
+  }
+
+  async function loadPackages() {
+    const supabase = (await import('@/lib/supabase/client')).createClient()
+    const { data } = await supabase
+      .from('packages')
+      .select('slug, title, destination:destinations(name)')
+      .eq('is_active', true)
+      .order('title')
+    if (data) {
+      setPackages(data.map((p: Record<string, unknown>) => ({
+        slug: p.slug as string,
+        title: p.title as string,
+        destination_name: (p.destination as { name: string } | null)?.name || '',
+      })))
+    }
+  }
+
+  function sharePackage(slug: string, title: string) {
+    const url = `${window.location.origin}/packages/${slug}`
+    setInput(`Check out this trip: ${title}\n${url}`)
+    setShowPackagePicker(false)
+    setPkgSearch('')
   }
 
   async function handleRequestPhone(targetId: string) {
@@ -272,23 +310,69 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
               onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
             />
           ))}
-          {typingUsers.filter((u) => u !== currentUser.id).length > 0 && (
+          {typingUsers.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
-              Someone is typing...
+              {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
             </div>
           )}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
 
+      {/* Package Picker Popup */}
+      {showPackagePicker && (
+        <div className="border-t border-border bg-card/95 backdrop-blur px-4 py-3 max-h-64 overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium">Share a Trip Package</p>
+            <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-3.5 w-3.5 text-zinc-500" /></button>
+          </div>
+          <input
+            type="text"
+            value={pkgSearch}
+            onChange={e => setPkgSearch(e.target.value)}
+            placeholder="Search packages..."
+            className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-1.5 mb-2 focus:outline-none focus:border-primary"
+          />
+          <div className="space-y-1">
+            {packages
+              .filter(p => !pkgSearch || p.title.toLowerCase().includes(pkgSearch.toLowerCase()) || p.destination_name.toLowerCase().includes(pkgSearch.toLowerCase()))
+              .slice(0, 8)
+              .map(p => (
+                <button
+                  key={p.slug}
+                  onClick={() => sharePackage(p.slug, p.title)}
+                  className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-secondary/80 transition-colors"
+                >
+                  <Package className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium truncate">{p.title}</div>
+                    <div className="text-[10px] text-muted-foreground">{p.destination_name}</div>
+                  </div>
+                </button>
+              ))}
+            {packages.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">Loading packages...</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-4 py-3 border-t border-border">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
+          <button
+            type="button"
+            onClick={() => { setShowPackagePicker(!showPackagePicker); if (packages.length === 0) loadPackages() }}
+            className="h-10 w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+            title="Share a trip package"
+          >
+            <Share2 className="h-4 w-4 text-primary" />
+          </button>
           <Textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message... (Enter to send, paste package URLs to share)"
+            placeholder="Type a message... (Enter to send)"
             rows={1}
             className="bg-secondary border-border resize-none min-h-[40px] max-h-32"
           />
@@ -300,7 +384,6 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
             <Send className="h-4 w-4" />
           </Button>
         </form>
-        <p className="text-[10px] text-muted-foreground mt-1">Tip: Paste a package URL to share trips with the group</p>
       </div>
     </div>
   )

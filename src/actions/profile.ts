@@ -268,6 +268,131 @@ export async function getPhoneRequests() {
   return data || []
 }
 
+// ── Follows ──────────────────────────────────────────────────
+
+export async function followUser(targetUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (user.id === targetUserId) return { error: 'Cannot follow yourself' }
+
+  const { error } = await supabase.from('follows').insert({
+    follower_id: user.id,
+    following_id: targetUserId,
+  })
+  if (error) {
+    if (error.code === '23505') return { error: 'Already following' }
+    return { error: error.message }
+  }
+  return { success: true }
+}
+
+export async function unfollowUser(targetUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase
+    .from('follows')
+    .delete()
+    .eq('follower_id', user.id)
+    .eq('following_id', targetUserId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function getFollowData(profileId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const [
+    { count: followersCount },
+    { count: followingCount },
+    { data: followers },
+    { data: following },
+  ] = await Promise.all([
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileId),
+    supabase.from('follows').select('*, follower:profiles!follows_follower_id_fkey(id, username, full_name, avatar_url)').eq('following_id', profileId).limit(50),
+    supabase.from('follows').select('*, following:profiles!follows_following_id_fkey(id, username, full_name, avatar_url)').eq('follower_id', profileId).limit(50),
+  ])
+
+  let isFollowing = false
+  if (user) {
+    const { data } = await supabase.from('follows').select('id').eq('follower_id', user.id).eq('following_id', profileId).single()
+    isFollowing = !!data
+  }
+
+  return {
+    followersCount: followersCount || 0,
+    followingCount: followingCount || 0,
+    followers: followers || [],
+    following: following || [],
+    isFollowing,
+  }
+}
+
+// ── Direct Messaging ─────────────────────────────────────────
+
+export async function startDirectMessage(targetUserId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  if (user.id === targetUserId) return { error: 'Cannot DM yourself' }
+
+  // Get or create DM room
+  const { data: roomId, error } = await supabase.rpc('get_or_create_dm_room', {
+    user_a: user.id,
+    user_b: targetUserId,
+  })
+
+  if (error) return { error: error.message }
+  return { roomId }
+}
+
+// ── Privacy Settings ─────────────────────────────────────────
+
+export async function updatePrivacySettings(tripsPrivate: boolean, statesPrivate: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ trips_private: tripsPrivate, states_private: statesPrivate })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/profile')
+  return { success: true }
+}
+
+// ── Online Presence ──────────────────────────────────────────
+
+export async function updatePresence(online: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  await supabase.rpc('upsert_presence', { p_user_id: user.id, p_online: online })
+  return { success: true }
+}
+
+export async function getOnlineUsers() {
+  const supabase = await createClient()
+  // Users who were online in last 5 minutes
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const { data } = await supabase
+    .from('user_presence')
+    .select('user_id, last_seen, is_online, profile:profiles(id, username, full_name, avatar_url)')
+    .eq('is_online', true)
+    .gte('last_seen', fiveMinAgo)
+    .limit(50)
+
+  return data || []
+}
+
 // ── Community Search ─────────────────────────────────────────
 
 export async function searchCommunityMembers(query: string) {

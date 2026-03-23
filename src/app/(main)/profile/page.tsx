@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { updateProfile, updateUsername, updatePhoneSettings } from '@/actions/profile'
+import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings } from '@/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -39,6 +39,11 @@ export default function EditProfilePage() {
   const [phonePublic, setPhonePublic] = useState(false)
   const [phoneSaving, setPhoneSaving] = useState(false)
 
+  // Privacy settings
+  const [tripsPrivate, setTripsPrivate] = useState(false)
+  const [statesPrivate, setStatesPrivate] = useState(false)
+  const [privacySaving, setPrivacySaving] = useState(false)
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -51,6 +56,8 @@ export default function EditProfilePage() {
             setNewUsername(p.username)
             setPhoneNumber((p as Record<string, unknown>).phone_number as string || '')
             setPhonePublic((p as Record<string, unknown>).phone_public as boolean || false)
+            setTripsPrivate((p as Record<string, unknown>).trips_private as boolean || false)
+            setStatesPrivate((p as Record<string, unknown>).states_private as boolean || false)
           }
         })
     })
@@ -316,6 +323,51 @@ export default function EditProfilePage() {
                 </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Privacy Settings */}
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 space-y-4">
+            <h2 className="font-bold flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary" /> Profile Privacy
+            </h2>
+            <p className="text-xs text-muted-foreground">Control what others can see on your public profile. The count is always visible, but you can hide the details.</p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setTripsPrivate(!tripsPrivate)}
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg border text-sm transition-colors ${tripsPrivate ? 'border-red-500/40 bg-red-500/10' : 'border-green-500/40 bg-green-500/10'}`}
+              >
+                <span>Trip details (packages, dates)</span>
+                <span className={`text-xs font-medium ${tripsPrivate ? 'text-red-400' : 'text-green-400'}`}>
+                  {tripsPrivate ? '🔒 Private' : '🌐 Public'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatesPrivate(!statesPrivate)}
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg border text-sm transition-colors ${statesPrivate ? 'border-red-500/40 bg-red-500/10' : 'border-green-500/40 bg-green-500/10'}`}
+              >
+                <span>States explored (list of states)</span>
+                <span className={`text-xs font-medium ${statesPrivate ? 'text-red-400' : 'text-green-400'}`}>
+                  {statesPrivate ? '🔒 Private' : '🌐 Public'}
+                </span>
+              </button>
+            </div>
+            <Button
+              size="sm" variant="outline" className="border-border text-xs"
+              onClick={async () => {
+                setPrivacySaving(true)
+                const result = await updatePrivacySettings(tripsPrivate, statesPrivate)
+                if (result.error) toast.error(result.error)
+                else toast.success('Privacy settings saved!')
+                setPrivacySaving(false)
+              }}
+              disabled={privacySaving}
+            >
+              {privacySaving ? 'Saving...' : 'Save Privacy Settings'}
+            </Button>
           </CardContent>
         </Card>
       </div>

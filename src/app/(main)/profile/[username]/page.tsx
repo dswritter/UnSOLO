@@ -2,13 +2,15 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, MessageCircle } from 'lucide-react'
 import { getInitials, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { ACHIEVEMENTS } from '@/types'
 import type { Profile } from '@/types'
+import { getFollowData } from '@/actions/profile'
+import { ProfileActions } from './ProfileActions'
 
 export default async function ProfilePage({
   params,
@@ -36,16 +38,32 @@ export default async function ProfilePage({
     { data: leaderboardScore },
     { data: reviews },
     { data: completedBookings },
+    { data: confirmedBookings },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('user_id', profile.id).eq('status', 'confirmed'),
     supabase.from('user_achievements').select('*').eq('user_id', profile.id),
     supabase.from('leaderboard_scores').select('*').eq('user_id', profile.id).single(),
-    supabase.from('reviews').select('*, package:packages(title, destination:destinations(name, state))').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(5),
-    supabase.from('bookings').select('*, package:packages(title, destination:destinations(name, state))').eq('user_id', profile.id).eq('status', 'completed').order('travel_date', { ascending: false }).limit(5),
+    supabase.from('reviews').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(10),
+    supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).eq('status', 'completed').order('travel_date', { ascending: false }).limit(10),
+    supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).in('status', ['confirmed', 'completed']).order('travel_date', { ascending: false }).limit(20),
   ])
 
   const earnedKeys = new Set(achievements?.map((a) => a.achievement_key) || [])
+
+  // Get follow data
+  const followData = await getFollowData(profile.id)
+
+  // Determine privacy
+  const tripsPrivate = profile.trips_private && !isOwnProfile
+  const statesPrivate = profile.states_private && !isOwnProfile
+
+  // Compute unique states from bookings
+  const uniqueStates = new Set<string>()
+  ;(confirmedBookings || []).forEach((b) => {
+    const dest = (b.package as { destination?: { state: string } } | null)?.destination
+    if (dest?.state) uniqueStates.add(dest.state)
+  })
 
   return (
     <div className="min-h-screen bg-black">
@@ -71,16 +89,30 @@ export default async function ProfilePage({
                   </h1>
                   <p className="text-muted-foreground">@{profile.username}</p>
                 </div>
-                {isOwnProfile && (
-                  <Button variant="outline" size="sm" className="border-border" asChild>
-                    <Link href="/profile">Edit Profile</Link>
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {isOwnProfile ? (
+                    <Button variant="outline" size="sm" className="border-border" asChild>
+                      <Link href="/profile">Edit Profile</Link>
+                    </Button>
+                  ) : (
+                    <ProfileActions
+                      profileId={profile.id}
+                      isFollowing={followData.isFollowing}
+                      isLoggedIn={!!user}
+                    />
+                  )}
+                </div>
               </div>
 
               {profile.bio && (
                 <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{profile.bio}</p>
               )}
+
+              {/* Followers / Following */}
+              <div className="flex gap-4 mb-3 text-sm">
+                <span><strong className="text-white">{followData.followersCount}</strong> <span className="text-muted-foreground">followers</span></span>
+                <span><strong className="text-white">{followData.followingCount}</strong> <span className="text-muted-foreground">following</span></span>
+              </div>
 
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
                 {profile.location && (
@@ -100,7 +132,6 @@ export default async function ProfilePage({
                 )}
               </div>
 
-              {/* Travel style tags */}
               {profile.travel_style && profile.travel_style.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {profile.travel_style.map((style: string) => (
@@ -116,19 +147,78 @@ export default async function ProfilePage({
           {/* Stats */}
           <div className="grid grid-cols-4 gap-3 mt-6 pt-6 border-t border-border">
             {[
-              { icon: BookOpen, label: 'Trips', value: tripsCount || 0 },
-              { icon: MapPin, label: 'States', value: leaderboardScore?.destinations_count || 0 },
-              { icon: Star, label: 'Reviews', value: leaderboardScore?.reviews_written || 0 },
-              { icon: Trophy, label: 'Score', value: leaderboardScore?.total_score || 0 },
-            ].map(({ icon: Icon, label, value }) => (
+              { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },
+              { icon: MapPin, label: 'States', value: uniqueStates.size || leaderboardScore?.destinations_count || 0, private: statesPrivate },
+              { icon: Star, label: 'Reviews', value: leaderboardScore?.reviews_written || 0, private: false },
+              { icon: Trophy, label: 'Score', value: leaderboardScore?.total_score || 0, private: false },
+            ].map(({ icon: Icon, label, value, private: isPrivate }) => (
               <div key={label} className="text-center">
                 <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
-                <div className="text-xl font-black text-primary">{value}</div>
+                <div className="text-xl font-black text-primary flex items-center justify-center gap-1">
+                  {value}
+                  {isPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </div>
                 <div className="text-xs text-muted-foreground">{label}</div>
               </div>
             ))}
           </div>
         </div>
+
+        {/* Followers/Following lists */}
+        {(followData.followersCount > 0 || followData.followingCount > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            {followData.followers.length > 0 && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-5">
+                  <h2 className="font-bold mb-3 text-sm">Followers ({followData.followersCount})</h2>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {followData.followers.map((f: Record<string, unknown>) => {
+                      const follower = f.follower as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+                      if (!follower) return null
+                      return (
+                        <Link key={follower.id} href={`/profile/${follower.username}`} className="flex items-center gap-2 hover:bg-secondary/30 rounded-md px-2 py-1.5 transition-colors">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={follower.avatar_url || ''} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">{getInitials(follower.full_name || follower.username)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate">{follower.full_name || follower.username}</div>
+                            <div className="text-[10px] text-muted-foreground">@{follower.username}</div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {followData.following.length > 0 && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-5">
+                  <h2 className="font-bold mb-3 text-sm">Following ({followData.followingCount})</h2>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {followData.following.map((f: Record<string, unknown>) => {
+                      const following = f.following as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+                      if (!following) return null
+                      return (
+                        <Link key={following.id} href={`/profile/${following.username}`} className="flex items-center gap-2 hover:bg-secondary/30 rounded-md px-2 py-1.5 transition-colors">
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={following.avatar_url || ''} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">{getInitials(following.full_name || following.username)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="text-xs font-medium truncate">{following.full_name || following.username}</div>
+                            <div className="text-[10px] text-muted-foreground">@{following.username}</div>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Badges */}
@@ -163,30 +253,60 @@ export default async function ProfilePage({
 
           {/* Travel history + reviews */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Trips - clickable, with privacy */}
             {completedBookings && completedBookings.length > 0 && (
               <Card className="bg-card border-border">
                 <CardContent className="p-5">
                   <h2 className="font-bold mb-4 flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" /> Travel History
+                    {tripsPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
                   </h2>
-                  <div className="space-y-3">
-                    {completedBookings.map((booking) => (
-                      <div key={booking.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
-                          🏔️
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {(booking.package as { title: string } | null)?.title || 'Trip'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {(booking.package as { destination?: { name: string; state: string } } | null)?.destination?.name} · {formatDate(booking.travel_date)}
-                          </div>
-                        </div>
-                        <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
-                      </div>
-                    ))}
-                  </div>
+                  {tripsPrivate ? (
+                    <p className="text-sm text-muted-foreground">This user has made their travel history private.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {completedBookings.map((booking) => {
+                        const pkg = booking.package as { title: string; slug: string; destination?: { name: string; state: string } } | null
+                        return (
+                          <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} className="block">
+                            <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 transition-colors">
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
+                                🏔️
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium truncate">{pkg?.title || 'Trip'}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {pkg?.destination?.name}, {pkg?.destination?.state} · {formatDate(booking.travel_date)}
+                                </div>
+                              </div>
+                              <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* States visited */}
+            {uniqueStates.size > 0 && (
+              <Card className="bg-card border-border">
+                <CardContent className="p-5">
+                  <h2 className="font-bold mb-4 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" /> States Explored
+                    {statesPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
+                  </h2>
+                  {statesPrivate ? (
+                    <p className="text-sm text-muted-foreground">This user has made their explored states private.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(uniqueStates).map(state => (
+                        <Badge key={state} className="bg-primary/10 text-primary border-primary/30">{state}</Badge>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -198,26 +318,29 @@ export default async function ProfilePage({
                     <Star className="h-4 w-4 text-primary" /> Reviews
                   </h2>
                   <div className="space-y-4">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-border pb-4 last:border-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium">
-                            {(review.package as { title: string } | null)?.title}
-                          </span>
-                          <div className="flex gap-0.5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`h-3 w-3 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
-                              />
-                            ))}
+                    {reviews.map((review) => {
+                      const pkg = review.package as { title: string; slug: string } | null
+                      return (
+                        <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} className="block">
+                          <div className="border-b border-border pb-4 last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 py-2 transition-colors">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium">{pkg?.title}</span>
+                              <div className="flex gap-0.5">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`h-3 w-3 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {review.body && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">{review.body}</p>
+                            )}
                           </div>
-                        </div>
-                        {review.body && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">{review.body}</p>
-                        )}
-                      </div>
-                    ))}
+                        </Link>
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>

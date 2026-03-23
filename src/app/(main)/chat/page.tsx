@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, Users, Clock } from 'lucide-react'
+import { MessageCircle, Users, Clock, Zap, User } from 'lucide-react'
 import Link from 'next/link'
 import { timeAgo } from '@/lib/utils'
+import { getOnlineUsers } from '@/actions/profile'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
 
 export default async function ChatPage() {
   const supabase = await createClient()
@@ -24,23 +27,26 @@ export default async function ChatPage() {
     .select('room:chat_rooms(*, package:packages(title, destination:destinations(name, state)))')
     .eq('user_id', user.id)
 
-  const tripRooms = (memberRooms || [])
+  const allUserRooms = (memberRooms || [])
     .map((m) => m.room as unknown as Record<string, unknown> | null)
-    .filter((r): r is Record<string, unknown> => !!r && r['type'] === 'trip')
+    .filter((r): r is Record<string, unknown> => !!r)
+
+  const tripRooms = allUserRooms.filter(r => r['type'] === 'trip')
+  const dmRooms = allUserRooms.filter(r => r['type'] === 'direct')
 
   // Get last message for each room user is a member of
   const allRoomIds = [
     ...tripRooms.map(r => String(r['id'])),
+    ...dmRooms.map(r => String(r['id'])),
     ...(generalRooms || []).map(r => r.id),
   ].filter(Boolean)
 
-  let lastMessages: Record<string, { content: string; created_at: string }> = {}
+  const lastMessages: Record<string, { content: string; created_at: string; user_id: string }> = {}
   if (allRoomIds.length > 0) {
-    // Get last message per room (max 1 per room)
     for (const rid of allRoomIds) {
       const { data: msgs } = await supabase
         .from('messages')
-        .select('content, created_at')
+        .select('content, created_at, user_id')
         .eq('room_id', rid)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -51,13 +57,35 @@ export default async function ChatPage() {
     }
   }
 
-  // Sort rooms by last message time (recent first)
+  // For DM rooms, get the other user's profile
+  const dmRoomProfiles: Record<string, { username: string; full_name: string | null; avatar_url: string | null }> = {}
+  for (const room of dmRooms) {
+    const roomId = String(room['id'])
+    const { data: members } = await supabase
+      .from('chat_room_members')
+      .select('user_id')
+      .eq('room_id', roomId)
+      .neq('user_id', user.id)
+      .limit(1)
+
+    if (members?.[0]) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username, full_name, avatar_url')
+        .eq('id', members[0].user_id)
+        .single()
+      if (profile) dmRoomProfiles[roomId] = profile
+    }
+  }
+
+  // Sort rooms by last message time
   type RoomWithMeta = {
     id: string
     name: string
     type: string
     lastMsg?: { content: string; created_at: string }
     pkg?: { title?: string; destination?: { name?: string; state?: string } } | null
+    dmProfile?: { username: string; full_name: string | null; avatar_url: string | null }
   }
 
   const recentRooms: RoomWithMeta[] = [
@@ -68,6 +96,18 @@ export default async function ChatPage() {
       lastMsg: lastMessages[String(r['id'])],
       pkg: r['package'] as RoomWithMeta['pkg'],
     })),
+    ...dmRooms.map(r => {
+      const id = String(r['id'])
+      const profile = dmRoomProfiles[id]
+      return {
+        id,
+        name: profile?.full_name || profile?.username || 'Direct Message',
+        type: 'direct',
+        lastMsg: lastMessages[id],
+        pkg: null,
+        dmProfile: profile,
+      }
+    }),
     ...(generalRooms || []).map(r => ({
       id: r.id,
       name: r.name,
@@ -83,20 +123,10 @@ export default async function ChatPage() {
       return bTime.localeCompare(aTime)
     })
 
-  const roomsWithoutMsg = [
-    ...tripRooms.map(r => ({
-      id: String(r['id']),
-      name: String(r['name'] || 'Trip Chat'),
-      type: 'trip',
-      pkg: r['package'] as RoomWithMeta['pkg'],
-    })),
-    ...(generalRooms || []).map(r => ({
-      id: r.id,
-      name: r.name,
-      type: 'general',
-      pkg: null,
-    })),
-  ].filter(r => !lastMessages[r.id])
+  // Get online users
+  const onlineUsers = await getOnlineUsers()
+  // Filter out current user
+  const activeUsers = onlineUsers.filter(u => u.user_id !== user.id)
 
   return (
     <div className="min-h-screen bg-black">
@@ -107,6 +137,38 @@ export default async function ChatPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Connect with fellow travelers in real-time</p>
         </div>
+
+        {/* Active UnSOLOs */}
+        {activeUsers.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Zap className="h-5 w-5 text-green-400" /> Active UnSOLOs
+              <span className="text-xs text-green-400 font-normal ml-1">({activeUsers.length} online)</span>
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {activeUsers.map((u) => {
+                const profile = u.profile as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+                if (!profile) return null
+                return (
+                  <Link key={u.user_id} href={`/profile/${profile.username}`} className="flex-shrink-0">
+                    <div className="flex flex-col items-center gap-1.5 w-16 text-center">
+                      <div className="relative">
+                        <Avatar className="h-12 w-12 ring-2 ring-green-500/50">
+                          <AvatarImage src={profile.avatar_url || ''} />
+                          <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                            {getInitials(profile.full_name || profile.username)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-black" />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate w-full">{profile.full_name?.split(' ')[0] || profile.username}</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recent chats */}
         {recentRooms.length > 0 && (
@@ -120,7 +182,16 @@ export default async function ChatPage() {
                   <Card className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-xl shrink-0">
-                        {room.type === 'trip' ? '🏔️' : '💬'}
+                        {room.type === 'trip' ? '🏔️' : room.type === 'direct' ? (
+                          room.dmProfile ? (
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={room.dmProfile.avatar_url || ''} />
+                              <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                                {getInitials(room.dmProfile.full_name || room.dmProfile.username)}
+                              </AvatarFallback>
+                            </Avatar>
+                          ) : '👤'
+                        ) : '💬'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">{room.name}</div>
@@ -135,6 +206,48 @@ export default async function ChatPage() {
                   </Card>
                 </Link>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* DM rooms */}
+        {dmRooms.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" /> Direct Messages
+            </h2>
+            <div className="space-y-3">
+              {dmRooms.map((room) => {
+                const id = String(room['id'] || '')
+                const profile = dmRoomProfiles[id]
+                return (
+                  <Link key={id} href={`/chat/${id}`}>
+                    <Card className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer p-4">
+                      <div className="flex items-center gap-3">
+                        {profile ? (
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={profile.avatar_url || ''} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                              {getInitials(profile.full_name || profile.username)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-xl">👤</div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium">{profile?.full_name || profile?.username || 'Direct Message'}</div>
+                          {lastMessages[id] && (
+                            <p className="text-xs text-muted-foreground truncate">{lastMessages[id].content}</p>
+                          )}
+                        </div>
+                        {lastMessages[id] && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(lastMessages[id].created_at)}</span>
+                        )}
+                      </div>
+                    </Card>
+                  </Link>
+                )
+              })}
             </div>
           </div>
         )}

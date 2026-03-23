@@ -34,7 +34,24 @@ export default async function ChatRoomPage({
     .eq('user_id', user.id)
     .single()
 
-  if (!membership && room.type !== 'general') {
+  // For DM rooms, allow access if user is a member (membership checked above)
+  if (!membership && room.type === 'direct') {
+    // DM room but user is not a member — shouldn't happen, but handle gracefully
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <h2 className="text-xl font-bold">Private Conversation</h2>
+          <p className="text-muted-foreground text-sm">You don&apos;t have access to this chat.</p>
+          <Button asChild className="bg-primary text-black">
+            <Link href="/chat">Back to Chats</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!membership && room.type !== 'general' && room.type !== 'direct') {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <div className="text-center space-y-4">
@@ -100,6 +117,15 @@ export default async function ChatRoomPage({
     })) as ChatMemberProfile[]
   }
 
+  // For DM rooms, resolve the other user's name
+  let displayName = room.name
+  if (room.type === 'direct') {
+    const otherMember = memberProfiles.find(m => m.id !== user.id)
+    if (otherMember) {
+      displayName = otherMember.full_name || otherMember.username
+    }
+  }
+
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col">
       <div className="px-4 py-2 border-b border-border flex items-center gap-3">
@@ -107,8 +133,10 @@ export default async function ChatRoomPage({
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>
-          <h1 className="font-bold text-sm">{room.name}</h1>
-          {(room as { package?: { title: string; destination?: { name: string; state: string } } }).package && (
+          <h1 className="font-bold text-sm">{displayName}</h1>
+          {room.type === 'direct' ? (
+            <p className="text-xs text-muted-foreground">Direct Message</p>
+          ) : (room as { package?: { title: string; destination?: { name: string; state: string } } }).package && (
             <p className="text-xs text-muted-foreground">
               {(room as { package: { title: string; destination?: { name: string; state: string } } }).package.title}
             </p>
@@ -118,7 +146,7 @@ export default async function ChatRoomPage({
       <div className="flex-1 overflow-hidden relative">
         <ChatWindow
           roomId={roomId}
-          roomName={room.name}
+          roomName={displayName}
           initialMessages={(msgs || []) as Message[]}
           currentUser={profile as Profile}
           memberProfiles={memberProfiles}
