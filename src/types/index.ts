@@ -30,6 +30,9 @@ export type Profile = {
   is_verified: boolean
   role: UserRole
   username_changed_at: string | null
+  phone_number?: string | null
+  phone_public?: boolean
+  email?: string | null
   created_at: string
   updated_at: string
 }

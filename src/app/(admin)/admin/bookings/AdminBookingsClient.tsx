@@ -3,9 +3,10 @@
 import { useState, useTransition } from 'react'
 import { formatPrice, formatDate, ROLE_LABELS, type Booking, type Profile } from '@/types'
 import { assignPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes } from '@/actions/admin'
+import { processCancellation } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote } from 'lucide-react'
+import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign } from 'lucide-react'
 
 interface Props {
   bookings: Booking[]
@@ -27,7 +28,17 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
   const filtered = filter === 'all'
     ? initialBookings
+    : filter === 'cancellation_requested'
+    ? initialBookings.filter(b => b.cancellation_status === 'requested')
     : initialBookings.filter(b => b.status === filter)
+
+  function handleProcessCancellation(bookingId: string, approve: boolean, refundPaise?: number, note?: string) {
+    startTransition(async () => {
+      const res = await processCancellation(bookingId, approve, refundPaise, note)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(bookingId, approve ? 'Cancellation approved & user notified' : 'Cancellation denied & user notified')
+    })
+  }
 
   function showFeedback(id: string, msg: string) {
     setFeedback(f => ({ ...f, [id]: msg }))
@@ -78,7 +89,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
     <div>
       {/* Filters */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {['all', 'pending', 'confirmed', 'cancelled', 'completed'].map(s => (
+        {['all', 'pending', 'confirmed', 'cancellation_requested', 'cancelled', 'completed'].map(s => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -91,7 +102,9 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
             {s.charAt(0).toUpperCase() + s.slice(1)}
             {s !== 'all' && (
               <span className="ml-1 opacity-70">
-                ({initialBookings.filter(b => b.status === s).length})
+                ({s === 'cancellation_requested'
+                  ? initialBookings.filter(b => b.cancellation_status === 'requested').length
+                  : initialBookings.filter(b => b.status === s).length})
               </span>
             )}
           </button>
@@ -148,6 +161,12 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                   {/* Details grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                     <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-zinc-600">(@{usr?.username})</span></div>
+                    {usr?.phone_number && (
+                      <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{usr.phone_number}</span></div>
+                    )}
+                    {usr?.email && (
+                      <div className="flex items-center gap-1"><AtSign className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Email:</span> <span className="font-medium">{usr.email}</span></div>
+                    )}
                     <div><span className="text-muted-foreground">Destination:</span> {pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : 'N/A'}</div>
                     <div><span className="text-muted-foreground">Duration:</span> {pkg?.duration_days} days</div>
                     <div><span className="text-muted-foreground">Booked on:</span> {formatDate(booking.created_at)}</div>
@@ -212,6 +231,68 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       </Button>
                     )}
                   </div>
+
+                  {/* Cancellation Review */}
+                  {booking.cancellation_status === 'requested' && (
+                    <div className="p-3 rounded-lg border border-orange-500/30 bg-orange-500/5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-orange-400" />
+                        <span className="text-sm font-bold text-orange-400">Cancellation Requested</span>
+                      </div>
+                      {booking.cancellation_reason && (
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">Reason:</span> {booking.cancellation_reason}
+                        </p>
+                      )}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <label className="text-xs text-muted-foreground">Refund amount (₹):</label>
+                          <input
+                            type="number"
+                            id={`refund-${booking.id}`}
+                            defaultValue={Math.round(booking.total_amount_paise / 100)}
+                            className="bg-secondary border border-zinc-700 rounded px-2 py-1 text-sm w-28"
+                            min={0}
+                            max={Math.round(booking.total_amount_paise / 100)}
+                          />
+                          <span className="text-xs text-muted-foreground">of {formatPrice(booking.total_amount_paise)} paid</span>
+                        </div>
+                        <textarea
+                          id={`cancel-note-${booking.id}`}
+                          className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+                          rows={2}
+                          placeholder="Note to customer (reason for refund amount, deductions etc.)..."
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                            onClick={() => {
+                              const refundEl = document.getElementById(`refund-${booking.id}`) as HTMLInputElement
+                              const noteEl = document.getElementById(`cancel-note-${booking.id}`) as HTMLTextAreaElement
+                              const refundPaise = Math.round(parseFloat(refundEl?.value || '0') * 100)
+                              handleProcessCancellation(booking.id, true, refundPaise, noteEl?.value)
+                            }}
+                            disabled={isPending}
+                          >
+                            Approve & Refund
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
+                            onClick={() => {
+                              const noteEl = document.getElementById(`cancel-note-${booking.id}`) as HTMLTextAreaElement
+                              handleProcessCancellation(booking.id, false, undefined, noteEl?.value)
+                            }}
+                            disabled={isPending}
+                          >
+                            Deny
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Admin notes */}
                   <div className="pt-2">
