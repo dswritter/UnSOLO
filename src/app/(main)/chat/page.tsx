@@ -145,7 +145,7 @@ export default async function ChatPage() {
               <Zap className="h-5 w-5 text-green-400" /> Active UnSOLOs
               <span className="text-xs text-green-400 font-normal ml-1">({activeUsers.length} online)</span>
             </h2>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto pb-2 pt-1 scrollbar-hide">
               {activeUsers.map((u) => {
                 const profile = u.profile as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
                 if (!profile) return null

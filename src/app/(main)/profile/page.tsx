@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings } from '@/actions/profile'
+import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings, updateStatus } from '@/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -44,6 +44,12 @@ export default function EditProfilePage() {
   const [statesPrivate, setStatesPrivate] = useState(false)
   const [privacySaving, setPrivacySaving] = useState(false)
 
+  // Status settings
+  const [statusText, setStatusText] = useState('Still deciding my next trip')
+  const [statusVisibility, setStatusVisibility] = useState<'public' | 'followers'>('public')
+  const [customStatus, setCustomStatus] = useState(false)
+  const [statusSaving, setStatusSaving] = useState(false)
+
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -58,6 +64,9 @@ export default function EditProfilePage() {
             setPhonePublic((p as Record<string, unknown>).phone_public as boolean || false)
             setTripsPrivate((p as Record<string, unknown>).trips_private as boolean || false)
             setStatesPrivate((p as Record<string, unknown>).states_private as boolean || false)
+            setStatusText((p as Record<string, unknown>).status_text as string || 'Still deciding my next trip')
+            setStatusVisibility(((p as Record<string, unknown>).status_visibility as string || 'public') as 'public' | 'followers')
+            setCustomStatus((p as Record<string, unknown>).custom_status as boolean || false)
           }
         })
     })
@@ -271,8 +280,19 @@ export default function EditProfilePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">Instagram</label>
-                  <Input name="instagram" defaultValue={profile.instagram_url || ''} placeholder="https://instagram.com/..." className="bg-secondary border-border" />
+                  <label className="text-sm font-medium">Instagram Handle</label>
+                  <div className="flex items-center">
+                    <span className="text-sm text-muted-foreground bg-secondary border border-border border-r-0 rounded-l-md px-2 py-2">@</span>
+                    <Input
+                      name="instagram"
+                      defaultValue={(profile.instagram_url || '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')}
+                      placeholder="username"
+                      pattern="^[a-zA-Z0-9._]{1,30}$"
+                      title="Instagram username: letters, numbers, periods and underscores only"
+                      className="bg-secondary border-border rounded-l-none"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Just the username, no URL needed</p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Website</label>
@@ -368,6 +388,70 @@ export default function EditProfilePage() {
             >
               {privacySaving ? 'Saving...' : 'Save Privacy Settings'}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Status Settings */}
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 space-y-4">
+            <h2 className="font-bold flex items-center gap-2">
+              <span className="text-primary">●</span> Your Status
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Set a custom status or let it auto-update based on your trips. Default: &quot;Still deciding my next trip&quot;
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Status Text</label>
+                <Input
+                  value={statusText}
+                  onChange={e => { setStatusText(e.target.value); setCustomStatus(true) }}
+                  placeholder="What's on your mind?"
+                  maxLength={100}
+                  className="bg-secondary border-border"
+                />
+                <p className="text-[10px] text-muted-foreground text-right">{statusText.length}/100</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusVisibility('public')}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${statusVisibility === 'public' ? 'border-green-500/40 bg-green-500/10 text-green-400' : 'border-border bg-secondary text-muted-foreground'}`}
+                >
+                  🌐 Public
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusVisibility('followers')}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${statusVisibility === 'followers' ? 'border-blue-500/40 bg-blue-500/10 text-blue-400' : 'border-border bg-secondary text-muted-foreground'}`}
+                >
+                  👥 Followers Only
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm" variant="outline" className="border-border text-xs"
+                  onClick={() => { setStatusText('Still deciding my next trip'); setCustomStatus(false) }}
+                >
+                  Reset to Default
+                </Button>
+                <Button
+                  size="sm" variant="outline" className="border-border text-xs"
+                  onClick={async () => {
+                    setStatusSaving(true)
+                    const result = await updateStatus(statusText, statusVisibility, customStatus)
+                    if (result.error) toast.error(result.error)
+                    else toast.success('Status updated!')
+                    setStatusSaving(false)
+                  }}
+                  disabled={statusSaving}
+                >
+                  {statusSaving ? 'Saving...' : 'Save Status'}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

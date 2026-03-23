@@ -10,7 +10,7 @@ import Link from 'next/link'
 import { ACHIEVEMENTS } from '@/types'
 import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
-import { ProfileActions } from './ProfileActions'
+import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
 
 export default async function ProfilePage({
   params,
@@ -53,6 +53,22 @@ export default async function ProfilePage({
 
   // Get follow data
   const followData = await getFollowData(profile.id)
+
+  // Extract user objects for modals
+  const followerUsers = (followData.followers || []).map((f: Record<string, unknown>) => {
+    const u = f.follower as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+    return u
+  }).filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
+
+  const followingUsers = (followData.following || []).map((f: Record<string, unknown>) => {
+    const u = f.following as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+    return u
+  }).filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
+
+  // Get user status
+  const statusText = profile.status_text || 'Still deciding my next trip'
+  const statusVisibility = profile.status_visibility || 'public'
+  const canSeeStatus = statusVisibility === 'public' || isOwnProfile || followData.isFollowing
 
   // Determine privacy
   const tripsPrivate = profile.trips_private && !isOwnProfile
@@ -99,6 +115,10 @@ export default async function ProfilePage({
                       profileId={profile.id}
                       isFollowing={followData.isFollowing}
                       isLoggedIn={!!user}
+                      initialFollowersCount={followData.followersCount}
+                      initialFollowingCount={followData.followingCount}
+                      followers={followerUsers}
+                      following={followingUsers}
                     />
                   )}
                 </div>
@@ -108,11 +128,25 @@ export default async function ProfilePage({
                 <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{profile.bio}</p>
               )}
 
-              {/* Followers / Following */}
-              <div className="flex gap-4 mb-3 text-sm">
-                <span><strong className="text-white">{followData.followersCount}</strong> <span className="text-muted-foreground">followers</span></span>
-                <span><strong className="text-white">{followData.followingCount}</strong> <span className="text-muted-foreground">following</span></span>
-              </div>
+              {/* Followers / Following (clickable modals) */}
+              {isOwnProfile ? (
+                <OwnProfileFollowCounts
+                  followersCount={followData.followersCount}
+                  followingCount={followData.followingCount}
+                  followers={followerUsers}
+                  following={followingUsers}
+                />
+              ) : null /* ProfileActions renders these for other profiles */}
+
+              {/* Status */}
+              {canSeeStatus && statusText && (
+                <div className="mb-3 text-sm text-muted-foreground italic flex items-center gap-1.5">
+                  <span className="text-primary">●</span> {statusText}
+                  {statusVisibility === 'followers' && !isOwnProfile && (
+                    <span className="text-[10px] text-zinc-500">(visible to followers)</span>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
                 {profile.location && (
@@ -164,61 +198,7 @@ export default async function ProfilePage({
           </div>
         </div>
 
-        {/* Followers/Following lists */}
-        {(followData.followersCount > 0 || followData.followingCount > 0) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {followData.followers.length > 0 && (
-              <Card className="bg-card border-border">
-                <CardContent className="p-5">
-                  <h2 className="font-bold mb-3 text-sm">Followers ({followData.followersCount})</h2>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {followData.followers.map((f: Record<string, unknown>) => {
-                      const follower = f.follower as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-                      if (!follower) return null
-                      return (
-                        <Link key={follower.id} href={`/profile/${follower.username}`} className="flex items-center gap-2 hover:bg-secondary/30 rounded-md px-2 py-1.5 transition-colors">
-                          <Avatar className="h-7 w-7">
-                            <AvatarImage src={follower.avatar_url || ''} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">{getInitials(follower.full_name || follower.username)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="text-xs font-medium truncate">{follower.full_name || follower.username}</div>
-                            <div className="text-[10px] text-muted-foreground">@{follower.username}</div>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            {followData.following.length > 0 && (
-              <Card className="bg-card border-border">
-                <CardContent className="p-5">
-                  <h2 className="font-bold mb-3 text-sm">Following ({followData.followingCount})</h2>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {followData.following.map((f: Record<string, unknown>) => {
-                      const following = f.following as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-                      if (!following) return null
-                      return (
-                        <Link key={following.id} href={`/profile/${following.username}`} className="flex items-center gap-2 hover:bg-secondary/30 rounded-md px-2 py-1.5 transition-colors">
-                          <Avatar className="h-7 w-7">
-                            <AvatarImage src={following.avatar_url || ''} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">{getInitials(following.full_name || following.username)}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="text-xs font-medium truncate">{following.full_name || following.username}</div>
-                            <div className="text-[10px] text-muted-foreground">@{following.username}</div>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+        {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Badges */}

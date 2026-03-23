@@ -321,37 +321,40 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
 
       {/* Package Picker Popup */}
       {showPackagePicker && (
-        <div className="border-t border-border bg-card/95 backdrop-blur px-4 py-3 max-h-64 overflow-y-auto">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium">Share a Trip Package</p>
-            <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-3.5 w-3.5 text-zinc-500" /></button>
+        <div className="border-t border-border bg-card/95 backdrop-blur px-4 py-4 max-h-80 overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold">Share a Trip Package</p>
+            <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-4 w-4 text-zinc-500 hover:text-white" /></button>
           </div>
           <input
             type="text"
             value={pkgSearch}
             onChange={e => setPkgSearch(e.target.value)}
             placeholder="Search packages..."
-            className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-1.5 mb-2 focus:outline-none focus:border-primary"
+            className="w-full text-sm bg-secondary border border-border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-primary"
+            autoFocus
           />
           <div className="space-y-1">
             {packages
               .filter(p => !pkgSearch || p.title.toLowerCase().includes(pkgSearch.toLowerCase()) || p.destination_name.toLowerCase().includes(pkgSearch.toLowerCase()))
-              .slice(0, 8)
+              .slice(0, 10)
               .map(p => (
                 <button
                   key={p.slug}
                   onClick={() => sharePackage(p.slug, p.title)}
-                  className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded-md hover:bg-secondary/80 transition-colors"
+                  className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-secondary/80 transition-colors border border-transparent hover:border-border"
                 >
-                  <Package className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-medium truncate">{p.title}</div>
-                    <div className="text-[10px] text-muted-foreground">{p.destination_name}</div>
+                    <div className="text-sm font-medium truncate">{p.title}</div>
+                    <div className="text-xs text-muted-foreground">{p.destination_name}</div>
                   </div>
                 </button>
               ))}
             {packages.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-2">Loading packages...</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Loading packages...</p>
             )}
           </div>
         </div>

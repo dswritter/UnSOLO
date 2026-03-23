@@ -8,11 +8,20 @@ export async function updateProfile(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  // Convert Instagram handle to full URL
+  const instaHandle = (formData.get('instagram') as string || '').trim().replace(/^@/, '')
+  const instaUrl = instaHandle ? `https://instagram.com/${instaHandle}` : null
+
+  // Validate Instagram handle format
+  if (instaHandle && !/^[a-zA-Z0-9._]{1,30}$/.test(instaHandle)) {
+    return { error: 'Invalid Instagram handle. Use only letters, numbers, periods and underscores.' }
+  }
+
   const updates = {
     full_name: formData.get('fullName') as string,
     bio: formData.get('bio') as string,
     location: formData.get('location') as string,
-    instagram_url: formData.get('instagram') as string || null,
+    instagram_url: instaUrl,
     website_url: formData.get('website') as string || null,
     updated_at: new Date().toISOString(),
   }
@@ -361,6 +370,29 @@ export async function updatePrivacySettings(tripsPrivate: boolean, statesPrivate
   const { error } = await supabase
     .from('profiles')
     .update({ trips_private: tripsPrivate, states_private: statesPrivate })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/profile')
+  return { success: true }
+}
+
+// ── User Status ──────────────────────────────────────────────
+
+export async function updateStatus(statusText: string, visibility: 'public' | 'followers', isCustom: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  if (statusText.length > 100) return { error: 'Status must be 100 characters or less' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      status_text: statusText || 'Still deciding my next trip',
+      status_visibility: visibility,
+      custom_status: isCustom,
+    })
     .eq('id', user.id)
 
   if (error) return { error: error.message }
