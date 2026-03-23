@@ -281,20 +281,62 @@ export async function completeGroupPayment(groupId: string) {
     const organizerPaid = allMembers?.find(m => m.user_id === group.organizer_id)?.status === 'paid'
 
     if (allPaid) {
-      // ALL members including organizer have paid
-      await supabase
+      // ALL members including organizer have paid — auto-confirm
+      const { createClient: createSC } = await import('@supabase/supabase-js')
+      const svcSupabase = createSC(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      )
+
+      await svcSupabase
         .from('group_bookings')
         .update({ status: 'confirmed', updated_at: new Date().toISOString() })
         .eq('id', groupId)
 
-      // Notify organizer
-      await supabase.from('notifications').insert({
-        user_id: group.organizer_id,
-        type: 'booking',
-        title: 'Group Trip Confirmed!',
-        body: `Everyone has paid for ${pkgTitle}. The group trip is confirmed!`,
-        link: '/bookings',
-      })
+      // Get full group info for booking creation
+      const { data: fullGroup } = await svcSupabase
+        .from('group_bookings')
+        .select('package_id, travel_date, per_person_paise')
+        .eq('id', groupId)
+        .single()
+
+      if (fullGroup) {
+        // Create confirmed individual bookings for each member
+        const { generateConfirmationCode } = await import('@/lib/utils')
+        for (const member of allMembers || []) {
+          // Check if booking already exists for this user+package+date
+          const { data: existing } = await svcSupabase
+            .from('bookings')
+            .select('id')
+            .eq('user_id', member.user_id)
+            .eq('package_id', fullGroup.package_id)
+            .eq('travel_date', fullGroup.travel_date)
+            .single()
+
+          if (!existing) {
+            await svcSupabase.from('bookings').insert({
+              user_id: member.user_id,
+              package_id: fullGroup.package_id,
+              status: 'confirmed',
+              travel_date: fullGroup.travel_date,
+              guests: 1,
+              total_amount_paise: fullGroup.per_person_paise,
+              confirmation_code: generateConfirmationCode(),
+            })
+          }
+        }
+      }
+
+      // Notify all members
+      for (const member of allMembers || []) {
+        await svcSupabase.from('notifications').insert({
+          user_id: member.user_id,
+          type: 'booking',
+          title: 'Group Trip Confirmed!',
+          body: `Everyone has paid for ${pkgTitle}. Your trip is confirmed!`,
+          link: '/bookings',
+        })
+      }
     } else if (allOthersPaid && !organizerPaid) {
       // Everyone else paid but organizer hasn't
       await supabase.from('notifications').insert({

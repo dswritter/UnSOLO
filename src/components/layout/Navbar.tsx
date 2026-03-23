@@ -42,7 +42,7 @@ export function Navbar({ user }: NavbarProps) {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl font-black tracking-tight">
               <span className="text-primary">UN</span>
-              <span className="text-white">SOLO</span>
+              <span className="text-foreground">SOLO</span>
             </span>
           </Link>
 
@@ -52,7 +52,7 @@ export function Navbar({ user }: NavbarProps) {
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
                 {label}
@@ -64,7 +64,7 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <Link href="/chat" className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-white">
+                <Link href="/chat" className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
                   <MessageCircle className="h-5 w-5" />
                 </Link>
                 <NotificationBell userId={user.id} />
@@ -117,7 +117,7 @@ export function Navbar({ user }: NavbarProps) {
 
             {/* Mobile menu toggle */}
             <button
-              className="md:hidden text-muted-foreground hover:text-white"
+              className="md:hidden text-muted-foreground hover:text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -134,7 +134,7 @@ export function Navbar({ user }: NavbarProps) {
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -144,7 +144,7 @@ export function Navbar({ user }: NavbarProps) {
             <Link
               href="/bookings"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
               <BookOpen className="h-4 w-4" />
               My Trips

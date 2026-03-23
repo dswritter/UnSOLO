@@ -39,6 +39,11 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
   const [joining, setJoining] = useState(false)
   const router = useRouter()
 
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterType, setFilterType] = useState<'all' | 'solo' | 'group'>('all')
+  const [filterMonth, setFilterMonth] = useState('')
+
   // Review form state
   const [ratingDest, setRatingDest] = useState(0)
   const [ratingExp, setRatingExp] = useState(0)
@@ -46,8 +51,29 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
   const [reviewBody, setReviewBody] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const upcoming = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
-  const past = bookings.filter((b) => b.status === 'completed' || b.status === 'cancelled')
+  // Apply filters to bookings
+  let filteredBookings = bookings
+  if (filterStatus !== 'all') {
+    filteredBookings = filteredBookings.filter(b => b.status === filterStatus)
+  }
+  if (filterMonth) {
+    filteredBookings = filteredBookings.filter(b => new Date(b.travel_date).getMonth() === parseInt(filterMonth))
+  }
+
+  // Apply filters to group bookings
+  let filteredGroupBookings = groupBookings
+  if (filterStatus !== 'all') {
+    filteredGroupBookings = filteredGroupBookings.filter(g => g.status === filterStatus || (filterStatus === 'confirmed' && g.total_paid === g.total_members))
+  }
+  if (filterMonth) {
+    filteredGroupBookings = filteredGroupBookings.filter(g => new Date(g.travel_date).getMonth() === parseInt(filterMonth))
+  }
+
+  const showSolo = filterType === 'all' || filterType === 'solo'
+  const showGroup = filterType === 'all' || filterType === 'group'
+
+  const upcoming = filteredBookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
+  const past = filteredBookings.filter((b) => b.status === 'completed' || b.status === 'cancelled')
 
   function openReview(bookingId: string) {
     setReviewingId(bookingId)
@@ -96,8 +122,52 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
     )
   }
 
+  const hasFilters = filterStatus !== 'all' || filterType !== 'all' || filterMonth !== ''
+
   return (
     <div className="space-y-8">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(s => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              filterStatus === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+        <span className="text-border">|</span>
+        {(['all', 'solo', 'group'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setFilterType(t)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              filterType === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-foreground/30'
+            }`}
+          >
+            {t === 'all' ? 'All Types' : t === 'solo' ? 'Solo' : 'Group'}
+          </button>
+        ))}
+        <select
+          value={filterMonth}
+          onChange={e => setFilterMonth(e.target.value)}
+          className="px-3 py-1.5 rounded-full text-xs bg-card border border-border focus:outline-none focus:border-primary"
+        >
+          <option value="">All Months</option>
+          {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+            <option key={i} value={i}>{m}</option>
+          ))}
+        </select>
+        {hasFilters && (
+          <button onClick={() => { setFilterStatus('all'); setFilterType('all'); setFilterMonth('') }} className="text-xs text-destructive hover:underline ml-1">
+            Clear
+          </button>
+        )}
+      </div>
+
       {/* Join Group Trip */}
       <div className="p-4 rounded-xl border border-border bg-card/50">
         <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
@@ -134,13 +204,13 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
       </div>
 
       {/* Group Bookings */}
-      {groupBookings.filter(g => g.status === 'open').length > 0 && (
+      {showGroup && filteredGroupBookings.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" /> Group Trips
           </h2>
           <div className="space-y-4">
-            {groupBookings.filter(g => g.status === 'open').map(group => {
+            {filteredGroupBookings.map(group => {
               const pkg = group.package
               const myStatus = group.my_status
               const isOrganizer = currentUserId === group.organizer_id
@@ -212,11 +282,13 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                       </Button>
                     )}
 
-                    {/* 24hr policy note */}
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
-                    </p>
+                    {/* 24hr policy note — hide when all paid */}
+                    {group.total_paid < group.total_members && (
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )
@@ -225,7 +297,7 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
         </div>
       )}
 
-      {upcoming.length > 0 && (
+      {showSolo && upcoming.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4">Upcoming Trips</h2>
           <div className="space-y-4">
@@ -236,7 +308,7 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
         </div>
       )}
 
-      {past.length > 0 && (
+      {showSolo && past.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-muted-foreground">Past Trips</h2>
           <div className="space-y-4">

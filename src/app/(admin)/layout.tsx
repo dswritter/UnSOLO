@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { UserRole } from '@/types'
+import { AdminNotificationBell } from './AdminNotificationBell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -42,7 +43,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link href="/" className="flex items-center gap-2">
                 <span className="text-xl font-black tracking-tight">
                   <span className="text-primary">UN</span>
-                  <span className="text-white">SOLO</span>
+                  <span className="text-foreground">SOLO</span>
                 </span>
                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-red-900/50 text-red-300 border border-red-700">
                   {isAdmin ? 'ADMIN' : 'STAFF'}
@@ -53,7 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                   <Link
                     key={href}
                     href={href}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
+                    className="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   >
                     {label}
                   </Link>
@@ -61,12 +62,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </nav>
             </div>
             <div className="flex items-center gap-3">
+              <AdminNotificationBell userId={user.id} />
               <span className="text-sm text-muted-foreground">
                 {profile.full_name || profile.username}
               </span>
               <Link
                 href="/"
-                className="text-xs text-muted-foreground hover:text-white px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
+                className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border hover:border-foreground/30 transition-colors"
               >
                 ← Back to site
               </Link>
@@ -78,7 +80,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link
                 key={href}
                 href={href}
-                className="px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors whitespace-nowrap"
               >
                 {label}
               </Link>

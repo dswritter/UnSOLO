@@ -42,16 +42,18 @@ export async function createRazorpayOrder(
     return { error: 'Travel date must be in the future' }
   }
 
-  // Check if max bookings reached for this date
+  // Check if max spots reached for this date (sum of guests, not count of bookings)
   if (pkg.max_group_size) {
-    const { count } = await supabase
+    const { data: existingBookings } = await supabase
       .from('bookings')
-      .select('*', { count: 'exact', head: true })
+      .select('guests')
       .eq('package_id', packageId)
       .eq('travel_date', travelDate)
       .in('status', ['pending', 'confirmed', 'completed'])
-    if ((count || 0) + guests > pkg.max_group_size) {
-      return { error: `Only ${pkg.max_group_size - (count || 0)} spots left for this date` }
+    const totalBooked = (existingBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
+    const spotsLeft = pkg.max_group_size - totalBooked
+    if (guests > spotsLeft) {
+      return { error: spotsLeft <= 0 ? 'No spots left for this date' : `Only ${spotsLeft} spots left for this date` }
     }
   }
   const maxDate = new Date()
@@ -99,7 +101,9 @@ export async function createRazorpayOrder(
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
       email: user.email || '',
-      contact: profile?.phone_number || '',
+      contact: profile?.phone_number
+        ? (profile.phone_number.startsWith('+91') ? profile.phone_number : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}`)
+        : '',
       name: profile?.full_name || '',
     },
     notes: {
@@ -240,6 +244,27 @@ export async function confirmPayment(
       achievement_key: 'trailblazer',
     })
   }
+
+  // Notify admins about new booking
+  try {
+    const { createClient: createSC } = await import('@supabase/supabase-js')
+    const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data: customerProfile } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+    const customerName = customerProfile?.full_name || customerProfile?.username || 'A user'
+    const pkgName = (booking.package as { title?: string })?.title || 'a trip'
+    const amountFormatted = '₹' + (booking.total_amount_paise / 100).toLocaleString('en-IN')
+
+    const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+    for (const admin of admins || []) {
+      await svcSupabase.from('notifications').insert({
+        user_id: admin.id,
+        type: 'booking',
+        title: 'New Booking!',
+        body: `${customerName} booked ${pkgName} for ${amountFormatted}. Code: ${confirmationCode}`,
+        link: '/admin/bookings',
+      })
+    }
+  } catch { /* non-critical */ }
 
   return {
     success: true,
