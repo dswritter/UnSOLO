@@ -17,6 +17,7 @@ import type { Message, Profile } from '@/types'
 interface ChatWindowProps {
   roomId: string
   roomName: string
+  roomType?: 'trip' | 'general' | 'direct'
   initialMessages: Message[]
   currentUser: Profile
   memberProfiles?: ChatMemberProfile[]
@@ -72,7 +73,8 @@ function renderMessageContent(content: string) {
   })
 }
 
-export function ChatWindow({ roomId, roomName, initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
+export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -93,6 +95,7 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
     if (!input.trim() || sending) return
     const content = input.trim()
     setInput('')
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setSending(true)
     const result = await sendMessage(roomId, content)
     if (result.error) {
@@ -111,6 +114,7 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
 
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setInput(e.target.value)
+    autoResizeTextarea()
     // Throttle typing broadcast to once every 2s
     if (!typingThrottleRef.current) {
       broadcastTyping()
@@ -166,6 +170,18 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
 
   const popupMember = profilePopup ? getMemberProfile(profilePopup) : null
   const onlineCount = memberProfiles.filter(m => isUserOnline(m.id)).length
+  const isDM = roomType === 'direct'
+  const dmPartner = isDM ? memberProfiles.find(m => m.id !== currentUser.id) : null
+  const dmPartnerOnline = dmPartner ? isUserOnline(dmPartner.id) : false
+
+  // Auto-resize textarea
+  function autoResizeTextarea() {
+    const ta = textareaRef.current
+    if (ta) {
+      ta.style.height = 'auto'
+      ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'
+    }
+  }
 
   return (
     <div className="flex flex-col h-full bg-black border-l border-border">
@@ -173,17 +189,27 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>
           <h2 className="font-bold">{roomName}</h2>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {isConnected ? (
-              <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-green-400" /> Live</span>
-            ) : (
-              <span className="flex items-center gap-1"><WifiOff className="h-3 w-3 text-red-400" /> Connecting...</span>
-            )}
-            <span>·</span>
-            <button onClick={() => setShowMembers(!showMembers)} className="hover:text-white transition-colors">
-              <span className="text-green-400">{onlineCount}</span> online · {memberProfiles.length} members
-            </button>
-          </div>
+          {isDM ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {dmPartnerOnline ? (
+                <span className="flex items-center gap-1"><span className="h-2 w-2 bg-green-500 rounded-full inline-block" /> Online</span>
+              ) : (
+                <span className="flex items-center gap-1"><span className="h-2 w-2 bg-zinc-500 rounded-full inline-block" /> Offline</span>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {isConnected ? (
+                <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-green-400" /> Live</span>
+              ) : (
+                <span className="flex items-center gap-1"><WifiOff className="h-3 w-3 text-red-400" /> Connecting...</span>
+              )}
+              <span>·</span>
+              <button onClick={() => setShowMembers(!showMembers)} className="hover:text-white transition-colors">
+                <span className="text-green-400">{onlineCount}</span> online · {memberProfiles.length} members
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -260,7 +286,7 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
               <div className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-primary" />
                 {popupMember.phone_number ? (
-                  popupMember.phone_public || popupMember.phone_request_status === 'approved' ? (
+                  popupMember.phone_public === true || popupMember.phone_request_status === 'approved' ? (
                     <span>{popupMember.phone_number}</span>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -273,7 +299,7 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
                 )}
               </div>
 
-              {popupMember.phone_number && !popupMember.phone_public && popupMember.phone_request_status !== 'approved' && (
+              {popupMember.phone_number && popupMember.phone_public !== true && popupMember.phone_request_status !== 'approved' && (
                 <Button
                   size="sm" variant="outline" className="mt-2 w-full border-border text-xs"
                   onClick={() => handleRequestPhone(popupMember.id)}
@@ -372,12 +398,14 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
             <Share2 className="h-4 w-4 text-primary" />
           </button>
           <Textarea
+            ref={textareaRef}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a message... (Enter to send)"
             rows={1}
-            className="bg-secondary border-border resize-none min-h-[40px] max-h-32"
+            className="bg-secondary border-border resize-none min-h-[40px] max-h-[160px] overflow-y-auto"
+            style={{ height: 'auto' }}
           />
           <Button
             type="submit" size="sm"

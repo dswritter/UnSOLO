@@ -7,6 +7,8 @@ import { MapPin, Clock, Users, CheckCircle, Star, Mountain, ArrowLeft } from 'lu
 import { formatPrice, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
+import { InterestButton } from '@/components/packages/InterestButton'
+import { getInterestData } from '@/actions/booking'
 import type { Package } from '@/types'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -55,6 +57,9 @@ export default async function PackageDetailPage({
   // Get the auth user
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Get interest data
+  const interestData = await getInterestData(pkg.id)
+
   return (
     <div className="min-h-screen bg-black">
       <div className="mx-auto max-w-7xl px-4 py-8">
@@ -89,6 +94,21 @@ export default async function PackageDetailPage({
                   {package_.difficulty}
                 </Badge>
               </div>
+            </div>
+
+            {/* Interested button */}
+            <div className="flex items-center gap-4">
+              <InterestButton
+                packageId={package_.id}
+                initialCount={interestData.count}
+                initialInterested={interestData.isInterested}
+                isLoggedIn={!!user}
+              />
+              {interestData.count > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {interestData.count} {interestData.count === 1 ? 'person is' : 'people are'} interested
+                </span>
+              )}
             </div>
 
             {/* Stats row */}

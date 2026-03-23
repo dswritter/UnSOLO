@@ -305,3 +305,50 @@ export async function getMyBookings() {
 
   return data || []
 }
+
+// ── Package Interest ────────────────────────────────────────
+
+export async function toggleInterest(packageId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Check if already interested
+  const { data: existing } = await supabase
+    .from('package_interests')
+    .select('id')
+    .eq('package_id', packageId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (existing) {
+    await supabase.from('package_interests').delete().eq('id', existing.id)
+    return { interested: false }
+  } else {
+    await supabase.from('package_interests').insert({ package_id: packageId, user_id: user.id })
+    return { interested: true }
+  }
+}
+
+export async function getInterestData(packageId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { count } = await supabase
+    .from('package_interests')
+    .select('*', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+
+  let isInterested = false
+  if (user) {
+    const { data } = await supabase
+      .from('package_interests')
+      .select('id')
+      .eq('package_id', packageId)
+      .eq('user_id', user.id)
+      .single()
+    isInterested = !!data
+  }
+
+  return { count: count || 0, isInterested }
+}

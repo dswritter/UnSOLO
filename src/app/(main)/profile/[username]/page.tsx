@@ -129,14 +129,15 @@ export default async function ProfilePage({
               )}
 
               {/* Followers / Following (clickable modals) */}
-              {isOwnProfile ? (
-                <OwnProfileFollowCounts
-                  followersCount={followData.followersCount}
-                  followingCount={followData.followingCount}
-                  followers={followerUsers}
-                  following={followingUsers}
-                />
-              ) : null /* ProfileActions renders these for other profiles */}
+              <OwnProfileFollowCounts
+                followersCount={isOwnProfile ? followData.followersCount : -1}
+                followingCount={followData.followingCount}
+                followers={followerUsers}
+                following={followingUsers}
+                isOtherProfile={!isOwnProfile}
+                profileId={profile.id}
+                isFollowing={followData.isFollowing}
+              />
 
               {/* Status */}
               {canSeeStatus && statusText && (
@@ -150,9 +151,15 @@ export default async function ProfilePage({
 
               <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
                 {profile.location && (
-                  <span className="flex items-center gap-1">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 hover:text-primary transition-colors"
+                    title="Open in Google Maps"
+                  >
                     <MapPin className="h-3.5 w-3.5 text-primary" /> {profile.location}
-                  </span>
+                  </a>
                 )}
                 {profile.instagram_url && (
                   <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white transition-colors">

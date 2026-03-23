@@ -147,6 +147,7 @@ export default async function ChatRoomPage({
         <ChatWindow
           roomId={roomId}
           roomName={displayName}
+          roomType={room.type as 'trip' | 'general' | 'direct'}
           initialMessages={(msgs || []) as Message[]}
           currentUser={profile as Profile}
           memberProfiles={memberProfiles}
