@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Wifi, WifiOff, Phone, Lock, Globe, X, User } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -30,14 +30,54 @@ export interface ChatMemberProfile {
   bio: string | null
   phone_number: string | null
   phone_public: boolean
-  phone_request_status?: string | null // 'pending' | 'approved' | 'rejected' | null
+  phone_request_status?: string | null
+}
+
+// ── Linkify helper ─────────────────────────────────────────
+function renderMessageContent(content: string) {
+  const urlRegex = /(https?:\/\/[^\s<]+)/g
+  const parts = content.split(urlRegex)
+
+  return parts.map((part, i) => {
+    if (urlRegex.test(part)) {
+      // Check if it's a package link
+      const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
+      if (pkgMatch) {
+        return (
+          <Link
+            key={i}
+            href={`/packages/${pkgMatch[1]}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors"
+            onClick={e => e.stopPropagation()}
+          >
+            <Package className="h-3 w-3" />
+            View Trip Package
+          </Link>
+        )
+      }
+      return (
+        <a
+          key={i}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary underline hover:text-primary/80 break-all"
+          onClick={e => e.stopPropagation()}
+        >
+          {part.length > 60 ? part.slice(0, 57) + '...' : part}
+        </a>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
 }
 
 export function ChatWindow({ roomId, roomName, initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
-  const { messages, typingUsers, isConnected } = useRealtimeChat(roomId, initialMessages)
+  const { messages, typingUsers, isConnected, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [profilePopup, setProfilePopup] = useState<string | null>(null)
+  const [showMembers, setShowMembers] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -67,11 +107,8 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
 
   async function handleRequestPhone(targetId: string) {
     const result = await requestPhoneAccess(targetId)
-    if (result.error) {
-      toast.error(result.error)
-    } else {
-      toast.success('Phone request sent! They will be notified.')
-    }
+    if (result.error) toast.error(result.error)
+    else toast.success('Phone request sent!')
     setProfilePopup(null)
   }
 
@@ -85,7 +122,12 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
     return phone.slice(0, 2) + '****' + phone.slice(-2)
   }
 
+  function isUserOnline(userId: string): boolean {
+    return onlineUsers.includes(userId)
+  }
+
   const popupMember = profilePopup ? getMemberProfile(profilePopup) : null
+  const onlineCount = memberProfiles.filter(m => isUserOnline(m.id)).length
 
   return (
     <div className="flex flex-col h-full bg-black border-l border-border">
@@ -93,16 +135,58 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>
           <h2 className="font-bold">{roomName}</h2>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {isConnected ? (
-              <><Wifi className="h-3 w-3 text-green-400" /> Live</>
+              <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-green-400" /> Live</span>
             ) : (
-              <><WifiOff className="h-3 w-3 text-red-400" /> Connecting...</>
+              <span className="flex items-center gap-1"><WifiOff className="h-3 w-3 text-red-400" /> Connecting...</span>
             )}
-            <span className="ml-2">{memberProfiles.length} member{memberProfiles.length !== 1 ? 's' : ''}</span>
+            <span>·</span>
+            <button onClick={() => setShowMembers(!showMembers)} className="hover:text-white transition-colors">
+              <span className="text-green-400">{onlineCount}</span> online · {memberProfiles.length} members
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Members sidebar (toggled) */}
+      {showMembers && (
+        <div className="border-b border-border px-4 py-3 bg-secondary/30 max-h-48 overflow-y-auto">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-muted-foreground">Members</p>
+            <button onClick={() => setShowMembers(false)}><X className="h-3 w-3 text-zinc-500" /></button>
+          </div>
+          <div className="space-y-1.5">
+            {memberProfiles
+              .sort((a, b) => {
+                const aOnline = isUserOnline(a.id) ? 1 : 0
+                const bOnline = isUserOnline(b.id) ? 1 : 0
+                return bOnline - aOnline
+              })
+              .map(m => (
+              <button
+                key={m.id}
+                className="flex items-center gap-2 w-full text-left hover:bg-secondary/50 rounded-md px-2 py-1 transition-colors"
+                onClick={() => { setProfilePopup(m.id); setShowMembers(false) }}
+              >
+                <div className="relative">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={m.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                      {getInitials(m.full_name || m.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isUserOnline(m.id) && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-black" />
+                  )}
+                </div>
+                <span className="text-xs truncate">{m.full_name || m.username}</span>
+                {m.id === currentUser.id && <span className="text-[10px] text-muted-foreground">(you)</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Profile popup overlay */}
       {popupMember && (
@@ -110,32 +194,35 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
           <div className="bg-card border border-border rounded-xl p-5 w-full max-w-xs space-y-3" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={popupMember.avatar_url || ''} />
-                  <AvatarFallback className="bg-primary/20 text-primary font-bold">
-                    {getInitials(popupMember.full_name || popupMember.username)}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={popupMember.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/20 text-primary font-bold">
+                      {getInitials(popupMember.full_name || popupMember.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isUserOnline(popupMember.id) && (
+                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+                  )}
+                </div>
                 <div>
                   <div className="font-bold">{popupMember.full_name || popupMember.username}</div>
                   <div className="text-xs text-muted-foreground">@{popupMember.username}</div>
+                  {isUserOnline(popupMember.id) && (
+                    <span className="text-[10px] text-green-400 font-medium">● Online now</span>
+                  )}
                 </div>
               </div>
               <button onClick={() => setProfilePopup(null)}><X className="h-4 w-4 text-zinc-500" /></button>
             </div>
 
-            {popupMember.bio && (
-              <p className="text-sm text-muted-foreground">{popupMember.bio}</p>
-            )}
+            {popupMember.bio && <p className="text-sm text-muted-foreground">{popupMember.bio}</p>}
 
-            {/* Phone number section */}
             <div className="border-t border-border pt-3">
               <div className="flex items-center gap-2 text-sm">
                 <Phone className="h-4 w-4 text-primary" />
                 {popupMember.phone_number ? (
-                  popupMember.phone_public ? (
-                    <span>{popupMember.phone_number}</span>
-                  ) : popupMember.phone_request_status === 'approved' ? (
+                  popupMember.phone_public || popupMember.phone_request_status === 'approved' ? (
                     <span>{popupMember.phone_number}</span>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -150,9 +237,7 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
 
               {popupMember.phone_number && !popupMember.phone_public && popupMember.phone_request_status !== 'approved' && (
                 <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-2 w-full border-border text-xs"
+                  size="sm" variant="outline" className="mt-2 w-full border-border text-xs"
                   onClick={() => handleRequestPhone(popupMember.id)}
                   disabled={popupMember.phone_request_status === 'pending'}
                 >
@@ -183,12 +268,13 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
               key={msg.id}
               message={msg}
               isOwn={msg.user_id === currentUser.id}
+              isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
               onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
             />
           ))}
-          {typingUsers.filter((u) => u !== currentUser.username).length > 0 && (
+          {typingUsers.filter((u) => u !== currentUser.id).length > 0 && (
             <div className="text-xs text-muted-foreground italic">
-              {typingUsers.filter((u) => u !== currentUser.username).join(', ')} is typing...
+              Someone is typing...
             </div>
           )}
           <div ref={bottomRef} />
@@ -202,25 +288,25 @@ export function ChatWindow({ roomId, roomName, initialMessages, currentUser, mem
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message... (Enter to send)"
+            placeholder="Type a message... (Enter to send, paste package URLs to share)"
             rows={1}
             className="bg-secondary border-border resize-none min-h-[40px] max-h-32"
           />
           <Button
-            type="submit"
-            size="sm"
+            type="submit" size="sm"
             className="bg-primary text-black hover:bg-primary/90 h-10 w-10 p-0 flex-shrink-0"
             disabled={!input.trim() || sending}
           >
             <Send className="h-4 w-4" />
           </Button>
         </form>
+        <p className="text-[10px] text-muted-foreground mt-1">Tip: Paste a package URL to share trips with the group</p>
       </div>
     </div>
   )
 }
 
-function MessageBubble({ message, isOwn, onClickProfile }: { message: Message; isOwn: boolean; onClickProfile: () => void }) {
+function MessageBubble({ message, isOwn, isOnline, onClickProfile }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }) {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
 
@@ -237,17 +323,23 @@ function MessageBubble({ message, isOwn, onClickProfile }: { message: Message; i
   return (
     <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
       <button onClick={onClickProfile} className="focus:outline-none flex-shrink-0 mt-0.5" disabled={isOwn}>
-        <Avatar className={`h-7 w-7 ${!isOwn ? 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all' : ''}`}>
-          <AvatarImage src={user?.avatar_url || ''} />
-          <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-            {getInitials(name)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className={`h-7 w-7 ${!isOwn ? 'cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all' : ''}`}>
+            <AvatarImage src={user?.avatar_url || ''} />
+            <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+              {getInitials(name)}
+            </AvatarFallback>
+          </Avatar>
+          {isOnline && !isOwn && (
+            <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-black" />
+          )}
+        </div>
       </button>
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <button onClick={onClickProfile} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors">
+          <button onClick={onClickProfile} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1">
             {name}
+            {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block" />}
           </button>
         )}
         <div
@@ -257,7 +349,7 @@ function MessageBubble({ message, isOwn, onClickProfile }: { message: Message; i
               : 'bg-card border border-border rounded-tl-sm'
           }`}
         >
-          {message.content}
+          {renderMessageContent(message.content)}
         </div>
         <span className="text-xs text-muted-foreground">{timeAgo(message.created_at)}</span>
       </div>

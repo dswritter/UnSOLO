@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MessageCircle, Users } from 'lucide-react'
+import { MessageCircle, Users, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { timeAgo } from '@/lib/utils'
 
@@ -28,6 +28,76 @@ export default async function ChatPage() {
     .map((m) => m.room as unknown as Record<string, unknown> | null)
     .filter((r): r is Record<string, unknown> => !!r && r['type'] === 'trip')
 
+  // Get last message for each room user is a member of
+  const allRoomIds = [
+    ...tripRooms.map(r => String(r['id'])),
+    ...(generalRooms || []).map(r => r.id),
+  ].filter(Boolean)
+
+  let lastMessages: Record<string, { content: string; created_at: string }> = {}
+  if (allRoomIds.length > 0) {
+    // Get last message per room (max 1 per room)
+    for (const rid of allRoomIds) {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('content, created_at')
+        .eq('room_id', rid)
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (msgs?.[0]) {
+        lastMessages[rid] = msgs[0]
+      }
+    }
+  }
+
+  // Sort rooms by last message time (recent first)
+  type RoomWithMeta = {
+    id: string
+    name: string
+    type: string
+    lastMsg?: { content: string; created_at: string }
+    pkg?: { title?: string; destination?: { name?: string; state?: string } } | null
+  }
+
+  const recentRooms: RoomWithMeta[] = [
+    ...tripRooms.map(r => ({
+      id: String(r['id']),
+      name: String(r['name'] || 'Trip Chat'),
+      type: 'trip',
+      lastMsg: lastMessages[String(r['id'])],
+      pkg: r['package'] as RoomWithMeta['pkg'],
+    })),
+    ...(generalRooms || []).map(r => ({
+      id: r.id,
+      name: r.name,
+      type: 'general',
+      lastMsg: lastMessages[r.id],
+      pkg: null,
+    })),
+  ]
+    .filter(r => r.lastMsg)
+    .sort((a, b) => {
+      const aTime = a.lastMsg?.created_at || ''
+      const bTime = b.lastMsg?.created_at || ''
+      return bTime.localeCompare(aTime)
+    })
+
+  const roomsWithoutMsg = [
+    ...tripRooms.map(r => ({
+      id: String(r['id']),
+      name: String(r['name'] || 'Trip Chat'),
+      type: 'trip',
+      pkg: r['package'] as RoomWithMeta['pkg'],
+    })),
+    ...(generalRooms || []).map(r => ({
+      id: r.id,
+      name: r.name,
+      type: 'general',
+      pkg: null,
+    })),
+  ].filter(r => !lastMessages[r.id])
+
   return (
     <div className="min-h-screen bg-black">
       <div className="mx-auto max-w-3xl px-4 py-10">
@@ -37,6 +107,37 @@ export default async function ChatPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Connect with fellow travelers in real-time</p>
         </div>
+
+        {/* Recent chats */}
+        {recentRooms.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" /> Recent Chats
+            </h2>
+            <div className="space-y-3">
+              {recentRooms.map((room) => (
+                <Link key={room.id} href={`/chat/${room.id}`}>
+                  <Card className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-xl shrink-0">
+                        {room.type === 'trip' ? '🏔️' : '💬'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{room.name}</div>
+                        {room.lastMsg && (
+                          <p className="text-xs text-muted-foreground truncate">{room.lastMsg.content}</p>
+                        )}
+                      </div>
+                      {room.lastMsg && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(room.lastMsg.created_at)}</span>
+                      )}
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Trip rooms */}
         {tripRooms.length > 0 && (

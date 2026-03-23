@@ -4,9 +4,14 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
 
-export function useRealtimeChat(roomId: string, initialMessages: Message[] = []) {
+export function useRealtimeChat(
+  roomId: string,
+  initialMessages: Message[] = [],
+  currentUser?: Profile,
+) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
   const supabase = createClient()
@@ -28,7 +33,6 @@ export function useRealtimeChat(roomId: string, initialMessages: Message[] = [])
         },
         async (payload) => {
           const newMsg = payload.new as Message
-          // Fetch full profile for the message
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
@@ -42,12 +46,22 @@ export function useRealtimeChat(roomId: string, initialMessages: Message[] = [])
         }
       )
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState<{ username: string }>()
-        const users = Object.values(state).flat().map((p) => p.username)
-        setTypingUsers(users)
+        const state = channel.presenceState<{ user_id: string; username: string }>()
+        const allPresence = Object.values(state).flat()
+        const userIds = allPresence.map((p) => p.user_id).filter(Boolean)
+        const usernames = allPresence.map((p) => p.username).filter(Boolean)
+        setOnlineUsers([...new Set(userIds)])
+        setTypingUsers([...new Set(usernames)])
       })
-      .subscribe((status) => {
+      .subscribe(async (status) => {
         setIsConnected(status === 'SUBSCRIBED')
+        if (status === 'SUBSCRIBED' && currentUser) {
+          await channel.track({
+            user_id: currentUser.id,
+            username: currentUser.username,
+            online_at: new Date().toISOString(),
+          })
+        }
       })
 
     channelRef.current = channel
@@ -59,10 +73,14 @@ export function useRealtimeChat(roomId: string, initialMessages: Message[] = [])
 
   const trackTyping = useCallback(
     (username: string) => {
-      channelRef.current?.track({ username })
+      channelRef.current?.track({
+        user_id: currentUser?.id || '',
+        username,
+        online_at: new Date().toISOString(),
+      })
     },
-    []
+    [currentUser]
   )
 
-  return { messages, typingUsers, isConnected, trackTyping }
+  return { messages, typingUsers, isConnected, trackTyping, onlineUsers }
 }

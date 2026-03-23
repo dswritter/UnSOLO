@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/Navbar'
+import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
 import type { Profile } from '@/types'
 
 export default async function MainLayout({
@@ -20,6 +21,7 @@ export default async function MainLayout({
     <div className="min-h-screen bg-black text-white">
       <Navbar user={profile} />
       <main className="flex-1">{children}</main>
+      {user && <ChatNotificationWidget userId={user.id} />}
     </div>
   )
 }
