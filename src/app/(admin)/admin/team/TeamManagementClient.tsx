@@ -58,7 +58,7 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
   return (
     <div className="space-y-8">
       {/* Add member form */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+      <div className="rounded-xl border border-border bg-card/50 p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <UserPlus className="h-5 w-5 text-primary" /> Add Team Member
         </h2>
@@ -71,20 +71,20 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Username or Email</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Username or Email</label>
             <Input
               placeholder="e.g. john_doe or john@example.com"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-secondary border-zinc-700"
             />
             <p className="text-xs text-zinc-600 mt-1">The user must have signed up already.</p>
           </div>
 
           <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Role</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Role</label>
             <select
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm"
               value={selectedRole}
               onChange={e => setSelectedRole(e.target.value as UserRole)}
             >
@@ -95,12 +95,12 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
           </div>
 
           <div className="md:col-span-2">
-            <label className="text-xs text-zinc-500 mb-1 block">Notes (optional)</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Notes (optional)</label>
             <Input
               placeholder="e.g. Handles Rishikesh trips"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              className="bg-zinc-800 border-zinc-700"
+              className="bg-secondary border-zinc-700"
             />
           </div>
         </div>
@@ -118,11 +118,11 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
           {ASSIGNABLE_ROLES.map(r => {
             const Icon = r.icon
             return (
-              <div key={r.value} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-800/50">
-                <Icon className="h-4 w-4 mt-0.5 text-zinc-400 shrink-0" />
+              <div key={r.value} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                 <div>
                   <p className="text-sm font-medium">{r.label}</p>
-                  <p className="text-xs text-zinc-500">{r.description}</p>
+                  <p className="text-xs text-muted-foreground">{r.description}</p>
                 </div>
               </div>
             )
@@ -135,19 +135,19 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
         <h2 className="text-lg font-semibold mb-4">Active Team ({activeMembers.length})</h2>
         <div className="space-y-2">
           {activeMembers.length === 0 && (
-            <p className="text-zinc-500 text-center py-8">No team members yet. Add one above.</p>
+            <p className="text-muted-foreground text-center py-8">No team members yet. Add one above.</p>
           )}
           {activeMembers.map(m => {
             const profile = m.profile
             return (
-              <div key={m.id} className="flex items-center justify-between p-4 rounded-xl border border-zinc-800 bg-zinc-900/50">
+              <div key={m.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-card/50">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold">
                     {(profile?.full_name || profile?.username || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <p className="font-medium">{profile?.full_name || profile?.username}</p>
-                    <p className="text-xs text-zinc-500">@{profile?.username}</p>
+                    <p className="text-xs text-muted-foreground">@{profile?.username}</p>
                   </div>
                   <Badge className={`${ROLE_COLORS[m.role as UserRole] || ''} text-xs ml-2`}>
                     {ROLE_LABELS[m.role as UserRole] || m.role}
@@ -172,17 +172,17 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
       {/* Inactive members */}
       {inactiveMembers.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-4 text-zinc-500">Inactive ({inactiveMembers.length})</h2>
+          <h2 className="text-lg font-semibold mb-4 text-muted-foreground">Inactive ({inactiveMembers.length})</h2>
           <div className="space-y-2 opacity-60">
             {inactiveMembers.map(m => {
               const profile = m.profile
               return (
-                <div key={m.id} className="flex items-center gap-3 p-4 rounded-xl border border-zinc-800 bg-zinc-900/30">
-                  <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-600">
+                <div key={m.id} className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card/30">
+                  <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-zinc-600">
                     {(profile?.full_name || profile?.username || '?').charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-400">{profile?.full_name || profile?.username}</p>
+                    <p className="font-medium text-muted-foreground">{profile?.full_name || profile?.username}</p>
                     <p className="text-xs text-zinc-600">@{profile?.username} · was {ROLE_LABELS[m.role as UserRole]}</p>
                   </div>
                 </div>

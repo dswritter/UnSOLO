@@ -103,7 +103,7 @@ export default async function ProfilePage({
   })
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-10">
         {/* Profile Header */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">

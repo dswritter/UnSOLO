@@ -220,7 +220,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   return (
-    <div className="flex flex-col h-full bg-black border-l border-border relative">
+    <div className="flex flex-col h-full bg-background border-l border-border relative">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>

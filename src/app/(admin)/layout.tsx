@@ -33,9 +33,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const visibleNav = navItems.filter(n => n.roles.includes(profile.role as UserRole))
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Admin top bar */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800 bg-black/95 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-14 items-center justify-between">
             <div className="flex items-center gap-6">
@@ -53,7 +53,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                   <Link
                     key={href}
                     href={href}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                    className="px-3 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors"
                   >
                     {label}
                   </Link>
@@ -61,12 +61,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </nav>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-zinc-500">
+              <span className="text-sm text-muted-foreground">
                 {profile.full_name || profile.username}
               </span>
               <Link
                 href="/"
-                className="text-xs text-zinc-500 hover:text-white px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
+                className="text-xs text-muted-foreground hover:text-white px-2 py-1 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
               >
                 ← Back to site
               </Link>
@@ -78,7 +78,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <Link
                 key={href}
                 href={href}
-                className="px-3 py-1.5 rounded-md text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors whitespace-nowrap"
+                className="px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:text-white hover:bg-secondary transition-colors whitespace-nowrap"
               >
                 {label}
               </Link>

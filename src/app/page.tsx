@@ -55,7 +55,7 @@ export default async function HomePage() {
   const displayDestinations = stats.destinations > 0 ? stats.destinations.toString() : '6'
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar user={profile} />
 
       {/* Hero */}

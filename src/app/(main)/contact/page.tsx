@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-16">
         <h1 className="text-4xl font-black mb-2">
           Get in <span className="text-primary">Touch</span>

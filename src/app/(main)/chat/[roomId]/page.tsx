@@ -38,7 +38,7 @@ export default async function ChatRoomPage({
   if (!membership && room.type === 'direct') {
     // DM room but user is not a member — shouldn't happen, but handle gracefully
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Private Conversation</h2>
@@ -53,7 +53,7 @@ export default async function ChatRoomPage({
 
   if (!membership && room.type !== 'general' && room.type !== 'direct') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Trip-only Chat Room</h2>

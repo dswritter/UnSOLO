@@ -20,6 +20,24 @@ export const metadata: Metadata = {
   },
 };
 
+// Inline script that runs before paint to set dark/light class
+// This avoids the flash of wrong theme
+const themeScript = `
+(function(){
+  try {
+    var d = document.documentElement;
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      d.classList.add('dark');
+    } else {
+      d.classList.remove('dark');
+    }
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (e.matches) { d.classList.add('dark'); } else { d.classList.remove('dark'); }
+    });
+  } catch(e){}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,6 +45,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <Toaster richColors position="top-center" />

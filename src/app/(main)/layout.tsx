@@ -19,7 +19,7 @@ export default async function MainLayout({
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar user={profile} />
       <main className="flex-1">{children}</main>
       {user && <ChatNotificationWidget userId={user.id} />}

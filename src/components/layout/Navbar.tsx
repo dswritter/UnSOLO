@@ -35,7 +35,7 @@ export function Navbar({ user }: NavbarProps) {
   ]
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-black/90 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -128,7 +128,7 @@ export function Navbar({ user }: NavbarProps) {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-black px-4 py-4 space-y-2">
+        <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2">
           {navLinks.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}

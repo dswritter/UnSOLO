@@ -85,7 +85,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filter === s
                 ? 'bg-primary text-black border-primary'
-                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                : 'bg-card text-muted-foreground border-zinc-700 hover:border-zinc-500'
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -101,7 +101,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
       {/* Bookings list */}
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <p className="text-zinc-500 text-center py-12">No bookings found.</p>
+          <p className="text-muted-foreground text-center py-12">No bookings found.</p>
         )}
 
         {filtered.map((booking) => {
@@ -111,10 +111,10 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
           const isExpanded = expandedId === booking.id
 
           return (
-            <div key={booking.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+            <div key={booking.id} className="rounded-xl border border-border bg-card/50 overflow-hidden">
               {/* Header row */}
               <div
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 cursor-pointer hover:bg-zinc-800/30 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
                 onClick={() => setExpandedId(isExpanded ? null : booking.id)}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -123,7 +123,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                   </Badge>
                   <div className="min-w-0">
                     <p className="font-semibold truncate">{pkg?.title || 'Unknown'}</p>
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-muted-foreground">
                       {usr?.full_name || usr?.username || 'Unknown'} · {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {formatDate(booking.travel_date)}
                     </p>
                   </div>
@@ -131,13 +131,13 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-primary font-bold">{formatPrice(booking.total_amount_paise)}</span>
                   <span className="text-xs text-zinc-600">{booking.confirmation_code || '—'}</span>
-                  {isExpanded ? <ChevronUp className="h-4 w-4 text-zinc-500" /> : <ChevronDown className="h-4 w-4 text-zinc-500" />}
+                  {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </div>
 
               {/* Expanded details */}
               {isExpanded && (
-                <div className="border-t border-zinc-800 p-4 space-y-4">
+                <div className="border-t border-border p-4 space-y-4">
                   {/* Feedback */}
                   {feedback[booking.id] && (
                     <p className={`text-sm px-3 py-2 rounded-lg ${feedback[booking.id].startsWith('Error') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
@@ -147,19 +147,19 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                   {/* Details grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                    <div><span className="text-zinc-500">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-zinc-600">(@{usr?.username})</span></div>
-                    <div><span className="text-zinc-500">Destination:</span> {pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : 'N/A'}</div>
-                    <div><span className="text-zinc-500">Duration:</span> {pkg?.duration_days} days</div>
-                    <div><span className="text-zinc-500">Booked on:</span> {formatDate(booking.created_at)}</div>
-                    <div><span className="text-zinc-500">Payment ID:</span> <span className="text-xs text-zinc-600 font-mono">{booking.stripe_payment_intent || '—'}</span></div>
-                    <div><span className="text-zinc-500">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>
+                    <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-zinc-600">(@{usr?.username})</span></div>
+                    <div><span className="text-muted-foreground">Destination:</span> {pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : 'N/A'}</div>
+                    <div><span className="text-muted-foreground">Duration:</span> {pkg?.duration_days} days</div>
+                    <div><span className="text-muted-foreground">Booked on:</span> {formatDate(booking.created_at)}</div>
+                    <div><span className="text-muted-foreground">Payment ID:</span> <span className="text-xs text-zinc-600 font-mono">{booking.stripe_payment_intent || '—'}</span></div>
+                    <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-800">
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     {/* Change status */}
                     <select
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
+                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) handleStatusChange(booking.id, e.target.value) }}
                       disabled={isPending}
@@ -172,7 +172,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                     {/* Assign POC */}
                     <select
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
+                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) handleAssignPOC(booking.id, e.target.value) }}
                       disabled={isPending}
@@ -215,13 +215,13 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                   {/* Admin notes */}
                   <div className="pt-2">
-                    <label className="text-xs text-zinc-500 flex items-center gap-1 mb-1">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                       <StickyNote className="h-3 w-3" /> Admin Notes
                     </label>
                     <div className="flex gap-2">
                       <textarea
                         defaultValue={booking.admin_notes || ''}
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+                        className="flex-1 bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
                         rows={2}
                         placeholder="Internal notes about this booking..."
                         id={`notes-${booking.id}`}

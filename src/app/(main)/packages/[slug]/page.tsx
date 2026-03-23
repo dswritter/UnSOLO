@@ -61,7 +61,7 @@ export default async function PackageDetailPage({
   const interestData = await getInterestData(pkg.id)
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8">
         {/* Back */}
         <Link href="/explore" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white mb-6 transition-colors">

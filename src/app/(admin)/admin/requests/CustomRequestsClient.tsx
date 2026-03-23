@@ -51,7 +51,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filter === s
                 ? 'bg-primary text-black border-primary'
-                : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:border-zinc-500'
+                : 'bg-card text-muted-foreground border-zinc-700 hover:border-zinc-500'
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -67,7 +67,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
       {/* Requests list */}
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <p className="text-zinc-500 text-center py-12">No custom date requests found.</p>
+          <p className="text-muted-foreground text-center py-12">No custom date requests found.</p>
         )}
 
         {filtered.map((req) => {
@@ -75,7 +75,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
           const pkg = req.package as { title?: string } | null
 
           return (
-            <div key={req.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+            <div key={req.id} className="rounded-xl border border-border bg-card/50 p-5">
               {feedback[req.id] && (
                 <p className={`text-sm px-3 py-2 rounded-lg mb-3 ${feedback[req.id].startsWith('Error') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
                   {feedback[req.id]}
@@ -92,19 +92,19 @@ export function CustomRequestsClient({ requests: initial }: Props) {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                    <div className="flex items-center gap-1.5 text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Users className="h-3.5 w-3.5" />
                       <span>{usr?.full_name || usr?.username || 'Unknown'}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Calendar className="h-3.5 w-3.5" />
                       <span>{formatDate(req.requested_date)} · {req.guests} guest{req.guests > 1 ? 's' : ''}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Phone className="h-3.5 w-3.5" />
                       <a href={`tel:${req.contact_number}`} className="hover:text-white">{req.contact_number}</a>
                     </div>
-                    <div className="flex items-center gap-1.5 text-zinc-400">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Mail className="h-3.5 w-3.5" />
                       <a href={`mailto:${req.contact_email}`} className="hover:text-white">{req.contact_email}</a>
                     </div>
@@ -119,7 +119,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
                     <textarea
                       id={`req-notes-${req.id}`}
                       placeholder="Admin notes (optional)"
-                      className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs resize-none w-full sm:w-48"
+                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-xs resize-none w-full sm:w-48"
                       rows={2}
                     />
                     <div className="flex gap-2">

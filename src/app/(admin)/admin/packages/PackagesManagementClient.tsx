@@ -259,31 +259,31 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
       {/* Package form */}
       {showForm && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 space-y-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-lg">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
-            <button onClick={resetForm}><X className="h-4 w-4 text-zinc-500" /></button>
+            <button onClick={resetForm}><X className="h-4 w-4 text-muted-foreground" /></button>
           </div>
 
           {/* Basic info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Title *</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Title *</label>
               <Input
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value, slug: autoSlug(e.target.value) }))}
                 placeholder="e.g. Kasol Backpacking Trip"
-                className="bg-zinc-800 border-zinc-700"
+                className="bg-secondary border-zinc-700"
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Slug</label>
-              <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className="bg-zinc-800 border-zinc-700 text-zinc-500" />
+              <label className="text-xs text-muted-foreground mb-1 block">Slug</label>
+              <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className="bg-secondary border-zinc-700 text-muted-foreground" />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Destination *</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Destination *</label>
               <select
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm"
                 value={form.destination_id}
                 onChange={e => {
                   if (e.target.value === '__new__') {
@@ -301,44 +301,44 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               </select>
 
               {showNewDest && (
-                <div className="mt-2 p-3 bg-zinc-800/50 rounded-lg border border-zinc-700 space-y-2">
+                <div className="mt-2 p-3 bg-secondary/50 rounded-lg border border-zinc-700 space-y-2">
                   <Input
                     placeholder="Destination name (e.g. Kasol)"
                     value={newDest.name}
                     onChange={e => setNewDest(n => ({ ...n, name: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700 text-sm"
+                    className="bg-secondary border-zinc-700 text-sm"
                   />
                   <Input
                     placeholder="State (e.g. Himachal Pradesh)"
                     value={newDest.state}
                     onChange={e => setNewDest(n => ({ ...n, state: e.target.value }))}
-                    className="bg-zinc-800 border-zinc-700 text-sm"
+                    className="bg-secondary border-zinc-700 text-sm"
                   />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={handleCreateDestInline} disabled={isPending || !newDest.name || !newDest.state} className="bg-primary text-black text-xs">
                       Create
                     </Button>
-                    <Button size="sm" variant="ghost" className="text-xs text-zinc-500" onClick={() => setShowNewDest(false)}>Cancel</Button>
+                    <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => setShowNewDest(false)}>Cancel</Button>
                   </div>
                 </div>
               )}
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Price (₹) *</label>
-              <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="8999" className="bg-zinc-800 border-zinc-700" />
+              <label className="text-xs text-muted-foreground mb-1 block">Price (₹) *</label>
+              <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="8999" className="bg-secondary border-zinc-700" />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Duration (days) *</label>
-              <Input type="number" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value }))} placeholder="4" className="bg-zinc-800 border-zinc-700" />
+              <label className="text-xs text-muted-foreground mb-1 block">Duration (days) *</label>
+              <Input type="number" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value }))} placeholder="4" className="bg-secondary border-zinc-700" />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Max Group Size</label>
-              <Input type="number" value={form.max_group_size} onChange={e => setForm(f => ({ ...f, max_group_size: e.target.value }))} placeholder="12" className="bg-zinc-800 border-zinc-700" />
+              <label className="text-xs text-muted-foreground mb-1 block">Max Group Size</label>
+              <Input type="number" value={form.max_group_size} onChange={e => setForm(f => ({ ...f, max_group_size: e.target.value }))} placeholder="12" className="bg-secondary border-zinc-700" />
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Difficulty</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Difficulty</label>
               <select
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm"
                 value={form.difficulty}
                 onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
               >
@@ -354,27 +354,27 @@ export function PackagesManagementClient({ packages: initial, destinations: init
           </div>
 
           <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Short Description</label>
-            <Input value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} placeholder="One-liner for cards" className="bg-zinc-800 border-zinc-700" />
+            <label className="text-xs text-muted-foreground mb-1 block">Short Description</label>
+            <Input value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} placeholder="One-liner for cards" className="bg-secondary border-zinc-700" />
           </div>
 
           <div>
-            <label className="text-xs text-zinc-500 mb-1 block">Full Description</label>
+            <label className="text-xs text-muted-foreground mb-1 block">Full Description</label>
             <textarea
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={3}
               placeholder="Detailed trip description..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
             />
           </div>
 
           {/* What's Included — checkbox grid */}
           <div>
-            <label className="text-xs text-zinc-500 mb-2 block">What&apos;s Included (check applicable)</label>
+            <label className="text-xs text-muted-foreground mb-2 block">What&apos;s Included (check applicable)</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
               {includesOptions.map(opt => (
-                <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-white text-zinc-400">
+                <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-white text-muted-foreground">
                   <input
                     type="checkbox"
                     className="accent-primary"
@@ -397,7 +397,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 value={newInclude}
                 onChange={e => setNewInclude(e.target.value)}
                 placeholder="Add custom facility..."
-                className="bg-zinc-800 border-zinc-700 text-sm max-w-xs"
+                className="bg-secondary border-zinc-700 text-sm max-w-xs"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddInclude() } }}
               />
               <Button size="sm" variant="outline" className="border-zinc-700 text-xs" onClick={handleAddInclude} disabled={isPending}>
@@ -408,7 +408,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
           {/* Images — upload + URL */}
           <div>
-            <label className="text-xs text-zinc-500 mb-2 block">
+            <label className="text-xs text-muted-foreground mb-2 block">
               Images <span className="text-zinc-600">(Recommended: 1200×800px, max 5MB each, JPEG/PNG/WebP)</span>
             </label>
 
@@ -453,7 +453,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 value={imageUrlInput}
                 onChange={e => setImageUrlInput(e.target.value)}
                 placeholder="Paste image URL..."
-                className="bg-zinc-800 border-zinc-700 text-sm max-w-sm"
+                className="bg-secondary border-zinc-700 text-sm max-w-sm"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addImageUrl() } }}
               />
               <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" onClick={addImageUrl}>
@@ -467,7 +467,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
           {/* Departure Dates — date pickers */}
           <div>
-            <label className="text-xs text-zinc-500 mb-2 block">Departure Dates</label>
+            <label className="text-xs text-muted-foreground mb-2 block">Departure Dates</label>
             <div className="space-y-2 mb-2">
               {form.departureDates.map((d, i) => {
                 const returnDate = d.departure && form.duration_days
@@ -481,10 +481,10 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       max={maxDateStr}
                       value={d.departure}
                       onChange={e => updateDepartureDate(i, e.target.value)}
-                      className="bg-zinc-800 border-zinc-700 text-sm max-w-[180px]"
+                      className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
                     />
                     {returnDate && (
-                      <span className="text-xs text-zinc-500">→ Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span className="text-xs text-muted-foreground">→ Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                     )}
                     <button onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300"><X className="h-4 w-4" /></button>
                   </div>
@@ -505,7 +505,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       {/* Package list */}
       <div className="space-y-3">
         {packages.map(pkg => (
-          <div key={pkg.id} className={`rounded-xl border bg-zinc-900/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${pkg.is_active ? 'border-zinc-800' : 'border-red-900/30 opacity-60'}`}>
+          <div key={pkg.id} className={`rounded-xl border bg-card/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${pkg.is_active ? 'border-border' : 'border-red-900/30 opacity-60'}`}>
             <div className="flex items-center gap-3 min-w-0">
               {pkg.images?.[0] && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -517,7 +517,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   {pkg.is_featured && <Star className="h-3.5 w-3.5 text-primary fill-primary shrink-0" />}
                   {!pkg.is_active && <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">Inactive</Badge>}
                 </div>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-muted-foreground">
                   {pkg.destination?.name}, {pkg.destination?.state} · {pkg.duration_days}d · Max {pkg.max_group_size} · {pkg.difficulty}
                 </p>
                 <p className="text-xs text-zinc-600">
@@ -528,7 +528,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-primary font-bold text-sm">{formatPrice(pkg.price_paise)}</span>
-              <Button size="sm" variant="ghost" className="text-zinc-400 hover:text-white" onClick={() => loadForEdit(pkg)}>
+              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-white" onClick={() => loadForEdit(pkg)}>
                 <Edit2 className="h-4 w-4" />
               </Button>
               <Button

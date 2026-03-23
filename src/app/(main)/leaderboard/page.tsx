@@ -37,7 +37,7 @@ export default async function LeaderboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-10">
         {/* Header */}
         <div className="text-center mb-10">

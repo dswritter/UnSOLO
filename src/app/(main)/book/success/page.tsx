@@ -39,7 +39,7 @@ export default async function BookingSuccessPage({
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <div className="max-w-lg w-full text-center space-y-6">
         {/* Success icon */}
         <div className="mx-auto w-20 h-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">

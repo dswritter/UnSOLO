@@ -129,7 +129,7 @@ export default async function ChatPage() {
   const activeUsers = onlineUsers.filter(u => u.user_id !== user.id)
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-black">
