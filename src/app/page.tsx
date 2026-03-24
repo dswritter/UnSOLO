@@ -40,9 +40,14 @@ async function getStats() {
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-green-500/20 text-green-400',
-  moderate: 'bg-yellow-500/20 text-yellow-400',
-  challenging: 'bg-red-500/20 text-red-400',
+  easy: 'bg-black/60 text-white backdrop-blur-sm',
+  moderate: 'bg-black/60 text-white backdrop-blur-sm',
+  challenging: 'bg-black/60 text-white backdrop-blur-sm',
+}
+const DIFFICULTY_ICONS: Record<string, string> = {
+  easy: '\u2714',
+  moderate: '\u26A0',
+  challenging: '\u26A1',
 }
 
 export default async function HomePage() {
@@ -60,8 +65,8 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar user={profile} />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden py-24 md:py-36 px-4">
+      {/* Hero — always dark background for brand consistency */}
+      <section className="relative overflow-hidden py-24 md:py-36 px-4 bg-black">
         <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-[#1a0f00] pointer-events-none" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
@@ -70,12 +75,12 @@ export default async function HomePage() {
             India&apos;s #1 Solo Travel Community
           </Badge>
           <h1 className="text-5xl md:text-7xl font-black leading-none tracking-tight mb-6">
-            <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
+            <span className="text-primary">UN</span><span className="text-white">SOLO</span>
           </h1>
           <p className="text-xl md:text-2xl text-white/90 font-medium mb-3">
             Change the way you travel.
           </p>
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
+          <p className="text-base md:text-lg text-white/50 max-w-2xl mx-auto mb-10">
             Book curated solo trips across India, connect with fellow explorers in real-time,
             earn badges, and climb the leaderboard. Travel solo — never alone.
           </p>
@@ -83,7 +88,7 @@ export default async function HomePage() {
             <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90 glow-gold" asChild>
               <Link href="/explore">Explore Trips <ArrowRight className="ml-2 h-5 w-5" /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-border text-white hover:bg-secondary" asChild>
+            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
               <Link href="/signup">Join the Community</Link>
             </Button>
           </div>
@@ -138,8 +143,8 @@ export default async function HomePage() {
                       </div>
                     )}
                     <div className="absolute top-3 left-3">
-                      <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty] || 'bg-primary/20 text-primary'}`}>
-                        {pkg.difficulty}
+                      <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty] || 'bg-black/60 text-white backdrop-blur-sm'}`}>
+                        {DIFFICULTY_ICONS[pkg.difficulty] || ''} {pkg.difficulty}
                       </Badge>
                     </div>
                   </div>
@@ -148,7 +153,7 @@ export default async function HomePage() {
                       <MapPin className="h-3 w-3" />
                       {pkg.destination?.name}, {pkg.destination?.state}
                     </div>
-                    <h3 className="font-bold text-white text-lg leading-tight mb-2">{pkg.title}</h3>
+                    <h3 className="font-bold text-foreground text-lg leading-tight mb-2">{pkg.title}</h3>
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{pkg.short_description}</p>
                     <div className="flex items-center justify-between">
                       <div>
@@ -185,16 +190,16 @@ export default async function HomePage() {
           <p className="text-muted-foreground mb-12">Three simple steps to your next adventure</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { step: '01', title: 'Discover & Book', desc: 'Browse curated solo trips. Pick your destination and book securely with Stripe.', icon: MapPin },
+              { step: '01', title: 'Discover & Book', desc: 'Browse curated solo trips. Pick your destination and book securely with Razorpay.', icon: MapPin },
               { step: '02', title: 'Connect & Chat', desc: 'Get added to your trip\'s chat room automatically. Meet your fellow travelers before you leave.', icon: MessageCircle },
               { step: '03', title: 'Travel & Earn', desc: 'Complete trips, write reviews, and earn badges. Climb the leaderboard and build your legacy.', icon: Trophy },
             ].map(({ step, title, desc, icon: Icon }) => (
               <div key={step} className="text-center space-y-4">
                 <div className="relative mx-auto w-16 h-16">
-                  <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
                     <Icon className="h-7 w-7 text-primary" />
                   </div>
-                  <span className="absolute -top-2 -right-2 text-xs font-black text-primary bg-black px-1">{step}</span>
+                  <span className="absolute -top-1 -right-1 text-[10px] font-black text-primary-foreground bg-primary rounded-full w-5 h-5 flex items-center justify-center">{step}</span>
                 </div>
                 <h3 className="text-xl font-bold">{title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>

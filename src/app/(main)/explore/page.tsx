@@ -11,9 +11,14 @@ import type { Package } from '@/types'
 import { ExploreFilters } from './ExploreFilters'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-green-500/20 text-green-400 border-green-500/30',
-  moderate: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  challenging: 'bg-red-500/20 text-red-400 border-red-500/30',
+  easy: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
+  moderate: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
+  challenging: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
+}
+const DIFFICULTY_ICONS: Record<string, string> = {
+  easy: '\u2714',
+  moderate: '\u26A0',
+  challenging: '\u26A1',
 }
 
 const GENDER_LABELS: Record<string, string> = {
@@ -153,7 +158,7 @@ export default async function ExplorePage({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className="absolute top-3 left-3 flex gap-2">
                       <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty]}`}>
-                        {pkg.difficulty}
+                        {DIFFICULTY_ICONS[pkg.difficulty] || ''} {pkg.difficulty}
                       </Badge>
                       {pkg.is_featured && (
                         <Badge className="text-xs bg-primary/90 text-black border-none">Featured</Badge>
