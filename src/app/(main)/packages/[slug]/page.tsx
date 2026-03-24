@@ -1,3 +1,5 @@
+export const revalidate = 300 // 5 minutes
+
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'

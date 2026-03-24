@@ -1,3 +1,5 @@
+export const revalidate = 3600 // 1 hour
+
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/Navbar'

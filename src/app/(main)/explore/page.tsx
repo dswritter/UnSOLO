@@ -1,3 +1,5 @@
+export const revalidate = 300 // 5 minutes
+
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'

@@ -1,3 +1,5 @@
+export const revalidate = 30 // 30 seconds
+
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TravelStats } from '@/components/profile/TravelStats'

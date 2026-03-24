@@ -1,3 +1,5 @@
+export const revalidate = 600 // 10 minutes
+
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
