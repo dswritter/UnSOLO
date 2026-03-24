@@ -137,20 +137,76 @@ export default function CreateTripPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  function addImageUrl() {
+  const [imageLoading, setImageLoading] = useState(false)
+
+  async function addImageUrl() {
     const url = imageUrlInput.trim()
     if (!url) return
+
+    setImageLoading(true)
     let finalUrl = url
+
+    // Convert Unsplash page URLs to direct image URLs
     if (url.includes('unsplash.com/photos/') && !url.includes('images.unsplash.com')) {
       const parts = url.split('/photos/')
       if (parts[1]) {
         const slug = parts[1].split('?')[0].split('/')[0]
+        // Extract photo ID (last segment after last hyphen, or full slug if no hyphens)
         const photoId = slug.includes('-') ? slug.split('-').pop() : slug
-        finalUrl = `https://images.unsplash.com/photo-${photoId}?w=1200&q=80`
+        // Try multiple Unsplash URL formats
+        const candidates = [
+          `https://images.unsplash.com/photo-${photoId}?w=1200&q=80`,
+          `https://images.unsplash.com/${photoId}?w=1200&q=80`,
+        ]
+        let found = false
+        for (const candidate of candidates) {
+          try {
+            const img = new Image()
+            const loaded = await new Promise<boolean>((resolve) => {
+              img.onload = () => resolve(true)
+              img.onerror = () => resolve(false)
+              img.src = candidate
+              setTimeout(() => resolve(false), 5000)
+            })
+            if (loaded) {
+              finalUrl = candidate
+              found = true
+              break
+            }
+          } catch { /* try next */ }
+        }
+        if (!found) {
+          toast.error('Could not load Unsplash image. Try right-clicking the image → "Copy image address" and paste that instead.')
+          setImageLoading(false)
+          return
+        }
       }
     }
+
+    // Validate that the URL loads as an image
+    try {
+      const img = new Image()
+      const loaded = await new Promise<boolean>((resolve) => {
+        img.onload = () => resolve(true)
+        img.onerror = () => resolve(false)
+        img.src = finalUrl
+        setTimeout(() => resolve(false), 8000)
+      })
+      if (!loaded) {
+        toast.error('Image could not be loaded. Check the URL or try uploading instead.')
+        setImageLoading(false)
+        return
+      }
+    } catch {
+      toast.error('Invalid image URL')
+      setImageLoading(false)
+      return
+    }
+
     setImages(prev => [...prev, finalUrl])
     setImageUrlInput('')
+    setImageLoading(false)
+    toast.success('Image added!')
   }
 
   function removeImage(idx: number) {
@@ -564,13 +620,32 @@ export default function CreateTripPage() {
                     }
                   }}
                 />
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={addImageUrl}>
-                  <ImageIcon className="h-3 w-3" /> Add URL
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={addImageUrl} disabled={imageLoading || !imageUrlInput.trim()}>
+                  {imageLoading ? (
+                    <><span className="h-3 w-3 border-2 border-current/30 border-t-current rounded-full animate-spin" /> Validating...</>
+                  ) : (
+                    <><ImageIcon className="h-3 w-3" /> Add URL</>
+                  )}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
                 Recommended: 1200x800px, max 5MB each. JPEG, PNG, or WebP.
+                <br />For Unsplash: right-click the image → &quot;Copy image address&quot; and paste the direct URL.
               </p>
+
+              {/* Image loading overlay */}
+              {imageLoading && (
+                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                  <div className="bg-card border border-border rounded-xl p-8 text-center max-w-sm">
+                    <div className="h-10 w-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+                    <p className="font-bold text-sm">Loading image...</p>
+                    <p className="text-xs text-muted-foreground mt-1">Validating the image URL</p>
+                    <Button variant="outline" size="sm" className="mt-4" onClick={() => setImageLoading(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

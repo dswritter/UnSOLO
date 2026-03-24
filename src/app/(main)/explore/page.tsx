@@ -35,7 +35,9 @@ async function getPackages(searchParams: Record<string, string>) {
 
   // Tab filtering
   if (tab === 'community') {
-    query = query.not('host_id', 'is', null).eq('moderation_status', 'approved')
+    // is_active=true covers: approved trips + edited trips pending re-review
+    // New trips (never approved) have is_active=false, so they won't show
+    query = query.not('host_id', 'is', null)
   } else {
     query = query.is('host_id', null)
   }
