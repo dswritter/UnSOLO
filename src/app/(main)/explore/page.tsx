@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain } from 'lucide-react'
+import { MapPin, Mountain, Star, ShieldCheck } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import Link from 'next/link'
 import type { Package } from '@/types'
@@ -16,14 +16,29 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   challenging: 'bg-red-500/20 text-red-400 border-red-500/30',
 }
 
+const GENDER_LABELS: Record<string, string> = {
+  women: 'Women only',
+  men: 'Men only',
+  all: 'All genders',
+}
+
 async function getPackages(searchParams: Record<string, string>) {
   const supabase = await createClient()
+  const tab = searchParams.tab || 'unsolo'
+
   let query = supabase
     .from('packages')
-    .select('*, destination:destinations(*)')
+    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('is_active', true)
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
+
+  // Tab filtering
+  if (tab === 'community') {
+    query = query.not('host_id', 'is', null).eq('moderation_status', 'approved')
+  } else {
+    query = query.is('host_id', null)
+  }
 
   if (searchParams.difficulty) {
     query = query.eq('difficulty', searchParams.difficulty)
@@ -42,7 +57,7 @@ async function getPackages(searchParams: Record<string, string>) {
   }
 
   const { data } = await query
-  let packages = (data || []) as Package[]
+  let packages = (data || []) as unknown as Package[]
 
   if (searchParams.month) {
     const targetMonth = parseInt(searchParams.month)
@@ -74,6 +89,7 @@ export default async function ExplorePage({
   searchParams: Promise<Record<string, string>>
 }) {
   const params = await searchParams
+  const tab = params.tab || 'unsolo'
   const packages = await getPackages(params)
 
   return (
@@ -103,7 +119,9 @@ export default async function ExplorePage({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {packages.map((pkg) => (
               <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
-                <Card className="bg-card border-border overflow-hidden card-hover cursor-pointer h-full group">
+                <Card className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group ${
+                  tab === 'community' ? 'ring-1 ring-primary/10' : ''
+                }`}>
                   <div className="relative h-52 bg-secondary overflow-hidden">
                     {pkg.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -125,15 +143,69 @@ export default async function ExplorePage({
                       {pkg.is_featured && (
                         <Badge className="text-xs bg-primary/90 text-black border-none">Featured</Badge>
                       )}
+                      {tab === 'community' && (
+                        <Badge className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">Community</Badge>
+                      )}
                     </div>
                     <div className="absolute bottom-3 left-3 flex items-center gap-1 text-xs text-white/80">
                       <MapPin className="h-3 w-3" />
                       {pkg.destination?.name}, {pkg.destination?.state}
                     </div>
+
+                    {/* Host avatar overlay for community trips */}
+                    {tab === 'community' && pkg.host && (
+                      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1">
+                        {pkg.host.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={pkg.host.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+                            {(pkg.host.full_name || pkg.host.username || 'H')[0].toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-[10px] text-white/90 font-medium truncate max-w-[80px]">
+                          {pkg.host.full_name || pkg.host.username}
+                        </span>
+                        {pkg.host.is_verified && <ShieldCheck className="h-3 w-3 text-blue-400 flex-shrink-0" />}
+                      </div>
+                    )}
                   </div>
                   <CardContent className="p-4">
-                    <h3 className="font-bold text-white text-lg leading-tight mb-1">{pkg.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{pkg.short_description}</p>
+                    <h3 className="font-bold text-foreground text-lg leading-tight mb-1">{pkg.title}</h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{pkg.short_description}</p>
+
+                    {/* Host info for community trips */}
+                    {tab === 'community' && pkg.host && (
+                      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border">
+                        {pkg.host.host_rating != null && pkg.host.host_rating > 0 && (
+                          <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
+                            <span>{pkg.host.host_rating.toFixed(1)}</span>
+                          </div>
+                        )}
+                        {/* Join preference badges */}
+                        {pkg.join_preferences && (
+                          <div className="flex flex-wrap gap-1">
+                            {pkg.join_preferences.gender_preference && pkg.join_preferences.gender_preference !== 'all' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20">
+                                {GENDER_LABELS[pkg.join_preferences.gender_preference]}
+                              </span>
+                            )}
+                            {pkg.join_preferences.min_age && pkg.join_preferences.max_age && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
+                                {pkg.join_preferences.min_age}–{pkg.join_preferences.max_age} yrs
+                              </span>
+                            )}
+                            {pkg.join_preferences.min_trips_completed && pkg.join_preferences.min_trips_completed > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+                                {pkg.join_preferences.min_trips_completed}+ trips
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-primary font-black text-xl">{formatPrice(pkg.price_paise)}</span>

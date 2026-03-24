@@ -63,6 +63,25 @@ export type Destination = {
   created_at: string
 }
 
+export type JoinPreferences = {
+  min_age?: number
+  max_age?: number
+  gender_preference?: 'men' | 'women' | 'all'
+  min_trips_completed?: number
+  interest_tags?: string[]
+}
+
+export type HostProfile = {
+  id: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  host_rating: number | null
+  is_verified: boolean
+  total_hosted_trips: number | null
+}
+
 export type Package = {
   id: string
   destination_id: string
@@ -80,8 +99,12 @@ export type Package = {
   is_active: boolean
   stripe_price_id: string | null
   departure_dates: string[] | null
+  host_id: string | null
+  moderation_status: 'pending' | 'approved' | 'rejected' | null
+  join_preferences: JoinPreferences | null
   created_at: string
   destination?: Destination
+  host?: HostProfile
 }
 
 export type CustomDateRequest = {

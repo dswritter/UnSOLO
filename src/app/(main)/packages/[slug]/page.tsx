@@ -5,19 +5,26 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { MapPin, Clock, Users, CheckCircle, Star, Mountain, ArrowLeft } from 'lucide-react'
+import { MapPin, Clock, Users, CheckCircle, Star, Mountain, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
+import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
 import { InterestButton } from '@/components/packages/InterestButton'
 import { ShareButton } from '@/components/packages/ShareButton'
 import { getInterestData } from '@/actions/booking'
-import type { Package } from '@/types'
+import type { Package, HostProfile, JoinPreferences } from '@/types'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
   moderate: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   challenging: 'bg-red-500/20 text-red-400 border-red-500/30',
+}
+
+const GENDER_LABELS: Record<string, string> = {
+  women: 'Women only',
+  men: 'Men only',
+  all: 'All genders welcome',
 }
 
 export default async function PackageDetailPage({
@@ -33,7 +40,7 @@ export default async function PackageDetailPage({
 
   const { data: pkg } = await supabase
     .from('packages')
-    .select('*, destination:destinations(*)')
+    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -41,10 +48,30 @@ export default async function PackageDetailPage({
   if (!pkg) notFound()
 
   const package_ = pkg as Package
+  const isCommunityTrip = !!package_.host_id
+  const hostData = (pkg.host as unknown as HostProfile) || null
 
-  // Fetch group invite data if arriving via group invite link
+  // Get the auth user
+  const { data: { user } } = await supabase.auth.getUser()
+  const isHost = !!user && !!package_.host_id && user.id === package_.host_id
+
+  // Fetch existing join request if community trip and user is logged in
+  let existingRequest = null
+  if (isCommunityTrip && user && !isHost) {
+    const { data: jr } = await supabase
+      .from('join_requests')
+      .select('id, status, message, host_response, payment_deadline')
+      .eq('trip_id', package_.id)
+      .eq('user_id', user.id)
+      .single()
+    if (jr) {
+      existingRequest = jr as { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
+    }
+  }
+
+  // Fetch group invite data if arriving via group invite link (only for UnSOLO trips)
   let groupInvite: { id: string; travel_date: string; organizer_name: string } | null = null
-  if (groupId) {
+  if (groupId && !isCommunityTrip) {
     const { data: gData } = await supabase
       .from('group_bookings')
       .select('id, travel_date, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
@@ -61,9 +88,9 @@ export default async function PackageDetailPage({
     }
   }
 
-  // Calculate available slots per departure date
+  // Calculate available slots per departure date (only for UnSOLO trips)
   const availableSlotsMap: Record<string, number> = {}
-  if (package_.departure_dates && package_.max_group_size) {
+  if (!isCommunityTrip && package_.departure_dates && package_.max_group_size) {
     for (const date of package_.departure_dates) {
       const { data: dateBookings } = await supabase
         .from('bookings')
@@ -94,9 +121,6 @@ export default async function PackageDetailPage({
     ? reviews.reduce((sum, r) => sum + (r.rating_experience || r.rating), 0) / reviews.length
     : 0
 
-  // Get the auth user
-  const { data: { user } } = await supabase.auth.getUser()
-
   // Get interest data
   const interestData = await getInterestData(pkg.id)
 
@@ -104,7 +128,7 @@ export default async function PackageDetailPage({
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-8">
         {/* Back */}
-        <Link href="/explore" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white mb-6 transition-colors">
+        <Link href={isCommunityTrip ? '/explore?tab=community' : '/explore'} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Explore
         </Link>
 
@@ -133,6 +157,9 @@ export default async function PackageDetailPage({
                 <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
                   {package_.difficulty}
                 </Badge>
+                {isCommunityTrip && (
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
+                )}
               </div>
             </div>
 
@@ -152,6 +179,93 @@ export default async function PackageDetailPage({
                 durationDays={package_.duration_days}
               />
             </div>
+
+            {/* Host profile card (community trips only) */}
+            {isCommunityTrip && hostData && (
+              <div className="bg-card border border-border rounded-xl p-6">
+                <h2 className="text-lg font-bold mb-4">Your Host</h2>
+                <div className="flex items-start gap-4">
+                  <Link href={`/profile/${hostData.username}`}>
+                    {hostData.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={hostData.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-lg font-bold text-primary ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
+                        {(hostData.full_name || hostData.username || 'H')[0].toUpperCase()}
+                      </div>
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/profile/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
+                        {hostData.full_name || hostData.username}
+                      </Link>
+                      {hostData.is_verified && (
+                        <span className="inline-flex items-center gap-1 text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                          <ShieldCheck className="h-3 w-3" /> Verified
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                      {hostData.host_rating != null && hostData.host_rating > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                          {hostData.host_rating.toFixed(1)} rating
+                        </span>
+                      )}
+                      {hostData.total_hosted_trips != null && hostData.total_hosted_trips > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Award className="h-3.5 w-3.5 text-primary" />
+                          {hostData.total_hosted_trips} trips hosted
+                        </span>
+                      )}
+                    </div>
+                    {hostData.bio && (
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{hostData.bio}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Join preferences (community trips only) */}
+            {isCommunityTrip && package_.join_preferences && (
+              <div className="bg-card border border-border rounded-xl p-6">
+                <h2 className="text-lg font-bold mb-3">Who Can Join</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {package_.join_preferences.gender_preference && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">{GENDER_LABELS[package_.join_preferences.gender_preference] || 'All genders welcome'}</span>
+                    </div>
+                  )}
+                  {(package_.join_preferences.min_age || package_.join_preferences.max_age) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        Age: {package_.join_preferences.min_age || '18'}–{package_.join_preferences.max_age || '60'} years
+                      </span>
+                    </div>
+                  )}
+                  {package_.join_preferences.min_trips_completed != null && package_.join_preferences.min_trips_completed > 0 && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        Minimum {package_.join_preferences.min_trips_completed} completed trips
+                      </span>
+                    </div>
+                  )}
+                  {package_.join_preferences.interest_tags && package_.join_preferences.interest_tags.length > 0 && (
+                    <div className="flex items-center gap-2 text-sm sm:col-span-2">
+                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        Interests: {package_.join_preferences.interest_tags.join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">
@@ -262,52 +376,78 @@ export default async function PackageDetailPage({
             </div>
           </div>
 
-          {/* Sidebar - Booking */}
+          {/* Sidebar - Booking / Join */}
           <div className="lg:col-span-1">
             <div className="sticky top-20">
               <Card className="bg-card border-border">
                 <CardContent className="p-6 space-y-4">
-                  <div>
-                    <span className="text-3xl font-black text-primary">{formatPrice(package_.price_paise)}</span>
-                    <span className="text-muted-foreground text-sm ml-2">per person</span>
-                  </div>
-
-                  {user ? (
-                    <BookingFormClient
+                  {isCommunityTrip ? (
+                    /* Community trip: Join Request Form */
+                    <JoinRequestForm
                       packageId={package_.id}
+                      packageTitle={package_.title}
                       packageSlug={package_.slug}
                       pricePerPersonPaise={package_.price_paise}
-                      maxGroupSize={package_.max_group_size}
-                      packageTitle={package_.title}
-                      departureDates={package_.departure_dates}
-                      durationDays={package_.duration_days}
-                      groupInvite={groupInvite}
-                      availableSlots={availableSlotsMap}
+                      hostName={hostData?.full_name || hostData?.username || 'the host'}
+                      joinPreferences={package_.join_preferences}
+                      existingRequest={existingRequest}
+                      isHost={isHost}
+                      isLoggedIn={!!user}
                     />
                   ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
-                      <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
-                        <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
-                          Sign In to Book
-                        </Link>
-                      </Button>
-                    </div>
+                    /* UnSOLO trip: Standard booking flow */
+                    <>
+                      <div>
+                        <span className="text-3xl font-black text-primary">{formatPrice(package_.price_paise)}</span>
+                        <span className="text-muted-foreground text-sm ml-2">per person</span>
+                      </div>
+
+                      {user ? (
+                        <BookingFormClient
+                          packageId={package_.id}
+                          packageSlug={package_.slug}
+                          pricePerPersonPaise={package_.price_paise}
+                          maxGroupSize={package_.max_group_size}
+                          packageTitle={package_.title}
+                          departureDates={package_.departure_dates}
+                          durationDays={package_.duration_days}
+                          groupInvite={groupInvite}
+                          availableSlots={availableSlotsMap}
+                        />
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
+                          <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
+                            <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
+                              Sign In to Book
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <div className="border-t border-border pt-4 space-y-2 text-xs text-muted-foreground">
                     <div className="flex justify-between">
                       <span>Duration</span>
-                      <span className="text-white">{package_.duration_days} days</span>
+                      <span className="text-foreground">{package_.duration_days} days</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Location</span>
-                      <span className="text-white">{package_.destination?.state}</span>
+                      <span className="text-foreground">{package_.destination?.state}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Max Group</span>
                       <span className="text-foreground">{package_.max_group_size} people</span>
                     </div>
+                    {isCommunityTrip && hostData && (
+                      <div className="flex justify-between">
+                        <span>Hosted by</span>
+                        <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
+                          {hostData.full_name || hostData.username}
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

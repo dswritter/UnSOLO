@@ -442,6 +442,46 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
   return { success: true }
 }
 
+// ── Public Data for Create Form ──────────────────────────────
+
+export async function getDestinationsPublic() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('destinations').select('id, name, state').order('name')
+  return data || []
+}
+
+export async function getIncludesOptionsPublic() {
+  const supabase = await createClient()
+  const { data } = await supabase.from('includes_options').select('id, label').order('label')
+  return data || []
+}
+
+export async function getHostTripDetail(tripId: string) {
+  const { supabase, user } = await requireHost()
+
+  const { data: trip } = await supabase
+    .from('packages')
+    .select('*, destination:destinations(name, state)')
+    .eq('id', tripId)
+    .eq('host_id', user.id)
+    .single()
+
+  if (!trip) return null
+  return trip
+}
+
+export async function checkIsHost() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { authenticated: false, isHost: false }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_host')
+    .eq('id', user.id)
+    .single()
+  return { authenticated: true, isHost: !!profile?.is_host }
+}
+
 // ── Earnings ────────────────────────────────────────────────
 
 export async function getHostEarnings() {
