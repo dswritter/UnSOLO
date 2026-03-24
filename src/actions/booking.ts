@@ -281,6 +281,38 @@ export async function confirmPayment(
     }
   } catch { /* non-critical */ }
 
+  // ── Host Earnings: Track platform fee for community trips ────
+  try {
+    const pkg = booking.package as { host_id?: string } | null
+    if (pkg?.host_id) {
+      const { PLATFORM_FEE_PERCENT } = await import('@/lib/constants')
+      const platformFee = Math.round(booking.total_amount_paise * PLATFORM_FEE_PERCENT / 100)
+      const hostAmount = booking.total_amount_paise - platformFee
+
+      const { createClient: createSC3 } = await import('@supabase/supabase-js')
+      const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+      await svcSupa3.from('host_earnings').insert({
+        booking_id: booking.id,
+        host_id: pkg.host_id,
+        total_paise: booking.total_amount_paise,
+        platform_fee_paise: platformFee,
+        host_paise: hostAmount,
+        payout_status: 'pending',
+      })
+
+      // Notify host
+      const hostAmount_fmt = '₹' + (hostAmount / 100).toLocaleString('en-IN')
+      await svcSupa3.from('notifications').insert({
+        user_id: pkg.host_id,
+        type: 'split_payment',
+        title: 'New Booking on Your Trip!',
+        body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (after 15% platform fee)`,
+        link: '/host',
+      })
+    }
+  } catch { /* non-critical */ }
+
   // ── Referral Credit: Credit referrer on first booking ────────
   try {
     const { createClient: createSC2 } = await import('@supabase/supabase-js')
@@ -768,4 +800,68 @@ export async function markRefundComplete(bookingId: string) {
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')
   return { success: true }
+}
+
+// ── Community Trip Payment (after host approves join request) ──
+
+export async function createCommunityTripOrder(joinRequestId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, phone_number')
+    .eq('id', user.id)
+    .single()
+
+  const { data: request } = await supabase
+    .from('join_requests')
+    .select('*, trip:packages(id, title, price_paise, host_id, departure_dates, duration_days)')
+    .eq('id', joinRequestId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!request) return { error: 'Join request not found' }
+  if (request.status !== 'approved') return { error: 'Request not approved yet' }
+
+  if (request.payment_deadline && new Date(request.payment_deadline) < new Date()) {
+    return { error: 'Payment deadline has passed. Please request to join again.' }
+  }
+
+  const trip = request.trip as { id: string; title: string; price_paise: number; host_id: string; departure_dates?: string[]; duration_days?: number }
+  const totalPaise = trip.price_paise
+
+  const order = await razorpay.orders.create({
+    amount: totalPaise,
+    currency: 'INR',
+    receipt: `unsolo_community_${Date.now()}`,
+    notes: { userId: user.id, packageId: trip.id, joinRequestId: request.id, type: 'community_trip' },
+  })
+
+  const today = new Date().toISOString().split('T')[0]
+  const travelDate = trip.departure_dates?.find(d => d >= today) || trip.departure_dates?.[0] || today
+
+  await supabase.from('bookings').insert({
+    user_id: user.id,
+    package_id: trip.id,
+    status: 'pending',
+    travel_date: travelDate,
+    guests: 1,
+    total_amount_paise: totalPaise,
+    stripe_session_id: order.id,
+  })
+
+  return {
+    orderId: order.id,
+    amount: totalPaise,
+    currency: 'INR',
+    keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+    prefill: {
+      email: user.email || '',
+      ...(profile?.phone_number ? { contact: profile.phone_number.startsWith('+91') ? profile.phone_number : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}` } : {}),
+      name: profile?.full_name || '',
+    },
+    notes: { userId: user.id, packageId: trip.id, joinRequestId: request.id },
+  }
 }

@@ -686,3 +686,93 @@ export async function validatePromoCode(code: string) {
     offerId: offer.id,
   }
 }
+
+// ── Community Trip Moderation ────────────────────────────────
+
+export async function moderateCommunityTrip(tripId: string, approve: boolean, reason?: string) {
+  const { supabase, user } = await requireAdmin()
+
+  const { data: trip } = await supabase
+    .from('packages')
+    .select('host_id, title, host:profiles!packages_host_id_fkey(id, full_name, username)')
+    .eq('id', tripId)
+    .single()
+
+  if (!trip || !trip.host_id) return { error: 'Community trip not found' }
+
+  const newStatus = approve ? 'approved' : 'rejected'
+
+  await supabase
+    .from('packages')
+    .update({
+      moderation_status: newStatus,
+      is_active: approve, // Only active if approved
+    })
+    .eq('id', tripId)
+
+  // Notify host
+  const svcSupabase = await createServiceClient()
+  const host = trip.host as unknown as { id: string; full_name: string | null; username: string }
+
+  await svcSupabase.from('notifications').insert({
+    user_id: host.id,
+    type: 'booking',
+    title: approve ? 'Trip Approved!' : 'Trip Not Approved',
+    body: approve
+      ? `Your trip "${trip.title}" has been approved and is now live on UnSOLO!`
+      : `Your trip "${trip.title}" was not approved.${reason ? ` Reason: ${reason}` : ''} You can edit and resubmit.`,
+    link: '/host',
+  })
+
+  // Audit log
+  await logAuditEvent(user.id, approve ? 'approve_community_trip' : 'reject_community_trip', 'package', tripId, { reason })
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/community-trips')
+  revalidatePath('/explore')
+  revalidatePath('/host')
+  return { success: true }
+}
+
+export async function markHostPayout(earningId: string, reference: string) {
+  const { supabase, user } = await requireAdmin()
+
+  const { error } = await supabase
+    .from('host_earnings')
+    .update({
+      payout_status: 'completed',
+      payout_date: new Date().toISOString(),
+      payout_reference: reference,
+    })
+    .eq('id', earningId)
+
+  if (error) return { error: error.message }
+
+  // Get earning details to notify host
+  const svcSupabase = await createServiceClient()
+  const { data: earning } = await svcSupabase
+    .from('host_earnings')
+    .select('host_id, host_paise')
+    .eq('id', earningId)
+    .single()
+
+  if (earning) {
+    await svcSupabase.from('notifications').insert({
+      user_id: earning.host_id,
+      type: 'split_payment',
+      title: 'Payout Received!',
+      body: `Your payout of ${formatPriceServer(earning.host_paise)} has been processed. Ref: ${reference}`,
+      link: '/host',
+    })
+  }
+
+  await logAuditEvent(user.id, 'mark_host_payout', 'host_earning', earningId, { reference })
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/admin/community-trips')
+  return { success: true }
+}
+
+function formatPriceServer(paise: number): string {
+  return '₹' + (paise / 100).toLocaleString('en-IN')
+}
