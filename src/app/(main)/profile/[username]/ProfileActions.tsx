@@ -129,10 +129,10 @@ export function OwnProfileFollowCounts({
     <>
       <div className="flex gap-4 mb-3 text-sm">
         <button onClick={() => setShowModal('followers')} className="hover:text-primary transition-colors">
-          <strong className="text-white">{displayFollowersCount}</strong> <span className="text-muted-foreground">followers</span>
+          <strong className="text-foreground">{displayFollowersCount}</strong> <span className="text-muted-foreground">followers</span>
         </button>
         <button onClick={() => setShowModal('following')} className="hover:text-primary transition-colors">
-          <strong className="text-white">{followingCount}</strong> <span className="text-muted-foreground">following</span>
+          <strong className="text-foreground">{followingCount}</strong> <span className="text-muted-foreground">following</span>
         </button>
       </div>
 

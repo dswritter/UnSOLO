@@ -38,7 +38,7 @@ export default function ContactPage() {
             <div>
               <h3 className="font-bold text-lg">Response Time</h3>
               <p className="text-sm text-muted-foreground mt-1">
-                We typically respond within <strong className="text-white">24–48 hours</strong>. For urgent booking queries, mention your confirmation code in the subject.
+                We typically respond within <strong className="text-foreground">24–48 hours</strong>. For urgent booking queries, mention your confirmation code in the subject.
               </p>
             </div>
           </div>

@@ -29,7 +29,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link href="/">
             <span className="text-4xl font-black">
-              <span className="text-primary">UN</span><span className="text-white">SOLO</span>
+              <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
             </span>
           </Link>
           <p className="text-muted-foreground text-sm mt-2">Change the way you travel.</p>

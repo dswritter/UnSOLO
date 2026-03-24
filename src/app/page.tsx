@@ -68,7 +68,7 @@ export default async function HomePage() {
             India&apos;s #1 Solo Travel Community
           </Badge>
           <h1 className="text-5xl md:text-7xl font-black leading-none tracking-tight mb-6">
-            <span className="text-primary">UN</span><span className="text-white">SOLO</span>
+            <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
           </h1>
           <p className="text-xl md:text-2xl text-white/90 font-medium mb-3">
             Change the way you travel.
@@ -245,7 +245,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
             <span className="text-xl font-black">
-              <span className="text-primary">UN</span><span className="text-white">SOLO</span>
+              <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
             </span>
             <p className="text-xs text-muted-foreground mt-1">Change the way you travel.</p>
           </div>
