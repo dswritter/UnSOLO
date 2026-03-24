@@ -20,7 +20,7 @@ export default async function AdminCommunityTripsPage() {
   // Get pending payouts
   const { data: pendingPayouts } = await supabase
     .from('host_earnings')
-    .select('*, host:profiles(username, full_name), booking:bookings(travel_date, package:packages(title))')
+    .select('*, host:profiles(username, full_name, upi_id), booking:bookings(travel_date, package:packages(title))')
     .eq('payout_status', 'pending')
     .order('created_at', { ascending: false })
 

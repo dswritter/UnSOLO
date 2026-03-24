@@ -21,6 +21,8 @@ export default function HostVerifyPage() {
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
   const [sending, setSending] = useState(false)
+  const [upiId, setUpiId] = useState('')
+  const [upiSaved, setUpiSaved] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -213,10 +215,67 @@ export default function HostVerifyPage() {
             )}
           </div>
 
+          {/* Payout Details — shown after both verifications */}
+          {emailVerified && phoneVerified && (
+            <div className={`p-5 rounded-xl border ${upiSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/30 bg-primary/5'}`}>
+              <div className="flex items-center gap-3 mb-3">
+                {upiSaved ? (
+                  <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
+                ) : (
+                  <Circle className="h-6 w-6 text-primary flex-shrink-0" />
+                )}
+                <div>
+                  <h3 className="font-bold">Payout Details</h3>
+                  <p className="text-xs text-muted-foreground">Where should we send your host earnings?</p>
+                </div>
+              </div>
+              <div className="space-y-3 pl-9">
+                <Input
+                  placeholder="Your UPI ID (e.g. name@upi, name@paytm)"
+                  value={upiId}
+                  onChange={e => setUpiId(e.target.value.toLowerCase().trim())}
+                  className="bg-secondary border-border"
+                  disabled={upiSaved}
+                />
+                {!upiSaved && (
+                  <Button
+                    onClick={async () => {
+                      if (!upiId || !upiId.includes('@')) {
+                        toast.error('Enter a valid UPI ID (must contain @)')
+                        return
+                      }
+                      setSending(true)
+                      const { createClient } = await import('@/lib/supabase/client')
+                      const supabase = createClient()
+                      const { error } = await supabase.from('profiles').update({ upi_id: upiId, payout_method: 'upi' }).eq('id', (await supabase.auth.getUser()).data.user?.id || '')
+                      if (error) toast.error('Failed to save UPI ID')
+                      else { toast.success('UPI ID saved!'); setUpiSaved(true) }
+                      setSending(false)
+                    }}
+                    disabled={sending || !upiId.includes('@')}
+                    className="bg-primary text-primary-foreground font-bold w-full"
+                  >
+                    Save UPI ID
+                  </Button>
+                )}
+                {upiSaved && (
+                  <button onClick={() => setUpiSaved(false)} className="text-xs text-primary hover:underline">
+                    Change UPI ID
+                  </button>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  Your earnings (trip price minus 15% platform fee) will be transferred to this UPI ID after each successful booking.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Status summary */}
           <div className="text-center text-sm text-muted-foreground pt-4">
-            {emailVerified && phoneVerified ? (
-              <p className="text-green-400 font-medium">Both verified! Refreshing your host status...</p>
+            {emailVerified && phoneVerified && upiSaved ? (
+              <p className="text-green-400 font-medium">All set! You&apos;re ready to host.</p>
+            ) : emailVerified && phoneVerified ? (
+              <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
             ) : (
               <p>Complete both verifications to start hosting trips.</p>
             )}

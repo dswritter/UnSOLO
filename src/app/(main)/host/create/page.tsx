@@ -162,7 +162,8 @@ export default function CreateTripPage() {
   }
 
   function updateDepartureDate(idx: number, value: string) {
-    if (value && value < tomorrow) {
+    // Only validate complete dates (YYYY-MM-DD = 10 chars)
+    if (value && value.length === 10 && value < tomorrow) {
       toast.error('Departure date must be in the future')
       return
     }

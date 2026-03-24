@@ -150,8 +150,49 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                     <div><span className="text-muted-foreground">Difficulty:</span> {trip.difficulty}</div>
                   </div>
 
+                  {trip.short_description && (
+                    <div className="text-xs">
+                      <span className="font-medium">Short Description: </span>
+                      <span className="text-muted-foreground">{trip.short_description}</span>
+                    </div>
+                  )}
+
                   {trip.description && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">{trip.description.slice(0, 300)}{trip.description.length > 300 ? '...' : ''}</p>
+                    <div className="text-xs">
+                      <span className="font-medium">Full Description: </span>
+                      <p className="text-muted-foreground leading-relaxed mt-1">{trip.description}</p>
+                    </div>
+                  )}
+
+                  {/* Departure dates */}
+                  {trip.departure_dates && trip.departure_dates.length > 0 && (
+                    <div className="text-xs">
+                      <span className="font-medium">Departure Dates: </span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {trip.departure_dates.map((d: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-[10px]">
+                            {new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Includes */}
+                  {trip.includes && trip.includes.length > 0 && (
+                    <div className="text-xs">
+                      <span className="font-medium">Includes: </span>
+                      <span className="text-muted-foreground">{trip.includes.join(', ')}</span>
+                    </div>
+                  )}
+
+                  {/* Images */}
+                  {trip.images && trip.images.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {trip.images.map((img: string, i: number) => (
+                        <img key={i} src={img} alt="" className="h-20 w-28 rounded-lg object-cover flex-shrink-0" />
+                      ))}
+                    </div>
                   )}
 
                   {/* Join preferences */}
@@ -249,6 +290,9 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                     <div className="text-xs text-muted-foreground">
                       {pkg?.title} · {booking?.travel_date ? formatDate(booking.travel_date) : ''} · Host share: {formatPrice(earning.host_paise)}
                     </div>
+                    {host?.upi_id && (
+                      <div className="text-xs text-primary font-mono mt-0.5">UPI: {host.upi_id}</div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <input

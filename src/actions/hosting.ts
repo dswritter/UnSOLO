@@ -114,11 +114,12 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
 
   if (!trip || trip.host_id !== user.id) return { error: 'Not your trip' }
 
-  // If trip was approved, edits require re-approval
+  // If trip was approved, edits require re-approval but trip stays visible
   const wasApproved = trip.moderation_status === 'approved'
   if (wasApproved) {
     updates.moderation_status = 'pending'
-    updates.is_active = false // hide from explore until re-approved
+    // Keep is_active = true so trip stays visible to users during re-review
+    // Only first-time creation hides until approved
   }
 
   const { error } = await supabase
