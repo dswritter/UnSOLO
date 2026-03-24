@@ -106,7 +106,7 @@ export default function EditTripPage() {
           <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 mb-6">
             <AlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-yellow-400">
-              This trip is currently live. Saving changes will temporarily remove it from explore and send it for admin re-approval.
+              This trip is currently live. Your changes will be saved immediately and the trip stays visible. Admin will review the edits — no downtime for your listing.
             </p>
           </div>
         )}

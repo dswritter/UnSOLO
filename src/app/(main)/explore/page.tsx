@@ -64,9 +64,23 @@ async function getPackages(searchParams: Record<string, string>) {
   // Hide trips where ALL departure dates are in the past
   const todayStr = new Date().toISOString().split('T')[0]
   packages = packages.filter(pkg => {
-    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true // no dates = always show
+    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
     return pkg.departure_dates.some(d => d >= todayStr)
   })
+
+  // Text search
+  if (searchParams.q) {
+    const q = searchParams.q.toLowerCase()
+    packages = packages.filter(pkg => {
+      const dest = pkg.destination as { name?: string; state?: string } | null
+      return (
+        pkg.title.toLowerCase().includes(q) ||
+        (pkg.short_description || '').toLowerCase().includes(q) ||
+        (dest?.name || '').toLowerCase().includes(q) ||
+        (dest?.state || '').toLowerCase().includes(q)
+      )
+    })
+  }
 
   if (searchParams.month) {
     const targetMonth = parseInt(searchParams.month)

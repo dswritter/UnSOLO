@@ -130,7 +130,7 @@ export default async function ManageTripPage({
                 </Button>
                 {trip.moderation_status === 'approved' && (
                   <p className="text-[10px] text-muted-foreground self-center">
-                    Editing an approved trip will require re-approval
+                    Edits will be sent to admin for review. Trip stays live.
                   </p>
                 )}
               </div>

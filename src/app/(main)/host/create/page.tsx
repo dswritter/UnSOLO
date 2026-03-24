@@ -61,6 +61,7 @@ export default function CreateTripPage() {
   const [priceRupees, setPriceRupees] = useState('')
   const [durationDays, setDurationDays] = useState('')
   const [maxGroupSize, setMaxGroupSize] = useState('12')
+  const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(20)
   const [difficulty, setDifficulty] = useState('moderate')
   const [departureDates, setDepartureDates] = useState<string[]>([])
   const [selectedIncludes, setSelectedIncludes] = useState<string[]>([])
@@ -94,6 +95,13 @@ export default function CreateTripPage() {
       ])
       setDestinations(dests)
       setIncludesOptions(includes)
+
+      // Fetch admin-managed max group size
+      const { createClient: cc } = await import('@/lib/supabase/client')
+      const sb = cc()
+      const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
+      if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 20)
+
       setLoading(false)
     }
     load()
@@ -448,15 +456,23 @@ export default function CreateTripPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Max Group Size</label>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Max Group Size (limit: {adminMaxGroupSize})</label>
                   <Input
                     type="number"
                     value={maxGroupSize}
-                    onChange={e => setMaxGroupSize(e.target.value)}
+                    onChange={e => {
+                      const v = parseInt(e.target.value)
+                      if (v > adminMaxGroupSize) {
+                        toast.error(`Maximum group size allowed is ${adminMaxGroupSize}`)
+                        setMaxGroupSize(String(adminMaxGroupSize))
+                      } else {
+                        setMaxGroupSize(e.target.value)
+                      }
+                    }}
                     placeholder="12"
                     className="bg-secondary border-border"
                     min="2"
-                    max="50"
+                    max={adminMaxGroupSize}
                   />
                 </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Filter, ChevronDown, X, Heart, Globe, Users } from 'lucide-react'
+import { Filter, ChevronDown, X, Heart, Globe, Users, Search } from 'lucide-react'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -77,6 +77,12 @@ function FilterDropdown({ label, activeLabel, children, isActive }: {
 export function ExploreFilters({ params, resultCount }: Props) {
   const router = useRouter()
   const activeTab = params.tab || 'unsolo'
+  const [searchInput, setSearchInput] = useState(params.q || '')
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    router.push(buildUrl({ q: searchInput.trim() || null }))
+  }
 
   function buildUrl(updates: Record<string, string | null>) {
     const p = new URLSearchParams()
@@ -109,10 +115,37 @@ export function ExploreFilters({ params, resultCount }: Props) {
   ) || DURATION_OPTIONS[0]
   const activeMonth = params.month ? MONTHS[parseInt(params.month)] : null
 
-  const hasFilters = params.difficulty || params.minBudget || params.maxBudget || params.minDays || params.maxDays || params.month
+  const hasFilters = params.difficulty || params.minBudget || params.maxBudget || params.minDays || params.maxDays || params.month || params.q
 
   return (
     <div className="space-y-4 mb-8">
+      {/* Search bar */}
+      <form onSubmit={handleSearch} className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          placeholder="Search trips by name, destination, or state..."
+          className="w-full pl-10 pr-20 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
+        />
+        {searchInput && (
+          <button
+            type="button"
+            onClick={() => { setSearchInput(''); router.push(buildUrl({ q: null })) }}
+            className="absolute right-14 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          type="submit"
+          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
+        >
+          Search
+        </button>
+      </form>
+
       {/* Tab toggle */}
       <div className="flex items-center gap-2">
         <button
