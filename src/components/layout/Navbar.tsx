@@ -65,9 +65,6 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <Link href="/chat" className="hidden md:flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-                  <MessageCircle className="h-5 w-5" />
-                </Link>
                 <NotificationBell userId={user.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger>

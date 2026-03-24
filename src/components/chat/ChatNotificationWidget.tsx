@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sendMessage } from '@/actions/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MessageCircle, X, Maximize2, Minimize2, Send } from 'lucide-react'
+import { MessageCircle, X, Maximize2, Minus, Send, ArrowLeft } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -156,17 +156,17 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             </span>
             <div className="flex items-center gap-1">
               {activeRoom && (
-                <button onClick={() => setActiveRoom(null)} className="text-muted-foreground hover:text-white p-1" title="Back to all messages">
-                  <Minimize2 className="h-3.5 w-3.5" />
+                <button onClick={() => setActiveRoom(null)} className="text-muted-foreground hover:text-foreground p-1" title="Back to all messages">
+                  <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
               )}
-              <Link href={activeRoom ? `/chat/${activeRoom.id}` : '/chat'} className="text-muted-foreground hover:text-white p-1" title="Open full chat">
+              <Link href={activeRoom ? `/chat/${activeRoom.id}` : '/chat'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
-              <button onClick={() => { setMinimized(true) }} className="text-muted-foreground hover:text-white p-1" title="Minimize">
-                <Minimize2 className="h-3.5 w-3.5" />
+              <button onClick={() => setMinimized(true)} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
+                <Minus className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-white p-1">
+              <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground p-1" title="Close">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>

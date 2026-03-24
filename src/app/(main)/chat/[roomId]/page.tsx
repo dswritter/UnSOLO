@@ -129,7 +129,7 @@ export default async function ChatRoomPage({
   }
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col">
+    <div className="h-[calc(100dvh-64px)] flex flex-col">
       <div className="px-4 py-2 border-b border-border flex items-center gap-3">
         <Link href="/chat" className="text-muted-foreground hover:text-white transition-colors">
           <ArrowLeft className="h-4 w-4" />
