@@ -118,36 +118,9 @@ export function ExploreFilters({ params, resultCount }: Props) {
   const hasFilters = params.difficulty || params.minBudget || params.maxBudget || params.minDays || params.maxDays || params.month || params.q
 
   return (
-    <div className="space-y-4 mb-8">
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          placeholder="Search trips by name, destination, or state..."
-          className="w-full pl-10 pr-20 py-3 rounded-xl bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-        />
-        {searchInput && (
-          <button
-            type="button"
-            onClick={() => { setSearchInput(''); router.push(buildUrl({ q: null })) }}
-            className="absolute right-14 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-        <button
-          type="submit"
-          className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-        >
-          Search
-        </button>
-      </form>
-
-      {/* Tab toggle */}
-      <div className="flex items-center gap-2">
+    <div className="space-y-3 mb-6">
+      {/* Tab toggle + inline search */}
+      <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={() => setTab('unsolo')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
@@ -170,9 +143,32 @@ export function ExploreFilters({ params, resultCount }: Props) {
           <Users className="h-4 w-4" />
           Community Trips
         </button>
-        <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
+        <span className="text-xs text-muted-foreground hidden sm:inline">
           {activeTab === 'unsolo' ? 'Curated by UnSOLO' : 'Hosted by verified travelers'}
         </span>
+
+        {/* Inline search */}
+        <form onSubmit={handleSearch} className="ml-auto flex items-center gap-1">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search..."
+              className="pl-8 pr-2 py-2 w-40 sm:w-52 rounded-full bg-secondary border border-border text-xs focus:outline-none focus:border-primary focus:w-64 transition-all"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => { setSearchInput(''); router.push(buildUrl({ q: null })) }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </form>
       </div>
 
       {/* Filter chips */}

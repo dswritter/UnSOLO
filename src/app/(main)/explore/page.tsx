@@ -117,15 +117,7 @@ export default async function ExplorePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-black">
-            Explore <span className="text-primary">India</span>
-          </h1>
-          <p className="text-muted-foreground mt-2">Discover solo travel experiences across the subcontinent</p>
-        </div>
-
-        {/* Compact filters */}
+      <div className="mx-auto max-w-7xl px-4 py-6">
         <ExploreFilters params={params} resultCount={packages.length} />
 
         {/* Package grid */}
