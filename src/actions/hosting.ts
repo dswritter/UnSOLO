@@ -495,3 +495,43 @@ export async function getHostEarnings() {
 
   return data || []
 }
+
+// ── Resubmit rejected trip for review ────────────────────────
+export async function resubmitTrip(tripId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: trip } = await supabase
+    .from('packages')
+    .select('host_id, moderation_status, title')
+    .eq('id', tripId)
+    .single()
+
+  if (!trip) return { error: 'Trip not found' }
+  if (trip.host_id !== user.id) return { error: 'Not your trip' }
+  if (trip.moderation_status !== 'rejected') return { error: 'Only rejected trips can be resubmitted' }
+
+  await supabase
+    .from('packages')
+    .update({ moderation_status: 'pending' })
+    .eq('id', tripId)
+
+  // Notify admins
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
+  for (const admin of admins || []) {
+    await svcSupabase.from('notifications').insert({
+      user_id: admin.id,
+      type: 'booking',
+      title: 'Trip Resubmitted for Review',
+      body: `Host resubmitted "${trip.title}" after making changes.`,
+      link: '/admin/community-trips',
+    })
+  }
+
+  revalidatePath('/host')
+  revalidatePath('/admin/community-trips')
+  return { success: true }
+}

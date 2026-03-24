@@ -27,17 +27,23 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
   const [isPending, startTransition] = useTransition()
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
   const [payoutRef, setPayoutRef] = useState<Record<string, string>>({})
+  const [confirmReject, setConfirmReject] = useState<string | null>(null)
 
   const filtered = filter === 'all'
     ? initialTrips
     : initialTrips.filter(t => t.moderation_status === filter)
 
   function handleModerate(tripId: string, approve: boolean) {
+    if (!approve && confirmReject !== tripId) {
+      setConfirmReject(tripId)
+      return
+    }
     const reason = rejectReason[tripId]
+    setConfirmReject(null)
     startTransition(async () => {
       const res = await moderateCommunityTrip(tripId, approve, reason)
       if (res.error) toast.error(res.error)
-      else toast.success(approve ? 'Trip approved and published!' : 'Trip rejected')
+      else toast.success(approve ? 'Trip approved and published!' : 'Trip rejected — host notified to edit and resubmit')
     })
   }
 
@@ -193,11 +199,29 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                       </div>
                       <input
                         type="text"
-                        placeholder="Rejection reason (optional)..."
+                        placeholder="Rejection reason (required for rejection)..."
                         value={rejectReason[trip.id] || ''}
                         onChange={e => setRejectReason(prev => ({ ...prev, [trip.id]: e.target.value }))}
                         className="w-full text-xs bg-secondary border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:border-primary"
                       />
+                      {confirmReject === trip.id && (
+                        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-2">
+                          <p className="text-xs text-red-400 font-medium">Are you sure you want to reject this trip?</p>
+                          <p className="text-xs text-muted-foreground">The host will be notified and can edit and resubmit for review.</p>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs"
+                              onClick={() => handleModerate(trip.id, false)} disabled={isPending || !rejectReason[trip.id]?.trim()}>
+                              Confirm Rejection
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-xs" onClick={() => setConfirmReject(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                          {!rejectReason[trip.id]?.trim() && (
+                            <p className="text-[10px] text-red-400">Please provide a reason above</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

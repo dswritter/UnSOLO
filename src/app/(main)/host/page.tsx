@@ -202,6 +202,17 @@ export default async function HostDashboardPage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {trip.moderation_status === 'rejected' && (
+                          <form action={async () => {
+                            'use server'
+                            const { resubmitTrip } = await import('@/actions/hosting')
+                            await resubmitTrip(trip.id)
+                          }}>
+                            <Button type="submit" size="sm" className="bg-primary text-primary-foreground gap-1.5 text-xs">
+                              Resubmit for Review
+                            </Button>
+                          </form>
+                        )}
                         <Button asChild size="sm" variant="outline" className="gap-1.5">
                           <Link href={`/host/${trip.id}`}>
                             <Eye className="h-3.5 w-3.5" />

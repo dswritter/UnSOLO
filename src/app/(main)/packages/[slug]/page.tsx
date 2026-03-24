@@ -150,23 +150,24 @@ export default async function PackageDetailPage({
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Hero image gallery */}
+            <ImageGallery images={package_.images || []} title={package_.title} />
+
+            {/* Title + Location + Badges */}
             <div>
-              <ImageGallery images={package_.images || []} title={package_.title} />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-              <div className="absolute bottom-6 left-6">
-                <div className="flex items-center gap-2 text-sm text-white/80 mb-2">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  {package_.destination?.name}, {package_.destination?.state}
-                </div>
-                <h1 className="text-3xl md:text-4xl font-black text-white">{package_.title}</h1>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                {package_.destination?.name}, {package_.destination?.state}
               </div>
-              <div className="absolute top-4 right-4 flex gap-2">
-                <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
-                  {package_.difficulty}
-                </Badge>
-                {isCommunityTrip && (
-                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
-                )}
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="text-3xl md:text-4xl font-black">{package_.title}</h1>
+                <div className="flex gap-2 flex-shrink-0 mt-1">
+                  <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
+                    {package_.difficulty}
+                  </Badge>
+                  {isCommunityTrip && (
+                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -244,14 +245,6 @@ export default async function PackageDetailPage({
                     <div className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                       <span className="text-muted-foreground">{GENDER_LABELS[package_.join_preferences.gender_preference] || 'All genders welcome'}</span>
-                    </div>
-                  )}
-                  {(package_.join_preferences.min_age || package_.join_preferences.max_age) && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                      <span className="text-muted-foreground">
-                        Age: {package_.join_preferences.min_age || '18'}–{package_.join_preferences.max_age || '60'} years
-                      </span>
                     </div>
                   )}
                   {package_.join_preferences.min_trips_completed != null && package_.join_preferences.min_trips_completed > 0 && (

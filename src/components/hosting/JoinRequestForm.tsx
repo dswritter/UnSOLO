@@ -198,7 +198,7 @@ export function JoinRequestForm({
 
   // New request form
   const prefs = joinPreferences || {}
-  const hasPrefs = !!(prefs.min_age || prefs.max_age || prefs.gender_preference || prefs.min_trips_completed)
+  const hasPrefs = !!(prefs.gender_preference || prefs.min_trips_completed)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -212,23 +212,9 @@ export function JoinRequestForm({
         <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trip Preferences</h4>
           {prefs.gender_preference && prefs.gender_preference !== 'all' && (
-            <EligibilityIndicator
-              met={null}
-              label={prefs.gender_preference === 'women' ? 'Women only' : 'Men only'}
-            />
-          )}
-          {prefs.gender_preference && prefs.gender_preference !== 'all' && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Info className="h-4 w-4 flex-shrink-0" />
               <span>{prefs.gender_preference === 'women' ? 'Women only' : 'Men only'}</span>
-            </div>
-          )}
-          {(prefs.min_age || prefs.max_age) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Info className="h-4 w-4 flex-shrink-0" />
-              <span>
-                Age: {prefs.min_age || '18'}–{prefs.max_age || '60'} years
-              </span>
             </div>
           )}
           {prefs.min_trips_completed && prefs.min_trips_completed > 0 && (

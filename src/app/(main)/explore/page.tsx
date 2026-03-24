@@ -191,11 +191,6 @@ export default async function ExplorePage({
                                 {GENDER_LABELS[pkg.join_preferences.gender_preference]}
                               </span>
                             )}
-                            {pkg.join_preferences.min_age && pkg.join_preferences.max_age && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
-                                {pkg.join_preferences.min_age}–{pkg.join_preferences.max_age} yrs
-                              </span>
-                            )}
                             {pkg.join_preferences.min_trips_completed && pkg.join_preferences.min_trips_completed > 0 && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
                                 {pkg.join_preferences.min_trips_completed}+ trips

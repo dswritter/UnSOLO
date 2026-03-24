@@ -214,8 +214,6 @@ export default function CreateTripPage() {
         images,
         departure_dates: departureDates.filter(Boolean),
         join_preferences: {
-          min_age: minAge ? parseInt(minAge) : undefined,
-          max_age: maxAge ? parseInt(maxAge) : undefined,
           gender_preference: genderPreference !== 'all' ? genderPreference : undefined,
           min_trips_completed: minTripsCompleted ? parseInt(minTripsCompleted) : undefined,
           interest_tags: interestTags.length > 0 ? interestTags : undefined,
@@ -575,32 +573,6 @@ export default function CreateTripPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Minimum Age</label>
-                  <Input
-                    type="number"
-                    value={minAge}
-                    onChange={e => setMinAge(e.target.value)}
-                    placeholder="e.g. 18"
-                    className="bg-secondary border-border"
-                    min="18"
-                    max="99"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Maximum Age</label>
-                  <Input
-                    type="number"
-                    value={maxAge}
-                    onChange={e => setMaxAge(e.target.value)}
-                    placeholder="e.g. 35"
-                    className="bg-secondary border-border"
-                    min="18"
-                    max="99"
-                  />
-                </div>
-
-                <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">
                     Min Trips Completed
                   </label>
@@ -781,13 +753,11 @@ export default function CreateTripPage() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                    {minAge && <span>Min age: {minAge}</span>}
-                    {maxAge && <span>Max age: {maxAge}</span>}
                     {genderPreference !== 'all' && (
                       <span className="capitalize">{genderPreference} only</span>
                     )}
                     {minTripsCompleted && <span>Min trips: {minTripsCompleted}</span>}
-                    {!minAge && !maxAge && genderPreference === 'all' && !minTripsCompleted && (
+                    {genderPreference === 'all' && !minTripsCompleted && (
                       <span>Open to everyone</span>
                     )}
                   </div>
