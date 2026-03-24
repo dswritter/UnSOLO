@@ -36,6 +36,12 @@ export type Profile = {
   referral_code?: string | null
   referred_by?: string | null
   referral_credits_paise?: number
+  is_phone_verified?: boolean
+  is_email_verified?: boolean
+  is_host?: boolean
+  host_rating?: number
+  total_hosted_trips?: number
+  date_of_birth?: string | null
   created_at: string
   updated_at: string
 }

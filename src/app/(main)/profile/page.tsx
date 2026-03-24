@@ -287,6 +287,18 @@ export default function EditProfilePage() {
               </div>
 
               <div className="space-y-1">
+                <label className="text-sm font-medium">Date of Birth</label>
+                <Input
+                  name="date_of_birth"
+                  type="date"
+                  defaultValue={profile.date_of_birth || ''}
+                  max={new Date(Date.now() - 16 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  className="bg-secondary border-border"
+                />
+                <p className="text-[10px] text-muted-foreground">Required for joining trips with age preferences. Must be 16+.</p>
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-sm font-medium">Bio</label>
                 <Textarea name="bio" defaultValue={profile.bio || ''} placeholder="Tell fellow travelers about yourself..." rows={3} className="bg-secondary border-border resize-none" />
               </div>

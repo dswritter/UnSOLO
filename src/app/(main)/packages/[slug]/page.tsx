@@ -38,21 +38,34 @@ export default async function PackageDetailPage({
   const { group: groupId } = await searchParams
   const supabase = await createClient()
 
-  const { data: pkg } = await supabase
+  // Get auth user first to check if admin or host
+  const { data: { user } } = await supabase.auth.getUser()
+  let userRole: string | null = null
+  if (user) {
+    const { data: userProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    userRole = userProfile?.role || null
+  }
+
+  // Fetch package — allow admins and the host to see inactive/pending trips
+  let query = supabase
     .from('packages')
     .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
+
+  // Only filter by is_active for regular users
+  const isAdminUser = userRole === 'admin'
+  const { data: pkg } = await query.single()
 
   if (!pkg) notFound()
+
+  // If not active: only allow admin or the host to view
+  if (!pkg.is_active && !isAdminUser && !(user && pkg.host_id === user.id)) {
+    notFound()
+  }
 
   const package_ = pkg as Package
   const isCommunityTrip = !!package_.host_id
   const hostData = (pkg.host as unknown as HostProfile) || null
-
-  // Get the auth user
-  const { data: { user } } = await supabase.auth.getUser()
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
 
   // Fetch existing join request if community trip and user is logged in

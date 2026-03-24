@@ -11,8 +11,10 @@ import {
   Users,
   IndianRupee,
   Clock,
+  Heart,
 } from 'lucide-react'
 import { ManageRequestsClient } from './ManageRequestsClient'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function ManageTripPage({
   params,
@@ -31,6 +33,14 @@ export default async function ManageTripPage({
   ])
 
   if (!trip) notFound()
+
+  // Get interest data
+  const supabase = await createClient()
+  const { data: interests } = await supabase
+    .from('package_interests')
+    .select('user_id, user:profiles(username, full_name, avatar_url)')
+    .eq('package_id', tripId)
+  const interestCount = interests?.length || 0
 
   const pendingRequests = (requests || []).filter((r: { status: string }) => r.status === 'pending')
   const otherRequests = (requests || []).filter((r: { status: string }) => r.status !== 'pending')
@@ -114,6 +124,29 @@ export default async function ManageTripPage({
             </div>
           </div>
         </div>
+
+        {/* Interest Section */}
+        {interestCount > 0 && (
+          <div className="rounded-xl border border-border bg-card p-5 mb-8">
+            <h2 className="font-bold text-sm flex items-center gap-2 mb-3">
+              <Heart className="h-4 w-4 text-red-400 fill-red-400" />
+              {interestCount} {interestCount === 1 ? 'person is' : 'people are'} interested
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {(interests || []).map((i: { user_id: string; user: unknown }) => {
+                const u = i.user as { username: string; full_name: string | null; avatar_url: string | null } | null
+                return (
+                  <Link key={i.user_id} href={`/profile/${u?.username}`} className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg hover:bg-secondary transition-colors">
+                    <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                      {(u?.full_name || u?.username || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs font-medium">{u?.full_name || u?.username}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Join Requests */}
         <ManageRequestsClient

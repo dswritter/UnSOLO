@@ -17,13 +17,19 @@ export async function updateProfile(formData: FormData) {
     return { error: 'Invalid Instagram handle. Use only letters, numbers, periods and underscores.' }
   }
 
-  const updates = {
+  const dob = formData.get('date_of_birth') as string || null
+
+  const updates: Record<string, unknown> = {
     full_name: formData.get('fullName') as string,
     bio: formData.get('bio') as string,
     location: formData.get('location') as string,
     instagram_url: instaUrl,
     website_url: formData.get('website') as string || null,
     updated_at: new Date().toISOString(),
+  }
+
+  if (dob) {
+    updates.date_of_birth = dob
   }
 
   const { error } = await supabase

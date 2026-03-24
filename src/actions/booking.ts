@@ -476,6 +476,26 @@ export async function toggleInterest(packageId: string) {
     return { interested: false }
   } else {
     await supabase.from('package_interests').insert({ package_id: packageId, user_id: user.id })
+
+    // Notify host if community trip
+    try {
+      const { data: pkg } = await supabase.from('packages').select('host_id, title').eq('id', packageId).single()
+      if (pkg?.host_id && pkg.host_id !== user.id) {
+        const { data: interestedUser } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+        const name = interestedUser?.full_name || interestedUser?.username || 'Someone'
+
+        const { createClient: createSC } = await import('@supabase/supabase-js')
+        const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+        await svcSupabase.from('notifications').insert({
+          user_id: pkg.host_id,
+          type: 'group_invite',
+          title: 'New Interest!',
+          body: `${name} is interested in "${pkg.title}"`,
+          link: `/host`,
+        })
+      }
+    } catch { /* non-critical */ }
+
     return { interested: true }
   }
 }
