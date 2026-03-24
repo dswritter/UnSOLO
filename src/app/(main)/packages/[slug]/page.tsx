@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { MapPin, Clock, Users, CheckCircle, Star, Mountain, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
+import { MapPin, Clock, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import { ImageGallery } from '@/components/packages/ImageGallery'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
 import { InterestButton } from '@/components/packages/InterestButton'
@@ -148,16 +149,9 @@ export default async function PackageDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Hero image */}
-            <div className="relative h-72 md:h-96 rounded-2xl overflow-hidden bg-secondary">
-              {package_.images?.[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={package_.images[0]} alt={package_.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Mountain className="h-20 w-20 text-primary/30" />
-                </div>
-              )}
+            {/* Hero image gallery */}
+            <div>
+              <ImageGallery images={package_.images || []} title={package_.title} />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-6 left-6">
                 <div className="flex items-center gap-2 text-sm text-white/80 mb-2">

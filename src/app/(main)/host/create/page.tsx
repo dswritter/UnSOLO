@@ -315,18 +315,11 @@ export default function CreateTripPage() {
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Destination *</label>
-                <select
-                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm"
+                <DestinationSearch
+                  destinations={destinations}
                   value={destinationId}
-                  onChange={e => setDestinationId(e.target.value)}
-                >
-                  <option value="">Select a destination...</option>
-                  {destinations.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}, {d.state}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDestinationId}
+                />
               </div>
 
               <div>
@@ -856,6 +849,175 @@ export default function CreateTripPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Destination Search with Maps ────────────────────────────
+function DestinationSearch({
+  destinations,
+  value,
+  onChange,
+}: {
+  destinations: Destination[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<{ id: string; name: string; state: string; isNew?: boolean }[]>([])
+  const [open, setOpen] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [selectedLabel, setSelectedLabel] = useState('')
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Set initial label if value exists
+  useEffect(() => {
+    if (value && !selectedLabel) {
+      const d = destinations.find(d => d.id === value)
+      if (d) setSelectedLabel(`${d.name}, ${d.state}`)
+    }
+  }, [value, destinations, selectedLabel])
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleInput(q: string) {
+    setQuery(q)
+    setOpen(true)
+
+    if (timerRef.current) clearTimeout(timerRef.current)
+
+    // First show matching existing destinations instantly
+    const localMatches = destinations
+      .filter(d => `${d.name} ${d.state}`.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 5)
+    setResults(localMatches)
+
+    if (q.length < 3) return
+
+    // Debounce map search
+    timerRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' India')}&format=json&limit=5&countrycodes=in&addressdetails=1`,
+          { headers: { 'User-Agent': 'UnSOLO/1.0' } }
+        )
+        const data = await res.json()
+
+        const mapResults = data
+          .filter((r: { type?: string }) => !['country', 'continent'].includes(r.type || ''))
+          .map((r: { place_id: number; display_name: string; address?: { state?: string; city?: string; town?: string; village?: string; county?: string } }) => {
+            const addr = r.address || {}
+            const name = addr.city || addr.town || addr.village || addr.county || r.display_name.split(',')[0]
+            const state = addr.state || 'India'
+            return {
+              id: `new_${r.place_id}`,
+              name: name.trim(),
+              state: state.trim(),
+              isNew: true,
+            }
+          })
+          // Remove duplicates with existing destinations
+          .filter((m: { name: string; state: string }) =>
+            !localMatches.find(l => l.name.toLowerCase() === m.name.toLowerCase() && l.state.toLowerCase() === m.state.toLowerCase())
+          )
+
+        setResults([...localMatches, ...mapResults])
+      } catch {
+        // Keep local results on error
+      }
+      setSearching(false)
+    }, 400)
+  }
+
+  async function selectDestination(d: { id: string; name: string; state: string; isNew?: boolean }) {
+    if (d.isNew) {
+      // Create new destination in DB
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+      const { data: newDest, error } = await supabase
+        .from('destinations')
+        .insert({ name: d.name, state: d.state, slug })
+        .select()
+        .single()
+
+      if (error) {
+        // Might already exist
+        const { data: existing } = await supabase
+          .from('destinations')
+          .select('id')
+          .eq('name', d.name)
+          .eq('state', d.state)
+          .single()
+        if (existing) {
+          onChange(existing.id)
+        } else {
+          toast.error('Could not add destination')
+          return
+        }
+      } else {
+        onChange(newDest.id)
+      }
+    } else {
+      onChange(d.id)
+    }
+
+    setSelectedLabel(`${d.name}, ${d.state}`)
+    setQuery('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <input
+        type="text"
+        value={query || (open ? '' : selectedLabel)}
+        onChange={e => handleInput(e.target.value)}
+        onFocus={() => { setOpen(true); if (selectedLabel) handleInput('') }}
+        placeholder="Search any destination in India..."
+        className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+      />
+      {searching && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      )}
+
+      {open && results.length > 0 && (
+        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-xl max-h-60 overflow-y-auto">
+          {results.map(r => (
+            <button
+              key={r.id}
+              onClick={() => selectDestination(r)}
+              className="flex items-center justify-between w-full text-left px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors border-b border-border/30 last:border-0"
+            >
+              <div>
+                <span className="font-medium">{r.name}</span>
+                <span className="text-muted-foreground">, {r.state}</span>
+              </div>
+              {r.isNew && (
+                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                  New
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {open && query.length >= 3 && results.length === 0 && !searching && (
+        <div className="absolute z-20 top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-xl px-3 py-4 text-sm text-muted-foreground text-center">
+          No destinations found for &quot;{query}&quot;
+        </div>
+      )}
     </div>
   )
 }
