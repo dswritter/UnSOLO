@@ -99,7 +99,13 @@ export default function CreateTripPage() {
     load()
   }, [router])
 
-  const today = new Date().toISOString().split('T')[0]
+  // Tomorrow as minimum (trip can't start today)
+  const tomorrow = (() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
+  const today = tomorrow // alias for min attribute
   const maxDateStr = (() => {
     const d = new Date()
     d.setFullYear(d.getFullYear() + 2)
@@ -156,6 +162,10 @@ export default function CreateTripPage() {
   }
 
   function updateDepartureDate(idx: number, value: string) {
+    if (value && value < tomorrow) {
+      toast.error('Departure date must be in the future')
+      return
+    }
     setDepartureDates(prev => prev.map((d, i) => (i === idx ? value : d)))
   }
 

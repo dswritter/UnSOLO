@@ -477,15 +477,17 @@ export async function toggleInterest(packageId: string) {
   } else {
     await supabase.from('package_interests').insert({ package_id: packageId, user_id: user.id })
 
-    // Notify host if community trip
+    // Notify host (community trip) or admins (UnSOLO trip)
     try {
       const { data: pkg } = await supabase.from('packages').select('host_id, title').eq('id', packageId).single()
-      if (pkg?.host_id && pkg.host_id !== user.id) {
-        const { data: interestedUser } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
-        const name = interestedUser?.full_name || interestedUser?.username || 'Someone'
+      const { data: interestedUser } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+      const name = interestedUser?.full_name || interestedUser?.username || 'Someone'
 
-        const { createClient: createSC } = await import('@supabase/supabase-js')
-        const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+      const { createClient: createSC } = await import('@supabase/supabase-js')
+      const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+      if (pkg?.host_id && pkg.host_id !== user.id) {
+        // Community trip — notify host
         await svcSupabase.from('notifications').insert({
           user_id: pkg.host_id,
           type: 'group_invite',
@@ -493,6 +495,18 @@ export async function toggleInterest(packageId: string) {
           body: `${name} is interested in "${pkg.title}"`,
           link: `/host`,
         })
+      } else if (!pkg?.host_id) {
+        // UnSOLO trip — notify admins
+        const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
+        for (const admin of admins || []) {
+          await svcSupabase.from('notifications').insert({
+            user_id: admin.id,
+            type: 'group_invite',
+            title: 'New Interest!',
+            body: `${name} is interested in "${pkg?.title}"`,
+            link: '/admin/packages',
+          })
+        }
       }
     } catch { /* non-critical */ }
 

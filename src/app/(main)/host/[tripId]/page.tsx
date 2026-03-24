@@ -121,6 +121,19 @@ export default async function ManageTripPage({
                   ))}
                 </div>
               )}
+
+              <div className="flex gap-2 mt-3">
+                <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs">
+                  <Link href={`/host/${tripId}/edit`}>
+                    Edit Trip
+                  </Link>
+                </Button>
+                {trip.moderation_status === 'approved' && (
+                  <p className="text-[10px] text-muted-foreground self-center">
+                    Editing an approved trip will require re-approval
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

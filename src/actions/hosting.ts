@@ -108,11 +108,18 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
   // Verify ownership
   const { data: trip } = await supabase
     .from('packages')
-    .select('host_id, moderation_status')
+    .select('host_id, moderation_status, title')
     .eq('id', tripId)
     .single()
 
   if (!trip || trip.host_id !== user.id) return { error: 'Not your trip' }
+
+  // If trip was approved, edits require re-approval
+  const wasApproved = trip.moderation_status === 'approved'
+  if (wasApproved) {
+    updates.moderation_status = 'pending'
+    updates.is_active = false // hide from explore until re-approved
+  }
 
   const { error } = await supabase
     .from('packages')
@@ -122,9 +129,27 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
 
   if (error) return { error: error.message }
 
+  // Notify admins if edit needs re-approval
+  if (wasApproved) {
+    const { createClient: createSC } = await import('@supabase/supabase-js')
+    const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data: host } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+    const hostName = host?.full_name || host?.username || 'A host'
+    const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
+    for (const admin of admins || []) {
+      await svcSupabase.from('notifications').insert({
+        user_id: admin.id,
+        type: 'booking',
+        title: 'Trip Edit Needs Review',
+        body: `${hostName} edited "${trip.title}" (was approved). Review changes and re-approve.`,
+        link: '/admin/community-trips',
+      })
+    }
+  }
+
   revalidatePath('/host')
   revalidatePath('/explore')
-  return { success: true }
+  return { success: true, needsReapproval: wasApproved }
 }
 
 export async function cancelHostedTrip(tripId: string) {

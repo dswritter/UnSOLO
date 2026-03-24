@@ -59,6 +59,13 @@ async function getPackages(searchParams: Record<string, string>) {
   const { data } = await query
   let packages = (data || []) as unknown as Package[]
 
+  // Hide trips where ALL departure dates are in the past
+  const todayStr = new Date().toISOString().split('T')[0]
+  packages = packages.filter(pkg => {
+    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true // no dates = always show
+    return pkg.departure_dates.some(d => d >= todayStr)
+  })
+
   if (searchParams.month) {
     const targetMonth = parseInt(searchParams.month)
     packages = packages.filter(pkg => {
