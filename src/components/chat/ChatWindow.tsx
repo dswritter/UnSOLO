@@ -127,7 +127,7 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
 export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
-  const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers } = useRealtimeChat(roomId, initialMessages, currentUser)
+  const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(roomId, initialMessages, currentUser)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [profilePopup, setProfilePopup] = useState<string | null>(null)
@@ -265,6 +265,10 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     const content = input.trim()
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+
+    // Show message instantly (optimistic UI)
+    addOptimisticMessage(content)
+
     setSending(true)
     const result = await sendMessage(roomId, content)
     if (result.error) {
@@ -733,7 +737,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       )}
 
       {/* Input */}
-      <div className="px-4 py-3 border-t border-border safe-area-bottom">
+      <div className="px-4 py-3 pb-4 border-t border-border safe-area-bottom">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"

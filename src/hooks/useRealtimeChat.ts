@@ -64,7 +64,11 @@ export function useRealtimeChat(
           const enriched: Message = { ...newMsg, user: (profileData as Profile) || undefined }
           setMessages((prev) => {
             if (prev.find((m) => m.id === enriched.id)) return prev
-            return [...prev, enriched]
+            // Replace optimistic message from same user with same content
+            const withoutOptimistic = prev.filter(m =>
+              !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
+            )
+            return [...withoutOptimistic, enriched]
           })
           // Clear typing for this user when they send a message
           setTypingUsers(prev => prev.filter(u => u.user_id !== newMsg.user_id))
@@ -107,5 +111,21 @@ export function useRealtimeChat(
     })
   }, [currentUser, roomId, supabase])
 
-  return { messages, typingUsers, isConnected, broadcastTyping, onlineUsers }
+  // Add optimistic message (shows instantly before server confirms)
+  const addOptimisticMessage = useCallback((content: string) => {
+    if (!currentUser) return
+    const optimisticMsg: Message = {
+      id: `optimistic-${Date.now()}`,
+      room_id: roomId,
+      user_id: currentUser.id,
+      content,
+      message_type: 'text',
+      created_at: new Date().toISOString(),
+      is_edited: false,
+      user: currentUser,
+    }
+    setMessages(prev => [...prev, optimisticMsg])
+  }, [currentUser, roomId])
+
+  return { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage }
 }
