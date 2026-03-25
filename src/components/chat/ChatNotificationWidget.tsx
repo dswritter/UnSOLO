@@ -31,8 +31,10 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [sentMessages, setSentMessages] = useState<ChatNotification[]>([])
+  const [userInteracting, setUserInteracting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const pathname = usePathname()
 
   const isOnChatPage = pathname?.startsWith('/chat')
@@ -95,7 +97,15 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             setActiveRoom({ id: msg.room_id, name: room?.name || 'Chat' })
           }
 
-          setTimeout(() => setMinimized(true), 8000)
+          // Auto-minimize after 8s ONLY if user is not interacting
+          if (autoMinimizeTimerRef.current) clearTimeout(autoMinimizeTimerRef.current)
+          autoMinimizeTimerRef.current = setTimeout(() => {
+            setMinimized(prev => {
+              // Only minimize if user hasn't started typing
+              if (!userInteracting) return true
+              return prev
+            })
+          }, 8000)
         }
       )
       .subscribe()
@@ -133,6 +143,12 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
   function openRoomChat(roomId: string, roomName: string) {
     setActiveRoom({ id: roomId, name: roomName })
+    setUserInteracting(true)
+    // Cancel auto-minimize when user explicitly opens a room
+    if (autoMinimizeTimerRef.current) {
+      clearTimeout(autoMinimizeTimerRef.current)
+      autoMinimizeTimerRef.current = null
+    }
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
@@ -183,7 +199,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
               <Link href={activeRoom ? `/chat/${activeRoom.id}` : '/chat'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
-              <button onClick={() => setMinimized(true)} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
+              <button onClick={() => { setMinimized(true); setUserInteracting(false) }} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
                 <Minus className="h-3.5 w-3.5" />
               </button>
               <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground p-1" title="Close">
@@ -263,7 +279,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                 ref={inputRef}
                 type="text"
                 value={replyText}
-                onChange={e => setReplyText(e.target.value)}
+                onChange={e => { setReplyText(e.target.value); setUserInteracting(true) }}
+                onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                 placeholder={`Reply in ${activeRoom.name}...`}
                 className="flex-1 text-sm bg-secondary border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-primary"
               />

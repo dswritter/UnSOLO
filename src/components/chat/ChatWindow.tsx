@@ -372,14 +372,15 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   // Get read status for a message
-  function getReadStatus(messageId: string, senderId: string): 'sent' | 'delivered' | 'read' {
+  function getReadStatus(messageId: string, senderId: string): 'sending' | 'sent' | 'read' {
+    // Optimistic messages have no tick yet
+    if (messageId.startsWith('optimistic-')) return 'sending'
+
     const receipts = readReceipts.get(messageId) || []
     if (isDM) {
-      // In DM, check if the other person has read it
       const otherRead = receipts.find(r => r.user_id !== senderId)
       return otherRead ? 'read' : 'sent'
     }
-    // In group, if anyone has read it
     return receipts.length > 0 ? 'read' : 'sent'
   }
 
@@ -402,11 +403,11 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   function sharePackage(slug: string, title: string) {
     const url = `${window.location.origin}/packages/${slug}`
     const shareText = `Check out this trip: ${title}\n${url}`
-    // Append to existing text instead of overriding
-    setInput(prev => prev.trim() ? `${prev}\n${shareText}` : shareText)
+    // Remove any previously shared package URL from input, then append new one
+    const existingText = input.replace(/\nCheck out this trip:.*\nhttps?:\/\/[^\s]+/g, '').replace(/^Check out this trip:.*\nhttps?:\/\/[^\s]+/g, '').trim()
+    setInput(existingText ? `${existingText}\n${shareText}` : shareText)
     setShowPackagePicker(false)
     setPkgSearch('')
-    // Auto-resize after appending
     setTimeout(autoResizeTextarea, 50)
   }
 
@@ -737,7 +738,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       )}
 
       {/* Input */}
-      <div className="px-4 py-3 pb-4 border-t border-border safe-area-bottom">
+      <div className="px-4 py-3 pb-6 border-t border-border safe-area-bottom mb-1">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"
@@ -770,7 +771,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
-function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void; readStatus?: 'sent' | 'delivered' | 'read'; isDM?: boolean }): React.ReactNode {
+function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void; readStatus?: 'sending' | 'sent' | 'read'; isDM?: boolean }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
@@ -837,10 +838,10 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
         <div className={`flex items-center gap-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
           {/* Read receipt ticks — only for own messages */}
-          {isOwn && readStatus && (
+          {isOwn && readStatus && readStatus !== 'sending' && (
             <span className="flex items-center">
               {readStatus === 'read' ? (
-                <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
+                <CheckCheck className="h-3.5 w-3.5 text-primary" />
               ) : (
                 <Check className="h-3 w-3 text-muted-foreground" />
               )}
