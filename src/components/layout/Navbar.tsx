@@ -28,7 +28,6 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/chat', label: 'Chat', icon: MessageCircle },
     { href: '/community', label: 'Community', icon: Users },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/contact', label: 'Contact', icon: Mail },
@@ -65,6 +64,9 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-3">
             {user ? (
               <>
+                <Link href="/chat" className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
+                  <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                </Link>
                 <NotificationBell userId={user.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger>

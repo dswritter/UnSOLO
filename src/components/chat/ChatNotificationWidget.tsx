@@ -122,7 +122,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
-  if (isOnChatPage || dismissed || notifications.length === 0) return null
+  if (isOnChatPage || dismissed) return null
+  // Show widget if there are notifications OR if user has an active reply session
+  if (notifications.length === 0 && !activeRoom) return null
 
   // Group notifications by room
   const roomMap = new Map<string, ChatNotification[]>()
@@ -132,7 +134,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     roomMap.set(n.room_id, existing)
   })
 
-  const activeRoomNotifications = activeRoom ? (roomMap.get(activeRoom.id) || []) : []
+  // Reverse so newest messages appear at bottom (standard chat convention)
+  const activeRoomNotifications = activeRoom ? [...(roomMap.get(activeRoom.id) || [])].reverse() : []
 
   return (
     <div className="fixed bottom-0 right-0 z-50 p-4 pointer-events-none" style={{ maxHeight: '100vh' }}>
