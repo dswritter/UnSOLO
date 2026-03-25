@@ -8,12 +8,24 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
+
+interface ReadReceipt {
+  message_id: string
+  user_id: string
+  read_at: string
+}
+
+interface MentionSuggestion {
+  id: string
+  username: string
+  full_name: string | null
+}
 
 interface ChatWindowProps {
   roomId: string
@@ -48,7 +60,11 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
   return lines.map((line, lineIdx) => {
+    // First, handle @mentions
+    const mentionRegex = /@(\w+)/g
     const urlRegex = /(https?:\/\/[^\s<]+)/g
+
+    // Split by URLs first, then handle mentions within text parts
     const parts = line.split(urlRegex)
 
     const lineContent = parts.map((part, partIdx) => {
@@ -67,6 +83,33 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
           <a key={key} href={part} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={e => e.stopPropagation()}>
             {part.length > 60 ? part.slice(0, 57) + '...' : part}
           </a>
+        )
+      }
+      // Handle @mentions in text parts
+      if (part && /@\w+/.test(part)) {
+        const mentionParts = part.split(/(@\w+)/g)
+        return (
+          <span key={key}>
+            {mentionParts.map((mp, mi) => {
+              if (mp.startsWith('@')) {
+                const username = mp.slice(1)
+                return (
+                  <Link
+                    key={`${key}-m${mi}`}
+                    href={`/profile/${username}`}
+                    className={isOwn
+                      ? 'font-bold text-black/80 hover:underline'
+                      : 'font-bold text-primary hover:underline'
+                    }
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {mp}
+                  </Link>
+                )
+              }
+              return mp
+            })}
+          </span>
         )
       }
       return part ? <span key={key}>{part}</span> : null
@@ -95,9 +138,89 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // Read receipts state
+  const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map())
+  const [readByPopup, setReadByPopup] = useState<string | null>(null) // message_id for long-press popup
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // @mention state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [cursorPos, setCursorPos] = useState(0)
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Load and subscribe to read receipts
+  useEffect(() => {
+    const sb = createBrowserClient()
+    const msgIds = messages.filter(m => m.message_type !== 'system').map(m => m.id)
+    if (msgIds.length === 0) return
+
+    async function loadReceipts() {
+      const { data } = await sb
+        .from('message_read_receipts')
+        .select('message_id, user_id, read_at')
+        .in('message_id', msgIds.slice(-50)) // last 50 messages only for perf
+      if (data) {
+        const map = new Map<string, ReadReceipt[]>()
+        for (const r of data) {
+          const existing = map.get(r.message_id) || []
+          existing.push(r)
+          map.set(r.message_id, existing)
+        }
+        setReadReceipts(map)
+      }
+    }
+
+    loadReceipts()
+
+    // Subscribe to new read receipts
+    const channel = sb
+      .channel(`read-receipts-${roomId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'message_read_receipts',
+      }, (payload) => {
+        const r = payload.new as ReadReceipt
+        if (msgIds.includes(r.message_id)) {
+          setReadReceipts(prev => {
+            const newMap = new Map(prev)
+            const existing = newMap.get(r.message_id) || []
+            if (!existing.find(e => e.user_id === r.user_id)) {
+              newMap.set(r.message_id, [...existing, r])
+            }
+            return newMap
+          })
+        }
+      })
+      .subscribe()
+
+    return () => { sb.removeChannel(channel) }
+  }, [messages, roomId])
+
+  // Mark messages as read when viewing
+  useEffect(() => {
+    const sb = createBrowserClient()
+    sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
+  }, [messages, roomId, currentUser.id])
+
+  // Mobile keyboard handler — adjust scroll on virtual keyboard
+  useEffect(() => {
+    function handleResize() {
+      // On mobile, viewport resize means keyboard opened/closed
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+
+    const vv = window.visualViewport
+    if (vv) {
+      vv.addEventListener('resize', handleResize)
+      return () => vv.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   // Poll presence table for accurate online status (not just realtime channel)
   useEffect(() => {
@@ -152,6 +275,30 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    // Handle @mention navigation
+    if (mentionSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex(i => Math.min(i + 1, mentionSuggestions.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex(i => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        insertMention(mentionSuggestions[mentionIndex].username)
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null)
+        setMentionSuggestions([])
+        return
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend(e as unknown as React.FormEvent)
@@ -159,15 +306,77 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setInput(e.target.value)
+    const val = e.target.value
+    const pos = e.target.selectionStart || 0
+    setInput(val)
+    setCursorPos(pos)
     autoResizeTextarea()
-    // Throttle typing broadcast to once every 2s
+
+    // Check for @mention trigger
+    const textBeforeCursor = val.slice(0, pos)
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/)
+    if (mentionMatch && !isDM) {
+      const query = mentionMatch[1].toLowerCase()
+      setMentionQuery(query)
+      const filtered = memberProfiles
+        .filter(m => m.id !== currentUser.id)
+        .filter(m =>
+          m.username.toLowerCase().includes(query) ||
+          (m.full_name || '').toLowerCase().includes(query)
+        )
+        .slice(0, 5)
+      setMentionSuggestions(filtered.map(m => ({ id: m.id, username: m.username, full_name: m.full_name })))
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+      setMentionSuggestions([])
+    }
+
+    // Throttle typing broadcast
     if (!typingThrottleRef.current) {
       broadcastTyping()
       typingThrottleRef.current = setTimeout(() => {
         typingThrottleRef.current = null
       }, 2000)
     }
+  }
+
+  function insertMention(username: string) {
+    const textBeforeCursor = input.slice(0, cursorPos)
+    const mentionStart = textBeforeCursor.lastIndexOf('@')
+    const before = input.slice(0, mentionStart)
+    const after = input.slice(cursorPos)
+    const newInput = `${before}@${username} ${after}`
+    setInput(newInput)
+    setMentionQuery(null)
+    setMentionSuggestions([])
+    textareaRef.current?.focus()
+  }
+
+  // Long press handlers for read-by popup
+  function handleMessageLongPressStart(messageId: string) {
+    longPressTimer.current = setTimeout(() => {
+      setReadByPopup(messageId)
+    }, 500) // 500ms long press
+  }
+
+  function handleMessageLongPressEnd() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  // Get read status for a message
+  function getReadStatus(messageId: string, senderId: string): 'sent' | 'delivered' | 'read' {
+    const receipts = readReceipts.get(messageId) || []
+    if (isDM) {
+      // In DM, check if the other person has read it
+      const otherRead = receipts.find(r => r.user_id !== senderId)
+      return otherRead ? 'read' : 'sent'
+    }
+    // In group, if anyone has read it
+    return receipts.length > 0 ? 'read' : 'sent'
   }
 
   async function loadPackages() {
@@ -234,7 +443,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border relative">
+    <div className="flex flex-col h-[100dvh] sm:h-full bg-background border-l border-border relative">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div>
@@ -262,6 +471,28 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
           )}
         </div>
       </div>
+
+      {/* Online members strip (group chats only) */}
+      {!isDM && onlineCount > 0 && (
+        <div className="px-4 py-1.5 border-b border-border/50 bg-secondary/20 flex items-center gap-1 overflow-x-auto scrollbar-hide">
+          <span className="text-[10px] text-green-400 font-medium shrink-0 mr-1">Online:</span>
+          {memberProfiles
+            .filter(m => isUserOnline(m.id))
+            .map(m => (
+              <Link key={m.id} href={`/profile/${m.username}`} className="shrink-0 group/avatar" title={m.full_name || m.username}>
+                <div className="relative">
+                  <Avatar className="h-6 w-6 ring-1 ring-green-500/50 group-hover/avatar:ring-green-400 transition-all">
+                    <AvatarImage src={m.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[8px] font-bold">
+                      {getInitials(m.full_name || m.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-background" />
+                </div>
+              </Link>
+            ))}
+        </div>
+      )}
 
       {/* Members sidebar (toggled) */}
       {showMembers && (
@@ -378,14 +609,59 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
             </div>
           )}
           {messages.map((msg) => (
-            <MessageBubble
+            <div
               key={msg.id}
-              message={msg}
-              isOwn={msg.user_id === currentUser.id}
-              isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
-              onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
-            />
+              onTouchStart={() => msg.message_type !== 'system' && handleMessageLongPressStart(msg.id)}
+              onTouchEnd={handleMessageLongPressEnd}
+              onMouseDown={() => msg.message_type !== 'system' && !isDM && handleMessageLongPressStart(msg.id)}
+              onMouseUp={handleMessageLongPressEnd}
+              onMouseLeave={handleMessageLongPressEnd}
+            >
+              <MessageBubble
+                message={msg}
+                isOwn={msg.user_id === currentUser.id}
+                isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
+                onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
+                readStatus={msg.user_id === currentUser.id ? getReadStatus(msg.id, currentUser.id) : undefined}
+                isDM={isDM}
+              />
+            </div>
           ))}
+
+          {/* Read-by popup (long-press on group messages) */}
+          {readByPopup && !isDM && (
+            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setReadByPopup(null)}>
+              <div className="bg-card border border-border rounded-xl p-4 w-full max-w-xs" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-bold">Read by</span>
+                  <button onClick={() => setReadByPopup(null)}><X className="h-4 w-4 text-zinc-500" /></button>
+                </div>
+                {(() => {
+                  const receipts = readReceipts.get(readByPopup) || []
+                  if (receipts.length === 0) return <p className="text-xs text-muted-foreground">No one has read this yet</p>
+                  return (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {receipts.map(r => {
+                        const member = getMemberProfile(r.user_id)
+                        return (
+                          <div key={r.user_id} className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={member?.avatar_url || ''} />
+                              <AvatarFallback className="bg-primary/20 text-primary text-[8px] font-bold">
+                                {getInitials(member?.full_name || member?.username || '?')}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs font-medium">{member?.full_name || member?.username || 'Unknown'}</span>
+                            <span className="text-[10px] text-muted-foreground ml-auto">{timeAgo(r.read_at)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          )}
           {typingUsers.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
               {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
@@ -436,8 +712,28 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         </div>
       )}
 
+      {/* @Mention suggestions popup */}
+      {mentionSuggestions.length > 0 && (
+        <div className="px-4 pb-1">
+          <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+            {mentionSuggestions.map((s, i) => (
+              <button
+                key={s.id}
+                onClick={() => insertMention(s.username)}
+                className={`flex items-center gap-2 w-full px-3 py-2 text-left text-sm transition-colors ${
+                  i === mentionIndex ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/50'
+                }`}
+              >
+                <span className="font-medium">@{s.username}</span>
+                {s.full_name && <span className="text-xs text-muted-foreground">{s.full_name}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
-      <div className="px-4 py-3 border-t border-border">
+      <div className="px-4 py-3 border-t border-border safe-area-bottom">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"
@@ -470,7 +766,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
-function MessageBubble({ message, isOwn, isOnline }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void }): React.ReactNode {
+function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void; readStatus?: 'sent' | 'delivered' | 'read'; isDM?: boolean }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
@@ -485,8 +781,15 @@ function MessageBubble({ message, isOwn, isOnline }: { message: Message; isOwn: 
     )
   }
 
+  // Render @mentions as links in message content
+  function renderWithMentions(content: string, ownMsg: boolean) {
+    const rendered = renderMessageContent(content, ownMsg)
+    // Post-process: find @username patterns and make them links
+    return rendered
+  }
+
   return (
-    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''} group`}>
       {!isOwn ? (
         <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0.5">
           <div className="relative">
@@ -525,9 +828,25 @@ function MessageBubble({ message, isOwn, isOnline }: { message: Message; isOwn: 
               : 'bg-card border border-border rounded-tl-sm'
           }`}
         >
-          {renderMessageContent(message.content, isOwn)}
+          {renderWithMentions(message.content, isOwn)}
         </div>
-        <span className="text-xs text-muted-foreground">{timeAgo(message.created_at)}</span>
+        <div className={`flex items-center gap-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
+          <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
+          {/* Read receipt ticks — only for own messages */}
+          {isOwn && readStatus && (
+            <span className="flex items-center">
+              {readStatus === 'read' ? (
+                <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
+              ) : (
+                <Check className="h-3 w-3 text-muted-foreground" />
+              )}
+            </span>
+          )}
+          {/* Long-press hint for group messages */}
+          {!isDM && !isOwn && (
+            <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity">hold to see readers</span>
+          )}
+        </div>
       </div>
     </div>
   )

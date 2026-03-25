@@ -209,3 +209,17 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(255, 170, 0, 0.15);
 }
+
+/* Mobile safe area for keyboard */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Hide scrollbar for online members strip */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
