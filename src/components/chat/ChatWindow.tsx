@@ -671,9 +671,9 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         </div>
       </ScrollArea>
 
-      {/* Package Picker Popup — absolute positioned above input */}
+      {/* Package Picker — in-flow, shrinks the scroll area above */}
       {showPackagePicker && (
-        <div className="absolute bottom-16 left-0 right-0 z-30 mx-4 mb-2 bg-card border border-border rounded-xl shadow-2xl px-4 py-4 max-h-[320px] overflow-y-auto">
+        <div className="border-t border-border bg-card px-4 py-4 max-h-[280px] overflow-y-auto shrink-0">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold">Share a Trip Package</p>
             <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-4 w-4 text-zinc-500 hover:text-white" /></button>

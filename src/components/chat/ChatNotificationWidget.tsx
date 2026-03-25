@@ -30,7 +30,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [activeRoom, setActiveRoom] = useState<{ id: string; name: string } | null>(null)
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
+  const [sentMessages, setSentMessages] = useState<ChatNotification[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
   const isOnChatPage = pathname?.startsWith('/chat')
@@ -106,12 +108,24 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   async function handleReply(e: React.FormEvent) {
     e.preventDefault()
     if (!replyText.trim() || !activeRoom || sending) return
+    const msgText = replyText.trim()
     setSending(true)
-    const result = await sendMessage(activeRoom.id, replyText.trim())
+    const result = await sendMessage(activeRoom.id, msgText)
     if (result.error) {
       toast.error(result.error)
     } else {
       setReplyText('')
+      // Add sent message to local state so it appears in the mini chat
+      setSentMessages(prev => [...prev, {
+        id: `sent-${Date.now()}`,
+        room_id: activeRoom.id,
+        room_name: activeRoom.name,
+        content: msgText,
+        created_at: new Date().toISOString(),
+        user: { username: 'You', full_name: 'You', avatar_url: null },
+      }])
+      // Scroll to bottom after sending
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     }
     setSending(false)
     inputRef.current?.focus()
@@ -134,8 +148,11 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     roomMap.set(n.room_id, existing)
   })
 
-  // Reverse so newest messages appear at bottom (standard chat convention)
-  const activeRoomNotifications = activeRoom ? [...(roomMap.get(activeRoom.id) || [])].reverse() : []
+  // Combine received notifications + sent messages, reverse so newest at bottom
+  const activeRoomNotifications = activeRoom ? [
+    ...(roomMap.get(activeRoom.id) || []),
+    ...sentMessages.filter(m => m.room_id === activeRoom.id),
+  ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
 
   return (
     <div className="fixed bottom-0 right-0 z-50 p-4 pointer-events-none" style={{ maxHeight: '100vh' }}>
@@ -178,25 +195,37 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto min-h-0">
             {activeRoom ? (
-              // Show messages for active room
+              // Show messages for active room (scrollable, newest at bottom)
               activeRoomNotifications.length > 0 ? (
-                activeRoomNotifications.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 border-b border-border/50 last:border-0">
-                    <Avatar className="h-8 w-8 shrink-0 mt-0.5">
-                      <AvatarImage src={n.user?.avatar_url || ''} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-                        {getInitials(n.user?.full_name || n.user?.username || '?')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-medium truncate">{n.user?.full_name || n.user?.username || 'Someone'}</span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
+                <>
+                  {activeRoomNotifications.map((n) => {
+                    const isSent = n.id.startsWith('sent-')
+                    return (
+                      <div key={n.id} className={`flex items-start gap-3 px-4 py-2.5 ${isSent ? 'flex-row-reverse' : ''}`}>
+                        <Avatar className="h-7 w-7 shrink-0 mt-0.5">
+                          <AvatarImage src={n.user?.avatar_url || ''} />
+                          <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
+                            {getInitials(n.user?.full_name || n.user?.username || '?')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className={`max-w-[75%] ${isSent ? 'items-end' : 'items-start'} flex flex-col`}>
+                          {!isSent && (
+                            <span className="text-[10px] text-muted-foreground font-medium">{n.user?.full_name || n.user?.username}</span>
+                          )}
+                          <div className={`px-3 py-1.5 rounded-2xl text-sm break-words ${
+                            isSent
+                              ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                              : 'bg-secondary/50 border border-border rounded-tl-sm'
+                          }`}>
+                            {n.content}
+                          </div>
+                          <span className="text-[9px] text-muted-foreground">{timeAgo(n.created_at)}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-0.5 break-words">{n.content}</p>
-                    </div>
-                  </div>
-                ))
+                    )
+                  })}
+                  <div ref={messagesEndRef} />
+                </>
               ) : (
                 <div className="px-4 py-6 text-center text-xs text-muted-foreground">No recent messages in this room</div>
               )
