@@ -58,9 +58,9 @@ export default async function HomePage() {
     getStats(),
   ])
 
-  const displayTravelers = stats.travelers > 0 ? `${stats.travelers}+` : '2,400+'
-  const displayTrips = stats.trips > 0 ? `${stats.trips}+` : '500+'
-  const displayDestinations = stats.destinations > 0 ? stats.destinations.toString() : '6'
+  const displayTravelers = stats.travelers > 0 ? `${stats.travelers}+` : '10+'
+  const displayTrips = stats.trips > 0 ? `${stats.trips}+` : '0'
+  const displayDestinations = stats.destinations > 0 ? stats.destinations.toString() : '8'
 
   return (
     <div className="min-h-screen bg-background text-foreground">

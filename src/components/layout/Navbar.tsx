@@ -75,7 +75,7 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/community', label: 'Community', icon: Users, showBadge: true },
+    { href: '/community', label: 'Hangout', icon: Users, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/host', label: 'Host', icon: Tent },
   ]

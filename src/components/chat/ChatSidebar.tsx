@@ -56,7 +56,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <h2 className="text-lg font-black mb-3">
-          <span className="text-primary">Community</span>
+          <span className="text-primary">Hangout</span>
         </h2>
 
         {/* Search */}
