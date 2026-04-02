@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, Star, MessageCircle, Trophy, Shield, ArrowRight, Mountain } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import { FeaturedCarousel } from '@/components/home/FeaturedCarousel'
 import type { Package, Profile } from '@/types'
 
 async function getFeaturedPackages() {
@@ -88,8 +89,8 @@ export default async function HomePage() {
             <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90 glow-gold" asChild>
               <Link href="/explore">Explore Trips <ArrowRight className="ml-2 h-5 w-5" /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
-              <Link href="/signup">Join the Community</Link>
+            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-white/5" asChild>
+              <Link href="/signup" className="text-white">Join the Community</Link>
             </Button>
           </div>
         </div>
@@ -114,9 +115,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Packages */}
+      {/* Featured Packages — Auto-scrolling carousel */}
       <section className="py-20 px-4">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-[1600px]">
           <div className="flex items-end justify-between mb-10">
             <div>
               <h2 className="text-3xl md:text-4xl font-black">
@@ -129,57 +130,7 @@ export default async function HomePage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {packages.length > 0 ? packages.map((pkg) => (
-              <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
-                <Card className="bg-card border-border overflow-hidden card-hover cursor-pointer h-full">
-                  <div className="relative h-48 bg-secondary overflow-hidden">
-                    {pkg.images?.[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary to-muted">
-                        <Mountain className="h-12 w-12 text-primary/40" />
-                      </div>
-                    )}
-                    <div className="absolute top-3 left-3">
-                      <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty] || 'bg-black/60 text-white backdrop-blur-sm'}`}>
-                        {DIFFICULTY_ICONS[pkg.difficulty] || ''} {pkg.difficulty}
-                      </Badge>
-                    </div>
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                      <MapPin className="h-3 w-3" />
-                      {pkg.destination?.name}, {pkg.destination?.state}
-                    </div>
-                    <h3 className="font-bold text-foreground text-lg leading-tight mb-2">{pkg.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{pkg.short_description}</p>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-primary font-black text-lg">{formatPrice(pkg.price_paise)}</span>
-                        <span className="text-muted-foreground text-xs ml-1">/ person</span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{pkg.duration_days} days</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            )) : (
-              Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="bg-card border-border overflow-hidden h-full">
-                  <div className="h-48 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
-                    <Mountain className="h-12 w-12 text-primary/40" />
-                  </div>
-                  <CardContent className="p-4 space-y-2">
-                    <div className="h-3 w-24 bg-secondary rounded animate-pulse" />
-                    <div className="h-5 w-48 bg-secondary rounded animate-pulse" />
-                    <div className="h-3 w-full bg-secondary rounded animate-pulse" />
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+          <FeaturedCarousel packages={packages as { id: string; slug: string; title: string; short_description: string; price_paise: number; duration_days: number; difficulty: string; images: string[] | null; max_group_size: number; destination: { name: string; state: string } | null }[]} />
         </div>
       </section>
 

@@ -107,7 +107,7 @@ export default async function ProfilePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10">
         {/* Profile Header */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
@@ -381,11 +381,11 @@ export default async function ProfilePage({
               <Card className="bg-card border-border">
                 <CardContent className="p-8 text-center">
                   <p className="text-muted-foreground text-sm">
-                    {isOwnProfile ? 'Complete your first trip to see your travel history here.' : 'No trips completed yet.'}
+                    {isOwnProfile ? 'Your travel story starts here. Explore destinations and book your next adventure!' : 'No trips completed yet.'}
                   </p>
                   {isOwnProfile && (
                     <Button className="mt-4 bg-primary text-black font-bold" asChild>
-                      <Link href="/explore">Find Your First Trip</Link>
+                      <Link href="/explore">Book Your Next Trip</Link>
                     </Button>
                   )}
                 </CardContent>

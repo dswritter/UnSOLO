@@ -1,15 +1,39 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mountain } from 'lucide-react'
 import { toast } from 'sonner'
 
+const TRAVEL_QUOTES = [
+  "The world is a book, and those who do not travel read only one page.",
+  "Adventure is worthwhile in itself.",
+  "Not all those who wander are lost.",
+  "Travel makes one modest. You see what a tiny place you occupy in the world.",
+  "Life is either a daring adventure or nothing at all.",
+  "The journey of a thousand miles begins with a single step.",
+  "Travel far enough, you meet yourself.",
+  "To travel is to live.",
+  "Jobs fill your pocket, but adventures fill your soul.",
+  "Traveling tends to magnify all human emotions.",
+]
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false)
+  const [quoteIndex, setQuoteIndex] = useState(0)
+
+  // Rotate quotes while loading
+  useEffect(() => {
+    if (!loading) return
+    setQuoteIndex(Math.floor(Math.random() * TRAVEL_QUOTES.length))
+    const interval = setInterval(() => {
+      setQuoteIndex(prev => (prev + 1) % TRAVEL_QUOTES.length)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [loading])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -20,6 +44,26 @@ export default function LoginPage() {
       toast.error(result.error)
       setLoading(false)
     }
+  }
+
+  // Full-screen loading overlay with travel quotes
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <span className="text-4xl font-black">
+            <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
+          </span>
+          <div className="mt-8 mb-6">
+            <div className="h-10 w-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Preparing your journey, please hold on...</p>
+          <p className="text-primary italic text-sm font-medium transition-opacity duration-500">
+            &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -91,7 +135,7 @@ export default function LoginPage() {
               className="w-full bg-primary text-black font-bold hover:bg-primary/90"
               disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              Sign In
             </Button>
           </form>
 
