@@ -196,7 +196,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
               )}
-              <Link href={activeRoom ? `/community?room=${activeRoom.id}` : '/community'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
+              <Link href={activeRoom ? `/community/${activeRoom.id}` : '/community'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
               <button onClick={() => { setMinimized(true); setUserInteracting(false) }} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">

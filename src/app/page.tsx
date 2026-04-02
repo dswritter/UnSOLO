@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, Star, MessageCircle, Trophy, Shield, ArrowRight, Mountain } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { FeaturedCarousel } from '@/components/home/FeaturedCarousel'
+import { HeroCarousel } from '@/components/home/HeroCarousel'
 import type { Package, Profile } from '@/types'
 
 async function getFeaturedPackages() {
@@ -66,35 +66,9 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar user={profile} />
 
-      {/* Hero — always dark background for brand consistency */}
-      <section className="relative overflow-hidden py-24 md:py-36 px-4 bg-black">
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-[#1a0f00] pointer-events-none" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative mx-auto max-w-4xl text-center">
-          <Badge className="mb-6 bg-primary/20 text-primary border-primary/30 text-sm px-4 py-1">
-            India&apos;s #1 Solo Travel Community
-          </Badge>
-          <h1 className="text-5xl md:text-7xl font-black leading-none tracking-tight mb-6">
-            <span className="text-primary">UN</span><span className="text-white">SOLO</span>
-          </h1>
-          <p className="text-xl md:text-2xl text-white/90 font-medium mb-3">
-            Change the way you travel.
-          </p>
-          <p className="text-base md:text-lg text-white/50 max-w-2xl mx-auto mb-10">
-            Book curated solo trips across India, connect with fellow explorers in real-time,
-            earn badges, and climb the leaderboard. Travel solo — never alone.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90 glow-gold" asChild>
-              <Link href="/explore">Explore Trips <ArrowRight className="ml-2 h-5 w-5" /></Link>
-            </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-white/5" asChild>
-              <Link href="/signup" className="text-white">Join the Community</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+      {/* Hero + Featured Trips Carousel */}
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      <HeroCarousel packages={packages as any[]} />
 
       {/* Stats */}
       <section className="border-y border-border bg-card/50 py-10">
@@ -112,26 +86,6 @@ export default async function HomePage() {
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Featured Packages — Auto-scrolling carousel */}
-      <section className="py-20 px-4">
-        <div className="mx-auto max-w-[1600px]">
-          <div className="flex items-end justify-between mb-10">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-black">
-                <span className="text-primary">Featured</span> Trips
-              </h2>
-              <p className="text-muted-foreground mt-2">Handpicked solo adventures across India</p>
-            </div>
-            <Button variant="outline" className="hidden sm:flex border-border" asChild>
-              <Link href="/explore">View All <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <FeaturedCarousel packages={packages as any[]} />
         </div>
       </section>
 

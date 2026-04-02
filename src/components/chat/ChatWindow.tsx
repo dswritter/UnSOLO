@@ -501,12 +501,9 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
-          >
+          <Link href="/community" className="text-muted-foreground hover:text-foreground transition-colors md:hidden">
             <ArrowLeft className="h-4 w-4" />
-          </button>
+          </Link>
           <div>
           <h2 className="font-bold">{roomName}</h2>
           {isDM ? (
