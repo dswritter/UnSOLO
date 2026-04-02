@@ -2,10 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
+import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { joinRoom } from '@/actions/chat'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, MessageCircle } from 'lucide-react'
+import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Message, Profile } from '@/types'
 
@@ -36,9 +38,8 @@ export default async function ChatRoomPage({
     .eq('user_id', user.id)
     .single()
 
-  // For DM rooms, allow access if user is a member (membership checked above)
+  // DM room but user is not a member
   if (!membership && room.type === 'direct') {
-    // DM room but user is not a member — shouldn't happen, but handle gracefully
     return (
       <div className="min-h-screen bg-background flex items-center justify-center px-4">
         <div className="text-center space-y-4">
@@ -104,7 +105,6 @@ export default async function ChatRoomPage({
       .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
       .in('id', memberIds)
 
-    // Get phone request statuses for current user
     const { data: phoneRequests } = await supabase
       .from('phone_requests')
       .select('target_id, status')
@@ -128,24 +128,20 @@ export default async function ChatRoomPage({
     }
   }
 
+  // Fetch sidebar rooms (rich data with DM profiles, trip images, etc.)
+  const sidebarRooms = await getSidebarRooms(supabase, user.id)
+
   return (
-    <div className="h-[calc(100dvh-64px)] flex flex-col">
-      <div className="px-4 py-2 border-b border-border flex items-center gap-3">
-        <Link href="/chat" className="text-muted-foreground hover:text-white transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div>
-          <h1 className="font-bold text-sm">{displayName}</h1>
-          {room.type === 'direct' ? (
-            <p className="text-xs text-muted-foreground">Direct Message</p>
-          ) : (room as { package?: { title: string; destination?: { name: string; state: string } } }).package && (
-            <p className="text-xs text-muted-foreground">
-              {(room as { package: { title: string; destination?: { name: string; state: string } } }).package.title}
-            </p>
-          )}
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden relative">
+    <div className="h-[calc(100dvh-64px)] flex">
+      {/* Desktop sidebar — hidden on mobile (ChatWindow has back arrow) */}
+      <ChatSidebar
+        rooms={sidebarRooms}
+        activeRoomId={roomId}
+        className="hidden md:flex w-96 min-w-[384px] border-r border-border"
+      />
+
+      {/* Chat window */}
+      <div className="flex-1 flex flex-col min-w-0">
         <ChatWindow
           roomId={roomId}
           roomName={displayName}

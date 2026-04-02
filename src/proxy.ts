@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api/webhooks']
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api/webhooks', '/terms', '/privacy', '/refund-policy']
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -27,6 +27,7 @@ export async function proxy(request: NextRequest) {
     }
   )
 
+  // IMPORTANT: This refreshes the auth token on every request
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
@@ -37,10 +38,11 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/favicon') ||
     pathname.includes('.')
 
-  // Allow package detail and explore pages to be public
+  // Allow package detail, explore, leaderboard, and contact pages to be public
   const isPublicContent = pathname.startsWith('/explore') ||
     pathname.startsWith('/packages') ||
-    pathname.startsWith('/leaderboard')
+    pathname.startsWith('/leaderboard') ||
+    pathname.startsWith('/contact')
 
   if (!user && !isPublic && !isPublicContent) {
     const url = request.nextUrl.clone()

@@ -1,40 +1,57 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 
 export function NavigationProgress() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [progress, setProgress] = useState(0)
-  const timeoutsRef = { current: [] as NodeJS.Timeout[] }
+  const timeoutsRef = useRef<NodeJS.Timeout[]>([])
+  const isNavigatingRef = useRef(false)
 
-  const startProgress = useCallback(() => {
-    // Clear any pending timeouts
+  const clearTimeouts = useCallback(() => {
     timeoutsRef.current.forEach(clearTimeout)
     timeoutsRef.current = []
+  }, [])
 
+  const completeProgress = useCallback(() => {
+    clearTimeouts()
+    isNavigatingRef.current = false
+    setProgress(100)
+    const t = setTimeout(() => setProgress(0), 300)
+    timeoutsRef.current.push(t)
+  }, [clearTimeouts])
+
+  const startProgress = useCallback(() => {
+    if (isNavigatingRef.current) return // already navigating
+    isNavigatingRef.current = true
+
+    clearTimeouts()
     setProgress(30)
     timeoutsRef.current.push(setTimeout(() => setProgress(60), 200))
     timeoutsRef.current.push(setTimeout(() => setProgress(80), 600))
     timeoutsRef.current.push(setTimeout(() => setProgress(90), 1500))
-  }, [])
+    // Safety net: force complete after 5 seconds even if pathname hasn't changed
+    timeoutsRef.current.push(setTimeout(() => {
+      if (isNavigatingRef.current) {
+        completeProgress()
+      }
+    }, 5000))
+  }, [clearTimeouts, completeProgress])
 
   // Route change completed — finish the bar
   useEffect(() => {
-    timeoutsRef.current.forEach(clearTimeout)
-    timeoutsRef.current = []
-    setProgress(100)
-    const t = setTimeout(() => setProgress(0), 300)
-    return () => clearTimeout(t)
-  }, [pathname, searchParams])
+    if (isNavigatingRef.current) {
+      completeProgress()
+    }
+  }, [pathname, searchParams, completeProgress])
 
-  // Intercept ALL clicks that lead to navigation
+  // Intercept clicks and pushState for navigation detection
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       const target = e.target as HTMLElement
 
-      // Check for <a> tags (direct links)
       const anchor = target.closest('a')
       if (anchor) {
         const href = anchor.getAttribute('href')
@@ -44,7 +61,6 @@ export function NavigationProgress() {
         }
       }
 
-      // Check for dropdown menu items / buttons that trigger navigation
       const menuItem = target.closest('[role="menuitem"]')
       if (menuItem) {
         startProgress()
@@ -54,16 +70,15 @@ export function NavigationProgress() {
 
     // Monkey-patch pushState to catch router.push() calls
     const origPush = history.pushState.bind(history)
-    history.pushState = function(...args) {
+    history.pushState = function (...args) {
       startProgress()
       return origPush(...args)
     }
 
-    // Listen for custom navigation events (from NotificationBell, etc.)
     function handleCustomNav() { startProgress() }
     window.addEventListener('unsolo:navigate', handleCustomNav)
 
-    document.addEventListener('click', handleClick, true) // capture phase
+    document.addEventListener('click', handleClick, true)
     return () => {
       document.removeEventListener('click', handleClick, true)
       window.removeEventListener('unsolo:navigate', handleCustomNav)

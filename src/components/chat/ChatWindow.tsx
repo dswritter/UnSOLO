@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -156,14 +156,21 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   // Load and subscribe to read receipts
   useEffect(() => {
     const sb = createBrowserClient()
-    const msgIds = messages.filter(m => m.message_type !== 'system').map(m => m.id)
-    if (msgIds.length === 0) return
+    // Filter out optimistic messages (they don't exist in DB yet)
+    const realMsgIds = messages
+      .filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+      .map(m => m.id)
+    if (realMsgIds.length === 0) return
 
     async function loadReceipts() {
-      const { data } = await sb
+      const { data, error } = await sb
         .from('message_read_receipts')
         .select('message_id, user_id, read_at')
-        .in('message_id', msgIds.slice(-50)) // last 50 messages only for perf
+        .in('message_id', realMsgIds.slice(-50)) // last 50 messages only for perf
+      if (error) {
+        console.warn('Failed to load read receipts:', error.message)
+        return
+      }
       if (data) {
         const map = new Map<string, ReadReceipt[]>()
         for (const r of data) {
@@ -177,7 +184,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
     loadReceipts()
 
-    // Subscribe to new read receipts
+    // Subscribe to new read receipts for this room's messages
     const channel = sb
       .channel(`read-receipts-${roomId}`)
       .on('postgres_changes', {
@@ -186,16 +193,14 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         table: 'message_read_receipts',
       }, (payload) => {
         const r = payload.new as ReadReceipt
-        if (msgIds.includes(r.message_id)) {
-          setReadReceipts(prev => {
-            const newMap = new Map(prev)
-            const existing = newMap.get(r.message_id) || []
-            if (!existing.find(e => e.user_id === r.user_id)) {
-              newMap.set(r.message_id, [...existing, r])
-            }
-            return newMap
-          })
-        }
+        setReadReceipts(prev => {
+          const newMap = new Map(prev)
+          const existing = newMap.get(r.message_id) || []
+          if (!existing.find(e => e.user_id === r.user_id)) {
+            newMap.set(r.message_id, [...existing, r])
+          }
+          return newMap
+        })
       })
       .subscribe()
 
@@ -205,7 +210,14 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   // Mark messages as read when viewing
   useEffect(() => {
     const sb = createBrowserClient()
-    sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
+    // Small delay so the page is actually visible before marking as read
+    const timer = setTimeout(() => {
+      sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
+        .then(({ error }) => {
+          if (error) console.warn('Failed to mark messages as read:', error.message)
+        })
+    }, 500)
+    return () => clearTimeout(timer)
   }, [messages, roomId, currentUser.id])
 
   // Mobile keyboard handler — adjust scroll on virtual keyboard
@@ -448,10 +460,14 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] sm:h-full bg-background border-l border-border relative">
+    <div className="flex flex-col h-full bg-background border-l border-border relative">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
+          <Link href="/chat" className="text-muted-foreground hover:text-foreground transition-colors md:hidden">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
           <h2 className="font-bold">{roomName}</h2>
           {isDM ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -474,6 +490,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -678,7 +695,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
       {/* Package Picker — in-flow, shrinks the scroll area above */}
       {showPackagePicker && (
-        <div className="border-t border-border bg-card px-4 py-4 max-h-[280px] overflow-y-auto shrink-0">
+        <div className="border-t border-border bg-card px-4 py-4 max-h-[60vh] min-h-[300px] overflow-y-auto shrink-0">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold">Share a Trip Package</p>
             <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-4 w-4 text-zinc-500 hover:text-white" /></button>
