@@ -10,7 +10,7 @@ export function FooterWrapper() {
 
   return (
     <footer className="border-t border-border bg-card/50 mt-auto">
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
           <div>
             <h4 className="font-bold text-foreground mb-3">UnSOLO</h4>

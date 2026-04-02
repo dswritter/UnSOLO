@@ -7,7 +7,7 @@ import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { ScrollArea } from '@/components/ui/scroll-area'
+
 import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -185,6 +185,9 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
     loadReceipts()
 
+    // Poll receipts every 5s as fallback (realtime may not be configured)
+    const pollInterval = setInterval(loadReceipts, 5000)
+
     // Subscribe to new read receipts for this room's messages
     const channel = sb
       .channel(`read-receipts-${roomId}`)
@@ -205,18 +208,47 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       })
       .subscribe()
 
-    return () => { sb.removeChannel(channel) }
+    return () => { clearInterval(pollInterval); sb.removeChannel(channel) }
   }, [messages, roomId])
 
   // Mark messages as read when viewing
   useEffect(() => {
     const sb = createBrowserClient()
     // Small delay so the page is actually visible before marking as read
-    const timer = setTimeout(() => {
-      sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
-        .then(({ error }) => {
-          if (error) console.warn('Failed to mark messages as read:', error.message)
-        })
+    const timer = setTimeout(async () => {
+      // Try RPC first (bulk mark), fall back to individual inserts
+      const { error: rpcError } = await sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
+      if (rpcError) {
+        console.warn('RPC mark_room_messages_read failed:', rpcError.message, '- falling back to direct inserts')
+        // Fallback: insert read receipts for other users' messages directly
+        const otherMsgs = messages
+          .filter(m => m.user_id !== currentUser.id && m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+          .slice(-30) // last 30 only
+        for (const msg of otherMsgs) {
+          await sb.from('message_read_receipts')
+            .upsert({ message_id: msg.id, user_id: currentUser.id }, { onConflict: 'message_id,user_id' })
+        }
+      }
+
+      // After marking as read, reload receipts so ticks update
+      const realMsgIds = messages
+        .filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+        .map(m => m.id)
+      if (realMsgIds.length > 0) {
+        const { data } = await sb
+          .from('message_read_receipts')
+          .select('message_id, user_id, read_at')
+          .in('message_id', realMsgIds.slice(-50))
+        if (data) {
+          const map = new Map<string, ReadReceipt[]>()
+          for (const r of data) {
+            const existing = map.get(r.message_id) || []
+            existing.push(r)
+            map.set(r.message_id, existing)
+          }
+          setReadReceipts(map)
+        }
+      }
     }, 500)
     return () => clearTimeout(timer)
   }, [messages, roomId, currentUser.id])
@@ -627,7 +659,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       )}
 
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
@@ -695,7 +727,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
           )}
           <div ref={bottomRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Package Picker — in-flow, shrinks the scroll area above */}
       {showPackagePicker && (

@@ -122,7 +122,7 @@ export default async function ExplorePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
         <ExploreFilters params={params} resultCount={packages.length} />
 
         {/* Package grid */}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users, Gift, Pencil, Tent } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -77,13 +77,12 @@ export function Navbar({ user }: NavbarProps) {
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/community', label: 'Community', icon: Users, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/contact', label: 'Contact', icon: Mail },
     { href: '/host', label: 'Host', icon: Tent },
   ]
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
