@@ -199,7 +199,7 @@ export function ChatHub({ initialRooms, currentUser, initialRoomId }: ChatHubPro
   return (
     <div className="h-[calc(100dvh-64px)] flex overflow-hidden">
       {/* Sidebar — full width on mobile when no room selected, fixed width on desktop */}
-      <div className={`${selectedRoomId ? 'hidden md:flex' : 'flex'} w-full md:w-96 md:min-w-[384px] border-r border-border flex-col overflow-hidden`}>
+      <div className={`${selectedRoomId ? 'hidden md:flex' : 'flex'} w-full md:w-96 md:min-w-[384px] border-r border-border flex-col min-h-0`}>
         <ChatSidebar
           rooms={rooms}
           activeRoomId={selectedRoomId}

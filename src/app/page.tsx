@@ -130,7 +130,8 @@ export default async function HomePage() {
             </Button>
           </div>
 
-          <FeaturedCarousel packages={packages as { id: string; slug: string; title: string; short_description: string; price_paise: number; duration_days: number; difficulty: string; images: string[] | null; max_group_size: number; destination: { name: string; state: string } | null }[]} />
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <FeaturedCarousel packages={packages as any[]} />
         </div>
       </section>
 

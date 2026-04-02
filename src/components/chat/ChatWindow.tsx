@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -143,6 +143,10 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map())
   const [readByPopup, setReadByPopup] = useState<string | null>(null) // message_id for long-press popup
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
+
+  // Chat menu state
+  const [showMenu, setShowMenu] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
 
   // @mention state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
@@ -528,6 +532,47 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
           )}
           </div>
         </div>
+
+        {/* Chat menu — Leave / Mute (for group and trip chats) */}
+        {!isDM && (
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
+                  <button
+                    onClick={() => { setIsMuted(!isMuted); setShowMenu(false); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted') }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors"
+                  >
+                    {isMuted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                    {isMuted ? 'Unmute' : 'Mute'}
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setShowMenu(false)
+                      const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
+                      if (!confirmed) return
+                      const sb = (await import('@/lib/supabase/client')).createClient()
+                      await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
+                      toast.success('Left the chat room')
+                      if (onBack) onBack()
+                    }}
+                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Leave Chat
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Online members strip (group chats only) */}

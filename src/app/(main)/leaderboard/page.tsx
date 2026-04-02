@@ -30,42 +30,33 @@ export default async function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-10">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center mx-auto mb-4">
-            <Trophy className="h-8 w-8 text-primary" />
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-6">
+        {/* Compact header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center">
+              <Trophy className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black leading-tight">
+                Travel <span className="text-primary">Leaderboard</span>
+              </h1>
+              <p className="text-xs text-muted-foreground">Top solo travelers in India</p>
+            </div>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black">
-            Travel <span className="text-primary">Leaderboard</span>
-          </h1>
-          <p className="text-muted-foreground mt-2">The most adventurous solo travelers in India</p>
-        </div>
-
-        {/* Score guide */}
-        <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-card border border-border rounded-xl">
-          <div className="text-center text-sm">
-            <Trophy className="h-4 w-4 text-primary mx-auto mb-1" />
-            <div className="font-bold">+25 pts</div>
-            <div className="text-xs text-muted-foreground">Completed Trip</div>
-          </div>
-          <div className="text-center text-sm">
-            <MapPin className="h-4 w-4 text-primary mx-auto mb-1" />
-            <div className="font-bold">+15 pts</div>
-            <div className="text-xs text-muted-foreground">New Destination</div>
-          </div>
-          <div className="text-center text-sm">
-            <Star className="h-4 w-4 text-primary mx-auto mb-1" />
-            <div className="font-bold">+10 pts</div>
-            <div className="text-xs text-muted-foreground">Review Written</div>
+          {/* Inline score guide */}
+          <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-primary" /> +25 Trip</span>
+            <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> +15 Dest</span>
+            <span className="flex items-center gap-1"><Star className="h-3 w-3 text-primary" /> +10 Review</span>
           </div>
         </div>
 
-        {/* My rank */}
+        {/* My rank — compact */}
         {user && myRank > 0 && myRank > 10 && (
-          <div className="mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5">
-            <p className="text-sm text-muted-foreground">Your Rank</p>
-            <p className="text-2xl font-black text-primary">#{myRank}</p>
+          <div className="mb-4 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">Your Rank:</span>
+            <span className="text-lg font-black text-primary">#{myRank}</span>
           </div>
         )}
 

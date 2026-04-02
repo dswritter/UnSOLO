@@ -25,13 +25,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [quoteIndex, setQuoteIndex] = useState(0)
 
-  // Rotate quotes while loading
+  // Rotate quotes while loading — 6 seconds per quote
   useEffect(() => {
     if (!loading) return
     setQuoteIndex(Math.floor(Math.random() * TRAVEL_QUOTES.length))
     const interval = setInterval(() => {
       setQuoteIndex(prev => (prev + 1) % TRAVEL_QUOTES.length)
-    }, 3000)
+    }, 6000)
     return () => clearInterval(interval)
   }, [loading])
 
@@ -54,13 +54,29 @@ export default function LoginPage() {
           <span className="text-4xl font-black">
             <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
           </span>
-          <div className="mt-8 mb-6">
-            <div className="h-10 w-10 border-3 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="mt-8 mb-4">
+            <div className="h-10 w-10 border-[3px] border-primary border-t-transparent rounded-full animate-spin mx-auto" />
           </div>
-          <p className="text-sm text-muted-foreground mb-4">Preparing your journey, please hold on...</p>
-          <p className="text-primary italic text-sm font-medium transition-opacity duration-500">
-            &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
-          </p>
+          <p className="text-sm text-muted-foreground mb-6">Preparing your journey, please hold on...</p>
+          {/* Quote with fade animation */}
+          <div className="min-h-[60px] flex items-center justify-center">
+            <p key={quoteIndex} className="text-primary italic text-sm font-medium animate-fade-in">
+              &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
+            </p>
+          </div>
+          {/* Progress bar that fills over 6 seconds per quote */}
+          <div className="mt-6 mx-auto w-48 h-1 bg-secondary rounded-full overflow-hidden">
+            <div
+              key={quoteIndex}
+              className="h-full bg-primary rounded-full"
+              style={{ animation: 'progress-fill 6s linear forwards' }}
+            />
+          </div>
+          <style>{`
+            @keyframes progress-fill { from { width: 0%; } to { width: 100%; } }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+            .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+          `}</style>
         </div>
       </div>
     )
@@ -89,7 +105,7 @@ export default function LoginPage() {
             type="button"
             variant="outline"
             className="w-full border-border"
-            onClick={() => signInWithGoogle()}
+            onClick={() => { setLoading(true); signInWithGoogle() }}
           >
             <Mountain className="mr-2 h-4 w-4 text-primary" />
             Continue with Google
