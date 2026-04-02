@@ -60,7 +60,7 @@ export default function ContactPage() {
         <div className="mt-12 text-center">
           <p className="text-sm text-muted-foreground">
             Already booked a trip? Chat with your trip-mates in the{' '}
-            <Link href="/chat" className="text-primary hover:underline">Community</Link>.
+            <Link href="/community" className="text-primary hover:underline">Community</Link>.
           </p>
         </div>
       </div>

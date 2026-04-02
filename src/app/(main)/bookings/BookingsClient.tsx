@@ -261,7 +261,7 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                           <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
                           <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                             <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                              <Link href="/chat">
+                              <Link href="/community">
                                 <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                               </Link>
                             </Button>
@@ -480,7 +480,7 @@ function BookingItem({
               </div>
               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                  <Link href="/chat">
+                  <Link href="/community">
                     <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                   </Link>
                 </Button>

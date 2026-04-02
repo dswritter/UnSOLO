@@ -200,10 +200,19 @@ export async function confirmPayment(
       room_id: roomId,
       user_id: user.id,
     })
+
+    // Get user's display name for the system message
+    const { data: joinerProfile } = await supabase
+      .from('profiles')
+      .select('username, full_name')
+      .eq('id', user.id)
+      .single()
+    const displayName = joinerProfile?.full_name || joinerProfile?.username || 'A new traveler'
+
     await supabase.from('messages').insert({
       room_id: roomId,
       user_id: null,
-      content: `🎉 A new traveler has joined the trip! Booking #${confirmationCode}`,
+      content: `🎉 ${displayName} (@${joinerProfile?.username || 'traveler'}) has joined the trip!`,
       message_type: 'system',
     })
   }

@@ -6,7 +6,7 @@ export function FooterWrapper() {
   const pathname = usePathname()
 
   // Hide footer on chat pages
-  if (pathname?.startsWith('/chat')) return null
+  if (pathname?.startsWith('/chat') || pathname?.startsWith('/community')) return null
 
   return (
     <footer className="border-t border-border bg-card/50 mt-auto">

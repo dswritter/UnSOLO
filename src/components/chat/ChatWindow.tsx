@@ -34,6 +34,7 @@ interface ChatWindowProps {
   initialMessages: Message[]
   currentUser: Profile
   memberProfiles?: ChatMemberProfile[]
+  onBack?: () => void
 }
 
 export interface ChatMemberProfile {
@@ -124,7 +125,7 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
   })
 }
 
-export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [] }: ChatWindowProps) {
+export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [], onBack }: ChatWindowProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(roomId, initialMessages, currentUser)
@@ -464,9 +465,12 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/chat" className="text-muted-foreground hover:text-foreground transition-colors md:hidden">
+          <button
+            onClick={onBack}
+            className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
+          >
             <ArrowLeft className="h-4 w-4" />
-          </Link>
+          </button>
           <div>
           <h2 className="font-bold">{roomName}</h2>
           {isDM ? (

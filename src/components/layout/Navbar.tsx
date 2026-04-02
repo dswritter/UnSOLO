@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { MessageCircle, Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users, Gift, Pencil, Tent } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Mail, Shield, Users, Gift, Pencil, Tent } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
 import { getInitials } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
 
@@ -24,11 +25,57 @@ interface NavbarProps {
 
 export function Navbar({ user }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [unreadChatCount, setUnreadChatCount] = useState(0)
   const router = useRouter()
+  const pathname = usePathname()
+
+  // Track unread messages for Community badge
+  useEffect(() => {
+    if (!user) return
+
+    const supabase = createClient()
+
+    // Listen for new messages in rooms the user is a member of
+    const channel = supabase
+      .channel('navbar-unread')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, async (payload) => {
+        const msg = payload.new as { user_id: string; room_id: string; message_type: string }
+        if (msg.user_id === user.id || msg.message_type === 'system') return
+
+        // Check if user is a member
+        const { data: membership } = await supabase
+          .from('chat_room_members')
+          .select('id')
+          .eq('room_id', msg.room_id)
+          .eq('user_id', user.id)
+          .single()
+
+        if (!membership) return
+
+        // Only show badge when NOT on community page
+        if (!pathname?.startsWith('/community')) {
+          setUnreadChatCount(prev => prev + 1)
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [user, pathname])
+
+  // Clear unread count when navigating to community
+  useEffect(() => {
+    if (pathname?.startsWith('/community')) {
+      setUnreadChatCount(0)
+    }
+  }, [pathname])
 
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/community', label: 'Community', icon: Users },
+    { href: '/community', label: 'Community', icon: Users, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/contact', label: 'Contact', icon: Mail },
     { href: '/host', label: 'Host', icon: Tent },
@@ -48,14 +95,19 @@ export function Navbar({ user }: NavbarProps) {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
-            {navLinks.map(({ href, label, icon: Icon }) => (
+            {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="relative flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
                 {label}
+                {showBadge && unreadChatCount > 0 && (
+                  <span className="absolute -top-2 -right-3 h-4 min-w-[16px] px-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
               </Link>
             ))}
           </div>
@@ -64,9 +116,6 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <Link href="/chat" className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
-                  <MessageCircle className="h-5 w-5 text-muted-foreground" />
-                </Link>
                 <NotificationBell userId={user.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger>
@@ -135,15 +184,20 @@ export function Navbar({ user }: NavbarProps) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2">
-          {navLinks.map(({ href, label, icon: Icon }) => (
+          {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
             <Link
               key={href}
               href={href}
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
               <Icon className="h-4 w-4" />
               {label}
+              {showBadge && unreadChatCount > 0 && (
+                <span className="ml-auto h-5 min-w-[20px] px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                </span>
+              )}
             </Link>
           ))}
           {user && (

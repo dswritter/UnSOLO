@@ -108,7 +108,7 @@ export default async function BookingSuccessPage({
             </Link>
           </Button>
           <Button variant="outline" className="border-border" asChild>
-            <Link href="/chat">
+            <Link href="/community">
               <MessageCircle className="mr-2 h-4 w-4" /> Trip Chat
             </Link>
           </Button>

@@ -259,7 +259,7 @@ export default async function HomePage() {
           <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <Link href="/explore" className="hover:text-white transition-colors">Explore</Link>
             <Link href="/leaderboard" className="hover:text-white transition-colors">Leaderboard</Link>
-            <Link href="/chat" className="hover:text-white transition-colors">Community</Link>
+            <Link href="/community" className="hover:text-white transition-colors">Community</Link>
             <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
             <a href="mailto:unsolo.in@gmail.com" className="hover:text-primary transition-colors">unsolo.in@gmail.com</a>
           </div>

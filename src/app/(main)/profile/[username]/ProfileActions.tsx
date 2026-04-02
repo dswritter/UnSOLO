@@ -79,7 +79,7 @@ export function ProfileActions({
     if (result.error) {
       toast.error(result.error)
     } else if (result.roomId) {
-      router.push(`/chat/${result.roomId}`)
+      router.push(`/community?room=${result.roomId}`)
     }
     setLoading(false)
   }

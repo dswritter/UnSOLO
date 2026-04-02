@@ -37,7 +37,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const pathname = usePathname()
 
-  const isOnChatPage = pathname?.startsWith('/chat')
+  const isOnChatPage = pathname?.startsWith('/chat') || pathname?.startsWith('/community')
 
   useEffect(() => {
     if (!userId) return
@@ -196,7 +196,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
               )}
-              <Link href={activeRoom ? `/chat/${activeRoom.id}` : '/chat'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
+              <Link href={activeRoom ? `/community?room=${activeRoom.id}` : '/community'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
               <button onClick={() => { setMinimized(true); setUserInteracting(false) }} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
@@ -294,7 +294,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             </form>
           ) : (
             <Link
-              href="/chat"
+              href="/community"
               className="block text-center py-2.5 text-xs text-primary font-medium hover:bg-secondary/30 transition-colors border-t border-border"
             >
               Open All Chats →

@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
 
 export interface SidebarRoom {
   id: string
@@ -17,15 +16,18 @@ export interface SidebarRoom {
   tripImage?: string
   tripLocation?: string
   isMember?: boolean
+  unreadCount?: number
 }
 
 interface ChatSidebarProps {
   rooms: SidebarRoom[]
   activeRoomId?: string | null
   className?: string
+  /** If provided, clicking a room calls this instead of navigating */
+  onRoomSelect?: (roomId: string) => void
 }
 
-export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebarProps) {
+export function ChatSidebar({ rooms, activeRoomId, className = '', onRoomSelect }: ChatSidebarProps) {
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'direct' | 'trip' | 'general'>('all')
@@ -65,12 +67,20 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
     return userId ? onlineUsers.has(userId) : false
   }
 
+  function handleClick(e: React.MouseEvent, roomId: string) {
+    if (onRoomSelect) {
+      e.preventDefault()
+      onRoomSelect(roomId)
+    }
+    // If no onRoomSelect, let the <a> navigate normally
+  }
+
   return (
     <div className={`flex flex-col bg-background ${className}`}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border">
+      <div className="px-4 py-3 border-b border-border shrink-0">
         <h2 className="text-lg font-black mb-3">
-          <span className="text-primary">Chats</span>
+          <span className="text-primary">Community</span>
         </h2>
 
         {/* Search */}
@@ -114,14 +124,16 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           filtered.map(room => {
             const dmOnline = room.dmProfile ? isOnline(room.dmProfile.id) : false
             const isActive = activeRoomId === room.id
+            const hasUnread = (room.unreadCount || 0) > 0 && !isActive
 
             return (
-              <Link
+              <a
                 key={room.id}
-                href={`/chat/${room.id}`}
-                className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 ${
+                href={`/community?room=${room.id}`}
+                onClick={(e) => handleClick(e, room.id)}
+                className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 cursor-pointer ${
                   isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
-                }`}
+                } ${hasUnread ? 'bg-primary/5' : ''}`}
               >
                 {/* Avatar */}
                 <div className="relative shrink-0">
@@ -150,9 +162,9 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium text-sm truncate">{room.name}</span>
+                    <span className={`font-medium text-sm truncate ${hasUnread ? 'text-foreground font-bold' : ''}`}>{room.name}</span>
                     {room.lastMessageAt && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">
+                      <span className={`text-[10px] shrink-0 ${hasUnread ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
                         {timeAgo(room.lastMessageAt)}
                       </span>
                     )}
@@ -166,19 +178,23 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                     </div>
                   )}
                   {room.lastMessage && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    <p className={`text-xs truncate mt-0.5 ${hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
                       {room.lastMessage}
                     </p>
                   )}
                 </div>
 
-                {/* Join badge for non-member rooms */}
-                {room.isMember === false && (
+                {/* Unread badge or Join badge */}
+                {hasUnread ? (
+                  <span className="h-5 min-w-[20px] px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                    {room.unreadCount! > 99 ? '99+' : room.unreadCount}
+                  </span>
+                ) : room.isMember === false ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">
                     Join
                   </span>
-                )}
-              </Link>
+                ) : null}
+              </a>
             )
           })
         )}
