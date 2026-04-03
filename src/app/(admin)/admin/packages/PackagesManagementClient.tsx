@@ -89,6 +89,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   function handleSubmit() {
     if (!form.title || !form.destination_id || !form.price || !form.duration_days) {
       setMessage({ type: 'error', text: 'Title, destination, price, and duration are required.' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -145,15 +146,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       const res = await createDestination(newDest.name, newDest.state)
       if (res.error) {
         setMessage({ type: 'error', text: res.error })
-      } else {
-        // Optimistic: add to local list
-        const fakeId = `new-${Date.now()}`
-        const created = { id: fakeId, name: newDest.name, state: newDest.state, country: 'India', slug: '', image_url: null, description: null, created_at: '' }
-        setDestinations(prev => [...prev, created])
-        setForm(f => ({ ...f, destination_id: fakeId }))
+      } else if (res.id) {
+        const created = { id: res.id, name: res.name || newDest.name, state: res.state || newDest.state, country: 'India', slug: '', image_url: null, description: null, created_at: '' }
+        // Add to list if not already present
+        setDestinations(prev => prev.find(d => d.id === res.id) ? prev : [...prev, created])
+        setForm(f => ({ ...f, destination_id: res.id! }))
         setNewDest({ name: '', state: '' })
         setShowNewDest(false)
-        setMessage({ type: 'success', text: `Destination "${newDest.name}" created! Reload page to get real ID for the dropdown.` })
+        setMessage({ type: 'success', text: `Destination "${res.name}" ready!` })
       }
     })
   }

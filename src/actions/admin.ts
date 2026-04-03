@@ -469,19 +469,31 @@ export async function togglePackageActive(packageId: string, isActive: boolean) 
 export async function createDestination(name: string, state: string, description?: string, imageUrl?: string) {
   const { supabase } = await requireAdmin()
 
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+  // Check if destination already exists (same name + state)
+  const { data: existing } = await supabase
+    .from('destinations')
+    .select('id, name, state')
+    .ilike('name', name.trim())
+    .ilike('state', state.trim())
+    .maybeSingle()
 
-  const { error } = await supabase.from('destinations').insert({
-    name,
-    state,
+  if (existing) {
+    return { success: true, id: existing.id, name: existing.name, state: existing.state }
+  }
+
+  const slug = `${name}-${state}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+  const { data, error } = await supabase.from('destinations').insert({
+    name: name.trim(),
+    state: state.trim(),
     country: 'India',
     slug,
     description: description || null,
     image_url: imageUrl || null,
-  })
+  }).select('id, name, state').single()
 
   if (error) return { error: error.message }
-  return { success: true }
+  return { success: true, id: data.id, name: data.name, state: data.state }
 }
 
 // ── Includes Options Management ─────────────────────────────

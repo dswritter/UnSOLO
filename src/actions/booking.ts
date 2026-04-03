@@ -43,17 +43,24 @@ export async function createRazorpayOrder(
     return { error: 'Travel date must be in the future' }
   }
 
-  // Duplicate booking prevention
+  // Duplicate booking prevention — only block if already confirmed
+  // Allow retry if previous booking is pending (failed/abandoned payment)
   const { data: existingBooking } = await supabase
     .from('bookings')
-    .select('id')
+    .select('id, status')
     .eq('user_id', user.id)
     .eq('package_id', packageId)
     .eq('travel_date', travelDate)
     .in('status', ['pending', 'confirmed'])
     .maybeSingle()
-  if (existingBooking) {
-    return { error: 'You already have a booking for this package on this date' }
+
+  if (existingBooking?.status === 'confirmed') {
+    return { error: 'You already have a confirmed booking for this trip on this date' }
+  }
+
+  // Cancel stale pending booking so user can retry
+  if (existingBooking?.status === 'pending') {
+    await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', existingBooking.id)
   }
 
   // Check if max spots reached for this date (sum of guests, not count of bookings)

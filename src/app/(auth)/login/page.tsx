@@ -140,26 +140,12 @@ export default function LoginPage() {
             Continue with Google
           </Button>
 
-          {/* Auth mode tabs */}
-          <div className="flex rounded-lg bg-secondary p-1">
-            <button
-              onClick={() => setAuthMode('email')}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                authMode === 'email' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              Email
-            </button>
-            <button
-              onClick={() => setAuthMode('phone')}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                authMode === 'phone' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'
-              }`}
-            >
-              <Phone className="inline h-3 w-3 mr-1" />Phone OTP
-            </button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-card px-3 text-muted-foreground">or continue with email</span></div>
           </div>
 
+          {/* Phone OTP hidden — SMS provider not configured yet */}
           {authMode === 'email' ? (
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <div className="space-y-1">
