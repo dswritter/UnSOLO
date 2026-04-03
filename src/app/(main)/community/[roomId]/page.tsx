@@ -2,8 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
-import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { joinRoom } from '@/actions/chat'
 import { Button } from '@/components/ui/button'
@@ -30,7 +28,6 @@ export default async function CommunityRoomPage({
 
   if (!room) notFound()
 
-  // Check membership
   const { data: membership } = await supabase
     .from('chat_room_members')
     .select('id')
@@ -40,12 +37,12 @@ export default async function CommunityRoomPage({
 
   if (!membership && room.type === 'direct') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Private Conversation</h2>
           <p className="text-muted-foreground text-sm">You don&apos;t have access to this chat.</p>
-          <Button asChild className="bg-primary text-black"><Link href="/community">Back to Chats</Link></Button>
+          <Button asChild className="bg-primary text-black"><Link href="/community">Back</Link></Button>
         </div>
       </div>
     )
@@ -53,11 +50,11 @@ export default async function CommunityRoomPage({
 
   if (!membership && room.type !== 'general' && room.type !== 'direct') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
-          <h2 className="text-xl font-bold">Trip-only Chat Room</h2>
-          <p className="text-muted-foreground text-sm">You need to book this trip to access the chat.</p>
+          <h2 className="text-xl font-bold">Trip-only Chat</h2>
+          <p className="text-muted-foreground text-sm">Book this trip to join the chat.</p>
           <Button asChild className="bg-primary text-black"><Link href="/explore">Browse Trips</Link></Button>
         </div>
       </div>
@@ -68,7 +65,6 @@ export default async function CommunityRoomPage({
     await joinRoom(roomId)
   }
 
-  // Fetch messages + profile + members
   const [{ data: msgs }, { data: profile }, { data: members }] = await Promise.all([
     supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: true }).limit(100),
     supabase.from('profiles').select('*').eq('id', user.id).single(),
@@ -88,36 +84,20 @@ export default async function CommunityRoomPage({
     memberProfiles = (profiles || []).map(p => ({ ...p, phone_request_status: requestMap.get(p.id) || null })) as ChatMemberProfile[]
   }
 
-  // Resolve display name
   let displayName = room.name
   if (room.type === 'direct') {
     const other = memberProfiles.find(m => m.id !== user.id)
     if (other) displayName = other.full_name || other.username
   }
 
-  // Sidebar rooms
-  const sidebarRooms = await getSidebarRooms(supabase, user.id)
-
   return (
-    <div className="h-[calc(100dvh-64px)] flex">
-      {/* Desktop sidebar */}
-      <ChatSidebar
-        rooms={sidebarRooms}
-        activeRoomId={roomId}
-        className="hidden md:flex w-96 min-w-[384px] border-r border-border"
-      />
-
-      {/* Chat window */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <ChatWindow
-          roomId={roomId}
-          roomName={displayName}
-          roomType={room.type as 'trip' | 'general' | 'direct'}
-          initialMessages={(msgs || []) as Message[]}
-          currentUser={profile as Profile}
-          memberProfiles={memberProfiles}
-        />
-      </div>
-    </div>
+    <ChatWindow
+      roomId={roomId}
+      roomName={displayName}
+      roomType={room.type as 'trip' | 'general' | 'direct'}
+      initialMessages={(msgs || []) as Message[]}
+      currentUser={profile as Profile}
+      memberProfiles={memberProfiles}
+    />
   )
 }

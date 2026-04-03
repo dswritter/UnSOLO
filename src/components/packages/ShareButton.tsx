@@ -19,7 +19,7 @@ export function ShareButton({ slug, title, location, pricePaise, durationDays, v
   const [copied, setCopied] = useState(false)
 
   const url = `${APP_URL}/packages/${slug}`
-  const message = `Check out this trip: ${title} - ${location} | ${formatPrice(pricePaise)}/person | ${durationDays} days\n${url}`
+  const message = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${formatPrice(pricePaise)}/person | ${durationDays} days\n${url}`
   const whatsappUrl = `https://wa.me/919760778373?text=${encodeURIComponent(message)}`
 
   async function handleShare() {

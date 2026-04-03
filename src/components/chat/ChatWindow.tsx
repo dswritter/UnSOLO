@@ -556,9 +556,17 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
                       const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
                       if (!confirmed) return
                       const sb = (await import('@/lib/supabase/client')).createClient()
+                      // Post system message that user left
+                      await sb.from('messages').insert({
+                        room_id: roomId,
+                        user_id: null,
+                        content: `${currentUser.full_name || currentUser.username} left the chat`,
+                        message_type: 'system',
+                      })
                       await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
                       toast.success('Left the chat room')
-                      if (onBack) onBack()
+                      // Navigate back to community
+                      window.location.href = '/community'
                     }}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
                   >

@@ -14,14 +14,14 @@ export default async function CommunityPage() {
   const rooms = await getSidebarRooms(supabase, user.id)
 
   return (
-    <div className="h-[calc(100dvh-64px)] flex">
-      {/* Sidebar — full width on mobile, fixed on desktop */}
+    <>
+      {/* Mobile: show sidebar full-width (desktop sidebar is in layout) */}
       <ChatSidebar
         rooms={rooms}
-        className="w-full md:w-96 md:min-w-[384px] border-r border-border"
+        className="flex md:hidden w-full"
       />
 
-      {/* Empty state — desktop only */}
+      {/* Desktop: empty state */}
       <div className="hidden md:flex flex-1 items-center justify-center">
         <div className="text-center">
           <MessageCircle className="h-16 w-16 mx-auto mb-4 text-primary/20" />
@@ -29,6 +29,6 @@ export default async function CommunityPage() {
           <p className="text-sm text-muted-foreground/60 mt-1">Choose from your chats on the left</p>
         </div>
       </div>
-    </div>
+    </>
   )
 }

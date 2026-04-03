@@ -23,9 +23,9 @@ function formatPrice(paise: number) {
 
 export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
   const [current, setCurrent] = useState(0)
+  const [paused, setPaused] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Total slides: 1 (hero text) + featured packages
   const totalSlides = 1 + packages.length
 
   function goTo(idx: number) {
@@ -35,15 +35,27 @@ export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
   function next() { goTo(current + 1) }
   function prev() { goTo(current - 1) }
 
-  // Auto-advance every 5s
+  // Auto-advance every 5s (only when not paused)
   useEffect(() => {
+    if (paused) return
     timerRef.current = setInterval(next, 5000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [current, totalSlides]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current, totalSlides, paused]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ESC key resumes auto-advance
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && paused) {
+        setPaused(false)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [paused])
 
   function resetTimer() {
     if (timerRef.current) clearInterval(timerRef.current)
-    timerRef.current = setInterval(next, 5000)
+    if (!paused) timerRef.current = setInterval(next, 5000)
   }
 
   const pkg = current > 0 ? packages[current - 1] : null
@@ -95,10 +107,10 @@ export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
               </div>
             </div>
           ) : pkg ? (
-            /* Slide 1+: Featured package */
-            <Link href={`/packages/${pkg.slug}`} key={pkg.slug} className="block animate-fade-in group">
+            /* Slide 1+: Featured package — click pauses carousel */
+            <div key={pkg.slug} className="animate-fade-in" onClick={() => setPaused(true)}>
               <Badge className="mb-4 bg-primary/90 text-black border-0 text-xs">Featured Trip</Badge>
-              <h2 className="text-4xl md:text-6xl font-black text-white mb-3 group-hover:text-primary transition-colors">
+              <h2 className="text-4xl md:text-6xl font-black text-white mb-3">
                 {pkg.title}
               </h2>
               {pkg.destination && (
@@ -114,10 +126,13 @@ export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
                 <span className="text-white/40">·</span>
                 <span className="text-white/60">{pkg.duration_days} days</span>
               </div>
-              <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90">
-                View Trip <ArrowRight className="ml-2 h-5 w-5" />
+              <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90" asChild>
+                <Link href={`/packages/${pkg.slug}`}>View Trip <ArrowRight className="ml-2 h-5 w-5" /></Link>
               </Button>
-            </Link>
+              {paused && (
+                <p className="text-white/30 text-xs mt-4">Press Esc to resume slideshow</p>
+              )}
+            </div>
           ) : null}
         </div>
       </div>

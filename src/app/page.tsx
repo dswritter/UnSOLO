@@ -32,12 +32,14 @@ async function getCurrentProfile() {
 
 async function getStats() {
   const supabase = await createClient()
-  const [{ count: travelers }, { count: trips }, { count: destinations }] = await Promise.all([
+  const [{ count: travelers }, { count: confirmedTrips }, { count: completedTrips }, { count: destinations }] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
+    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
     supabase.from('destinations').select('*', { count: 'exact', head: true }),
   ])
-  return { travelers: travelers || 0, trips: trips || 0, destinations: destinations || 0 }
+  const totalTrips = (confirmedTrips || 0) + (completedTrips || 0)
+  return { travelers: travelers || 0, trips: totalTrips, destinations: destinations || 0 }
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
