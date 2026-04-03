@@ -129,9 +129,6 @@ export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
               <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90" asChild>
                 <Link href={`/packages/${pkg.slug}`}>View Trip <ArrowRight className="ml-2 h-5 w-5" /></Link>
               </Button>
-              {paused && (
-                <p className="text-white/30 text-xs mt-4">Press Esc to resume slideshow</p>
-              )}
             </div>
           ) : null}
         </div>

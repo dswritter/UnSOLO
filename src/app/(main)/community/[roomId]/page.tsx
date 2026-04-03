@@ -49,6 +49,32 @@ export default async function CommunityRoomPage({
   }
 
   if (!membership && room.type !== 'general' && room.type !== 'direct') {
+    // Check if user has a booking for this trip (they may have left the chat)
+    const { data: hasBooking } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('package_id', room.package_id)
+      .in('status', ['confirmed', 'completed'])
+      .limit(1)
+      .single()
+
+    if (hasBooking) {
+      // User left the chat but has a booking — show rejoin option
+      return (
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center space-y-4">
+            <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+            <h2 className="text-xl font-bold">You left this chat</h2>
+            <p className="text-muted-foreground text-sm">Rejoin to see new messages and participate.</p>
+            <form action={async () => { 'use server'; await joinRoom(roomId) }}>
+              <Button type="submit" className="bg-primary text-black">Rejoin Chat</Button>
+            </form>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">

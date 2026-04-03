@@ -880,6 +880,31 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
 
   if (message.message_type === 'system') {
+    // Make usernames in system messages clickable
+    // Pattern: "Username (@handle) has joined" or "Username left the chat"
+    const joinMatch = message.content.match(/^(.+?) \(@(\w+)\) has joined/)
+    const leftMatch = message.content.match(/^(.+?) left the chat$/)
+
+    if (joinMatch) {
+      return (
+        <div className="text-center">
+          <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+            <Link href={`/profile/${joinMatch[2]}`} className="text-primary hover:underline font-medium">{joinMatch[1]}</Link> joined the chat
+          </span>
+        </div>
+      )
+    }
+
+    if (leftMatch) {
+      return (
+        <div className="text-center">
+          <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
+            <span className="font-medium">{leftMatch[1]}</span> left the chat
+          </span>
+        </div>
+      )
+    }
+
     return (
       <div className="text-center">
         <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
