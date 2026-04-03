@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { NotificationPrompt } from './NotificationPrompt'
 import Link from 'next/link'
 
 export interface SidebarRoom {
@@ -88,6 +89,9 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           ))}
         </div>
       </div>
+
+      {/* Notification prompt */}
+      <NotificationPrompt />
 
       {/* Room list — scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">

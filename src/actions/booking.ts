@@ -9,6 +9,7 @@ export async function createRazorpayOrder(
   packageId: string,
   travelDate: string,
   guests: number,
+  useWalletCredits: boolean = false,
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -75,7 +76,26 @@ export async function createRazorpayOrder(
     return { error: 'Travel date cannot be more than 2 years in the future' }
   }
 
-  const totalPaise = pkg.price_paise * guests
+  let totalPaise = pkg.price_paise * guests
+  let walletDeducted = 0
+
+  // Apply wallet credits if requested
+  if (useWalletCredits) {
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('referral_credits_paise')
+      .eq('id', user.id)
+      .single()
+
+    const availableCredits = userProfile?.referral_credits_paise || 0
+    if (availableCredits > 0) {
+      // Deduct up to the total amount (can't go below ₹1 for Razorpay minimum)
+      const minPayment = 100 // ₹1 in paise — Razorpay minimum
+      walletDeducted = Math.min(availableCredits, totalPaise - minPayment)
+      if (walletDeducted < 0) walletDeducted = 0
+      totalPaise -= walletDeducted
+    }
+  }
 
   // Create Razorpay order
   const order = await razorpay.orders.create({
@@ -101,6 +121,7 @@ export async function createRazorpayOrder(
       travel_date: travelDate,
       guests,
       total_amount_paise: totalPaise,
+      wallet_deducted_paise: walletDeducted,
       stripe_session_id: order.id, // reusing column for razorpay order id
     })
     .select()
@@ -168,6 +189,22 @@ export async function confirmPayment(
 
   if (!booking) {
     return { error: 'Booking not found' }
+  }
+
+  // Deduct wallet credits if any were used
+  if (booking.wallet_deducted_paise && booking.wallet_deducted_paise > 0) {
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('referral_credits_paise')
+      .eq('id', user.id)
+      .single()
+
+    const currentCredits = userProfile?.referral_credits_paise || 0
+    const newCredits = Math.max(0, currentCredits - booking.wallet_deducted_paise)
+    await supabase
+      .from('profiles')
+      .update({ referral_credits_paise: newCredits })
+      .eq('id', user.id)
   }
 
   // Find or create trip chat room

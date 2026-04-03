@@ -203,7 +203,7 @@ export function BookingFormClient({
     setLoading(true)
 
     try {
-      const result = await createRazorpayOrder(packageId, selectedDate, guests)
+      const result = await createRazorpayOrder(packageId, selectedDate, guests, applyCredits)
 
       if ('error' in result) {
         toast.error(result.error)

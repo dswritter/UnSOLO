@@ -1,9 +1,11 @@
-export const dynamic = 'force-dynamic'
+// Let Next.js cache this page briefly — realtime handles live updates
+export const revalidate = 30 // Cache for 30 seconds
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { joinRoom } from '@/actions/chat'
+import { JoinRoomButton } from '@/components/chat/JoinRoomButton'
 import { Button } from '@/components/ui/button'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -67,9 +69,7 @@ export default async function CommunityRoomPage({
             <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
             <h2 className="text-xl font-bold">You left this chat</h2>
             <p className="text-muted-foreground text-sm">Rejoin to see new messages and participate.</p>
-            <form action={async () => { 'use server'; await joinRoom(roomId) }}>
-              <Button type="submit" className="bg-primary text-black">Rejoin Chat</Button>
-            </form>
+            <JoinRoomButton roomId={roomId} label="Rejoin Chat" />
           </div>
         </div>
       )
@@ -88,16 +88,13 @@ export default async function CommunityRoomPage({
   }
 
   if (!membership && room.type === 'general') {
-    // Don't auto-join — show join prompt
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">{room.name}</h2>
           <p className="text-muted-foreground text-sm">Join this community to see chats and participate.</p>
-          <form action={async () => { 'use server'; await joinRoom(roomId) }}>
-            <Button type="submit" className="bg-primary text-black">Join Community</Button>
-          </form>
+          <JoinRoomButton roomId={roomId} label="Join Community" />
         </div>
       </div>
     )
