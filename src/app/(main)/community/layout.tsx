@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { NotificationPrompt } from '@/components/chat/NotificationPrompt'
 
 export default async function CommunityLayout({
   children,
@@ -25,6 +26,7 @@ export default async function CommunityLayout({
       />
       {/* Page content — swapped by Next.js without re-rendering sidebar */}
       <div className="flex-1 flex flex-col min-w-0">
+        <NotificationPrompt />
         {children}
       </div>
     </div>

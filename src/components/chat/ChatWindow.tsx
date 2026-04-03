@@ -515,17 +515,15 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {isConnected ? (
-                <span className="flex items-center gap-1"><Wifi className="h-3 w-3 text-green-400" /> Live</span>
-              ) : (
-                <span className="flex items-center gap-1"><WifiOff className="h-3 w-3 text-red-400" /> Connecting...</span>
+            <button onClick={() => setShowMembers(!showMembers)} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {onlineCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                  {onlineCount} active
+                </span>
               )}
-              <span>·</span>
-              <button onClick={() => setShowMembers(!showMembers)} className="hover:text-white transition-colors">
-                <span className="text-green-400">{onlineCount}</span> online · {memberProfiles.length} members
-              </button>
-            </div>
+              <span>{memberProfiles.length} members</span>
+            </button>
           )}
           </div>
         </div>
