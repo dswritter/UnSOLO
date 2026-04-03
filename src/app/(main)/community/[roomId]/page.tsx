@@ -88,7 +88,19 @@ export default async function CommunityRoomPage({
   }
 
   if (!membership && room.type === 'general') {
-    await joinRoom(roomId)
+    // Don't auto-join — show join prompt
+    return (
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="text-center space-y-4">
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <h2 className="text-xl font-bold">{room.name}</h2>
+          <p className="text-muted-foreground text-sm">Join this community to see chats and participate.</p>
+          <form action={async () => { 'use server'; await joinRoom(roomId) }}>
+            <Button type="submit" className="bg-primary text-black">Join Community</Button>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   const [{ data: msgs }, { data: profile }, { data: members }] = await Promise.all([

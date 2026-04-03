@@ -557,10 +557,13 @@ function BookingItem({
                 <DateChanger bookingId={booking.id} currentDate={booking.travel_date} />
               )}
 
-              {/* Cancellation - for pending or confirmed bookings */}
-              {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (
-                <CancelRequester bookingId={booking.id} />
-              )}
+              {/* Cancellation - for pending or confirmed bookings that haven't ended yet */}
+              {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (() => {
+                const endDate = new Date(booking.travel_date)
+                endDate.setDate(endDate.getDate() + (duration || 1))
+                const tripEnded = endDate < new Date()
+                return tripEnded ? null : <CancelRequester bookingId={booking.id} />
+              })()}
 
               {booking.cancellation_status === 'requested' && (
                 <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">

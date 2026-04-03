@@ -31,9 +31,12 @@ async function getCurrentProfile() {
 }
 
 async function getStats() {
-  // Use service client to bypass RLS — these are platform-wide counts
-  const { createServiceClient } = await import('@/lib/supabase/server')
-  const supabase = await createServiceClient()
+  // Use direct supabase-js service client to bypass RLS completely
+  const { createClient: createSvcClient } = await import('@supabase/supabase-js')
+  const supabase = createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
   const [{ count: travelers }, { count: confirmedTrips }, { count: completedTrips }, { count: destinations }] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),

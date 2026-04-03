@@ -103,59 +103,51 @@ export async function POST(request: Request) {
       results.expiredGroups++
     }
 
-    // 3. Send review reminders for trips that ended yesterday
-    // Find confirmed bookings where the trip end date was yesterday
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split('T')[0]
+    // 3. Auto-complete confirmed bookings whose trip end date has passed
+    // and send review reminders the day after trip ends
+    const today = new Date().toISOString().split('T')[0]
 
-    const { data: endedBookings } = await supabase
+    const { data: confirmedBookings } = await supabase
       .from('bookings')
-      .select('id, user_id, package_id, package:packages(title, slug, departure_dates, duration_days)')
+      .select('id, user_id, travel_date, package:packages(title, slug, duration_days)')
       .eq('status', 'confirmed')
 
-    for (const booking of endedBookings || []) {
-      const pkg = booking.package as unknown as { title: string; slug: string; departure_dates?: string[]; duration_days?: number }
-      if (!pkg?.departure_dates?.length || !pkg.duration_days) continue
+    for (const booking of confirmedBookings || []) {
+      const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number }
+      const duration = pkg?.duration_days || 1
 
-      // Find the departure date for this booking (closest past date)
-      const sortedDates = [...pkg.departure_dates].sort()
-      const departureDate = sortedDates.find(d => d <= yesterdayStr) || sortedDates[0]
-      if (!departureDate) continue
-
-      // Calculate end date
-      const endDate = new Date(departureDate)
-      endDate.setDate(endDate.getDate() + pkg.duration_days)
+      // Calculate trip end date from booking's travel_date
+      const endDate = new Date(booking.travel_date)
+      endDate.setDate(endDate.getDate() + duration)
       const endDateStr = endDate.toISOString().split('T')[0]
 
-      // If trip ended yesterday, send a review reminder
-      if (endDateStr === yesterdayStr) {
-        // Check if we already sent this notification
-        const { data: existing } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('user_id', booking.user_id)
-          .eq('type', 'review')
-          .ilike('body', `%${pkg.slug}%`)
-          .limit(1)
+      // If trip has ended (end date <= today), auto-complete and send review notification
+      if (endDateStr <= today) {
+        // Mark as completed
+        await supabase.from('bookings').update({ status: 'completed' }).eq('id', booking.id)
 
-        if (!existing?.length) {
-          await supabase.from('notifications').insert({
-            user_id: booking.user_id,
-            type: 'review',
-            title: 'How was your trip?',
-            body: `Thanks for traveling with UnSOLO! Share your experience on ${pkg.title} and earn 10 leaderboard points.`,
-            link: `/packages/${pkg.slug}#reviews`,
-          })
+        // Send review reminder (if not already sent)
+        if (pkg?.slug) {
+          const { data: existing } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', booking.user_id)
+            .eq('type', 'review')
+            .ilike('body', `%${pkg.slug}%`)
+            .limit(1)
 
-          // Update booking status to completed
-          await supabase
-            .from('bookings')
-            .update({ status: 'completed' })
-            .eq('id', booking.id)
-
-          results.reviewReminders++
+          if (!existing?.length) {
+            await supabase.from('notifications').insert({
+              user_id: booking.user_id,
+              type: 'review',
+              title: 'How was your trip?',
+              body: `Thanks for traveling with UnSOLO! Share your experience on ${pkg.title} and earn 10 leaderboard points.`,
+              link: `/packages/${pkg.slug}#reviews`,
+            })
+          }
         }
+
+        results.reviewReminders++
       }
     }
   } catch (err) {

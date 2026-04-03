@@ -560,7 +560,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
                       await sb.from('messages').insert({
                         room_id: roomId,
                         user_id: null,
-                        content: `${currentUser.full_name || currentUser.username} left the chat`,
+                        content: `${currentUser.full_name || currentUser.username} (@${currentUser.username}) left the chat`,
                         message_type: 'system',
                       })
                       await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
@@ -881,9 +881,9 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
 
   if (message.message_type === 'system') {
     // Make usernames in system messages clickable
-    // Pattern: "Username (@handle) has joined" or "Username left the chat"
-    const joinMatch = message.content.match(/^(.+?) \(@(\w+)\) has joined/)
-    const leftMatch = message.content.match(/^(.+?) left the chat$/)
+    // Pattern: "🎉 Username (@handle) has joined" or "Username left the chat"
+    const joinMatch = message.content.match(/^[🎉\s]*(.+?) \(@(\w+)\) has joined/)
+    const leftMatch = message.content.match(/^(.+?) \(@(\w+)\) left the chat$/)
 
     if (joinMatch) {
       return (
@@ -899,7 +899,7 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
       return (
         <div className="text-center">
           <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-            <span className="font-medium">{leftMatch[1]}</span> left the chat
+            <Link href={`/profile/${leftMatch[2]}`} className="text-primary hover:underline font-medium">{leftMatch[1]}</Link> left the chat
           </span>
         </div>
       )
