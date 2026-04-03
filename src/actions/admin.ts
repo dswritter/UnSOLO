@@ -492,7 +492,12 @@ export async function createDestination(name: string, state: string, description
     image_url: imageUrl || null,
   }).select('id, name, state').single()
 
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.message.includes('duplicate') || error.message.includes('unique')) {
+      return { error: `"${name.trim()}, ${state.trim()}" already exists. Please select it from the dropdown.` }
+    }
+    return { error: error.message }
+  }
   return { success: true, id: data.id, name: data.name, state: data.state }
 }
 

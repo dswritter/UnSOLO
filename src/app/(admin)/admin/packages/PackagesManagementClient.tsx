@@ -92,6 +92,11 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
+    if (!editingId && form.images.length === 0) {
+      setMessage({ type: 'error', text: 'Please add at least one thumbnail image for the package.' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
 
     const data = {
       title: form.title,
@@ -303,17 +308,21 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               {showNewDest && (
                 <div className="mt-2 p-3 bg-secondary/50 rounded-lg border border-zinc-700 space-y-2">
                   <Input
-                    placeholder="Destination name (e.g. Kasol)"
+                    placeholder="City/Town/Village name (e.g. Kasol)"
                     value={newDest.name}
                     onChange={e => setNewDest(n => ({ ...n, name: e.target.value }))}
                     className="bg-secondary border-zinc-700 text-sm"
                   />
-                  <Input
-                    placeholder="State (e.g. Himachal Pradesh)"
+                  <select
                     value={newDest.state}
                     onChange={e => setNewDest(n => ({ ...n, state: e.target.value }))}
-                    className="bg-secondary border-zinc-700 text-sm"
-                  />
+                    className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                  >
+                    <option value="">Select state/UT...</option>
+                    {['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Andaman & Nicobar','Chandigarh','Dadra & Nagar Haveli','Daman & Diu','Delhi','Jammu & Kashmir','Ladakh','Lakshadweep','Puducherry'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                   <div className="flex gap-2">
                     <Button size="sm" onClick={handleCreateDestInline} disabled={isPending || !newDest.name || !newDest.state} className="bg-primary text-black text-xs">
                       Create

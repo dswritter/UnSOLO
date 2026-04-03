@@ -6,7 +6,7 @@ import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationPrompt } from './NotificationPrompt'
-import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 
 export interface SidebarRoom {
   id: string
@@ -30,6 +30,11 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'direct' | 'trip' | 'general'>('all')
+  const router = useRouter()
+  const pathname = usePathname()
+
+  // Derive active room from URL if not passed
+  const currentActiveRoom = activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
 
   useEffect(() => {
     const supabase = createClient()
@@ -103,13 +108,18 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
         ) : (
           filtered.map(room => {
             const dmOnline = room.dmProfile ? onlineUsers.has(room.dmProfile.id) : false
-            const isActive = activeRoomId === room.id
+            const isActive = currentActiveRoom === room.id
 
             return (
-              <Link
+              <button
                 key={room.id}
-                href={`/community/${room.id}`}
-                className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 ${
+                onClick={() => {
+                  // Use window.history to change URL without server navigation
+                  window.history.pushState(null, '', `/community/${room.id}`)
+                  // Dispatch popstate to notify React of URL change
+                  window.dispatchEvent(new PopStateEvent('popstate'))
+                }}
+                className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full text-left ${
                   isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
                 }`}
               >
@@ -158,7 +168,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                 {room.isMember === false && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">Join</span>
                 )}
-              </Link>
+              </button>
             )
           })
         )}
