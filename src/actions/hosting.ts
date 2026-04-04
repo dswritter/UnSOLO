@@ -4,6 +4,31 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_FEE_PERCENT, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 
+// ── Host trip management ────────────────────────────────────
+
+export async function toggleHostTripActive(tripId: string) {
+  const { supabase, user } = await requireHost()
+
+  const { data: trip } = await supabase
+    .from('packages')
+    .select('is_active, host_id')
+    .eq('id', tripId)
+    .eq('host_id', user.id)
+    .single()
+
+  if (!trip) return { error: 'Trip not found' }
+
+  const { error } = await supabase
+    .from('packages')
+    .update({ is_active: !trip.is_active })
+    .eq('id', tripId)
+    .eq('host_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/host')
+  return { success: true, is_active: !trip.is_active }
+}
+
 // ── Helpers ─────────────────────────────────────────────────
 
 async function requireHost() {
