@@ -29,6 +29,7 @@ import {
   IndianRupee,
   Tag,
   FileText,
+  Eye,
 } from 'lucide-react'
 
 type Destination = { id: string; name: string; state: string }
@@ -61,7 +62,7 @@ export default function CreateTripPage() {
   const [priceRupees, setPriceRupees] = useState('')
   const [durationDays, setDurationDays] = useState('')
   const [maxGroupSize, setMaxGroupSize] = useState('12')
-  const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(20)
+  const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
   const [difficulty, setDifficulty] = useState('moderate')
   const [departureDates, setDepartureDates] = useState<string[]>([])
   const [selectedIncludes, setSelectedIncludes] = useState<string[]>([])
@@ -100,7 +101,7 @@ export default function CreateTripPage() {
       const { createClient: cc } = await import('@/lib/supabase/client')
       const sb = cc()
       const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
-      if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 20)
+      if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 50)
 
       setLoading(false)
     }
@@ -564,6 +565,35 @@ export default function CreateTripPage() {
                       {opt.label}
                     </button>
                   ))}
+                  {/* Custom includes that aren't in the standard list */}
+                  {selectedIncludes.filter(s => !includesOptions.find(o => o.label === s)).map(custom => (
+                    <button
+                      key={custom}
+                      onClick={() => toggleInclude(custom)}
+                      className="px-3 py-1.5 rounded-lg text-sm border bg-primary/10 border-primary text-primary"
+                    >
+                      <Check className="h-3 w-3 inline mr-1" />{custom}
+                    </button>
+                  ))}
+                </div>
+                {/* Add custom include */}
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    placeholder="Add custom (e.g. Yoga Mats)"
+                    className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm flex-1 max-w-[250px] focus:outline-none focus:border-primary"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = (e.target as HTMLInputElement).value.trim()
+                        if (val && !selectedIncludes.includes(val)) {
+                          setSelectedIncludes(prev => [...prev, val])
+                          ;(e.target as HTMLInputElement).value = ''
+                        }
+                      }
+                    }}
+                  />
+                  <span className="text-[10px] text-muted-foreground self-center">Press Enter</span>
                 </div>
               </div>
             </div>
@@ -732,6 +762,34 @@ export default function CreateTripPage() {
                       {tag}
                     </button>
                   ))}
+                  {/* Custom tags not in standard list */}
+                  {interestTags.filter(t => !(INTEREST_TAGS as readonly string[]).includes(t)).map(custom => (
+                    <button
+                      key={custom}
+                      onClick={() => toggleInterestTag(custom)}
+                      className="px-3 py-1.5 rounded-lg text-sm border bg-primary/10 border-primary text-primary"
+                    >
+                      <Check className="h-3 w-3 inline mr-1" />{custom}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    placeholder="Add custom tag (e.g. Stargazing)"
+                    className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm flex-1 max-w-[250px] focus:outline-none focus:border-primary"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const val = (e.target as HTMLInputElement).value.trim()
+                        if (val && !interestTags.includes(val)) {
+                          toggleInterestTag(val)
+                          ;(e.target as HTMLInputElement).value = ''
+                        }
+                      }
+                    }}
+                  />
+                  <span className="text-[10px] text-muted-foreground self-center">Press Enter</span>
                 </div>
               </div>
             </div>
@@ -900,23 +958,42 @@ export default function CreateTripPage() {
                 <ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button
-                onClick={handleSubmit}
-                disabled={isPending}
-                className="bg-primary text-primary-foreground font-bold gap-1.5"
-              >
-                {isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Submit for Review
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Open preview in new tab with data in sessionStorage
+                    const previewData = {
+                      title, shortDescription, description, priceRupees, durationDays, maxGroupSize,
+                      difficulty, departureDates, selectedIncludes, images, interestTags,
+                      destination: destinationId ? destinations.find(d => d.id === destinationId) : null,
+                    }
+                    sessionStorage.setItem('trip-preview', JSON.stringify(previewData))
+                    window.open('/host/create?preview=1', '_blank')
+                  }}
+                  className="gap-1.5"
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isPending}
+                  className="bg-primary text-primary-foreground font-bold gap-1.5"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Submit for Review
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </div>
         </div>

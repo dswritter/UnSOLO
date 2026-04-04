@@ -76,13 +76,20 @@ export async function getAdminDashboardStats() {
     supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ])
 
-  // Revenue from confirmed + completed bookings
+  // Revenue from confirmed + completed bookings minus refunds
   const { data: revenueData } = await supabase
     .from('bookings')
-    .select('total_amount_paise')
+    .select('total_amount_paise, refund_amount_paise')
     .in('status', ['confirmed', 'completed'])
 
-  const totalRevenue = (revenueData || []).reduce((sum, b) => sum + b.total_amount_paise, 0)
+  const { data: refundedBookings } = await supabase
+    .from('bookings')
+    .select('refund_amount_paise')
+    .eq('cancellation_status', 'approved')
+
+  const grossRevenue = (revenueData || []).reduce((sum, b) => sum + b.total_amount_paise, 0)
+  const totalRefunds = (refundedBookings || []).reduce((sum, b) => sum + (b.refund_amount_paise || 0), 0)
+  const totalRevenue = grossRevenue - totalRefunds
 
   return {
     totalUsers: totalUsers || 0,
