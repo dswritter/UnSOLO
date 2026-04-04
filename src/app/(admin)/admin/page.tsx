@@ -1,66 +1,106 @@
 import { getAdminDashboardStats } from '@/actions/admin'
 import { formatPrice } from '@/types'
-import { Users, CreditCard, Clock, UserCheck, IndianRupee, BookOpen } from 'lucide-react'
+import Link from 'next/link'
+import { Users, CreditCard, Clock, UserCheck, IndianRupee, BookOpen, Package, FileText, Settings, Mountain, ArrowRight } from 'lucide-react'
 
 export default async function AdminDashboardPage() {
   const stats = await getAdminDashboardStats()
 
-  const cards = [
-    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-400' },
-    { label: 'Total Bookings', value: stats.totalBookings, icon: BookOpen, color: 'text-purple-400' },
-    { label: 'Confirmed Bookings', value: stats.confirmedBookings, icon: CreditCard, color: 'text-green-400' },
-    { label: 'Pending Requests', value: stats.pendingRequests, icon: Clock, color: 'text-yellow-400' },
-    { label: 'Team Members', value: stats.teamCount, icon: UserCheck, color: 'text-cyan-400' },
-    { label: 'Total Revenue', value: formatPrice(stats.totalRevenue), icon: IndianRupee, color: 'text-primary' },
-  ]
-
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {cards.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="rounded-xl border border-border bg-card/50 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`p-2 rounded-lg bg-secondary ${color}`}>
-                <Icon className="h-5 w-5" />
-              </div>
-              <span className="text-sm text-muted-foreground">{label}</span>
-            </div>
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-          </div>
-        ))}
+      {/* Compact stats row */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card hover:border-blue-500/30 transition-colors">
+          <Users className="h-4 w-4 text-blue-400" />
+          <span className="text-lg font-bold text-blue-400">{stats.totalUsers}</span>
+          <span className="text-xs text-muted-foreground">Users</span>
+        </Link>
+        <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card hover:border-purple-500/30 transition-colors">
+          <BookOpen className="h-4 w-4 text-purple-400" />
+          <span className="text-lg font-bold text-purple-400">{stats.totalBookings}</span>
+          <span className="text-xs text-muted-foreground">Bookings</span>
+        </Link>
+        <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card hover:border-green-500/30 transition-colors">
+          <CreditCard className="h-4 w-4 text-green-400" />
+          <span className="text-lg font-bold text-green-400">{stats.confirmedBookings}</span>
+          <span className="text-xs text-muted-foreground">Confirmed</span>
+        </Link>
+        <Link href="/admin/requests" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card hover:border-yellow-500/30 transition-colors">
+          <Clock className="h-4 w-4 text-yellow-400" />
+          <span className="text-lg font-bold text-yellow-400">{stats.pendingRequests}</span>
+          <span className="text-xs text-muted-foreground">Pending</span>
+        </Link>
+        <Link href="/admin/team" className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card hover:border-cyan-500/30 transition-colors">
+          <UserCheck className="h-4 w-4 text-cyan-400" />
+          <span className="text-lg font-bold text-cyan-400">{stats.teamCount}</span>
+          <span className="text-xs text-muted-foreground">Team</span>
+        </Link>
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-primary/30 bg-primary/5">
+          <IndianRupee className="h-4 w-4 text-primary" />
+          <span className="text-lg font-bold text-primary">{formatPrice(stats.totalRevenue)}</span>
+          <span className="text-xs text-muted-foreground">Revenue</span>
+        </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <a
-          href="/admin/bookings"
-          className="rounded-xl border border-border bg-card/50 p-5 hover:border-zinc-600 transition-colors"
-        >
-          <h3 className="font-semibold mb-1">Manage Bookings →</h3>
-          <p className="text-sm text-muted-foreground">View all bookings, assign POC, send confirmations</p>
-        </a>
-        <a
-          href="/admin/requests"
-          className="rounded-xl border border-border bg-card/50 p-5 hover:border-zinc-600 transition-colors"
-        >
-          <h3 className="font-semibold mb-1">Custom Requests →</h3>
-          <p className="text-sm text-muted-foreground">Review and respond to custom date requests</p>
-        </a>
-        <a
-          href="/admin/packages"
-          className="rounded-xl border border-border bg-card/50 p-5 hover:border-zinc-600 transition-colors"
-        >
-          <h3 className="font-semibold mb-1">Manage Packages →</h3>
-          <p className="text-sm text-muted-foreground">Create, edit, activate/deactivate travel packages & destinations</p>
-        </a>
-        <a
-          href="/admin/team"
-          className="rounded-xl border border-border bg-card/50 p-5 hover:border-zinc-600 transition-colors"
-        >
-          <h3 className="font-semibold mb-1">Team Management →</h3>
-          <p className="text-sm text-muted-foreground">Add social media managers, field persons, chat responders</p>
-        </a>
+      {/* Quick actions grid */}
+      <h2 className="text-lg font-bold mb-3">Quick Actions</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Link href="/admin/bookings" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Manage Bookings</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">View, assign POC, confirmations</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+        <Link href="/admin/requests" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Custom Requests</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Review custom date requests</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+        <Link href="/admin/packages" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Manage Packages</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Create, edit packages & destinations</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+        <Link href="/admin/community-trips" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Community Trips</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Approve host-created trips</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+        <Link href="/admin/discounts" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Discounts</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Manage promo codes & offers</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+        <Link href="/admin/team" className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-sm">Team Management</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Manage staff & roles</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
       </div>
     </div>
   )
