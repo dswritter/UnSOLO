@@ -457,6 +457,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               >
                 <Upload className="h-3 w-3" /> {uploading ? 'Uploading...' : 'Upload from Device'}
               </Button>
+              <span className="text-[10px] text-muted-foreground">16:9 ratio recommended</span>
               <span className="text-zinc-600 text-xs">or</span>
               <Input
                 value={imageUrlInput}

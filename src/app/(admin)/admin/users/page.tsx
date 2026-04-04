@@ -16,11 +16,14 @@ export default async function AdminUsersPage() {
   // Use service client to bypass RLS for admin queries
   const svc = createSvcClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-  const { data: users } = await svc
+  const { data: users, error: usersError } = await svc
     .from('profiles')
-    .select('id, username, full_name, avatar_url, email, phone_number, is_host, is_phone_verified, is_email_verified, instagram_url, created_at, role')
+    .select('id, username, full_name, avatar_url, phone_number, is_host, is_phone_verified, instagram_url, created_at, role')
     .order('created_at', { ascending: false })
     .limit(500)
+
+  // Debug: log if query failed
+  if (usersError) console.error('Users query error:', usersError.message)
 
   // Get booking stats per user
   const { data: bookingStats } = await svc

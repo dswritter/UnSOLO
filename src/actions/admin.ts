@@ -352,7 +352,9 @@ export async function removeTeamMember(teamMemberId: string) {
 // ── Custom Date Requests Management ──────────────────────────
 
 export async function getAdminCustomRequests(status?: string) {
-  const { supabase } = await requireStaff()
+  await requireStaff() // verify auth
+  const { createClient: createSvc } = await import('@supabase/supabase-js')
+  const supabase = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
   let query = supabase
     .from('custom_date_requests')

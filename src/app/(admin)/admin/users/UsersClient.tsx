@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Search, Phone, Mail, Instagram, Shield, Mountain } from 'lucide-react'
+import { Search, Phone, Instagram, Mountain } from 'lucide-react'
 import Link from 'next/link'
 
 interface UserEntry {
@@ -11,11 +11,9 @@ interface UserEntry {
   username: string
   full_name: string | null
   avatar_url: string | null
-  email: string | null
   phone_number: string | null
   is_host: boolean | null
   is_phone_verified: boolean | null
-  is_email_verified: boolean | null
   instagram_url: string | null
   created_at: string
   role: string
@@ -37,8 +35,7 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
     if (search.trim()) {
       const q = search.toLowerCase()
       return (u.full_name || '').toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q) ||
-        (u.email || '').toLowerCase().includes(q)
+        u.username.toLowerCase().includes(q)
     }
     return true
   })
@@ -122,7 +119,6 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
               <div className="col-span-1 text-center text-xs text-red-400">{u.bookings.cancelled || 0}</div>
               <div className="col-span-2 flex gap-1">
                 {u.is_phone_verified && <Phone className="h-3 w-3 text-green-400" />}
-                {u.is_email_verified && <Mail className="h-3 w-3 text-blue-400" />}
                 {u.instagram_url && <Instagram className="h-3 w-3 text-pink-400" />}
                 {u.is_host && <Mountain className="h-3 w-3 text-primary" />}
               </div>

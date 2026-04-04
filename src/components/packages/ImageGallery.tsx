@@ -15,7 +15,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
 
   if (!images || images.length === 0) {
     return (
-      <div className="relative h-72 md:h-96 rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
         <Mountain className="h-20 w-20 text-primary/30" />
       </div>
     )
@@ -32,7 +32,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   return (
     <>
       {/* Main image */}
-      <div className="relative h-72 md:h-96 rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)}>
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)}>
         <Image
           src={images[current]}
           alt={`${title} - ${current + 1}`}

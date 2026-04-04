@@ -604,7 +604,7 @@ export default function CreateTripPage() {
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Trip Images</h2>
               <p className="text-sm text-muted-foreground">
-                Add at least one image. High-quality photos attract more travelers.
+                Add at least one image. Use 16:9 ratio photos for best display (e.g. 1920×1080).
               </p>
 
               {/* Current images */}
