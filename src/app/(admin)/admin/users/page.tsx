@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { UsersClient } from './UsersClient'
+import { createClient as createSvcClient } from '@supabase/supabase-js'
 
 export default async function AdminUsersPage() {
   const supabase = await createClient()
@@ -12,14 +13,17 @@ export default async function AdminUsersPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') redirect('/')
 
-  const { data: users } = await supabase
+  // Use service client to bypass RLS for admin queries
+  const svc = createSvcClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const { data: users } = await svc
     .from('profiles')
     .select('id, username, full_name, avatar_url, email, phone_number, is_host, is_phone_verified, is_email_verified, instagram_url, created_at, role')
     .order('created_at', { ascending: false })
     .limit(500)
 
   // Get booking stats per user
-  const { data: bookingStats } = await supabase
+  const { data: bookingStats } = await svc
     .from('bookings')
     .select('user_id, status')
 

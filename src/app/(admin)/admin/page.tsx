@@ -72,7 +72,6 @@ export default async function AdminDashboardPage() {
               <span className="text-xs text-muted-foreground">Custom Date Requests</span>
             </Link>
             <Link href="/admin/revenue" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
-              <IndianRupee className="h-4 w-4 text-primary" />
               <span className="text-lg font-bold text-primary">{fmtPrice(stats.totalRevenue)}</span>
               <span className="text-xs text-muted-foreground">Net Revenue</span>
             </Link>

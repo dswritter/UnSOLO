@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { IndianRupee } from 'lucide-react'
 
 function fmtPrice(paise: number) {
   return `₹${Math.round(paise / 100).toLocaleString('en-IN')}`
@@ -16,8 +16,11 @@ export default async function AdminRevenuePage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') redirect('/')
 
+  // Use service client to bypass RLS
+  const svc = createSvcClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
   // Revenue by package
-  const { data: bookings } = await supabase
+  const { data: bookings } = await svc
     .from('bookings')
     .select('total_amount_paise, refund_amount_paise, cancellation_status, status, user_id, package:packages(title, slug), user:profiles!bookings_user_id_fkey(username, full_name)')
     .in('status', ['confirmed', 'completed'])
@@ -89,7 +92,7 @@ export default async function AdminRevenuePage() {
               <p className="text-sm text-muted-foreground text-center py-6">No revenue yet</p>
             ) : packageBreakdown.map(p => (
               <div key={p.slug} className="grid grid-cols-3 px-4 py-2.5 border-t border-border/50 items-center">
-                <span className="text-sm font-medium truncate">{p.title}</span>
+                <a href={`/packages/${p.slug}`} target="_blank" className="text-sm font-medium truncate text-primary hover:underline">{p.title}</a>
                 <span className="text-sm text-center text-muted-foreground">{p.bookings}</span>
                 <span className="text-sm text-right font-bold text-primary">{fmtPrice(p.revenue)}</span>
               </div>
@@ -108,10 +111,10 @@ export default async function AdminRevenuePage() {
               <p className="text-sm text-muted-foreground text-center py-6">No revenue yet</p>
             ) : userBreakdown.slice(0, 20).map(u => (
               <div key={u.username} className="grid grid-cols-3 px-4 py-2.5 border-t border-border/50 items-center">
-                <span className="text-sm truncate">
-                  <span className="font-medium">{u.name}</span>
+                <a href={`/profile/${u.username}`} target="_blank" className="text-sm truncate hover:underline">
+                  <span className="font-medium text-primary">{u.name}</span>
                   <span className="text-[10px] text-muted-foreground ml-1">@{u.username}</span>
-                </span>
+                </a>
                 <span className="text-sm text-center text-muted-foreground">{u.bookings}</span>
                 <span className="text-sm text-right font-bold text-primary">{fmtPrice(u.spent)}</span>
               </div>

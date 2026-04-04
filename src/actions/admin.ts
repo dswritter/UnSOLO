@@ -60,7 +60,10 @@ async function requireStaff() {
 // ── Dashboard Stats ──────────────────────────────────────────
 
 export async function getAdminDashboardStats() {
-  const { supabase } = await requireStaff()
+  await requireStaff() // verify auth
+  // Use service client for platform-wide counts (bypasses RLS)
+  const { createClient: createSvc } = await import('@supabase/supabase-js')
+  const supabase = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
   const [
     { count: totalUsers },
