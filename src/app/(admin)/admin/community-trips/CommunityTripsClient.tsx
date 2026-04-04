@@ -112,6 +112,11 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                   <Badge className={MOD_COLORS[trip.moderation_status] || ''}>
                     {trip.moderation_status}
                   </Badge>
+                  {!trip.is_active && (
+                    <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px]">
+                      Hidden by Host
+                    </Badge>
+                  )}
                   <span className="text-primary font-bold text-sm">{formatPrice(trip.price_paise)}</span>
                   {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </div>

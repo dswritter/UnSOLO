@@ -76,11 +76,11 @@ export async function getAdminDashboardStats() {
     supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ])
 
-  // Revenue from confirmed bookings
+  // Revenue from confirmed + completed bookings
   const { data: revenueData } = await supabase
     .from('bookings')
     .select('total_amount_paise')
-    .eq('status', 'confirmed')
+    .in('status', ['confirmed', 'completed'])
 
   const totalRevenue = (revenueData || []).reduce((sum, b) => sum + b.total_amount_paise, 0)
 
