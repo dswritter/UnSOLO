@@ -21,10 +21,12 @@ import { useState } from 'react'
 
 const navItems: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[] }[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
+  { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
   { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
   { href: '/admin/requests', label: 'Custom Requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'] },
   { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'] },
   { href: '/admin/community-trips', label: 'Community Trips', icon: Mountain, roles: ['admin'] },
+  { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
   { href: '/admin/team', label: 'Team', icon: Users, roles: ['admin'] },

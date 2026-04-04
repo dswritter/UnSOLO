@@ -66,12 +66,16 @@ export async function getAdminDashboardStats() {
     { count: totalUsers },
     { count: totalBookings },
     { count: confirmedBookings },
-    { count: pendingRequests },
+    { count: pendingBookings },
+    { count: cancellationRequested },
+    { count: pendingDateRequests },
     { count: teamCount },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
+    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('cancellation_status', 'requested'),
     supabase.from('custom_date_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
   ])
@@ -95,7 +99,9 @@ export async function getAdminDashboardStats() {
     totalUsers: totalUsers || 0,
     totalBookings: totalBookings || 0,
     confirmedBookings: confirmedBookings || 0,
-    pendingRequests: pendingRequests || 0,
+    pendingBookings: pendingBookings || 0,
+    cancellationRequested: cancellationRequested || 0,
+    pendingDateRequests: pendingDateRequests || 0,
     teamCount: teamCount || 0,
     totalRevenue,
   }

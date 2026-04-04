@@ -21,7 +21,16 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function AdminBookingsClient({ bookings: initialBookings, staffMembers }: Props) {
-  const [filter, setFilter] = useState('all')
+  // Read initial filter from URL params
+  const [filter, setFilter] = useState(() => {
+    if (typeof window === 'undefined') return 'all'
+    const params = new URLSearchParams(window.location.search)
+    const s = params.get('status')
+    const c = params.get('cancellation')
+    if (c === 'requested') return 'cancellation_requested'
+    if (s && ['pending', 'confirmed', 'completed', 'cancelled'].includes(s)) return s
+    return 'all'
+  })
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Record<string, string>>({})
