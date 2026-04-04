@@ -5,14 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { ChatPageClient } from '@/components/chat/ChatPageClient'
+import { MobileChatView } from '@/components/chat/MobileChatView'
 import type { Profile } from '@/types'
 
 export default async function CommunityLayout({
   children,
-  params,
 }: {
   children: React.ReactNode
-  params: Promise<{ roomId?: string }>
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -25,20 +24,18 @@ export default async function CommunityLayout({
 
   return (
     <div className="h-[calc(100dvh-64px)] flex">
-      {/* Sidebar */}
+      {/* Desktop: sidebar + client-side chat */}
       <ChatSidebar
         rooms={rooms}
         className="hidden md:flex w-96 min-w-[384px] border-r border-border"
       />
-
-      {/* Desktop: client-side chat area (instant switching) */}
       <div className="hidden md:flex flex-1 flex-col min-w-0">
         <ChatPageClient currentUser={profile as Profile} />
       </div>
 
-      {/* Mobile: use server-rendered pages for proper back navigation */}
+      {/* Mobile: full client-side with sidebar/chat toggle */}
       <div className="flex md:hidden flex-1 flex-col min-w-0">
-        {children}
+        <MobileChatView rooms={rooms} currentUser={profile as Profile} />
       </div>
     </div>
   )

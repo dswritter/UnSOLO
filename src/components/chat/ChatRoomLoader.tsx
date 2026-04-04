@@ -8,6 +8,7 @@ import type { Message, Profile } from '@/types'
 interface ChatRoomLoaderProps {
   roomId: string
   currentUser: Profile
+  onBack?: () => void
 }
 
 interface CachedRoom {
@@ -22,7 +23,7 @@ interface CachedRoom {
 // Global cache — persists across component remounts
 const roomCache = new Map<string, CachedRoom>()
 
-export function ChatRoomLoader({ roomId, currentUser }: ChatRoomLoaderProps) {
+export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderProps) {
   const [roomData, setRoomData] = useState<CachedRoom | null>(roomCache.get(roomId) || null)
   const [loading, setLoading] = useState(!roomCache.has(roomId))
   const loadingRef = useRef<string | null>(null)
@@ -138,6 +139,7 @@ export function ChatRoomLoader({ roomId, currentUser }: ChatRoomLoaderProps) {
       initialMessages={roomData.messages}
       currentUser={currentUser}
       memberProfiles={roomData.memberProfiles}
+      onBack={onBack}
     />
   )
 }

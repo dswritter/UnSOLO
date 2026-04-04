@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { formatPrice, type Package, type Destination } from '@/types'
-import { createPackage, updatePackage, togglePackageActive, createDestination, addIncludesOption } from '@/actions/admin'
+import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -547,6 +547,25 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 disabled={isPending}
               >
                 {pkg.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button
+                size="sm" variant="ghost"
+                className="text-red-500 hover:text-red-400"
+                onClick={() => {
+                  if (!window.confirm(`Delete "${pkg.title}"? This cannot be undone.`)) return
+                  startTransition(async () => {
+                    const res = await deletePackage(pkg.id)
+                    if (res.error) setMessage({ type: 'error', text: res.error })
+                    else {
+                      setPackages(prev => prev.filter(p => p.id !== pkg.id))
+                      setMessage({ type: 'success', text: 'Package deleted' })
+                    }
+                  })
+                }}
+                disabled={isPending}
+                title="Delete package"
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>

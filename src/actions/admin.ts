@@ -466,15 +466,41 @@ export async function togglePackageActive(packageId: string, isActive: boolean) 
   return { success: true }
 }
 
+export async function deletePackage(packageId: string) {
+  const { supabase } = await requireAdmin()
+
+  // Check for active bookings
+  const { count } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+    .in('status', ['pending', 'confirmed'])
+
+  if (count && count > 0) {
+    return { error: `Cannot delete: ${count} active booking(s) exist for this package. Deactivate it instead.` }
+  }
+
+  const { error } = await supabase
+    .from('packages')
+    .delete()
+    .eq('id', packageId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
 export async function createDestination(name: string, state: string, description?: string, imageUrl?: string) {
   const { supabase } = await requireAdmin()
 
-  // Check if destination already exists (same name + state)
+  // Check if destination already exists (case-insensitive name + state)
+  const trimName = name.trim()
+  const trimState = state.trim()
   const { data: existing } = await supabase
     .from('destinations')
     .select('id, name, state')
-    .ilike('name', name.trim())
-    .ilike('state', state.trim())
+    .ilike('name', trimName)
+    .ilike('state', trimState)
+    .limit(1)
     .maybeSingle()
 
   if (existing) {
