@@ -9,6 +9,7 @@ import { getInitials, timeAgo } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
+import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 
 interface ChatNotification {
   id: string
@@ -38,6 +39,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const pathname = usePathname()
 
   const isOnChatPage = pathname?.startsWith('/chat') || pathname?.startsWith('/community')
+
+  // Preload notification sound
+  useEffect(() => { preloadSound() }, [])
 
   useEffect(() => {
     if (!userId) return
@@ -75,7 +79,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           const { data: room } = await supabase
             .from('chat_rooms')
-            .select('name')
+            .select('name, type')
             .eq('id', msg.room_id)
             .single()
 
@@ -91,6 +95,21 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           setNotifications(prev => [notification, ...prev].slice(0, 8))
           setDismissed(false)
           setMinimized(false)
+
+          // Play notification sound
+          playNotificationSound({
+            messageRoomId: msg.room_id,
+            activeRoomId: activeRoom?.id || null,
+            roomType: (room?.type as 'direct' | 'trip' | 'general') || 'general',
+            unreadCount: 0, // Widget always plays on first new message
+            isTyping: false,
+          })
+
+          // System notification for inactive tabs
+          sendSystemNotification(
+            senderProfile?.full_name || senderProfile?.username || 'New message',
+            msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content,
+          )
 
           // Auto-set active room to the latest notification room
           if (!activeRoom) {

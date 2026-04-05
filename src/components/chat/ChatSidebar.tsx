@@ -9,6 +9,8 @@ import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
 import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
+import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
+import { SoundSettingsButton } from './SoundSettings'
 
 export interface SidebarRoom {
   id: string
@@ -47,6 +49,9 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   // Sync with prop changes
   useEffect(() => { setLocalRooms(rooms) }, [rooms])
 
+  // Preload notification sound on first interaction
+  useEffect(() => { preloadSound() }, [])
+
   // Realtime: listen for new messages to update sidebar
   useEffect(() => {
     const supabase = createClient()
@@ -73,8 +78,28 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           return [moved, ...updated]
         })
 
-        // Increment unread if not the active room
+        // Increment unread if not the active room + play sound
         if (msg.room_id !== currentActiveRoom) {
+          const currentUnread = unreadCounts.get(msg.room_id) || 0
+          const room = localRooms.find(r => r.id === msg.room_id)
+          const roomType = room?.type || 'general'
+
+          // Play notification sound
+          playNotificationSound({
+            messageRoomId: msg.room_id,
+            activeRoomId: currentActiveRoom,
+            roomType,
+            unreadCount: currentUnread,
+            isTyping: false, // sidebar doesn't track typing
+          })
+
+          // System notification for inactive tabs
+          const senderName = room?.name || 'Someone'
+          sendSystemNotification(
+            `New message in ${senderName}`,
+            msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content,
+          )
+
           setUnreadCounts(prev => {
             const next = new Map(prev)
             next.set(msg.room_id, (next.get(msg.room_id) || 0) + 1)
@@ -148,9 +173,12 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
     <div className={`flex flex-col ${className}`}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <h2 className="text-lg font-black mb-3">
-          <span className="text-primary">Tribe</span> <span className="text-muted-foreground text-xs font-normal ml-1">Connect & Chat</span>
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-black">
+            <span className="text-primary">Tribe</span> <span className="text-muted-foreground text-xs font-normal ml-1">Connect & Chat</span>
+          </h2>
+          <SoundSettingsButton />
+        </div>
 
         {/* Search */}
         <div className="relative mb-3">
