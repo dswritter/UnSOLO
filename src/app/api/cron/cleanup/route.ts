@@ -43,7 +43,8 @@ export async function POST(request: Request) {
       results.staleBookings++
     }
 
-    // 2. Cancel unpaid group bookings (> 24 hours old)
+    // 2. Cancel only UNPAID group members (> 24 hours old)
+    // Paid members' bookings remain confirmed
     const groupCutoff = new Date(Date.now() - GROUP_PAYMENT_DEADLINE_HOURS * 3600000).toISOString()
     const { data: expiredGroups } = await supabase
       .from('group_bookings')
@@ -52,53 +53,55 @@ export async function POST(request: Request) {
       .lt('created_at', groupCutoff)
 
     for (const group of expiredGroups || []) {
-      // Find members who already paid — they need refunds
-      const { data: paidMembers } = await supabase
+      const pkgTitle = (group.package as unknown as { title: string })?.title || 'a group trip'
+
+      // Find unpaid members — only cancel these
+      const { data: unpaidMembers } = await supabase
         .from('group_members')
         .select('user_id')
         .eq('group_id', group.id)
+        .neq('status', 'paid')
+
+      // Cancel unpaid members only
+      for (const member of unpaidMembers || []) {
+        await supabase
+          .from('group_members')
+          .update({ status: 'cancelled' })
+          .eq('group_id', group.id)
+          .eq('user_id', member.user_id)
+
+        await supabase.from('notifications').insert({
+          user_id: member.user_id,
+          type: 'booking',
+          title: 'Group Trip — Payment Expired',
+          body: `Your spot in the group trip for ${pkgTitle} was cancelled because payment was not completed within ${GROUP_PAYMENT_DEADLINE_HOURS} hours.`,
+          link: '/bookings',
+        })
+      }
+
+      // Check if any paid members remain
+      const { count: paidCount } = await supabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', group.id)
         .eq('status', 'paid')
 
-      // Cancel the group
+      // Mark group as closed (not cancelled) — paid members keep their bookings
       await supabase
         .from('group_bookings')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .update({ status: (paidCount || 0) > 0 ? 'closed' : 'cancelled', updated_at: new Date().toISOString() })
         .eq('id', group.id)
-
-      const pkgTitle = (group.package as unknown as { title: string })?.title || 'a group trip'
 
       // Notify organizer
       await supabase.from('notifications').insert({
         user_id: group.organizer_id,
         type: 'booking',
-        title: 'Group Trip Expired',
-        body: `Your group trip for ${pkgTitle} was auto-cancelled because not all members paid within ${GROUP_PAYMENT_DEADLINE_HOURS} hours.`,
+        title: 'Group Trip Updated',
+        body: (paidCount || 0) > 0
+          ? `${(unpaidMembers || []).length} member(s) didn't pay for ${pkgTitle}. Paid members' bookings are confirmed.`
+          : `Group trip for ${pkgTitle} was cancelled — no members completed payment.`,
         link: '/bookings',
       })
-
-      // Queue refunds for paid members
-      for (const member of paidMembers || []) {
-        await supabase.from('notifications').insert({
-          user_id: member.user_id,
-          type: 'booking',
-          title: 'Group Trip Cancelled — Refund Pending',
-          body: `The group trip for ${pkgTitle} was auto-cancelled. Your payment will be refunded.`,
-          link: '/bookings',
-        })
-        results.refundsQueued++
-      }
-
-      // Notify admins about refunds needed
-      const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin'])
-      for (const admin of admins || []) {
-        await supabase.from('notifications').insert({
-          user_id: admin.id,
-          type: 'booking',
-          title: 'Auto-Cancelled Group — Refunds Needed',
-          body: `Group trip for ${pkgTitle} expired. ${(paidMembers || []).length} member(s) need refund.`,
-          link: '/admin/bookings',
-        })
-      }
 
       results.expiredGroups++
     }

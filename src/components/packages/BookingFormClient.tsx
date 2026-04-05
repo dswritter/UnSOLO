@@ -885,7 +885,7 @@ export function BookingFormClient({
               </Button>
               <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
                 ⏰ All members (including you) must complete payment within <strong>24 hours</strong>.
-                Unpaid group trips are auto-cancelled with full refund for those who paid.
+                Unpaid members&apos; trips are auto-cancelled. Paid members&apos; bookings remain confirmed.
               </p>
             </>
           )}
