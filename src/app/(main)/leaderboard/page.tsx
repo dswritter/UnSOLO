@@ -44,11 +44,14 @@ export default async function LeaderboardPage() {
               <p className="text-xs text-muted-foreground">Top solo travelers in India</p>
             </div>
           </div>
-          {/* Inline score guide */}
-          <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Trophy className="h-3 w-3 text-primary" /> +25 Trip</span>
-            <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-primary" /> +15 Dest</span>
-            <span className="flex items-center gap-1"><Star className="h-3 w-3 text-primary" /> +10 Review</span>
+          {/* Scoring guide — tooltip style */}
+          <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground/60 bg-secondary/50 px-2.5 py-1 rounded-full">
+            <span>Earn:</span>
+            <span className="font-medium">25pts/trip</span>
+            <span>·</span>
+            <span className="font-medium">15pts/dest</span>
+            <span>·</span>
+            <span className="font-medium">10pts/review</span>
           </div>
         </div>
 
