@@ -29,18 +29,23 @@ export function MobileChatView({ rooms, currentUser }: MobileChatViewProps) {
 
   function handleBack() {
     window.history.pushState(null, '', '/community')
+    window.dispatchEvent(new PopStateEvent('popstate'))
     setRoomId(null)
   }
 
-  if (roomId) {
-    return (
-      <div className="flex flex-col h-full">
-        <ChatRoomLoader roomId={roomId} currentUser={currentUser} onBack={handleBack} />
-      </div>
-    )
-  }
-
   return (
-    <ChatSidebar rooms={rooms} className="w-full" />
+    <>
+      {/* Sidebar always mounted (keeps realtime + sound active), hidden when viewing chat */}
+      <div className={roomId ? 'hidden' : ''}>
+        <ChatSidebar rooms={rooms} className="w-full" />
+      </div>
+
+      {/* Chat view */}
+      {roomId && (
+        <div className="flex flex-col h-full">
+          <ChatRoomLoader roomId={roomId} currentUser={currentUser} onBack={handleBack} />
+        </div>
+      )}
+    </>
   )
 }
