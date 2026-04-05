@@ -37,14 +37,20 @@ async function getStats() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const [{ count: travelers }, { count: confirmedTrips }, { count: completedTrips }, { count: destinations }] = await Promise.all([
+  const [{ count: travelers }, { count: confirmedTrips }, { count: completedTrips }] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
-    supabase.from('destinations').select('*', { count: 'exact', head: true }),
   ])
+  // Count distinct destinations from confirmed + completed bookings
+  const { data: bookedPkgs } = await supabase
+    .from('bookings')
+    .select('package:packages(destination_id)')
+    .in('status', ['confirmed', 'completed'])
+  const uniqueDests = new Set((bookedPkgs || []).map(b => (b.package as unknown as { destination_id: string } | null)?.destination_id).filter(Boolean)).size
+
   const totalTrips = (confirmedTrips || 0) + (completedTrips || 0)
-  return { travelers: travelers || 0, trips: totalTrips, destinations: destinations || 0 }
+  return { travelers: travelers || 0, trips: totalTrips, destinations: uniqueDests }
 }
 
 const DIFFICULTY_COLORS: Record<string, string> = {
