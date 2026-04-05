@@ -10,6 +10,7 @@ export function useRealtimeChat(
   currentUser?: Profile,
 ) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
+  const lastMsgTimeRef = useRef<string>(initialMessages[initialMessages.length - 1]?.created_at || '')
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
@@ -100,6 +101,41 @@ export function useRealtimeChat(
       typingTimeoutRef.current.clear()
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fallback: poll for new messages every 5s (in case realtime misses)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const lastTime = lastMsgTimeRef.current || new Date(0).toISOString()
+      const { data } = await supabase
+        .from('messages')
+        .select('*, user:profiles(id, username, full_name, avatar_url)')
+        .eq('room_id', roomId)
+        .gt('created_at', lastTime)
+        .order('created_at', { ascending: true })
+        .limit(20)
+
+      if (data && data.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id))
+          const newMsgs = (data as Message[]).filter(m => !existingIds.has(m.id))
+          if (newMsgs.length === 0) return prev
+          lastMsgTimeRef.current = newMsgs[newMsgs.length - 1].created_at
+          return [...prev, ...newMsgs]
+        })
+      }
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [roomId, supabase])
+
+  // Update lastMsgTimeRef when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const last = messages[messages.length - 1]
+      if (!last.id.startsWith('optimistic-')) {
+        lastMsgTimeRef.current = last.created_at
+      }
+    }
+  }, [messages])
 
   const broadcastTyping = useCallback(() => {
     if (!currentUser) return

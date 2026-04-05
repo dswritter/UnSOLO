@@ -43,8 +43,21 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   const pathname = usePathname()
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Derive active room from URL if not passed
-  const currentActiveRoom = activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
+  // Track active room from URL (updates on pushState too)
+  const [currentActiveRoom, setCurrentActiveRoom] = useState<string | null>(
+    activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
+  )
+
+  useEffect(() => {
+    function syncFromUrl() {
+      const match = window.location.pathname.match(/\/community\/([a-f0-9-]+)/i)
+      setCurrentActiveRoom(match?.[1] || null)
+    }
+    syncFromUrl()
+    window.addEventListener('popstate', syncFromUrl)
+    // Also listen for pushState (sidebar clicks dispatch popstate)
+    return () => window.removeEventListener('popstate', syncFromUrl)
+  }, [])
 
   // Sync with prop changes
   useEffect(() => { setLocalRooms(rooms) }, [rooms])
