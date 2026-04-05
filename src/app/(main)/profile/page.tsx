@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
 import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, Gift, Copy, MessageCircle, Users } from 'lucide-react'
+import { LocationSearch } from '@/components/profile/LocationSearch'
 import { getReferralDashboard } from '@/actions/profile'
 import { APP_URL } from '@/lib/constants'
 
@@ -282,7 +283,10 @@ export default function EditProfilePage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Location</label>
-                  <Input name="location" defaultValue={profile.location || ''} placeholder="Mumbai, India" className="bg-secondary border-border" />
+                  <LocationSearch
+                    defaultValue={profile.location || ''}
+                    name="location"
+                  />
                 </div>
               </div>
 

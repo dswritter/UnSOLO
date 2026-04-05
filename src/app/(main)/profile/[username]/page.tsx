@@ -111,12 +111,22 @@ export default async function ProfilePage({
         {/* Profile Header */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0">
-              <AvatarImage src={profile.avatar_url || ''} />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
-                {getInitials(profile.full_name || profile.username)}
-              </AvatarFallback>
-            </Avatar>
+            {profile.avatar_url ? (
+              <a href={profile.avatar_url} target="_blank" rel="noopener noreferrer" title="View full photo">
+                <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-primary/20 transition-all">
+                  <AvatarImage src={profile.avatar_url} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
+                    {getInitials(profile.full_name || profile.username)}
+                  </AvatarFallback>
+                </Avatar>
+              </a>
+            ) : (
+              <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0">
+                <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
+                  {getInitials(profile.full_name || profile.username)}
+                </AvatarFallback>
+              </Avatar>
+            )}
 
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
