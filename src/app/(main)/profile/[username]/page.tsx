@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { TravelStats } from '@/components/profile/TravelStats'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { AvatarLightbox } from '@/components/profile/AvatarLightbox'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -112,14 +113,7 @@ export default async function ProfilePage({
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
             {profile.avatar_url ? (
-              <a href={profile.avatar_url} target="_blank" rel="noopener noreferrer" title="View full photo">
-                <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0 cursor-pointer hover:ring-4 hover:ring-primary/20 transition-all">
-                  <AvatarImage src={profile.avatar_url} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
-                    {getInitials(profile.full_name || profile.username)}
-                  </AvatarFallback>
-                </Avatar>
-              </a>
+              <AvatarLightbox src={profile.avatar_url} fallback={getInitials(profile.full_name || profile.username)} />
             ) : (
               <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0">
                 <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">

@@ -29,9 +29,11 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebarProps) {
+  const [localRooms, setLocalRooms] = useState(rooms)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'direct' | 'trip' | 'general'>('all')
+  const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map())
   const [userResults, setUserResults] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
   const [searchingUsers, setSearchingUsers] = useState(false)
   const [startingDm, setStartingDm] = useState<string | null>(null)
@@ -41,6 +43,60 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
 
   // Derive active room from URL if not passed
   const currentActiveRoom = activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
+
+  // Sync with prop changes
+  useEffect(() => { setLocalRooms(rooms) }, [rooms])
+
+  // Realtime: listen for new messages to update sidebar
+  useEffect(() => {
+    const supabase = createClient()
+    const roomIds = localRooms.map(r => r.id)
+
+    const channel = supabase
+      .channel('sidebar-realtime')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+      }, (payload) => {
+        const msg = payload.new as { room_id: string; content: string; created_at: string; user_id: string; message_type: string }
+        if (msg.message_type === 'system') return
+        if (!roomIds.includes(msg.room_id)) return
+
+        // Update last message in room
+        setLocalRooms(prev => {
+          const idx = prev.findIndex(r => r.id === msg.room_id)
+          if (idx === -1) return prev
+          const updated = [...prev]
+          updated[idx] = { ...updated[idx], lastMessage: msg.content, lastMessageAt: msg.created_at }
+          const [moved] = updated.splice(idx, 1)
+          return [moved, ...updated]
+        })
+
+        // Increment unread if not the active room
+        if (msg.room_id !== currentActiveRoom) {
+          setUnreadCounts(prev => {
+            const next = new Map(prev)
+            next.set(msg.room_id, (next.get(msg.room_id) || 0) + 1)
+            return next
+          })
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [localRooms.length, currentActiveRoom]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear unread when room becomes active
+  useEffect(() => {
+    if (currentActiveRoom) {
+      setUnreadCounts(prev => {
+        const next = new Map(prev)
+        next.delete(currentActiveRoom)
+        return next
+      })
+    }
+  }, [currentActiveRoom])
 
   useEffect(() => {
     const supabase = createClient()
@@ -54,7 +110,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
     return () => clearInterval(interval)
   }, [])
 
-  const filtered = rooms.filter(r => {
+  const filtered = localRooms.filter(r => {
     if (filter !== 'all' && r.type !== filter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -142,6 +198,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           {filtered.map(room => {
             const dmOnline = room.dmProfile ? onlineUsers.has(room.dmProfile.id) : false
             const isActive = currentActiveRoom === room.id
+            const unread = unreadCounts.get(room.id) || 0
 
             return (
               <button
@@ -182,9 +239,9 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium text-sm truncate">{room.name}</span>
+                    <span className={`font-medium text-sm truncate ${unread > 0 ? 'font-bold text-foreground' : ''}`}>{room.name}</span>
                     {room.lastMessageAt && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(room.lastMessageAt)}</span>
+                      <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{timeAgo(room.lastMessageAt)}</span>
                     )}
                   </div>
                   {room.type !== 'direct' && (
@@ -194,13 +251,17 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                     </span>
                   )}
                   {room.lastMessage && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{room.lastMessage}</p>
+                    <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
                   )}
                 </div>
 
-                {room.isMember === false && (
+                {unread > 0 ? (
+                  <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                ) : room.isMember === false ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">Join</span>
-                )}
+                ) : null}
               </button>
             )
           })}
