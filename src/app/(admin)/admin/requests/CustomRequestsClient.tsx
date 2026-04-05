@@ -18,13 +18,14 @@ interface Props {
 }
 
 export function CustomRequestsClient({ requests: initial }: Props) {
+  const [requests, setRequests] = useState(initial)
   const [filter, setFilter] = useState('all')
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Record<string, string>>({})
 
   const filtered = filter === 'all'
-    ? initial
-    : initial.filter(r => r.status === filter)
+    ? requests
+    : requests.filter(r => r.status === filter)
 
   function showFeedback(id: string, msg: string) {
     setFeedback(f => ({ ...f, [id]: msg }))
@@ -36,7 +37,10 @@ export function CustomRequestsClient({ requests: initial }: Props) {
       const notesEl = document.getElementById(`req-notes-${id}`) as HTMLTextAreaElement
       const res = await updateCustomRequestStatus(id, status, notesEl?.value || undefined)
       if (res.error) showFeedback(id, `Error: ${res.error}`)
-      else showFeedback(id, `Request ${status}! Reload to see changes.`)
+      else {
+        setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r))
+        showFeedback(id, `Request ${status}!`)
+      }
     })
   }
 
@@ -57,7 +61,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
             {s.charAt(0).toUpperCase() + s.slice(1)}
             {s !== 'all' && (
               <span className="ml-1 opacity-70">
-                ({initial.filter(r => r.status === s).length})
+                ({requests.filter(r => r.status === s).length})
               </span>
             )}
           </button>
