@@ -356,17 +356,37 @@ export async function getAdminCustomRequests(status?: string) {
   const { createClient: createSvc } = await import('@supabase/supabase-js')
   const supabase = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-  let query = supabase
+  // Fetch requests without joins first (joins may fail with service client)
+  const baseQuery = supabase
     .from('custom_date_requests')
-    .select('*, user:profiles(*), package:packages(title)')
+    .select('*')
     .order('created_at', { ascending: false })
 
   if (status && status !== 'all') {
-    query = query.eq('status', status)
+    baseQuery.eq('status', status)
   }
 
-  const { data } = await query
-  return data || []
+  const { data: requests, error } = await baseQuery
+  if (error) { console.error('Custom requests query error:', error.message); return [] }
+  if (!requests || requests.length === 0) return []
+
+  // Enrich with user and package data
+  const userIds = [...new Set(requests.map(r => r.user_id).filter(Boolean))]
+  const packageIds = [...new Set(requests.map(r => r.package_id).filter(Boolean))]
+
+  const [{ data: users }, { data: packages }] = await Promise.all([
+    userIds.length > 0 ? supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds) : Promise.resolve({ data: [] }),
+    packageIds.length > 0 ? supabase.from('packages').select('id, title').in('id', packageIds) : Promise.resolve({ data: [] }),
+  ])
+
+  const userMap = new Map((users || []).map(u => [u.id, u]))
+  const pkgMap = new Map((packages || []).map(p => [p.id, p]))
+
+  return requests.map(r => ({
+    ...r,
+    user: userMap.get(r.user_id) || null,
+    package: pkgMap.get(r.package_id) || null,
+  }))
 }
 
 export async function updateCustomRequestStatus(requestId: string, status: 'approved' | 'rejected', notes?: string) {

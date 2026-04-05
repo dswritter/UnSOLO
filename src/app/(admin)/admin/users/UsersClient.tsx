@@ -79,6 +79,13 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
         ))}
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 mb-3 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1"><Phone className="h-3 w-3 text-green-400" /> Phone verified</span>
+        <span className="flex items-center gap-1"><Instagram className="h-3 w-3 text-pink-400" /> Instagram linked</span>
+        <span className="flex items-center gap-1"><Mountain className="h-3 w-3 text-primary" /> Verified host</span>
+      </div>
+
       {/* User list */}
       <div className="space-y-1">
         {/* Header */}
@@ -87,7 +94,7 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
           <div className="col-span-2">Joined</div>
           <div className="col-span-1 text-center">Trips</div>
           <div className="col-span-1 text-center">Cancelled</div>
-          <div className="col-span-2">Verified</div>
+          <div className="col-span-2">Status</div>
           <div className="col-span-2">Role</div>
         </div>
 

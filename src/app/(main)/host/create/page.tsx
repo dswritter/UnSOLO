@@ -674,9 +674,8 @@ export default function CreateTripPage() {
                   )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Recommended: 1200x800px, max 5MB each. JPEG, PNG, or WebP.
-                <br />For Unsplash: right-click the image → &quot;Copy image address&quot; and paste the direct URL.
+              <p className="text-[10px] text-muted-foreground">
+                Max 5MB each. JPEG, PNG, or WebP.
               </p>
 
               {/* Image loading overlay */}
