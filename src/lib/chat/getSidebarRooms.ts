@@ -2,26 +2,82 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
 
 /**
- * Fetch all sidebar rooms for a user — used by both /chat and /chat/[roomId] pages.
+ * Fetch all sidebar rooms for a user — optimized with batch queries.
  */
 export async function getSidebarRooms(supabase: SupabaseClient, userId: string): Promise<SidebarRoom[]> {
-  // Get all rooms the user is a member of
-  const { data: memberRooms } = await supabase
-    .from('chat_room_members')
-    .select('room:chat_rooms(id, name, type, is_active, package_id, package:packages(title, images, destination:destinations(name, state)))')
-    .eq('user_id', userId)
+  // Parallel: get member rooms + general rooms
+  const [{ data: memberRooms }, { data: generalRooms }] = await Promise.all([
+    supabase
+      .from('chat_room_members')
+      .select('room:chat_rooms(id, name, type, is_active, package_id, package:packages(title, images, destination:destinations(name, state)))')
+      .eq('user_id', userId),
+    supabase
+      .from('chat_rooms')
+      .select('id, name, type, is_active')
+      .eq('type', 'general')
+      .eq('is_active', true),
+  ])
 
-  // Get general/community rooms (including ones user hasn't joined)
-  const { data: generalRooms } = await supabase
-    .from('chat_rooms')
-    .select('id, name, type, is_active')
-    .eq('type', 'general')
-    .eq('is_active', true)
-
-  const rooms: SidebarRoom[] = []
   const userRooms = (memberRooms || []).map(m => m.room as unknown as Record<string, unknown>).filter(Boolean)
+  const allRoomIds: string[] = []
+  const dmRoomIds: string[] = []
 
-  // Process member rooms
+  // Collect room IDs
+  for (const room of userRooms) {
+    const id = String(room['id'])
+    allRoomIds.push(id)
+    if (String(room['type']) === 'direct') dmRoomIds.push(id)
+  }
+
+  // Add general rooms not yet in member list
+  const memberRoomIdSet = new Set(allRoomIds)
+  const extraGeneralRooms = (generalRooms || []).filter(r => !memberRoomIdSet.has(r.id))
+  for (const r of extraGeneralRooms) allRoomIds.push(r.id)
+
+  // Batch: get last message for ALL rooms in one query per room (use RPC or individual but parallel)
+  // Since Supabase doesn't support "distinct on" easily, fetch last messages in parallel
+  const msgPromises = allRoomIds.map(id =>
+    supabase.from('messages').select('content, created_at, user_id').eq('room_id', id).order('created_at', { ascending: false }).limit(1)
+  )
+
+  // Batch: get DM partners - all members of DM rooms excluding current user
+  const dmMembersPromise = dmRoomIds.length > 0
+    ? supabase.from('chat_room_members').select('room_id, user_id').in('room_id', dmRoomIds).neq('user_id', userId)
+    : Promise.resolve({ data: [] as { room_id: string; user_id: string }[] })
+
+  // Execute all in parallel
+  const [msgResults, { data: dmMembers }] = await Promise.all([
+    Promise.all(msgPromises),
+    dmMembersPromise,
+  ])
+
+  // Build message map
+  const msgMap = new Map<string, { content: string; created_at: string; user_id?: string }>()
+  allRoomIds.forEach((id, i) => {
+    const msgs = msgResults[i]?.data
+    if (msgs?.[0]) msgMap.set(id, msgs[0])
+  })
+
+  // Get DM partner profiles in one batch
+  const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
+  let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
+  if (dmPartnerIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', dmPartnerIds)
+    for (const p of profiles || []) profileMap.set(p.id, p)
+  }
+
+  // Build DM room → partner map
+  const dmPartnerMap = new Map<string, string>()
+  for (const m of dmMembers || []) {
+    dmPartnerMap.set(m.room_id, m.user_id)
+  }
+
+  // Build rooms
+  const rooms: SidebarRoom[] = []
+
   for (const room of userRooms) {
     const id = String(room['id'])
     const type = String(room['type']) as 'trip' | 'direct' | 'general'
@@ -31,19 +87,9 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     let tripLocation: string | undefined
 
     if (type === 'direct') {
-      const { data: members } = await supabase
-        .from('chat_room_members')
-        .select('user_id')
-        .eq('room_id', id)
-        .neq('user_id', userId)
-        .limit(1)
-
-      if (members?.[0]) {
-        const { data: p } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url')
-          .eq('id', members[0].user_id)
-          .single()
+      const partnerId = dmPartnerMap.get(id)
+      if (partnerId) {
+        const p = profileMap.get(partnerId)
         if (p) {
           dmProfile = p
           name = p.full_name || p.username
@@ -57,55 +103,18 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
       if (pkg?.destination) tripLocation = `${pkg.destination.name}, ${pkg.destination.state}`
     }
 
-    // Get last message
-    const { data: msgs } = await supabase
-      .from('messages')
-      .select('content, created_at, user_id')
-      .eq('room_id', id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    rooms.push({
-      id,
-      name,
-      type,
-      lastMessage: msgs?.[0]?.content,
-      lastMessageAt: msgs?.[0]?.created_at,
-      dmProfile,
-      tripImage,
-      tripLocation,
-      isMember: true,
-    })
+    const msg = msgMap.get(id)
+    rooms.push({ id, name, type, lastMessage: msg?.content, lastMessageAt: msg?.created_at, dmProfile, tripImage, tripLocation, isMember: true })
   }
 
-  // Add general rooms user hasn't joined yet
-  const memberRoomIds = new Set(rooms.map(r => r.id))
-  for (const room of generalRooms || []) {
-    if (!memberRoomIds.has(room.id)) {
-      const { data: msgs } = await supabase
-        .from('messages')
-        .select('content, created_at')
-        .eq('room_id', room.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-
-      rooms.push({
-        id: room.id,
-        name: room.name,
-        type: 'general',
-        lastMessage: msgs?.[0]?.content,
-        lastMessageAt: msgs?.[0]?.created_at,
-        isMember: false,
-      })
-    }
+  // Add general rooms user hasn't joined
+  for (const room of extraGeneralRooms) {
+    const msg = msgMap.get(room.id)
+    rooms.push({ id: room.id, name: room.name, type: 'general', lastMessage: msg?.content, lastMessageAt: msg?.created_at, isMember: false })
   }
 
-  // Sort: rooms with recent messages first
-  rooms.sort((a, b) => {
-    const aTime = a.lastMessageAt || ''
-    const bTime = b.lastMessageAt || ''
-    return bTime.localeCompare(aTime)
-  })
+  // Sort by recent message
+  rooms.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''))
 
   return rooms
 }

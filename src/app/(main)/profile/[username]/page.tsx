@@ -45,7 +45,7 @@ export default async function ProfilePage({
     { data: confirmedBookings },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true })
-      .eq('user_id', profile.id).eq('status', 'confirmed'),
+      .eq('user_id', profile.id).in('status', ['confirmed', 'completed']),
     supabase.from('user_achievements').select('*').eq('user_id', profile.id),
     supabase.from('leaderboard_scores').select('*').eq('user_id', profile.id).single(),
     supabase.from('reviews').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(10),
