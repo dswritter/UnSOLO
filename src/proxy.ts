@@ -1,67 +1,58 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api/webhooks', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
+const PUBLIC_CONTENT = ['/explore', '/packages', '/leaderboard', '/contact']
 
-export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+export function proxy(request: NextRequest) {
+  // Fail-safe: if anything goes wrong, let the request through
+  try {
+    const { pathname } = request.nextUrl
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
+    // Allow public routes, static assets, API routes
+    const isPublic = PUBLIC_ROUTES.some(r => pathname.startsWith(r)) ||
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      pathname.startsWith('/sounds') ||
+      pathname.includes('.')
+
+    const isPublicContent = PUBLIC_CONTENT.some(r => pathname.startsWith(r))
+
+    if (isPublic || isPublicContent) {
+      return NextResponse.next()
     }
-  )
 
-  // IMPORTANT: This refreshes the auth token on every request
-  const { data: { user } } = await supabase.auth.getUser()
+    // Lightweight auth check: only check for Supabase auth cookie presence
+    // NO network calls, NO await, NO Supabase client — just cookie check
+    const allCookies = request.cookies.getAll()
+    const hasAuthCookie = allCookies.some(c =>
+      c.name.startsWith('sb-') && c.name.includes('auth-token')
+    )
 
-  const { pathname } = request.nextUrl
+    if (!hasAuthCookie) {
+      // No auth cookie → redirect to login
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(url)
+    }
 
-  // Allow public routes and static assets
-  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r)) ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon') ||
-    pathname.includes('.')
+    // Auth cookie exists → let through (actual validation happens in pages/layouts)
+    // Redirect logged-in users away from login/signup
+    if (hasAuthCookie && (pathname === '/login' || pathname === '/signup')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/explore'
+      return NextResponse.redirect(url)
+    }
 
-  // Allow package detail, explore, leaderboard, and contact pages to be public
-  const isPublicContent = pathname.startsWith('/explore') ||
-    pathname.startsWith('/packages') ||
-    pathname.startsWith('/leaderboard') ||
-    pathname.startsWith('/contact')
-
-  if (!user && !isPublic && !isPublicContent) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    url.searchParams.set('redirectTo', pathname)
-    return NextResponse.redirect(url)
+    return NextResponse.next()
+  } catch {
+    // Fail-safe: never block requests
+    return NextResponse.next()
   }
-
-  if (user && (pathname === '/login' || pathname === '/signup')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/explore'
-    return NextResponse.redirect(url)
-  }
-
-  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3)$).*)',
   ],
 }

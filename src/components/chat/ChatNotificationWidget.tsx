@@ -95,6 +95,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           setNotifications(prev => [notification, ...prev].slice(0, 8))
           setDismissed(false)
           setMinimized(false)
+          // Auto-scroll to latest message
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
 
           // Play notification sound
           playNotificationSound({
