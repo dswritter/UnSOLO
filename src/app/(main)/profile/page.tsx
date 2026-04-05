@@ -306,7 +306,7 @@ export default function EditProfilePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Instagram Handle</label>
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-1">
                     <span className="text-sm text-muted-foreground bg-secondary border border-border border-r-0 rounded-l-md px-2 py-2">@</span>
                     <Input
                       name="instagram"
@@ -315,9 +315,32 @@ export default function EditProfilePage() {
                       pattern="^[a-zA-Z0-9._]{1,30}$"
                       title="Instagram username: letters, numbers, periods and underscores only"
                       className="bg-secondary border-border rounded-l-none"
+                      onChange={e => {
+                        const val = e.target.value.trim().replace(/^@/, '')
+                        const valid = /^[a-zA-Z0-9._]{1,30}$/.test(val)
+                        const indicator = e.target.parentElement?.querySelector('[data-ig-status]') as HTMLElement
+                        if (indicator) {
+                          if (!val) { indicator.textContent = ''; indicator.className = '' }
+                          else if (!valid) { indicator.textContent = '✗'; indicator.className = 'text-red-400 text-xs font-bold' }
+                          else { indicator.textContent = '✓'; indicator.className = 'text-green-400 text-xs font-bold' }
+                        }
+                      }}
                     />
+                    <span data-ig-status="" className="" />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Just the username, no URL needed</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-muted-foreground">Just the username, no URL needed</p>
+                    {profile.instagram_url && (
+                      <a
+                        href={`https://instagram.com/${(profile.instagram_url || '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Verify on Instagram ↗
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium">Website</label>

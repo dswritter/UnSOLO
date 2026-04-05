@@ -226,14 +226,16 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                   disabled={startingDm === u.id}
                   className="flex items-center gap-3 px-4 py-2.5 hover:bg-secondary/50 transition-colors w-full text-left"
                 >
-                  <Avatar className="h-9 w-9 shrink-0">
-                    <AvatarImage src={u.avatar_url || ''} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-                      {getInitials(u.full_name || u.username)}
-                    </AvatarFallback>
-                  </Avatar>
+                  <a href={`/profile/${u.username}`} onClick={e => e.stopPropagation()} className="shrink-0">
+                    <Avatar className="h-9 w-9 hover:ring-2 hover:ring-primary/40 transition-all">
+                      <AvatarImage src={u.avatar_url || ''} />
+                      <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                        {getInitials(u.full_name || u.username)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </a>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{u.full_name || u.username}</div>
+                    <a href={`/profile/${u.username}`} onClick={e => e.stopPropagation()} className="text-sm font-medium truncate hover:text-primary transition-colors block">{u.full_name || u.username}</a>
                     <div className="text-[10px] text-muted-foreground">@{u.username}</div>
                   </div>
                   {startingDm === u.id ? (

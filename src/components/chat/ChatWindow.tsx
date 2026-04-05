@@ -508,7 +508,11 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-          <h2 className="font-bold">{roomName}</h2>
+          {isDM && dmPartner ? (
+            <Link href={`/profile/${dmPartner.username}`} className="font-bold hover:text-primary transition-colors">{roomName}</Link>
+          ) : (
+            <h2 className="font-bold">{roomName}</h2>
+          )}
           {isDM ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {dmPartnerOnline ? (
