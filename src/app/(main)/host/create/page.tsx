@@ -61,6 +61,8 @@ export default function CreateTripPage() {
 
   const [priceRupees, setPriceRupees] = useState('')
   const [durationDays, setDurationDays] = useState('')
+  const [departureTime, setDepartureTime] = useState<'morning' | 'evening'>('morning')
+  const [returnTime, setReturnTime] = useState<'morning' | 'evening'>('morning')
   const [maxGroupSize, setMaxGroupSize] = useState('12')
   const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
   const [difficulty, setDifficulty] = useState('moderate')
@@ -444,16 +446,30 @@ export default function CreateTripPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Duration (days) *</label>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Duration (nights) *</label>
                   <Input
                     type="number"
                     value={durationDays}
                     onChange={e => setDurationDays(e.target.value)}
-                    placeholder="4"
+                    placeholder="3"
                     className="bg-secondary border-border"
                     min="1"
                     max="30"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Departs</label>
+                  <select value={departureTime} onChange={e => setDepartureTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                    <option value="morning">Morning</option>
+                    <option value="evening">Evening</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Returns</label>
+                  <select value={returnTime} onChange={e => setReturnTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                    <option value="morning">Morning</option>
+                    <option value="evening">Evening</option>
+                  </select>
                 </div>
 
                 <div>
@@ -491,16 +507,30 @@ export default function CreateTripPage() {
                 </div>
               </div>
 
+              {/* Duration summary */}
+              {durationDays && (
+                <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm">
+                  {(() => {
+                    const nights = parseInt(durationDays) || 0
+                    const depMorning = departureTime === 'morning'
+                    const days = depMorning ? nights : Math.max(nights - 1, 1)
+                    return <span className="font-bold text-primary">{days} Days {nights} Nights</span>
+                  })()}
+                  <span className="text-muted-foreground ml-2 text-xs">(Departs {departureTime}, returns {returnTime})</span>
+                </div>
+              )}
+
               {/* Departure Dates */}
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">Departure Dates *</label>
                 <div className="space-y-2 mb-3">
                   {departureDates.map((d, i) => {
+                    const nights = parseInt(durationDays || '0')
                     const returnDate =
-                      d && durationDays
+                      d && nights
                         ? (() => {
                             const r = new Date(d + 'T00:00:00')
-                            r.setDate(r.getDate() + parseInt(durationDays || '0') - 1)
+                            r.setDate(r.getDate() + nights)
                             return r.toLocaleDateString('en-IN', {
                               day: 'numeric',
                               month: 'short',
@@ -520,7 +550,7 @@ export default function CreateTripPage() {
                         />
                         {returnDate && (
                           <span className="text-xs text-muted-foreground">
-                            Return: {returnDate}
+                            → Return: {returnDate} ({returnTime})
                           </span>
                         )}
                         <button
@@ -846,7 +876,7 @@ export default function CreateTripPage() {
                       <IndianRupee className="h-3.5 w-3.5 text-primary" />
                       {formatPrice(Math.round(parseFloat(priceRupees || '0') * 100))} / person
                     </span>
-                    <span>{durationDays} days</span>
+                    <span>{(() => { const n = parseInt(durationDays) || 0; const d = departureTime === 'morning' ? n : Math.max(n-1, 1); return `${d}D ${n}N` })()}</span>
                     <span>Max {maxGroupSize} people</span>
                     <span className="capitalize">{difficulty}</span>
                   </div>

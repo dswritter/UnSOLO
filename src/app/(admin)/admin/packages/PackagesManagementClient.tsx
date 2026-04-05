@@ -33,6 +33,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   const [form, setForm] = useState({
     title: '', slug: '', destination_id: '', description: '', short_description: '',
     price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
+    departure_time: 'morning' as 'morning' | 'evening',
+    return_time: 'morning' as 'morning' | 'evening',
     selectedIncludes: [] as string[],
     images: [] as string[],
     departureDates: [] as { departure: string; }[],
@@ -55,6 +57,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     setForm({
       title: '', slug: '', destination_id: '', description: '', short_description: '',
       price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
+      departure_time: 'morning' as 'morning' | 'evening',
+      return_time: 'morning' as 'morning' | 'evening',
       selectedIncludes: [], images: [],
       departureDates: [], is_featured: false,
     })
@@ -78,6 +82,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       duration_days: String(pkg.duration_days),
       max_group_size: String(pkg.max_group_size),
       difficulty: pkg.difficulty,
+      departure_time: 'morning' as 'morning' | 'evening',
+      return_time: 'morning' as 'morning' | 'evening',
       selectedIncludes: pkg.includes || [],
       images: pkg.images || [],
       departureDates: (pkg.departure_dates || []).map(d => ({ departure: d })),
@@ -302,8 +308,22 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="8999" className="bg-secondary border-zinc-700" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Duration (days) *</label>
-              <Input type="number" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value }))} placeholder="4" className="bg-secondary border-zinc-700" />
+              <label className="text-xs text-muted-foreground mb-1 block">Duration (nights) *</label>
+              <Input type="number" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value }))} placeholder="3" className="bg-secondary border-zinc-700" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Departs</label>
+              <select value={form.departure_time} onChange={e => setForm(f => ({ ...f, departure_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+                <option value="morning">Morning</option>
+                <option value="evening">Evening</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Returns</label>
+              <select value={form.return_time} onChange={e => setForm(f => ({ ...f, return_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+                <option value="morning">Morning</option>
+                <option value="evening">Evening</option>
+              </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Max Group Size</label>
@@ -440,13 +460,31 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             </p>
           </div>
 
+          {/* Duration summary */}
+          {form.duration_days && (
+            <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm">
+              {(() => {
+                const nights = parseInt(form.duration_days) || 0
+                const depMorning = form.departure_time === 'morning'
+                const retMorning = form.return_time === 'morning'
+                // Days = nights if depart evening & return morning, nights+1 if depart morning & return morning
+                const days = depMorning ? nights : (retMorning ? nights - 1 : nights)
+                return <span className="font-bold text-primary">{Math.max(days, 1)} Days {nights} Nights</span>
+              })()}
+              <span className="text-muted-foreground ml-2 text-xs">
+                (Departs {form.departure_time}, returns {form.return_time})
+              </span>
+            </div>
+          )}
+
           {/* Departure Dates — date pickers */}
           <div>
             <label className="text-xs text-muted-foreground mb-2 block">Departure Dates</label>
             <div className="space-y-2 mb-2">
               {form.departureDates.map((d, i) => {
-                const returnDate = d.departure && form.duration_days
-                  ? (() => { const r = new Date(d.departure + 'T00:00:00'); r.setDate(r.getDate() + parseInt(form.duration_days || '0') - 1); return r.toISOString().split('T')[0] })()
+                const nights = parseInt(form.duration_days || '0')
+                const returnDate = d.departure && nights
+                  ? (() => { const r = new Date(d.departure + 'T00:00:00'); r.setDate(r.getDate() + nights); return r.toISOString().split('T')[0] })()
                   : ''
                 return (
                   <div key={i} className="flex items-center gap-2">
@@ -459,7 +497,9 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
                     />
                     {returnDate && (
-                      <span className="text-xs text-muted-foreground">→ Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <span className="text-xs text-muted-foreground">
+                        → Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ({form.return_time})
+                      </span>
                     )}
                     <button onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300"><X className="h-4 w-4" /></button>
                   </div>
