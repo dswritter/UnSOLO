@@ -135,7 +135,7 @@ export function useRealtimeChat(
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
   }, [roomId, supabase])
 
-  // Poll for new messages every 2s (backup — realtime is unreliable with filters)
+  // Poll for new messages every 10s (backup only — primary delivery via global event bus)
   useEffect(() => {
     const interval = setInterval(async () => {
       const lastTime = lastMsgTimeRef.current || new Date(0).toISOString()
@@ -164,7 +164,7 @@ export function useRealtimeChat(
           return [...cleaned, ...newMsgs]
         })
       }
-    }, 2000)
+    }, 10000)
     return () => clearInterval(interval)
   }, [roomId, supabase])
 
