@@ -174,7 +174,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   }
 
   if (isOnChatPage) return null
-  // Always show floating button (even with no notifications)
+  // Dismissed = hide button until next new message arrives
+  if (dismissed && notifications.length === 0) return null
 
   // Group notifications by room
   const roomMap = new Map<string, ChatNotification[]>()
@@ -224,7 +225,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
               <button onClick={() => { setMinimized(true); setUserInteracting(false) }} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
                 <Minus className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground p-1" title="Close">
+              <button onClick={() => { setDismissed(true); setNotifications([]); setMinimized(true) }} className="text-muted-foreground hover:text-foreground p-1" title="Dismiss until next message">
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>

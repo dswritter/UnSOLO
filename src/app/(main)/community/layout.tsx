@@ -23,7 +23,7 @@ export default async function CommunityLayout({
   const rooms = await getSidebarRooms(supabase, user.id)
 
   return (
-    <div className="h-[calc(100dvh-64px)] flex">
+    <div className="h-[calc(100dvh-64px)] flex bg-background text-foreground">
       {/* Desktop: sidebar + client-side chat */}
       <ChatSidebar
         rooms={rooms}

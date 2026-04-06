@@ -30,7 +30,7 @@ export function ChatPageClient({ currentUser, initialRoomId }: ChatPageClientPro
 
   if (!roomId) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-center">
           <MessageCircle className="h-16 w-16 mx-auto mb-4 text-primary/20" />
           <h3 className="text-lg font-bold text-muted-foreground">Select a conversation</h3>
