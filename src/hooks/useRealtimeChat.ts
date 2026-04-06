@@ -102,7 +102,40 @@ export function useRealtimeChat(
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fallback: poll for new messages every 8s (in case realtime misses)
+  // Listen for global new-message events from sidebar's realtime (instant delivery)
+  useEffect(() => {
+    function handleNewMessage(e: Event) {
+      const msg = (e as CustomEvent).detail as { id: string; room_id: string; content: string; created_at: string; user_id: string }
+      if (msg.room_id !== roomId) return
+
+      // Fetch profile and add to messages
+      supabase.from('profiles').select('id, username, full_name, avatar_url').eq('id', msg.user_id).single()
+        .then(({ data: profile }) => {
+          const enriched: Message = {
+            id: msg.id,
+            room_id: msg.room_id,
+            user_id: msg.user_id,
+            content: msg.content,
+            message_type: 'text',
+            is_edited: false,
+            created_at: msg.created_at,
+            user: profile as Profile || undefined,
+          }
+          setMessages(prev => {
+            if (prev.find(m => m.id === enriched.id)) return prev
+            const cleaned = prev.filter(m =>
+              !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
+            )
+            return [...cleaned, enriched]
+          })
+        })
+    }
+
+    window.addEventListener('unsolo:new-message', handleNewMessage)
+    return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
+  }, [roomId, supabase])
+
+  // Poll for new messages every 2s (backup — realtime is unreliable with filters)
   useEffect(() => {
     const interval = setInterval(async () => {
       const lastTime = lastMsgTimeRef.current || new Date(0).toISOString()
@@ -131,7 +164,7 @@ export function useRealtimeChat(
           return [...cleaned, ...newMsgs]
         })
       }
-    }, 8000)
+    }, 2000)
     return () => clearInterval(interval)
   }, [roomId, supabase])
 

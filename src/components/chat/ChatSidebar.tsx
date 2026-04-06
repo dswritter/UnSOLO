@@ -77,9 +77,12 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
         schema: 'public',
         table: 'messages',
       }, (payload) => {
-        const msg = payload.new as { room_id: string; content: string; created_at: string; user_id: string; message_type: string }
+        const msg = payload.new as { id: string; room_id: string; content: string; created_at: string; user_id: string; message_type: string }
         if (msg.message_type === 'system') return
         if (!roomIds.includes(msg.room_id)) return
+
+        // Dispatch global event so ChatWindow can pick up new messages instantly
+        window.dispatchEvent(new CustomEvent('unsolo:new-message', { detail: msg }))
 
         // Update last message in room
         setLocalRooms(prev => {
