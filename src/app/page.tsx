@@ -9,6 +9,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, Star, MessageCircle, Trophy, Shield, ArrowRight, Mountain } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
+import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
+import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import type { Package, Profile } from '@/types'
 
 async function getFeaturedPackages() {
@@ -185,6 +187,10 @@ export default async function HomePage() {
           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} UnSOLO. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Chat notification widget + floating button (for logged-in users) */}
+      {profile && <ChatNotificationWidget userId={profile.id} />}
+      {profile && <PresenceTracker userId={profile.id} />}
     </div>
   )
 }

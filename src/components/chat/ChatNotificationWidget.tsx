@@ -173,9 +173,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
-  if (isOnChatPage || dismissed) return null
-  // Show widget if there are notifications OR if user has an active reply session
-  if (notifications.length === 0 && !activeRoom) return null
+  if (isOnChatPage) return null
+  // Always show floating button (even with no notifications)
 
   // Group notifications by room
   const roomMap = new Map<string, ChatNotification[]>()
@@ -192,19 +191,21 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
 
   return (
-    <div className="fixed bottom-0 right-0 z-50 p-4 pointer-events-none" style={{ maxHeight: '100vh' }}>
-      {minimized ? (
+    <div className="fixed bottom-6 right-6 z-50 pointer-events-none">
+      {minimized || notifications.length === 0 ? (
         <button
-          onClick={() => setMinimized(false)}
+          onClick={() => notifications.length > 0 ? setMinimized(false) : window.location.href = '/community'}
           className="pointer-events-auto relative bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
         >
           <MessageCircle className="h-6 w-6" />
-          <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-            {notifications.length}
-          </span>
+          {notifications.length > 0 && (
+            <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              {notifications.length}
+            </span>
+          )}
         </button>
       ) : (
-        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col" style={{ height: '380px', maxHeight: 'calc(100vh - 6rem)' }}>
+        <div className="pointer-events-auto w-[400px] max-w-[calc(100vw-4rem)] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col mb-2" style={{ height: '380px', maxHeight: 'calc(100vh - 8rem)' }}>
           {/* Header */}
           <div className="px-4 py-3 bg-secondary/50 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold flex items-center gap-2">

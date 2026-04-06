@@ -102,7 +102,7 @@ export function useRealtimeChat(
     }
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fallback: poll for new messages every 5s (in case realtime misses)
+  // Fallback: poll for new messages every 8s (in case realtime misses)
   useEffect(() => {
     const interval = setInterval(async () => {
       const lastTime = lastMsgTimeRef.current || new Date(0).toISOString()
@@ -116,14 +116,22 @@ export function useRealtimeChat(
 
       if (data && data.length > 0) {
         setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id))
+          // Deduplicate by real ID AND remove optimistic versions
+          const existingIds = new Set(prev.filter(m => !m.id.startsWith('optimistic-')).map(m => m.id))
           const newMsgs = (data as Message[]).filter(m => !existingIds.has(m.id))
           if (newMsgs.length === 0) return prev
+
+          // Also remove optimistic messages that match these new real messages
+          const cleaned = prev.filter(m => {
+            if (!m.id.startsWith('optimistic-')) return true
+            return !newMsgs.some(nm => nm.user_id === m.user_id && nm.content === m.content)
+          })
+
           lastMsgTimeRef.current = newMsgs[newMsgs.length - 1].created_at
-          return [...prev, ...newMsgs]
+          return [...cleaned, ...newMsgs]
         })
       }
-    }, 5000)
+    }, 8000)
     return () => clearInterval(interval)
   }, [roomId, supabase])
 
