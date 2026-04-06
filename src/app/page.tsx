@@ -67,11 +67,19 @@ const DIFFICULTY_ICONS: Record<string, string> = {
 }
 
 export default async function HomePage() {
-  const [packages, profile, stats] = await Promise.all([
-    getFeaturedPackages(),
-    getCurrentProfile(),
-    getStats(),
-  ])
+  let packages: Package[] = []
+  let profile: Profile | null = null
+  let stats = { travelers: 0, trips: 0, destinations: 0 }
+
+  try {
+    ;[packages, profile, stats] = await Promise.all([
+      getFeaturedPackages(),
+      getCurrentProfile(),
+      getStats(),
+    ])
+  } catch {
+    // If Supabase is down, show page with defaults
+  }
 
   const displayTravelers = stats.travelers > 0 ? `${stats.travelers}+` : '10+'
   const displayTrips = stats.trips > 0 ? `${stats.trips}+` : '0'

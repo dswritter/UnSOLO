@@ -10,13 +10,19 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
+  let user: { id: string } | null = null
   let profile: Profile | null = null
-  if (user) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-    profile = data
+
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+    if (user) {
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      profile = p
+    }
+  } catch {
+    // If Supabase is down, render page without auth
   }
 
   return (
@@ -25,7 +31,6 @@ export default async function MainLayout({
       <main className="flex-1">{children}</main>
       {user && <ChatNotificationWidget userId={user.id} />}
       {user && <PresenceTracker userId={user.id} />}
-
       <FooterWrapper />
     </div>
   )
