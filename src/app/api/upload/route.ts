@@ -15,9 +15,15 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null
-  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'avatar'
+  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'avatar' | 'community_room'
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+
+  if (purpose === 'community_room') {
+    if (profile?.role !== 'admin' && profile?.role !== 'social_media_manager') {
+      return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+    }
+  }
 
   // Only admins can upload package images
   if (purpose === 'package' && profile?.role !== 'admin') {
@@ -36,7 +42,8 @@ export async function POST(req: NextRequest) {
   }
 
   const ext = file.name.split('.').pop() || 'jpg'
-  const folder = purpose === 'avatar' ? 'avatars' : 'packages'
+  const folder =
+    purpose === 'avatar' ? 'avatars' : purpose === 'community_room' ? 'community-rooms' : 'packages'
   const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())

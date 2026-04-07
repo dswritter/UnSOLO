@@ -88,7 +88,11 @@ export default async function HomePage() {
 
       {/* Hero + Featured Trips Carousel */}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <HeroCarousel packages={packages as any[]} communityHref={profile ? '/community' : '/signup'} />
+      <HeroCarousel
+        packages={packages as any[]}
+        communityHref={profile ? '/community' : '/signup'}
+        communityButtonLabel={profile ? 'Sneak into the tribe' : undefined}
+      />
 
       {/* Stats */}
       <section className="border-y border-border bg-card/50 py-10">

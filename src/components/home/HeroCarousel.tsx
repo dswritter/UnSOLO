@@ -24,10 +24,13 @@ function formatPrice(paise: number) {
 export function HeroCarousel({
   packages,
   communityHref = '/signup',
+  communityButtonLabel,
 }: {
   packages: HeroPackage[]
   /** Logged-in users go to chat; guests go to signup */
   communityHref?: string
+  /** e.g. signed-in: friendlier CTA than "Join" */
+  communityButtonLabel?: string
 }) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
@@ -109,7 +112,7 @@ export function HeroCarousel({
                   <Link href="/explore">Explore Trips <ArrowRight className="ml-2 h-5 w-5" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-white/5" asChild>
-                  <Link href={communityHref} className="text-white">Join the Community</Link>
+                  <Link href={communityHref} className="text-white">{communityButtonLabel ?? 'Join the Community'}</Link>
                 </Button>
               </div>
             </div>

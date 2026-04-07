@@ -18,7 +18,13 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
       .eq('is_active', true),
   ])
 
-  const userRooms = (memberRooms || []).map(m => m.room as unknown as Record<string, unknown>).filter(Boolean)
+  const userRooms = (memberRooms || [])
+    .map(m => m.room as unknown as Record<string, unknown>)
+    .filter(Boolean)
+    .filter(room => {
+      if (String(room['type']) === 'general' && room['is_active'] === false) return false
+      return true
+    })
   const allRoomIds: string[] = []
   const dmRoomIds: string[] = []
 

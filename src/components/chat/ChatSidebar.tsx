@@ -52,26 +52,11 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   const localRoomsRef = useRef(localRooms)
   const currentActiveRoomRef = useRef<string | null>(null)
 
-  // Track active room from URL (updates on pushState too)
-  const [currentActiveRoom, setCurrentActiveRoom] = useState<string | null>(
+  const currentActiveRoom =
     activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
-  )
 
   localRoomsRef.current = localRooms
   currentActiveRoomRef.current = currentActiveRoom
-
-  useEffect(() => {
-    function syncFromUrl() {
-      const match = window.location.pathname.match(/\/community\/([a-f0-9-]+)/i)
-      const id = match?.[1] || null
-      setCurrentActiveRoom(id)
-      currentActiveRoomRef.current = id
-    }
-    syncFromUrl()
-    window.addEventListener('popstate', syncFromUrl)
-    // Also listen for pushState (sidebar clicks dispatch popstate)
-    return () => window.removeEventListener('popstate', syncFromUrl)
-  }, [])
 
   // Sync with prop changes
   useEffect(() => { setLocalRooms(rooms) }, [rooms])
@@ -141,6 +126,48 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
+  }, [sidebarRealtimeId])
+
+  // Live updates when admins rename / disable community rooms
+  useEffect(() => {
+    const supabase = createClient()
+    const ch = supabase
+      .channel(`sidebar-chat-rooms-${sidebarRealtimeId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_rooms' },
+        (payload: { eventType: string; new?: Record<string, unknown>; old?: Record<string, unknown> }) => {
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old?.id as string | undefined
+            if (id) {
+              setLocalRooms(prev => prev.filter(r => normalizeRoomId(r.id) !== normalizeRoomId(id)))
+            }
+            return
+          }
+          const row = payload.new as { id?: string; name?: string; type?: string; is_active?: boolean; image_url?: string | null } | undefined
+          if (!row?.id || row.type !== 'general') return
+          const id = row.id
+          const name = row.name || 'Chat'
+          const active = row.is_active !== false
+          const image_url = row.image_url
+          setLocalRooms(prev => {
+            const idx = prev.findIndex(r => normalizeRoomId(r.id) === normalizeRoomId(id))
+            if (!active) {
+              return prev.filter(r => normalizeRoomId(r.id) !== normalizeRoomId(id))
+            }
+            if (idx === -1) return prev
+            const next = [...prev]
+            next[idx] = {
+              ...next[idx],
+              name,
+              communityImage: image_url || undefined,
+            }
+            return next
+          })
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
   }, [sidebarRealtimeId])
 
   // Clear unread when room becomes active
@@ -263,12 +290,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
             return (
               <button
                 key={room.id}
-                onClick={() => {
-                  // Use window.history to change URL without server navigation
-                  window.history.pushState(null, '', `/community/${room.id}`)
-                  // Dispatch popstate to notify React of URL change
-                  window.dispatchEvent(new PopStateEvent('popstate'))
-                }}
+                onClick={() => router.push(`/community/${room.id}`)}
                 className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full text-left ${
                   isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
                 }`}
@@ -342,8 +364,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                     const result = await startDirectMessage(u.id)
                     if (result.error) { toast.error(result.error); setStartingDm(null); return }
                     if (result.roomId) {
-                      window.history.pushState(null, '', `/community/${result.roomId}`)
-                      window.dispatchEvent(new PopStateEvent('popstate'))
+                      router.push(`/community/${result.roomId}`)
                       setSearch('')
                     }
                     setStartingDm(null)

@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { joinRoom } from '@/actions/chat'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
-export function JoinRoomButton({ roomId, label = 'Join Community' }: { roomId: string; label?: string }) {
+export function JoinRoomButton({ roomId, label = 'Join Community', navigateAfterJoin = true }: { roomId: string; label?: string; navigateAfterJoin?: boolean }) {
   const [joining, setJoining] = useState(false)
   const router = useRouter()
 
@@ -13,8 +14,12 @@ export function JoinRoomButton({ roomId, label = 'Join Community' }: { roomId: s
     setJoining(true)
     const result = await joinRoom(roomId)
     if (result?.error) {
+      toast.error(result.error)
       setJoining(false)
       return
+    }
+    if (navigateAfterJoin) {
+      router.push(`/community/${roomId}`)
     }
     router.refresh()
   }

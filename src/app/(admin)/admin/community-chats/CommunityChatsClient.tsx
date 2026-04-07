@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,20 @@ import {
   updateCommunityChatRoomAdmin,
   deleteCommunityChatRoomAdmin,
 } from '@/actions/admin'
-import { Trash2, Plus, Pencil, Power, PowerOff } from 'lucide-react'
+import { Trash2, Plus, Pencil, Power, PowerOff, Upload } from 'lucide-react'
+
+async function uploadCommunityRoomCover(file: File): Promise<string | null> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('purpose', 'community_room')
+  const res = await fetch('/api/upload', { method: 'POST', body: fd })
+  const j = (await res.json()) as { url?: string; error?: string }
+  if (!res.ok) {
+    toast.error(j.error || 'Upload failed')
+    return null
+  }
+  return j.url ?? null
+}
 
 export function CommunityChatsClient({ initialRooms }: { initialRooms: CommunityChatRoomRow[] }) {
   const router = useRouter()
@@ -20,7 +33,8 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
-  const [newImage, setNewImage] = useState('')
+  const [newImageUrl, setNewImageUrl] = useState<string | null>(null)
+  const createFileRef = useRef<HTMLInputElement>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   async function handleCreate() {
@@ -32,7 +46,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
     const r = await createCommunityChatRoomAdmin({
       name: newName,
       description: newDesc || null,
-      image_url: newImage || null,
+      image_url: newImageUrl,
     })
     setBusyId(null)
     if (r.error) {
@@ -42,7 +56,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
     toast.success('Community room created')
     setNewName('')
     setNewDesc('')
-    setNewImage('')
+    setNewImageUrl(null)
     setCreating(false)
     if (r.id) {
       setRooms(prev => [
@@ -52,7 +66,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
           name: newName.trim(),
           type: 'general',
           description: newDesc.trim() || null,
-          image_url: newImage.trim() || null,
+          image_url: newImageUrl,
           is_active: true,
           created_at: new Date().toISOString(),
           package_id: null,
@@ -105,7 +119,25 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
           <p className="text-sm font-semibold">Create community room</p>
           <Input placeholder="Room name *" value={newName} onChange={e => setNewName(e.target.value)} />
           <Textarea placeholder="Description (optional)" value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} />
-          <Input placeholder="Image URL (optional, shown in chat list)" value={newImage} onChange={e => setNewImage(e.target.value)} />
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={createFileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="sr-only"
+              onChange={async e => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (!f) return
+                const url = await uploadCommunityRoomCover(f)
+                if (url) setNewImageUrl(url)
+              }}
+            />
+            <Button type="button" variant="outline" size="sm" disabled={busyId === 'new'} onClick={() => createFileRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> Upload list image
+            </Button>
+            {newImageUrl && <span className="text-xs text-muted-foreground truncate max-w-[200px]">Image set</span>}
+          </div>
           <div className="flex gap-2">
             <Button size="sm" disabled={busyId === 'new'} onClick={() => void handleCreate()}>Create</Button>
             <Button size="sm" variant="ghost" type="button" onClick={() => setCreating(false)}>Cancel</Button>
@@ -146,6 +178,7 @@ function RoomEditor({
   const [description, setDescription] = useState(room.description || '')
   const [imageUrl, setImageUrl] = useState(room.image_url || '')
   const [editing, setEditing] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   return (
     <div className={`rounded-xl border p-4 ${room.is_active ? 'border-border bg-card' : 'border-zinc-700 bg-secondary/20 opacity-80'}`}>
@@ -161,7 +194,29 @@ function RoomEditor({
               <div className="space-y-2 max-w-md">
                 <Input value={name} onChange={e => setName(e.target.value)} className="font-semibold" />
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Description" />
-                <Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="Image URL" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/avif"
+                    className="sr-only"
+                    onChange={async e => {
+                      const f = e.target.files?.[0]
+                      e.target.value = ''
+                      if (!f) return
+                      const url = await uploadCommunityRoomCover(f)
+                      if (url) setImageUrl(url)
+                    }}
+                  />
+                  <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
+                    <Upload className="h-3.5 w-3.5 mr-1" /> New list image
+                  </Button>
+                  {imageUrl ? (
+                    <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline" onClick={() => setImageUrl('')}>
+                      Remove image
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <>

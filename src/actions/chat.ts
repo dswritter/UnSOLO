@@ -17,18 +17,7 @@ export async function sendMessage(roomId: string, content: string) {
     .single()
 
   if (!member) {
-    // Auto-join general rooms
-    const { data: room } = await supabase
-      .from('chat_rooms')
-      .select('type')
-      .eq('id', roomId)
-      .single()
-
-    if (room?.type !== 'general') {
-      return { error: 'Not a member of this room' }
-    }
-
-    await supabase.from('chat_room_members').insert({ room_id: roomId, user_id: user.id })
+    return { error: 'Join this chat before sending messages' }
   }
 
   const { error } = await supabase.from('messages').insert({
@@ -40,7 +29,8 @@ export async function sendMessage(roomId: string, content: string) {
 
   if (error) return { error: error.message }
 
-  revalidatePath(`/chat/${roomId}`)
+  revalidatePath('/community', 'layout')
+  revalidatePath(`/community/${roomId}`)
   return { success: true }
 }
 
@@ -82,6 +72,7 @@ export async function joinRoom(roomId: string) {
     })
   }
 
+  revalidatePath('/community', 'layout')
   revalidatePath(`/community/${roomId}`)
   return { success: true }
 }

@@ -1,15 +1,23 @@
-// Let Next.js cache this page briefly — realtime handles live updates
-export const revalidate = 30 // Cache for 30 seconds
+export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
-import { joinRoom } from '@/actions/chat'
 import { JoinRoomButton } from '@/components/chat/JoinRoomButton'
 import { Button } from '@/components/ui/button'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Message, Profile } from '@/types'
+
+function hashtagSlugFromRoomName(name: string) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
 
 export default async function CommunityRoomPage({
   params,
@@ -100,10 +108,15 @@ export default async function CommunityRoomPage({
     )
   }
 
-  const [{ data: msgs }, { data: profile }, { data: members }] = await Promise.all([
+  const [{ data: msgs }, { data: profile }, { data: members }, { data: linkRooms }] = await Promise.all([
     supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('chat_room_members').select('user_id').eq('room_id', roomId),
+    supabase
+      .from('chat_rooms')
+      .select('id, name, type, package:packages(slug)')
+      .eq('is_active', true)
+      .in('type', ['general', 'trip']),
   ])
 
   if (!profile) redirect('/login')
@@ -125,14 +138,44 @@ export default async function CommunityRoomPage({
     if (other) displayName = other.full_name || other.username
   }
 
+  const chatLinkTargets: { roomId: string; slug: string; label: string }[] = []
+  const seenSlugs = new Set<string>()
+  for (const r of linkRooms || []) {
+    const row = r as unknown as {
+      id: string
+      name: string
+      type: string
+      package: { slug: string } | { slug: string }[] | null
+    }
+    const pkgSlug =
+      row.package && !Array.isArray(row.package) ? row.package.slug : Array.isArray(row.package) ? row.package[0]?.slug : undefined
+    if (row.type === 'general' && row.name) {
+      const slug = hashtagSlugFromRoomName(row.name)
+      if (slug && !seenSlugs.has(slug)) {
+        seenSlugs.add(slug)
+        chatLinkTargets.push({ roomId: row.id, slug, label: row.name })
+      }
+    } else if (row.type === 'trip' && pkgSlug && !seenSlugs.has(pkgSlug)) {
+      seenSlugs.add(pkgSlug)
+      chatLinkTargets.push({
+        roomId: row.id,
+        slug: pkgSlug,
+        label: pkgSlug.replace(/-/g, ' '),
+      })
+    }
+  }
+
   return (
-    <ChatWindow
-      roomId={roomId}
-      roomName={displayName}
-      roomType={room.type as 'trip' | 'general' | 'direct'}
-      initialMessages={((msgs || []) as Message[]).reverse()}
-      currentUser={profile as Profile}
-      memberProfiles={memberProfiles}
-    />
+    <div className="flex flex-col h-full min-h-0 flex-1">
+      <ChatWindow
+        roomId={roomId}
+        roomName={displayName}
+        roomType={room.type as 'trip' | 'general' | 'direct'}
+        initialMessages={((msgs || []) as Message[]).reverse()}
+        currentUser={profile as Profile}
+        memberProfiles={memberProfiles}
+        chatLinkTargets={chatLinkTargets}
+      />
+    </div>
   )
 }

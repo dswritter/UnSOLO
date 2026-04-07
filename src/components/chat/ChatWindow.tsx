@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { sendMessage } from '@/actions/chat'
 import { requestPhoneAccess } from '@/actions/profile'
@@ -8,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -27,6 +28,12 @@ interface MentionSuggestion {
   full_name: string | null
 }
 
+export type ChatLinkTarget = { roomId: string; slug: string; label: string }
+
+/** Long-press picker + double-tap default (see Docs/Chat Reaction Emojis.md) */
+const CHAT_QUICK_REACTIONS = ['👍', '😂', '🔥', '🤝', '🥳', '🙏', '❌', '🚀', '✅', '🧳', '🌄'] as const
+const DOUBLE_TAP_EMOJI = '👍'
+
 interface ChatWindowProps {
   roomId: string
   roomName: string
@@ -35,6 +42,8 @@ interface ChatWindowProps {
   currentUser: Profile
   memberProfiles?: ChatMemberProfile[]
   onBack?: () => void
+  /** #slug → trip package slug or community room name slug */
+  chatLinkTargets?: ChatLinkTarget[]
 }
 
 export interface ChatMemberProfile {
@@ -48,11 +57,63 @@ export interface ChatMemberProfile {
   phone_request_status?: string | null
 }
 
-// ── Linkify helper ─────────────────────────────────────────
-function renderMessageContent(content: string, isOwn: boolean = false) {
+// ── Linkify: URLs, @mentions, #room-or-trip slugs ───────────
+function renderTextWithMentionsAndTags(
+  part: string,
+  lineKey: string,
+  isOwn: boolean,
+  chatLinkTargets: ChatLinkTarget[],
+) {
+  const mentionHashSplit = part.split(/(@\w+|#[a-zA-Z0-9][a-zA-Z0-9-]*)/g)
+  const mentionClass = isOwn
+    ? 'font-bold text-black/80 hover:underline'
+    : 'font-bold text-primary hover:underline'
+  const hashClass = isOwn
+    ? 'font-semibold text-black/90 bg-black/10 px-0.5 rounded hover:underline'
+    : 'font-semibold text-primary bg-primary/15 px-0.5 rounded hover:underline'
+
+  return (
+    <span key={lineKey}>
+      {mentionHashSplit.map((seg, si) => {
+        if (seg.startsWith('@')) {
+          const username = seg.slice(1)
+          return (
+            <Link
+              key={`${lineKey}-a${si}`}
+              href={`/profile/${username}`}
+              className={mentionClass}
+              onClick={e => e.stopPropagation()}
+            >
+              {seg}
+            </Link>
+          )
+        }
+        if (seg.startsWith('#')) {
+          const raw = seg.slice(1).toLowerCase()
+          const target = chatLinkTargets.find(t => t.slug.toLowerCase() === raw)
+          if (target) {
+            return (
+              <Link
+                key={`${lineKey}-h${si}`}
+                href={`/community/${target.roomId}`}
+                className={hashClass}
+                onClick={e => e.stopPropagation()}
+                title={target.label}
+              >
+                {seg}
+              </Link>
+            )
+          }
+        }
+        return seg ? <span key={`${lineKey}-t${si}`}>{seg}</span> : null
+      })}
+    </span>
+  )
+}
+
+function renderMessageContent(content: string, isOwn: boolean = false, chatLinkTargets: ChatLinkTarget[] = []) {
   const lines = content.split('\n')
 
-  // On sender bubble (amber bg), links must be dark; on receiver (dark bg), links are amber
   const linkClass = isOwn
     ? 'text-black underline font-semibold hover:text-black/70 break-all'
     : 'text-primary underline hover:text-primary/80 break-all'
@@ -60,12 +121,9 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
     ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/15 text-black text-xs font-semibold hover:bg-black/25 transition-colors'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
-  return lines.map((line, lineIdx) => {
-    // First, handle @mentions
-    const mentionRegex = /@(\w+)/g
-    const urlRegex = /(https?:\/\/[^\s<]+)/g
+  const urlRegex = /(https?:\/\/[^\s<]+)/g
 
-    // Split by URLs first, then handle mentions within text parts
+  return lines.map((line, lineIdx) => {
     const parts = line.split(urlRegex)
 
     const lineContent = parts.map((part, partIdx) => {
@@ -86,34 +144,8 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
           </a>
         )
       }
-      // Handle @mentions in text parts
-      if (part && /@\w+/.test(part)) {
-        const mentionParts = part.split(/(@\w+)/g)
-        return (
-          <span key={key}>
-            {mentionParts.map((mp, mi) => {
-              if (mp.startsWith('@')) {
-                const username = mp.slice(1)
-                return (
-                  <Link
-                    key={`${key}-m${mi}`}
-                    href={`/profile/${username}`}
-                    className={isOwn
-                      ? 'font-bold text-black/80 hover:underline'
-                      : 'font-bold text-primary hover:underline'
-                    }
-                    onClick={e => e.stopPropagation()}
-                  >
-                    {mp}
-                  </Link>
-                )
-              }
-              return mp
-            })}
-          </span>
-        )
-      }
-      return part ? <span key={key}>{part}</span> : null
+      if (!part) return null
+      return renderTextWithMentionsAndTags(part, key, isOwn, chatLinkTargets)
     })
 
     return (
@@ -125,7 +157,17 @@ function renderMessageContent(content: string, isOwn: boolean = false) {
   })
 }
 
-export function ChatWindow({ roomId, roomName, roomType = 'general', initialMessages, currentUser, memberProfiles = [], onBack }: ChatWindowProps) {
+export function ChatWindow({
+  roomId,
+  roomName,
+  roomType = 'general',
+  initialMessages,
+  currentUser,
+  memberProfiles = [],
+  onBack,
+  chatLinkTargets = [],
+}: ChatWindowProps) {
+  const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(roomId, initialMessages, currentUser)
@@ -151,6 +193,15 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const [cursorPos, setCursorPos] = useState(0)
+
+  type ReactionRow = { id: string; message_id: string; user_id: string; emoji: string }
+  const [reactionsByMessage, setReactionsByMessage] = useState<Map<string, ReactionRow[]>>(new Map())
+  const reactionsByMessageRef = useRef(reactionsByMessage)
+  reactionsByMessageRef.current = reactionsByMessage
+  const [emojiPickerForMessageId, setEmojiPickerForMessageId] = useState<string | null>(null)
+  const [reactorModal, setReactorModal] = useState<{ emoji: string; names: string[] } | null>(null)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastTapRef = useRef<{ id: string; t: number } | null>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -212,6 +263,160 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
     return () => { clearInterval(pollInterval); sb.removeChannel(channel) }
   }, [messages, roomId])
+
+  // Message reactions: load + realtime
+  useEffect(() => {
+    const sb = createBrowserClient()
+    const realIds = messages
+      .filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+      .map(m => m.id)
+    if (realIds.length === 0) {
+      setReactionsByMessage(new Map())
+      return
+    }
+
+    async function loadReactions() {
+      const slice = realIds.slice(-80)
+      const { data, error } = await sb
+        .from('message_reactions')
+        .select('id, message_id, user_id, emoji')
+        .in('message_id', slice)
+      if (error) {
+        console.warn('message_reactions load:', error.message)
+        return
+      }
+      const m = new Map<string, ReactionRow[]>()
+      for (const r of data || []) {
+        const row = r as ReactionRow
+        const arr = m.get(row.message_id) || []
+        arr.push(row)
+        m.set(row.message_id, arr)
+      }
+      setReactionsByMessage(m)
+    }
+
+    void loadReactions()
+
+    function mergeInsert(r: ReactionRow) {
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        const arr = [...(next.get(r.message_id) || [])]
+        if (!arr.some(x => x.id === r.id)) arr.push(r)
+        next.set(r.message_id, arr)
+        return next
+      })
+    }
+    function mergeDelete(id: string, messageId: string) {
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        const arr = (next.get(messageId) || []).filter(x => x.id !== id)
+        if (arr.length === 0) next.delete(messageId)
+        else next.set(messageId, arr)
+        return next
+      })
+    }
+
+    const channel = sb
+      .channel(`msg-rx-${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_reactions', filter: `room_id=eq.${roomId}` },
+        (payload: { new: Record<string, unknown> }) => mergeInsert(payload.new as ReactionRow),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'message_reactions', filter: `room_id=eq.${roomId}` },
+        (payload: { old: Record<string, unknown> }) => {
+          const o = payload.old as { id?: string; message_id?: string }
+          if (o.id && o.message_id) mergeDelete(o.id, o.message_id)
+        },
+      )
+      .subscribe()
+
+    return () => { sb.removeChannel(channel) }
+  }, [messages, roomId])
+
+  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (messageId.startsWith('optimistic-')) return
+    const sb = createBrowserClient()
+    const list = reactionsByMessageRef.current.get(messageId) || []
+    const mine = list.find(r => r.user_id === currentUser.id && r.emoji === emoji)
+
+    async function reloadAllReactions() {
+      const slice = messagesRefFromMessages()
+      if (slice.length === 0) return
+      const { data } = await sb.from('message_reactions').select('id, message_id, user_id, emoji').in('message_id', slice)
+      const m = new Map<string, ReactionRow[]>()
+      for (const r of data || []) {
+        const row = r as ReactionRow
+        const arr = m.get(row.message_id) || []
+        arr.push(row)
+        m.set(row.message_id, arr)
+      }
+      setReactionsByMessage(m)
+    }
+
+    function messagesRefFromMessages() {
+      return messages.filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-')).map(m => m.id).slice(-80)
+    }
+
+    if (mine?.id.startsWith('opt-rx-')) return
+
+    if (mine) {
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        const arr = (next.get(messageId) || []).filter(x => x.id !== mine!.id)
+        if (arr.length === 0) next.delete(messageId)
+        else next.set(messageId, arr)
+        return next
+      })
+      const { error } = await sb.from('message_reactions').delete().eq('id', mine.id)
+      if (error) {
+        toast.error(error.message)
+        void reloadAllReactions()
+      }
+      return
+    }
+
+    const optimisticId = `opt-rx-${Date.now()}`
+    const optimistic: ReactionRow = {
+      id: optimisticId,
+      message_id: messageId,
+      user_id: currentUser.id,
+      emoji,
+    }
+    setReactionsByMessage(prev => {
+      const next = new Map(prev)
+      const arr = [...(next.get(messageId) || []), optimistic]
+      next.set(messageId, arr)
+      return next
+    })
+    const { data, error } = await sb
+      .from('message_reactions')
+      .insert({ message_id: messageId, user_id: currentUser.id, emoji })
+      .select('id, message_id, user_id, emoji')
+      .single()
+    if (error) {
+      toast.error(error.message)
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        const arr = (next.get(messageId) || []).filter(x => x.id !== optimisticId)
+        if (arr.length === 0) next.delete(messageId)
+        else next.set(messageId, arr)
+        return next
+      })
+      return
+    }
+    if (data) {
+      const row = data as ReactionRow
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        const arr = (next.get(messageId) || []).map(x => (x.id === optimisticId ? row : x))
+        next.set(messageId, arr)
+        return next
+      })
+    }
+  }, [currentUser.id, messages])
 
   // Mark messages as read when viewing
   useEffect(() => {
@@ -492,6 +697,59 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     return onlineUsers.includes(userId) || dbOnlineUsers.has(userId)
   }
 
+  function bubbleLongPressHandlers(messageId: string) {
+    return {
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.button !== 0) return
+        if (e.pointerType === 'mouse') return
+        longPressTimerRef.current = setTimeout(() => {
+          setEmojiPickerForMessageId(messageId)
+          longPressTimerRef.current = null
+        }, 480)
+      },
+      onPointerUp: () => {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current)
+          longPressTimerRef.current = null
+        }
+      },
+      onPointerCancel: () => {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current)
+          longPressTimerRef.current = null
+        }
+      },
+      onPointerLeave: () => {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current)
+          longPressTimerRef.current = null
+        }
+      },
+    }
+  }
+
+  function onBubbleTouchEnd(messageId: string, e: React.TouchEvent) {
+    if (messageId.startsWith('optimistic-')) return
+    const now = Date.now()
+    const last = lastTapRef.current
+    if (last && last.id === messageId && now - last.t < 320) {
+      e.preventDefault()
+      void toggleReaction(messageId, DOUBLE_TAP_EMOJI)
+      lastTapRef.current = null
+    } else {
+      lastTapRef.current = { id: messageId, t: now }
+    }
+  }
+
+  function reactionNames(userIds: string[]) {
+    return userIds
+      .map(uid => {
+        const p = memberProfiles.find(m => m.id === uid)
+        return p?.full_name || p?.username || 'Member'
+      })
+      .filter(Boolean)
+  }
+
   const popupMember = profilePopup ? getMemberProfile(profilePopup) : null
   const onlineCount = memberProfiles.filter(m => isUserOnline(m.id)).length
   const isDM = roomType === 'direct'
@@ -513,7 +771,8 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onBack ? onBack() : window.location.href = '/community'}
+            type="button"
+            onClick={() => (onBack ? onBack() : router.push('/community'))}
             className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -742,6 +1001,20 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
                 readStatus={msg.user_id === currentUser.id ? getReadStatus(msg.id, currentUser.id) : undefined}
                 isDM={isDM}
                 readByReaders={!isDM && msg.user_id === currentUser.id ? latestReadReadersByMessageId.get(msg.id) : undefined}
+                chatLinkTargets={chatLinkTargets}
+                reactionRows={reactionsByMessage.get(msg.id)}
+                currentUserId={currentUser.id}
+                memberProfiles={memberProfiles}
+                onToggleReaction={emoji => { void toggleReaction(msg.id, emoji) }}
+                bubbleLongPress={bubbleLongPressHandlers(msg.id)}
+                onBubbleTouchEnd={e => onBubbleTouchEnd(msg.id, e)}
+                onBubbleDoubleClick={() => {
+                  if (!msg.id.startsWith('optimistic-') && msg.message_type !== 'system') {
+                    void toggleReaction(msg.id, DOUBLE_TAP_EMOJI)
+                  }
+                }}
+                onShowReactors={(emoji, userIds) => setReactorModal({ emoji, names: reactionNames(userIds) })}
+                onOpenEmojiPicker={() => setEmojiPickerForMessageId(msg.id)}
               />
             </div>
           ))}
@@ -815,6 +1088,56 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         </div>
       )}
 
+      {emojiPickerForMessageId && (
+        <div className="px-4 py-2 border-t border-border bg-card flex flex-wrap gap-1 items-center shrink-0">
+          <span className="text-xs text-muted-foreground w-full sm:w-auto mb-1 sm:mb-0">Pick a reaction</span>
+          <div className="flex flex-wrap gap-1 flex-1">
+            {CHAT_QUICK_REACTIONS.map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                className="text-xl min-w-[40px] h-10 rounded-lg hover:bg-secondary border border-transparent hover:border-border transition-colors"
+                onClick={() => {
+                  void toggleReaction(emojiPickerForMessageId, emoji)
+                  setEmojiPickerForMessageId(null)
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+          <Button type="button" variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => setEmojiPickerForMessageId(null)}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {reactorModal && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/70 flex items-end sm:items-center justify-center p-4"
+          onClick={() => setReactorModal(null)}
+          role="presentation"
+        >
+          <div
+            className="bg-card rounded-xl p-4 max-w-sm w-full border border-border shadow-xl"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Who reacted"
+          >
+            <div className="text-center text-4xl mb-2 select-none">{reactorModal.emoji}</div>
+            <p className="text-xs text-muted-foreground mb-2">Reacted by</p>
+            <ul className="text-sm space-y-1.5 max-h-52 overflow-y-auto">
+              {reactorModal.names.map((n, i) => (
+                <li key={`${n}-${i}`} className="font-medium">{n}</li>
+              ))}
+            </ul>
+            <Button type="button" variant="outline" className="mt-4 w-full border-border" onClick={() => setReactorModal(null)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-4 py-3 pb-6 border-t border-border safe-area-bottom mb-1">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
@@ -849,6 +1172,66 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
+type ReactionRowLite = { id: string; user_id: string; emoji: string }
+
+function ReactionPill({
+  emoji,
+  count,
+  userIds,
+  title,
+  iReacted,
+  onTap,
+  onLongShow,
+}: {
+  emoji: string
+  count: number
+  userIds: string[]
+  title: string
+  iReacted: boolean
+  onTap: () => void
+  onLongShow: () => void
+}) {
+  const holdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  return (
+    <button
+      type="button"
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+        iReacted
+          ? 'bg-primary/25 border-primary/50 text-foreground'
+          : 'bg-secondary/80 border-border text-muted-foreground hover:border-primary/40'
+      }`}
+      onClick={e => {
+        e.stopPropagation()
+        onTap()
+      }}
+      title={title}
+      onPointerDown={e => {
+        if (e.pointerType === 'touch') {
+          holdRef.current = setTimeout(() => {
+            holdRef.current = null
+            onLongShow()
+          }, 500)
+        }
+      }}
+      onPointerUp={() => {
+        if (holdRef.current) {
+          clearTimeout(holdRef.current)
+          holdRef.current = null
+        }
+      }}
+      onPointerCancel={() => {
+        if (holdRef.current) {
+          clearTimeout(holdRef.current)
+          holdRef.current = null
+        }
+      }}
+    >
+      <span className="leading-none text-base">{emoji}</span>
+      <span className="font-semibold tabular-nums">{count}</span>
+    </button>
+  )
+}
+
 function MessageBubble({
   message,
   isOwn,
@@ -857,6 +1240,16 @@ function MessageBubble({
   readStatus,
   isDM,
   readByReaders,
+  chatLinkTargets = [],
+  reactionRows,
+  currentUserId,
+  memberProfiles,
+  onToggleReaction,
+  bubbleLongPress,
+  onBubbleTouchEnd,
+  onBubbleDoubleClick,
+  onShowReactors,
+  onOpenEmojiPicker,
 }: {
   message: Message
   isOwn: boolean
@@ -865,10 +1258,45 @@ function MessageBubble({
   readStatus?: 'sending' | 'sent' | 'read'
   isDM?: boolean
   readByReaders?: ChatMemberProfile[]
+  chatLinkTargets?: ChatLinkTarget[]
+  reactionRows?: ReactionRowLite[]
+  currentUserId: string
+  memberProfiles: ChatMemberProfile[]
+  onToggleReaction: (emoji: string) => void
+  bubbleLongPress: {
+    onPointerDown: (e: React.PointerEvent) => void
+    onPointerUp: () => void
+    onPointerCancel: () => void
+    onPointerLeave: () => void
+  }
+  onBubbleTouchEnd: (e: React.TouchEvent) => void
+  onBubbleDoubleClick: () => void
+  onShowReactors: (emoji: string, userIds: string[]) => void
+  onOpenEmojiPicker: () => void
 }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
+
+  const reactionAgg = useMemo(() => {
+    if (!reactionRows?.length) return []
+    const m = new Map<string, string[]>()
+    for (const r of reactionRows) {
+      const arr = m.get(r.emoji) || []
+      arr.push(r.user_id)
+      m.set(r.emoji, arr)
+    }
+    return [...m.entries()]
+      .map(([emoji, userIds]) => ({
+        emoji,
+        count: userIds.length,
+        userIds,
+        iReacted: userIds.includes(currentUserId),
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [reactionRows, currentUserId])
+
+  const canReact = message.message_type !== 'system' && !message.id.startsWith('optimistic-')
 
   if (message.message_type === 'system') {
     // Make usernames in system messages clickable
@@ -905,11 +1333,8 @@ function MessageBubble({
     )
   }
 
-  // Render @mentions as links in message content
   function renderWithMentions(content: string, ownMsg: boolean) {
-    const rendered = renderMessageContent(content, ownMsg)
-    // Post-process: find @username patterns and make them links
-    return rendered
+    return renderMessageContent(content, ownMsg, chatLinkTargets)
   }
 
   return (
@@ -946,14 +1371,51 @@ function MessageBubble({
           </Link>
         )}
         <div
-          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words touch-manipulation ${
             isOwn
               ? 'bg-primary text-black rounded-tr-sm'
               : 'bg-card border border-border rounded-tl-sm'
           }`}
+          {...(canReact ? bubbleLongPress : {})}
+          onTouchEnd={canReact ? onBubbleTouchEnd : undefined}
+          onDoubleClick={canReact ? onBubbleDoubleClick : undefined}
         >
           {renderWithMentions(message.content, isOwn)}
         </div>
+        {canReact && (
+          <div className={`flex flex-wrap items-center gap-1.5 mt-0.5 max-w-[85vw] ${isOwn ? 'justify-end' : 'justify-start'}`}>
+            {reactionAgg.map(block => {
+              const names = block.userIds
+                .map(uid => memberProfiles.find(m => m.id === uid))
+                .filter(Boolean)
+                .map(p => p!.full_name || p!.username)
+              const tip = names.length ? names.join(', ') : 'React'
+              return (
+                <ReactionPill
+                  key={block.emoji}
+                  emoji={block.emoji}
+                  count={block.count}
+                  userIds={block.userIds}
+                  title={tip}
+                  iReacted={block.iReacted}
+                  onTap={() => onToggleReaction(block.emoji)}
+                  onLongShow={() => onShowReactors(block.emoji, block.userIds)}
+                />
+              )
+            })}
+            <button
+              type="button"
+              className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-secondary/80 border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+              title="Add reaction"
+              onClick={e => {
+                e.stopPropagation()
+                onOpenEmojiPicker()
+              }}
+            >
+              <SmilePlus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
           {isOwn && readStatus && readStatus !== 'sending' && (
