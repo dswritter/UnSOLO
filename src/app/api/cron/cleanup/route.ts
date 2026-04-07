@@ -120,7 +120,6 @@ export async function POST(request: Request) {
     for (const booking of confirmedBookings || []) {
       const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number; destination_id?: string }
       const duration = pkg?.duration_days || 1
-      const guestCount = booking.guests || 1
 
       // Calculate trip end date from booking's travel_date
       const endDate = new Date(booking.travel_date)
@@ -131,33 +130,32 @@ export async function POST(request: Request) {
       if (endDateStr <= today) {
         await supabase.from('bookings').update({ status: 'completed' }).eq('id', booking.id)
 
-        // Update leaderboard: 25pts per guest, 15pts for new destination
-        const { data: completedBookings } = await supabase
+        // Leaderboard inputs only — total_score is generated. Completed bookings only;
+        // trips_completed = sum of guests (25 pts per guest in DB formula).
+        const { data: completedRows } = await supabase
           .from('bookings')
           .select('guests, package:packages(destination_id)')
           .eq('user_id', booking.user_id)
-          .in('status', ['completed'])
+          .eq('status', 'completed')
 
-        const totalTrips = (completedBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0) + guestCount
-        const allDestIds = new Set(
-          (completedBookings || []).map(b => (b.package as unknown as { destination_id?: string })?.destination_id).filter(Boolean)
+        const guestTripUnits = (completedRows || []).reduce(
+          (sum, b) => sum + Math.max(Number(b.guests) || 1, 1),
+          0,
         )
-        if (pkg?.destination_id) allDestIds.add(pkg.destination_id)
+        const allDestIds = new Set(
+          (completedRows || []).map(b => (b.package as unknown as { destination_id?: string })?.destination_id).filter(Boolean),
+        )
 
-        const { data: reviews } = await supabase
+        const { count: reviewCount } = await supabase
           .from('reviews')
-          .select('id', { count: 'exact', head: true })
+          .select('*', { count: 'exact', head: true })
           .eq('user_id', booking.user_id)
-
-        const reviewCount = reviews?.length || 0
-        const totalScore = (totalTrips * 25) + (allDestIds.size * 15) + (reviewCount * 10)
 
         await supabase.from('leaderboard_scores').upsert({
           user_id: booking.user_id,
-          trips_completed: totalTrips,
+          trips_completed: guestTripUnits,
           destinations_count: allDestIds.size,
-          reviews_written: reviewCount,
-          total_score: totalScore,
+          reviews_written: reviewCount || 0,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' })
 
@@ -182,7 +180,7 @@ export async function POST(request: Request) {
               user_id: booking.user_id,
               type: 'review',
               title: 'How was your trip?',
-              body: `Thanks for traveling with UnSOLO! Share your experience on ${pkg.title} and earn 10 leaderboard points.`,
+              body: `Thanks for traveling with UnSOLO! Share your experience on ${pkg.title} and earn 5 leaderboard points.`,
               link: `/packages/${pkg.slug}#reviews`,
             })
           }

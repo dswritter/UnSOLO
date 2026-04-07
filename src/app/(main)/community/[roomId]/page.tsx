@@ -101,7 +101,7 @@ export default async function CommunityRoomPage({
   }
 
   const [{ data: msgs }, { data: profile }, { data: members }] = await Promise.all([
-    supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: true }).limit(100),
+    supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('chat_room_members').select('user_id').eq('room_id', roomId),
   ])
@@ -130,7 +130,7 @@ export default async function CommunityRoomPage({
       roomId={roomId}
       roomName={displayName}
       roomType={room.type as 'trip' | 'general' | 'direct'}
-      initialMessages={(msgs || []) as Message[]}
+      initialMessages={((msgs || []) as Message[]).reverse()}
       currentUser={profile as Profile}
       memberProfiles={memberProfiles}
     />

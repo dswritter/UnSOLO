@@ -41,7 +41,7 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
       if (!room || !mountedRef.current) return
 
       const [{ data: msgs }, { data: members }] = await Promise.all([
-        supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', id).order('created_at', { ascending: true }).limit(50),
+        supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', id).order('created_at', { ascending: false }).limit(50),
         supabase.from('chat_room_members').select('user_id').eq('room_id', id),
       ])
 
@@ -70,7 +70,7 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
         roomId: id,
         roomName: displayName,
         roomType: room.type as 'trip' | 'general' | 'direct',
-        messages: (msgs || []) as Message[],
+        messages: ((msgs || []) as Message[]).reverse(),
         memberProfiles,
         loadedAt: Date.now(),
       }
