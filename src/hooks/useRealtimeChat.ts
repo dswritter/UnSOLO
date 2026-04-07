@@ -33,7 +33,7 @@ export function useRealtimeChat(
     // Separate channel for typing indicator using broadcast
     const typingChannel = supabase.channel(`typing:${roomKey}`)
     typingChannel
-      .on('broadcast', { event: 'typing' }, (payload) => {
+      .on('broadcast', { event: 'typing' }, (payload: { payload: { user_id: string; username: string } }) => {
         const { user_id, username } = payload.payload as { user_id: string; username: string }
         if (user_id === currentUserRef.current?.id) return
 
@@ -64,7 +64,7 @@ export function useRealtimeChat(
           table: 'messages',
           filter: `room_id=eq.${roomKey}`,
         },
-        async (payload) => {
+        async (payload: { new: Record<string, unknown> }) => {
           const newMsg = payload.new as Message
           if (normalizeRoomId(newMsg.room_id) !== roomKey) return
 
@@ -93,11 +93,11 @@ export function useRealtimeChat(
       )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<{ user_id: string; username: string }>()
-        const allPresence = Object.values(state).flat()
-        const userIds = allPresence.map((p) => p.user_id).filter(Boolean)
+        const allPresence = Object.values(state).flat() as { user_id: string; username: string }[]
+        const userIds = allPresence.map(p => p.user_id).filter(Boolean)
         setOnlineUsers([...new Set(userIds)])
       })
-      .subscribe(async (status) => {
+      .subscribe(async (status: string) => {
         setIsConnected(status === 'SUBSCRIBED')
         const u = currentUserRef.current
         if (status === 'SUBSCRIBED' && u) {

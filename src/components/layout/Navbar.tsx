@@ -42,7 +42,7 @@ export function Navbar({ user }: NavbarProps) {
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-      }, async (payload) => {
+      }, async (payload: { new: Record<string, unknown> }) => {
         const msg = payload.new as { user_id: string; room_id: string; message_type: string }
         if (msg.user_id === user.id || msg.message_type === 'system') return
 

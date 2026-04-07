@@ -87,7 +87,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
         event: 'INSERT',
         schema: 'public',
         table: 'messages',
-      }, (payload) => {
+      }, (payload: { new: Record<string, unknown> }) => {
         const msg = payload.new as { id: string; room_id: string; content: string; created_at: string; user_id: string; message_type: string }
         if (msg.message_type === 'system') return
 
@@ -157,7 +157,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
     async function checkPresence() {
       const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
       const { data } = await supabase.from('user_presence').select('user_id').eq('is_online', true).gte('last_seen', twoMinAgo)
-      if (data) setOnlineUsers(new Set(data.map(d => d.user_id)))
+      if (data) setOnlineUsers(new Set((data as { user_id: string }[]).map(d => d.user_id)))
     }
     checkPresence()
     const interval = setInterval(checkPresence, 60000)
@@ -191,7 +191,8 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
 
       // Filter out users who already have a DM in the rooms list
       const existingDmUserIds = new Set(rooms.filter(r => r.type === 'direct' && r.dmProfile).map(r => r.dmProfile!.id))
-      setUserResults((data || []).filter(u => !existingDmUserIds.has(u.id)))
+      const rows = (data || []) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
+      setUserResults(rows.filter(u => !existingDmUserIds.has(u.id)))
       setSearchingUsers(false)
     }, 300)
 

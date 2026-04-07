@@ -47,7 +47,7 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
 
       if (!mountedRef.current) return
 
-      const memberIds = (members || []).map(m => m.user_id).filter(Boolean)
+      const memberIds = ((members || []) as { user_id: string }[]).map(m => m.user_id).filter(Boolean)
       let memberProfiles: ChatMemberProfile[] = []
 
       if (memberIds.length > 0) {
@@ -55,7 +55,10 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
           .from('profiles')
           .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
           .in('id', memberIds)
-        memberProfiles = (profiles || []).map(p => ({ ...p, phone_request_status: null })) as ChatMemberProfile[]
+        memberProfiles = ((profiles || []) as Omit<ChatMemberProfile, 'phone_request_status'>[]).map(p => ({
+          ...p,
+          phone_request_status: null,
+        })) as ChatMemberProfile[]
       }
 
       let displayName = room.name

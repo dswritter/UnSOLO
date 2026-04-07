@@ -199,8 +199,8 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
         event: 'INSERT',
         schema: 'public',
         table: 'message_read_receipts',
-      }, (payload) => {
-        const r = payload.new as ReadReceipt
+      }, (payload: { new: Record<string, unknown> }) => {
+        const r = payload.new as unknown as ReadReceipt
         setReadReceipts(prev => {
           const newMap = new Map(prev)
           const existing = newMap.get(r.message_id) || []

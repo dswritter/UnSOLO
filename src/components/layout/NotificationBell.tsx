@@ -57,8 +57,8 @@ export function NotificationBell({ userId }: { userId: string }) {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          const n = payload.new as Notification
+        (payload: { new: Record<string, unknown> }) => {
+          const n = payload.new as unknown as Notification
           setNotifications(prev => [n, ...prev].slice(0, 20))
           setUnreadCount(c => c + 1)
 

@@ -101,7 +101,7 @@ export function TravelStats({ userId, isOwnProfile }: TravelStatsProps) {
         destinationsCount: scores?.destinations_count || 0,
         visitedStates: Array.from(stateSet),
         destinations: Array.from(destMap.values()).sort((a, b) => b.count - a.count),
-        achievements: (achievementData || []).map(a => a.achievement_key),
+        achievements: ((achievementData || []) as { achievement_key: string }[]).map(a => a.achievement_key),
       })
     }
 

@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
+import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
@@ -58,10 +59,12 @@ export default function EditProfilePage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    void supabase.auth.getUser().then((authRes: { data: { user: User | null } }) => {
+      const user = authRes.data.user
       if (!user) return
-      supabase.from('profiles').select('*').eq('id', user.id).single()
-        .then(({ data }) => {
+      void supabase.from('profiles').select('*').eq('id', user.id).single()
+        .then((res: { data: Profile | null }) => {
+          const data = res.data
           const p = data as Profile & { phone_number?: string; phone_public?: boolean }
           setProfile(p)
           if (p) {

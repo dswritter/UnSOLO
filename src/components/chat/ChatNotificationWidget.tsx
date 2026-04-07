@@ -57,7 +57,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           schema: 'public',
           table: 'messages',
         },
-        async (payload) => {
+        async (payload: { new: Record<string, unknown> }) => {
           const msg = payload.new as { id: string; room_id: string; content: string; created_at: string; user_id: string; message_type: string }
 
           if (msg.user_id === userId || msg.message_type === 'system') return

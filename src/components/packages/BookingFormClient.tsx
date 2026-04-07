@@ -30,6 +30,15 @@ interface GroupInvite {
   organizer_name: string
 }
 
+interface DiscountOfferPromoRow {
+  promo_code: string | null
+  name: string | null
+  discount_paise: number
+  max_uses: number | null
+  used_count: number | null
+  valid_until: string | null
+}
+
 interface BookingFormClientProps {
   packageId: string
   packageSlug: string
@@ -133,15 +142,16 @@ export function BookingFormClient({
       .eq('is_active', true)
       .eq('type', 'promo')
       .not('promo_code', 'is', null)
-      .then(({ data }) => {
+      .then((res: { data: DiscountOfferPromoRow[] | null }) => {
+        const data = res.data
         const now = new Date()
-        const valid = (data || []).filter(d =>
-          (!d.max_uses || d.used_count < d.max_uses) &&
+        const valid = (data || []).filter((d: DiscountOfferPromoRow) =>
+          (!d.max_uses || (d.used_count ?? 0) < d.max_uses) &&
           (!d.valid_until || new Date(d.valid_until) > now)
         )
-        setAvailablePromos(valid.map(d => ({
+        setAvailablePromos(valid.map((d: DiscountOfferPromoRow) => ({
           code: d.promo_code!,
-          name: d.name,
+          name: d.name ?? '',
           discountPaise: d.discount_paise,
         })))
         setPromosLoaded(true)

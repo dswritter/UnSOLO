@@ -14,6 +14,11 @@ interface ActiveUser {
   avatar_url: string | null
 }
 
+type PresenceWithProfile = {
+  user_id: string
+  profile: { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
+}
+
 export function ActiveUnSOLOs({ currentUserId }: { currentUserId: string }) {
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([])
 
@@ -30,12 +35,15 @@ export function ActiveUnSOLOs({ currentUserId }: { currentUserId: string }) {
         .neq('user_id', currentUserId)
 
       if (data) {
-        const users: ActiveUser[] = data
-          .filter(d => d.profile)
-          .map(d => {
-            const p = d.profile as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null }
-            return { user_id: d.user_id, username: p.username, full_name: p.full_name, avatar_url: p.avatar_url }
-          })
+        const rows = data as unknown as PresenceWithProfile[]
+        const users: ActiveUser[] = rows
+          .filter((d): d is PresenceWithProfile & { profile: NonNullable<PresenceWithProfile['profile']> } => d.profile != null)
+          .map(d => ({
+            user_id: d.user_id,
+            username: d.profile.username,
+            full_name: d.profile.full_name,
+            avatar_url: d.profile.avatar_url,
+          }))
         setActiveUsers(users)
       }
     }
