@@ -10,6 +10,19 @@ export function useRealtimeChat(
   currentUser?: Profile,
 ) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
+
+  // Sync with fresh initialMessages when ChatRoomLoader refetches
+  useEffect(() => {
+    if (initialMessages.length === 0) return
+    setMessages(prev => {
+      // Merge: keep optimistic messages, replace real ones with fresh data
+      const optimistic = prev.filter(m => m.id.startsWith('optimistic-'))
+      const freshIds = new Set(initialMessages.map(m => m.id))
+      // Keep any realtime messages that aren't in the fresh batch
+      const realtimeOnly = prev.filter(m => !m.id.startsWith('optimistic-') && !freshIds.has(m.id) && m.created_at > (initialMessages[initialMessages.length - 1]?.created_at || ''))
+      return [...initialMessages, ...realtimeOnly, ...optimistic]
+    })
+  }, [initialMessages])
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)

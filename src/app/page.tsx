@@ -39,19 +39,16 @@ async function getStats() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
-  const [{ count: travelers }, { count: confirmedTrips }, { count: completedTrips }] = await Promise.all([
+  const [{ count: travelers }, { data: tripBookings }] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'confirmed'),
-    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+    supabase.from('bookings').select('guests, package:packages(destination_id)').in('status', ['confirmed', 'completed']),
   ])
-  // Count distinct destinations from confirmed + completed bookings
-  const { data: bookedPkgs } = await supabase
-    .from('bookings')
-    .select('package:packages(destination_id)')
-    .in('status', ['confirmed', 'completed'])
-  const uniqueDests = new Set((bookedPkgs || []).map(b => (b.package as unknown as { destination_id: string } | null)?.destination_id).filter(Boolean)).size
 
-  const totalTrips = (confirmedTrips || 0) + (completedTrips || 0)
+  // Sum guests for total trips booked (3 guests = 3 trips)
+  const totalTrips = (tripBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
+  // Count distinct destinations
+  const uniqueDests = new Set((tripBookings || []).map(b => (b.package as unknown as { destination_id: string } | null)?.destination_id).filter(Boolean)).size
+
   return { travelers: travelers || 0, trips: totalTrips, destinations: uniqueDests }
 }
 

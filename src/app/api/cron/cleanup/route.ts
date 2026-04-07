@@ -112,26 +112,62 @@ export async function POST(request: Request) {
 
     const { data: confirmedBookings } = await supabase
       .from('bookings')
-      .select('id, user_id, travel_date, package:packages(title, slug, duration_days)')
+      .select('id, user_id, guests, travel_date, package:packages(title, slug, duration_days, destination_id)')
       .eq('status', 'confirmed')
       .lte('travel_date', today)
       .limit(50)
 
     for (const booking of confirmedBookings || []) {
-      const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number }
+      const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number; destination_id?: string }
       const duration = pkg?.duration_days || 1
+      const guestCount = booking.guests || 1
 
       // Calculate trip end date from booking's travel_date
       const endDate = new Date(booking.travel_date)
       endDate.setDate(endDate.getDate() + duration)
       const endDateStr = endDate.toISOString().split('T')[0]
 
-      // If trip has ended (end date <= today), auto-complete and send review notification
+      // If trip has ended (end date <= today), auto-complete
       if (endDateStr <= today) {
-        // Mark as completed
         await supabase.from('bookings').update({ status: 'completed' }).eq('id', booking.id)
 
-        // Send review reminder (if not already sent)
+        // Update leaderboard: 25pts per guest, 15pts for new destination
+        const { data: completedBookings } = await supabase
+          .from('bookings')
+          .select('guests, package:packages(destination_id)')
+          .eq('user_id', booking.user_id)
+          .in('status', ['completed'])
+
+        const totalTrips = (completedBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0) + guestCount
+        const allDestIds = new Set(
+          (completedBookings || []).map(b => (b.package as unknown as { destination_id?: string })?.destination_id).filter(Boolean)
+        )
+        if (pkg?.destination_id) allDestIds.add(pkg.destination_id)
+
+        const { data: reviews } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', booking.user_id)
+
+        const reviewCount = reviews?.length || 0
+        const totalScore = (totalTrips * 25) + (allDestIds.size * 15) + (reviewCount * 10)
+
+        await supabase.from('leaderboard_scores').upsert({
+          user_id: booking.user_id,
+          trips_completed: totalTrips,
+          destinations_count: allDestIds.size,
+          reviews_written: reviewCount,
+          total_score: totalScore,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' })
+
+        // Award first trip badge
+        await supabase.from('user_achievements').upsert({
+          user_id: booking.user_id,
+          achievement_key: 'first_trip',
+        }, { onConflict: 'user_id,achievement_key' })
+
+        // Send review reminder
         if (pkg?.slug) {
           const { data: existing } = await supabase
             .from('notifications')

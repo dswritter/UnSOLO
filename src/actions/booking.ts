@@ -261,49 +261,8 @@ export async function confirmPayment(
     })
   }
 
-  // Update leaderboard scores
-  const { data: existing } = await supabase
-    .from('leaderboard_scores')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  const { data: destData } = await supabase
-    .from('bookings')
-    .select('package:packages(destination_id)')
-    .eq('user_id', user.id)
-    .eq('status', 'confirmed')
-
-  const uniqueDests = new Set(
-    (destData || []).map((b) => {
-      const pkg = b.package as { destination_id?: string } | null
-      return pkg?.destination_id
-    }).filter(Boolean)
-  ).size
-
-  if (existing) {
-    await supabase
-      .from('leaderboard_scores')
-      .update({
-        trips_completed: existing.trips_completed + 1,
-        destinations_count: uniqueDests,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', user.id)
-  } else {
-    await supabase.from('leaderboard_scores').insert({
-      user_id: user.id,
-      trips_completed: 1,
-      reviews_written: 0,
-      destinations_count: uniqueDests,
-    })
-  }
-
-  // Award badges
-  await supabase.from('user_achievements').upsert({
-    user_id: user.id,
-    achievement_key: 'first_trip',
-  })
+  // Leaderboard scores are now updated by the cron job when trips are completed
+  // (not at booking time — points should only be awarded after trip ends)
 
   const pkgDetail = booking.package as { difficulty?: string } | null
   if (pkgDetail?.difficulty === 'challenging') {
