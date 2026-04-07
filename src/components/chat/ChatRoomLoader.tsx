@@ -20,26 +20,15 @@ interface CachedRoom {
   loadedAt: number
 }
 
-// Global cache — persists across component remounts
+// Simple cache to show data instantly on revisit
 const roomCache = new Map<string, CachedRoom>()
 
 export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderProps) {
-  const [roomData, setRoomData] = useState<CachedRoom | null>(roomCache.get(roomId) || null)
-  const [loading, setLoading] = useState(!roomCache.has(roomId))
-  const loadingRef = useRef<string | null>(null)
+  const [roomData, setRoomData] = useState<CachedRoom | null>(null)
+  const [loading, setLoading] = useState(true)
+  const mountedRef = useRef(true)
 
   const loadRoom = useCallback(async (id: string) => {
-    // Show cached data instantly while refetching (stale-while-revalidate)
-    const cached = roomCache.get(id)
-    if (cached) {
-      setRoomData(cached)
-      setLoading(false)
-    }
-
-    // Always fetch fresh data (in background if cached data shown)
-    loadingRef.current = id
-    if (!cached) setLoading(true)
-
     const supabase = createClient()
 
     try {
@@ -49,13 +38,14 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
         .eq('id', id)
         .single()
 
-      if (!room || loadingRef.current !== id) return
+      if (!room || !mountedRef.current) return
 
-      // Fetch messages + members in parallel
       const [{ data: msgs }, { data: members }] = await Promise.all([
-        supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', id).order('created_at', { ascending: true }).limit(100),
+        supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', id).order('created_at', { ascending: true }).limit(50),
         supabase.from('chat_room_members').select('user_id').eq('room_id', id),
       ])
+
+      if (!mountedRef.current) return
 
       const memberIds = (members || []).map(m => m.user_id).filter(Boolean)
       let memberProfiles: ChatMemberProfile[] = []
@@ -68,14 +58,13 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
         memberProfiles = (profiles || []).map(p => ({ ...p, phone_request_status: null })) as ChatMemberProfile[]
       }
 
-      // Resolve display name
       let displayName = room.name
       if (room.type === 'direct') {
         const other = memberProfiles.find(m => m.id !== currentUser.id)
         if (other) displayName = other.full_name || other.username
       }
 
-      if (loadingRef.current !== id) return
+      if (!mountedRef.current) return
 
       const data: CachedRoom = {
         roomId: id,
@@ -88,16 +77,27 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
 
       roomCache.set(id, data)
       setRoomData(data)
-    } finally {
-      if (loadingRef.current === id) {
-        setLoading(false)
-        loadingRef.current = null
-      }
+      setLoading(false)
+    } catch {
+      setLoading(false)
     }
   }, [currentUser.id])
 
   useEffect(() => {
+    mountedRef.current = true
+    setLoading(true)
+
+    // Show cache instantly, then always refetch
+    const cached = roomCache.get(roomId)
+    if (cached) {
+      setRoomData(cached)
+      setLoading(false)
+    }
+
+    // Always fetch fresh (will update roomData + key when done)
     loadRoom(roomId)
+
+    return () => { mountedRef.current = false }
   }, [roomId, loadRoom])
 
   // Mark messages as read
@@ -130,9 +130,10 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
 
   if (!roomData) return null
 
+  // key includes loadedAt — when fresh data arrives, ChatWindow remounts with latest messages
   return (
     <ChatWindow
-      key={roomData.roomId}
+      key={`${roomData.roomId}-${roomData.loadedAt}`}
       roomId={roomData.roomId}
       roomName={roomData.roomName}
       roomType={roomData.roomType}
