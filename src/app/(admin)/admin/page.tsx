@@ -1,6 +1,6 @@
 import { getAdminDashboardStats } from '@/actions/admin'
 import Link from 'next/link'
-import { Users, CreditCard, Clock, UserCheck, IndianRupee, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, XCircle, AlertTriangle } from 'lucide-react'
+import { Users, CreditCard, Clock, UserCheck, IndianRupee, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, XCircle, AlertTriangle, MessageCircle } from 'lucide-react'
 
 function fmtPrice(paise: number) {
   if (paise === 0) return '₹0'
@@ -88,6 +88,7 @@ export default async function AdminDashboardPage() {
           { href: '/admin/requests', icon: FileText, title: 'Custom Requests', desc: 'Review custom date requests' },
           { href: '/admin/packages', icon: Package, title: 'Manage Packages', desc: 'Create, edit packages & destinations' },
           { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips' },
+          { href: '/admin/community-chats', icon: MessageCircle, title: 'Community chats', desc: 'Rooms, images, enable/disable' },
           { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers' },
         ].map(({ href, icon: Icon, title, desc }) => (
           <Link key={href} href={href} className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">

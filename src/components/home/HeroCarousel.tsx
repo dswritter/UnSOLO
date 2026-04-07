@@ -21,7 +21,14 @@ function formatPrice(paise: number) {
   return `₹${Math.round(paise / 100).toLocaleString('en-IN')}`
 }
 
-export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
+export function HeroCarousel({
+  packages,
+  communityHref = '/signup',
+}: {
+  packages: HeroPackage[]
+  /** Logged-in users go to chat; guests go to signup */
+  communityHref?: string
+}) {
   const [current, setCurrent] = useState(0)
   const [paused, setPaused] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -102,7 +109,7 @@ export function HeroCarousel({ packages }: { packages: HeroPackage[] }) {
                   <Link href="/explore">Explore Trips <ArrowRight className="ml-2 h-5 w-5" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-white/5" asChild>
-                  <Link href="/signup" className="text-white">Join the Community</Link>
+                  <Link href={communityHref} className="text-white">Join the Community</Link>
                 </Button>
               </div>
             </div>

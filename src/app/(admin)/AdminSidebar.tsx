@@ -16,6 +16,7 @@ import {
   ArrowLeft,
   Menu,
   X,
+  MessageCircle,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -26,6 +27,7 @@ const navItems: { href: string; label: string; icon: typeof LayoutDashboard; rol
   { href: '/admin/requests', label: 'Custom Requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'] },
   { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'] },
   { href: '/admin/community-trips', label: 'Community Trips', icon: Mountain, roles: ['admin'] },
+  { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager'] },
   { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'] },

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { sendMessage } from '@/actions/chat'
 import { requestPhoneAccess } from '@/actions/profile'
@@ -141,8 +141,6 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
 
   // Read receipts state
   const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map())
-  const [readByPopup, setReadByPopup] = useState<string | null>(null) // message_id for long-press popup
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Chat menu state
   const [showMenu, setShowMenu] = useState(false)
@@ -406,19 +404,32 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     textareaRef.current?.focus()
   }
 
-  // Long press handlers for read-by popup
-  function handleMessageLongPressStart(messageId: string) {
-    longPressTimer.current = setTimeout(() => {
-      setReadByPopup(messageId)
-    }, 500) // 500ms long press
-  }
-
-  function handleMessageLongPressEnd() {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
+  // Per reader, show avatar only on their latest-read own message (reduces visual noise; one row per reader in UI)
+  const latestReadReadersByMessageId = useMemo(() => {
+    const out = new Map<string, ChatMemberProfile[]>()
+    const myMsgs = messages.filter(
+      m =>
+        m.user_id === currentUser.id &&
+        m.message_type !== 'system' &&
+        !m.id.startsWith('optimistic-'),
+    )
+    const others = memberProfiles.filter(m => m.id !== currentUser.id)
+    for (const member of others) {
+      let latest: Message | null = null
+      for (const m of myMsgs) {
+        const rs = readReceipts.get(m.id) || []
+        if (!rs.some(r => r.user_id === member.id)) continue
+        if (!latest || new Date(m.created_at) > new Date(latest.created_at)) latest = m
+      }
+      if (latest) {
+        const arr = out.get(latest.id) || []
+        arr.push(member)
+        arr.sort((a, b) => (a.username || '').localeCompare(b.username || ''))
+        out.set(latest.id, arr)
+      }
     }
-  }
+    return out
+  }, [messages, readReceipts, memberProfiles, currentUser.id])
 
   // Get read status for a message
   function getReadStatus(messageId: string, senderId: string): 'sending' | 'sent' | 'read' {
@@ -722,14 +733,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
             </div>
           )}
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              onTouchStart={() => msg.message_type !== 'system' && handleMessageLongPressStart(msg.id)}
-              onTouchEnd={handleMessageLongPressEnd}
-              onMouseDown={() => msg.message_type !== 'system' && !isDM && handleMessageLongPressStart(msg.id)}
-              onMouseUp={handleMessageLongPressEnd}
-              onMouseLeave={handleMessageLongPressEnd}
-            >
+            <div key={msg.id}>
               <MessageBubble
                 message={msg}
                 isOwn={msg.user_id === currentUser.id}
@@ -737,44 +741,10 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
                 onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
                 readStatus={msg.user_id === currentUser.id ? getReadStatus(msg.id, currentUser.id) : undefined}
                 isDM={isDM}
+                readByReaders={!isDM && msg.user_id === currentUser.id ? latestReadReadersByMessageId.get(msg.id) : undefined}
               />
             </div>
           ))}
-
-          {/* Read-by popup (long-press on group messages) */}
-          {readByPopup && !isDM && (
-            <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setReadByPopup(null)}>
-              <div className="bg-card border border-border rounded-xl p-4 w-full max-w-xs" onClick={e => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-bold">Read by</span>
-                  <button onClick={() => setReadByPopup(null)}><X className="h-4 w-4 text-zinc-500" /></button>
-                </div>
-                {(() => {
-                  const receipts = readReceipts.get(readByPopup) || []
-                  if (receipts.length === 0) return <p className="text-xs text-muted-foreground">No one has read this yet</p>
-                  return (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {receipts.map(r => {
-                        const member = getMemberProfile(r.user_id)
-                        return (
-                          <div key={r.user_id} className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={member?.avatar_url || ''} />
-                              <AvatarFallback className="bg-primary/20 text-primary text-[8px] font-bold">
-                                {getInitials(member?.full_name || member?.username || '?')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-medium">{member?.full_name || member?.username || 'Unknown'}</span>
-                            <span className="text-[10px] text-muted-foreground ml-auto">{timeAgo(r.read_at)}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })()}
-              </div>
-            </div>
-          )}
           {typingUsers.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
               {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
@@ -879,7 +849,23 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
   )
 }
 
-function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message: Message; isOwn: boolean; isOnline: boolean; onClickProfile: () => void; readStatus?: 'sending' | 'sent' | 'read'; isDM?: boolean }): React.ReactNode {
+function MessageBubble({
+  message,
+  isOwn,
+  isOnline,
+  onClickProfile: _onClickProfile,
+  readStatus,
+  isDM,
+  readByReaders,
+}: {
+  message: Message
+  isOwn: boolean
+  isOnline: boolean
+  onClickProfile: () => void
+  readStatus?: 'sending' | 'sent' | 'read'
+  isDM?: boolean
+  readByReaders?: ChatMemberProfile[]
+}): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
@@ -968,11 +954,10 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
         >
           {renderWithMentions(message.content, isOwn)}
         </div>
-        <div className={`flex items-center gap-1 ${isOwn ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
-          {/* Read receipt ticks — only for own messages */}
           {isOwn && readStatus && readStatus !== 'sending' && (
-            <span className="flex items-center">
+            <span className="flex items-center shrink-0">
               {readStatus === 'read' ? (
                 <CheckCheck className="h-3.5 w-3.5 text-primary" />
               ) : (
@@ -980,9 +965,31 @@ function MessageBubble({ message, isOwn, isOnline, readStatus, isDM }: { message
               )}
             </span>
           )}
-          {/* Long-press hint for group messages */}
-          {!isDM && !isOwn && (
-            <span className="text-[9px] text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity">hold to see readers</span>
+          {isOwn && !isDM && readByReaders && readByReaders.length > 0 && (
+            <span className="flex items-center flex-row shrink-0" title={readByReaders.map(r => r.full_name || r.username).join(', ')}>
+              {readByReaders.slice(0, 4).map((r, i) => (
+                <Link
+                  key={r.id}
+                  href={`/profile/${r.username}`}
+                  className={`relative rounded-full ring-2 ring-background ${i > 0 ? '-ml-2' : ''}`}
+                  style={{ zIndex: 11 + i }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={r.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/30 text-primary text-[7px] font-bold">{getInitials(r.full_name || r.username)}</AvatarFallback>
+                  </Avatar>
+                </Link>
+              ))}
+              {readByReaders.length > 4 && (
+                <span
+                  className="h-5 min-w-[20px] px-1 rounded-full bg-secondary border border-border text-[9px] font-bold flex items-center justify-center -ml-2 ring-2 ring-background"
+                  style={{ zIndex: 20 }}
+                >
+                  +{readByReaders.length - 4}
+                </span>
+              )}
+            </span>
           )}
         </div>
       </div>

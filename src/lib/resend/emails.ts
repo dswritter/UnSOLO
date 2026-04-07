@@ -1,6 +1,9 @@
 import { resend } from './client'
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'
+/** Verified sender in Resend (e.g. hello@unsolo.in). Dev fallback uses Resend’s test domain until unsolo.in is verified. */
+const FROM_EMAIL =
+  process.env.RESEND_FROM_EMAIL ??
+  (process.env.NODE_ENV === 'production' ? 'hello@unsolo.in' : 'onboarding@resend.dev')
 const ADMIN_EMAIL = 'unsolo.in@gmail.com'
 
 interface CustomRequestDetails {

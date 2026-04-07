@@ -857,3 +857,120 @@ export async function markHostPayout(earningId: string, reference: string) {
 function formatPriceServer(paise: number): string {
   return '₹' + (paise / 100).toLocaleString('en-IN')
 }
+
+// ── Community chat rooms (general) — admin + social_media_manager ─────────
+
+async function requireCommunityChatStaff() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const role = profile?.role as UserRole
+  if (role !== 'admin' && role !== 'social_media_manager') {
+    throw new Error('Unauthorized — admin or social team only')
+  }
+  return { user }
+}
+
+export type CommunityChatRoomRow = {
+  id: string
+  name: string
+  type: string
+  description: string | null
+  image_url: string | null
+  is_active: boolean
+  created_at: string
+  package_id: string | null
+}
+
+export async function getCommunityChatRoomsAdmin(): Promise<{ rooms: CommunityChatRoomRow[]; error?: string }> {
+  try {
+    await requireCommunityChatStaff()
+  } catch (e) {
+    return { rooms: [], error: e instanceof Error ? e.message : 'Unauthorized' }
+  }
+  const svc = await createServiceClient()
+  const { data, error } = await svc
+    .from('chat_rooms')
+    .select('id, name, type, description, image_url, is_active, created_at, package_id')
+    .eq('type', 'general')
+    .order('name')
+  if (error) return { rooms: [], error: error.message }
+  return { rooms: (data || []) as CommunityChatRoomRow[] }
+}
+
+export async function createCommunityChatRoomAdmin(input: {
+  name: string
+  description?: string | null
+  image_url?: string | null
+}) {
+  try {
+    const { user } = await requireCommunityChatStaff()
+    const svc = await createServiceClient()
+    const { data, error } = await svc
+      .from('chat_rooms')
+      .insert({
+        name: input.name.trim(),
+        type: 'general',
+        description: input.description?.trim() || null,
+        image_url: input.image_url?.trim() || null,
+        is_active: true,
+        created_by: user.id,
+      })
+      .select('id')
+      .single()
+    if (error) return { error: error.message }
+    await logAuditEvent(user.id, 'create_community_chat_room', 'chat_room', data.id, { name: input.name })
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/community')
+    revalidatePath('/admin/community-chats')
+    return { success: true, id: data.id }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Unauthorized' }
+  }
+}
+
+export async function updateCommunityChatRoomAdmin(
+  roomId: string,
+  input: {
+    name?: string
+    description?: string | null
+    image_url?: string | null
+    is_active?: boolean
+  },
+) {
+  try {
+    const { user } = await requireCommunityChatStaff()
+    const svc = await createServiceClient()
+    const patch: Record<string, unknown> = {}
+    if (input.name !== undefined) patch.name = input.name.trim()
+    if (input.description !== undefined) patch.description = input.description?.trim() || null
+    if (input.image_url !== undefined) patch.image_url = input.image_url?.trim() || null
+    if (input.is_active !== undefined) patch.is_active = input.is_active
+    const { error } = await svc.from('chat_rooms').update(patch).eq('id', roomId).eq('type', 'general')
+    if (error) return { error: error.message }
+    await logAuditEvent(user.id, 'update_community_chat_room', 'chat_room', roomId, patch)
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/community')
+    revalidatePath('/admin/community-chats')
+    return { success: true }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Unauthorized' }
+  }
+}
+
+export async function deleteCommunityChatRoomAdmin(roomId: string) {
+  try {
+    const { user } = await requireAdmin()
+    const svc = await createServiceClient()
+    const { error } = await svc.from('chat_rooms').delete().eq('id', roomId).eq('type', 'general')
+    if (error) return { error: error.message }
+    await logAuditEvent(user.id, 'delete_community_chat_room', 'chat_room', roomId, {})
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/community')
+    revalidatePath('/admin/community-chats')
+    return { success: true }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Unauthorized' }
+  }
+}

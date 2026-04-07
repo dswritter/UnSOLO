@@ -9,11 +9,11 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
   const [{ data: memberRooms }, { data: generalRooms }] = await Promise.all([
     supabase
       .from('chat_room_members')
-      .select('room:chat_rooms(id, name, type, is_active, package_id, package:packages(title, images, destination:destinations(name, state)))')
+      .select('room:chat_rooms(id, name, type, is_active, package_id, image_url, package:packages(title, images, destination:destinations(name, state)))')
       .eq('user_id', userId),
     supabase
       .from('chat_rooms')
-      .select('id, name, type, is_active')
+      .select('id, name, type, is_active, image_url')
       .eq('type', 'general')
       .eq('is_active', true),
   ])
@@ -85,6 +85,12 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     let dmProfile: SidebarRoom['dmProfile'] = undefined
     let tripImage: string | undefined
     let tripLocation: string | undefined
+    let communityImage: string | undefined
+
+    if (type === 'general') {
+      const img = room['image_url']
+      if (img && typeof img === 'string') communityImage = img
+    }
 
     if (type === 'direct') {
       const partnerId = dmPartnerMap.get(id)
@@ -104,13 +110,21 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     }
 
     const msg = msgMap.get(id)
-    rooms.push({ id, name, type, lastMessage: msg?.content, lastMessageAt: msg?.created_at, dmProfile, tripImage, tripLocation, isMember: true })
+    rooms.push({ id, name, type, lastMessage: msg?.content, lastMessageAt: msg?.created_at, dmProfile, tripImage, tripLocation, communityImage, isMember: true })
   }
 
   // Add general rooms user hasn't joined
   for (const room of extraGeneralRooms) {
     const msg = msgMap.get(room.id)
-    rooms.push({ id: room.id, name: room.name, type: 'general', lastMessage: msg?.content, lastMessageAt: msg?.created_at, isMember: false })
+    rooms.push({
+      id: room.id,
+      name: room.name,
+      type: 'general',
+      lastMessage: msg?.content,
+      lastMessageAt: msg?.created_at,
+      communityImage: room.image_url || undefined,
+      isMember: false,
+    })
   }
 
   // Sort by recent message

@@ -25,6 +25,8 @@ export interface SidebarRoom {
   dmProfile?: { username: string; full_name: string | null; avatar_url: string | null; id: string }
   tripImage?: string
   tripLocation?: string
+  /** Cover image for community (general) rooms */
+  communityImage?: string
   isMember?: boolean
 }
 
@@ -283,6 +285,10 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                   ) : room.type === 'trip' && room.tripImage ? (
                     <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
                       <img src={room.tripImage} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ) : room.type === 'general' && room.communityImage ? (
+                    <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
+                      <img src={room.communityImage} alt="" className="h-full w-full object-cover" />
                     </div>
                   ) : (
                     <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">

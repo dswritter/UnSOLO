@@ -2,15 +2,23 @@
 // Uses MSG91 for India (cheap, reliable). Easy to swap to Twilio later.
 // For MVP/testing: if no MSG91 keys, logs OTP to console.
 
-export async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
+export async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string; devConsoleOnly?: boolean }> {
   const authKey = process.env.MSG91_AUTH_KEY
   const templateId = process.env.MSG91_TEMPLATE_ID
   const senderId = process.env.MSG91_SENDER_ID || 'UNSOLO'
 
-  // MVP fallback: log to console if no SMS provider configured
+  // No API key: local/dev — OTP only in server logs (never claim SMS was delivered)
   if (!authKey) {
-    console.log(`[SMS FALLBACK] To: +91${phone} | Message: ${message}`)
-    return { success: true }
+    console.log(`[SMS FALLBACK] To: +91${phone} | OTP/message: ${message}`)
+    return { success: true, devConsoleOnly: true }
+  }
+
+  if (!templateId) {
+    console.error('[SMS] MSG91_AUTH_KEY is set but MSG91_TEMPLATE_ID is missing — SMS will not send.')
+    return {
+      success: false,
+      error: 'SMS is not configured (missing MSG91_TEMPLATE_ID). Add it in Vercel/host env or use console fallback by removing MSG91_AUTH_KEY in dev.',
+    }
   }
 
   try {
@@ -29,13 +37,14 @@ export async function sendSMS(phone: string, message: string): Promise<{ success
       }),
     })
 
-    const data = await response.json()
+    const data = (await response.json()) as { type?: string; message?: string }
 
     if (data.type === 'success') {
       return { success: true }
     }
 
-    return { success: false, error: data.message || 'SMS send failed' }
+    console.error('[SMS] MSG91 response:', data)
+    return { success: false, error: data.message || `SMS send failed (HTTP ${response.status})` }
   } catch (err) {
     console.error('SMS send error:', err)
     return { success: false, error: 'SMS service unavailable' }

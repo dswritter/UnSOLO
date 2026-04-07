@@ -47,6 +47,9 @@ export default function HostVerifyPage() {
       toast.error(result.error)
     } else {
       toast.success('OTP sent to +91 ' + phone)
+      if ('devConsoleOnly' in result && result.devConsoleOnly) {
+        toast.message('Development mode', { description: 'SMS provider not configured — check the server console/logs for the OTP code.' })
+      }
       setStep('enter_otp')
     }
     setSending(false)

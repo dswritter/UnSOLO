@@ -4,6 +4,26 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
+/** Maps Supabase Auth errors to clearer copy (rate limits, etc.). */
+function mapAuthErrorMessage(message: string): string {
+  const lower = message.toLowerCase()
+  if (
+    lower.includes('email rate limit') ||
+    (lower.includes('rate limit') && lower.includes('email')) ||
+    lower.includes('too many emails')
+  ) {
+    return (
+      'Too many confirmation emails were sent recently (Supabase limit). Wait an hour and try again, use Google sign-up, ' +
+      'or fix it in production: Supabase Dashboard → Authentication → Emails → configure custom SMTP (raises email limits), ' +
+      'and Authentication → Rate Limits for other auth caps.'
+    )
+  }
+  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+    return 'Too many attempts. Please wait a few minutes and try again.'
+  }
+  return message
+}
+
 export async function signUp(formData: FormData) {
   const supabase = await createClient()
 
@@ -23,7 +43,7 @@ export async function signUp(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    return { error: mapAuthErrorMessage(error.message) }
   }
 
   // Profile is created automatically by the DB trigger `handle_new_user`

@@ -32,20 +32,23 @@ export async function sendPhoneOTP(phoneNumber: string) {
   const otp = generateOTP()
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000).toISOString()
 
-  await supabase.from('phone_otp_verifications').insert({
+  const { error: insertError } = await supabase.from('phone_otp_verifications').insert({
     user_id: user.id,
     phone_number: phoneNumber,
     otp_code: otp,
     expires_at: expiresAt,
   })
+  if (insertError) {
+    console.error('phone_otp_verifications insert:', insertError.message)
+    return { error: insertError.message || 'Could not start verification. Try again.' }
+  }
 
-  // Send SMS
   const result = await sendSMS(phoneNumber, otp)
   if (!result.success) {
     return { error: result.error || 'Failed to send OTP' }
   }
 
-  return { success: true }
+  return { success: true, devConsoleOnly: result.devConsoleOnly === true }
 }
 
 export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
