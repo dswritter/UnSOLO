@@ -29,13 +29,11 @@ export function ChatRoomLoader({ roomId, currentUser, onBack }: ChatRoomLoaderPr
   const loadingRef = useRef<string | null>(null)
 
   const loadRoom = useCallback(async (id: string) => {
-    // Show cached data instantly (stale-while-revalidate pattern)
+    // Show cached data instantly while refetching (stale-while-revalidate)
     const cached = roomCache.get(id)
     if (cached) {
       setRoomData(cached)
       setLoading(false)
-      // If cache is fresh (< 3s), skip refetch
-      if (Date.now() - cached.loadedAt < 3000) return
     }
 
     // Always fetch fresh data (in background if cached data shown)

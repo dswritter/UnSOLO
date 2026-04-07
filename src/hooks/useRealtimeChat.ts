@@ -102,39 +102,64 @@ export function useRealtimeChat(
   }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for global new-message events from sidebar's realtime (instant delivery)
+  // NO DB queries here — use cached profile data from existing messages or memberProfiles
   useEffect(() => {
     function handleNewMessage(e: Event) {
       const msg = (e as CustomEvent).detail as { id: string; room_id: string; content: string; created_at: string; user_id: string }
       if (msg.room_id !== roomId) return
 
-      // Fetch profile and add to messages
-      supabase.from('profiles').select('id, username, full_name, avatar_url').eq('id', msg.user_id).single()
-        .then(({ data: profile }) => {
-          const enriched: Message = {
-            id: msg.id,
-            room_id: msg.room_id,
-            user_id: msg.user_id,
-            content: msg.content,
-            message_type: 'text',
-            is_edited: false,
-            created_at: msg.created_at,
-            user: profile as Profile || undefined,
-          }
-          setMessages(prev => {
-            if (prev.find(m => m.id === enriched.id)) return prev
-            const cleaned = prev.filter(m =>
-              !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
-            )
-            return [...cleaned, enriched]
-          })
-        })
+      setMessages(prev => {
+        if (prev.find(m => m.id === msg.id)) return prev
+
+        // Try to find profile from existing messages (no DB query)
+        const existingUserMsg = prev.find(m => m.user_id === msg.user_id && m.user)
+        const userProfile = existingUserMsg?.user || (currentUser?.id === msg.user_id ? currentUser : undefined)
+
+        const enriched: Message = {
+          id: msg.id,
+          room_id: msg.room_id,
+          user_id: msg.user_id,
+          content: msg.content,
+          message_type: 'text',
+          is_edited: false,
+          created_at: msg.created_at,
+          user: userProfile,
+        }
+
+        // Remove matching optimistic message
+        const cleaned = prev.filter(m =>
+          !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
+        )
+        return [...cleaned, enriched]
+      })
     }
 
     window.addEventListener('unsolo:new-message', handleNewMessage)
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
-  }, [roomId, supabase])
+  }, [roomId, currentUser])
 
-  // No polling — messages delivered instantly via global event bus from sidebar realtime
+  // One-time catch-up poll 15s after mount (safety net, not recurring)
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const lastMsg = messages.filter(m => !m.id.startsWith('optimistic-')).slice(-1)[0]
+      if (!lastMsg) return
+      const { data } = await supabase
+        .from('messages')
+        .select('*, user:profiles(id, username, full_name, avatar_url)')
+        .eq('room_id', roomId)
+        .gt('created_at', lastMsg.created_at)
+        .order('created_at', { ascending: true })
+        .limit(50)
+      if (data && data.length > 0) {
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m.id))
+          const newMsgs = (data as Message[]).filter(m => !ids.has(m.id))
+          return newMsgs.length > 0 ? [...prev.filter(m => !m.id.startsWith('optimistic-') || !newMsgs.some(n => n.user_id === m.user_id && n.content === m.content)), ...newMsgs] : prev
+        })
+      }
+    }, 15000)
+    return () => clearTimeout(timer)
+  }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const broadcastTyping = useCallback(() => {
     if (!currentUser) return
