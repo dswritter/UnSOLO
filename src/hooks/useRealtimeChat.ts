@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
 
+function normalizeRoomId(id: string) {
+  return id.trim().toLowerCase()
+}
+
 export function useRealtimeChat(
   roomId: string,
   initialMessages: Message[] = [],
@@ -15,17 +19,23 @@ export function useRealtimeChat(
   const [isConnected, setIsConnected] = useState(false)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const messagesRef = useRef<Message[]>(initialMessages)
+  const currentUserRef = useRef(currentUser)
+  messagesRef.current = messages
+  currentUserRef.current = currentUser
   const supabase = createClient()
 
+  const roomKey = normalizeRoomId(roomId)
+
   useEffect(() => {
-    if (!roomId) return
+    if (!roomKey) return
 
     // Separate channel for typing indicator using broadcast
-    const typingChannel = supabase.channel(`typing:${roomId}`)
+    const typingChannel = supabase.channel(`typing:${roomKey}`)
     typingChannel
       .on('broadcast', { event: 'typing' }, (payload) => {
         const { user_id, username } = payload.payload as { user_id: string; username: string }
-        if (user_id === currentUser?.id) return
+        if (user_id === currentUserRef.current?.id) return
 
         setTypingUsers(prev => {
           if (prev.find(u => u.user_id === user_id)) return prev
@@ -43,8 +53,8 @@ export function useRealtimeChat(
       .subscribe()
 
     const channel = supabase
-      .channel(`room:${roomId}`, {
-        config: { presence: { key: roomId } },
+      .channel(`room:${roomKey}`, {
+        config: { presence: { key: roomKey } },
       })
       .on(
         'postgres_changes',
@@ -52,25 +62,32 @@ export function useRealtimeChat(
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `room_id=eq.${roomId}`,
+          filter: `room_id=eq.${roomKey}`,
         },
         async (payload) => {
           const newMsg = payload.new as Message
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newMsg.user_id)
-            .single()
-          const enriched: Message = { ...newMsg, user: (profileData as Profile) || undefined }
+          if (normalizeRoomId(newMsg.room_id) !== roomKey) return
+
+          let userProfile: Profile | undefined
+          try {
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newMsg.user_id)
+              .single()
+            if (!error && profileData) userProfile = profileData as Profile
+          } catch {
+            /* still append message below */
+          }
+
+          const enriched: Message = { ...newMsg, user: userProfile }
           setMessages((prev) => {
             if (prev.find((m) => m.id === enriched.id)) return prev
-            // Replace optimistic message from same user with same content
             const withoutOptimistic = prev.filter(m =>
               !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
             )
             return [...withoutOptimistic, enriched]
           })
-          // Clear typing for this user when they send a message
           setTypingUsers(prev => prev.filter(u => u.user_id !== newMsg.user_id))
         }
       )
@@ -82,10 +99,11 @@ export function useRealtimeChat(
       })
       .subscribe(async (status) => {
         setIsConnected(status === 'SUBSCRIBED')
-        if (status === 'SUBSCRIBED' && currentUser) {
+        const u = currentUserRef.current
+        if (status === 'SUBSCRIBED' && u) {
           await channel.track({
-            user_id: currentUser.id,
-            username: currentUser.username,
+            user_id: u.id,
+            username: u.username,
             online_at: new Date().toISOString(),
           })
         }
@@ -99,21 +117,21 @@ export function useRealtimeChat(
       typingTimeoutRef.current.forEach(t => clearTimeout(t))
       typingTimeoutRef.current.clear()
     }
-  }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomKey])
 
   // Listen for global new-message events from sidebar's realtime (instant delivery)
   // NO DB queries here — use cached profile data from existing messages or memberProfiles
   useEffect(() => {
     function handleNewMessage(e: Event) {
       const msg = (e as CustomEvent).detail as { id: string; room_id: string; content: string; created_at: string; user_id: string }
-      if (msg.room_id !== roomId) return
+      if (normalizeRoomId(msg.room_id) !== roomKey) return
 
       setMessages(prev => {
         if (prev.find(m => m.id === msg.id)) return prev
 
-        // Try to find profile from existing messages (no DB query)
+        const cu = currentUserRef.current
         const existingUserMsg = prev.find(m => m.user_id === msg.user_id && m.user)
-        const userProfile = existingUserMsg?.user || (currentUser?.id === msg.user_id ? currentUser : undefined)
+        const userProfile = existingUserMsg?.user || (cu?.id === msg.user_id ? cu : undefined)
 
         const enriched: Message = {
           id: msg.id,
@@ -136,40 +154,63 @@ export function useRealtimeChat(
 
     window.addEventListener('unsolo:new-message', handleNewMessage)
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
-  }, [roomId, currentUser])
+  }, [roomKey])
 
-  // One-time catch-up poll 15s after mount (safety net, not recurring)
+  // Catch-up poll while tab is visible (Realtime can miss events with multiple tabs/channels)
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      const lastMsg = messages.filter(m => !m.id.startsWith('optimistic-')).slice(-1)[0]
+    if (!roomKey) return
+
+    async function pollNewer() {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+
+      const prev = messagesRef.current
+      const lastMsg = prev.filter(m => !m.id.startsWith('optimistic-')).slice(-1)[0]
       if (!lastMsg) return
-      const { data } = await supabase
+
+      const { data, error } = await supabase
         .from('messages')
         .select('*, user:profiles(id, username, full_name, avatar_url)')
-        .eq('room_id', roomId)
+        .eq('room_id', roomKey)
         .gt('created_at', lastMsg.created_at)
         .order('created_at', { ascending: true })
         .limit(50)
-      if (data && data.length > 0) {
-        setMessages(prev => {
-          const ids = new Set(prev.map(m => m.id))
-          const newMsgs = (data as Message[]).filter(m => !ids.has(m.id))
-          return newMsgs.length > 0 ? [...prev.filter(m => !m.id.startsWith('optimistic-') || !newMsgs.some(n => n.user_id === m.user_id && n.content === m.content)), ...newMsgs] : prev
-        })
-      }
-    }, 15000)
-    return () => clearTimeout(timer)
-  }, [roomId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+      if (error || !data?.length) return
+
+      setMessages(prevMsgs => {
+        const ids = new Set(prevMsgs.map(m => m.id))
+        const newMsgs = (data as Message[]).filter(m => !ids.has(m.id))
+        if (newMsgs.length === 0) return prevMsgs
+        const withoutDupOptimistic = prevMsgs.filter(
+          m => !(
+            m.id.startsWith('optimistic-')
+            && newMsgs.some(n => n.user_id === m.user_id && n.content === m.content)
+          ),
+        )
+        return [...withoutDupOptimistic, ...newMsgs]
+      })
+    }
+
+    const interval = setInterval(() => { void pollNewer() }, 4000)
+    const onVisible = () => { if (document.visibilityState === 'visible') void pollNewer() }
+    document.addEventListener('visibilitychange', onVisible)
+    void pollNewer()
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [roomKey])
 
   const broadcastTyping = useCallback(() => {
     if (!currentUser) return
-    const typingChannel = supabase.channel(`typing:${roomId}`)
+    const typingChannel = supabase.channel(`typing:${roomKey}`)
     typingChannel.send({
       type: 'broadcast',
       event: 'typing',
       payload: { user_id: currentUser.id, username: currentUser.username },
     })
-  }, [currentUser, roomId, supabase])
+  }, [currentUser, roomKey, supabase])
 
   // Add optimistic message (shows instantly before server confirms)
   const addOptimisticMessage = useCallback((content: string) => {

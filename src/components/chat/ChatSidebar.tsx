@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search, UserPlus } from 'lucide-react'
@@ -11,6 +11,10 @@ import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
+
+function normalizeRoomId(id: string) {
+  return id.trim().toLowerCase()
+}
 
 export interface SidebarRoom {
   id: string
@@ -42,16 +46,24 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   const router = useRouter()
   const pathname = usePathname()
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const sidebarRealtimeId = useId().replace(/:/g, '')
+  const localRoomsRef = useRef(localRooms)
+  const currentActiveRoomRef = useRef<string | null>(null)
 
   // Track active room from URL (updates on pushState too)
   const [currentActiveRoom, setCurrentActiveRoom] = useState<string | null>(
     activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
   )
 
+  localRoomsRef.current = localRooms
+  currentActiveRoomRef.current = currentActiveRoom
+
   useEffect(() => {
     function syncFromUrl() {
       const match = window.location.pathname.match(/\/community\/([a-f0-9-]+)/i)
-      setCurrentActiveRoom(match?.[1] || null)
+      const id = match?.[1] || null
+      setCurrentActiveRoom(id)
+      currentActiveRoomRef.current = id
     }
     syncFromUrl()
     window.addEventListener('popstate', syncFromUrl)
@@ -65,13 +77,12 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
   // Preload notification sound on first interaction
   useEffect(() => { preloadSound() }, [])
 
-  // Realtime: listen for new messages to update sidebar
+  // Realtime: unique channel per sidebar instance (desktop + mobile both mount)
   useEffect(() => {
     const supabase = createClient()
-    const roomIds = localRooms.map(r => r.id)
 
     const channel = supabase
-      .channel('sidebar-realtime')
+      .channel(`sidebar-realtime-${sidebarRealtimeId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -79,14 +90,15 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
       }, (payload) => {
         const msg = payload.new as { id: string; room_id: string; content: string; created_at: string; user_id: string; message_type: string }
         if (msg.message_type === 'system') return
-        if (!roomIds.includes(msg.room_id)) return
 
-        // Dispatch global event so ChatWindow can pick up new messages instantly
+        const msgRoom = normalizeRoomId(msg.room_id)
+        const knownIds = new Set(localRoomsRef.current.map(r => normalizeRoomId(r.id)))
+        if (!knownIds.has(msgRoom)) return
+
         window.dispatchEvent(new CustomEvent('unsolo:new-message', { detail: msg }))
 
-        // Update last message in room
         setLocalRooms(prev => {
-          const idx = prev.findIndex(r => r.id === msg.room_id)
+          const idx = prev.findIndex(r => normalizeRoomId(r.id) === msgRoom)
           if (idx === -1) return prev
           const updated = [...prev]
           updated[idx] = { ...updated[idx], lastMessage: msg.content, lastMessageAt: msg.created_at }
@@ -94,39 +106,40 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           return [moved, ...updated]
         })
 
-        // Increment unread if not the active room + play sound
-        if (msg.room_id !== currentActiveRoom) {
-          const currentUnread = unreadCounts.get(msg.room_id) || 0
-          const room = localRooms.find(r => r.id === msg.room_id)
+        const active = currentActiveRoomRef.current
+        const activeNorm = active ? normalizeRoomId(active) : null
+        if (msgRoom !== activeNorm) {
+          const room = localRoomsRef.current.find(r => normalizeRoomId(r.id) === msgRoom)
           const roomType = room?.type || 'general'
+          let unreadBefore = 0
 
-          // Play notification sound
-          playNotificationSound({
-            messageRoomId: msg.room_id,
-            activeRoomId: currentActiveRoom,
-            roomType,
-            unreadCount: currentUnread,
-            isTyping: false, // sidebar doesn't track typing
+          setUnreadCounts(prevUnread => {
+            unreadBefore = prevUnread.get(msg.room_id) || 0
+            const next = new Map(prevUnread)
+            next.set(msg.room_id, unreadBefore + 1)
+            return next
           })
 
-          // System notification for inactive tabs
-          const senderName = room?.name || 'Someone'
-          sendSystemNotification(
-            `New message in ${senderName}`,
-            msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content,
-          )
-
-          setUnreadCounts(prev => {
-            const next = new Map(prev)
-            next.set(msg.room_id, (next.get(msg.room_id) || 0) + 1)
-            return next
+          queueMicrotask(() => {
+            playNotificationSound({
+              messageRoomId: msg.room_id,
+              activeRoomId: active,
+              roomType,
+              unreadCount: unreadBefore,
+              isTyping: false,
+            })
+            const senderName = room?.name || 'Someone'
+            sendSystemNotification(
+              `New message in ${senderName}`,
+              msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content,
+            )
           })
         }
       })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [localRooms.length, currentActiveRoom]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sidebarRealtimeId])
 
   // Clear unread when room becomes active
   useEffect(() => {
@@ -241,7 +254,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
           <>
           {filtered.map(room => {
             const dmOnline = room.dmProfile ? onlineUsers.has(room.dmProfile.id) : false
-            const isActive = currentActiveRoom === room.id
+            const isActive = !!currentActiveRoom && normalizeRoomId(currentActiveRoom) === normalizeRoomId(room.id)
             const unread = unreadCounts.get(room.id) || 0
 
             return (
