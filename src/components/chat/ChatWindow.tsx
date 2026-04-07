@@ -190,7 +190,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     loadReceipts()
 
     // Poll receipts every 5s as fallback (realtime may not be configured)
-    const pollInterval = setInterval(loadReceipts, 30000)
+    const pollInterval = setInterval(loadReceipts, 60000)
 
     // Subscribe to new read receipts for this room's messages
     const channel = sb
@@ -292,7 +292,7 @@ export function ChatWindow({ roomId, roomName, roomType = 'general', initialMess
     }
 
     checkPresence()
-    const interval = setInterval(checkPresence, 30000)
+    const interval = setInterval(checkPresence, 60000)
 
     // Subscribe to presence table changes for instant updates
     const channel = sb

@@ -10,7 +10,6 @@ export function useRealtimeChat(
   currentUser?: Profile,
 ) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
-  const lastMsgTimeRef = useRef<string>(initialMessages[initialMessages.length - 1]?.created_at || '')
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
@@ -135,48 +134,7 @@ export function useRealtimeChat(
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
   }, [roomId, supabase])
 
-  // Poll for new messages every 10s (backup only — primary delivery via global event bus)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const lastTime = lastMsgTimeRef.current || new Date(0).toISOString()
-      const { data } = await supabase
-        .from('messages')
-        .select('*, user:profiles(id, username, full_name, avatar_url)')
-        .eq('room_id', roomId)
-        .gt('created_at', lastTime)
-        .order('created_at', { ascending: true })
-        .limit(20)
-
-      if (data && data.length > 0) {
-        setMessages(prev => {
-          // Deduplicate by real ID AND remove optimistic versions
-          const existingIds = new Set(prev.filter(m => !m.id.startsWith('optimistic-')).map(m => m.id))
-          const newMsgs = (data as Message[]).filter(m => !existingIds.has(m.id))
-          if (newMsgs.length === 0) return prev
-
-          // Also remove optimistic messages that match these new real messages
-          const cleaned = prev.filter(m => {
-            if (!m.id.startsWith('optimistic-')) return true
-            return !newMsgs.some(nm => nm.user_id === m.user_id && nm.content === m.content)
-          })
-
-          lastMsgTimeRef.current = newMsgs[newMsgs.length - 1].created_at
-          return [...cleaned, ...newMsgs]
-        })
-      }
-    }, 10000)
-    return () => clearInterval(interval)
-  }, [roomId, supabase])
-
-  // Update lastMsgTimeRef when messages change
-  useEffect(() => {
-    if (messages.length > 0) {
-      const last = messages[messages.length - 1]
-      if (!last.id.startsWith('optimistic-')) {
-        lastMsgTimeRef.current = last.created_at
-      }
-    }
-  }, [messages])
+  // No polling — messages delivered instantly via global event bus from sidebar realtime
 
   const broadcastTyping = useCallback(() => {
     if (!currentUser) return

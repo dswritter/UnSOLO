@@ -147,7 +147,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
       if (data) setOnlineUsers(new Set(data.map(d => d.user_id)))
     }
     checkPresence()
-    const interval = setInterval(checkPresence, 30000)
+    const interval = setInterval(checkPresence, 60000)
     return () => clearInterval(interval)
   }, [])
 

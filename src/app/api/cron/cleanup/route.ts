@@ -114,6 +114,8 @@ export async function POST(request: Request) {
       .from('bookings')
       .select('id, user_id, travel_date, package:packages(title, slug, duration_days)')
       .eq('status', 'confirmed')
+      .lte('travel_date', today)
+      .limit(50)
 
     for (const booking of confirmedBookings || []) {
       const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number }
