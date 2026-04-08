@@ -203,3 +203,58 @@ export async function deleteStatusStory(storyId: string): Promise<{ error?: stri
   if (prof?.username) revalidatePath(`/profile/${prof.username}`)
   return {}
 }
+
+/** Record that the current user has seen these stories (for “Seen by” metrics). */
+export async function recordStatusStoryViews(storyIds: string[]): Promise<{ error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !storyIds.length) return {}
+
+  const unique = [...new Set(storyIds)]
+  const rows = unique.map(story_id => ({ story_id, viewer_id: user.id }))
+  const { error } = await supabase.from('status_story_views').upsert(rows, {
+    onConflict: 'story_id,viewer_id',
+    ignoreDuplicates: false,
+  })
+  if (error) return { error: error.message }
+  return {}
+}
+
+export type StatusStoryViewerInfo = {
+  viewer_id: string
+  viewed_at: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+}
+
+export async function getStatusStoryViewers(storyId: string): Promise<{ viewers: StatusStoryViewerInfo[]; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { viewers: [], error: 'Not authenticated' }
+
+  const { data: story } = await supabase.from('status_stories').select('author_id').eq('id', storyId).single()
+  if (!story || story.author_id !== user.id) return { viewers: [], error: 'Not allowed' }
+
+  const { data, error } = await supabase
+    .from('status_story_views')
+    .select('viewer_id, viewed_at, viewer:profiles(username, full_name, avatar_url)')
+    .eq('story_id', storyId)
+    .order('viewed_at', { ascending: false })
+
+  if (error) return { viewers: [], error: error.message }
+
+  const viewers: StatusStoryViewerInfo[] = (data || []).map((row: Record<string, unknown>) => {
+    const v = row.viewer as { username: string; full_name: string | null; avatar_url: string | null } | { username: string; full_name: string | null; avatar_url: string | null }[] | null
+    const prof = Array.isArray(v) ? v[0] : v
+    return {
+      viewer_id: row.viewer_id as string,
+      viewed_at: row.viewed_at as string,
+      username: prof?.username || '',
+      full_name: prof?.full_name ?? null,
+      avatar_url: prof?.avatar_url ?? null,
+    }
+  })
+
+  return { viewers }
+}

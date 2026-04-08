@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -84,6 +85,21 @@ export function StatusStoriesBar({
 
   const othersGrouped = useMemo(() => grouped.filter(g => g.authorId !== currentUserId), [grouped])
 
+  useEffect(() => {
+    const sb = createClient()
+    const ch = sb
+      .channel('home-status-stories')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'status_stories' },
+        () => router.refresh(),
+      )
+      .subscribe()
+    return () => {
+      void sb.removeChannel(ch)
+    }
+  }, [router])
+
   return (
     <>
       <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide items-end">
@@ -156,12 +172,14 @@ export function StatusStoriesBar({
                 const start = flatIndexForGroup(grouped, groupIdx, 0)
                 setViewer({ playlist: playlistFlat, initialIndex: start })
               }}
-              className={`flex flex-col items-center gap-1.5 shrink-0 ${allViewed ? 'opacity-50' : ''}`}
+              className={`flex flex-col items-center gap-1.5 shrink-0 ${allViewed ? 'opacity-75' : ''}`}
             >
               <div className="relative">
                 <div
-                  className={`h-16 w-16 rounded-full p-[2.5px] transition-opacity bg-gradient-to-tr from-primary/80 to-zinc-500 ${
-                    allViewed ? 'grayscale-[0.35]' : ''
+                  className={`h-16 w-16 rounded-full p-[2.5px] transition-all ${
+                    allViewed
+                      ? 'bg-gradient-to-tr from-zinc-700 to-zinc-900 ring-2 ring-zinc-600 grayscale-[0.25]'
+                      : 'bg-gradient-to-tr from-primary/80 to-zinc-500'
                   }`}
                 >
                   <Avatar className="h-full w-full border-2 border-black">
@@ -172,7 +190,13 @@ export function StatusStoriesBar({
                   </Avatar>
                 </div>
                 {count > 1 ? (
-                  <span className="absolute -bottom-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-zinc-900 border-2 border-black text-[10px] font-bold text-primary flex items-center justify-center">
+                  <span
+                    className={`absolute -bottom-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full border-2 text-[10px] font-bold flex items-center justify-center ${
+                      allViewed
+                        ? 'bg-zinc-800 border-zinc-600 text-zinc-400'
+                        : 'bg-zinc-900 border-black text-primary'
+                    }`}
+                  >
                     {count}
                   </span>
                 ) : null}
