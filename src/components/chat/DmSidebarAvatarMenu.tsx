@@ -15,7 +15,6 @@ import { getInitials } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { StatusStripStory } from '@/actions/statusStories'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
-import { markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 
 export function DmSidebarAvatarMenu({
   avatarUrl,
@@ -165,12 +164,7 @@ export function DmSidebarAvatarMenu({
           stories={statusStories}
           initialIndex={0}
           currentUserId={currentUserId}
-          onClose={() => {
-            if (userId !== currentUserId) {
-              markStatusStoriesViewed(currentUserId, statusStories.map(s => s.id))
-            }
-            setStatusStories(null)
-          }}
+          onClose={() => setStatusStories(null)}
           onDeleted={() => {
             setStatusStories(null)
             router.refresh()

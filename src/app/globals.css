@@ -223,3 +223,17 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Status story viewer: segment progress (duration set inline to match JS timer) */
+@keyframes status-slide-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.status-story-progress-fill {
+  transform-origin: left center;
+  will-change: transform;
+}
