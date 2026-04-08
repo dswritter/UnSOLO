@@ -8,16 +8,7 @@ import { Button } from '@/components/ui/button'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Message, Profile } from '@/types'
-
-function hashtagSlugFromRoomName(name: string) {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-}
+import { hashtagSlugFromRoomName } from '@/lib/chat/chatHashTags'
 
 export default async function CommunityRoomPage({
   params,

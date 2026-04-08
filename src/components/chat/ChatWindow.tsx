@@ -15,6 +15,9 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
+import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
+
+export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
 
 interface ReadReceipt {
   message_id: string
@@ -27,8 +30,6 @@ interface MentionSuggestion {
   username: string
   full_name: string | null
 }
-
-export type ChatLinkTarget = { roomId: string; slug: string; label: string }
 
 /** Long-press picker + double-tap default (see Docs/Chat Reaction Emojis.md) */
 const CHAT_QUICK_REACTIONS = ['👍', '😂', '🔥', '🤝', '🥳', '🙏', '❌', '🚀', '✅', '🧳', '🌄'] as const
@@ -57,14 +58,13 @@ export interface ChatMemberProfile {
   phone_request_status?: string | null
 }
 
-// ── Linkify: URLs, @mentions, #room-or-trip slugs ───────────
+// ── Linkify: URLs, @mentions, #room-or-trip (slug, full name, unique prefix) ──
 function renderTextWithMentionsAndTags(
   part: string,
   lineKey: string,
   isOwn: boolean,
   chatLinkTargets: ChatLinkTarget[],
 ) {
-  const mentionHashSplit = part.split(/(@\w+|#[a-zA-Z0-9][a-zA-Z0-9-]*)/g)
   const mentionClass = isOwn
     ? 'font-bold text-black/80 hover:underline'
     : 'font-bold text-primary hover:underline'
@@ -72,43 +72,63 @@ function renderTextWithMentionsAndTags(
     ? 'font-semibold text-black/90 bg-black/10 px-0.5 rounded hover:underline'
     : 'font-semibold text-primary bg-primary/15 px-0.5 rounded hover:underline'
 
-  return (
-    <span key={lineKey}>
-      {mentionHashSplit.map((seg, si) => {
-        if (seg.startsWith('@')) {
-          const username = seg.slice(1)
-          return (
-            <Link
-              key={`${lineKey}-a${si}`}
-              href={`/profile/${username}`}
-              className={mentionClass}
-              onClick={e => e.stopPropagation()}
-            >
-              {seg}
-            </Link>
-          )
-        }
-        if (seg.startsWith('#')) {
-          const raw = seg.slice(1).toLowerCase()
-          const target = chatLinkTargets.find(t => t.slug.toLowerCase() === raw)
-          if (target) {
-            return (
-              <Link
-                key={`${lineKey}-h${si}`}
-                href={`/community/${target.roomId}`}
-                className={hashClass}
-                onClick={e => e.stopPropagation()}
-                title={target.label}
-              >
-                {seg}
-              </Link>
-            )
-          }
-        }
-        return seg ? <span key={`${lineKey}-t${si}`}>{seg}</span> : null
-      })}
-    </span>
-  )
+  const nodes: React.ReactNode[] = []
+  let i = 0
+  let k = 0
+  while (i < part.length) {
+    const c = part[i]
+    if (c === '@') {
+      const mm = part.slice(i).match(/^@(\w+)/)
+      if (mm) {
+        nodes.push(
+          <Link
+            key={`${lineKey}@${k}`}
+            href={`/profile/${mm[1]}`}
+            className={mentionClass}
+            onClick={e => e.stopPropagation()}
+          >
+            {mm[0]}
+          </Link>,
+        )
+        i += mm[0].length
+        k++
+        continue
+      }
+    }
+    if (c === '#' && /[a-zA-Z0-9]/.test(part[i + 1] || '')) {
+      const rest = part.slice(i + 1)
+      const hit = consumeHashtagFragment(rest, chatLinkTargets)
+      if (hit) {
+        const display = rest.slice(0, hit.consumed)
+        nodes.push(
+          <Link
+            key={`${lineKey}#${k}`}
+            href={`/community/${hit.target.roomId}`}
+            className={hashClass}
+            onClick={e => e.stopPropagation()}
+            title={hit.target.label}
+          >
+            #{display}
+          </Link>,
+        )
+        i += 1 + hit.consumed
+        k++
+        continue
+      }
+      nodes.push(<span key={`${lineKey}#${k}`}>#</span>)
+      i++
+      k++
+      continue
+    }
+    let j = i + 1
+    while (j < part.length && part[j] !== '@' && part[j] !== '#') j++
+    if (j > i) {
+      nodes.push(<span key={`${lineKey}t${k}`}>{part.slice(i, j)}</span>)
+      k++
+    }
+    i = j
+  }
+  return <span key={lineKey}>{nodes}</span>
 }
 
 function renderMessageContent(content: string, isOwn: boolean = false, chatLinkTargets: ChatLinkTarget[] = []) {
@@ -193,6 +213,8 @@ export function ChatWindow({
   const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([])
   const [mentionIndex, setMentionIndex] = useState(0)
   const [cursorPos, setCursorPos] = useState(0)
+  const [hashSuggestions, setHashSuggestions] = useState<ChatLinkTarget[]>([])
+  const [hashIndex, setHashIndex] = useState(0)
 
   type ReactionRow = { id: string; message_id: string; user_id: string; emoji: string }
   const [reactionsByMessage, setReactionsByMessage] = useState<Map<string, ReactionRow[]>>(new Map())
@@ -296,6 +318,7 @@ export function ChatWindow({
     }
 
     void loadReactions()
+    const pollRx = setInterval(() => void loadReactions(), 45000)
 
     function mergeInsert(r: ReactionRow) {
       setReactionsByMessage(prev => {
@@ -316,6 +339,21 @@ export function ChatWindow({
       })
     }
 
+    function mergeDeleteByReactionId(id: string) {
+      setReactionsByMessage(prev => {
+        const next = new Map(prev)
+        for (const [msgId, rows] of next) {
+          const filtered = rows.filter(x => x.id !== id)
+          if (filtered.length !== rows.length) {
+            if (filtered.length === 0) next.delete(msgId)
+            else next.set(msgId, filtered)
+            break
+          }
+        }
+        return next
+      })
+    }
+
     const channel = sb
       .channel(`msg-rx-${roomId}`)
       .on(
@@ -329,11 +367,15 @@ export function ChatWindow({
         (payload: { old: Record<string, unknown> }) => {
           const o = payload.old as { id?: string; message_id?: string }
           if (o.id && o.message_id) mergeDelete(o.id, o.message_id)
+          else if (o.id) mergeDeleteByReactionId(o.id)
         },
       )
       .subscribe()
 
-    return () => { sb.removeChannel(channel) }
+    return () => {
+      clearInterval(pollRx)
+      sb.removeChannel(channel)
+    }
   }, [messages, roomId])
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
@@ -531,6 +573,28 @@ export function ChatWindow({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (hashSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setHashIndex(i => Math.min(i + 1, hashSuggestions.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setHashIndex(i => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault()
+        insertHashTag(hashSuggestions[hashIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        setHashSuggestions([])
+        return
+      }
+    }
+
     // Handle @mention navigation
     if (mentionSuggestions.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -583,9 +647,26 @@ export function ChatWindow({
         .slice(0, 5)
       setMentionSuggestions(filtered.map(m => ({ id: m.id, username: m.username, full_name: m.full_name })))
       setMentionIndex(0)
+      setHashSuggestions([])
     } else {
       setMentionQuery(null)
       setMentionSuggestions([])
+      const hashMatch = textBeforeCursor.match(/#([^\n#]*)$/)
+      if (hashMatch && !isDM && chatLinkTargets.length > 0) {
+        const rawQ = hashMatch[1]
+        const q = rawQ.toLowerCase()
+        const filtered = chatLinkTargets.filter(t => {
+          if (!rawQ.trim()) return true
+          const l = t.label.toLowerCase()
+          const s = t.slug.toLowerCase()
+          const qHyphen = q.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+          return l.includes(q) || s.includes(q.replace(/\s+/g, '')) || (qHyphen.length > 0 && s.includes(qHyphen))
+        }).slice(0, 8)
+        setHashSuggestions(filtered)
+        setHashIndex(0)
+      } else {
+        setHashSuggestions([])
+      }
     }
 
     // Throttle typing broadcast
@@ -606,6 +687,18 @@ export function ChatWindow({
     setInput(newInput)
     setMentionQuery(null)
     setMentionSuggestions([])
+    textareaRef.current?.focus()
+  }
+
+  function insertHashTag(t: ChatLinkTarget) {
+    const textBeforeCursor = input.slice(0, cursorPos)
+    const hashStart = textBeforeCursor.lastIndexOf('#')
+    if (hashStart === -1) return
+    const before = input.slice(0, hashStart)
+    const after = input.slice(cursorPos)
+    const newInput = `${before}#${t.slug} ${after}`
+    setInput(newInput)
+    setHashSuggestions([])
     textareaRef.current?.focus()
   }
 
@@ -705,7 +798,7 @@ export function ChatWindow({
         longPressTimerRef.current = setTimeout(() => {
           setEmojiPickerForMessageId(messageId)
           longPressTimerRef.current = null
-        }, 480)
+        }, 420)
       },
       onPointerUp: () => {
         if (longPressTimerRef.current) {
@@ -1014,7 +1107,12 @@ export function ChatWindow({
                   }
                 }}
                 onShowReactors={(emoji, userIds) => setReactorModal({ emoji, names: reactionNames(userIds) })}
-                onOpenEmojiPicker={() => setEmojiPickerForMessageId(msg.id)}
+                emojiPickerOpen={emojiPickerForMessageId === msg.id}
+                onToggleEmojiPicker={() => setEmojiPickerForMessageId(cur => (cur === msg.id ? null : msg.id))}
+                onPickEmojiStrip={emoji => {
+                  void toggleReaction(msg.id, emoji)
+                  setEmojiPickerForMessageId(null)
+                }}
               />
             </div>
           ))}
@@ -1088,27 +1186,24 @@ export function ChatWindow({
         </div>
       )}
 
-      {emojiPickerForMessageId && (
-        <div className="px-4 py-2 border-t border-border bg-card flex flex-wrap gap-1 items-center shrink-0">
-          <span className="text-xs text-muted-foreground w-full sm:w-auto mb-1 sm:mb-0">Pick a reaction</span>
-          <div className="flex flex-wrap gap-1 flex-1">
-            {CHAT_QUICK_REACTIONS.map(emoji => (
+      {hashSuggestions.length > 0 && !isDM && (
+        <div className="px-4 pb-1">
+          <div className="bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+            <p className="px-3 py-1.5 text-[10px] text-muted-foreground font-semibold uppercase tracking-wide border-b border-border/50">Rooms & trips</p>
+            {hashSuggestions.map((t, i) => (
               <button
-                key={emoji}
+                key={t.roomId}
                 type="button"
-                className="text-xl min-w-[40px] h-10 rounded-lg hover:bg-secondary border border-transparent hover:border-border transition-colors"
-                onClick={() => {
-                  void toggleReaction(emojiPickerForMessageId, emoji)
-                  setEmojiPickerForMessageId(null)
-                }}
+                onClick={() => insertHashTag(t)}
+                className={`flex flex-col w-full px-3 py-2 text-left text-sm transition-colors ${
+                  i === hashIndex ? 'bg-primary/10 text-primary' : 'hover:bg-secondary/50'
+                }`}
               >
-                {emoji}
+                <span className="font-medium truncate">{t.label}</span>
+                <span className="text-[10px] text-muted-foreground font-mono truncate">#{t.slug}</span>
               </button>
             ))}
           </div>
-          <Button type="button" variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => setEmojiPickerForMessageId(null)}>
-            Cancel
-          </Button>
         </div>
       )}
 
@@ -1249,7 +1344,9 @@ function MessageBubble({
   onBubbleTouchEnd,
   onBubbleDoubleClick,
   onShowReactors,
-  onOpenEmojiPicker,
+  emojiPickerOpen,
+  onToggleEmojiPicker,
+  onPickEmojiStrip,
 }: {
   message: Message
   isOwn: boolean
@@ -1272,7 +1369,9 @@ function MessageBubble({
   onBubbleTouchEnd: (e: React.TouchEvent) => void
   onBubbleDoubleClick: () => void
   onShowReactors: (emoji: string, userIds: string[]) => void
-  onOpenEmojiPicker: () => void
+  emojiPickerOpen: boolean
+  onToggleEmojiPicker: () => void
+  onPickEmojiStrip: (emoji: string) => void
 }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
@@ -1383,37 +1482,70 @@ function MessageBubble({
           {renderWithMentions(message.content, isOwn)}
         </div>
         {canReact && (
-          <div className={`flex flex-wrap items-center gap-1.5 mt-0.5 max-w-[85vw] ${isOwn ? 'justify-end' : 'justify-start'}`}>
-            {reactionAgg.map(block => {
-              const names = block.userIds
-                .map(uid => memberProfiles.find(m => m.id === uid))
-                .filter(Boolean)
-                .map(p => p!.full_name || p!.username)
-              const tip = names.length ? names.join(', ') : 'React'
-              return (
-                <ReactionPill
-                  key={block.emoji}
-                  emoji={block.emoji}
-                  count={block.count}
-                  userIds={block.userIds}
-                  title={tip}
-                  iReacted={block.iReacted}
-                  onTap={() => onToggleReaction(block.emoji)}
-                  onLongShow={() => onShowReactors(block.emoji, block.userIds)}
-                />
-              )
-            })}
-            <button
-              type="button"
-              className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-secondary/80 border border-border text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
-              title="Add reaction"
-              onClick={e => {
-                e.stopPropagation()
-                onOpenEmojiPicker()
-              }}
+          <div
+            className={`flex items-start gap-1.5 mt-0.5 max-w-[92vw] ${
+              isOwn ? 'flex-row-reverse' : 'flex-row'
+            }`}
+          >
+            <div className={`flex flex-wrap gap-1.5 min-w-0 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+              {reactionAgg.map(block => {
+                const names = block.userIds
+                  .map(uid => memberProfiles.find(m => m.id === uid))
+                  .filter(Boolean)
+                  .map(p => p!.full_name || p!.username)
+                const tip = names.length ? names.join(', ') : 'React'
+                return (
+                  <ReactionPill
+                    key={block.emoji}
+                    emoji={block.emoji}
+                    count={block.count}
+                    userIds={block.userIds}
+                    title={tip}
+                    iReacted={block.iReacted}
+                    onTap={() => onToggleReaction(block.emoji)}
+                    onLongShow={() => onShowReactors(block.emoji, block.userIds)}
+                  />
+                )
+              })}
+            </div>
+            <div
+              className={`flex shrink-0 items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm overflow-hidden transition-[box-shadow] duration-200 ${
+                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25' : ''
+              } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
-              <SmilePlus className="h-3.5 w-3.5" />
-            </button>
+              <button
+                type="button"
+                className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors shrink-0"
+                title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
+                onClick={e => {
+                  e.stopPropagation()
+                  onToggleEmojiPicker()
+                }}
+              >
+                <SmilePlus className="h-3.5 w-3.5" />
+              </button>
+              <div
+                className={`overflow-hidden transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 ${
+                  emojiPickerOpen ? 'max-w-[13.5rem] opacity-100' : 'max-w-0 opacity-0 pointer-events-none'
+                }`}
+              >
+                <div className="flex flex-nowrap items-center gap-0 pl-0.5 pr-1 py-0.5 h-7">
+                  {CHAT_QUICK_REACTIONS.map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="text-[15px] leading-none min-w-[26px] h-6 rounded-md hover:bg-secondary/90 flex items-center justify-center shrink-0 transition-transform active:scale-95"
+                      onClick={e => {
+                        e.stopPropagation()
+                        onPickEmojiStrip(emoji)
+                      }}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
         <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
