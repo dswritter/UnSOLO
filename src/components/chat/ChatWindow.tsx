@@ -1595,8 +1595,8 @@ function MessageBubble({
               })}
             </div>
             <div
-              className={`flex shrink-0 items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm overflow-hidden transition-[box-shadow] duration-200 ${
-                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25' : ''
+              className={`flex shrink-0 items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
+                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible' : 'overflow-hidden'
               } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
               <button
@@ -1611,16 +1611,16 @@ function MessageBubble({
                 <SmilePlus className="h-3.5 w-3.5" />
               </button>
               <div
-                className={`overflow-hidden transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 ${
-                  emojiPickerOpen ? 'max-w-[13.5rem] opacity-100' : 'max-w-0 opacity-0 pointer-events-none'
+                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 overflow-x-auto overflow-y-visible ${
+                  emojiPickerOpen ? 'max-w-[min(24rem,calc(100vw-4rem))] opacity-100' : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >
-                <div className="flex flex-nowrap items-center gap-0 pl-0.5 pr-1 py-0.5 h-7">
+                <div className="flex flex-nowrap items-center gap-0.5 pl-1 pr-2 py-0.5 min-h-7">
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
-                      className="text-[15px] leading-none min-w-[26px] h-6 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out hover:scale-125 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)] active:scale-95"
+                      className="text-[15px] leading-none min-w-[28px] h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)] active:scale-95"
                       onClick={e => {
                         e.stopPropagation()
                         onPickEmojiStrip(emoji)

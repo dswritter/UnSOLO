@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null
-  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'avatar' | 'community_room'
+  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'avatar' | 'community_room' | 'status_story'
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
@@ -43,7 +43,13 @@ export async function POST(req: NextRequest) {
 
   const ext = file.name.split('.').pop() || 'jpg'
   const folder =
-    purpose === 'avatar' ? 'avatars' : purpose === 'community_room' ? 'community-rooms' : 'packages'
+    purpose === 'avatar'
+      ? 'avatars'
+      : purpose === 'community_room'
+        ? 'community-rooms'
+        : purpose === 'status_story'
+          ? 'status-stories'
+          : 'packages'
   const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())

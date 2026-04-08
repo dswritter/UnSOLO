@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, Star, MessageCircle, Trophy, Shield, ArrowRight, Mountain } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
+import { HomeStatusRail } from '@/components/status/HomeStatusRail'
 import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import type { Package, Profile } from '@/types'
@@ -85,6 +86,9 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar user={profile} />
+
+      {/* Status photos (24h) — signed-in only */}
+      {profile ? <HomeStatusRail avatarUrl={profile.avatar_url} /> : null}
 
       {/* Hero + Featured Trips Carousel */}
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

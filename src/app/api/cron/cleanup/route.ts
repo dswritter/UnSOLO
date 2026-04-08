@@ -16,9 +16,11 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const results = { staleBookings: 0, expiredGroups: 0, refundsQueued: 0, reviewReminders: 0 }
+  const results = { staleBookings: 0, expiredGroups: 0, refundsQueued: 0, reviewReminders: 0, statusStoriesPurged: 0 }
 
   try {
+    await supabase.from('status_stories').delete().lt('expires_at', new Date().toISOString())
+    results.statusStoriesPurged = 1
     // 1. Cancel stale pending bookings (> 48 hours old)
     const staleCutoff = new Date(Date.now() - PENDING_BOOKING_EXPIRY_HOURS * 3600000).toISOString()
     const { data: staleBookings } = await supabase

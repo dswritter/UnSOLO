@@ -16,6 +16,7 @@ import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
 import { PhoneRequestButton } from './PhoneRequestButton'
+import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
 
 export default async function ProfilePage({
   params,
@@ -252,6 +253,8 @@ export default async function ProfilePage({
             ))}
           </div>
         </div>
+
+        <ProfileStatusRail profileId={profile.id} isOwn={isOwnProfile} />
 
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 

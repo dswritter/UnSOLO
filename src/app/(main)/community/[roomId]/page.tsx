@@ -42,10 +42,28 @@ export default async function CommunityRoomPage({
     .from('chat_rooms')
     .select('*, package:packages(title, slug, duration_days, images, destination:destinations(name, state))')
     .eq('id', roomId)
-    .eq('is_active', true)
-    .single()
+    .maybeSingle()
 
   if (!room) notFound()
+
+  if (!room.is_active && room.type === 'trip') {
+    return (
+      <div className="flex-1 flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-md">
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <h2 className="text-xl font-bold">Trip chat</h2>
+          <p className="text-muted-foreground text-sm">Currently this trip is not live.</p>
+          <Button asChild className="bg-primary text-black">
+            <Link href="/explore">Browse trips</Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!room.is_active) {
+    notFound()
+  }
 
   const pkg = unwrapPackage(room.package as PackageJoin | PackageJoin[])
   const tripDurationDays = Math.max(1, Number(pkg?.duration_days) || 3)
