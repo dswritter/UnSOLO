@@ -11,6 +11,7 @@ import { markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
+import { formatDistanceToNow } from 'date-fns'
 
 const SLIDE_MS = 5000
 
@@ -73,7 +74,8 @@ export function StatusStoryViewer({
   const runLen = runEnd - runStart + 1
   const segIdx = idx - runStart
 
-  const finalizeClose = useCallback(() => {
+  /** `pop` = browser/OS back popped our entry; `ui` = Esc/X/end of carousel — may call history.back() once to sync stack */
+  const finalizeClose = useCallback((source: 'pop' | 'ui') => {
     if (closedRef.current) return
     closedRef.current = true
     const L = listRef.current
@@ -85,61 +87,65 @@ export function StatusStoryViewer({
     markStatusStoriesViewed(currentUserId, uniq)
     void recordStatusStoryViews(uniq)
     onCloseRef.current()
+    if (source === 'ui' && window.history.state?.statusViewer) {
+      window.history.back()
+    }
   }, [currentUserId])
 
   useEffect(() => {
     window.history.pushState({ statusViewer: true }, '')
     const onPop = () => {
-      finalizeClose()
+      finalizeClose('pop')
     }
     window.addEventListener('popstate', onPop)
     return () => {
       window.removeEventListener('popstate', onPop)
-      if (!closedRef.current && window.history.state?.statusViewer) {
-        window.history.back()
-      }
     }
   }, [finalizeClose])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        window.history.back()
+      if (e.key !== 'Escape') return
+      e.preventDefault()
+      if (seenOpen) {
+        setSeenOpen(false)
+        return
       }
+      finalizeClose('ui')
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [seenOpen, finalizeClose])
 
   useEffect(() => {
     endsAtRef.current = Date.now() + SLIDE_MS
   }, [idx])
 
   useEffect(() => {
-    if (paused) {
-      pauseStartedRef.current = Date.now()
+    const hold = paused || seenOpen
+    if (hold) {
+      if (pauseStartedRef.current == null) pauseStartedRef.current = Date.now()
     } else if (pauseStartedRef.current != null) {
       endsAtRef.current += Date.now() - pauseStartedRef.current
       pauseStartedRef.current = null
     }
-  }, [paused])
+  }, [paused, seenOpen])
 
   useEffect(() => {
-    if (paused || list.length === 0 || loadingImage) return
+    if (paused || seenOpen || list.length === 0 || loadingImage) return
     const rem = Math.max(0, endsAtRef.current - Date.now())
     const id = window.setTimeout(() => {
       setIdx(i => {
         const L = listRef.current
         if (i >= L.length - 1) {
-          queueMicrotask(() => window.history.back())
+          queueMicrotask(() => finalizeClose('ui'))
           return i
         }
         return i + 1
       })
     }, rem)
     return () => clearTimeout(id)
-  }, [idx, paused, list.length, loadingImage])
+  }, [idx, paused, seenOpen, list.length, loadingImage, finalizeClose])
 
   useEffect(() => {
     if (seenOpen && story?.id && isOwn) {
@@ -156,20 +162,20 @@ export function StatusStoryViewer({
     setPaused(false)
     setIdx(i => {
       if (i > 0) return i - 1
-      queueMicrotask(() => window.history.back())
+      queueMicrotask(() => finalizeClose('ui'))
       return 0
     })
-  }, [])
+  }, [finalizeClose])
 
   const goNext = useCallback(() => {
     setPaused(false)
     setIdx(i => {
       const L = listRef.current
       if (i < L.length - 1) return i + 1
-      queueMicrotask(() => window.history.back())
+      queueMicrotask(() => finalizeClose('ui'))
       return i
     })
-  }, [])
+  }, [finalizeClose])
 
   const longTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pressRef = useRef<{ t: number; zone: 'L' | 'M' | 'R'; longFired: boolean } | null>(null)
@@ -252,7 +258,7 @@ export function StatusStoryViewer({
                     className="h-full w-full bg-white status-story-progress-fill"
                     style={{
                       animation: loadingImage ? undefined : `status-slide-progress ${SLIDE_MS}ms linear forwards`,
-                      animationPlayState: paused || loadingImage ? 'paused' : 'running',
+                      animationPlayState: paused || loadingImage || seenOpen ? 'paused' : 'running',
                       transformOrigin: 'left center',
                     }}
                   />
@@ -265,7 +271,10 @@ export function StatusStoryViewer({
         <div data-status-header className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0 gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-white truncate">{author?.full_name || author?.username || 'Status'}</p>
-            <p className="text-[10px] text-zinc-400 truncate">@{author?.username}</p>
+            <p className="text-[11px] text-zinc-300 truncate">
+              {formatDistanceToNow(new Date(story.created_at), { addSuffix: true })}
+            </p>
+            <p className="text-[10px] text-zinc-500 truncate">@{author?.username}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {isOwn ? (
@@ -276,7 +285,9 @@ export function StatusStoryViewer({
                   variant="secondary"
                   className="h-8 px-2 bg-white/10 text-white border-0 hover:bg-white/20"
                   title="Seen by"
-                  onClick={() => setSeenOpen(true)}
+                  onClick={() => {
+                    setSeenOpen(true)
+                  }}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" /> Seen
                 </Button>
@@ -288,7 +299,7 @@ export function StatusStoryViewer({
             <button
               type="button"
               className="p-2 rounded-full hover:bg-white/10 text-white"
-              onClick={() => window.history.back()}
+              onClick={() => finalizeClose('ui')}
               aria-label="Close"
             >
               <X className="h-5 w-5" />

@@ -60,10 +60,15 @@ export async function countActiveStatusStoriesForUser(): Promise<number> {
   return count ?? 0
 }
 
-export async function getStatusStripForHome(): Promise<{ stories: StatusStripStory[]; currentUserId: string | null }> {
+export async function getStatusStripForHome(): Promise<{
+  stories: StatusStripStory[]
+  currentUserId: string | null
+  /** Story ids the current user has already viewed (any device) — syncs ring / ordering */
+  seenStoryIds: string[]
+}> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { stories: [], currentUserId: null }
+  if (!user) return { stories: [], currentUserId: null, seenStoryIds: [] }
 
   const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
   const followingIds = [...new Set((follows || []).map(f => f.following_id))]
@@ -76,7 +81,20 @@ export async function getStatusStripForHome(): Promise<{ stories: StatusStripSto
     .in('author_id', authorIds)
     .order('created_at', { ascending: false })
 
-  return { stories: (rows || []) as unknown as StatusStripStory[], currentUserId: user.id }
+  const stories = (rows || []) as unknown as StatusStripStory[]
+  const storyIds = stories.map(s => s.id)
+
+  let seenStoryIds: string[] = []
+  if (storyIds.length > 0) {
+    const { data: views } = await supabase
+      .from('status_story_views')
+      .select('story_id')
+      .eq('viewer_id', user.id)
+      .in('story_id', storyIds)
+    seenStoryIds = [...new Set((views || []).map(v => v.story_id as string))]
+  }
+
+  return { stories, currentUserId: user.id, seenStoryIds }
 }
 
 export async function getStatusStoriesForProfile(authorId: string): Promise<StatusStripStory[]> {

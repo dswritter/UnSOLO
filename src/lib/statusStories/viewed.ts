@@ -31,8 +31,16 @@ export function getViewedStoryIdsForViewer(viewerUserId: string): Set<string> {
   return new Set(data[viewerUserId] || [])
 }
 
-export function isStoryGroupFullyViewed(viewerUserId: string, stories: { id: string }[]): boolean {
+/**
+ * Fully viewed if every story id is marked locally OR recorded server-side (cross-device).
+ */
+export function isStoryGroupFullyViewed(
+  viewerUserId: string,
+  stories: { id: string }[],
+  serverSeenStoryIds?: string[],
+): boolean {
   if (stories.length === 0) return true
-  const v = getViewedStoryIdsForViewer(viewerUserId)
-  return stories.every(s => v.has(s.id))
+  const local = getViewedStoryIdsForViewer(viewerUserId)
+  const server = new Set(serverSeenStoryIds ?? [])
+  return stories.every(s => local.has(s.id) || server.has(s.id))
 }

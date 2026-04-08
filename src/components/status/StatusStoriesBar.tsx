@@ -10,7 +10,7 @@ import { getInitials } from '@/lib/utils'
 import type { StatusStripStory } from '@/actions/statusStories'
 import { AddStatusStorySheet } from '@/components/status/AddStatusStorySheet'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
-import { isStoryGroupFullyViewed } from '@/lib/statusStories/viewed'
+import { isStoryGroupFullyViewed, markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 
 function unwrapAuthor(story: StatusStripStory) {
   const a = story.author as { username: string; full_name: string | null; avatar_url: string | null } | null | undefined
@@ -44,12 +44,15 @@ function flatIndexForGroup(groups: { authorId: string; group: StatusStripStory[]
 export function StatusStoriesBar({
   initialStories,
   currentUserId,
+  seenStoryIds = [],
   generalRooms,
   addSlotAvatarUrl,
   existingActiveCount,
 }: {
   initialStories: StatusStripStory[]
   currentUserId: string
+  /** From DB — which stories this user already viewed (syncs across devices) */
+  seenStoryIds?: string[]
   generalRooms: { id: string; name: string }[]
   addSlotAvatarUrl?: string | null
   existingActiveCount: number
@@ -59,6 +62,11 @@ export function StatusStoriesBar({
   const [addOpen, setAddOpen] = useState(false)
   const [viewTick, setViewTick] = useState(0)
 
+  // Hydrate localStorage from server so ring state matches other devices / sessions
+  useEffect(() => {
+    if (seenStoryIds.length > 0) markStatusStoriesViewed(currentUserId, seenStoryIds)
+  }, [currentUserId, seenStoryIds])
+
   const grouped = useMemo(() => {
     const arr = groupStoriesByAuthor(initialStories)
     arr.sort((a, b) => {
@@ -66,13 +74,13 @@ export function StatusStoriesBar({
       const ownB = b.authorId === currentUserId
       if (ownA && !ownB) return -1
       if (!ownA && ownB) return 1
-      const va = isStoryGroupFullyViewed(currentUserId, a.group)
-      const vb = isStoryGroupFullyViewed(currentUserId, b.group)
+      const va = isStoryGroupFullyViewed(currentUserId, a.group, seenStoryIds)
+      const vb = isStoryGroupFullyViewed(currentUserId, b.group, seenStoryIds)
       if (va === vb) return 0
       return va ? 1 : -1
     })
     return arr
-  }, [initialStories, currentUserId, viewTick])
+  }, [initialStories, currentUserId, viewTick, seenStoryIds])
 
   const playlistFlat = useMemo(() => grouped.flatMap(g => g.group), [grouped])
 
@@ -127,14 +135,14 @@ export function StatusStoriesBar({
                     : 'border-2 border-dashed border-primary/60 group-hover:border-primary group-disabled:border-zinc-600'
                 }`}
               >
-                <Avatar className="h-full w-full border-2 border-black">
+                <Avatar className="h-full w-full border-2 border-background dark:border-black">
                   <AvatarImage src={addSlotAvatarUrl || ''} />
-                  <AvatarFallback className="bg-zinc-800 text-primary text-lg font-bold">
+                  <AvatarFallback className="bg-muted text-primary text-lg font-bold">
                     <Plus className="h-6 w-6" />
                   </AvatarFallback>
                 </Avatar>
                 {hasOwnStories && ownStoryCount > 1 ? (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-zinc-900 border-2 border-black text-[10px] font-bold text-primary flex items-center justify-center z-[5]">
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-background text-foreground border-2 border-border dark:bg-zinc-900 dark:border-black dark:text-primary text-[10px] font-bold flex items-center justify-center z-[5]">
                     {ownStoryCount}
                   </span>
                 ) : null}
@@ -143,7 +151,7 @@ export function StatusStoriesBar({
             {!atStatusLimit ? (
               <button
                 type="button"
-                className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-black flex items-center justify-center border-2 border-black shadow-md z-10 hover:scale-105 active:scale-95 transition-transform"
+                className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-black flex items-center justify-center border-2 border-border dark:border-black shadow-md z-10 hover:scale-105 active:scale-95 transition-transform"
                 aria-label="Add status photos"
                 onClick={e => {
                   e.stopPropagation()
@@ -154,7 +162,7 @@ export function StatusStoriesBar({
               </button>
             ) : null}
           </div>
-          <span className="text-[10px] text-zinc-400 max-w-[4.5rem] truncate">Your status</span>
+          <span className="text-[10px] text-muted-foreground max-w-[4.5rem] truncate">Your status</span>
         </div>
 
         {othersGrouped.map(({ authorId, group }) => {
@@ -162,7 +170,7 @@ export function StatusStoriesBar({
           const author = unwrapAuthor(story)
           const label = author?.full_name || author?.username || 'Traveler'
           const count = group.length
-          const allViewed = isStoryGroupFullyViewed(currentUserId, group)
+          const allViewed = isStoryGroupFullyViewed(currentUserId, group, seenStoryIds)
           const groupIdx = grouped.findIndex(g => g.authorId === authorId)
           return (
             <button
@@ -182,9 +190,9 @@ export function StatusStoriesBar({
                       : 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
                   }`}
                 >
-                  <Avatar className="h-full w-full border-2 border-black">
+                  <Avatar className="h-full w-full border-2 border-background dark:border-black">
                     <AvatarImage src={author?.avatar_url || ''} />
-                    <AvatarFallback className="bg-zinc-800 text-primary text-sm font-bold">
+                    <AvatarFallback className="bg-muted text-primary text-sm font-bold">
                       {getInitials(label)}
                     </AvatarFallback>
                   </Avatar>
@@ -193,15 +201,15 @@ export function StatusStoriesBar({
                   <span
                     className={`absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full border-2 text-[10px] font-bold flex items-center justify-center z-[5] ${
                       allViewed
-                        ? 'bg-zinc-800 border-zinc-600 text-zinc-400'
-                        : 'bg-zinc-900 border-black text-primary'
+                        ? 'bg-muted border-border text-muted-foreground dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-400'
+                        : 'bg-background border-border text-foreground dark:bg-zinc-900 dark:border-black dark:text-primary'
                     }`}
                   >
                     {count}
                   </span>
                 ) : null}
               </div>
-              <span className="text-[10px] text-zinc-300 max-w-[4.5rem] truncate">{label}</span>
+              <span className="text-[10px] text-foreground/90 max-w-[4.5rem] truncate">{label}</span>
             </button>
           )
         })}
