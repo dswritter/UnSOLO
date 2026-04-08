@@ -1,24 +1,22 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { X, ChevronRight } from 'lucide-react'
+import { X, ChevronRight, ImagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createStatusStories } from '@/actions/statusStories'
 import type { StatusStoryAudienceMode } from '@/lib/statusStories/audience'
 import { audiencePillLabel } from '@/lib/statusStories/labels'
+import { StatusAudienceUserTokens } from '@/components/status/StatusAudienceUserTokens'
 
 const MODES: { value: StatusStoryAudienceMode; label: string; hint: string }[] = [
   { value: 'all', label: 'Everyone', hint: 'All signed-in members of UnSOLO' },
   { value: 'followers', label: 'My followers', hint: 'Only people who follow you' },
   { value: 'following', label: 'People I follow', hint: 'Only people you follow' },
-  { value: 'users', label: 'Only share with…', hint: 'Pick specific people by @username' },
+  { value: 'users', label: 'Only share with…', hint: 'Search by name or username' },
   { value: 'communities', label: 'Community members', hint: 'People in selected community chats' },
 ]
-
-function countCsvParts(s: string) {
-  return s.split(/[\s,]+/).map(x => x.trim().replace(/^@/, '')).filter(Boolean).length
-}
 
 export function AddStatusStorySheet({
   open,
@@ -38,10 +36,11 @@ export function AddStatusStorySheet({
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const [audienceOpen, setAudienceOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const [mode, setMode] = useState<StatusStoryAudienceMode>('all')
-  const [excludeUsernames, setExcludeUsernames] = useState('')
-  const [includeUsernames, setIncludeUsernames] = useState('')
+  const [excludeUsers, setExcludeUsers] = useState<string[]>([])
+  const [includeUsers, setIncludeUsers] = useState<string[]>([])
   const [roomIds, setRoomIds] = useState<Set<string>>(new Set())
 
   const maxNew = Math.max(0, 3 - existingActiveCount)
@@ -56,19 +55,19 @@ export function AddStatusStorySheet({
     })
     setAudienceOpen(false)
     setMode('all')
-    setExcludeUsernames('')
-    setIncludeUsernames('')
+    setExcludeUsers([])
+    setIncludeUsers([])
     setRoomIds(new Set())
   }, [open])
 
   const pillLabel = useMemo(
     () =>
       audiencePillLabel(mode, {
-        excludeCount: countCsvParts(excludeUsernames),
-        includeUserCount: countCsvParts(includeUsernames),
+        excludeCount: excludeUsers.length,
+        includeUserCount: includeUsers.length,
         roomCount: roomIds.size,
       }),
-    [mode, excludeUsernames, includeUsernames, roomIds.size],
+    [mode, excludeUsers.length, includeUsers.length, roomIds.size],
   )
 
   function onPickFileList(list: FileList | null) {
@@ -81,8 +80,6 @@ export function AddStatusStorySheet({
     previews.forEach(u => URL.revokeObjectURL(u))
     setPreviews(take.map(f => URL.createObjectURL(f)))
   }
-
-  if (!open) return null
 
   async function submit() {
     if (!files.length) {
@@ -112,8 +109,8 @@ export function AddStatusStorySheet({
       const r = await createStatusStories({
         mediaUrls: urls,
         mode,
-        excludeUsernames: mode === 'all' ? excludeUsernames : undefined,
-        includeUsernames: mode === 'users' ? includeUsernames : undefined,
+        excludeUsernames: mode === 'all' ? excludeUsers.join(', ') : undefined,
+        includeUsernames: mode === 'users' ? includeUsers.join(', ') : undefined,
         includeRoomIds: mode === 'communities' ? [...roomIds] : undefined,
       })
       if (r.error) {
@@ -129,17 +126,19 @@ export function AddStatusStorySheet({
     }
   }
 
-  return (
+  if (!open || typeof document === 'undefined') return null
+
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <button
-          type="button"
-          className="absolute inset-0 bg-black/70"
-          aria-label="Close"
-          onClick={() => !busy && onOpenChange(false)}
-        />
+      <button
+        type="button"
+        className="fixed inset-0 z-[600] bg-black/70"
+        aria-label="Close"
+        onClick={() => !busy && onOpenChange(false)}
+      />
+      <div className="fixed inset-0 z-[610] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none">
         <div
-          className="relative w-full sm:max-w-lg max-h-[92dvh] flex flex-col bg-card border border-border sm:rounded-xl shadow-2xl"
+          className="pointer-events-auto relative w-full sm:max-w-lg flex flex-col bg-card border border-border sm:rounded-xl shadow-2xl min-h-[52dvh] max-h-[90dvh] sm:min-h-0 sm:max-h-[92dvh]"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -148,22 +147,33 @@ export function AddStatusStorySheet({
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4 min-h-0">
+          <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4 min-h-[200px]">
             <p className="text-xs text-muted-foreground">Photos only · Up to 3 active at once · Removed automatically after 24 hours.</p>
 
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Photos ({files.length}/{maxNew || 0} new)</label>
               <input
+                ref={fileRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/avif"
                 multiple={maxNew > 1}
-                className="text-sm w-full"
+                className="sr-only"
                 disabled={busy || maxNew <= 0}
                 onChange={e => onPickFileList(e.target.files)}
               />
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full justify-center gap-2 h-11 border border-dashed border-primary/50"
+                disabled={busy || maxNew <= 0}
+                onClick={() => fileRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4" />
+                Choose photos
+              </Button>
               {previews.length > 0 ? (
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                  {previews.map((u, i) => (
+                  {previews.map(u => (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img key={u} src={u} alt="" className="h-24 w-24 shrink-0 rounded-lg object-cover border border-border" />
                   ))}
@@ -198,14 +208,17 @@ export function AddStatusStorySheet({
       </div>
 
       {audienceOpen ? (
-        <div className="fixed inset-0 z-[120] flex flex-col bg-background sm:items-center sm:justify-center sm:p-4">
+        <div
+          className="fixed inset-0 z-[620] flex flex-col bg-background sm:items-center sm:justify-center sm:p-4"
+          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <h3 className="font-semibold">Choose audience</h3>
             <button type="button" className="p-2 rounded-lg hover:bg-secondary" onClick={() => setAudienceOpen(false)}>
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0 max-w-lg mx-auto w-full">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0 max-w-lg mx-auto w-full pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="space-y-3">
               {MODES.map(m => (
                 <label key={m.value} className="flex gap-3 items-start text-sm cursor-pointer rounded-lg border border-border p-3 hover:bg-secondary/40">
@@ -225,27 +238,21 @@ export function AddStatusStorySheet({
             </div>
 
             {mode === 'all' ? (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Everyone except… (@usernames, comma-separated)</label>
-                <input
-                  className="w-full text-sm bg-secondary border border-border rounded-lg px-3 py-2"
-                  value={excludeUsernames}
-                  onChange={e => setExcludeUsernames(e.target.value)}
-                  placeholder="optional"
-                />
-              </div>
+              <StatusAudienceUserTokens
+                label="Everyone except… (optional)"
+                selectedUsernames={excludeUsers}
+                onChange={setExcludeUsers}
+                placeholder="Type name or username…"
+              />
             ) : null}
 
             {mode === 'users' ? (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">@usernames (comma-separated)</label>
-                <input
-                  className="w-full text-sm bg-secondary border border-border rounded-lg px-3 py-2"
-                  value={includeUsernames}
-                  onChange={e => setIncludeUsernames(e.target.value)}
-                  placeholder="alex, sam"
-                />
-              </div>
+              <StatusAudienceUserTokens
+                label="Only share with"
+                selectedUsernames={includeUsers}
+                onChange={setIncludeUsers}
+                placeholder="Type name or username…"
+              />
             ) : null}
 
             {mode === 'communities' ? (
@@ -280,6 +287,7 @@ export function AddStatusStorySheet({
           </div>
         </div>
       ) : null}
-    </>
+    </>,
+    document.body,
   )
 }

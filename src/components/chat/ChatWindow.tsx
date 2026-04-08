@@ -1605,7 +1605,7 @@ function MessageBubble({
         {canReact && (
           <div
             data-emoji-strip-root={message.id}
-            className={`flex items-start gap-1.5 mt-0.5 max-w-[92vw] ${
+            className={`flex items-start gap-1.5 mt-0.5 w-full min-w-0 max-w-full ${
               isOwn ? 'flex-row-reverse' : 'flex-row'
             }`}
           >
@@ -1631,7 +1631,7 @@ function MessageBubble({
               })}
             </div>
             <div
-              className={`flex shrink-0 items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
+              className={`flex shrink-0 min-w-0 max-w-[min(100%,10.5rem)] sm:max-w-[13rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
                 emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible' : 'overflow-hidden'
               } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
@@ -1654,9 +1654,9 @@ function MessageBubble({
                 }}
                 onTouchEnd={() => setTouchLiftEmoji(null)}
                 onTouchCancel={() => setTouchLiftEmoji(null)}
-                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 touch-pan-x ${
+                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 flex-1 touch-pan-x ${
                   emojiPickerOpen
-                    ? 'max-w-[calc(100vw-5rem)] sm:max-w-[min(24rem,calc(100vw-4rem))] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
+                    ? 'max-w-[min(8.75rem,calc(100vw-6rem))] sm:max-w-[10.5rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
                     : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >

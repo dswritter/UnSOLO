@@ -9,6 +9,7 @@ import { getInitials } from '@/lib/utils'
 import type { StatusStripStory } from '@/actions/statusStories'
 import { AddStatusStorySheet } from '@/components/status/AddStatusStorySheet'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
+import { isStoryGroupFullyViewed, markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 
 function unwrapAuthor(story: StatusStripStory) {
   const a = story.author as { username: string; full_name: string | null; avatar_url: string | null } | null | undefined
@@ -49,8 +50,22 @@ export function StatusStoriesBar({
   const router = useRouter()
   const [viewer, setViewer] = useState<{ stories: StatusStripStory[]; initialIndex: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [viewTick, setViewTick] = useState(0)
 
-  const grouped = useMemo(() => groupStoriesByAuthor(initialStories), [initialStories])
+  const grouped = useMemo(() => {
+    const arr = groupStoriesByAuthor(initialStories)
+    arr.sort((a, b) => {
+      const ownA = a.authorId === currentUserId
+      const ownB = b.authorId === currentUserId
+      if (ownA && !ownB) return -1
+      if (!ownA && ownB) return 1
+      const va = isStoryGroupFullyViewed(currentUserId, a.group)
+      const vb = isStoryGroupFullyViewed(currentUserId, b.group)
+      if (va === vb) return 0
+      return va ? 1 : -1
+    })
+    return arr
+  }, [initialStories, currentUserId, viewTick])
   const atStatusLimit = existingActiveCount >= 3
 
   return (
@@ -89,20 +104,21 @@ export function StatusStoriesBar({
           const label = author?.full_name || author?.username || 'Traveler'
           const isOwn = authorId === currentUserId
           const count = group.length
+          const allViewed = isStoryGroupFullyViewed(currentUserId, group)
           return (
             <button
               key={authorId}
               type="button"
               onClick={() => setViewer({ stories: group, initialIndex: 0 })}
-              className="flex flex-col items-center gap-1.5 shrink-0"
+              className={`flex flex-col items-center gap-1.5 shrink-0 ${allViewed ? 'opacity-50' : ''}`}
             >
               <div className="relative">
                 <div
-                  className={`h-16 w-16 rounded-full p-[2.5px] ${
+                  className={`h-16 w-16 rounded-full p-[2.5px] transition-opacity ${
                     isOwn
                       ? 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
                       : 'bg-gradient-to-tr from-primary/80 to-zinc-500'
-                  }`}
+                  } ${allViewed ? 'grayscale-[0.35]' : ''}`}
                 >
                   <Avatar className="h-full w-full border-2 border-black">
                     <AvatarImage src={author?.avatar_url || ''} />
@@ -139,7 +155,14 @@ export function StatusStoriesBar({
           stories={viewer.stories}
           initialIndex={viewer.initialIndex}
           currentUserId={currentUserId}
-          onClose={() => setViewer(null)}
+          onClose={() => {
+            const authorId = viewer.stories[0]?.author_id
+            if (authorId && authorId !== currentUserId) {
+              markStatusStoriesViewed(currentUserId, viewer.stories.map(s => s.id))
+            }
+            setViewTick(t => t + 1)
+            setViewer(null)
+          }}
           onDeleted={() => {
             setViewer(null)
             router.refresh()

@@ -109,7 +109,7 @@ async function buildAudiencePayload(input: {
   }
   if (input.mode === 'users') {
     const ids = await usernamesToIds(input.includeUsernames || '')
-    if (!ids.length) return { audience, error: 'Add at least one username for “Specific users”' }
+    if (!ids.length) return { audience, error: 'Add at least one person for “Only share with”' }
     audience.include_user_ids = ids
   }
   if (input.mode === 'communities') {

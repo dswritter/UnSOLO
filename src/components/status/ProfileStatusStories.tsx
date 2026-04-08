@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import type { StatusStripStory } from '@/actions/statusStories'
 import { AddStatusStorySheet } from '@/components/status/AddStatusStorySheet'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
+import { markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 
 export function ProfileStatusStories({
   stories,
@@ -72,7 +73,12 @@ export function ProfileStatusStories({
           stories={viewer.stories}
           initialIndex={viewer.index}
           currentUserId={viewerId}
-          onClose={() => setViewer(null)}
+          onClose={() => {
+            if (!isOwn && viewer.stories[0]?.author_id) {
+              markStatusStoriesViewed(viewerId, viewer.stories.map(s => s.id))
+            }
+            setViewer(null)
+          }}
           onDeleted={() => {
             setViewer(null)
             router.refresh()

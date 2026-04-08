@@ -494,6 +494,38 @@ export async function searchCommunityMembers(query: string) {
   return data || []
 }
 
+/** Prefix match on username or full name (no @ required). For status audience picker. */
+export async function searchProfilesForStatusAudience(query: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const q = query.trim().replace(/[%_]/g, '').slice(0, 40)
+  if (q.length < 1) return []
+
+  const pattern = `${q}%`
+  const [{ data: byUser }, { data: byName }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('username', pattern)
+      .neq('id', user.id)
+      .limit(10),
+    supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('full_name', pattern)
+      .neq('id', user.id)
+      .limit(10),
+  ])
+
+  const map = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
+  for (const row of [...(byUser || []), ...(byName || [])]) {
+    map.set(row.id, row)
+  }
+  return [...map.values()].slice(0, 12)
+}
+
 // ── Frequent & Recent Contacts ──────────────────────────────
 
 export async function getFrequentContacts() {

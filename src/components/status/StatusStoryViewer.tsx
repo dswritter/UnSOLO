@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { StatusStripStory } from '@/actions/statusStories'
@@ -59,9 +60,11 @@ export function StatusStoryViewer({
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-[110] bg-black flex flex-col">
-      <div className="flex items-center justify-between px-3 py-3 border-b border-white/10 shrink-0">
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[630] bg-black flex flex-col">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-white/10 shrink-0 pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-white truncate">{author?.full_name || author?.username || 'Status'}</p>
           <p className="text-[10px] text-zinc-400">
@@ -110,6 +113,7 @@ export function StatusStoryViewer({
           <img src={story.media_url} alt="" className="max-w-full max-h-full object-contain" />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
