@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
@@ -223,14 +223,32 @@ export function ChatWindow({
   const { data: messages = initialMessages } = useQuery({
     queryKey: messagesKey,
     queryFn: () => fetchRoomMessagesClient(roomId),
-    // Prefer client cache (revisit same room) over fresh server payload on every navigation.
-    initialData: () => queryClient.getQueryData<Message[]>(messagesKey) ?? initialMessages,
+    initialData: () => {
+      const cached = queryClient.getQueryData<Message[]>(messagesKey)
+      if (!cached?.length) return initialMessages
+      // Sidebar may have merged realtime rows without `user` — don't prefer that over RSC payload
+      const cacheMissingSender = cached.some(
+        m => Boolean(m.user_id) && m.message_type === 'text' && !m.user,
+      )
+      return cacheMissingSender ? initialMessages : cached
+    },
     staleTime: Infinity,
     gcTime: 1000 * 60 * 60 * 24 * 7,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
+
+  useLayoutEffect(() => {
+    const cached = queryClient.getQueryData<Message[]>(messagesKey)
+    if (!cached?.length) return
+    const cacheMissingSender = cached.some(
+      m => Boolean(m.user_id) && m.message_type === 'text' && !m.user,
+    )
+    if (cacheMissingSender) {
+      queryClient.setQueryData(messagesKey, initialMessages)
+    }
+  }, [roomId, initialMessages, messagesKey, queryClient])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
@@ -1582,7 +1600,20 @@ function MessageBubble({
   onPickEmojiStrip: (emoji: string) => void
   tripBadge?: TripChatBookingPhase | null
 }): React.ReactNode {
-  const user = message.user
+  const memberFallback =
+    message.user_id && !message.user
+      ? memberProfiles.find(m => m.id === message.user_id)
+      : undefined
+  const user =
+    message.user ??
+    (memberFallback
+      ? ({
+          id: memberFallback.id,
+          username: memberFallback.username,
+          full_name: memberFallback.full_name,
+          avatar_url: memberFallback.avatar_url,
+        } as Profile)
+      : undefined)
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
 

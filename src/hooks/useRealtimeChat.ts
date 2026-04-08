@@ -136,12 +136,13 @@ export function useRealtimeChat(
     }
   }, [roomKey, setMessages])
 
-  // Listen for global new-message events from sidebar's realtime (instant delivery)
-  // NO DB queries here — use cached profile data from existing messages or memberProfiles
+  // Sidebar broadcasts new messages before you open the room — hydrate sender if cache had no profile
   useEffect(() => {
     function handleNewMessage(e: Event) {
       const msg = (e as CustomEvent).detail as { id: string; room_id: string; content: string; created_at: string; user_id: string }
       if (normalizeRoomId(msg.room_id) !== roomKey) return
+
+      let needProfileFetch = false
 
       setMessages(prev => {
         if (prev.find(m => m.id === msg.id)) return prev
@@ -149,6 +150,7 @@ export function useRealtimeChat(
         const cu = currentUserRef.current
         const existingUserMsg = prev.find(m => m.user_id === msg.user_id && m.user)
         const userProfile = existingUserMsg?.user || (cu?.id === msg.user_id ? cu : undefined)
+        needProfileFetch = !userProfile && !!msg.user_id
 
         const enriched: Message = {
           id: msg.id,
@@ -161,17 +163,32 @@ export function useRealtimeChat(
           user: userProfile,
         }
 
-        // Remove matching optimistic message
         const cleaned = prev.filter(m =>
           !(m.id.startsWith('optimistic-') && m.user_id === enriched.user_id && m.content === enriched.content)
         )
         return [...cleaned, enriched]
       })
+
+      if (needProfileFetch && msg.user_id) {
+        void supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .eq('id', msg.user_id)
+          .single()
+          .then(({ data, error }) => {
+            if (error || !data) return
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === msg.id && !m.user ? { ...m, user: data as Profile } : m,
+              ),
+            )
+          })
+      }
     }
 
     window.addEventListener('unsolo:new-message', handleNewMessage)
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
-  }, [roomKey, setMessages])
+  }, [roomKey, setMessages, supabase])
 
   // Catch-up poll while tab is visible (Realtime can miss events with multiple tabs/channels)
   useEffect(() => {
