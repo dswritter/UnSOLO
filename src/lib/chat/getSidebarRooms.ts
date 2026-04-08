@@ -67,12 +67,18 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
   // Get DM partner profiles in one batch
   const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
   let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
+  const dmPartnerHasStatus = new Set<string>()
   if (dmPartnerIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url')
-      .in('id', dmPartnerIds)
+    const [{ data: profiles }, { data: statusRows }] = await Promise.all([
+      supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', dmPartnerIds),
+      supabase
+        .from('status_stories')
+        .select('author_id')
+        .in('author_id', dmPartnerIds)
+        .gt('expires_at', new Date().toISOString()),
+    ])
     for (const p of profiles || []) profileMap.set(p.id, p)
+    for (const r of statusRows || []) dmPartnerHasStatus.add(r.author_id)
   }
 
   // Build DM room → partner map
@@ -92,6 +98,7 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     let tripImage: string | undefined
     let tripLocation: string | undefined
     let communityImage: string | undefined
+    let dmPartnerId: string | undefined
 
     if (type === 'general') {
       const img = room['image_url']
@@ -99,15 +106,17 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     }
 
     if (type === 'direct') {
-      const partnerId = dmPartnerMap.get(id)
-      if (partnerId) {
-        const p = profileMap.get(partnerId)
+      dmPartnerId = dmPartnerMap.get(id)
+      if (dmPartnerId) {
+        const p = profileMap.get(dmPartnerId)
         if (p) {
           dmProfile = p
           name = p.full_name || p.username
         }
       }
     }
+
+    const dmHasActiveStatus = type === 'direct' && dmPartnerId ? dmPartnerHasStatus.has(dmPartnerId) : false
 
     if (type === 'trip') {
       const pkg = room['package'] as { title?: string; images?: string[]; destination?: { name?: string; state?: string } } | null
@@ -116,7 +125,19 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     }
 
     const msg = msgMap.get(id)
-    rooms.push({ id, name, type, lastMessage: msg?.content, lastMessageAt: msg?.created_at, dmProfile, tripImage, tripLocation, communityImage, isMember: true })
+    rooms.push({
+      id,
+      name,
+      type,
+      lastMessage: msg?.content,
+      lastMessageAt: msg?.created_at,
+      dmProfile,
+      dmHasActiveStatus,
+      tripImage,
+      tripLocation,
+      communityImage,
+      isMember: true,
+    })
   }
 
   // Add general rooms user hasn't joined

@@ -1,4 +1,8 @@
-import { getStatusStripForHome, getMyGeneralRoomsForStatus } from '@/actions/statusStories'
+import {
+  getStatusStripForHome,
+  getMyGeneralRoomsForStatus,
+  countActiveStatusStoriesForUser,
+} from '@/actions/statusStories'
 import { StatusStoriesBar } from '@/components/status/StatusStoriesBar'
 
 export async function HomeStatusRail({ avatarUrl }: { avatarUrl?: string | null }) {
@@ -6,6 +10,7 @@ export async function HomeStatusRail({ avatarUrl }: { avatarUrl?: string | null 
   if (!currentUserId) return null
 
   const generalRooms = await getMyGeneralRoomsForStatus()
+  const existingActiveCount = await countActiveStatusStoriesForUser()
 
   return (
     <div className="border-b border-white/10 bg-black/40 backdrop-blur-md">
@@ -16,6 +21,7 @@ export async function HomeStatusRail({ avatarUrl }: { avatarUrl?: string | null 
           currentUserId={currentUserId}
           generalRooms={generalRooms}
           addSlotAvatarUrl={avatarUrl}
+          existingActiveCount={existingActiveCount}
         />
       </div>
     </div>

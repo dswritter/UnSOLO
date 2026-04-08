@@ -47,6 +47,19 @@ export async function getMyGeneralRoomsForStatus(): Promise<{ id: string; name: 
   return out
 }
 
+export async function countActiveStatusStoriesForUser(): Promise<number> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+  const { count, error } = await supabase
+    .from('status_stories')
+    .select('*', { count: 'exact', head: true })
+    .eq('author_id', user.id)
+    .gt('expires_at', new Date().toISOString())
+  if (error) return 0
+  return count ?? 0
+}
+
 export async function getStatusStripForHome(): Promise<{ stories: StatusStripStory[]; currentUserId: string | null }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -63,19 +76,7 @@ export async function getStatusStripForHome(): Promise<{ stories: StatusStripSto
     .in('author_id', authorIds)
     .order('created_at', { ascending: false })
 
-  const sorted = (rows || []) as unknown as StatusStripStory[]
-  const byAuthor = new Map<string, StatusStripStory>()
-  for (const s of sorted) {
-    if (!byAuthor.has(s.author_id)) byAuthor.set(s.author_id, s)
-  }
-  const list = [...byAuthor.values()]
-  list.sort((a, b) => {
-    if (a.author_id === user.id) return -1
-    if (b.author_id === user.id) return 1
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })
-
-  return { stories: list, currentUserId: user.id }
+  return { stories: (rows || []) as unknown as StatusStripStory[], currentUserId: user.id }
 }
 
 export async function getStatusStoriesForProfile(authorId: string): Promise<StatusStripStory[]> {
@@ -93,8 +94,34 @@ export async function getStatusStoriesForProfile(authorId: string): Promise<Stat
   return (rows || []) as unknown as StatusStripStory[]
 }
 
-export async function createStatusStory(input: {
-  mediaUrl: string
+const MAX_ACTIVE_STATUS_PER_USER = 3
+
+async function buildAudiencePayload(input: {
+  mode: StatusStoryAudience['mode']
+  excludeUsernames?: string
+  includeUsernames?: string
+  includeRoomIds?: string[]
+}): Promise<{ audience: StatusStoryAudience; error?: string }> {
+  let audience: StatusStoryAudience = { mode: input.mode }
+
+  if (input.mode === 'all' && input.excludeUsernames?.trim()) {
+    audience.exclude_user_ids = await usernamesToIds(input.excludeUsernames)
+  }
+  if (input.mode === 'users') {
+    const ids = await usernamesToIds(input.includeUsernames || '')
+    if (!ids.length) return { audience, error: 'Add at least one username for “Specific users”' }
+    audience.include_user_ids = ids
+  }
+  if (input.mode === 'communities') {
+    const ids = input.includeRoomIds?.filter(Boolean) || []
+    if (!ids.length) return { audience, error: 'Select at least one community' }
+    audience.include_room_ids = ids
+  }
+  return { audience }
+}
+
+export async function createStatusStories(input: {
+  mediaUrls: string[]
   mode: StatusStoryAudience['mode']
   excludeUsernames?: string
   includeUsernames?: string
@@ -104,39 +131,62 @@ export async function createStatusStory(input: {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  const urls = input.mediaUrls.map(u => u.trim()).filter(Boolean)
+  if (!urls.length) return { error: 'Add at least one photo' }
+  if (urls.length > MAX_ACTIVE_STATUS_PER_USER) return { error: `You can share up to ${MAX_ACTIVE_STATUS_PER_USER} photos at once` }
+
+  const { count: existing } = await supabase
+    .from('status_stories')
+    .select('*', { count: 'exact', head: true })
+    .eq('author_id', user.id)
+    .gt('expires_at', new Date().toISOString())
+
+  const n = existing ?? 0
+  if (n + urls.length > MAX_ACTIVE_STATUS_PER_USER) {
+    return {
+      error: `You can have at most ${MAX_ACTIVE_STATUS_PER_USER} active status photos. Remove some or wait for them to expire.`,
+    }
+  }
+
+  const { audience, error: audErr } = await buildAudiencePayload(input)
+  if (audErr) return { error: audErr }
+
   const expires = new Date()
   expires.setTime(expires.getTime() + 24 * 60 * 60 * 1000)
+  const audienceJson = serializeAudience(audience)
 
-  let audience: StatusStoryAudience = { mode: input.mode }
-
-  if (input.mode === 'all' && input.excludeUsernames?.trim()) {
-    audience.exclude_user_ids = await usernamesToIds(input.excludeUsernames)
+  for (const media_url of urls) {
+    const { error } = await supabase.from('status_stories').insert({
+      author_id: user.id,
+      media_url,
+      media_type: 'image',
+      expires_at: expires.toISOString(),
+      audience: audienceJson,
+    })
+    if (error) return { error: error.message }
   }
-  if (input.mode === 'users') {
-    const ids = await usernamesToIds(input.includeUsernames || '')
-    if (!ids.length) return { error: 'Add at least one username for “Specific users”' }
-    audience.include_user_ids = ids
-  }
-  if (input.mode === 'communities') {
-    const ids = input.includeRoomIds?.filter(Boolean) || []
-    if (!ids.length) return { error: 'Select at least one community' }
-    audience.include_room_ids = ids
-  }
-
-  const { error } = await supabase.from('status_stories').insert({
-    author_id: user.id,
-    media_url: input.mediaUrl,
-    media_type: 'image',
-    expires_at: expires.toISOString(),
-    audience: serializeAudience(audience),
-  })
-
-  if (error) return { error: error.message }
 
   const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
   revalidatePath('/')
   if (prof?.username) revalidatePath(`/profile/${prof.username}`)
   return {}
+}
+
+/** @deprecated use createStatusStories */
+export async function createStatusStory(input: {
+  mediaUrl: string
+  mode: StatusStoryAudience['mode']
+  excludeUsernames?: string
+  includeUsernames?: string
+  includeRoomIds?: string[]
+}): Promise<{ error?: string }> {
+  return createStatusStories({
+    mediaUrls: [input.mediaUrl],
+    mode: input.mode,
+    excludeUsernames: input.excludeUsernames,
+    includeUsernames: input.includeUsernames,
+    includeRoomIds: input.includeRoomIds,
+  })
 }
 
 export async function deleteStatusStory(storyId: string): Promise<{ error?: string }> {

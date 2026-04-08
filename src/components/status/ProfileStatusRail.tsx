@@ -1,13 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { getStatusStoriesForProfile, getMyGeneralRoomsForStatus } from '@/actions/statusStories'
+import { getMyGeneralRoomsForStatus } from '@/actions/statusStories'
+import type { StatusStripStory } from '@/actions/statusStories'
 import { ProfileStatusStories } from '@/components/status/ProfileStatusStories'
 
-export async function ProfileStatusRail({ profileId, isOwn }: { profileId: string; isOwn: boolean }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const stories = await getStatusStoriesForProfile(profileId)
+export async function ProfileStatusRail({
+  isOwn,
+  stories,
+  viewerId,
+}: {
+  isOwn: boolean
+  stories: StatusStripStory[]
+  viewerId: string
+}) {
   const rooms = isOwn ? await getMyGeneralRoomsForStatus() : []
 
   if (stories.length === 0 && !isOwn) return null
@@ -19,7 +22,7 @@ export async function ProfileStatusRail({ profileId, isOwn }: { profileId: strin
         stories={stories}
         isOwn={isOwn}
         generalRooms={rooms}
-        viewerId={user.id}
+        viewerId={viewerId}
       />
     </section>
   )

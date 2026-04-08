@@ -18,6 +18,7 @@ export default async function CommunityPage() {
       {/* Mobile: sidebar (desktop list is in layout) */}
       <ChatSidebar
         rooms={rooms}
+        viewerUserId={user.id}
         className="flex md:hidden w-full flex-1 min-h-0"
       />
 

@@ -7,10 +7,12 @@ import { MessageCircle, Search, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
 import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
+import { DmSidebarAvatarMenu } from './DmSidebarAvatarMenu'
 
 function normalizeRoomId(id: string) {
   return id.trim().toLowerCase()
@@ -28,15 +30,19 @@ export interface SidebarRoom {
   /** Cover image for community (general) rooms */
   communityImage?: string
   isMember?: boolean
+  /** DM partner has at least one non-expired status story */
+  dmHasActiveStatus?: boolean
 }
 
 interface ChatSidebarProps {
   rooms: SidebarRoom[]
   activeRoomId?: string | null
   className?: string
+  /** Current user id (for status viewer + menus) */
+  viewerUserId: string
 }
 
-export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebarProps) {
+export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId }: ChatSidebarProps) {
   const [localRooms, setLocalRooms] = useState(rooms)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
@@ -287,6 +293,54 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
             const isActive = !!currentActiveRoom && normalizeRoomId(currentActiveRoom) === normalizeRoomId(room.id)
             const unread = unreadCounts.get(room.id) || 0
 
+            if (room.type === 'direct' && room.dmProfile) {
+              const p = room.dmProfile
+              return (
+                <div
+                  key={room.id}
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
+                    isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
+                  }`}
+                >
+                  <DmSidebarAvatarMenu
+                    avatarUrl={p.avatar_url}
+                    fallbackName={p.full_name || p.username}
+                    username={p.username}
+                    userId={p.id}
+                    hasStatus={room.dmHasActiveStatus === true}
+                    online={dmOnline}
+                    currentUserId={viewerUserId}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/community/${room.id}`)}
+                    className="flex-1 min-w-0 text-left py-0"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <Link
+                        href={`/profile/${p.username}`}
+                        onClick={e => e.stopPropagation()}
+                        className={`font-medium text-sm truncate hover:text-primary hover:underline ${unread > 0 ? 'font-bold text-foreground' : ''}`}
+                      >
+                        {room.name}
+                      </Link>
+                      {room.lastMessageAt && (
+                        <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{timeAgo(room.lastMessageAt)}</span>
+                      )}
+                    </div>
+                    {room.lastMessage && (
+                      <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
+                    )}
+                  </button>
+                  {unread > 0 ? (
+                    <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  ) : null}
+                </div>
+              )
+            }
+
             return (
               <button
                 key={room.id}
@@ -297,14 +351,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
               >
                 {/* Avatar */}
                 <div className="relative shrink-0">
-                  {room.type === 'direct' && room.dmProfile ? (
-                    <Avatar className="h-11 w-11">
-                      <AvatarImage src={room.dmProfile.avatar_url || ''} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
-                        {getInitials(room.dmProfile.full_name || room.dmProfile.username)}
-                      </AvatarFallback>
-                    </Avatar>
-                  ) : room.type === 'trip' && room.tripImage ? (
+                  {room.type === 'trip' && room.tripImage ? (
                     <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
                       <img src={room.tripImage} alt="" className="h-full w-full object-cover" />
                     </div>
@@ -314,11 +361,8 @@ export function ChatSidebar({ rooms, activeRoomId, className = '' }: ChatSidebar
                     </div>
                   ) : (
                     <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">
-                      {room.type === 'trip' ? '🏔️' : room.type === 'direct' ? '👤' : '💬'}
+                      {room.type === 'trip' ? '🏔️' : '💬'}
                     </div>
-                  )}
-                  {room.type === 'direct' && dmOnline && (
-                    <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
                   )}
                 </div>
 

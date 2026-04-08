@@ -19,7 +19,7 @@ export function ProfileStatusStories({
   viewerId: string
 }) {
   const router = useRouter()
-  const [viewerStory, setViewerStory] = useState<StatusStripStory | null>(null)
+  const [viewer, setViewer] = useState<{ stories: StatusStripStory[]; index: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
   return (
@@ -38,11 +38,11 @@ export function ProfileStatusStories({
           </button>
         ) : null}
 
-        {stories.map(s => (
+        {stories.map((s, i) => (
           <button
             key={s.id}
             type="button"
-            onClick={() => setViewerStory(s)}
+            onClick={() => setViewer({ stories, index: i })}
             className="shrink-0 flex flex-col items-center gap-1"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -60,19 +60,21 @@ export function ProfileStatusStories({
         open={addOpen}
         onOpenChange={setAddOpen}
         generalRooms={generalRooms}
+        existingActiveCount={isOwn ? stories.length : 0}
         onCreated={() => {
           setAddOpen(false)
           router.refresh()
         }}
       />
 
-      {viewerStory ? (
+      {viewer ? (
         <StatusStoryViewer
-          story={viewerStory}
+          stories={viewer.stories}
+          initialIndex={viewer.index}
           currentUserId={viewerId}
-          onClose={() => setViewerStory(null)}
+          onClose={() => setViewer(null)}
           onDeleted={() => {
-            setViewerStory(null)
+            setViewer(null)
             router.refresh()
           }}
         />

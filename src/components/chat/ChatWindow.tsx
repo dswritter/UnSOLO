@@ -911,6 +911,20 @@ export function ChatWindow({
               <img src={roomImageUrl} alt="" className="h-full w-full object-cover" />
             </button>
           ) : null}
+          {isDM && dmPartner ? (
+            <Link
+              href={`/profile/${dmPartner.username}`}
+              className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              title={roomName}
+            >
+              <Avatar className="h-full w-full">
+                <AvatarImage src={dmPartner.avatar_url || ''} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
+                  {getInitials(dmPartner.full_name || dmPartner.username)}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          ) : null}
           <div className="min-w-0">
           {isDM && dmPartner ? (
             <Link href={`/profile/${dmPartner.username}`} className="font-bold hover:text-primary transition-colors">{roomName}</Link>
@@ -1459,6 +1473,28 @@ function MessageBubble({
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
 
+  const emojiStripScrollRef = useRef<HTMLDivElement>(null)
+  const [touchLiftEmoji, setTouchLiftEmoji] = useState<string | null>(null)
+
+  const updateTouchLiftFromClientX = useCallback((clientX: number) => {
+    const root = emojiStripScrollRef.current
+    if (!root) return
+    const els = root.querySelectorAll<HTMLElement>('[data-strip-emoji]')
+    for (const el of els) {
+      const r = el.getBoundingClientRect()
+      if (clientX >= r.left && clientX <= r.right) {
+        const em = el.dataset.stripEmoji
+        if (em) setTouchLiftEmoji(em)
+        return
+      }
+    }
+    setTouchLiftEmoji(null)
+  }, [])
+
+  useEffect(() => {
+    if (!emojiPickerOpen) setTouchLiftEmoji(null)
+  }, [emojiPickerOpen])
+
   const reactionAgg = useMemo(() => {
     if (!reactionRows?.length) return []
     const m = new Map<string, string[]>()
@@ -1611,16 +1647,30 @@ function MessageBubble({
                 <SmilePlus className="h-3.5 w-3.5" />
               </button>
               <div
-                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 overflow-x-auto overflow-y-visible ${
-                  emojiPickerOpen ? 'max-w-[min(24rem,calc(100vw-4rem))] opacity-100' : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
+                ref={emojiStripScrollRef}
+                onTouchMove={e => {
+                  if (!emojiPickerOpen || !e.touches[0]) return
+                  updateTouchLiftFromClientX(e.touches[0].clientX)
+                }}
+                onTouchEnd={() => setTouchLiftEmoji(null)}
+                onTouchCancel={() => setTouchLiftEmoji(null)}
+                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 touch-pan-x ${
+                  emojiPickerOpen
+                    ? 'max-w-[calc(100vw-5rem)] sm:max-w-[min(24rem,calc(100vw-4rem))] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
+                    : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >
-                <div className="flex flex-nowrap items-center gap-0.5 pl-1 pr-2 py-0.5 min-h-7">
+                <div className="flex flex-nowrap items-center gap-0.5 pl-1 pr-2 py-0.5 min-h-7 w-max max-w-none">
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
-                      className="text-[15px] leading-none min-w-[28px] h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out hover:scale-110 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)] active:scale-95"
+                      data-strip-emoji={emoji}
+                      className={`text-[15px] leading-none min-w-[28px] h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
+                        touchLiftEmoji === emoji
+                          ? 'scale-110 -translate-y-0.5 drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]'
+                          : 'hover:scale-110 hover:-translate-y-0.5 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]'
+                      }`}
                       onClick={e => {
                         e.stopPropagation()
                         onPickEmojiStrip(emoji)

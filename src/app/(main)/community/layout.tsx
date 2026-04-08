@@ -23,6 +23,7 @@ export default async function CommunityLayout({
     <div className="h-[calc(100dvh-64px)] flex bg-background text-foreground min-h-0">
       <ChatSidebar
         rooms={rooms}
+        viewerUserId={user.id}
         className="hidden md:flex w-96 min-w-[384px] border-r border-border shrink-0"
       />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
