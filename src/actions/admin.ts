@@ -889,8 +889,8 @@ export async function getCommunityChatRoomsAdmin(): Promise<{ rooms: CommunityCh
   } catch (e) {
     return { rooms: [], error: e instanceof Error ? e.message : 'Unauthorized' }
   }
-  const svc = await createServiceClient()
-  const { data, error } = await svc
+  const supabase = await createClient()
+  const { data, error } = await supabase
     .from('chat_rooms')
     .select('id, name, type, description, image_url, is_active, created_at, package_id')
     .eq('type', 'general')
@@ -906,8 +906,8 @@ export async function createCommunityChatRoomAdmin(input: {
 }) {
   try {
     const { user } = await requireCommunityChatStaff()
-    const svc = await createServiceClient()
-    const { data, error } = await svc
+    const supabase = await createClient()
+    const { data, error } = await supabase
       .from('chat_rooms')
       .insert({
         name: input.name.trim(),
@@ -941,14 +941,20 @@ export async function updateCommunityChatRoomAdmin(
 ) {
   try {
     const { user } = await requireCommunityChatStaff()
-    const svc = await createServiceClient()
+    const supabase = await createClient()
     const patch: Record<string, unknown> = {}
     if (input.name !== undefined) patch.name = input.name.trim()
     if (input.description !== undefined) patch.description = input.description?.trim() || null
     if (input.image_url !== undefined) patch.image_url = input.image_url?.trim() || null
     if (input.is_active !== undefined) patch.is_active = input.is_active
-    const { error } = await svc.from('chat_rooms').update(patch).eq('id', roomId).eq('type', 'general')
+    const { data: updatedRows, error } = await supabase
+      .from('chat_rooms')
+      .update(patch)
+      .eq('id', roomId)
+      .eq('type', 'general')
+      .select('id')
     if (error) return { error: error.message }
+    if (!updatedRows?.length) return { error: 'No rows updated — check permissions or room id' }
     await logAuditEvent(user.id, 'update_community_chat_room', 'chat_room', roomId, patch)
     const { revalidatePath } = await import('next/cache')
     revalidatePath('/community')
@@ -962,9 +968,10 @@ export async function updateCommunityChatRoomAdmin(
 export async function deleteCommunityChatRoomAdmin(roomId: string) {
   try {
     const { user } = await requireAdmin()
-    const svc = await createServiceClient()
-    const { error } = await svc.from('chat_rooms').delete().eq('id', roomId).eq('type', 'general')
+    const supabase = await createClient()
+    const { data: deletedRows, error } = await supabase.from('chat_rooms').delete().eq('id', roomId).eq('type', 'general').select('id')
     if (error) return { error: error.message }
+    if (!deletedRows?.length) return { error: 'Delete failed — check permissions or room id' }
     await logAuditEvent(user.id, 'delete_community_chat_room', 'chat_room', roomId, {})
     const { revalidatePath } = await import('next/cache')
     revalidatePath('/community')

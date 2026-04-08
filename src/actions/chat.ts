@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 
 export async function sendMessage(roomId: string, content: string) {
   const supabase = await createClient()
@@ -38,6 +39,27 @@ export async function joinRoom(roomId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  const { data: roomMeta } = await supabase
+    .from('chat_rooms')
+    .select('type, package_id')
+    .eq('id', roomId)
+    .single()
+
+  if (roomMeta?.type === 'trip' && roomMeta.package_id) {
+    const [{ data: pkg }, { data: userBookings }] = await Promise.all([
+      supabase.from('packages').select('duration_days').eq('id', roomMeta.package_id).single(),
+      supabase
+        .from('bookings')
+        .select('status, travel_date')
+        .eq('user_id', user.id)
+        .eq('package_id', roomMeta.package_id),
+    ])
+    const durationDays = Math.max(1, Number(pkg?.duration_days) || 3)
+    if (!userHasTripChatAccess(userBookings || [], durationDays)) {
+      return { error: 'Only travelers with an active booking for this trip can join the chat' }
+    }
+  }
 
   // Check if already a member
   const { data: existing } = await supabase

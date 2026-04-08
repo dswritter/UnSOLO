@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { PENDING_BOOKING_EXPIRY_HOURS, GROUP_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
+import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
 
 export async function POST(request: Request) {
   // Protect with secret
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     const staleCutoff = new Date(Date.now() - PENDING_BOOKING_EXPIRY_HOURS * 3600000).toISOString()
     const { data: staleBookings } = await supabase
       .from('bookings')
-      .select('id, user_id, package:packages(title)')
+      .select('id, user_id, package_id, package:packages(title)')
       .eq('status', 'pending')
       .lt('created_at', staleCutoff)
 
@@ -31,6 +32,10 @@ export async function POST(request: Request) {
         .from('bookings')
         .update({ status: 'cancelled', updated_at: new Date().toISOString() })
         .eq('id', booking.id)
+
+      if (booking.user_id && booking.package_id) {
+        await removeUserFromPackageTripChat(supabase, booking.user_id, booking.package_id)
+      }
 
       const pkgTitle = (booking.package as unknown as { title: string })?.title || 'a trip'
       await supabase.from('notifications').insert({

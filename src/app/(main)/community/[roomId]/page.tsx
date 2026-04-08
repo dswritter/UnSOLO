@@ -9,6 +9,24 @@ import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Message, Profile } from '@/types'
 import { hashtagSlugFromRoomName } from '@/lib/chat/chatHashTags'
+import {
+  bestTripChatPhaseForUser,
+  userHasTripChatAccess,
+  type TripChatBookingPhase,
+} from '@/lib/chat/tripChatAccess'
+
+type PackageJoin = {
+  title?: string
+  slug?: string
+  duration_days?: number | null
+  images?: string[] | null
+  destination?: { name: string; state: string } | { name: string; state: string }[] | null
+} | null
+
+function unwrapPackage(p: PackageJoin | PackageJoin[]): PackageJoin {
+  if (!p) return null
+  return Array.isArray(p) ? p[0] ?? null : p
+}
 
 export default async function CommunityRoomPage({
   params,
@@ -22,12 +40,16 @@ export default async function CommunityRoomPage({
 
   const { data: room } = await supabase
     .from('chat_rooms')
-    .select('*, package:packages(title, destination:destinations(name, state))')
+    .select('*, package:packages(title, slug, duration_days, images, destination:destinations(name, state))')
     .eq('id', roomId)
     .eq('is_active', true)
     .single()
 
   if (!room) notFound()
+
+  const pkg = unwrapPackage(room.package as PackageJoin | PackageJoin[])
+  const tripDurationDays = Math.max(1, Number(pkg?.duration_days) || 3)
+  const packageSlug = pkg?.slug || ''
 
   const { data: membership } = await supabase
     .from('chat_room_members')
@@ -36,7 +58,27 @@ export default async function CommunityRoomPage({
     .eq('user_id', user.id)
     .single()
 
-  if (!membership && room.type === 'direct') {
+  let effectiveMembership = membership
+
+  let userTripBookings: { status: string; travel_date: string }[] = []
+  if (room.type === 'trip' && room.package_id) {
+    const { data: ub } = await supabase
+      .from('bookings')
+      .select('status, travel_date')
+      .eq('user_id', user.id)
+      .eq('package_id', room.package_id)
+    userTripBookings = ub || []
+  }
+
+  const tripEligible =
+    room.type !== 'trip' || !room.package_id || userHasTripChatAccess(userTripBookings, tripDurationDays)
+
+  if (room.type === 'trip' && room.package_id && effectiveMembership && !tripEligible) {
+    await supabase.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', user.id)
+    effectiveMembership = null
+  }
+
+  if (!effectiveMembership && room.type === 'direct') {
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
@@ -49,19 +91,8 @@ export default async function CommunityRoomPage({
     )
   }
 
-  if (!membership && room.type !== 'general' && room.type !== 'direct') {
-    // Check if user has a booking for this trip (they may have left the chat)
-    const { data: hasBooking } = await supabase
-      .from('bookings')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('package_id', room.package_id)
-      .in('status', ['confirmed', 'completed'])
-      .limit(1)
-      .single()
-
-    if (hasBooking) {
-      // User left the chat but has a booking — show rejoin option
+  if (!effectiveMembership && room.type !== 'general' && room.type !== 'direct') {
+    if (tripEligible) {
       return (
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center space-y-4">
@@ -74,19 +105,24 @@ export default async function CommunityRoomPage({
       )
     }
 
+    const bookHref = packageSlug ? `/packages/${packageSlug}` : '/explore'
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Trip-only Chat</h2>
-          <p className="text-muted-foreground text-sm">Book this trip to join the chat.</p>
-          <Button asChild className="bg-primary text-black"><Link href="/explore">Browse Trips</Link></Button>
+          <p className="text-muted-foreground text-sm">
+            This chat is for travelers with an active, upcoming, ongoing, or completed booking for this trip.
+          </p>
+          <Button asChild className="bg-primary text-black">
+            <Link href={bookHref}>{packageSlug ? 'Book this trip' : 'Browse trips'}</Link>
+          </Button>
         </div>
       </div>
     )
   }
 
-  if (!membership && room.type === 'general') {
+  if (!effectiveMembership && room.type === 'general') {
     return (
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="text-center space-y-4">
@@ -119,8 +155,30 @@ export default async function CommunityRoomPage({
       supabase.from('profiles').select('id, username, full_name, avatar_url, bio, phone_number, phone_public').in('id', memberIds),
       supabase.from('phone_requests').select('target_id, status').eq('requester_id', user.id).in('target_id', memberIds),
     ])
+    let memberBookings: { user_id: string; status: string; travel_date: string }[] = []
+    if (room.type === 'trip' && room.package_id) {
+      const { data: mb } = await supabase
+        .from('bookings')
+        .select('user_id, status, travel_date')
+        .eq('package_id', room.package_id)
+        .in('user_id', memberIds)
+      memberBookings = mb || []
+    }
     const requestMap = new Map((phoneRequests || []).map(r => [r.target_id, r.status]))
-    memberProfiles = (profiles || []).map(p => ({ ...p, phone_request_status: requestMap.get(p.id) || null })) as ChatMemberProfile[]
+    const byUserBookings = new Map<string, { status: string; travel_date: string }[]>()
+    for (const row of memberBookings) {
+      const arr = byUserBookings.get(row.user_id) || []
+      arr.push({ status: row.status, travel_date: row.travel_date })
+      byUserBookings.set(row.user_id, arr)
+    }
+    memberProfiles = (profiles || []).map(p => {
+      const rows = byUserBookings.get(p.id) || []
+      const trip_chat_badge: TripChatBookingPhase | null | undefined =
+        room.type === 'trip' && room.package_id
+          ? bestTripChatPhaseForUser(rows, tripDurationDays)
+          : undefined
+      return { ...p, phone_request_status: requestMap.get(p.id) || null, trip_chat_badge } as ChatMemberProfile
+    })
   }
 
   let displayName = room.name
@@ -156,12 +214,18 @@ export default async function CommunityRoomPage({
     }
   }
 
+  const rowImage = (room as { image_url?: string | null }).image_url
+  const roomImageUrl =
+    (typeof rowImage === 'string' && rowImage.trim() !== '' ? rowImage : null) ||
+    (room.type === 'trip' && pkg?.images?.[0] ? pkg.images[0] : null)
+
   return (
     <div className="flex flex-col h-full min-h-0 flex-1">
       <ChatWindow
         roomId={roomId}
         roomName={displayName}
         roomType={room.type as 'trip' | 'general' | 'direct'}
+        roomImageUrl={roomImageUrl}
         initialMessages={((msgs || []) as Message[]).reverse()}
         currentUser={profile as Profile}
         memberProfiles={memberProfiles}

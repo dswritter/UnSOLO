@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateConfirmationCode } from '@/lib/utils'
+import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -63,7 +64,7 @@ export async function POST(request: Request) {
     // Find and cancel the booking
     const { data: failedBooking } = await supabase
       .from('bookings')
-      .select('id, user_id, package:packages(title)')
+      .select('id, user_id, package_id, package:packages(title)')
       .eq('stripe_session_id', orderId)
       .single()
 
@@ -71,6 +72,10 @@ export async function POST(request: Request) {
       .from('bookings')
       .update({ status: 'cancelled' })
       .eq('stripe_session_id', orderId)
+
+    if (failedBooking?.user_id && failedBooking.package_id) {
+      await removeUserFromPackageTripChat(supabase, failedBooking.user_id, failedBooking.package_id)
+    }
 
     // Notify customer about failed payment
     if (failedBooking) {
@@ -127,7 +132,7 @@ export async function POST(request: Request) {
     // Find booking by payment ID
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, user_id, package:packages(title)')
+      .select('id, user_id, package_id, package:packages(title)')
       .eq('stripe_payment_intent', paymentId)
       .single()
 
@@ -141,6 +146,10 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', booking.id)
+
+      if (booking.user_id && booking.package_id) {
+        await removeUserFromPackageTripChat(supabase, booking.user_id, booking.package_id)
+      }
 
       const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
 

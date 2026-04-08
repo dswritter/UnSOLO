@@ -699,7 +699,7 @@ export async function processCancellation(
   // Get booking to notify user
   const { data: booking } = await supabase
     .from('bookings')
-    .select('user_id, package:packages(title), total_amount_paise, stripe_payment_intent')
+    .select('user_id, package_id, package:packages(title), total_amount_paise, stripe_payment_intent')
     .eq('id', bookingId)
     .single()
 
@@ -726,6 +726,16 @@ export async function processCancellation(
       adminNote: adminNote || '',
     })
   } catch { /* non-critical */ }
+
+  if (approve && booking?.user_id && booking.package_id) {
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const svc = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    )
+    const { removeUserFromPackageTripChat } = await import('@/lib/chat/tripChatMembership')
+    await removeUserFromPackageTripChat(svc, booking.user_id, booking.package_id)
+  }
 
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')

@@ -16,8 +16,22 @@ import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
 import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
+import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
 
 export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
+
+function TripStatusBadge({ phase, className = '' }: { phase: TripChatBookingPhase; className?: string }) {
+  const label = phase === 'upcoming' ? 'Booked' : phase === 'ongoing' ? 'On trip' : 'Completed'
+  const cls =
+    phase === 'upcoming'
+      ? 'bg-sky-500/15 text-sky-300 border-sky-500/40'
+      : phase === 'ongoing'
+        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
+        : 'bg-zinc-500/15 text-zinc-300 border-zinc-500/40'
+  return (
+    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${cls} ${className}`}>{label}</span>
+  )
+}
 
 interface ReadReceipt {
   message_id: string
@@ -39,6 +53,8 @@ interface ChatWindowProps {
   roomId: string
   roomName: string
   roomType?: 'trip' | 'general' | 'direct'
+  /** Community / trip room cover — tap to enlarge */
+  roomImageUrl?: string | null
   initialMessages: Message[]
   currentUser: Profile
   memberProfiles?: ChatMemberProfile[]
@@ -56,6 +72,8 @@ export interface ChatMemberProfile {
   phone_number: string | null
   phone_public: boolean
   phone_request_status?: string | null
+  /** Set for trip chats: booking phase vs package dates */
+  trip_chat_badge?: TripChatBookingPhase | null
 }
 
 // ── Linkify: URLs, @mentions, #room-or-trip (slug, full name, unique prefix) ──
@@ -181,6 +199,7 @@ export function ChatWindow({
   roomId,
   roomName,
   roomType = 'general',
+  roomImageUrl = null,
   initialMessages,
   currentUser,
   memberProfiles = [],
@@ -221,6 +240,7 @@ export function ChatWindow({
   const reactionsByMessageRef = useRef(reactionsByMessage)
   reactionsByMessageRef.current = reactionsByMessage
   const [emojiPickerForMessageId, setEmojiPickerForMessageId] = useState<string | null>(null)
+  const [roomImageLightbox, setRoomImageLightbox] = useState(false)
   const [reactorModal, setReactorModal] = useState<{ emoji: string; names: string[] } | null>(null)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTapRef = useRef<{ id: string; t: number } | null>(null)
@@ -228,6 +248,17 @@ export function ChatWindow({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!emojiPickerForMessageId) return
+    const onPointerDown = (e: PointerEvent) => {
+      const root = document.querySelector(`[data-emoji-strip-root="${emojiPickerForMessageId}"]`)
+      if (root?.contains(e.target as Node)) return
+      setEmojiPickerForMessageId(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => window.removeEventListener('pointerdown', onPointerDown, true)
+  }, [emojiPickerForMessageId])
 
   // Load and subscribe to read receipts
   useEffect(() => {
@@ -862,15 +893,25 @@ export function ChatWindow({
     <div className="flex flex-col h-full bg-background border-l border-border relative">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={() => (onBack ? onBack() : router.push('/community'))}
-            className="text-muted-foreground hover:text-foreground transition-colors md:hidden"
+            className="text-muted-foreground hover:text-foreground transition-colors md:hidden shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <div>
+          {!isDM && roomImageUrl ? (
+            <button
+              type="button"
+              onClick={() => setRoomImageLightbox(true)}
+              className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              title="View room image"
+            >
+              <img src={roomImageUrl} alt="" className="h-full w-full object-cover" />
+            </button>
+          ) : null}
+          <div className="min-w-0">
           {isDM && dmPartner ? (
             <Link href={`/profile/${dmPartner.username}`} className="font-bold hover:text-primary transition-colors">{roomName}</Link>
           ) : (
@@ -1001,8 +1042,11 @@ export function ChatWindow({
                     <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-black" />
                   )}
                 </div>
-                <span className="text-xs truncate">{m.full_name || m.username}</span>
-                {m.id === currentUser.id && <span className="text-[10px] text-muted-foreground">(you)</span>}
+                <span className="text-xs truncate flex-1 min-w-0">{m.full_name || m.username}</span>
+                {roomType === 'trip' && m.trip_chat_badge ? (
+                  <TripStatusBadge phase={m.trip_chat_badge} className="shrink-0" />
+                ) : null}
+                {m.id === currentUser.id && <span className="text-[10px] text-muted-foreground shrink-0">(you)</span>}
               </button>
             ))}
           </div>
@@ -1029,6 +1073,11 @@ export function ChatWindow({
                 <div>
                   <div className="font-bold">{popupMember.full_name || popupMember.username}</div>
                   <div className="text-xs text-muted-foreground">@{popupMember.username}</div>
+                  {roomType === 'trip' && popupMember.trip_chat_badge ? (
+                    <div className="mt-1">
+                      <TripStatusBadge phase={popupMember.trip_chat_badge} />
+                    </div>
+                  ) : null}
                   {isUserOnline(popupMember.id) && (
                     <span className="text-[10px] text-green-400 font-medium">● Online now</span>
                   )}
@@ -1090,6 +1139,11 @@ export function ChatWindow({
                 message={msg}
                 isOwn={msg.user_id === currentUser.id}
                 isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
+                tripBadge={
+                  roomType === 'trip' && msg.user_id
+                    ? memberProfiles.find(m => m.id === msg.user_id)?.trip_chat_badge ?? null
+                    : null
+                }
                 onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
                 readStatus={msg.user_id === currentUser.id ? getReadStatus(msg.id, currentUser.id) : undefined}
                 isDM={isDM}
@@ -1206,6 +1260,32 @@ export function ChatWindow({
           </div>
         </div>
       )}
+
+      {roomImageLightbox && roomImageUrl ? (
+        <div
+          className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-6"
+          onClick={() => setRoomImageLightbox(false)}
+          role="presentation"
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 p-2 rounded-full bg-card/90 border border-border text-muted-foreground hover:text-foreground z-[61]"
+            onClick={e => {
+              e.stopPropagation()
+              setRoomImageLightbox(false)
+            }}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={roomImageUrl}
+            alt=""
+            className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
 
       {reactorModal && (
         <div
@@ -1347,6 +1427,7 @@ function MessageBubble({
   emojiPickerOpen,
   onToggleEmojiPicker,
   onPickEmojiStrip,
+  tripBadge,
 }: {
   message: Message
   isOwn: boolean
@@ -1372,6 +1453,7 @@ function MessageBubble({
   emojiPickerOpen: boolean
   onToggleEmojiPicker: () => void
   onPickEmojiStrip: (emoji: string) => void
+  tripBadge?: TripChatBookingPhase | null
 }): React.ReactNode {
   const user = message.user
   const name = user?.full_name || user?.username || 'Unknown'
@@ -1464,10 +1546,13 @@ function MessageBubble({
       )}
       <div className={`max-w-[75%] space-y-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1">
-            {name}
-            {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block" />}
-          </Link>
+          <div className="flex items-center gap-1.5 flex-wrap max-w-full">
+            <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1 min-w-0">
+              <span className="truncate">{name}</span>
+              {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block shrink-0" />}
+            </Link>
+            {tripBadge ? <TripStatusBadge phase={tripBadge} /> : null}
+          </div>
         )}
         <div
           className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words touch-manipulation ${
@@ -1483,6 +1568,7 @@ function MessageBubble({
         </div>
         {canReact && (
           <div
+            data-emoji-strip-root={message.id}
             className={`flex items-start gap-1.5 mt-0.5 max-w-[92vw] ${
               isOwn ? 'flex-row-reverse' : 'flex-row'
             }`}
@@ -1534,7 +1620,7 @@ function MessageBubble({
                     <button
                       key={emoji}
                       type="button"
-                      className="text-[15px] leading-none min-w-[26px] h-6 rounded-md hover:bg-secondary/90 flex items-center justify-center shrink-0 transition-transform active:scale-95"
+                      className="text-[15px] leading-none min-w-[26px] h-6 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out hover:scale-125 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)] active:scale-95"
                       onClick={e => {
                         e.stopPropagation()
                         onPickEmojiStrip(emoji)
@@ -1548,7 +1634,8 @@ function MessageBubble({
             </div>
           </div>
         )}
-        <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
+        <div className={`flex items-center gap-1 flex-wrap ${isOwn ? 'justify-end' : ''}`}>
+          {isOwn && tripBadge ? <TripStatusBadge phase={tripBadge} /> : null}
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
           {isOwn && readStatus && readStatus !== 'sending' && (
             <span className="flex items-center shrink-0">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,13 @@ import {
   updateCommunityChatRoomAdmin,
   deleteCommunityChatRoomAdmin,
 } from '@/actions/admin'
-import { Trash2, Plus, Pencil, Power, PowerOff, Upload } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Trash2, Plus, Pencil, Power, PowerOff, ImageIcon, X, Maximize2 } from 'lucide-react'
 
 async function uploadCommunityRoomCover(file: File): Promise<string | null> {
   const fd = new FormData()
@@ -36,6 +42,10 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null)
   const createFileRef = useRef<HTMLInputElement>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setRooms(initialRooms)
+  }, [initialRooms])
 
   async function handleCreate() {
     if (!newName.trim()) {
@@ -76,17 +86,21 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
     router.refresh()
   }
 
-  async function saveRoom(room: CommunityChatRoomRow, patch: Partial<{ name: string; description: string | null; image_url: string | null; is_active: boolean }>) {
+  async function saveRoom(
+    room: CommunityChatRoomRow,
+    patch: Partial<{ name: string; description: string | null; image_url: string | null; is_active: boolean }>,
+  ): Promise<boolean> {
     setBusyId(room.id)
     const r = await updateCommunityChatRoomAdmin(room.id, patch)
     setBusyId(null)
     if (r.error) {
       toast.error(r.error)
-      return
+      return false
     }
     toast.success('Saved')
     setRooms(prev => prev.map(x => (x.id === room.id ? { ...x, ...patch } : x)))
     router.refresh()
+    return true
   }
 
   async function removeRoom(room: CommunityChatRoomRow) {
@@ -117,9 +131,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
       {creating && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3 max-w-lg">
           <p className="text-sm font-semibold">Create community room</p>
-          <Input placeholder="Room name *" value={newName} onChange={e => setNewName(e.target.value)} />
-          <Textarea placeholder="Description (optional)" value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} />
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-3 items-start">
             <input
               ref={createFileRef}
               type="file"
@@ -133,10 +145,44 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
                 if (url) setNewImageUrl(url)
               }}
             />
-            <Button type="button" variant="outline" size="sm" disabled={busyId === 'new'} onClick={() => createFileRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5 mr-1" /> Upload list image
-            </Button>
-            {newImageUrl && <span className="text-xs text-muted-foreground truncate max-w-[200px]">Image set</span>}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    disabled={busyId === 'new'}
+                    className="h-14 w-14 rounded-full border border-border bg-secondary flex items-center justify-center shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                  >
+                    {newImageUrl ? (
+                      <img src={newImageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xl">💬</span>
+                    )}
+                  </button>
+                }
+              />
+              <DropdownMenuContent align="start" className="min-w-[10rem] bg-card border-border">
+                <DropdownMenuItem
+                  onClick={() => createFileRef.current?.click()}
+                  className="cursor-pointer"
+                >
+                  <ImageIcon className="h-4 w-4" /> Upload image
+                </DropdownMenuItem>
+                {newImageUrl ? (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setNewImageUrl(null)}
+                    className="cursor-pointer"
+                  >
+                    Remove image
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex-1 space-y-2 min-w-0">
+              <Input placeholder="Room name *" value={newName} onChange={e => setNewName(e.target.value)} />
+              <Textarea placeholder="Description (optional)" value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} />
+            </div>
           </div>
           <div className="flex gap-2">
             <Button size="sm" disabled={busyId === 'new'} onClick={() => void handleCreate()}>Create</Button>
@@ -171,21 +217,88 @@ function RoomEditor({
 }: {
   room: CommunityChatRoomRow
   busy: boolean
-  onSave: (room: CommunityChatRoomRow, patch: Partial<{ name: string; description: string | null; image_url: string | null; is_active: boolean }>) => void
+  onSave: (
+    room: CommunityChatRoomRow,
+    patch: Partial<{ name: string; description: string | null; image_url: string | null; is_active: boolean }>,
+  ) => Promise<boolean>
   onDelete: () => void
 }) {
   const [name, setName] = useState(room.name)
   const [description, setDescription] = useState(room.description || '')
   const [imageUrl, setImageUrl] = useState(room.image_url || '')
   const [editing, setEditing] = useState(false)
+  const [coverLightbox, setCoverLightbox] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  useEffect(() => {
+    if (editing) return
+    setName(room.name)
+    setDescription(room.description || '')
+    setImageUrl(room.image_url || '')
+  }, [room.id, room.name, room.description, room.image_url, editing])
+
+  const previewUrl = imageUrl || room.image_url || ''
+
   return (
+    <>
     <div className={`rounded-xl border p-4 ${room.is_active ? 'border-border bg-card' : 'border-zinc-700 bg-secondary/20 opacity-80'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex gap-3 min-w-0">
-          {room.image_url ? (
-            <img src={room.image_url} alt="" className="h-14 w-14 rounded-full object-cover border border-border shrink-0" />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/avif"
+            className="sr-only"
+            onChange={async e => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (!f) return
+              const url = await uploadCommunityRoomCover(f)
+              if (url) setImageUrl(url)
+            }}
+          />
+          {editing ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="h-14 w-14 rounded-full border border-border bg-secondary flex items-center justify-center shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                  >
+                    {previewUrl ? (
+                      <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xl">💬</span>
+                    )}
+                  </button>
+                }
+              />
+              <DropdownMenuContent align="start" className="min-w-[10rem] bg-card border-border">
+                {previewUrl ? (
+                  <DropdownMenuItem onClick={() => setCoverLightbox(previewUrl)} className="cursor-pointer">
+                    <Maximize2 className="h-4 w-4" /> View full size
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onClick={() => fileRef.current?.click()} className="cursor-pointer">
+                  <ImageIcon className="h-4 w-4" /> {previewUrl ? 'Replace image' : 'Upload image'}
+                </DropdownMenuItem>
+                {previewUrl ? (
+                  <DropdownMenuItem variant="destructive" onClick={() => setImageUrl('')} className="cursor-pointer">
+                    Remove image
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : previewUrl ? (
+            <button
+              type="button"
+              onClick={() => setCoverLightbox(previewUrl)}
+              className="h-14 w-14 rounded-full object-cover border border-border shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary hover:ring-2 hover:ring-primary/40 transition-all"
+              title="View image"
+            >
+              <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+            </button>
           ) : (
             <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center text-xl shrink-0">💬</div>
           )}
@@ -194,29 +307,6 @@ function RoomEditor({
               <div className="space-y-2 max-w-md">
                 <Input value={name} onChange={e => setName(e.target.value)} className="font-semibold" />
                 <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} placeholder="Description" />
-                <div className="flex flex-wrap items-center gap-2">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/avif"
-                    className="sr-only"
-                    onChange={async e => {
-                      const f = e.target.files?.[0]
-                      e.target.value = ''
-                      if (!f) return
-                      const url = await uploadCommunityRoomCover(f)
-                      if (url) setImageUrl(url)
-                    }}
-                  />
-                  <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => fileRef.current?.click()}>
-                    <Upload className="h-3.5 w-3.5 mr-1" /> New list image
-                  </Button>
-                  {imageUrl ? (
-                    <button type="button" className="text-xs text-muted-foreground hover:text-foreground underline" onClick={() => setImageUrl('')}>
-                      Remove image
-                    </button>
-                  ) : null}
-                </div>
               </div>
             ) : (
               <>
@@ -233,18 +323,28 @@ function RoomEditor({
               <Button
                 size="sm"
                 disabled={busy}
-                onClick={() => {
-                  onSave(room, {
+                onClick={async () => {
+                  const ok = await onSave(room, {
                     name,
                     description: description.trim() || null,
                     image_url: imageUrl.trim() || null,
                   })
-                  setEditing(false)
+                  if (ok) setEditing(false)
                 }}
               >
                 Save
               </Button>
-              <Button size="sm" variant="ghost" type="button" onClick={() => { setName(room.name); setDescription(room.description || ''); setImageUrl(room.image_url || ''); setEditing(false) }}>
+              <Button
+                size="sm"
+                variant="ghost"
+                type="button"
+                onClick={() => {
+                  setName(room.name)
+                  setDescription(room.description || '')
+                  setImageUrl(room.image_url || '')
+                  setEditing(false)
+                }}
+              >
                 Cancel
               </Button>
             </>
@@ -257,7 +357,7 @@ function RoomEditor({
                 size="sm"
                 variant="outline"
                 disabled={busy}
-                onClick={() => onSave(room, { is_active: !room.is_active })}
+                onClick={() => void onSave(room, { is_active: !room.is_active })}
                 title={room.is_active ? 'Disable (hide from list)' : 'Re-enable'}
               >
                 {room.is_active ? <><PowerOff className="h-3.5 w-3.5 mr-1" /> Disable</> : <><Power className="h-3.5 w-3.5 mr-1" /> Enable</>}
@@ -270,5 +370,32 @@ function RoomEditor({
         </div>
       </div>
     </div>
+
+      {coverLightbox ? (
+        <div
+          className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-6"
+          onClick={() => setCoverLightbox(null)}
+          role="presentation"
+        >
+          <button
+            type="button"
+            className="absolute top-4 right-4 p-2 rounded-full bg-card/90 border border-border text-muted-foreground hover:text-foreground"
+            onClick={e => {
+              e.stopPropagation()
+              setCoverLightbox(null)
+            }}
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={coverLightbox}
+            alt=""
+            className="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
+    </>
   )
 }
