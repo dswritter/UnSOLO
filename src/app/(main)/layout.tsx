@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server'
-import { QueryProvider } from '@/providers/QueryProvider'
 import { Navbar } from '@/components/layout/Navbar'
 import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
@@ -30,7 +29,7 @@ export default async function MainLayout({
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar user={profile} />
       <main className="flex-1">
-        <QueryProvider>{children}</QueryProvider>
+        {children}
       </main>
       {user && <ChatNotificationWidget userId={user.id} />}
       {user && <PresenceTracker userId={user.id} />}

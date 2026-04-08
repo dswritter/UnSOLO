@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
 import { NavigationProgress } from '@/components/layout/NavigationProgress'
+import { QueryProvider } from '@/providers/QueryProvider'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -54,7 +55,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>
-        {children}
+        <QueryProvider>{children}</QueryProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

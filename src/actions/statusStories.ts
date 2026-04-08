@@ -86,12 +86,18 @@ export async function getStatusStripForHome(): Promise<{
 
   let seenStoryIds: string[] = []
   if (storyIds.length > 0) {
-    const { data: views } = await supabase
-      .from('status_story_views')
-      .select('story_id')
-      .eq('viewer_id', user.id)
-      .in('story_id', storyIds)
-    seenStoryIds = [...new Set((views || []).map(v => v.story_id as string))]
+    try {
+      const { data: views, error } = await supabase
+        .from('status_story_views')
+        .select('story_id')
+        .eq('viewer_id', user.id)
+        .in('story_id', storyIds)
+      if (!error && views) {
+        seenStoryIds = [...new Set((views || []).map(v => v.story_id as string))]
+      }
+    } catch {
+      seenStoryIds = []
+    }
   }
 
   return { stories, currentUserId: user.id, seenStoryIds }

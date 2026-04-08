@@ -121,31 +121,40 @@ export function ExploreFilters({ params, resultCount }: Props) {
     <div className="space-y-3 mb-6">
       {/* Tab toggle + inline search */}
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={() => setTab('unsolo')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
-            activeTab === 'unsolo'
-              ? 'bg-primary text-black shadow-md shadow-primary/20'
-              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-          }`}
+        <div
+          className="relative flex h-10 w-full min-w-[min(100%,18rem)] max-w-[22rem] shrink-0 rounded-full border border-border bg-secondary/90 p-1 shadow-inner"
+          role="tablist"
+          aria-label="Trip source"
         >
-          <Globe className="h-4 w-4" />
-          UnSOLO Trips
-        </button>
-        <button
-          onClick={() => setTab('community')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
-            activeTab === 'community'
-              ? 'bg-primary text-black shadow-md shadow-primary/20'
-              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-          }`}
-        >
-          <Users className="h-4 w-4" />
-          Community Trips
-        </button>
-        <span className="text-xs text-muted-foreground hidden sm:inline">
-          {activeTab === 'unsolo' ? 'Curated by UnSOLO' : 'Hosted by verified travelers'}
-        </span>
+          <div
+            className="pointer-events-none absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-primary shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            style={{ left: activeTab === 'community' ? 'calc(50% + 2px)' : '4px' }}
+          />
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'unsolo'}
+            onClick={() => setTab('unsolo')}
+            className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors ${
+              activeTab === 'unsolo' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Globe className="h-4 w-4 shrink-0" />
+            <span className="truncate">UnSOLO Trips</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'community'}
+            onClick={() => setTab('community')}
+            className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors ${
+              activeTab === 'community' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate">Community Trips</span>
+          </button>
+        </div>
 
         {/* Inline search */}
         <form onSubmit={handleSearch} className="ml-auto flex items-center gap-1">

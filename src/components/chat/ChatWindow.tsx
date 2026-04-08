@@ -1169,8 +1169,8 @@ export function ChatWindow({
         </div>
       )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      {/* Messages — extra bottom padding on mobile so content clears the fixed composer */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-4">
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
@@ -1357,8 +1357,8 @@ export function ChatWindow({
         </div>
       )}
 
-      {/* Input — tight padding on mobile so the bar sits at the bottom; placeholder kept short */}
-      <div className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:py-3">
+      {/* Input — fixed to viewport bottom on mobile (flex layout leaves a gap on some browsers) */}
+      <div className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed bottom-0 left-0 right-0 z-20 md:z-auto">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"
@@ -1661,7 +1661,7 @@ function MessageBubble({
               })}
             </div>
             <div
-              className={`flex shrink-0 min-w-0 max-w-[min(100%,14.7rem)] sm:max-w-[18.2rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
+              className={`flex shrink-0 min-w-0 max-w-[min(100%,20.6rem)] sm:max-w-[25.5rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
                 emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible z-30' : 'overflow-hidden'
               } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
@@ -1686,17 +1686,17 @@ function MessageBubble({
                 onTouchCancel={() => setTouchLiftEmoji(null)}
                 className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 flex-1 touch-pan-x ${
                   emojiPickerOpen
-                    ? 'max-w-[min(12.25rem,calc(100vw-5rem))] sm:max-w-[14.7rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
+                    ? 'max-w-[min(17.1rem,calc(100vw-5rem))] sm:max-w-[20.6rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
                     : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >
-                <div className="flex flex-nowrap items-center gap-1 pl-1 pr-2 py-1 min-h-8 w-max max-w-none">
+                <div className="flex flex-nowrap items-center gap-1 pl-1 pr-2 py-0.5 w-max max-w-none">
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
                       data-strip-emoji={emoji}
-                      className={`text-[18px] leading-none min-w-[39px] h-8 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
+                      className={`text-base leading-none min-w-7 h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
                         touchLiftEmoji === emoji
                           ? 'z-20 scale-125 -translate-y-2 shadow-lg drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]'
                           : 'hover:scale-110 hover:-translate-y-1 hover:drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]'

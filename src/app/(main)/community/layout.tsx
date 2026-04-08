@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
+import { CommunityCrossRoomMessagePreview } from '@/components/chat/CommunityCrossRoomMessagePreview'
 
 export default async function CommunityLayout({
   children,
@@ -19,8 +20,11 @@ export default async function CommunityLayout({
 
   const rooms = await getSidebarRooms(supabase, user.id)
 
+  const roomSummaries = rooms.map(r => ({ id: r.id, name: r.name }))
+
   return (
-    <div className="h-[calc(100dvh-64px)] flex bg-background text-foreground min-h-0">
+    <div className="h-[calc(100dvh-64px)] flex bg-background text-foreground min-h-0 relative">
+      <CommunityCrossRoomMessagePreview viewerUserId={user.id} rooms={roomSummaries} />
       <ChatSidebar
         rooms={rooms}
         viewerUserId={user.id}
