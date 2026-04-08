@@ -23,6 +23,7 @@ export function AddStatusStorySheet({
   onOpenChange,
   generalRooms,
   existingActiveCount,
+  onShareAsync,
   onCreated,
 }: {
   open: boolean
@@ -30,6 +31,17 @@ export function AddStatusStorySheet({
   generalRooms: { id: string; name: string }[]
   /** Non-expired status rows the user already has (max 3 total) */
   existingActiveCount: number
+  /**
+   * When set, Share closes the sheet immediately and runs upload/create in the background
+   * (progress shown on the home status ring). Omit to use legacy blocking submit.
+   */
+  onShareAsync?: (input: {
+    files: File[]
+    mode: StatusStoryAudienceMode
+    excludeUsernames?: string
+    includeUsernames?: string
+    includeRoomIds?: string[]
+  }) => void | Promise<void>
   onCreated: () => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -90,6 +102,22 @@ export function AddStatusStorySheet({
       toast.error('You already have 3 active status photos')
       return
     }
+
+    if (onShareAsync) {
+      const payload = {
+        files: [...files],
+        mode,
+        excludeUsernames: mode === 'all' ? excludeUsers.join(', ') : undefined,
+        includeUsernames: mode === 'users' ? includeUsers.join(', ') : undefined,
+        includeRoomIds: mode === 'communities' ? [...roomIds] : undefined,
+      }
+      onOpenChange(false)
+      void Promise.resolve(onShareAsync(payload)).catch(() => {
+        /* errors handled inside handler */
+      })
+      return
+    }
+
     setBusy(true)
     try {
       const urls: string[] = []

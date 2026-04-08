@@ -1357,13 +1357,13 @@ export function ChatWindow({
         </div>
       )}
 
-      {/* Input */}
-      <div className="px-4 py-3 pb-6 border-t border-border safe-area-bottom mb-1">
+      {/* Input — tight padding on mobile so the bar sits at the bottom; placeholder kept short */}
+      <div className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] md:py-3">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"
             onClick={() => { setShowPackagePicker(!showPackagePicker); if (packages.length === 0) loadPackages() }}
-            className="h-10 w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
             title="Share a trip package"
           >
             <Share2 className="h-4 w-4 text-primary" />
@@ -1373,14 +1373,14 @@ export function ChatWindow({
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message... (Enter to send)"
+            placeholder="Message"
             rows={1}
-            className="bg-secondary border-border resize-none min-h-[40px] max-h-[160px] overflow-y-auto"
+            className="bg-secondary border-border resize-none min-h-[36px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-sm py-2"
             style={{ height: 'auto' }}
           />
           <Button
             type="submit" size="sm"
-            className="bg-primary text-black hover:bg-primary/90 h-10 w-10 p-0 flex-shrink-0"
+            className="bg-primary text-black hover:bg-primary/90 h-9 w-9 sm:h-10 sm:w-10 p-0 flex-shrink-0"
             disabled={!input.trim() || sending}
           >
             <Send className="h-4 w-4" />
@@ -1661,8 +1661,8 @@ function MessageBubble({
               })}
             </div>
             <div
-              className={`flex shrink-0 min-w-0 max-w-[min(100%,10.5rem)] sm:max-w-[13rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
-                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible' : 'overflow-hidden'
+              className={`flex shrink-0 min-w-0 max-w-[min(100%,14.7rem)] sm:max-w-[18.2rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
+                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible z-30' : 'overflow-hidden'
               } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
               <button
@@ -1686,20 +1686,20 @@ function MessageBubble({
                 onTouchCancel={() => setTouchLiftEmoji(null)}
                 className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 flex-1 touch-pan-x ${
                   emojiPickerOpen
-                    ? 'max-w-[min(8.75rem,calc(100vw-6rem))] sm:max-w-[10.5rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
+                    ? 'max-w-[min(12.25rem,calc(100vw-5rem))] sm:max-w-[14.7rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
                     : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >
-                <div className="flex flex-nowrap items-center gap-0.5 pl-1 pr-2 py-0.5 min-h-7 w-max max-w-none">
+                <div className="flex flex-nowrap items-center gap-1 pl-1 pr-2 py-1 min-h-8 w-max max-w-none">
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
                       data-strip-emoji={emoji}
-                      className={`text-[15px] leading-none min-w-[28px] h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
+                      className={`text-[18px] leading-none min-w-[39px] h-8 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
                         touchLiftEmoji === emoji
-                          ? 'scale-110 -translate-y-0.5 drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]'
-                          : 'hover:scale-110 hover:-translate-y-0.5 hover:drop-shadow-[0_2px_6px_rgba(0,0,0,0.35)]'
+                          ? 'z-20 scale-125 -translate-y-2 shadow-lg drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]'
+                          : 'hover:scale-110 hover:-translate-y-1 hover:drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]'
                       }`}
                       onClick={e => {
                         e.stopPropagation()

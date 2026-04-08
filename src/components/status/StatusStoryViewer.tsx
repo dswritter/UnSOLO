@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useQuery } from '@tanstack/react-query'
 import { X, Trash2, Eye, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { StatusStripStory } from '@/actions/statusStories'
-import { deleteStatusStory, recordStatusStoryViews, getStatusStoryViewers, type StatusStoryViewerInfo } from '@/actions/statusStories'
+import { deleteStatusStory, recordStatusStoryViews, getStatusStoryViewers } from '@/actions/statusStories'
 import { toast } from 'sonner'
 import { markStatusStoriesViewed } from '@/lib/statusStories/viewed'
 import Link from 'next/link'
@@ -55,8 +56,6 @@ export function StatusStoryViewer({
   const [paused, setPaused] = useState(false)
   const [loadedMediaId, setLoadedMediaId] = useState<string | null>(null)
   const [seenOpen, setSeenOpen] = useState(false)
-  const [seenLoading, setSeenLoading] = useState(false)
-  const [seenRows, setSeenRows] = useState<StatusStoryViewerInfo[]>([])
 
   const endsAtRef = useRef(Date.now() + SLIDE_MS)
   const pauseStartedRef = useRef<number | null>(null)
@@ -69,6 +68,27 @@ export function StatusStoryViewer({
   const author = story ? unwrapAuthor(story) : null
   const isOwn = story?.author_id === currentUserId
   const loadingImage = !!story && loadedMediaId !== story.id
+
+  const storyIdForSeenList = seenOpen && isOwn && story?.id ? story.id : null
+  const {
+    data: seenRows = [],
+    isLoading: seenLoading,
+    error: seenQueryError,
+  } = useQuery({
+    queryKey: ['status-story-viewers', storyIdForSeenList],
+    queryFn: async () => {
+      const r = await getStatusStoryViewers(storyIdForSeenList!)
+      if (r.error) throw new Error(r.error)
+      return r.viewers
+    },
+    enabled: !!storyIdForSeenList,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  })
+
+  useEffect(() => {
+    if (seenQueryError) toast.error((seenQueryError as Error).message)
+  }, [seenQueryError])
 
   const { start: runStart, end: runEnd } = getRunBounds(list, idx)
   const runLen = runEnd - runStart + 1
@@ -146,17 +166,6 @@ export function StatusStoryViewer({
     }, rem)
     return () => clearTimeout(id)
   }, [idx, paused, seenOpen, list.length, loadingImage, finalizeClose])
-
-  useEffect(() => {
-    if (seenOpen && story?.id && isOwn) {
-      setSeenLoading(true)
-      void getStatusStoryViewers(story.id).then(r => {
-        setSeenRows(r.viewers)
-        if (r.error) toast.error(r.error)
-        setSeenLoading(false)
-      })
-    }
-  }, [seenOpen, story?.id, isOwn])
 
   const goPrev = useCallback(() => {
     setPaused(false)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Plus } from 'lucide-react'
@@ -8,6 +8,8 @@ import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
 import type { StatusStripStory } from '@/actions/statusStories'
+import { createStatusStories } from '@/actions/statusStories'
+import type { StatusStoryAudienceMode } from '@/lib/statusStories/audience'
 import { AddStatusStorySheet } from '@/components/status/AddStatusStorySheet'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
 import { isStoryGroupFullyViewed, markStatusStoriesViewed } from '@/lib/statusStories/viewed'
@@ -41,6 +43,33 @@ function flatIndexForGroup(groups: { authorId: string; group: StatusStripStory[]
   return acc + storyIdx
 }
 
+/** Golden ring progress overlay while status photos upload in the background */
+function StatusRingProgress({ progress }: { progress: number }) {
+  const r = 28
+  const c = 2 * Math.PI * r
+  const dash = c * (1 - progress / 100)
+  return (
+    <svg
+      className="absolute -inset-[3px] z-[4] h-[calc(100%+6px)] w-[calc(100%+6px)] pointer-events-none -rotate-90"
+      viewBox="0 0 72 72"
+      aria-hidden
+    >
+      <circle cx="36" cy="36" r={r} fill="none" className="stroke-muted-foreground/40" strokeWidth="3" />
+      <circle
+        cx="36"
+        cy="36"
+        r={r}
+        fill="none"
+        className="stroke-primary"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={dash}
+      />
+    </svg>
+  )
+}
+
 export function StatusStoriesBar({
   initialStories,
   currentUserId,
@@ -61,6 +90,58 @@ export function StatusStoriesBar({
   const [viewer, setViewer] = useState<{ playlist: StatusStripStory[]; initialIndex: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [viewTick, setViewTick] = useState(0)
+  /** 0–100 while uploading in background; null when idle */
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+
+  const handleBackgroundShare = useCallback(
+    async (payload: {
+      files: File[]
+      mode: StatusStoryAudienceMode
+      excludeUsernames?: string
+      includeUsernames?: string
+      includeRoomIds?: string[]
+    }) => {
+      const { files, mode, excludeUsernames, includeUsernames, includeRoomIds } = payload
+      const totalSteps = files.length + 1
+      setUploadProgress(0)
+      try {
+        const urls: string[] = []
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]!
+          const fd = new FormData()
+          fd.append('file', file)
+          fd.append('purpose', 'status_story')
+          const res = await fetch('/api/upload', { method: 'POST', body: fd })
+          const j = (await res.json()) as { url?: string; error?: string }
+          if (!res.ok || !j.url) {
+            toast.error(j.error || 'Upload failed')
+            setUploadProgress(null)
+            return
+          }
+          urls.push(j.url)
+          setUploadProgress(Math.min(99, Math.round(((i + 1) / totalSteps) * 100)))
+        }
+        const r = await createStatusStories({
+          mediaUrls: urls,
+          mode,
+          excludeUsernames,
+          includeUsernames,
+          includeRoomIds,
+        })
+        if (r.error) {
+          toast.error(r.error)
+          setUploadProgress(null)
+          return
+        }
+        setUploadProgress(100)
+        toast.success('Shared')
+        router.refresh()
+      } finally {
+        window.setTimeout(() => setUploadProgress(null), 600)
+      }
+    },
+    [router],
+  )
 
   // Hydrate localStorage from server so ring state matches other devices / sessions
   useEffect(() => {
@@ -110,7 +191,7 @@ export function StatusStoriesBar({
 
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide items-end">
+      <div className="flex gap-4 overflow-x-auto overflow-y-visible pb-1 pt-2.5 scrollbar-hide items-center">
         {/* Single "Your status" slot: golden ring when you have posts; + adds more */}
         <div className="flex flex-col items-center gap-1.5 shrink-0">
           <div className="relative">
@@ -135,6 +216,7 @@ export function StatusStoriesBar({
                     : 'border-2 border-dashed border-primary/60 group-hover:border-primary group-disabled:border-zinc-600'
                 }`}
               >
+                {uploadProgress !== null ? <StatusRingProgress progress={uploadProgress} /> : null}
                 <Avatar className="h-full w-full border-2 border-background dark:border-black">
                   <AvatarImage src={addSlotAvatarUrl || ''} />
                   <AvatarFallback className="bg-muted text-primary text-lg font-bold">
@@ -220,6 +302,7 @@ export function StatusStoriesBar({
         onOpenChange={setAddOpen}
         generalRooms={generalRooms}
         existingActiveCount={existingActiveCount}
+        onShareAsync={handleBackgroundShare}
         onCreated={() => {
           setAddOpen(false)
           router.refresh()
