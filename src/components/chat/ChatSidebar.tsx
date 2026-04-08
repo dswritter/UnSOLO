@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useId } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
+import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search, UserPlus } from 'lucide-react'
@@ -315,9 +316,10 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
                     online={dmOnline}
                     currentUserId={viewerUserId}
                   />
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/community/${room.id}`)}
+                  <Link
+                    href={`/community/${room.id}`}
+                    prefetch
+                    onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                     className="flex-1 min-w-0 text-left py-0"
                   >
                     <div className="flex items-center justify-between gap-1">
@@ -335,7 +337,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
                     {room.lastMessage && (
                       <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
                     )}
-                  </button>
+                  </Link>
                   {unread > 0 ? (
                     <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
                       {unread > 99 ? '99+' : unread}
@@ -346,9 +348,11 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
             }
 
             return (
-              <button
+              <Link
                 key={room.id}
-                onClick={() => router.push(`/community/${room.id}`)}
+                href={`/community/${room.id}`}
+                prefetch
+                onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                 className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full text-left ${
                   isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
                 }`}
@@ -396,7 +400,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
                 ) : room.isMember === false ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">Join</span>
                 ) : null}
-              </button>
+              </Link>
             )
           })}
 

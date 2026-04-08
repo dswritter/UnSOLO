@@ -223,9 +223,13 @@ export function ChatWindow({
   const { data: messages = initialMessages } = useQuery({
     queryKey: messagesKey,
     queryFn: () => fetchRoomMessagesClient(roomId),
-    initialData: initialMessages,
+    // Prefer client cache (revisit same room) over fresh server payload on every navigation.
+    initialData: () => queryClient.getQueryData<Message[]>(messagesKey) ?? initialMessages,
     staleTime: Infinity,
+    gcTime: 1000 * 60 * 60 * 24 * 7,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
