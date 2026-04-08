@@ -152,20 +152,6 @@ export function StatusStoryViewer({
   }, [finalizeClose])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      if (seenOpen) {
-        setSeenOpen(false)
-        return
-      }
-      finalizeClose('ui')
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [seenOpen, finalizeClose])
-
-  useEffect(() => {
     endsAtRef.current = Date.now() + SLIDE_MS
   }, [idx])
 
@@ -213,6 +199,42 @@ export function StatusStoryViewer({
       return i
     })
   }, [finalizeClose])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (seenOpen) {
+          setSeenOpen(false)
+          return
+        }
+        finalizeClose('ui')
+        return
+      }
+
+      if (seenOpen) return
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        goPrev()
+        return
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        goNext()
+        return
+      }
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault()
+        setPaused(p => !p)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [seenOpen, finalizeClose, goPrev, goNext])
 
   const longTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pressRef = useRef<{ t: number; zone: 'L' | 'M' | 'R'; longFired: boolean } | null>(null)

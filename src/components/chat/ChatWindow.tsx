@@ -1756,39 +1756,42 @@ function MessageBubble({
         {canReact && (
           <div
             data-emoji-strip-root={message.id}
-            className={`flex items-center gap-1 mt-0.5 w-full min-w-0 max-w-full ${
-              isOwn ? 'flex-row-reverse' : 'flex-row'
-            }`}
+            className="relative mt-0.5 w-full min-w-0 max-w-full min-h-[28px]"
           >
-            <div className={`flex flex-wrap gap-1 min-w-0 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-              {reactionAgg.map(block => {
-                const names = block.userIds
-                  .map(uid => memberProfiles.find(m => m.id === uid))
-                  .filter(Boolean)
-                  .map(p => p!.full_name || p!.username)
-                const tip = names.length ? names.join(', ') : 'React'
-                return (
-                  <ReactionPill
-                    key={block.emoji}
-                    emoji={block.emoji}
-                    count={block.count}
-                    userIds={block.userIds}
-                    title={tip}
-                    iReacted={block.iReacted}
-                    onTap={() => onToggleReaction(block.emoji)}
-                    onLongShow={() => onShowReactors(block.emoji, block.userIds)}
-                  />
-                )
-              })}
-            </div>
+            {/* Single horizontal row — never wraps; quick picker overlays without reflow */}
             <div
-              className={`flex shrink-0 min-w-0 max-w-[min(100%,20.6rem)] sm:max-w-[25.5rem] items-center rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
-                emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible z-30' : 'overflow-hidden'
-              } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
+              className={`relative z-0 flex flex-nowrap items-center gap-1 w-full min-w-0 ${
+                isOwn ? 'flex-row-reverse justify-end' : 'flex-row justify-start'
+              }`}
             >
+              <div
+                className={`flex flex-nowrap items-center gap-1 min-w-0 flex-1 overflow-x-auto scrollbar-hide ${
+                  isOwn ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {reactionAgg.map(block => {
+                  const names = block.userIds
+                    .map(uid => memberProfiles.find(m => m.id === uid))
+                    .filter(Boolean)
+                    .map(p => p!.full_name || p!.username)
+                  const tip = names.length ? names.join(', ') : 'React'
+                  return (
+                    <ReactionPill
+                      key={block.emoji}
+                      emoji={block.emoji}
+                      count={block.count}
+                      userIds={block.userIds}
+                      title={tip}
+                      iReacted={block.iReacted}
+                      onTap={() => onToggleReaction(block.emoji)}
+                      onLongShow={() => onShowReactors(block.emoji, block.userIds)}
+                    />
+                  )
+                })}
+              </div>
               <button
                 type="button"
-                className="inline-flex items-center justify-center h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors shrink-0"
+                className="relative z-50 inline-flex items-center justify-center h-6 w-6 shrink-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
                 title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
                 onClick={e => {
                   e.stopPropagation()
@@ -1797,30 +1800,33 @@ function MessageBubble({
               >
                 <SmilePlus className="h-3 w-3" />
               </button>
+            </div>
+            {emojiPickerOpen && (
               <div
-                ref={emojiStripScrollRef}
-                onTouchMove={e => {
-                  if (!emojiPickerOpen || !e.touches[0]) return
-                  updateTouchLiftFromClientX(e.touches[0].clientX)
-                }}
-                onTouchEnd={() => setTouchLiftEmoji(null)}
-                onTouchCancel={() => setTouchLiftEmoji(null)}
-                className={`transition-[max-width,opacity] duration-300 ease-out border-l border-border/50 min-w-0 flex-1 touch-pan-x ${
-                  emojiPickerOpen
-                    ? 'max-w-[min(17.1rem,calc(100vw-5rem))] sm:max-w-[20.6rem] opacity-100 overflow-x-auto overflow-y-visible scrollbar-hide'
-                    : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
+                className={`absolute top-0 z-40 flex min-h-[28px] items-center rounded-lg border border-border/70 bg-card/98 backdrop-blur-sm px-1 py-0.5 shadow-md ring-1 ring-primary/25 pointer-events-auto ${
+                  isOwn ? 'left-8 right-0' : 'left-0 right-8'
                 }`}
+                aria-label="Quick reactions"
               >
-                <div className="flex flex-nowrap items-center gap-0.5 pl-0.5 pr-1.5 py-0 w-max max-w-none h-6">
+                <div
+                  ref={emojiStripScrollRef}
+                  onTouchMove={e => {
+                    if (!e.touches[0]) return
+                    updateTouchLiftFromClientX(e.touches[0].clientX)
+                  }}
+                  onTouchEnd={() => setTouchLiftEmoji(null)}
+                  onTouchCancel={() => setTouchLiftEmoji(null)}
+                  className="flex h-6 min-w-0 flex-1 flex-nowrap items-center gap-0.5 overflow-x-auto overflow-y-visible scrollbar-hide touch-pan-x"
+                >
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
                       data-strip-emoji={emoji}
-                      className={`text-sm leading-none min-w-[26px] h-6 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
+                      className={`flex h-6 min-w-[26px] shrink-0 items-center justify-center rounded-md px-0.5 text-sm leading-none transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 active:scale-95 dark:focus-visible:ring-primary/80 ${
                         touchLiftEmoji === emoji
-                          ? 'z-20 scale-125 -translate-y-2 shadow-lg drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]'
-                          : 'hover:scale-110 hover:-translate-y-1 hover:drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]'
+                          ? 'z-20 scale-125 -translate-y-1 shadow-lg drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]'
+                          : 'hover:scale-110 hover:-translate-y-0.5 hover:drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]'
                       }`}
                       onClick={e => {
                         e.stopPropagation()
@@ -1832,7 +1838,7 @@ function MessageBubble({
                   ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
         <div className={`flex items-center gap-1 flex-wrap ${isOwn ? 'justify-end' : ''}`}>
