@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useId } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search, UserPlus } from 'lucide-react'
@@ -43,6 +45,7 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId }: ChatSidebarProps) {
+  const queryClient = useQueryClient()
   const [localRooms, setLocalRooms] = useState(rooms)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
@@ -88,6 +91,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
         const knownIds = new Set(localRoomsRef.current.map(r => normalizeRoomId(r.id)))
         if (!knownIds.has(msgRoom)) return
 
+        appendRoomMessageToCache(queryClient, msg)
         window.dispatchEvent(new CustomEvent('unsolo:new-message', { detail: msg }))
 
         setLocalRooms(prev => {
@@ -132,7 +136,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [sidebarRealtimeId])
+  }, [sidebarRealtimeId, queryClient])
 
   // Live updates when admins rename / disable community rooms
   useEffect(() => {

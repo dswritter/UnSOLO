@@ -53,8 +53,6 @@ export function StatusStoryViewer({
 
   const [paused, setPaused] = useState(false)
   const [loadedMediaId, setLoadedMediaId] = useState<string | null>(null)
-  const [displayCountIdx, setDisplayCountIdx] = useState(() => Math.min(initialIndex, Math.max(0, initialPlaylist.length - 1)))
-
   const [seenOpen, setSeenOpen] = useState(false)
   const [seenLoading, setSeenLoading] = useState(false)
   const [seenRows, setSeenRows] = useState<StatusStoryViewerInfo[]>([])
@@ -267,24 +265,7 @@ export function StatusStoryViewer({
         <div data-status-header className="flex items-center justify-between px-3 py-2 border-b border-white/10 shrink-0 gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-white truncate">{author?.full_name || author?.username || 'Status'}</p>
-            <p className="text-[10px] text-zinc-400 flex items-center gap-1.5">
-              @{author?.username}
-              {list.length > 1 ? (
-                <>
-                  <span>·</span>
-                  {loadingImage ? (
-                    <span className="inline-flex items-center gap-1 text-zinc-500">
-                      <Loader2 className="h-3 w-3 animate-spin shrink-0" />
-                      <span>Loading…</span>
-                    </span>
-                  ) : (
-                    <span>
-                      {displayCountIdx + 1}/{list.length}
-                    </span>
-                  )}
-                </>
-              ) : null}
-            </p>
+            <p className="text-[10px] text-zinc-400 truncate">@{author?.username}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             {isOwn ? (
@@ -334,11 +315,9 @@ export function StatusStoryViewer({
               draggable={false}
               onLoad={() => {
                 setLoadedMediaId(story.id)
-                setDisplayCountIdx(idxRef.current)
               }}
               onError={() => {
                 setLoadedMediaId(story.id)
-                setDisplayCountIdx(idxRef.current)
               }}
             />
             {loadingImage ? (

@@ -176,10 +176,10 @@ export function StatusStoriesBar({
             >
               <div className="relative">
                 <div
-                  className={`h-16 w-16 rounded-full p-[2.5px] transition-all ${
+                  className={`h-16 w-16 rounded-full p-[2px] transition-all ${
                     allViewed
                       ? 'bg-gradient-to-tr from-zinc-700 to-zinc-900 ring-2 ring-zinc-600 grayscale-[0.25]'
-                      : 'bg-gradient-to-tr from-primary/80 to-zinc-500'
+                      : 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
                   }`}
                 >
                   <Avatar className="h-full w-full border-2 border-black">
@@ -191,7 +191,7 @@ export function StatusStoriesBar({
                 </div>
                 {count > 1 ? (
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full border-2 text-[10px] font-bold flex items-center justify-center ${
+                    className={`absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full border-2 text-[10px] font-bold flex items-center justify-center z-[5] ${
                       allViewed
                         ? 'bg-zinc-800 border-zinc-600 text-zinc-400'
                         : 'bg-zinc-900 border-black text-primary'

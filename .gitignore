@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local tooling and creatives (not versioned)
+.claude/
+Creative/
+Docs and Creatives/

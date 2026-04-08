@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
+import { chatKeys } from '@/lib/chat/chatQueryKeys'
+import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
 import { sendMessage } from '@/actions/chat'
 import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -207,9 +210,32 @@ export function ChatWindow({
   chatLinkTargets = [],
 }: ChatWindowProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const messagesKey = useMemo(() => chatKeys.messages(roomId), [roomId])
+
+  const setMessages = useCallback(
+    (updater: (prev: Message[]) => Message[]) => {
+      queryClient.setQueryData<Message[]>(messagesKey, prev => updater(prev ?? []))
+    },
+    [queryClient, messagesKey],
+  )
+
+  const { data: messages = initialMessages } = useQuery({
+    queryKey: messagesKey,
+    queryFn: () => fetchRoomMessagesClient(roomId),
+    initialData: initialMessages,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  })
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
-  const { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(roomId, initialMessages, currentUser)
+  const { typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(
+    roomId,
+    messages,
+    setMessages,
+    currentUser,
+  )
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [profilePopup, setProfilePopup] = useState<string | null>(null)

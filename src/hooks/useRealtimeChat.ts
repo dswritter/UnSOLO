@@ -2,24 +2,21 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { normalizeRoomId } from '@/lib/chat/chatQueryKeys'
 import type { Message, Profile } from '@/types'
-
-function normalizeRoomId(id: string) {
-  return id.trim().toLowerCase()
-}
 
 export function useRealtimeChat(
   roomId: string,
-  initialMessages: Message[] = [],
+  messages: Message[],
+  setMessages: (updater: (prev: Message[]) => Message[]) => void,
   currentUser?: Profile,
 ) {
-  const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [onlineUsers, setOnlineUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
-  const messagesRef = useRef<Message[]>(initialMessages)
+  const messagesRef = useRef<Message[]>(messages)
   const currentUserRef = useRef(currentUser)
   messagesRef.current = messages
   currentUserRef.current = currentUser
@@ -117,7 +114,7 @@ export function useRealtimeChat(
       typingTimeoutRef.current.forEach(t => clearTimeout(t))
       typingTimeoutRef.current.clear()
     }
-  }, [roomKey])
+  }, [roomKey, setMessages])
 
   // Listen for global new-message events from sidebar's realtime (instant delivery)
   // NO DB queries here — use cached profile data from existing messages or memberProfiles
@@ -154,7 +151,7 @@ export function useRealtimeChat(
 
     window.addEventListener('unsolo:new-message', handleNewMessage)
     return () => window.removeEventListener('unsolo:new-message', handleNewMessage)
-  }, [roomKey])
+  }, [roomKey, setMessages])
 
   // Catch-up poll while tab is visible (Realtime can miss events with multiple tabs/channels)
   useEffect(() => {
@@ -200,7 +197,7 @@ export function useRealtimeChat(
       clearInterval(interval)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [roomKey])
+  }, [roomKey, setMessages])
 
   const broadcastTyping = useCallback(() => {
     if (!currentUser) return
@@ -226,7 +223,7 @@ export function useRealtimeChat(
       user: currentUser,
     }
     setMessages(prev => [...prev, optimisticMsg])
-  }, [currentUser, roomId])
+  }, [currentUser, roomId, setMessages])
 
   return { messages, typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage }
 }
