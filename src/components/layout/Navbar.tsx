@@ -66,6 +66,25 @@ export function Navbar({ user }: NavbarProps) {
     return () => { supabase.removeChannel(channel) }
   }, [user, pathname])
 
+  // Same account on another device marked messages read — keep badge in sync
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    const ch = supabase
+      .channel('navbar-read-sync')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+        (payload: { new: Record<string, unknown> }) => {
+          const r = payload.new as { user_id: string }
+          if (r.user_id !== user.id) return
+          setUnreadChatCount(prev => Math.max(0, prev - 1))
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [user])
+
   // Clear unread count when navigating to community
   useEffect(() => {
     if (pathname?.startsWith('/community')) {

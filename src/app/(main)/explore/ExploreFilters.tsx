@@ -54,7 +54,7 @@ function FilterDropdown({ label, activeLabel, children, isActive }: {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors whitespace-nowrap ${
+        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs transition-colors whitespace-nowrap ${
           isActive
             ? 'bg-primary/15 border-primary/40 text-primary'
             : 'bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-primary/30'
@@ -118,16 +118,16 @@ export function ExploreFilters({ params, resultCount }: Props) {
   const hasFilters = params.difficulty || params.minBudget || params.maxBudget || params.minDays || params.maxDays || params.month || params.q
 
   return (
-    <div className="space-y-3 mb-6">
-      {/* Tab toggle + inline search */}
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="space-y-2 mb-4">
+      {/* One compact row: trip toggle + search; wraps on narrow screens */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <div
-          className="relative flex h-10 w-full min-w-[min(100%,18rem)] max-w-[22rem] shrink-0 rounded-full border border-border bg-secondary/90 p-1 shadow-inner"
+          className="relative flex h-9 w-full min-w-0 sm:max-w-[min(100%,20rem)] shrink-0 rounded-full border border-border bg-secondary/90 p-0.5 shadow-inner"
           role="tablist"
           aria-label="Trip source"
         >
           <div
-            className="pointer-events-none absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-primary shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+            className="pointer-events-none absolute top-0.5 bottom-0.5 w-[calc(50%-4px)] rounded-full bg-primary shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
             style={{ left: activeTab === 'community' ? 'calc(50% + 2px)' : '4px' }}
           />
           <button
@@ -135,11 +135,11 @@ export function ExploreFilters({ params, resultCount }: Props) {
             role="tab"
             aria-selected={activeTab === 'unsolo'}
             onClick={() => setTab('unsolo')}
-            className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors ${
+            className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-full text-xs sm:text-sm font-semibold transition-colors min-h-0 py-1.5 ${
               activeTab === 'unsolo' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Globe className="h-4 w-4 shrink-0" />
+            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="truncate">UnSOLO Trips</span>
           </button>
           <button
@@ -147,25 +147,24 @@ export function ExploreFilters({ params, resultCount }: Props) {
             role="tab"
             aria-selected={activeTab === 'community'}
             onClick={() => setTab('community')}
-            className={`relative z-10 flex flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-colors ${
+            className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-full text-xs sm:text-sm font-semibold transition-colors min-h-0 py-1.5 ${
               activeTab === 'community' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Users className="h-4 w-4 shrink-0" />
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             <span className="truncate">Community Trips</span>
           </button>
         </div>
 
-        {/* Inline search */}
-        <form onSubmit={handleSearch} className="ml-auto flex items-center gap-1">
-          <div className="relative">
+        <form onSubmit={handleSearch} className="flex w-full min-w-0 sm:flex-1 sm:max-w-md">
+          <div className="relative w-full">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
               type="text"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Search..."
-              className="pl-8 pr-2 py-2 w-40 sm:w-52 rounded-full bg-secondary border border-border text-xs focus:outline-none focus:border-primary focus:w-64 transition-all"
+              placeholder="Search trips..."
+              className="w-full pl-8 pr-7 py-1.5 rounded-full bg-secondary border border-border text-xs focus:outline-none focus:border-primary"
             />
             {searchInput && (
               <button
@@ -180,10 +179,10 @@ export function ExploreFilters({ params, resultCount }: Props) {
         </form>
       </div>
 
-      {/* Filter chips */}
-      <div className="flex flex-wrap items-center gap-2 pb-6 border-b border-border">
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
-          <Filter className="h-4 w-4" />
+      {/* Filters — tight row */}
+      <div className="flex flex-wrap items-center gap-1.5 pb-3 border-b border-border">
+        <div className="flex items-center text-muted-foreground mr-0.5">
+          <Filter className="h-3.5 w-3.5" />
         </div>
 
         {/* Difficulty */}
@@ -281,7 +280,7 @@ export function ExploreFilters({ params, resultCount }: Props) {
               router.push(buildUrl({ interested: 'true' }))
             }
           }}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs transition-colors whitespace-nowrap ${
             params.interested
               ? 'bg-red-500/15 border-red-500/40 text-red-400'
               : 'bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-red-500/30'

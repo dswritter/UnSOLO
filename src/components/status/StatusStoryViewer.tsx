@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { createClient } from '@/lib/supabase/client'
 import { X, Trash2, Eye, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { StatusStripStory } from '@/actions/statusStories'
@@ -63,6 +64,7 @@ export function StatusStoryViewer({
   onCloseRef.current = onClose
 
   const closedRef = useRef(false)
+  const queryClient = useQueryClient()
 
   const story = list[idx]
   const author = story ? unwrapAuthor(story) : null
@@ -89,6 +91,32 @@ export function StatusStoryViewer({
   useEffect(() => {
     if (seenQueryError) toast.error((seenQueryError as Error).message)
   }, [seenQueryError])
+
+  useEffect(() => {
+    if (!seenOpen || !storyIdForSeenList) return
+    void queryClient.invalidateQueries({ queryKey: ['status-story-viewers', storyIdForSeenList] })
+  }, [seenOpen, storyIdForSeenList, queryClient])
+
+  useEffect(() => {
+    if (!isOwn || !story?.id) return
+    const sb = createClient()
+    const ch = sb
+      .channel(`status-views-live-${story.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'status_story_views',
+          filter: `story_id=eq.${story.id}`,
+        },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ['status-story-viewers', story.id] })
+        },
+      )
+      .subscribe()
+    return () => { sb.removeChannel(ch) }
+  }, [isOwn, story?.id, queryClient])
 
   const { start: runStart, end: runEnd } = getRunBounds(list, idx)
   const runLen = runEnd - runStart + 1

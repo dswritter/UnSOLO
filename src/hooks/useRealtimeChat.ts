@@ -88,6 +88,26 @@ export function useRealtimeChat(
           setTypingUsers(prev => prev.filter(u => u.user_id !== newMsg.user_id))
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${roomKey}`,
+        },
+        (payload: { new: Record<string, unknown> }) => {
+          const updated = payload.new as Message
+          if (normalizeRoomId(updated.room_id) !== roomKey) return
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === updated.id
+                ? { ...m, ...updated, user: m.user }
+                : m,
+            ),
+          )
+        },
+      )
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<{ user_id: string; username: string }>()
         const allPresence = Object.values(state).flat() as { user_id: string; username: string }[]

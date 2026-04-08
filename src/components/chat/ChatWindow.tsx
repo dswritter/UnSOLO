@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { chatKeys } from '@/lib/chat/chatQueryKeys'
 import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
-import { sendMessage } from '@/actions/chat'
+import { sendMessage, editMessage } from '@/actions/chat'
 import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -272,6 +272,9 @@ export function ChatWindow({
   const [emojiPickerForMessageId, setEmojiPickerForMessageId] = useState<string | null>(null)
   const [roomImageLightbox, setRoomImageLightbox] = useState(false)
   const [reactorModal, setReactorModal] = useState<{ emoji: string; names: string[] } | null>(null)
+  const [editTarget, setEditTarget] = useState<Message | null>(null)
+  const [editDraft, setEditDraft] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTapRef = useRef<{ id: string; t: number } | null>(null)
 
@@ -385,8 +388,16 @@ export function ChatWindow({
       setReactionsByMessage(prev => {
         const next = new Map(prev)
         const arr = [...(next.get(r.message_id) || [])]
-        if (!arr.some(x => x.id === r.id)) arr.push(r)
-        next.set(r.message_id, arr)
+        const withoutOptimisticDup = arr.filter(
+          x =>
+            !(
+              x.id.startsWith('opt-rx-')
+              && x.user_id === r.user_id
+              && x.emoji === r.emoji
+            ),
+        )
+        if (!withoutOptimisticDup.some(x => x.id === r.id)) withoutOptimisticDup.push(r)
+        next.set(r.message_id, withoutOptimisticDup)
         return next
       })
     }
@@ -851,13 +862,32 @@ export function ChatWindow({
     return onlineUsers.includes(userId) || dbOnlineUsers.has(userId)
   }
 
-  function bubbleLongPressHandlers(messageId: string) {
+  function canEditMessage(m: Message) {
+    if (m.user_id !== currentUser.id) return false
+    if (m.message_type !== 'text') return false
+    if (m.id.startsWith('optimistic-')) return false
+    return Date.now() - new Date(m.created_at).getTime() < 60 * 60 * 1000
+  }
+
+  function bubbleLongPressHandlers(message: Message) {
+    const openEdit = () => {
+      setEmojiPickerForMessageId(null)
+      setEditTarget(message)
+      setEditDraft(message.content)
+    }
     return {
       onPointerDown: (e: React.PointerEvent) => {
         if (e.button !== 0) return
+        if (canEditMessage(message)) {
+          longPressTimerRef.current = setTimeout(() => {
+            openEdit()
+            longPressTimerRef.current = null
+          }, 480)
+          return
+        }
         if (e.pointerType === 'mouse') return
         longPressTimerRef.current = setTimeout(() => {
-          setEmojiPickerForMessageId(messageId)
+          setEmojiPickerForMessageId(message.id)
           longPressTimerRef.current = null
         }, 420)
       },
@@ -1197,7 +1227,7 @@ export function ChatWindow({
                 currentUserId={currentUser.id}
                 memberProfiles={memberProfiles}
                 onToggleReaction={emoji => { void toggleReaction(msg.id, emoji) }}
-                bubbleLongPress={bubbleLongPressHandlers(msg.id)}
+                bubbleLongPress={bubbleLongPressHandlers(msg)}
                 onBubbleTouchEnd={e => onBubbleTouchEnd(msg.id, e)}
                 onBubbleDoubleClick={() => {
                   if (!msg.id.startsWith('optimistic-') && msg.message_type !== 'system') {
@@ -1357,6 +1387,59 @@ export function ChatWindow({
         </div>
       )}
 
+      {editTarget ? (
+        <div
+          className="fixed inset-0 z-[60] bg-black/70 flex items-end sm:items-center justify-center p-4"
+          onClick={() => !editSaving && setEditTarget(null)}
+          role="presentation"
+        >
+          <div
+            className="bg-card rounded-xl p-4 max-w-lg w-full border border-border shadow-xl"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Edit message"
+          >
+            <p className="text-sm font-semibold mb-2">Edit message</p>
+            <Textarea
+              value={editDraft}
+              onChange={e => setEditDraft(e.target.value)}
+              className="min-h-[100px] text-sm bg-secondary border-border resize-y"
+              disabled={editSaving}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">You can edit for up to 1 hour after sending.</p>
+            <div className="flex gap-2 justify-end mt-4">
+              <Button type="button" variant="outline" size="sm" disabled={editSaving} onClick={() => setEditTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary text-black"
+                disabled={editSaving || !editDraft.trim()}
+                onClick={async () => {
+                  if (!editTarget) return
+                  setEditSaving(true)
+                  const r = await editMessage(editTarget.id, roomId, editDraft)
+                  setEditSaving(false)
+                  if (r.error) {
+                    toast.error(r.error)
+                    return
+                  }
+                  setMessages(prev =>
+                    prev.map(m =>
+                      m.id === editTarget.id ? { ...m, content: editDraft.trim(), is_edited: true } : m,
+                    ),
+                  )
+                  setEditTarget(null)
+                }}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Input — fixed to viewport bottom on mobile (flex layout leaves a gap on some browsers) */}
       <div className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed bottom-0 left-0 right-0 z-20 md:z-auto">
         <form onSubmit={handleSend} className="flex gap-2 items-end">
@@ -1414,7 +1497,7 @@ function ReactionPill({
   return (
     <button
       type="button"
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+      className={`inline-flex items-center gap-0.5 h-6 px-1.5 rounded-full text-[11px] leading-none border transition-colors ${
         iReacted
           ? 'bg-primary/25 border-primary/50 text-foreground'
           : 'bg-secondary/80 border-border text-muted-foreground hover:border-primary/40'
@@ -1445,8 +1528,8 @@ function ReactionPill({
         }
       }}
     >
-      <span className="leading-none text-base">{emoji}</span>
-      <span className="font-semibold tabular-nums">{count}</span>
+      <span className="leading-none text-sm">{emoji}</span>
+      <span className="font-semibold tabular-nums text-[10px]">{count}</span>
     </button>
   )
 }
@@ -1587,7 +1670,7 @@ function MessageBubble({
   return (
     <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''} group`}>
       {!isOwn ? (
-        <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0.5">
+        <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0">
           <div className="relative">
             <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all">
               <AvatarImage src={user?.avatar_url || ''} />
@@ -1601,7 +1684,7 @@ function MessageBubble({
           </div>
         </Link>
       ) : (
-        <div className="flex-shrink-0 mt-0.5">
+        <div className="flex-shrink-0 mt-0">
           <Avatar className="h-7 w-7">
             <AvatarImage src={user?.avatar_url || ''} />
             <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
@@ -1610,9 +1693,9 @@ function MessageBubble({
           </Avatar>
         </div>
       )}
-      <div className={`max-w-[75%] space-y-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+      <div className={`max-w-[75%] gap-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <div className="flex items-center gap-1.5 flex-wrap max-w-full">
+          <div className="flex items-center gap-1 flex-wrap max-w-full mb-0">
             <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1 min-w-0">
               <span className="truncate">{name}</span>
               {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block shrink-0" />}
@@ -1621,7 +1704,7 @@ function MessageBubble({
           </div>
         )}
         <div
-          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words touch-manipulation ${
+          className={`px-3 py-1.5 rounded-2xl text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation ${
             isOwn
               ? 'bg-primary text-black rounded-tr-sm'
               : 'bg-card border border-border rounded-tl-sm'
@@ -1631,15 +1714,22 @@ function MessageBubble({
           onDoubleClick={canReact ? onBubbleDoubleClick : undefined}
         >
           {renderWithMentions(message.content, isOwn)}
+          {message.is_edited ? (
+            <span
+              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-black/50' : 'text-muted-foreground'}`}
+            >
+              Edited
+            </span>
+          ) : null}
         </div>
         {canReact && (
           <div
             data-emoji-strip-root={message.id}
-            className={`flex items-start gap-1.5 mt-0.5 w-full min-w-0 max-w-full ${
+            className={`flex items-center gap-1 mt-0.5 w-full min-w-0 max-w-full ${
               isOwn ? 'flex-row-reverse' : 'flex-row'
             }`}
           >
-            <div className={`flex flex-wrap gap-1.5 min-w-0 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+            <div className={`flex flex-wrap gap-1 min-w-0 ${isOwn ? 'justify-end' : 'justify-start'}`}>
               {reactionAgg.map(block => {
                 const names = block.userIds
                   .map(uid => memberProfiles.find(m => m.id === uid))
@@ -1661,20 +1751,20 @@ function MessageBubble({
               })}
             </div>
             <div
-              className={`flex shrink-0 min-w-0 max-w-[min(100%,20.6rem)] sm:max-w-[25.5rem] items-stretch rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
+              className={`flex shrink-0 min-w-0 max-w-[min(100%,20.6rem)] sm:max-w-[25.5rem] items-center rounded-lg border border-border/70 bg-card/95 shadow-sm transition-[box-shadow] duration-200 ${
                 emojiPickerOpen ? 'shadow-md ring-1 ring-primary/25 overflow-visible z-30' : 'overflow-hidden'
               } ${isOwn ? 'flex-row' : 'flex-row-reverse'}`}
             >
               <button
                 type="button"
-                className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors shrink-0"
+                className="inline-flex items-center justify-center h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors shrink-0"
                 title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
                 onClick={e => {
                   e.stopPropagation()
                   onToggleEmojiPicker()
                 }}
               >
-                <SmilePlus className="h-3.5 w-3.5" />
+                <SmilePlus className="h-3 w-3" />
               </button>
               <div
                 ref={emojiStripScrollRef}
@@ -1690,13 +1780,13 @@ function MessageBubble({
                     : 'max-w-0 opacity-0 pointer-events-none overflow-hidden'
                 }`}
               >
-                <div className="flex flex-nowrap items-center gap-1 pl-1 pr-2 py-0.5 w-max max-w-none">
+                <div className="flex flex-nowrap items-center gap-0.5 pl-0.5 pr-1.5 py-0 w-max max-w-none h-6">
                   {CHAT_QUICK_REACTIONS.map(emoji => (
                     <button
                       key={emoji}
                       type="button"
                       data-strip-emoji={emoji}
-                      className={`text-base leading-none min-w-7 h-7 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
+                      className={`text-sm leading-none min-w-[26px] h-6 px-0.5 rounded-md flex items-center justify-center shrink-0 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 dark:focus-visible:ring-primary/80 active:scale-95 ${
                         touchLiftEmoji === emoji
                           ? 'z-20 scale-125 -translate-y-2 shadow-lg drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]'
                           : 'hover:scale-110 hover:-translate-y-1 hover:drop-shadow-[0_4px_10px_rgba(0,0,0,0.35)]'

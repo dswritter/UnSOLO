@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { X } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 
 type RoomLite = { id: string; name: string }
 
@@ -30,6 +29,7 @@ export function CommunityCrossRoomMessagePreview({
   rooms: RoomLite[]
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [preview, setPreview] = useState<PreviewState | null>(null)
 
   const roomNameById = useCallback(
@@ -73,37 +73,50 @@ export function CommunityCrossRoomMessagePreview({
 
   useEffect(() => {
     if (!preview) return
-    const t = window.setTimeout(() => setPreview(null), 2000)
+    const t = window.setTimeout(() => setPreview(null), 2400)
     return () => window.clearTimeout(t)
   }, [preview])
 
-  if (!preview) return null
+  function goToChat() {
+    if (!preview) return
+    router.push(`/community/${preview.roomId}`)
+    setPreview(null)
+  }
 
   return (
-    <div className="md:hidden fixed top-[calc(64px+env(safe-area-inset-top,0px))] left-2 right-2 z-[45] pointer-events-auto animate-in fade-in slide-in-from-top-2 duration-200">
-      <div className="rounded-xl border border-border bg-card/95 backdrop-blur-md shadow-lg px-3 py-2.5 flex items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold text-primary truncate">{preview.roomName}</p>
-          <p className="text-xs text-foreground line-clamp-2 mt-0.5">{preview.content}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <button
-            type="button"
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary"
-            aria-label="Dismiss"
-            onClick={() => setPreview(null)}
+    <div className="md:hidden fixed top-[calc(64px+env(safe-area-inset-top,0px))] left-2 right-2 z-[45] pointer-events-none">
+      <AnimatePresence mode="sync">
+        {preview ? (
+          <motion.div
+            key={preview.id}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16, transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] } }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            drag
+            dragConstraints={{ left: -64, right: 64, top: -80, bottom: 32 }}
+            dragElastic={0.15}
+            onDragEnd={(_, info) => {
+              if (info.offset.y < -36 || Math.abs(info.offset.x) > 44) setPreview(null)
+            }}
+            onTap={goToChat}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                goToChat()
+              }
+            }}
+            className="pointer-events-auto rounded-xl border border-border bg-card/95 backdrop-blur-md shadow-lg overflow-hidden touch-pan-y text-left"
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <Link
-            href={`/community/${preview.roomId}`}
-            className="text-[10px] font-medium text-primary whitespace-nowrap"
-            onClick={() => setPreview(null)}
-          >
-            Open
-          </Link>
-        </div>
-      </div>
+            <div className="px-3 py-2.5 active:bg-secondary/40">
+              <p className="text-[10px] font-semibold text-primary truncate">{preview.roomName}</p>
+              <p className="text-xs text-foreground line-clamp-2 mt-0.5">{preview.content}</p>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 }

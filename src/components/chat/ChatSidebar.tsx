@@ -192,6 +192,32 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
     }
   }, [currentActiveRoom])
 
+  // Another session (e.g. phone) read messages — lower unread for that room
+  useEffect(() => {
+    const supabase = createClient()
+    const ch = supabase
+      .channel(`sidebar-read-sync-${sidebarRealtimeId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+        async (payload: { new: Record<string, unknown> }) => {
+          const r = payload.new as { user_id: string; message_id: string }
+          if (r.user_id !== viewerUserId) return
+          const { data: m } = await supabase.from('messages').select('room_id').eq('id', r.message_id).maybeSingle()
+          const rid = (m as { room_id?: string } | null)?.room_id
+          if (!rid) return
+          setUnreadCounts(prev => {
+            const next = new Map(prev)
+            const cur = next.get(rid) || 0
+            next.set(rid, Math.max(0, cur - 1))
+            return next
+          })
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [sidebarRealtimeId, viewerUserId])
+
   useEffect(() => {
     const supabase = createClient()
     async function checkPresence() {

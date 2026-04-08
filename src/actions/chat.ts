@@ -35,6 +35,53 @@ export async function sendMessage(roomId: string, content: string) {
   return { success: true }
 }
 
+const EDIT_WINDOW_MS = 60 * 60 * 1000
+
+export async function editMessage(messageId: string, roomId: string, content: string) {
+  const trimmed = content.trim()
+  if (!trimmed) return { error: 'Message cannot be empty' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: member } = await supabase
+    .from('chat_room_members')
+    .select('id')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member) return { error: 'Not a member of this chat' }
+
+  const { data: row, error: fetchErr } = await supabase
+    .from('messages')
+    .select('id, user_id, room_id, message_type, created_at')
+    .eq('id', messageId)
+    .single()
+
+  if (fetchErr || !row) return { error: 'Message not found' }
+  if (row.user_id !== user.id) return { error: 'You can only edit your own messages' }
+  if (row.room_id !== roomId) return { error: 'Invalid room' }
+  if (row.message_type !== 'text') return { error: 'Only text messages can be edited' }
+
+  const created = new Date(row.created_at).getTime()
+  if (Number.isFinite(created) && Date.now() - created > EDIT_WINDOW_MS) {
+    return { error: 'This message is too old to edit' }
+  }
+
+  const { error } = await supabase
+    .from('messages')
+    .update({ content: trimmed, is_edited: true })
+    .eq('id', messageId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/community', 'layout')
+  revalidatePath(`/community/${roomId}`)
+  return { success: true }
+}
+
 export async function joinRoom(roomId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
