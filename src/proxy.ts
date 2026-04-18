@@ -37,8 +37,11 @@ export function proxy(request: NextRequest) {
     }
 
     // Auth cookie exists → let through (actual validation happens in pages/layouts)
-    // Redirect logged-in users away from login/signup
+    // Redirect logged-in users away from login/signup (allow /login?verified=1 so we can show "you're in" after email confirm)
     if (hasAuthCookie && (pathname === '/login' || pathname === '/signup')) {
+      if (pathname === '/login' && request.nextUrl.searchParams.get('verified') === '1') {
+        return NextResponse.next()
+      }
       const url = request.nextUrl.clone()
       url.pathname = '/explore'
       return NextResponse.redirect(url)

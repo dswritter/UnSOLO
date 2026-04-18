@@ -24,21 +24,28 @@ function mapAuthErrorMessage(message: string): string {
   return message
 }
 
-export async function signUp(formData: FormData) {
+export type SignUpResult =
+  | { error: string }
+  | { needsEmailConfirmation: true; email: string }
+
+export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   const supabase = await createClient()
 
-  const email = formData.get('email') as string
+  const email = (formData.get('email') as string)?.trim() || ''
   const password = formData.get('password') as string
   const username = formData.get('username') as string
   const fullName = formData.get('fullName') as string
   const referralCode = formData.get('referralCode') as string | null
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const confirmNext = encodeURIComponent('/login?verified=1')
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { username, full_name: fullName, referral_code: referralCode || undefined },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: `${appUrl}/auth/callback?next=${confirmNext}`,
     },
   })
 
@@ -50,6 +57,11 @@ export async function signUp(formData: FormData) {
   // Link referral if code provided
   if (referralCode && data.user) {
     await linkReferral(data.user.id, referralCode)
+  }
+
+  // Email confirmation enabled: no session until user clicks link in inbox
+  if (!data.session) {
+    return { needsEmailConfirmation: true, email }
   }
 
   revalidatePath('/', 'layout')
@@ -65,7 +77,14 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    return { error: error.message }
+    const msg = error.message
+    if (/email not confirmed|not confirmed/i.test(msg)) {
+      return {
+        error:
+          'This email is not verified yet. Open the confirmation link we sent you, then sign in. You can resend the email from the sign-up page if needed.',
+      }
+    }
+    return { error: msg }
   }
 
   revalidatePath('/', 'layout')
@@ -77,6 +96,21 @@ export async function signOut() {
   await supabase.auth.signOut()
   revalidatePath('/', 'layout')
   redirect('/')
+}
+
+/** Resend signup confirmation (user not logged in yet). Uses same redirect as sign-up. */
+export async function resendSignupConfirmationEmail(email: string) {
+  const supabase = await createClient()
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email.trim(),
+    options: {
+      emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent('/login?verified=1')}`,
+    },
+  })
+  if (error) return { error: mapAuthErrorMessage(error.message) }
+  return { success: true as const }
 }
 
 export async function signInWithGoogle(referralCode?: string) {

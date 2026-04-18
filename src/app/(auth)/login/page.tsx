@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signIn, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mountain, Phone } from 'lucide-react'
+import { Mountain, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
@@ -22,14 +23,22 @@ const TRAVEL_QUOTES = [
   "Traveling tends to magnify all human emotions.",
 ]
 
-export default function LoginPage() {
+function LoginPageInner() {
+  const searchParams = useSearchParams()
+  const verified = searchParams.get('verified') === '1'
   const [loading, setLoading] = useState(false)
   const [quoteIndex, setQuoteIndex] = useState(0)
-  const [authMode, setAuthMode] = useState<'email' | 'phone'>('email')
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
-  const [otpSent, setOtpSent] = useState(false)
-  const [otpLoading, setOtpLoading] = useState(false)
+  const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
+  const [hasSessionAfterVerify, setHasSessionAfterVerify] = useState(false)
+
+  useEffect(() => {
+    if (!verified) return
+    const sb = createClient()
+    void sb.auth.getSession().then(({ data }) => {
+      setHasSessionAfterVerify(!!data.session)
+      setVerifiedSessionChecked(true)
+    })
+  }, [verified])
 
   useEffect(() => {
     if (!loading) return
@@ -48,39 +57,6 @@ export default function LoginPage() {
     if (result?.error) {
       toast.error(result.error)
       setLoading(false)
-    }
-  }
-
-  async function handleSendOtp() {
-    const cleanPhone = phone.replace(/\s/g, '')
-    if (!cleanPhone || cleanPhone.length < 10) {
-      toast.error('Enter a valid phone number')
-      return
-    }
-    setOtpLoading(true)
-    const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone}`
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone })
-    if (error) {
-      toast.error(error.message)
-    } else {
-      setOtpSent(true)
-      toast.success('OTP sent to your phone!')
-    }
-    setOtpLoading(false)
-  }
-
-  async function handleVerifyOtp() {
-    const cleanPhone = phone.replace(/\s/g, '')
-    const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : `+91${cleanPhone}`
-    setLoading(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.verifyOtp({ phone: fullPhone, token: otp, type: 'sms' })
-    if (error) {
-      toast.error(error.message)
-      setLoading(false)
-    } else {
-      window.location.href = '/explore'
     }
   }
 
@@ -112,6 +88,9 @@ export default function LoginPage() {
     )
   }
 
+  const showVerifiedBanner = verified && verifiedSessionChecked && hasSessionAfterVerify
+  const showVerifiedNoSession = verified && verifiedSessionChecked && !hasSessionAfterVerify
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
@@ -125,6 +104,33 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-card border border-border rounded-2xl p-8 space-y-6">
+          {verified && !verifiedSessionChecked ? (
+            <div className="h-16 rounded-xl bg-secondary/60 animate-pulse" aria-hidden />
+          ) : null}
+          {showVerifiedBanner ? (
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 flex gap-3 text-left">
+              <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Email verified</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  You&apos;re signed in. Head to the app whenever you&apos;re ready.
+                </p>
+                <Button className="w-full bg-primary text-black font-bold h-9 text-sm" asChild>
+                  <Link href="/explore">Continue to UnSOLO</Link>
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {showVerifiedNoSession ? (
+            <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-left">
+              <p className="text-sm font-bold text-primary">Email verified</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Sign in below with the email and password you used to register.
+              </p>
+            </div>
+          ) : null}
+
           <div>
             <h1 className="text-2xl font-bold">Welcome back</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
@@ -145,65 +151,20 @@ export default function LoginPage() {
             <div className="relative flex justify-center text-xs"><span className="bg-card px-3 text-muted-foreground">or continue with email</span></div>
           </div>
 
-          {/* Phone OTP hidden — SMS provider not configured yet */}
-          {authMode === 'email' ? (
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Email</label>
-                <Input name="email" type="email" placeholder="you@example.com" required className="bg-secondary border-border" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Password</label>
-                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
-                </div>
-                <Input name="password" type="password" placeholder="••••••••" required className="bg-secondary border-border" />
-              </div>
-              <Button type="submit" className="w-full bg-primary text-black font-bold hover:bg-primary/90">Sign In</Button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium">Phone Number</label>
-                <div className="flex gap-2">
-                  <span className="flex items-center px-3 bg-secondary border border-border rounded-lg text-sm text-muted-foreground">+91</span>
-                  <Input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    className="bg-secondary border-border"
-                  />
-                </div>
-              </div>
-
-              {otpSent ? (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-sm font-medium">Enter OTP</label>
-                    <Input
-                      type="text"
-                      placeholder="6-digit OTP"
-                      value={otp}
-                      onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="bg-secondary border-border text-center text-lg tracking-widest"
-                      maxLength={6}
-                    />
-                  </div>
-                  <Button onClick={handleVerifyOtp} className="w-full bg-primary text-black font-bold hover:bg-primary/90">
-                    Verify & Sign In
-                  </Button>
-                  <button onClick={() => { setOtpSent(false); setOtp('') }} className="text-xs text-muted-foreground hover:text-primary w-full text-center">
-                    Resend OTP
-                  </button>
-                </>
-              ) : (
-                <Button onClick={handleSendOtp} disabled={otpLoading} className="w-full bg-primary text-black font-bold hover:bg-primary/90">
-                  {otpLoading ? 'Sending OTP...' : 'Send OTP'}
-                </Button>
-              )}
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Email</label>
+              <Input name="email" type="email" placeholder="you@example.com" required className="bg-secondary border-border" />
             </div>
-          )}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Password</label>
+                <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
+              </div>
+              <Input name="password" type="password" placeholder="••••••••" required className="bg-secondary border-border" />
+            </div>
+            <Button type="submit" className="w-full bg-primary text-black font-bold hover:bg-primary/90">Sign In</Button>
+          </form>
 
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
@@ -212,5 +173,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <LoginPageInner />
+    </Suspense>
   )
 }

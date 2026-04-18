@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import { useState, useRef, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { signUp, signInWithGoogle } from '@/actions/auth'
+import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mountain, Gift } from 'lucide-react'
+import { Mountain, Gift, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 
 const TRAVEL_QUOTES = [
@@ -61,6 +61,8 @@ function LoadingScreen() {
 
 function SignupForm() {
   const [loading, setLoading] = useState(false)
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
+  const [resendBusy, setResendBusy] = useState(false)
   const submitLockRef = useRef(false)
   const searchParams = useSearchParams()
   const refCode = searchParams.get('ref') || ''
@@ -79,7 +81,14 @@ function SignupForm() {
         return
       }
       const result = await signUp(formData)
-      if (result?.error) {
+      if (result && 'needsEmailConfirmation' in result && result.needsEmailConfirmation) {
+        setPendingVerificationEmail(result.email)
+        setLoading(false)
+        submitLockRef.current = false
+        toast.success('Check your inbox for the verification link.')
+        return
+      }
+      if (result && 'error' in result) {
         toast.error(result.error)
         setLoading(false)
         submitLockRef.current = false
@@ -90,6 +99,70 @@ function SignupForm() {
   }
 
   if (loading) return <LoadingScreen />
+
+  if (pendingVerificationEmail) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Link href="/">
+              <span className="text-4xl font-black">
+                <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
+              </span>
+            </Link>
+          </div>
+          <div className="bg-card border border-border rounded-2xl p-8 space-y-5 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 border border-primary/30">
+              <Mail className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">Verify your email</h1>
+              <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                We sent a confirmation link to{' '}
+                <span className="text-foreground font-medium break-all">{pendingVerificationEmail}</span>. Open that email and tap{' '}
+                <strong className="text-foreground">Confirm</strong> — then you&apos;ll land on sign-in,
+                already signed in, ready to explore.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Spam folder? Gmail &quot;Promotions&quot;? Check those too. The link expires after a while; you can resend
+              if needed.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-border"
+                disabled={resendBusy}
+                onClick={async () => {
+                  setResendBusy(true)
+                  const r = await resendSignupConfirmationEmail(pendingVerificationEmail)
+                  setResendBusy(false)
+                  if ('error' in r && r.error) toast.error(r.error)
+                  else toast.success('Another email is on its way.')
+                }}
+              >
+                {resendBusy ? 'Sending…' : 'Resend email'}
+              </Button>
+              <Button type="button" className="bg-primary text-primary-foreground font-bold" asChild>
+                <Link href="/login">Go to sign in</Link>
+              </Button>
+            </div>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+              onClick={() => {
+                setPendingVerificationEmail(null)
+                submitLockRef.current = false
+              }}
+            >
+              Use a different email
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
@@ -165,6 +238,9 @@ function SignupForm() {
             <Button type="submit" className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" disabled={loading}>
               Create Account
             </Button>
+            <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+              We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
+            </p>
           </form>
 
           <p className="text-xs text-muted-foreground text-center">
