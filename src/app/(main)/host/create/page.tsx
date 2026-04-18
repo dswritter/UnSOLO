@@ -15,6 +15,10 @@ import {
   checkIsHost,
 } from '@/actions/hosting'
 import {
+  fetchNominatimIndiaDestinations,
+  nominatimDebounceMs,
+} from '@/lib/nominatim-destinations'
+import {
   ArrowLeft,
   ArrowRight,
   Upload,
@@ -1042,12 +1046,16 @@ function DestinationSearch({
   onChange: (id: string) => void
 }) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<{ id: string; name: string; state: string; isNew?: boolean }[]>([])
+  const [results, setResults] = useState<
+    { id: string; name: string; state: string; isNew?: boolean; detail?: string }[]
+  >([])
   const [open, setOpen] = useState(false)
   const [searching, setSearching] = useState(false)
   const [selectedLabel, setSelectedLabel] = useState('')
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const nominatimReqIdRef = useRef(0)
+  const nominatimAbortRef = useRef<AbortController | null>(null)
 
   // Set initial label if value exists
   useEffect(() => {
@@ -1087,74 +1095,53 @@ function DestinationSearch({
       .slice(0, 5)
     setResults(localMatches)
 
-    if (q.length < 3) return
+    if (q.length < 3) {
+      nominatimAbortRef.current?.abort()
+      nominatimReqIdRef.current += 1
+      setSearching(false)
+      return
+    }
 
-    // Debounce map search
+    nominatimAbortRef.current?.abort()
+    const debounceMs = nominatimDebounceMs(q.trim().length)
+
+    // Debounce map search (longer debounce for short strings avoids Nominatim empty prefixes like "Shoj")
     timerRef.current = setTimeout(async () => {
+      const reqId = ++nominatimReqIdRef.current
+      const controller = new AbortController()
+      nominatimAbortRef.current = controller
       setSearching(true)
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' India')}&format=json&limit=8&countrycodes=in&addressdetails=1`,
-          { headers: { 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } }
-        )
-        const data = await res.json()
+        const mapHits = await fetchNominatimIndiaDestinations(q, controller.signal)
+        if (reqId !== nominatimReqIdRef.current) return
 
-        const mapResults = data
-          .filter((r: { type?: string }) => !['country', 'continent'].includes(r.type || ''))
-          .map(
-            (r: {
-              place_id: number
-              name?: string
-              display_name: string
-              address?: {
-                state?: string
-                city?: string
-                town?: string
-                village?: string
-                hamlet?: string
-                county?: string
-                suburb?: string
-                locality?: string
-                municipality?: string
-                isolated_dwelling?: string
-              }
-            }) => {
-              const addr = r.address || {}
-              const name =
-                (r.name && String(r.name).trim()) ||
-                addr.hamlet ||
-                addr.isolated_dwelling ||
-                addr.village ||
-                addr.town ||
-                addr.city ||
-                addr.municipality ||
-                addr.suburb ||
-                addr.locality ||
-                addr.county ||
-                r.display_name.split(',')[0]
-              const state = addr.state || 'India'
-              return {
-                id: `new_${r.place_id}`,
-                name: String(name).trim(),
-                state: state.trim(),
-                isNew: true,
-              }
-            },
-          )
-          // Remove duplicates with existing destinations
-          .filter((m: { name: string; state: string }) =>
-            !localMatches.find(l => l.name.toLowerCase() === m.name.toLowerCase() && l.state.toLowerCase() === m.state.toLowerCase())
+        const mapResults = mapHits
+          .map((h) => ({ ...h, isNew: true as const }))
+          .filter(
+            (m) =>
+              !localMatches.find(
+                (l) =>
+                  l.name.toLowerCase() === m.name.toLowerCase() &&
+                  l.state.toLowerCase() === m.state.toLowerCase(),
+              ),
           )
 
         setResults([...localMatches, ...mapResults])
-      } catch {
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
         // Keep local results on error
+      } finally {
+        if (reqId === nominatimReqIdRef.current) setSearching(false)
       }
-      setSearching(false)
-    }, 400)
+    }, debounceMs)
   }
 
-  async function selectDestination(d: { id: string; name: string; state: string; isNew?: boolean }) {
+  async function selectDestination(d: {
+    id: string
+    name: string
+    state: string
+    isNew?: boolean
+  }) {
     if (d.isNew) {
       // Create new destination in DB
       const { createClient } = await import('@/lib/supabase/client')
@@ -1215,9 +1202,14 @@ function DestinationSearch({
               onClick={() => selectDestination(r)}
               className="flex items-center justify-between w-full text-left px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors border-b border-border/30 last:border-0"
             >
-              <div>
-                <span className="font-medium">{r.name}</span>
-                <span className="text-muted-foreground">, {r.state}</span>
+              <div className="min-w-0">
+                <div>
+                  <span className="font-medium">{r.name}</span>
+                  <span className="text-muted-foreground">, {r.state}</span>
+                </div>
+                {r.detail && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{r.detail}</p>
+                )}
               </div>
               {r.isNew && (
                 <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">

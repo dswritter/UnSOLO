@@ -2,6 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { MapPin } from 'lucide-react'
+import {
+  fetchNominatimIndiaDestinations,
+  nominatimDebounceMs,
+} from '@/lib/nominatim-destinations'
 
 interface LocationSearchProps {
   defaultValue: string
@@ -10,11 +14,15 @@ interface LocationSearchProps {
 
 export function LocationSearch({ defaultValue, name }: LocationSearchProps) {
   const [query, setQuery] = useState(defaultValue)
-  const [results, setResults] = useState<{ display: string; place_id: number }[]>([])
+  const [results, setResults] = useState<{ display: string; place_id: number; detail?: string }[]>(
+    [],
+  )
   const [open, setOpen] = useState(false)
   const [searching, setSearching] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const nominatimReqIdRef = useRef(0)
+  const nominatimAbortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -27,55 +35,40 @@ export function LocationSearch({ defaultValue, name }: LocationSearchProps) {
   function handleInput(val: string) {
     setQuery(val)
     if (timerRef.current) clearTimeout(timerRef.current)
-    if (val.length < 2) { setResults([]); return }
+    if (val.length < 3) {
+      nominatimAbortRef.current?.abort()
+      nominatimReqIdRef.current += 1
+      setResults([])
+      setSearching(false)
+      return
+    }
+
+    nominatimAbortRef.current?.abort()
+    const debounceMs = nominatimDebounceMs(val.trim().length)
 
     timerRef.current = setTimeout(async () => {
+      const reqId = ++nominatimReqIdRef.current
+      const controller = new AbortController()
+      nominatimAbortRef.current = controller
       setSearching(true)
       setOpen(true)
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=5&countrycodes=in&addressdetails=1`,
-          { headers: { 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } }
-        )
-        const data = await res.json()
+        const hits = await fetchNominatimIndiaDestinations(val, controller.signal)
+        if (reqId !== nominatimReqIdRef.current) return
+
         setResults(
-          data.map(
-            (r: {
-              display_name: string
-              place_id: number
-              name?: string
-              address?: {
-                city?: string
-                town?: string
-                village?: string
-                hamlet?: string
-                state?: string
-                suburb?: string
-                locality?: string
-                isolated_dwelling?: string
-                county?: string
-              }
-            }) => {
-              const addr = r.address || {}
-              const place =
-                (r.name && String(r.name).trim()) ||
-                addr.hamlet ||
-                addr.isolated_dwelling ||
-                addr.village ||
-                addr.town ||
-                addr.city ||
-                addr.suburb ||
-                addr.locality ||
-                addr.county ||
-                r.display_name.split(',')[0]
-              const state = addr.state || ''
-              return { display: state ? `${place}, ${state}` : String(place), place_id: r.place_id }
-            },
-          ),
+          hits.map((h) => ({
+            display: `${h.name}, ${h.state}`,
+            place_id: parseInt(h.id.replace(/^new_/, ''), 10),
+            detail: h.detail,
+          })),
         )
-      } catch { /* ignore */ }
-      setSearching(false)
-    }, 400)
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
+      } finally {
+        if (reqId === nominatimReqIdRef.current) setSearching(false)
+      }
+    }, debounceMs)
   }
 
   return (
@@ -88,7 +81,7 @@ export function LocationSearch({ defaultValue, name }: LocationSearchProps) {
           value={query}
           onChange={e => handleInput(e.target.value)}
           onFocus={() => { if (results.length > 0) setOpen(true) }}
-          placeholder="Search your city..."
+          placeholder="Search your city or town..."
           className="w-full pl-9 bg-secondary border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
         />
         {searching && (
@@ -102,10 +95,15 @@ export function LocationSearch({ defaultValue, name }: LocationSearchProps) {
               key={r.place_id}
               type="button"
               onClick={() => { setQuery(r.display); setOpen(false) }}
-              className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors border-b border-border/30 last:border-0"
+              className="flex items-start gap-2 w-full px-3 py-2 text-left text-sm hover:bg-secondary/50 transition-colors border-b border-border/30 last:border-0"
             >
-              <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-              {r.display}
+              <MapPin className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+              <span className="min-w-0">
+                <span className="block">{r.display}</span>
+                {r.detail && (
+                  <span className="block text-[10px] text-muted-foreground truncate">{r.detail}</span>
+                )}
+              </span>
             </button>
           ))}
         </div>

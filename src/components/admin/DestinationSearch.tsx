@@ -3,12 +3,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { MapPin, Search } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  fetchNominatimIndiaDestinations,
+  nominatimDebounceMs,
+} from '@/lib/nominatim-destinations'
 
 interface Destination {
   id: string
   name: string
   state: string
   isNew?: boolean
+  detail?: string
 }
 
 interface DestinationSearchProps {
@@ -29,6 +34,8 @@ export function DestinationSearch({ destinations, value, onChange, onNewDestinat
   })
   const wrapperRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const nominatimReqIdRef = useRef(0)
+  const nominatimAbortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -66,62 +73,43 @@ export function DestinationSearch({ destinations, value, onChange, onNewDestinat
       .slice(0, 5)
     setResults(localMatches)
 
-    if (q.length < 3) return
+    if (q.length < 3) {
+      nominatimAbortRef.current?.abort()
+      nominatimReqIdRef.current += 1
+      setSearching(false)
+      return
+    }
+
+    nominatimAbortRef.current?.abort()
+    const debounceMs = nominatimDebounceMs(q.trim().length)
 
     timerRef.current = setTimeout(async () => {
+      const reqId = ++nominatimReqIdRef.current
+      const controller = new AbortController()
+      nominatimAbortRef.current = controller
       setSearching(true)
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' India')}&format=json&limit=8&countrycodes=in&addressdetails=1`,
-          { headers: { 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } }
-        )
-        const data = await res.json()
+        const mapHits = await fetchNominatimIndiaDestinations(q, controller.signal)
+        if (reqId !== nominatimReqIdRef.current) return
 
-        const mapResults = data
-          .filter((r: { type?: string }) => !['country', 'continent'].includes(r.type || ''))
-          .map(
-            (r: {
-              place_id: number
-              name?: string
-              display_name: string
-              address?: {
-                state?: string
-                city?: string
-                town?: string
-                village?: string
-                hamlet?: string
-                county?: string
-                suburb?: string
-                locality?: string
-                municipality?: string
-                isolated_dwelling?: string
-              }
-            }) => {
-              const addr = r.address || {}
-              const name =
-                (r.name && String(r.name).trim()) ||
-                addr.hamlet ||
-                addr.isolated_dwelling ||
-                addr.village ||
-                addr.town ||
-                addr.city ||
-                addr.municipality ||
-                addr.suburb ||
-                addr.locality ||
-                addr.county ||
-                r.display_name.split(',')[0]
-              const state = addr.state || 'India'
-              return { id: `new_${r.place_id}`, name: String(name).trim(), state: state.trim(), isNew: true }
-            },
-          )
-          .filter((m: Destination) =>
-            !localMatches.find(l => l.name.toLowerCase() === m.name.toLowerCase() && l.state.toLowerCase() === m.state.toLowerCase())
+        const mapResults = mapHits
+          .map((h) => ({ ...h, isNew: true as const }))
+          .filter(
+            (m) =>
+              !localMatches.find(
+                (l) =>
+                  l.name.toLowerCase() === m.name.toLowerCase() &&
+                  l.state.toLowerCase() === m.state.toLowerCase(),
+              ),
           )
 
         setResults([...localMatches, ...mapResults])
-      } catch { /* keep local */ }
-      setSearching(false)
-    }, 400)
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
+      } finally {
+        if (reqId === nominatimReqIdRef.current) setSearching(false)
+      }
+    }, debounceMs)
   }
 
   async function selectDestination(d: Destination) {
@@ -190,10 +178,15 @@ export function DestinationSearch({ destinations, value, onChange, onNewDestinat
               className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm hover:bg-secondary/50 transition-colors border-b border-border/30 last:border-0"
             >
               <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-              <div>
-                <span className="font-medium">{d.name}</span>
-                <span className="text-muted-foreground">, {d.state}</span>
-                {d.isNew && <span className="ml-2 text-[10px] text-primary font-medium">+ New</span>}
+              <div className="min-w-0">
+                <div>
+                  <span className="font-medium">{d.name}</span>
+                  <span className="text-muted-foreground">, {d.state}</span>
+                  {d.isNew && <span className="ml-2 text-[10px] text-primary font-medium">+ New</span>}
+                </div>
+                {d.detail && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{d.detail}</p>
+                )}
               </div>
             </button>
           ))}
