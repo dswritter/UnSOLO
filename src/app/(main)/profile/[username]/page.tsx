@@ -111,9 +111,80 @@ export default async function ProfilePage({
     if (dest?.state) uniqueStates.add(dest.state)
   })
 
+  const statItems = [
+    { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },
+    { icon: MapPin, label: 'States', value: uniqueStates.size || leaderboardScore?.destinations_count || 0, private: statesPrivate },
+    { icon: Star, label: 'Reviews', value: leaderboardScore?.reviews_written || 0, private: false },
+    { icon: Trophy, label: 'Score', value: leaderboardScore?.total_score || 0, private: false },
+  ] as const
+
+  const badgesCard = (
+    <Card className="bg-card border-border">
+      <CardContent className="p-5">
+        <h2 className="font-bold mb-4 flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-primary" /> Badges
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {ACHIEVEMENTS.map((achievement) => {
+            const earned = earnedKeys.has(achievement.key)
+            return (
+              <div
+                key={achievement.key}
+                className={`p-3 rounded-xl border text-center transition-opacity ${
+                  earned
+                    ? 'border-primary/30 bg-primary/10'
+                    : 'border-border bg-secondary/50 opacity-40'
+                }`}
+                title={achievement.description}
+              >
+                <div className="text-2xl mb-1">{earned ? achievement.icon : '\u{1F512}'}</div>
+                <div className="text-xs font-medium leading-tight">{achievement.name}</div>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  const statsGrid = (
+    <div className="grid grid-cols-4 gap-3">
+      {statItems.map(({ icon: Icon, label, value, private: isPrivate }) => (
+        <div key={label} className="text-center">
+          <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
+          <div className="text-xl font-black text-primary flex items-center justify-center gap-1">
+            {value}
+            {isPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
+          </div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+      ))}
+    </div>
+  )
+
+  const statesExploredCard = (
+    <Card className="bg-card border-border">
+      <CardContent className="p-5">
+        <h2 className="font-bold mb-4 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-primary" /> States Explored
+          {statesPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
+        </h2>
+        {statesPrivate ? (
+          <p className="text-sm text-muted-foreground">This user has made their explored states private.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {Array.from(uniqueStates).map(state => (
+              <Badge key={state} className="bg-primary/10 text-primary border-primary/30">{state}</Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
         {/* Profile Header */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
@@ -251,23 +322,9 @@ export default async function ProfilePage({
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-4 gap-3 mt-6 pt-6 border-t border-border">
-            {[
-              { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },
-              { icon: MapPin, label: 'States', value: uniqueStates.size || leaderboardScore?.destinations_count || 0, private: statesPrivate },
-              { icon: Star, label: 'Reviews', value: leaderboardScore?.reviews_written || 0, private: false },
-              { icon: Trophy, label: 'Score', value: leaderboardScore?.total_score || 0, private: false },
-            ].map(({ icon: Icon, label, value, private: isPrivate }) => (
-              <div key={label} className="text-center">
-                <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
-                <div className="text-xl font-black text-primary flex items-center justify-center gap-1">
-                  {value}
-                  {isPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-                </div>
-                <div className="text-xs text-muted-foreground">{label}</div>
-              </div>
-            ))}
+          {/* Stats — in header on smaller screens; xl+ uses sticky sidebar */}
+          <div className="mt-6 pt-6 border-t border-border xl:hidden">
+            {statsGrid}
           </div>
         </div>
 
@@ -277,39 +334,12 @@ export default async function ProfilePage({
 
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Badges */}
-          <div className="lg:col-span-1">
-            <Card className="bg-card border-border">
-              <CardContent className="p-5">
-                <h2 className="font-bold mb-4 flex items-center gap-2">
-                  <Trophy className="h-4 w-4 text-primary" /> Badges
-                </h2>
-                <div className="grid grid-cols-2 gap-3">
-                  {ACHIEVEMENTS.map((achievement) => {
-                    const earned = earnedKeys.has(achievement.key)
-                    return (
-                      <div
-                        key={achievement.key}
-                        className={`p-3 rounded-xl border text-center transition-opacity ${
-                          earned
-                            ? 'border-primary/30 bg-primary/10'
-                            : 'border-border bg-secondary/50 opacity-40'
-                        }`}
-                        title={achievement.description}
-                      >
-                        <div className="text-2xl mb-1">{earned ? achievement.icon : '🔒'}</div>
-                        <div className="text-xs font-medium leading-tight">{achievement.name}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Travel history + reviews */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="flex flex-col xl:flex-row xl:items-start xl:gap-8">
+          <div className="min-w-0 flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 xl:grid-cols-1">
+              <div className="lg:col-span-1 xl:hidden">{badgesCard}</div>
+              {/* Travel history + reviews */}
+              <div className="lg:col-span-2 xl:col-span-1 space-y-6">
             {/* Trips - clickable, with privacy */}
             {completedBookings && completedBookings.length > 0 && (
               <Card className="bg-card border-border">
@@ -347,25 +377,9 @@ export default async function ProfilePage({
               </Card>
             )}
 
-            {/* States visited */}
+            {/* States visited — main column below xl only (sidebar on xl) */}
             {uniqueStates.size > 0 && (
-              <Card className="bg-card border-border">
-                <CardContent className="p-5">
-                  <h2 className="font-bold mb-4 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" /> States Explored
-                    {statesPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-                  </h2>
-                  {statesPrivate ? (
-                    <p className="text-sm text-muted-foreground">This user has made their explored states private.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(uniqueStates).map(state => (
-                        <Badge key={state} className="bg-primary/10 text-primary border-primary/30">{state}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="xl:hidden">{statesExploredCard}</div>
             )}
 
             {reviews && reviews.length > 0 && (
@@ -417,7 +431,21 @@ export default async function ProfilePage({
                 </CardContent>
               </Card>
             )}
+              </div>
+            </div>
           </div>
+
+          {/* Desktop sidebar: metrics + badges + states */}
+          <aside className="hidden xl:flex xl:w-80 xl:shrink-0 xl:flex-col xl:gap-6 xl:sticky xl:top-24 xl:self-start">
+            <Card className="bg-card border-border">
+              <CardContent className="p-5">
+                <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
+                {statsGrid}
+              </CardContent>
+            </Card>
+            {badgesCard}
+            {uniqueStates.size > 0 ? statesExploredCard : null}
+          </aside>
         </div>
 
         {/* Travel Stats — Points, Tiers, States, Achievements */}
