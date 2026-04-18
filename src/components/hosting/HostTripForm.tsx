@@ -35,6 +35,13 @@ import {
 } from '@/lib/package-pricing'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import {
+  clearHostTripCreateDraft,
+  isHostTripCreateDraftNonEmpty,
+  loadHostTripCreateDraft,
+  saveHostTripCreateDraft,
+  type HostTripCreateDraftV1,
+} from '@/lib/host-trip-create-draft'
+import {
   ArrowLeft,
   ArrowRight,
   Upload,
@@ -217,6 +224,47 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
         if (jp.min_trips_completed != null) setMinTripsCompleted(String(jp.min_trips_completed))
         setInterestTags(jp.interest_tags ? [...jp.interest_tags] : [])
         setPaymentTiming(jp.payment_timing === 'pay_on_booking' ? 'pay_on_booking' : 'after_host_approval')
+      } else {
+        const draft = loadHostTripCreateDraft()
+        if (draft?.v === 1 && isHostTripCreateDraftNonEmpty(draft)) {
+          if (draft.destination && !dests.some((d) => d.id === draft.destination!.id)) {
+            setDestinations([...dests, draft.destination].sort((a, b) => a.name.localeCompare(b.name)))
+          }
+          const maxStep = STEPS.length - 1
+          setStep(Math.min(Math.max(0, draft.step), maxStep))
+          setTitle(draft.title ?? '')
+          setDestinationId(draft.destinationId ?? '')
+          setDescription(draft.description ?? '')
+          setShortDescription(draft.shortDescription ?? '')
+          setPriceRows(
+            Array.isArray(draft.priceRows) && draft.priceRows.length > 0
+              ? draft.priceRows.map((r) => ({ rupees: r.rupees ?? '', facilities: r.facilities ?? '' }))
+              : [{ rupees: '', facilities: '' }],
+          )
+          setTripDays(draft.tripDays ?? '')
+          setTripNights(draft.tripNights ?? '')
+          setExcludeFirstTravel(draft.excludeFirstTravel !== false)
+          setDepartureTime(draft.departureTime === 'evening' ? 'evening' : 'morning')
+          setReturnTime(draft.returnTime === 'evening' ? 'evening' : 'morning')
+          setMaxGroupSize(draft.maxGroupSize ?? '12')
+          setPaymentTiming(draft.paymentTiming === 'pay_on_booking' ? 'pay_on_booking' : 'after_host_approval')
+          setDifficulty(draft.difficulty || 'moderate')
+          setScheduleRows(
+            Array.isArray(draft.scheduleRows) && draft.scheduleRows.length > 0
+              ? draft.scheduleRows.map((r) => ({ dep: r.dep ?? '', ret: r.ret ?? '' }))
+              : [{ dep: '', ret: '' }],
+          )
+          setSelectedIncludes(Array.isArray(draft.selectedIncludes) ? [...draft.selectedIncludes] : [])
+          setImages(Array.isArray(draft.images) ? [...draft.images] : [])
+          setMinAge(draft.minAge ?? '')
+          setMaxAge(draft.maxAge ?? '')
+          setGenderPreference(
+            draft.genderPreference === 'men' || draft.genderPreference === 'women' ? draft.genderPreference : 'all',
+          )
+          setMinTripsCompleted(draft.minTripsCompleted ?? '')
+          setInterestTags(Array.isArray(draft.interestTags) ? [...draft.interestTags] : [])
+          toast.message('Continuing from your saved draft')
+        }
       }
 
       setLoading(false)
@@ -249,6 +297,164 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
     if (minListPricePaise == null) return null
     return splitInclusiveCommunityPayment(minListPricePaise, platformFeePercent)
   }, [minListPricePaise, platformFeePercent])
+
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+
+  const createDraftBody = useMemo((): Omit<HostTripCreateDraftV1, 'v' | 'updatedAt'> => {
+    const dest = destinations.find((d) => d.id === destinationId)
+    return {
+      step,
+      title,
+      destinationId,
+      destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
+      description,
+      shortDescription,
+      priceRows: priceRows.map((r) => ({ rupees: r.rupees, facilities: r.facilities })),
+      tripDays,
+      tripNights,
+      excludeFirstTravel,
+      departureTime,
+      returnTime,
+      maxGroupSize,
+      paymentTiming,
+      difficulty,
+      scheduleRows: scheduleRows.map((r) => ({ dep: r.dep, ret: r.ret })),
+      selectedIncludes: [...selectedIncludes],
+      images: [...images],
+      minAge,
+      maxAge,
+      genderPreference,
+      minTripsCompleted,
+      interestTags: [...interestTags],
+    }
+  }, [
+    step,
+    title,
+    destinationId,
+    destinations,
+    description,
+    shortDescription,
+    priceRows,
+    tripDays,
+    tripNights,
+    excludeFirstTravel,
+    departureTime,
+    returnTime,
+    maxGroupSize,
+    paymentTiming,
+    difficulty,
+    scheduleRows,
+    selectedIncludes,
+    images,
+    minAge,
+    maxAge,
+    genderPreference,
+    minTripsCompleted,
+    interestTags,
+  ])
+
+  const createDraftRisky = useMemo(
+    () => !isEdit && isHostTripCreateDraftNonEmpty(createDraftBody),
+    [isEdit, createDraftBody],
+  )
+
+  const createDraftRiskyRef = useRef(false)
+  createDraftRiskyRef.current = createDraftRisky
+
+  useEffect(() => {
+    if (isEdit || loading) return
+    const t = window.setTimeout(() => {
+      if (isHostTripCreateDraftNonEmpty(createDraftBody)) {
+        saveHostTripCreateDraft(createDraftBody)
+      } else {
+        clearHostTripCreateDraft()
+      }
+    }, 900)
+    return () => clearTimeout(t)
+  }, [isEdit, loading, createDraftBody])
+
+  useEffect(() => {
+    if (isEdit) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!createDraftRiskyRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [isEdit])
+
+  useEffect(() => {
+    if (isEdit || loading) return
+    const onClickCapture = (e: MouseEvent) => {
+      if (!createDraftRiskyRef.current) return
+      const el = e.target as HTMLElement | null
+      if (!el) return
+      const a = el.closest('a[href]') as HTMLAnchorElement | null
+      if (!a) return
+      if (a.target === '_blank' || a.hasAttribute('download')) return
+      const hrefAttr = a.getAttribute('href')
+      if (!hrefAttr || hrefAttr.startsWith('#')) return
+      if (hrefAttr.startsWith('mailto:') || hrefAttr.startsWith('tel:')) return
+      let url: URL
+      try {
+        url = new URL(hrefAttr, window.location.origin)
+      } catch {
+        return
+      }
+      if (url.origin !== window.location.origin) return
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return
+      e.preventDefault()
+      e.stopPropagation()
+      setPendingNavigation(url.pathname + url.search + url.hash)
+      setLeaveDialogOpen(true)
+    }
+    document.addEventListener('click', onClickCapture, true)
+    return () => document.removeEventListener('click', onClickCapture, true)
+  }, [isEdit, loading])
+
+  function requestNavigateAway(href: string) {
+    if (isEdit || !createDraftRisky) {
+      router.push(href)
+      return
+    }
+    setPendingNavigation(href)
+    setLeaveDialogOpen(true)
+  }
+
+  function confirmLeaveKeepDraft() {
+    const href = pendingNavigation
+    saveHostTripCreateDraft(createDraftBody)
+    setLeaveDialogOpen(false)
+    setPendingNavigation(null)
+    if (href) router.push(href)
+  }
+
+  function confirmLeaveDiscardDraft() {
+    const href = pendingNavigation
+    clearHostTripCreateDraft()
+    setLeaveDialogOpen(false)
+    setPendingNavigation(null)
+    if (href) router.push(href)
+  }
+
+  function cancelLeaveDialog() {
+    setLeaveDialogOpen(false)
+    setPendingNavigation(null)
+  }
+
+  useEffect(() => {
+    if (!leaveDialogOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLeaveDialogOpen(false)
+        setPendingNavigation(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [leaveDialogOpen])
 
   function addPriceRow() {
     setPriceRows((prev) => [...prev, { rupees: '', facilities: '' }])
@@ -591,6 +797,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
         toast.error(result.error)
       } else {
         toast.success('Trip created! It will be reviewed by our team before going live.')
+        clearHostTripCreateDraft()
         router.push('/host')
       }
     })
@@ -626,7 +833,9 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push(isEdit && editTripId ? `/host/${editTripId}` : '/host')}
+            onClick={() =>
+              requestNavigateAway(isEdit && editTripId ? `/host/${editTripId}` : '/host')
+            }
             className="text-muted-foreground mb-4 gap-1.5"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -648,6 +857,12 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
               ? 'Update any part of your listing. Operational changes (dates, capacity, trip length, times) go live without admin review on approved trips.'
               : 'Fill in the details for your community trip. It will be reviewed before going live.'}
           </p>
+          {!isEdit && (
+            <p className="text-xs text-muted-foreground/90 mt-2">
+              Your progress is saved automatically as a draft on this device. You can leave anytime and continue later
+              from Create Trip.
+            </p>
+          )}
           {isEdit && editModerationStatus === 'approved' && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 mt-4">
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -831,8 +1046,8 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                   <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm space-y-1.5">
                     <p className="font-semibold text-foreground">How your list price splits</p>
                     <p className="text-xs text-muted-foreground">
-                      Travelers pay the price you list — nothing extra is added at checkout. The platform fee (
-                      {platformFeePercent}%, set in Admin → Settings) is included in that amount.
+                      Travelers pay the price you list — nothing extra is added at checkout. UnSOLO keeps a{' '}
+                      {platformFeePercent}% platform fee from that amount; the rest is your estimated payout below.
                     </p>
                     <ul className="text-xs space-y-0.5 pt-1">
                       <li className="flex justify-between gap-2">
@@ -1533,6 +1748,50 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
           </div>
         </div>
       </div>
+
+      {leaveDialogOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="leave-draft-title"
+          onClick={cancelLeaveDialog}
+        >
+          <div
+            className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="leave-draft-title" className="text-lg font-bold">
+              Leave this page?
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              You have trip details in progress. Your draft is saved on this device — choose whether to keep it or delete it
+              before leaving.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button type="button" variant="ghost" className="order-3 sm:order-1" onClick={cancelLeaveDialog}>
+                Continue editing
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="order-2 border-destructive/40 text-destructive hover:bg-destructive/10 sm:order-2"
+                onClick={confirmLeaveDiscardDraft}
+              >
+                Discard draft
+              </Button>
+              <Button
+                type="button"
+                className="order-1 bg-primary text-primary-foreground sm:order-3"
+                onClick={confirmLeaveKeepDraft}
+                autoFocus
+              >
+                Keep draft &amp; leave
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
