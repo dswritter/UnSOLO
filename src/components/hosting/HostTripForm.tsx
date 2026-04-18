@@ -16,6 +16,7 @@ import { formatPrice } from '@/lib/utils'
 import {
   createHostedTrip,
   updateHostedTrip,
+  createHostDestination,
   getDestinationsPublic,
   getIncludesOptionsPublic,
   getHostTripDetail,
@@ -687,6 +688,11 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                   destinations={destinations}
                   value={destinationId}
                   onChange={setDestinationId}
+                  onDestinationCreated={(d) =>
+                    setDestinations((prev) =>
+                      prev.some((x) => x.id === d.id) ? prev : [...prev, d].sort((a, b) => a.name.localeCompare(b.name)),
+                    )
+                  }
                 />
               </div>
 
@@ -1512,10 +1518,12 @@ function DestinationSearch({
   destinations,
   value,
   onChange,
+  onDestinationCreated,
 }: {
   destinations: Destination[]
   value: string
   onChange: (id: string) => void
+  onDestinationCreated?: (d: Destination) => void
 }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<
@@ -1562,7 +1570,9 @@ function DestinationSearch({
     const localMatches = destinations
       .filter((d) => {
         const hay = normalizeDestQuery(`${d.name} ${d.state}`)
-        return tokens.length === 0 ? true : tokens.every((t) => hay.includes(t))
+        if (tokens.length === 0) return true
+        if (hay.includes(qNorm)) return true
+        return tokens.every((t) => hay.includes(t))
       })
       .slice(0, 5)
     setResults(localMatches)
@@ -1615,34 +1625,13 @@ function DestinationSearch({
     isNew?: boolean
   }) {
     if (d.isNew) {
-      // Create new destination in DB
-      const { createClient } = await import('@/lib/supabase/client')
-      const supabase = createClient()
-      const slug = d.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-
-      const { data: newDest, error } = await supabase
-        .from('destinations')
-        .insert({ name: d.name, state: d.state, slug })
-        .select()
-        .single()
-
-      if (error) {
-        // Might already exist
-        const { data: existing } = await supabase
-          .from('destinations')
-          .select('id')
-          .eq('name', d.name)
-          .eq('state', d.state)
-          .single()
-        if (existing) {
-          onChange(existing.id)
-        } else {
-          toast.error('Could not add destination')
-          return
-        }
-      } else {
-        onChange(newDest.id)
+      const res = await createHostDestination(d.name, d.state)
+      if ('error' in res) {
+        toast.error(res.error)
+        return
       }
+      onDestinationCreated?.({ id: res.id, name: res.name, state: res.state })
+      onChange(res.id)
     } else {
       onChange(d.id)
     }

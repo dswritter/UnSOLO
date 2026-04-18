@@ -641,6 +641,57 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
 
 // ── Public Data for Create Form ──────────────────────────────
 
+/** Hosts cannot INSERT destinations via the anon client (RLS). Creates row with service role after host check. */
+export async function createHostDestination(name: string, state: string) {
+  const { supabase } = await requireHost()
+  const trimName = name.trim()
+  const trimState = state.trim()
+  if (!trimName || !trimState) return { error: 'Destination name and state are required' }
+
+  const { data: existing } = await supabase
+    .from('destinations')
+    .select('id, name, state')
+    .ilike('name', trimName)
+    .ilike('state', trimState)
+    .maybeSingle()
+
+  if (existing) {
+    return { success: true as const, id: existing.id, name: existing.name, state: existing.state }
+  }
+
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const baseSlug = `${trimName}-${trimState}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 72)
+
+  let slug = baseSlug.length > 0 ? baseSlug : `dest-${Date.now().toString(36)}`
+
+  const tryInsert = (s: string) =>
+    svcSupabase
+      .from('destinations')
+      .insert({
+        name: trimName,
+        state: trimState,
+        country: 'India',
+        slug: s,
+      })
+      .select('id, name, state')
+      .single()
+
+  let { data, error } = await tryInsert(slug)
+  if (error && (error.code === '23505' || error.message.toLowerCase().includes('unique'))) {
+    slug = `${baseSlug.slice(0, 48)}-${Date.now().toString(36)}`.replace(/(^-|-$)/g, '')
+    ;({ data, error } = await tryInsert(slug))
+  }
+
+  if (error) return { error: error.message }
+  return { success: true as const, id: data!.id, name: data!.name, state: data!.state }
+}
+
 export async function getDestinationsPublic() {
   const supabase = await createClient()
   const { data } = await supabase.from('destinations').select('id, name, state').order('name')
