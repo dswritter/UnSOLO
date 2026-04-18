@@ -5,6 +5,7 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { HostTripsList } from './HostTripsList'
+import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import {
   Plus,
   MapPin,
@@ -59,6 +60,8 @@ export default async function HostDashboardPage() {
             </Link>
           </Button>
         </div>
+
+        <HostTripDraftsPanel />
 
         {/* Compact Stats Row */}
         <HostTripsList

@@ -35,12 +35,15 @@ import {
 } from '@/lib/package-pricing'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import {
-  clearHostTripCreateDraft,
+  deleteHostTripDraft,
+  getHostTripDraftById,
+  HOST_TRIP_DRAFT_MAX_AGE_MS,
   isHostTripCreateDraftNonEmpty,
-  loadHostTripCreateDraft,
-  saveHostTripCreateDraft,
-  type HostTripCreateDraftV1,
+  upsertHostTripDraft,
+  type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
+
+const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
   TRIP_PREVIEW_SESSION_KEY,
   type HostTripPreviewPayload,
@@ -103,7 +106,14 @@ const STEPS = [
   { label: 'Review', icon: Check },
 ]
 
-export function HostTripForm({ editTripId }: { editTripId?: string }) {
+export function HostTripForm({
+  editTripId,
+  resumeDraftId,
+}: {
+  editTripId?: string
+  /** When set, load this draft from local storage; plain `/host/create` always starts blank. */
+  resumeDraftId?: string
+}) {
   const router = useRouter()
   const isEdit = !!editTripId
   const [isPending, startTransition] = useTransition()
@@ -155,6 +165,9 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
   const [genderPreference, setGenderPreference] = useState<'all' | 'men' | 'women'>('all')
   const [minTripsCompleted, setMinTripsCompleted] = useState('')
   const [interestTags, setInterestTags] = useState<string[]>([])
+
+  const [draftSessionId, setDraftSessionId] = useState<string | null>(null)
+  const draftSaveNotifiedRef = useRef(false)
 
   useEffect(() => {
     async function load() {
@@ -232,8 +245,16 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
         setInterestTags(jp.interest_tags ? [...jp.interest_tags] : [])
         setPaymentTiming(jp.payment_timing === 'pay_on_booking' ? 'pay_on_booking' : 'after_host_approval')
       } else {
-        const draft = loadHostTripCreateDraft()
-        if (draft?.v === 1 && isHostTripCreateDraftNonEmpty(draft)) {
+        draftSaveNotifiedRef.current = false
+        const resuming = resumeDraftId ? getHostTripDraftById(resumeDraftId) : null
+        const newId =
+          typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`
+        const sessionId = resuming ? resuming.id : newId
+        setDraftSessionId(sessionId)
+
+        if (resuming && isHostTripCreateDraftNonEmpty(resuming.payload)) {
+          draftSaveNotifiedRef.current = true
+          const draft = resuming.payload
           if (draft.destination && !dests.some((d) => d.id === draft.destination!.id)) {
             setDestinations([...dests, draft.destination].sort((a, b) => a.name.localeCompare(b.name)))
           }
@@ -271,13 +292,15 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
           setMinTripsCompleted(draft.minTripsCompleted ?? '')
           setInterestTags(Array.isArray(draft.interestTags) ? [...draft.interestTags] : [])
           toast.message('Continuing from your saved draft')
+        } else if (resumeDraftId && !resuming) {
+          toast.message('That draft was not found or may have expired. Starting a new trip.')
         }
       }
 
       setLoading(false)
     }
     load()
-  }, [router, editTripId])
+  }, [router, editTripId, resumeDraftId])
 
   // Tomorrow as minimum (trip can't start today)
   const tomorrow = (() => {
@@ -319,7 +342,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
 
-  const createDraftBody = useMemo((): Omit<HostTripCreateDraftV1, 'v' | 'updatedAt'> => {
+  const createDraftBody = useMemo((): HostTripDraftPayload => {
     const dest = destinations.find((d) => d.id === destinationId)
     return {
       step,
@@ -381,16 +404,24 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
   createDraftRiskyRef.current = createDraftRisky
 
   useEffect(() => {
-    if (isEdit || loading) return
+    if (isEdit || loading || !draftSessionId) return
     const t = window.setTimeout(() => {
       if (isHostTripCreateDraftNonEmpty(createDraftBody)) {
-        saveHostTripCreateDraft(createDraftBody)
+        upsertHostTripDraft(draftSessionId, createDraftBody)
+        if (!draftSaveNotifiedRef.current) {
+          draftSaveNotifiedRef.current = true
+          toast.message(
+            `Draft saved on this device. Drafts you do not open for ${DRAFT_RETENTION_DAYS} days are removed automatically.`,
+            { duration: 6500 },
+          )
+        }
       } else {
-        clearHostTripCreateDraft()
+        deleteHostTripDraft(draftSessionId)
+        draftSaveNotifiedRef.current = false
       }
     }, 900)
     return () => clearTimeout(t)
-  }, [isEdit, loading, createDraftBody])
+  }, [isEdit, loading, draftSessionId, createDraftBody])
 
   useEffect(() => {
     if (isEdit) return
@@ -443,7 +474,9 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
 
   function confirmLeaveKeepDraft() {
     const href = pendingNavigation
-    saveHostTripCreateDraft(createDraftBody)
+    if (draftSessionId && isHostTripCreateDraftNonEmpty(createDraftBody)) {
+      upsertHostTripDraft(draftSessionId, createDraftBody)
+    }
     setLeaveDialogOpen(false)
     setPendingNavigation(null)
     if (href) router.push(href)
@@ -451,7 +484,8 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
 
   function confirmLeaveDiscardDraft() {
     const href = pendingNavigation
-    clearHostTripCreateDraft()
+    if (draftSessionId) deleteHostTripDraft(draftSessionId)
+    draftSaveNotifiedRef.current = false
     setLeaveDialogOpen(false)
     setPendingNavigation(null)
     if (href) router.push(href)
@@ -822,7 +856,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
         toast.error(result.error)
       } else {
         toast.success('Trip created! It will be reviewed by our team before going live.')
-        clearHostTripCreateDraft()
+        if (draftSessionId) deleteHostTripDraft(draftSessionId)
         router.push('/host')
       }
     })
@@ -884,8 +918,9 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
           </p>
           {!isEdit && (
             <p className="text-xs text-muted-foreground/90 mt-2">
-              Your progress is saved automatically as a draft on this device. You can leave anytime and continue later
-              from Create Trip.
+              Your progress is saved automatically as a draft on this browser. Open it from Host → Trip drafts, or use
+              Continue on a draft. Starting &quot;Create New Trip&quot; always opens a blank form. Drafts are removed
+              automatically after {DRAFT_RETENTION_DAYS} days without being updated.
             </p>
           )}
           {isEdit && editModerationStatus === 'approved' && (
@@ -1840,8 +1875,8 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
               Leave this page?
             </h2>
             <p className="text-sm text-muted-foreground">
-              You have trip details in progress. Your draft is saved on this device — choose whether to keep it or delete it
-              before leaving.
+              You have trip details in progress. Your draft is saved on this device (removed after {DRAFT_RETENTION_DAYS}{' '}
+              days without updates) — choose whether to keep it or delete it before leaving.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button type="button" variant="ghost" className="order-3 sm:order-1" onClick={cancelLeaveDialog}>
