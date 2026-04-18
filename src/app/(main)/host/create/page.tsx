@@ -1066,15 +1066,24 @@ function DestinationSearch({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  function normalizeDestQuery(s: string) {
+    return s.toLowerCase().replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+
   function handleInput(q: string) {
     setQuery(q)
     setOpen(true)
 
     if (timerRef.current) clearTimeout(timerRef.current)
 
-    // First show matching existing destinations instantly
+    // Match local DB: ignore commas (e.g. "Shoja, Himachal Pradesh")
+    const qNorm = normalizeDestQuery(q)
+    const tokens = qNorm.split(' ').filter(Boolean)
     const localMatches = destinations
-      .filter(d => `${d.name} ${d.state}`.toLowerCase().includes(q.toLowerCase()))
+      .filter((d) => {
+        const hay = normalizeDestQuery(`${d.name} ${d.state}`)
+        return tokens.length === 0 ? true : tokens.every((t) => hay.includes(t))
+      })
       .slice(0, 5)
     setResults(localMatches)
 
@@ -1085,24 +1094,53 @@ function DestinationSearch({
       setSearching(true)
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' India')}&format=json&limit=5&countrycodes=in&addressdetails=1`,
-          { headers: { 'User-Agent': 'UnSOLO/1.0' } }
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ' India')}&format=json&limit=8&countrycodes=in&addressdetails=1`,
+          { headers: { 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } }
         )
         const data = await res.json()
 
         const mapResults = data
           .filter((r: { type?: string }) => !['country', 'continent'].includes(r.type || ''))
-          .map((r: { place_id: number; display_name: string; address?: { state?: string; city?: string; town?: string; village?: string; county?: string } }) => {
-            const addr = r.address || {}
-            const name = addr.city || addr.town || addr.village || addr.county || r.display_name.split(',')[0]
-            const state = addr.state || 'India'
-            return {
-              id: `new_${r.place_id}`,
-              name: name.trim(),
-              state: state.trim(),
-              isNew: true,
-            }
-          })
+          .map(
+            (r: {
+              place_id: number
+              name?: string
+              display_name: string
+              address?: {
+                state?: string
+                city?: string
+                town?: string
+                village?: string
+                hamlet?: string
+                county?: string
+                suburb?: string
+                locality?: string
+                municipality?: string
+                isolated_dwelling?: string
+              }
+            }) => {
+              const addr = r.address || {}
+              const name =
+                (r.name && String(r.name).trim()) ||
+                addr.hamlet ||
+                addr.isolated_dwelling ||
+                addr.village ||
+                addr.town ||
+                addr.city ||
+                addr.municipality ||
+                addr.suburb ||
+                addr.locality ||
+                addr.county ||
+                r.display_name.split(',')[0]
+              const state = addr.state || 'India'
+              return {
+                id: `new_${r.place_id}`,
+                name: String(name).trim(),
+                state: state.trim(),
+                isNew: true,
+              }
+            },
+          )
           // Remove duplicates with existing destinations
           .filter((m: { name: string; state: string }) =>
             !localMatches.find(l => l.name.toLowerCase() === m.name.toLowerCase() && l.state.toLowerCase() === m.state.toLowerCase())

@@ -35,15 +35,44 @@ export function LocationSearch({ defaultValue, name }: LocationSearchProps) {
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=5&countrycodes=in&addressdetails=1`,
-          { headers: { 'User-Agent': 'UnSOLO/1.0' } }
+          { headers: { 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } }
         )
         const data = await res.json()
-        setResults(data.map((r: { display_name: string; place_id: number; address?: { city?: string; town?: string; village?: string; state?: string } }) => {
-          const addr = r.address || {}
-          const place = addr.city || addr.town || addr.village || r.display_name.split(',')[0]
-          const state = addr.state || ''
-          return { display: state ? `${place}, ${state}` : place, place_id: r.place_id }
-        }))
+        setResults(
+          data.map(
+            (r: {
+              display_name: string
+              place_id: number
+              name?: string
+              address?: {
+                city?: string
+                town?: string
+                village?: string
+                hamlet?: string
+                state?: string
+                suburb?: string
+                locality?: string
+                isolated_dwelling?: string
+                county?: string
+              }
+            }) => {
+              const addr = r.address || {}
+              const place =
+                (r.name && String(r.name).trim()) ||
+                addr.hamlet ||
+                addr.isolated_dwelling ||
+                addr.village ||
+                addr.town ||
+                addr.city ||
+                addr.suburb ||
+                addr.locality ||
+                addr.county ||
+                r.display_name.split(',')[0]
+              const state = addr.state || ''
+              return { display: state ? `${place}, ${state}` : String(place), place_id: r.place_id }
+            },
+          ),
+        )
       } catch { /* ignore */ }
       setSearching(false)
     }, 400)
