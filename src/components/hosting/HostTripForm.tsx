@@ -42,6 +42,10 @@ import {
   type HostTripCreateDraftV1,
 } from '@/lib/host-trip-create-draft'
 import {
+  TRIP_PREVIEW_SESSION_KEY,
+  type HostTripPreviewPayload,
+} from '@/lib/host-trip-preview-session'
+import {
   ArrowLeft,
   ArrowRight,
   Upload,
@@ -106,6 +110,8 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [editModerationStatus, setEditModerationStatus] = useState<string | null>(null)
+  const [editTripSlug, setEditTripSlug] = useState<string | null>(null)
+  const [activePriceTierIndex, setActivePriceTierIndex] = useState(0)
 
   // Data
   const [destinations, setDestinations] = useState<Destination[]>([])
@@ -189,6 +195,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
           return
         }
         setEditModerationStatus(tripData.moderation_status ?? null)
+        setEditTripSlug(typeof tripData.slug === 'string' ? tripData.slug : null)
         setTitle(tripData.title || '')
         setDestinationId(tripData.destination_id || '')
         setDescription(tripData.description || '')
@@ -293,10 +300,21 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
     return Math.min(...amounts)
   }, [priceRows])
 
-  const listPriceSplit = useMemo(() => {
-    if (minListPricePaise == null) return null
-    return splitInclusiveCommunityPayment(minListPricePaise, platformFeePercent)
-  }, [minListPricePaise, platformFeePercent])
+  useEffect(() => {
+    setActivePriceTierIndex((i) => Math.min(i, Math.max(0, priceRows.length - 1)))
+  }, [priceRows.length])
+
+  const activeTierPricePaise = useMemo(() => {
+    const idx = Math.min(Math.max(0, activePriceTierIndex), Math.max(0, priceRows.length - 1))
+    const p = Math.round(parseFloat(priceRows[idx]?.rupees || '') * 100)
+    if (!Number.isFinite(p) || p < 100) return null
+    return p
+  }, [priceRows, activePriceTierIndex])
+
+  const activeTierSplit = useMemo(() => {
+    if (activeTierPricePaise == null) return null
+    return splitInclusiveCommunityPayment(activeTierPricePaise, platformFeePercent)
+  }, [activeTierPricePaise, platformFeePercent])
 
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
@@ -457,11 +475,18 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
   }, [leaveDialogOpen])
 
   function addPriceRow() {
+    const nextIdx = priceRows.length
     setPriceRows((prev) => [...prev, { rupees: '', facilities: '' }])
+    setActivePriceTierIndex(nextIdx)
   }
 
   function removePriceRow(i: number) {
     setPriceRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)))
+    setActivePriceTierIndex((idx) => {
+      if (i < idx) return idx - 1
+      if (i === idx) return Math.max(0, idx - 1)
+      return idx
+    })
   }
 
   function updatePriceRow(i: number, field: 'rupees' | 'facilities', value: string) {
@@ -991,7 +1016,13 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                   {priceRows.map((row, i) => (
                     <div
                       key={i}
-                      className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2"
+                      className={cn(
+                        'rounded-lg border bg-secondary/30 p-3 space-y-2 transition-shadow',
+                        priceRows.length >= 2 && i === activePriceTierIndex
+                          ? 'border-primary ring-2 ring-primary/35'
+                          : 'border-border',
+                      )}
+                      onMouseDown={() => priceRows.length >= 2 && setActivePriceTierIndex(i)}
                     >
                       <div className="flex flex-wrap items-end gap-2">
                         <div className="flex-1 min-w-[120px]">
@@ -1000,6 +1031,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                             type="number"
                             value={row.rupees}
                             onChange={(e) => updatePriceRow(i, 'rupees', e.target.value)}
+                            onFocus={() => setActivePriceTierIndex(i)}
                             placeholder="8999"
                             className="bg-secondary border-border"
                             min="1"
@@ -1024,6 +1056,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                           <Input
                             value={row.facilities}
                             onChange={(e) => updatePriceRow(i, 'facilities', e.target.value)}
+                            onFocus={() => setActivePriceTierIndex(i)}
                             placeholder="e.g. Shared dorm · 4-bed · common washrooms"
                             className="bg-secondary border-border text-sm"
                           />
@@ -1042,25 +1075,32 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                     Listing shows the lowest tier; travelers choose their option when booking.
                   </p>
                 )}
-                {listPriceSplit && minListPricePaise != null && (
+                {activeTierSplit && activeTierPricePaise != null && (
                   <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm space-y-1.5">
                     <p className="font-semibold text-foreground">How your list price splits</p>
                     <p className="text-xs text-muted-foreground">
                       Travelers pay the price you list — nothing extra is added at checkout. UnSOLO keeps a{' '}
                       {platformFeePercent}% platform fee from that amount; the rest is your estimated payout below.
                     </p>
+                    {priceRows.length >= 2 && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Showing the tier you&apos;re editing (click a tier to compare).
+                      </p>
+                    )}
                     <ul className="text-xs space-y-0.5 pt-1">
                       <li className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">Traveler pays (per person, lowest tier)</span>
-                        <span className="font-medium tabular-nums">{formatPrice(minListPricePaise)}</span>
+                        <span className="text-muted-foreground">
+                          Traveler pays (per person{priceRows.length >= 2 ? ', this tier' : ''})
+                        </span>
+                        <span className="font-medium tabular-nums">{formatPrice(activeTierPricePaise)}</span>
                       </li>
                       <li className="flex justify-between gap-2">
                         <span className="text-muted-foreground">Platform ({platformFeePercent}%)</span>
-                        <span className="tabular-nums">{formatPrice(listPriceSplit.platformFeePaise)}</span>
+                        <span className="tabular-nums">{formatPrice(activeTierSplit.platformFeePaise)}</span>
                       </li>
                       <li className="flex justify-between gap-2 font-medium text-primary">
                         <span>Your estimated payout (per person)</span>
-                        <span className="tabular-nums">{formatPrice(listPriceSplit.hostPaise)}</span>
+                        <span className="tabular-nums">{formatPrice(activeTierSplit.hostPaise)}</span>
                       </li>
                     </ul>
                     {priceRows.length >= 2 && (
@@ -1306,6 +1346,7 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                         className="h-24 w-36 rounded-lg object-cover border border-border"
                       />
                       <button
+                        type="button"
                         onClick={() => removeImage(i)}
                         className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                       >
@@ -1318,6 +1359,16 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                       )}
                     </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex h-24 w-36 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-secondary/20 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+                    aria-label="Add image from device"
+                  >
+                    <Plus className="h-7 w-7" />
+                    <span className="mt-1 text-[10px] font-medium">Add image</span>
+                  </button>
                 </div>
               )}
 
@@ -1712,14 +1763,38 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    // Open preview in new tab with data in sessionStorage
-                    const previewData = {
-                      title, shortDescription, description, priceRows, tripDays, tripNights, maxGroupSize,
-                      difficulty, scheduleRows, excludeFirstTravel, departureTime, returnTime, selectedIncludes, images, interestTags,
-                      destination: destinationId ? destinations.find(d => d.id === destinationId) : null,
+                    const dest = destinationId ? destinations.find((d) => d.id === destinationId) : null
+                    const previewPayload: HostTripPreviewPayload = {
+                      title,
+                      shortDescription,
+                      description,
+                      priceRows,
+                      tripDays,
+                      tripNights,
+                      maxGroupSize,
+                      difficulty,
+                      scheduleRows,
+                      excludeFirstTravel,
+                      departureTime,
+                      returnTime,
+                      selectedIncludes,
+                      images,
+                      interestTags,
+                      destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
+                      paymentTiming,
+                      genderPreference,
+                      minAge,
+                      maxAge,
+                      minTripsCompleted,
+                      livePackageSlug: isEdit ? editTripSlug : null,
                     }
-                    sessionStorage.setItem('trip-preview', JSON.stringify(previewData))
-                    window.open('/host/create?preview=1', '_blank')
+                    try {
+                      sessionStorage.setItem(TRIP_PREVIEW_SESSION_KEY, JSON.stringify(previewPayload))
+                    } catch {
+                      toast.error('Could not open preview (storage blocked).')
+                      return
+                    }
+                    window.open('/host/trip-preview', '_blank', 'noopener,noreferrer')
                   }}
                   className="gap-1.5"
                 >
