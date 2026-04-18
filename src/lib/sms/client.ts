@@ -1,13 +1,37 @@
 // ── SMS Gateway ─────────────────────────────────────────────
-// Uses MSG91 for India (cheap, reliable). Easy to swap to Twilio later.
-// For MVP/testing: if no MSG91 keys, logs OTP to console.
+// Priority: TWOFACTOR_API_KEY (2factor.in) → MSG91 → console fallback (dev).
+// `message` is the OTP digits for host phone verification.
+
+type TwoFactorSendResponse = { Status?: string; Details?: string }
 
 export async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string; devConsoleOnly?: boolean }> {
+  const twoFactorKey = process.env.TWOFACTOR_API_KEY
   const authKey = process.env.MSG91_AUTH_KEY
   const templateId = process.env.MSG91_TEMPLATE_ID
   const senderId = process.env.MSG91_SENDER_ID || 'UNSOLO'
 
-  // No API key: local/dev — OTP only in server logs (never claim SMS was delivered)
+  if (twoFactorKey) {
+    try {
+      const path = `/API/V1/${encodeURIComponent(twoFactorKey)}/SMS/91${encodeURIComponent(phone)}/${encodeURIComponent(message)}`
+      const response = await fetch(`https://2factor.in${path}`, { method: 'POST' })
+      const data = (await response.json()) as TwoFactorSendResponse
+
+      if (data.Status === 'Success') {
+        return { success: true }
+      }
+
+      console.error('[SMS] 2factor.in response:', data)
+      return {
+        success: false,
+        error: data.Details || `SMS send failed (HTTP ${response.status})`,
+      }
+    } catch (err) {
+      console.error('SMS send error:', err)
+      return { success: false, error: 'SMS service unavailable' }
+    }
+  }
+
+  // No provider key: local/dev — OTP only in server logs (never claim SMS was delivered)
   if (!authKey) {
     console.log(`[SMS FALLBACK] To: +91${phone} | OTP/message: ${message}`)
     return { success: true, devConsoleOnly: true }
