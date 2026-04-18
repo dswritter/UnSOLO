@@ -206,7 +206,7 @@ export default async function ProfilePage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
         {/* Profile Header */}
         <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
@@ -344,8 +344,8 @@ export default async function ProfilePage({
             </div>
           </div>
 
-          {/* Stats — in header on smaller screens; xl+ uses sticky sidebar */}
-          <div className="mt-6 pt-6 border-t border-border xl:hidden">
+          {/* Stats — stacked on small screens; lg+ uses sticky sidebar */}
+          <div className="mt-6 pt-6 border-t border-border lg:hidden">
             {statsGrid}
             {leaderboardRankRow}
           </div>
@@ -357,12 +357,8 @@ export default async function ProfilePage({
 
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
-        <div className="flex flex-col xl:flex-row xl:items-start xl:gap-8">
-          <div className="min-w-0 flex-1">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 xl:grid-cols-1">
-              <div className="lg:col-span-1 xl:hidden">{badgesCard}</div>
-              {/* Travel history + reviews */}
-              <div className="lg:col-span-2 xl:col-span-1 space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
+          <div className="min-w-0 flex-1 space-y-6">
             {/* Trips - clickable, with privacy */}
             {completedBookings && completedBookings.length > 0 && (
               <Card className="bg-card border-border">
@@ -398,11 +394,6 @@ export default async function ProfilePage({
                   )}
                 </CardContent>
               </Card>
-            )}
-
-            {/* States visited — main column below xl only (sidebar on xl) */}
-            {uniqueStates.size > 0 && (
-              <div className="xl:hidden">{statesExploredCard}</div>
             )}
 
             {reviews && reviews.length > 0 && (
@@ -454,13 +445,20 @@ export default async function ProfilePage({
                 </CardContent>
               </Card>
             )}
-              </div>
+
+            {/* Badges & states: sidebar on lg+; stacked here on narrow screens */}
+            <div className="space-y-6 lg:hidden">
+              {badgesCard}
+              {uniqueStates.size > 0 ? statesExploredCard : null}
             </div>
           </div>
 
-          {/* Desktop sidebar: metrics + badges + states */}
-          <aside className="hidden xl:flex xl:w-80 xl:shrink-0 xl:flex-col xl:gap-6 xl:sticky xl:top-24 xl:self-start">
-            <Card className="bg-card border-border">
+          {/* Achievements sidebar: stats, badges, states (lg+) */}
+          <aside className="hidden lg:flex lg:w-72 xl:w-80 2xl:w-[22rem] shrink-0 flex-col gap-6 lg:sticky lg:top-20 xl:top-24 self-start">
+            <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Achievements & stats</p>
+            </div>
+            <Card className="bg-card border-border shadow-sm">
               <CardContent className="p-5">
                 <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
                 {statsGrid}
@@ -472,8 +470,8 @@ export default async function ProfilePage({
           </aside>
         </div>
 
-        {/* Travel Stats — Points, Tiers, States, Achievements */}
-        <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} />
+        {/* Tier progress & places covered (badges/states grid lives in sidebar above) */}
+        <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} deferToSidebar />
       </div>
     </div>
   )

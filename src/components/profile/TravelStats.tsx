@@ -40,9 +40,14 @@ const ACHIEVEMENTS = [
 interface TravelStatsProps {
   userId: string
   isOwnProfile: boolean
+  /**
+   * When true (e.g. profile page with right sidebar), omit badges, India states grid,
+   * and the mini trips/dest/reviews row — those are shown in the profile sidebar.
+   */
+  deferToSidebar?: boolean
 }
 
-export function TravelStats({ userId, isOwnProfile }: TravelStatsProps) {
+export function TravelStats({ userId, isOwnProfile, deferToSidebar }: TravelStatsProps) {
   const [stats, setStats] = useState<{
     score: number
     tripsCompleted: number
@@ -158,29 +163,30 @@ export function TravelStats({ userId, isOwnProfile }: TravelStatsProps) {
             </div>
           )}
 
-          {/* Score breakdown */}
-          <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-            <div className="bg-secondary/30 rounded-lg py-2">
-              <Trophy className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
-              <div className="text-sm font-bold">{stats.tripsCompleted}</div>
-              <div className="text-[10px] text-muted-foreground">Trips</div>
+          {!deferToSidebar ? (
+            <div className="grid grid-cols-3 gap-3 mt-4 text-center">
+              <div className="bg-secondary/30 rounded-lg py-2">
+                <Trophy className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
+                <div className="text-sm font-bold">{stats.tripsCompleted}</div>
+                <div className="text-[10px] text-muted-foreground">Trips</div>
+              </div>
+              <div className="bg-secondary/30 rounded-lg py-2">
+                <MapPin className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
+                <div className="text-sm font-bold">{stats.destinationsCount}</div>
+                <div className="text-[10px] text-muted-foreground">Destinations</div>
+              </div>
+              <div className="bg-secondary/30 rounded-lg py-2">
+                <Star className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
+                <div className="text-sm font-bold">{stats.reviewsWritten}</div>
+                <div className="text-[10px] text-muted-foreground">Reviews</div>
+              </div>
             </div>
-            <div className="bg-secondary/30 rounded-lg py-2">
-              <MapPin className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
-              <div className="text-sm font-bold">{stats.destinationsCount}</div>
-              <div className="text-[10px] text-muted-foreground">Destinations</div>
-            </div>
-            <div className="bg-secondary/30 rounded-lg py-2">
-              <Star className="h-3.5 w-3.5 text-primary mx-auto mb-0.5" />
-              <div className="text-sm font-bold">{stats.reviewsWritten}</div>
-              <div className="text-[10px] text-muted-foreground">Reviews</div>
-            </div>
-          </div>
+          ) : null}
         </CardContent>
       </Card>
 
       {/* Badges & Achievements */}
-      {stats.achievements.length > 0 && (
+      {!deferToSidebar && stats.achievements.length > 0 && (
         <Card className="border-border bg-card">
           <CardContent className="p-5">
             <h3 className="text-sm font-bold flex items-center gap-2 mb-3">
@@ -212,6 +218,7 @@ export function TravelStats({ userId, isOwnProfile }: TravelStatsProps) {
       )}
 
       {/* States Unlocked */}
+      {deferToSidebar ? null : (
       <Card className="border-border bg-card">
         <CardContent className="p-5">
           <h3 className="text-sm font-bold flex items-center gap-2 mb-3">
@@ -239,6 +246,7 @@ export function TravelStats({ userId, isOwnProfile }: TravelStatsProps) {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Places Covered */}
       {stats.destinations.length > 0 && (
