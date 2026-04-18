@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { toBlob } from 'html-to-image'
 import { Button } from '@/components/ui/button'
@@ -403,9 +403,13 @@ function prefersPosterDownloadOverNativeShare(): boolean {
   return /Instagram|FBAN|FBAV|FB_IAB|FB4A|Line\/|MicroMessenger|Twitter|Snapchat/i.test(ua)
 }
 
+const MENU_PAD = 12
+const MENU_WIDTH_PX = 224 // ~14rem
+
 export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const ref = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const propsRef = useRef(props)
   propsRef.current = props
 
@@ -413,6 +417,41 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
   const [posterMode, setPosterMode] = useState<PosterMode>('full')
+
+  const positionShareMenu = useCallback(() => {
+    const menu = menuRef.current
+    const wrap = panelRef.current
+    if (!menu || !wrap) return
+    const anchor = wrap.getBoundingClientRect()
+    const vw = window.innerWidth
+    const maxW = Math.min(MENU_WIDTH_PX, vw - MENU_PAD * 2)
+    menu.style.width = `${maxW}px`
+    const mw = menu.offsetWidth
+    let left = anchor.left
+    if (left + mw > vw - MENU_PAD) {
+      left = vw - MENU_PAD - mw
+    }
+    if (left < MENU_PAD) {
+      left = MENU_PAD
+    }
+    menu.style.position = 'fixed'
+    menu.style.top = `${anchor.bottom + 4}px`
+    menu.style.left = `${left}px`
+    menu.style.right = 'auto'
+    menu.style.insetInlineStart = 'auto'
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!panelOpen) return
+    positionShareMenu()
+    const onReposition = () => positionShareMenu()
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [panelOpen, positionShareMenu])
 
   useEffect(() => {
     if (!panelOpen) return
@@ -540,8 +579,9 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         </Button>
         {panelOpen && !busy ? (
           <div
+            ref={menuRef}
             role="menu"
-            className="absolute right-0 top-[calc(100%+4px)] z-[500] min-w-[14rem] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10"
+            className="z-[500] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10 touch-manipulation"
           >
             <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Full poster
