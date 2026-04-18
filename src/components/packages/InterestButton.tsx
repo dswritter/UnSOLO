@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Heart } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { toggleInterest } from '@/actions/booking'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -31,7 +32,7 @@ export function InterestButton({ packageId, initialCount, initialInterested, isL
     setCount(c => wasInterested ? c - 1 : c + 1)
 
     const result = await toggleInterest(packageId)
-    if (result.error) {
+    if ('error' in result && result.error) {
       toast.error(result.error)
       setInterested(wasInterested)
       setCount(c => wasInterested ? c + 1 : c - 1)
@@ -50,7 +51,17 @@ export function InterestButton({ packageId, initialCount, initialInterested, isL
             : 'bg-secondary border-border text-muted-foreground hover:text-white hover:border-primary/40'
         }`}
       >
-        <Heart className={`h-4 w-4 transition-all ${interested ? 'fill-red-400 text-red-400' : ''}`} />
+        <motion.span
+          className="inline-flex"
+          animate={
+            interested
+              ? { scale: [1, 1.35, 1], rotate: [0, -12, 12, 0] }
+              : { scale: 1, rotate: 0 }
+          }
+          transition={{ type: 'spring', stiffness: 520, damping: 18, mass: 0.6 }}
+        >
+          <Heart className={`h-4 w-4 ${interested ? 'fill-red-400 text-red-400' : ''}`} />
+        </motion.span>
         <span>{interested ? 'Interested' : "I'm Interested"}</span>
         {count > 0 && (
           <span className={`text-xs px-1.5 py-0.5 rounded-full ${interested ? 'bg-red-500/20' : 'bg-secondary'}`}>

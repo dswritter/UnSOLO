@@ -1,33 +1,68 @@
-export const revalidate = 86400
+import { createClient } from '@/lib/supabase/server'
+import {
+  defaultHostRefundTiers,
+  defaultUnsoloRefundTiers,
+  parseRefundTiersJson,
+  tierRefundLabel,
+  tierTimelineLabel,
+  type RefundTier,
+} from '@/lib/refund-tiers'
 
-export default function RefundPolicyPage() {
+export const revalidate = 3600
+
+async function loadRefundTiers(): Promise<{ unsolo: RefundTier[]; host: RefundTier[] }> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('platform_settings').select('key, value').in('key', ['refund_tiers_unsolo', 'refund_tiers_host'])
+  const map = Object.fromEntries((data || []).map((r) => [r.key, r.value as string]))
+  return {
+    unsolo: parseRefundTiersJson(map.refund_tiers_unsolo, defaultUnsoloRefundTiers()),
+    host: parseRefundTiersJson(map.refund_tiers_host, defaultHostRefundTiers()),
+  }
+}
+
+function TierTable({ tiers }: { tiers: RefundTier[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
+        <thead>
+          <tr className="bg-secondary">
+            <th className="text-left px-4 py-2 border-b border-border">Cancellation timeline</th>
+            <th className="text-left px-4 py-2 border-b border-border">Refund</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tiers.map((t, i) => (
+            <tr key={i}>
+              <td className="px-4 py-2 border-b border-border">{tierTimelineLabel(t)}</td>
+              <td className="px-4 py-2 border-b border-border">{tierRefundLabel(t.percent)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export default async function RefundPolicyPage() {
+  const { unsolo, host } = await loadRefundTiers()
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
-        <h1 className="text-3xl font-black mb-2">Refund &amp; Cancellation <span className="text-primary">Policy</span></h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: 25 March 2026</p>
+        <h1 className="text-3xl font-black mb-2">
+          Refund &amp; Cancellation <span className="text-primary">Policy</span>
+        </h1>
+        <p className="text-sm text-muted-foreground mb-8">
+          Last updated: 17 April 2026 · Tier tables below are maintained by UnSOLO and may change; the live values also appear
+          in admin settings.
+        </p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
           <section>
             <h2 className="text-lg font-bold text-foreground">1. UnSOLO Trips (Curated Packages)</h2>
 
             <h3 className="text-sm font-semibold mt-3">Cancellation by Customer:</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
-                <thead>
-                  <tr className="bg-secondary">
-                    <th className="text-left px-4 py-2 border-b border-border">Cancellation Timeline</th>
-                    <th className="text-left px-4 py-2 border-b border-border">Refund</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td className="px-4 py-2 border-b border-border">30+ days before departure</td><td className="px-4 py-2 border-b border-border">Full refund (100%)</td></tr>
-                  <tr><td className="px-4 py-2 border-b border-border">15-29 days before departure</td><td className="px-4 py-2 border-b border-border">75% refund</td></tr>
-                  <tr><td className="px-4 py-2 border-b border-border">7-14 days before departure</td><td className="px-4 py-2 border-b border-border">50% refund</td></tr>
-                  <tr><td className="px-4 py-2 border-b border-border">Less than 7 days</td><td className="px-4 py-2 border-b border-border">No refund</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <TierTable tiers={unsolo} />
 
             <h3 className="text-sm font-semibold mt-3">Cancellation by UnSOLO:</h3>
             <ul className="list-disc pl-5 space-y-1">
@@ -45,12 +80,12 @@ export default function RefundPolicyPage() {
               <li>You can withdraw your request at any time with no charges.</li>
             </ul>
 
-            <h3 className="text-sm font-semibold mt-3">After Payment:</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Cancellation requests are reviewed by the UnSOLO admin team.</li>
-              <li>Refund amount is determined based on the timeline above and host&apos;s cancellation terms.</li>
-              <li>The platform fee portion of community trip payments is non-refundable.</li>
-            </ul>
+            <h3 className="text-sm font-semibold mt-3">After Payment (admin-reviewed cancellations):</h3>
+            <p className="text-sm text-muted-foreground">
+              Refund percentages for community trips follow the schedule below unless your booking notes otherwise. The
+              platform fee portion may still be non-refundable (see Non-Refundable Items).
+            </p>
+            <TierTable tiers={host} />
 
             <h3 className="text-sm font-semibold mt-3">Cancellation by Host:</h3>
             <ul className="list-disc pl-5 space-y-1">
@@ -103,19 +138,30 @@ export default function RefundPolicyPage() {
             <h2 className="text-lg font-bold text-foreground">7. Non-Refundable Items</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>Platform fee on community trips (rate determined by UnSOLO).</li>
-              <li>Bookings cancelled less than 7 days before departure.</li>
+              <li>Bookings cancelled inside the &quot;no refund&quot; window of the schedule above.</li>
               <li>No-shows (failure to join the trip without prior cancellation).</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-lg font-bold text-foreground">8. Disputes</h2>
-            <p>If you disagree with a refund decision, email us at <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a> with your booking ID. We will review and respond within 5 business days.</p>
+            <p>
+              If you disagree with a refund decision, email us at{' '}
+              <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">
+                hello@unsolo.in
+              </a>{' '}
+              with your booking ID. We will review and respond within 5 business days.
+            </p>
           </section>
 
           <section>
             <h2 className="text-lg font-bold text-foreground">9. Contact</h2>
-            <p>For refund queries: <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a></p>
+            <p>
+              For refund queries:{' '}
+              <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">
+                hello@unsolo.in
+              </a>
+            </p>
           </section>
         </div>
       </div>

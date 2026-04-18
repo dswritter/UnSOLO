@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Save, Settings } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -13,10 +14,18 @@ interface Setting {
   description: string | null
 }
 
-const SETTING_LABELS: Record<string, { label: string; type: 'number' | 'text' }> = {
+const SETTING_LABELS: Record<string, { label: string; type: 'number' | 'text' | 'json' }> = {
   host_max_group_size: { label: 'Max Group Size (for hosts)', type: 'number' },
   platform_fee_percent: { label: 'Platform Fee %', type: 'number' },
   join_payment_deadline_hours: { label: 'Payment Deadline (hours)', type: 'number' },
+  refund_tiers_unsolo: {
+    label: 'Refund tiers — UnSOLO trips (JSON)',
+    type: 'json',
+  },
+  refund_tiers_host: {
+    label: 'Refund tiers — Community / host trips (JSON)',
+    type: 'json',
+  },
 }
 
 export default function SettingsClient({ settings: initialSettings }: { settings: Setting[] }) {
@@ -56,12 +65,21 @@ export default function SettingsClient({ settings: initialSettings }: { settings
             {s.description && (
               <p className="text-xs text-muted-foreground">{s.description}</p>
             )}
-            <Input
-              type={config.type}
-              value={settings[s.key] || ''}
-              onChange={e => setSettings(prev => ({ ...prev, [s.key]: e.target.value }))}
-              className="bg-secondary border-border max-w-xs"
-            />
+                       {config.type === 'json' ? (
+              <Textarea
+                value={settings[s.key] || ''}
+                onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                className="bg-secondary border-border max-w-xl min-h-[140px] font-mono text-xs"
+                spellCheck={false}
+              />
+            ) : (
+              <Input
+                type={config.type === 'number' ? 'number' : 'text'}
+                value={settings[s.key] || ''}
+                onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                className="bg-secondary border-border max-w-xs"
+              />
+            )}
           </div>
         )
       })}

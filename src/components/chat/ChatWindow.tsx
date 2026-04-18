@@ -1769,10 +1769,10 @@ function MessageBubble({
           </div>
         )}
         <div
-          className={`px-3 py-1.5 rounded-2xl text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation ${
+          className={`px-3.5 py-2 rounded-[1.25rem] text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation shadow-sm ${
             isOwn
-              ? 'bg-primary text-black rounded-tr-sm'
-              : 'bg-card border border-border rounded-tl-sm'
+              ? 'bg-gradient-to-br from-primary to-amber-500 text-black rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30'
+              : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
           }`}
           {...(canReact ? bubbleLongPress : {})}
           onTouchEnd={canReact ? onBubbleTouchEnd : undefined}

@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-black mb-2">Privacy <span className="text-primary">Policy</span></h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: 25 March 2026</p>
+        <p className="text-sm text-muted-foreground mb-8">Last updated: 17 April 2026</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
           <section>
@@ -78,6 +78,12 @@ export default function PrivacyPage() {
               <li>Payment card details are never stored on our servers (handled entirely by Razorpay).</li>
               <li>OTP codes expire after 10 minutes and are deleted after verification.</li>
             </ul>
+            <h3 className="text-sm font-semibold mt-3">Abuse prevention &amp; automated traffic</h3>
+            <p>
+              To reduce spam, bots, and platform abuse, we may apply rate limits, risk signals, optional verification
+              challenges (such as CAPTCHA or equivalent), and account restrictions. We process related data only as needed
+              for security and service integrity, consistent with this policy.
+            </p>
           </section>
 
           <section>

@@ -8,6 +8,7 @@ import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 
 export async function createRazorpayOrder(
   packageId: string,
@@ -22,6 +23,9 @@ export async function createRazorpayOrder(
   if (!user) {
     return { error: 'Not authenticated' }
   }
+
+  const orderRate = await assertBookingOrderRateLimit(supabase, user.id)
+  if (orderRate.error) return { error: orderRate.error }
 
   // Get user profile for prefill
   const { data: profile } = await supabase
@@ -534,6 +538,16 @@ export async function toggleInterest(packageId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
+  const since = new Date(Date.now() - 300_000).toISOString()
+  const { count: recentAdds } = await supabase
+    .from('package_interests')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', since)
+  if ((recentAdds ?? 0) >= 40) {
+    return { error: 'Too many interest updates. Please try again in a few minutes.' }
+  }
+
   // Check if already interested
   const { data: existing } = await supabase
     .from('package_interests')
@@ -923,6 +937,9 @@ export async function createCommunityTripOrder(joinRequestId: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  const orderRate = await assertBookingOrderRateLimit(supabase, user.id)
+  if (orderRate.error) return { error: orderRate.error }
 
   const { data: profile } = await supabase
     .from('profiles')

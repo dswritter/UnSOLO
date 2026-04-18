@@ -5,7 +5,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-black mb-2">Terms of <span className="text-primary">Service</span></h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: 25 March 2026</p>
+        <p className="text-sm text-muted-foreground mb-8">Last updated: 17 April 2026</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
           <section>
@@ -76,6 +76,7 @@ export default function TermsPage() {
               <li>Attempt to bypass payment systems or platform fees.</li>
               <li>Scrape, copy, or reverse-engineer the platform.</li>
               <li>Create fake accounts or manipulate reviews/ratings.</li>
+              <li>Use bots, scripts, or automated tools to sign up, book, message users, or scrape the platform without our written permission.</li>
             </ul>
           </section>
 

@@ -3,11 +3,15 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
+import { assertMessageSendRateLimit } from '@/lib/server-rate-limit'
 
 export async function sendMessage(roomId: string, content: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
+
+  const rate = await assertMessageSendRateLimit(supabase, user.id)
+  if (rate.error) return { error: rate.error }
 
   // Check membership
   const { data: member } = await supabase

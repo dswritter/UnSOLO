@@ -12,6 +12,7 @@ import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { HomeStatusRail } from '@/components/status/HomeStatusRail'
 import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
+import { LandingPromoDock, type LandingPromoRow } from '@/components/home/LandingPromoDock'
 import type { Package, Profile } from '@/types'
 
 async function getFeaturedPackages() {
@@ -31,6 +32,29 @@ async function getCurrentProfile() {
   if (!user) return null
   const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
   return data as Profile | null
+}
+
+async function getLandingPromos(): Promise<LandingPromoRow[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('landing_promo_cards')
+    .select('id, title, body, href, link_label, variant, is_active, starts_at, ends_at')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true })
+  const now = Date.now()
+  const rows = (data || []).filter((r) => {
+    if (r.starts_at && new Date(r.starts_at).getTime() > now) return false
+    if (r.ends_at && new Date(r.ends_at).getTime() < now) return false
+    return true
+  })
+  return rows.map(({ id, title, body, href, link_label, variant }) => ({
+    id,
+    title,
+    body,
+    href,
+    link_label,
+    variant: variant as LandingPromoRow['variant'],
+  }))
 }
 
 async function getStats() {
@@ -68,6 +92,7 @@ export default async function HomePage() {
   let packages: Package[] = []
   let profile: Profile | null = null
   let stats = { travelers: 0, trips: 0, destinations: 0 }
+  let landingPromos: LandingPromoRow[] = []
 
   try {
     ;[packages, profile, stats] = await Promise.all([
@@ -78,6 +103,7 @@ export default async function HomePage() {
   } catch {
     // If Supabase is down, show page with defaults
   }
+  landingPromos = await getLandingPromos().catch(() => [])
 
   const displayTravelers = stats.travelers > 0 ? `${stats.travelers}+` : '10+'
   const displayTrips = stats.trips > 0 ? `${stats.trips}+` : '0'
@@ -204,6 +230,7 @@ export default async function HomePage() {
       {/* Chat notification widget + floating button (for logged-in users) */}
       {profile && <ChatNotificationWidget userId={profile.id} />}
       {profile && <PresenceTracker userId={profile.id} />}
+      {landingPromos.length > 0 ? <LandingPromoDock promos={landingPromos} /> : null}
     </div>
   )
 }
