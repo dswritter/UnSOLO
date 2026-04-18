@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { toast } from 'sonner'
 import {
   INTEREST_TAGS,
@@ -93,6 +94,8 @@ export default function CreateTripPage() {
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadAbortRef = useRef<AbortController | null>(null)
+  const imageUrlGenerationRef = useRef(0)
 
   const [minAge, setMinAge] = useState('')
   const [maxAge, setMaxAge] = useState('')
@@ -155,42 +158,79 @@ export default function CreateTripPage() {
     setPriceRows((prev) => prev.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
   }
 
+  function cancelFileUpload() {
+    uploadAbortRef.current?.abort()
+  }
+
   // Image upload handler (same pattern as admin)
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
     if (!files?.length) return
-    setUploading(true)
 
-    for (const file of Array.from(files)) {
-      if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
-        toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
-        continue
-      }
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('purpose', 'host_trip')
-      try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const json = await res.json()
-        if (json.url) {
-          setImages(prev => [...prev, json.url])
-        } else {
-          toast.error(json.error || 'Upload failed')
+    const ac = new AbortController()
+    uploadAbortRef.current = ac
+    setUploading(true)
+    let cancelled = false
+
+    try {
+      for (const file of Array.from(files)) {
+        if (ac.signal.aborted) {
+          cancelled = true
+          break
         }
-      } catch {
-        toast.error('Upload failed')
+        if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+          toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+          continue
+        }
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('purpose', 'host_trip')
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: fd, signal: ac.signal })
+          const json = await res.json()
+          if (ac.signal.aborted) {
+            cancelled = true
+            break
+          }
+          if (json.url) {
+            setImages(prev => [...prev, json.url])
+          } else {
+            toast.error(json.error || 'Upload failed')
+          }
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            cancelled = true
+            break
+          }
+          if (err instanceof Error && err.name === 'AbortError') {
+            cancelled = true
+            break
+          }
+          toast.error('Upload failed')
+        }
       }
+      if (cancelled) {
+        toast.message('Upload cancelled')
+      }
+    } finally {
+      uploadAbortRef.current = null
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const [imageLoading, setImageLoading] = useState(false)
+
+  function cancelImageUrlLoad() {
+    imageUrlGenerationRef.current += 1
+    setImageLoading(false)
+  }
 
   async function addImageUrl() {
     const url = imageUrlInput.trim()
     if (!url) return
 
+    const gen = ++imageUrlGenerationRef.current
     setImageLoading(true)
     let finalUrl = url
 
@@ -225,11 +265,13 @@ export default function CreateTripPage() {
         }
         if (!found) {
           toast.error('Could not load Unsplash image. Try right-clicking the image → "Copy image address" and paste that instead.')
-          setImageLoading(false)
+          if (gen === imageUrlGenerationRef.current) setImageLoading(false)
           return
         }
       }
     }
+
+    if (gen !== imageUrlGenerationRef.current) return
 
     // Validate that the URL loads as an image
     try {
@@ -240,17 +282,20 @@ export default function CreateTripPage() {
         img.src = finalUrl
         setTimeout(() => resolve(false), 8000)
       })
+      if (gen !== imageUrlGenerationRef.current) return
       if (!loaded) {
         toast.error('Image could not be loaded. Check the URL or try uploading instead.')
         setImageLoading(false)
         return
       }
     } catch {
+      if (gen !== imageUrlGenerationRef.current) return
       toast.error('Invalid image URL')
       setImageLoading(false)
       return
     }
 
+    if (gen !== imageUrlGenerationRef.current) return
     setImages(prev => [...prev, finalUrl])
     setImageUrlInput('')
     setImageLoading(false)
@@ -413,6 +458,18 @@ export default function CreateTripPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ImageUploadOverlay
+        open={uploading}
+        message="Uploading images…"
+        subMessage="Please keep this tab open."
+        onCancel={cancelFileUpload}
+      />
+      <ImageUploadOverlay
+        open={imageLoading}
+        message="Loading image…"
+        subMessage="Validating the image URL"
+        onCancel={cancelImageUrlLoad}
+      />
       <div className="mx-auto max-w-3xl px-4 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -893,20 +950,6 @@ export default function CreateTripPage() {
               <p className="text-[10px] text-muted-foreground">
                 Max 5MB each. JPEG, PNG, or WebP.
               </p>
-
-              {/* Image loading overlay */}
-              {imageLoading && (
-                <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                  <div className="bg-card border border-border rounded-xl p-8 text-center max-w-sm">
-                    <div className="h-10 w-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
-                    <p className="font-bold text-sm">Loading image...</p>
-                    <p className="text-xs text-muted-foreground mt-1">Validating the image URL</p>
-                    <Button variant="outline" size="sm" className="mt-4" onClick={() => setImageLoading(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

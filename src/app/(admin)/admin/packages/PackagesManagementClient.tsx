@@ -14,6 +14,7 @@ import { createPackage, updatePackage, togglePackageActive, deletePackage, creat
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { Plus, Eye, EyeOff, Star, MapPin, Edit2, X, Upload, Image as ImageIcon } from 'lucide-react'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
@@ -60,6 +61,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
   // Image upload
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const uploadAbortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
 
@@ -269,32 +271,63 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     })
   }
 
+  function cancelFileUpload() {
+    uploadAbortRef.current?.abort()
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
     if (!files?.length) return
-    setUploading(true)
 
-    for (const file of Array.from(files)) {
-      if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
-        setMessage({ type: 'error', text: UPLOAD_IMAGE_TOO_LARGE_MESSAGE })
-        continue
-      }
-      const fd = new FormData()
-      fd.append('file', file)
-      try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const json = await res.json()
-        if (json.url) {
-          setForm(f => ({ ...f, images: [...f.images, json.url] }))
-        } else {
-          setMessage({ type: 'error', text: json.error || 'Upload failed' })
+    const ac = new AbortController()
+    uploadAbortRef.current = ac
+    setUploading(true)
+    let cancelled = false
+
+    try {
+      for (const file of Array.from(files)) {
+        if (ac.signal.aborted) {
+          cancelled = true
+          break
         }
-      } catch {
-        setMessage({ type: 'error', text: 'Upload failed' })
+        if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+          setMessage({ type: 'error', text: UPLOAD_IMAGE_TOO_LARGE_MESSAGE })
+          continue
+        }
+        const fd = new FormData()
+        fd.append('file', file)
+        try {
+          const res = await fetch('/api/upload', { method: 'POST', body: fd, signal: ac.signal })
+          const json = await res.json()
+          if (ac.signal.aborted) {
+            cancelled = true
+            break
+          }
+          if (json.url) {
+            setForm(f => ({ ...f, images: [...f.images, json.url] }))
+          } else {
+            setMessage({ type: 'error', text: json.error || 'Upload failed' })
+          }
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            cancelled = true
+            break
+          }
+          if (err instanceof Error && err.name === 'AbortError') {
+            cancelled = true
+            break
+          }
+          setMessage({ type: 'error', text: 'Upload failed' })
+        }
       }
+      if (cancelled) {
+        setMessage({ type: 'success', text: 'Upload cancelled' })
+      }
+    } finally {
+      uploadAbortRef.current = null
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function addImageUrl() {
@@ -340,6 +373,12 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
   return (
     <div className="space-y-6">
+      <ImageUploadOverlay
+        open={uploading}
+        message="Uploading images…"
+        subMessage="Please keep this tab open."
+        onCancel={cancelFileUpload}
+      />
       {message && (
         <p className={`text-sm px-4 py-3 rounded-lg ${message.type === 'error' ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
           {message.text}
