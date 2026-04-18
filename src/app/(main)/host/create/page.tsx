@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { INTEREST_TAGS } from '@/lib/constants'
+import {
+  INTEREST_TAGS,
+  UPLOAD_MAX_IMAGE_BYTES,
+  UPLOAD_IMAGE_TOO_LARGE_MESSAGE,
+} from '@/lib/constants'
 import { formatPrice } from '@/lib/utils'
 import {
   createHostedTrip,
@@ -19,6 +23,11 @@ import {
   nominatimDebounceMs,
 } from '@/lib/nominatim-destinations'
 import { maxInclusiveSpanDays, packageDurationFullLabel } from '@/lib/package-trip-calendar'
+import {
+  minPricePaiseFromVariants,
+  priceVariantsFromFormRows,
+  type PriceVariant,
+} from '@/lib/package-pricing'
 import {
   ArrowLeft,
   ArrowRight,
@@ -64,7 +73,9 @@ export default function CreateTripPage() {
   const [description, setDescription] = useState('')
   const [shortDescription, setShortDescription] = useState('')
 
-  const [priceRupees, setPriceRupees] = useState('')
+  const [priceRows, setPriceRows] = useState<{ rupees: string; facilities: string }[]>([
+    { rupees: '', facilities: '' },
+  ])
   const [tripDays, setTripDays] = useState('')
   const [tripNights, setTripNights] = useState('')
   const [excludeFirstTravel, setExcludeFirstTravel] = useState(true)
@@ -132,6 +143,18 @@ export default function CreateTripPage() {
     return d.toISOString().split('T')[0]
   })()
 
+  function addPriceRow() {
+    setPriceRows((prev) => [...prev, { rupees: '', facilities: '' }])
+  }
+
+  function removePriceRow(i: number) {
+    setPriceRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)))
+  }
+
+  function updatePriceRow(i: number, field: 'rupees' | 'facilities', value: string) {
+    setPriceRows((prev) => prev.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
+  }
+
   // Image upload handler (same pattern as admin)
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
@@ -139,8 +162,13 @@ export default function CreateTripPage() {
     setUploading(true)
 
     for (const file of Array.from(files)) {
+      if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+        toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+        continue
+      }
       const fd = new FormData()
       fd.append('file', file)
+      fd.append('purpose', 'host_trip')
       try {
         const res = await fetch('/api/upload', { method: 'POST', body: fd })
         const json = await res.json()
@@ -270,7 +298,15 @@ export default function CreateTripPage() {
         return !!title.trim() && !!destinationId && !!description.trim()
       case 1: {
         const pairs = scheduleRows.filter((r) => r.dep && r.ret)
-        return !!priceRupees && !!tripDays && !!tripNights && pairs.length > 0
+        if (!tripDays || !tripNights || pairs.length === 0) return false
+        if (priceRows.length >= 2) {
+          return priceRows.every((r) => {
+            const p = Math.round(parseFloat(r.rupees) * 100)
+            return r.facilities.trim() && Number.isFinite(p) && p >= 100
+          })
+        }
+        const p0 = Math.round(parseFloat(priceRows[0]?.rupees || '') * 100)
+        return Number.isFinite(p0) && p0 >= 100
       }
       case 2:
         return images.length > 0
@@ -284,10 +320,28 @@ export default function CreateTripPage() {
   }
 
   function handleSubmit() {
-    const pricePaise = Math.round(parseFloat(priceRupees) * 100)
-    if (isNaN(pricePaise) || pricePaise <= 0) {
-      toast.error('Invalid price')
-      return
+    let pricePaise: number
+    let price_variants: PriceVariant[] | null = null
+    if (priceRows.length >= 2) {
+      try {
+        const rows = priceRows.map((r) => ({
+          pricePaise: Math.round(parseFloat(r.rupees) * 100),
+          facilities: r.facilities,
+        }))
+        const tiersBuilt = priceVariantsFromFormRows(rows)
+        if (!tiersBuilt) throw new Error('Invalid price tiers')
+        price_variants = tiersBuilt
+        pricePaise = minPricePaiseFromVariants(tiersBuilt)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Invalid price tiers')
+        return
+      }
+    } else {
+      pricePaise = Math.round(parseFloat(priceRows[0]?.rupees || '') * 100)
+      if (!Number.isFinite(pricePaise) || pricePaise < 100) {
+        toast.error('Enter a valid price per person (minimum ₹1)')
+        return
+      }
     }
 
     const pairs = scheduleRows
@@ -318,6 +372,7 @@ export default function CreateTripPage() {
         description: description.trim(),
         short_description: shortDescription.trim() || undefined,
         price_paise: pricePaise,
+        price_variants,
         duration_days,
         trip_days: td,
         trip_nights: tn,
@@ -466,24 +521,83 @@ export default function CreateTripPage() {
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Trip Details</h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Price per person (INR) *</label>
-                  <Input
-                    type="number"
-                    value={priceRupees}
-                    onChange={e => setPriceRupees(e.target.value)}
-                    placeholder="8999"
-                    className="bg-secondary border-border"
-                    min="1"
-                  />
-                  {priceRupees && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Display price: {formatPrice(Math.round(parseFloat(priceRupees || '0') * 100))}
-                    </p>
-                  )}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <label className="text-sm text-muted-foreground">
+                    Price per person (INR) *{priceRows.length >= 2 ? ' — accommodation / options' : ''}
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs"
+                    onClick={addPriceRow}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add price option
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  One price by default. Use &quot;Add price option&quot; for multiple tiers (dorm, private room, etc.). Each tier needs a short facilities description.
+                </p>
+                <div className="space-y-3">
+                  {priceRows.map((row, i) => (
+                    <div
+                      key={i}
+                      className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex-1 min-w-[120px]">
+                          <span className="text-[10px] text-muted-foreground block mb-1">Price (INR)</span>
+                          <Input
+                            type="number"
+                            value={row.rupees}
+                            onChange={(e) => updatePriceRow(i, 'rupees', e.target.value)}
+                            placeholder="8999"
+                            className="bg-secondary border-border"
+                            min="1"
+                          />
+                        </div>
+                        {priceRows.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removePriceRow(i)}
+                            className="p-2 text-red-400 hover:text-red-300"
+                            title="Remove tier"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                      {priceRows.length >= 2 && (
+                        <div>
+                          <span className="text-[10px] text-muted-foreground block mb-1">
+                            What&apos;s included / accommodation type *
+                          </span>
+                          <Input
+                            value={row.facilities}
+                            onChange={(e) => updatePriceRow(i, 'facilities', e.target.value)}
+                            placeholder="e.g. Shared dorm · 4-bed · common washrooms"
+                            className="bg-secondary border-border text-sm"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {priceRows.length === 1 && priceRows[0].rupees && (
+                  <p className="text-xs text-muted-foreground">
+                    Listed from {formatPrice(Math.round(parseFloat(priceRows[0].rupees || '0') * 100))} / person
+                  </p>
+                )}
+                {priceRows.length >= 2 && (
+                  <p className="text-xs text-muted-foreground">
+                    Listing shows the lowest tier; travelers choose their option when booking.
+                  </p>
+                )}
+              </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Trip days (on trip) *</label>
                   <Input
@@ -944,9 +1058,28 @@ export default function CreateTripPage() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <span className="flex items-center gap-1">
-                      <IndianRupee className="h-3.5 w-3.5 text-primary" />
-                      {formatPrice(Math.round(parseFloat(priceRupees || '0') * 100))} / person
+                    <span className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1">
+                        <IndianRupee className="h-3.5 w-3.5 text-primary" />
+                        {(() => {
+                          const amounts = priceRows
+                            .map((r) => Math.round(parseFloat(r.rupees || '0') * 100))
+                            .filter((n) => Number.isFinite(n) && n >= 100)
+                          if (priceRows.length >= 2 && amounts.length > 0) {
+                            return <>From {formatPrice(Math.min(...amounts))} / person</>
+                          }
+                          return <>{formatPrice(amounts[0] || 0)} / person</>
+                        })()}
+                      </span>
+                      {priceRows.length >= 2 && (
+                        <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                          {priceRows.map((r, i) => (
+                            <li key={i}>
+                              {formatPrice(Math.round(parseFloat(r.rupees || '0') * 100))} — {r.facilities || '—'}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </span>
                     <span>
                       {tripDays}D · {tripNights}N · departs {departureTime} · returns {returnTime}
@@ -1076,7 +1209,7 @@ export default function CreateTripPage() {
                   onClick={() => {
                     // Open preview in new tab with data in sessionStorage
                     const previewData = {
-                      title, shortDescription, description, priceRupees, tripDays, tripNights, maxGroupSize,
+                      title, shortDescription, description, priceRows, tripDays, tripNights, maxGroupSize,
                       difficulty, scheduleRows, excludeFirstTravel, departureTime, returnTime, selectedIncludes, images, interestTags,
                       destination: destinationId ? destinations.find(d => d.id === destinationId) : null,
                     }

@@ -4,12 +4,14 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay/client'
+import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 
 export async function createRazorpayOrder(
   packageId: string,
   travelDate: string,
   guests: number,
   useWalletCredits: boolean = false,
+  options?: { priceVariantIndex?: number; groupBookingId?: string },
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -83,7 +85,33 @@ export async function createRazorpayOrder(
     return { error: 'Travel date cannot be more than 2 years in the future' }
   }
 
-  let totalPaise = pkg.price_paise * guests
+  let perPersonPaise = pkg.price_paise
+  let priceVariantLabel: string | null = null
+
+  if (options?.groupBookingId) {
+    const { data: grp } = await supabase
+      .from('group_bookings')
+      .select('id, package_id, travel_date, status, per_person_paise')
+      .eq('id', options.groupBookingId)
+      .single()
+    if (!grp || grp.package_id !== packageId || grp.travel_date !== travelDate) {
+      return { error: 'Invalid group booking for this trip' }
+    }
+    if (grp.status !== 'open') {
+      return { error: 'This group is no longer open for payment' }
+    }
+    perPersonPaise = grp.per_person_paise
+  } else {
+    try {
+      const resolved = resolvePerPersonFromPackage(pkg, options?.priceVariantIndex ?? 0)
+      perPersonPaise = resolved.perPerson
+      priceVariantLabel = resolved.label
+    } catch {
+      return { error: 'Invalid price option' }
+    }
+  }
+
+  let totalPaise = perPersonPaise * guests
   let walletDeducted = 0
 
   // Apply wallet credits if requested
@@ -130,6 +158,7 @@ export async function createRazorpayOrder(
       total_amount_paise: totalPaise,
       wallet_deducted_paise: walletDeducted,
       stripe_session_id: order.id, // reusing column for razorpay order id
+      price_variant_label: priceVariantLabel,
     })
     .select()
     .single()

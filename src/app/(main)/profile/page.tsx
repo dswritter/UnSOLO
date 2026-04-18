@@ -16,7 +16,7 @@ import { getInitials } from '@/lib/utils'
 import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, Gift, Copy, MessageCircle, Users } from 'lucide-react'
 import { LocationSearch } from '@/components/profile/LocationSearch'
 import { getReferralDashboard } from '@/actions/profile'
-import { APP_URL } from '@/lib/constants'
+import { APP_URL, UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 const DEFAULT_AVATARS = [
   { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=beach&backgroundColor=ffdfbf&skinColor=f2d3b1', label: '🏖️ Beach', theme: 'beach' },
@@ -150,6 +150,11 @@ export default function EditProfilePage() {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+      toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
     setAvatarUploading(true)
 
     const fd = new FormData()

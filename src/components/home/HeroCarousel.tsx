@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { hasTieredPricing } from '@/lib/package-pricing'
 
 interface HeroPackage {
   slug: string
   title: string
   short_description?: string | null
   price_paise: number
+  price_variants?: { description: string; price_paise: number }[] | null
   duration_days: number
   trip_days?: number | null
   trip_nights?: number | null
@@ -135,7 +137,10 @@ export function HeroCarousel({
                 <p className="text-white/50 text-base max-w-xl mx-auto mb-6">{pkg.short_description}</p>
               )}
               <div className="flex items-center justify-center gap-6 mb-8">
-                <span className="text-primary font-black text-2xl">{formatPrice(pkg.price_paise)}</span>
+                <span className="text-primary font-black text-2xl">
+                  {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
+                  {formatPrice(pkg.price_paise)}
+                </span>
                 <span className="text-white/40">·</span>
                 <span className="text-white/60">{packageDurationShortLabel(pkg)}</span>
               </div>

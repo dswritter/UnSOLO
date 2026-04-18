@@ -19,8 +19,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Trash2, Plus, Pencil, Power, PowerOff, ImageIcon, X, Maximize2 } from 'lucide-react'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 async function uploadCommunityRoomCover(file: File): Promise<string | null> {
+  if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+    toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+    return null
+  }
   const fd = new FormData()
   fd.append('file', file)
   fd.append('purpose', 'community_room')

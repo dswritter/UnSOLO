@@ -2,6 +2,7 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/types'
+import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 
 // ── Audit Log ─────────────────────────────────────────────────
 
@@ -452,6 +453,7 @@ export async function createPackage(formData: {
   description: string
   short_description: string
   price_paise: number
+  price_variants?: PriceVariant[] | null
   duration_days: number
   trip_days: number
   trip_nights: number
@@ -468,8 +470,14 @@ export async function createPackage(formData: {
 }) {
   const { supabase } = await requireAdmin()
 
+  const tiers =
+    formData.price_variants && formData.price_variants.length >= 2 ? formData.price_variants : null
+  const price_paise = tiers ? minPricePaiseFromVariants(tiers) : formData.price_paise
+
   const { error } = await supabase.from('packages').insert({
     ...formData,
+    price_paise,
+    price_variants: tiers,
     is_active: true,
   })
 
@@ -486,6 +494,7 @@ export async function updatePackage(
     description?: string
     short_description?: string
     price_paise?: number
+    price_variants?: PriceVariant[] | null
     duration_days?: number
     trip_days?: number
     trip_nights?: number
@@ -504,9 +513,21 @@ export async function updatePackage(
 ) {
   const { supabase } = await requireAdmin()
 
+  const payload = { ...updates }
+  if (updates.price_variants !== undefined) {
+    const tiers =
+      updates.price_variants && updates.price_variants.length >= 2 ? updates.price_variants : null
+    payload.price_variants = tiers
+    if (tiers) {
+      payload.price_paise = minPricePaiseFromVariants(tiers)
+    } else if (updates.price_paise != null) {
+      payload.price_paise = updates.price_paise
+    }
+  }
+
   const { error } = await supabase
     .from('packages')
-    .update(updates)
+    .update(payload)
     .eq('id', packageId)
 
   if (error) return { error: error.message }

@@ -3,6 +3,13 @@
 import { useState, useTransition, useRef } from 'react'
 import { formatPrice, type Package, type Destination } from '@/types'
 import { maxInclusiveSpanDays, packageDurationFullLabel, packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import {
+  hasTieredPricing,
+  minPricePaiseFromVariants,
+  priceVariantsFromFormRows,
+  type PriceVariant,
+} from '@/lib/package-pricing'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,7 +40,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   // Form state
   const [form, setForm] = useState({
     title: '', slug: '', destination_id: '', description: '', short_description: '',
-    price: '', trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
+    priceRows: [{ rupees: '', facilities: '' }] as { rupees: string; facilities: string }[],
+    trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
     exclude_first_travel: true,
     departure_time: 'morning' as 'morning' | 'evening',
     return_time: 'morning' as 'morning' | 'evening',
@@ -58,7 +66,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   function resetForm() {
     setForm({
       title: '', slug: '', destination_id: '', description: '', short_description: '',
-      price: '', trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
+      priceRows: [{ rupees: '', facilities: '' }],
+      trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
       exclude_first_travel: true,
       departure_time: 'morning' as 'morning' | 'evening',
       return_time: 'morning' as 'morning' | 'evening',
@@ -81,7 +90,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       destination_id: pkg.destination_id,
       description: pkg.description,
       short_description: pkg.short_description || '',
-      price: String(pkg.price_paise / 100),
+      priceRows:
+        hasTieredPricing(pkg.price_variants) && Array.isArray(pkg.price_variants)
+          ? pkg.price_variants.map((v) => ({
+              rupees: String(v.price_paise / 100),
+              facilities: v.description,
+            }))
+          : [{ rupees: String(pkg.price_paise / 100), facilities: '' }],
       trip_days: String(pkg.trip_days ?? pkg.duration_days),
       trip_nights: String(pkg.trip_nights ?? Math.max(0, pkg.duration_days - 1)),
       max_group_size: String(pkg.max_group_size),
@@ -102,8 +117,18 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   }
 
   function handleSubmit() {
-    if (!form.title || !form.destination_id || !form.price || !form.trip_days || !form.trip_nights) {
-      setMessage({ type: 'error', text: 'Title, destination, price, trip days, and trip nights are required.' })
+    const singleOk =
+      form.priceRows.length === 1 &&
+      form.priceRows[0].rupees &&
+      Math.round(parseFloat(form.priceRows[0].rupees) * 100) >= 100
+    const multiOk =
+      form.priceRows.length >= 2 &&
+      form.priceRows.every((r) => {
+        const p = Math.round(parseFloat(r.rupees) * 100)
+        return r.facilities.trim() && Number.isFinite(p) && p >= 100
+      })
+    if (!form.title || !form.destination_id || !form.trip_days || !form.trip_nights || (!singleOk && !multiOk)) {
+      setMessage({ type: 'error', text: 'Title, destination, valid price(s), trip days, and trip nights are required.' })
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
@@ -133,13 +158,37 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       return
     }
 
+    let price_paise: number
+    let price_variants: PriceVariant[] | null = null
+    if (form.priceRows.length >= 2) {
+      try {
+        const rows = form.priceRows.map((r) => ({
+          pricePaise: Math.round(parseFloat(r.rupees) * 100),
+          facilities: r.facilities,
+        }))
+        const tiersBuilt = priceVariantsFromFormRows(rows)
+        if (!tiersBuilt) throw new Error('Invalid price tiers')
+        price_variants = tiersBuilt
+        price_paise = minPricePaiseFromVariants(tiersBuilt)
+      } catch (err) {
+        setMessage({
+          type: 'error',
+          text: err instanceof Error ? err.message : 'Invalid price tiers',
+        })
+        return
+      }
+    } else {
+      price_paise = Math.round(parseFloat(form.priceRows[0].rupees) * 100)
+    }
+
     const data = {
       title: form.title,
       slug: form.slug || autoSlug(form.title),
       destination_id: form.destination_id,
       description: form.description,
       short_description: form.short_description,
-      price_paise: Math.round(parseFloat(form.price) * 100),
+      price_paise,
+      price_variants,
       duration_days,
       trip_days,
       trip_nights,
@@ -226,6 +275,10 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     setUploading(true)
 
     for (const file of Array.from(files)) {
+      if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+        setMessage({ type: 'error', text: UPLOAD_IMAGE_TOO_LARGE_MESSAGE })
+        continue
+      }
       const fd = new FormData()
       fd.append('file', file)
       try {
@@ -337,11 +390,79 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 }}
               />
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Price (₹) *</label>
-              <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="8999" className="bg-secondary border-zinc-700" />
-            </div>
-            <div>
+            <div className="sm:col-span-2 lg:col-span-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <label className="text-xs text-muted-foreground">Price per person (INR) *</label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      priceRows: [...f.priceRows, { rupees: '', facilities: '' }],
+                    }))
+                  }
+                >
+                  <Plus className="h-3 w-3" /> Add option
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-500">
+                Multiple rows: dorm / private room / etc. Each tier needs a short facilities description.
+              </p>
+              {form.priceRows.map((row, i) => (
+                <div key={i} className="rounded-lg border border-zinc-700 bg-secondary/40 p-2 space-y-2">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <Input
+                      type="number"
+                      value={row.rupees}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          priceRows: f.priceRows.map((r, j) =>
+                            j === i ? { ...r, rupees: e.target.value } : r,
+                          ),
+                        }))
+                      }
+                      placeholder="8999"
+                      className="bg-secondary border-zinc-700 max-w-[140px]"
+                      min={1}
+                    />
+                    {form.priceRows.length > 1 && (
+                      <button
+                        type="button"
+                        className="p-1.5 text-red-400"
+                        onClick={() =>
+                          setForm((f) =>
+                            f.priceRows.length <= 1
+                              ? f
+                              : { ...f, priceRows: f.priceRows.filter((_, j) => j !== i) },
+                          )
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {form.priceRows.length >= 2 && (
+                    <Input
+                      value={row.facilities}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          priceRows: f.priceRows.map((r, j) =>
+                            j === i ? { ...r, facilities: e.target.value } : r,
+                          ),
+                        }))
+                      }
+                      placeholder="e.g. Shared dorm · 4-bed"
+                      className="bg-secondary border-zinc-700 text-xs"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Trip days (on trip) *</label>
               <Input type="number" value={form.trip_days} onChange={e => setForm(f => ({ ...f, trip_days: e.target.value }))} placeholder="4" className="bg-secondary border-zinc-700" min={1} />
             </div>
@@ -580,13 +701,17 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   {pkg.destination?.name}, {pkg.destination?.state} · {packageDurationShortLabel(pkg)} · Max {pkg.max_group_size} · {pkg.difficulty}
                 </p>
                 <p className="text-xs text-zinc-600">
-                  {(pkg.departure_dates || []).length} departure dates · {formatPrice(pkg.price_paise)}/person
+                  {(pkg.departure_dates || []).length} departure dates ·{' '}
+                  {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
+                  /person
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-primary font-bold text-sm">{formatPrice(pkg.price_paise)}</span>
+              <span className="text-primary font-bold text-sm">
+                {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
+              </span>
               <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-white" onClick={() => loadForEdit(pkg)}>
                 <Edit2 className="h-4 w-4" />
               </Button>

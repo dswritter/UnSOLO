@@ -13,6 +13,7 @@ import type { StatusStoryAudienceMode } from '@/lib/statusStories/audience'
 import { AddStatusStorySheet } from '@/components/status/AddStatusStorySheet'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
 import { isStoryGroupFullyViewed, markStatusStoriesViewed } from '@/lib/statusStories/viewed'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 function unwrapAuthor(story: StatusStripStory) {
   const a = story.author as { username: string; full_name: string | null; avatar_url: string | null } | null | undefined
@@ -108,6 +109,11 @@ export function StatusStoriesBar({
         const urls: string[] = []
         for (let i = 0; i < files.length; i++) {
           const file = files[i]!
+          if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+            toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+            setUploadProgress(null)
+            return
+          }
           const fd = new FormData()
           fd.append('file', file)
           fd.append('purpose', 'status_story')

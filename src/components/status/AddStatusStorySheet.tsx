@@ -9,6 +9,7 @@ import { createStatusStories } from '@/actions/statusStories'
 import type { StatusStoryAudienceMode } from '@/lib/statusStories/audience'
 import { audiencePillLabel } from '@/lib/statusStories/labels'
 import { StatusAudienceUserTokens } from '@/components/status/StatusAudienceUserTokens'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 const MODES: { value: StatusStoryAudienceMode; label: string; hint: string }[] = [
   { value: 'all', label: 'Everyone', hint: 'All signed-in members of UnSOLO' },
@@ -122,6 +123,11 @@ export function AddStatusStorySheet({
     try {
       const urls: string[] = []
       for (const file of files) {
+        if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+          toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+          setBusy(false)
+          return
+        }
         const fd = new FormData()
         fd.append('file', file)
         fd.append('purpose', 'status_story')

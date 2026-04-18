@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null
-  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'avatar' | 'community_room' | 'status_story'
+  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'host_trip' | 'avatar' | 'community_room' | 'status_story'
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
@@ -25,9 +26,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Only admins can upload package images
+  // Package gallery images: admins or verified hosts
   if (purpose === 'package' && profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Admin only for package images' }, { status: 403 })
+  }
+
+  if (purpose === 'host_trip') {
+    const { data: hostProfile } = await supabase
+      .from('profiles')
+      .select('is_host')
+      .eq('id', user.id)
+      .single()
+    if (!hostProfile?.is_host) {
+      return NextResponse.json({ error: 'Host verification required to upload trip images' }, { status: 403 })
+    }
   }
 
   // Validate file type
@@ -36,9 +48,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only JPEG, PNG, WebP, AVIF images allowed' }, { status: 400 })
   }
 
-  // Max 5MB
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: 'File must be under 5MB' }, { status: 400 })
+  if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+    return NextResponse.json({ error: UPLOAD_IMAGE_TOO_LARGE_MESSAGE }, { status: 400 })
   }
 
   const ext = file.name.split('.').pop() || 'jpg'
@@ -49,7 +60,9 @@ export async function POST(req: NextRequest) {
         ? 'community-rooms'
         : purpose === 'status_story'
           ? 'status-stories'
-          : 'packages'
+          : purpose === 'host_trip'
+            ? 'host-trips'
+            : 'packages'
   const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())

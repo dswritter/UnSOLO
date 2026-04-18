@@ -96,6 +96,8 @@ export type Package = {
   description: string
   short_description: string | null
   price_paise: number
+  /** When set: 2+ tiers { description, price_paise }; price_paise is min tier for filters. */
+  price_variants?: { description: string; price_paise: number }[] | null
   duration_days: number
   /** Display: on-trip days (host/admin entered). Falls back to duration_days if null. */
   trip_days?: number | null

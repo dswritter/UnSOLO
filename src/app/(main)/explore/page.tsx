@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import type { Package } from '@/types'
 import { ExploreFilters } from './ExploreFilters'
@@ -279,7 +280,10 @@ export default async function ExplorePage({
 
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-primary font-black text-xl">{formatPrice(pkg.price_paise)}</span>
+                        <span className="text-primary font-black text-xl">
+                          {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
+                          {formatPrice(pkg.price_paise)}
+                        </span>
                         <span className="text-muted-foreground text-xs ml-1">/ person</span>
                       </div>
                       <div className="text-right">

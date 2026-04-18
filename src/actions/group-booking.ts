@@ -2,23 +2,34 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 
 export async function createGroupBooking(
   packageId: string,
   travelDate: string,
   maxMembers: number,
   friendIds?: string[],
+  priceVariantIndex?: number,
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Get package price and title
-  const { data: pkg } = await supabase.from('packages').select('price_paise, title, slug').eq('id', packageId).single()
+  const { data: pkg } = await supabase
+    .from('packages')
+    .select('price_paise, title, slug, price_variants')
+    .eq('id', packageId)
+    .single()
   if (!pkg) return { error: 'Package not found' }
 
-  const totalAmount = pkg.price_paise * maxMembers
-  const perPerson = pkg.price_paise
+  let perPerson: number
+  try {
+    perPerson = resolvePerPersonFromPackage(pkg, priceVariantIndex ?? 0).perPerson
+  } catch {
+    return { error: 'Invalid price option' }
+  }
+
+  const totalAmount = perPerson * maxMembers
 
   const { data: group, error } = await supabase
     .from('group_bookings')

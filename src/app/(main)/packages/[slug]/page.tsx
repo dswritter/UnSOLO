@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Clock, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
@@ -85,11 +86,11 @@ export default async function PackageDetailPage({
   }
 
   // Fetch group invite data if arriving via group invite link (only for UnSOLO trips)
-  let groupInvite: { id: string; travel_date: string; organizer_name: string } | null = null
+  let groupInvite: { id: string; travel_date: string; organizer_name: string; per_person_paise: number } | null = null
   if (groupId && !isCommunityTrip) {
     const { data: gData } = await supabase
       .from('group_bookings')
-      .select('id, travel_date, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+      .select('id, travel_date, per_person_paise, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
       .eq('id', groupId)
       .eq('status', 'open')
       .single()
@@ -98,6 +99,7 @@ export default async function PackageDetailPage({
       groupInvite = {
         id: gData.id,
         travel_date: gData.travel_date,
+        per_person_paise: gData.per_person_paise,
         organizer_name: org?.full_name || org?.username || 'Someone',
       }
     }
@@ -185,6 +187,7 @@ export default async function PackageDetailPage({
                 title={package_.title}
                 location={`${package_.destination?.name}, ${package_.destination?.state}`}
                 pricePaise={package_.price_paise}
+                priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                 durationSummary={packageDurationShortLabel(package_)}
               />
             </div>
@@ -389,6 +392,7 @@ export default async function PackageDetailPage({
                       packageTitle={package_.title}
                       packageSlug={package_.slug}
                       pricePerPersonPaise={package_.price_paise}
+                      priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                       hostName={hostData?.full_name || hostData?.username || 'the host'}
                       joinPreferences={package_.join_preferences}
                       existingRequest={existingRequest}
@@ -399,7 +403,10 @@ export default async function PackageDetailPage({
                     /* UnSOLO trip: Standard booking flow */
                     <>
                       <div>
-                        <span className="text-3xl font-black text-primary">{formatPrice(package_.price_paise)}</span>
+                        <span className="text-3xl font-black text-primary">
+                          {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                          {formatPrice(package_.price_paise)}
+                        </span>
                         <span className="text-muted-foreground text-sm ml-2">per person</span>
                       </div>
 
@@ -408,6 +415,7 @@ export default async function PackageDetailPage({
                           packageId={package_.id}
                           packageSlug={package_.slug}
                           pricePerPersonPaise={package_.price_paise}
+                          priceVariants={package_.price_variants}
                           maxGroupSize={package_.max_group_size}
                           packageTitle={package_.title}
                           departureDates={package_.departure_dates}

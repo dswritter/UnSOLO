@@ -3,6 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { PLATFORM_FEE_PERCENT, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
+import {
+  minPricePaiseFromVariants,
+  type PriceVariant,
+} from '@/lib/package-pricing'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -61,6 +65,7 @@ export async function createHostedTrip(formData: {
   description: string
   short_description?: string
   price_paise: number
+  price_variants?: PriceVariant[] | null
   /** Max inclusive calendar span across all dep/return pairs (bookings, filters). */
   duration_days: number
   trip_days: number
@@ -86,6 +91,9 @@ export async function createHostedTrip(formData: {
 
   const slug = generateSlug(formData.title)
 
+  const tiers = formData.price_variants?.length ? formData.price_variants : null
+  const price_paise = tiers?.length ? minPricePaiseFromVariants(tiers) : formData.price_paise
+
   const { data: trip, error } = await supabase
     .from('packages')
     .insert({
@@ -94,7 +102,8 @@ export async function createHostedTrip(formData: {
       destination_id: formData.destination_id,
       description: formData.description,
       short_description: formData.short_description || '',
-      price_paise: formData.price_paise,
+      price_paise,
+      price_variants: tiers,
       duration_days: formData.duration_days,
       trip_days: formData.trip_days,
       trip_nights: formData.trip_nights,

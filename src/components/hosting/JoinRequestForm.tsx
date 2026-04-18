@@ -35,6 +35,8 @@ interface JoinRequestFormProps {
   packageTitle: string
   packageSlug: string
   pricePerPersonPaise: number
+  /** e.g. "From " when the package has multiple price tiers */
+  priceLinePrefix?: string
   hostName: string
   joinPreferences: JoinPreferences | null
   existingRequest: ExistingRequest | null
@@ -61,6 +63,7 @@ export function JoinRequestForm({
   packageTitle,
   packageSlug,
   pricePerPersonPaise,
+  priceLinePrefix = '',
   hostName,
   joinPreferences,
   existingRequest,
@@ -72,6 +75,7 @@ export function JoinRequestForm({
 
   const platformFee = Math.round(pricePerPersonPaise * PLATFORM_FEE_PERCENT / 100)
   const totalPrice = pricePerPersonPaise + platformFee
+  const tripPriceDisplay = `${priceLinePrefix}${formatPrice(pricePerPersonPaise)}`
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -99,7 +103,7 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
-          <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+          <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
         <p className="text-sm text-muted-foreground">Sign in to request to join this trip</p>
@@ -117,7 +121,7 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
-          <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+          <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
         <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -136,7 +140,7 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
-          <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+          <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
         <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
@@ -162,7 +166,7 @@ export function JoinRequestForm({
     return (
       <ApprovedPaymentSection
         existingRequest={existingRequest}
-        pricePerPersonPaise={pricePerPersonPaise}
+        tripPriceDisplay={tripPriceDisplay}
         totalPrice={totalPrice}
         hostName={hostName}
         packageTitle={packageTitle}
@@ -175,7 +179,7 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
-          <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+          <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
         <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -203,7 +207,7 @@ export function JoinRequestForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+        <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
         <span className="text-muted-foreground text-sm ml-2">per person</span>
       </div>
 
@@ -245,7 +249,7 @@ export function JoinRequestForm({
       <div className="space-y-1.5 text-sm border-t border-border pt-3">
         <div className="flex justify-between text-muted-foreground">
           <span>Trip cost</span>
-          <span>{formatPrice(pricePerPersonPaise)}</span>
+          <span>{tripPriceDisplay}</span>
         </div>
         <div className="flex justify-between text-muted-foreground">
           <span>Platform fee ({PLATFORM_FEE_PERCENT}%)</span>
@@ -286,13 +290,13 @@ export function JoinRequestForm({
 // ── Approved Payment Section ────────────────────────────────
 function ApprovedPaymentSection({
   existingRequest,
-  pricePerPersonPaise,
+  tripPriceDisplay,
   totalPrice,
   hostName,
   packageTitle,
 }: {
   existingRequest: ExistingRequest
-  pricePerPersonPaise: number
+  tripPriceDisplay: string
   totalPrice: number
   hostName: string
   packageTitle: string
@@ -373,7 +377,7 @@ function ApprovedPaymentSection({
       )}
 
       <div>
-        <span className="text-3xl font-black text-primary">{formatPrice(pricePerPersonPaise)}</span>
+        <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
         <span className="text-muted-foreground text-sm ml-2">per person</span>
       </div>
 
@@ -409,7 +413,7 @@ function ApprovedPaymentSection({
         ) : (
           <span className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            Proceed to Payment ({formatPrice(pricePerPersonPaise)})
+            Proceed to Payment ({tripPriceDisplay})
           </span>
         )}
       </Button>

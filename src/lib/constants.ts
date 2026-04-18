@@ -39,6 +39,12 @@ export const MIN_OTP_SEND_INTERVAL_SECONDS = 45
 /** Max OTP verify attempts before lockout */
 export const MAX_OTP_VERIFY_ATTEMPTS = 5
 
+/** Image uploads (package, avatar, status, etc.) — must match /api/upload */
+export const UPLOAD_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+export const UPLOAD_IMAGE_TOO_LARGE_MESSAGE =
+  'This image is larger than 5MB. Please upload an image under 5MB.'
+
 /** OTP expiry in minutes */
 export const OTP_EXPIRY_MINUTES = 10
 

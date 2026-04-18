@@ -12,6 +12,7 @@ import {
   tripEndDateIsoForBooking,
   type TripPackageCalendar,
 } from '@/lib/package-trip-calendar'
+import { parsePriceVariants } from '@/lib/package-pricing'
 import { toast } from 'sonner'
 import Script from 'next/script'
 import { Calendar, Phone, Mail, Users, Send, Copy, Check, X, UserPlus, Gift, Tag } from 'lucide-react'
@@ -33,6 +34,7 @@ interface GroupInvite {
   id: string
   travel_date: string
   organizer_name: string
+  per_person_paise: number
 }
 
 interface DiscountOfferPromoRow {
@@ -48,6 +50,7 @@ interface BookingFormClientProps {
   packageId: string
   packageSlug: string
   pricePerPersonPaise: number
+  priceVariants?: { description: string; price_paise: number }[] | null
   maxGroupSize: number
   packageTitle?: string
   departureDates?: string[] | null
@@ -61,6 +64,7 @@ export function BookingFormClient({
   packageId,
   packageSlug,
   pricePerPersonPaise,
+  priceVariants = null,
   maxGroupSize,
   packageTitle,
   departureDates,
@@ -74,6 +78,8 @@ export function BookingFormClient({
     departure_dates: departureDates,
     return_dates: returnDates,
   }
+
+  const variantTiers = parsePriceVariants(priceVariants)
 
   function travelRangeLabel(depIso: string): string {
     const end = tripEndDateIsoForBooking(depIso, pkgCal)
@@ -110,6 +116,11 @@ export function BookingFormClient({
   const [friendUsername, setFriendUsername] = useState('')
   const [friendSearching, setFriendSearching] = useState(false)
   const [addedFriends, setAddedFriends] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
+
+  const perPersonForBooking = variantTiers?.length
+    ? variantTiers[selectedVariantIndex].price_paise
+    : pricePerPersonPaise
 
   async function searchAndAddFriend() {
     if (!friendUsername.trim()) return
@@ -194,7 +205,7 @@ export function BookingFormClient({
 
   // Calculate total discount
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
-  const creditsToApply = applyCredits ? Math.min(userCredits, pricePerPersonPaise * guests) : 0
+  const creditsToApply = applyCredits ? Math.min(userCredits, perPersonForBooking * guests) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
 
   const router = useRouter()
@@ -206,7 +217,7 @@ export function BookingFormClient({
   const [contactEmail, setContactEmail] = useState('')
   const [customLoading, setCustomLoading] = useState(false)
 
-  const total = pricePerPersonPaise * guests
+  const total = perPersonForBooking * guests
   // Tomorrow is the earliest bookable date (not today)
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
@@ -231,7 +242,13 @@ export function BookingFormClient({
     setLoading(true)
 
     try {
-      const result = await createRazorpayOrder(packageId, selectedDate, guests, applyCredits)
+      const result = await createRazorpayOrder(
+        packageId,
+        selectedDate,
+        guests,
+        applyCredits,
+        variantTiers ? { priceVariantIndex: selectedVariantIndex } : undefined,
+      )
 
       if ('error' in result) {
         toast.error(result.error)
@@ -306,6 +323,10 @@ export function BookingFormClient({
 
   // ── Group Invite Mode ──────────────────────────────────
   if (groupInvite) {
+    const invitePerPerson =
+      typeof groupInvite.per_person_paise === 'number' && groupInvite.per_person_paise > 0
+        ? groupInvite.per_person_paise
+        : pricePerPersonPaise
     const inviteDate = new Date(groupInvite.travel_date)
     const todayCheck = new Date()
     todayCheck.setHours(0, 0, 0, 0)
@@ -350,14 +371,16 @@ export function BookingFormClient({
           </div>
           <div className="flex justify-between text-sm border-t border-border pt-2">
             <span className="font-bold">Your Share</span>
-            <span className="font-bold text-primary">{formatPrice(pricePerPersonPaise)}</span>
+            <span className="font-bold text-primary">{formatPrice(invitePerPerson)}</span>
           </div>
         </div>
 
         <Button
           onClick={async () => {
             setLoading(true)
-            const result = await createRazorpayOrder(packageId, groupInvite.travel_date, 1)
+            const result = await createRazorpayOrder(packageId, groupInvite.travel_date, 1, false, {
+              groupBookingId: groupInvite.id,
+            })
             if ('error' in result) {
               toast.error(result.error)
               setLoading(false)
@@ -451,6 +474,36 @@ export function BookingFormClient({
 
       {tab === 'fixed' && (
         <>
+          {variantTiers && variantTiers.length >= 2 && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Choose your option</label>
+              <div className="space-y-2">
+                {variantTiers.map((t, i) => (
+                  <label
+                    key={i}
+                    className={`flex gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                      selectedVariantIndex === i
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-secondary/30 hover:border-primary/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="price-tier"
+                      className="mt-1 accent-primary"
+                      checked={selectedVariantIndex === i}
+                      onChange={() => setSelectedVariantIndex(i)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-foreground">{formatPrice(t.price_paise)}</div>
+                      <div className="text-xs text-muted-foreground">{t.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Departure date selection */}
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-1.5">
@@ -605,7 +658,7 @@ export function BookingFormClient({
           {/* Price breakdown */}
           <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
             <div className="flex justify-between text-muted-foreground">
-              <span>{formatPrice(pricePerPersonPaise)} x {guests} person{guests > 1 ? 's' : ''}</span>
+              <span>{formatPrice(perPersonForBooking)} x {guests} person{guests > 1 ? 's' : ''}</span>
               <span>{formatPrice(total)}</span>
             </div>
             {totalDiscount > 0 && (
@@ -745,7 +798,7 @@ export function BookingFormClient({
                   onClick={() => router.push(`/packages/${packageSlug}?group=${createdGroupId}`)}
                   className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
                 >
-                  Pay Your Share ({formatPrice(pricePerPersonPaise)})
+                  Pay Your Share ({formatPrice(perPersonForBooking)})
                 </Button>
               )}
               <Button
@@ -761,6 +814,36 @@ export function BookingFormClient({
               <p className="text-xs text-muted-foreground">
                 Plan a group trip — add friends by username and choose how to pay.
               </p>
+
+              {variantTiers && variantTiers.length >= 2 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Price option (whole group)</label>
+                  <div className="space-y-2">
+                    {variantTiers.map((t, i) => (
+                      <label
+                        key={i}
+                        className={`flex gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                          selectedVariantIndex === i
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-secondary/30 hover:border-primary/40'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="group-price-tier"
+                          className="mt-1 accent-primary"
+                          checked={selectedVariantIndex === i}
+                          onChange={() => setSelectedVariantIndex(i)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-foreground">{formatPrice(t.price_paise)}</div>
+                          <div className="text-xs text-muted-foreground">{t.description}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Travel date */}
               <div className="space-y-1">
@@ -862,7 +945,7 @@ export function BookingFormClient({
               <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Per person</span>
-                  <span>{formatPrice(pricePerPersonPaise)}</span>
+                  <span>{formatPrice(perPersonForBooking)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>Total members</span>
@@ -872,13 +955,13 @@ export function BookingFormClient({
                   <span>{groupPayMode === 'full' ? 'You pay' : 'Your share'}</span>
                   <span className="text-primary">
                     {groupPayMode === 'full'
-                      ? formatPrice(pricePerPersonPaise * (addedFriends.length + 1))
-                      : formatPrice(pricePerPersonPaise)}
+                      ? formatPrice(perPersonForBooking * (addedFriends.length + 1))
+                      : formatPrice(perPersonForBooking)}
                   </span>
                 </div>
                 {groupPayMode === 'split' && addedFriends.length > 0 && (
                   <p className="text-[10px] text-muted-foreground pt-1">
-                    Each friend gets a payment notification for {formatPrice(pricePerPersonPaise)}
+                    Each friend gets a payment notification for {formatPrice(perPersonForBooking)}
                   </p>
                 )}
               </div>
@@ -893,6 +976,7 @@ export function BookingFormClient({
                     groupDate,
                     addedFriends.length + 1,
                     addedFriends.map(f => f.id),
+                    variantTiers ? selectedVariantIndex : undefined,
                   )
                   if ('error' in result) {
                     toast.error(result.error)
