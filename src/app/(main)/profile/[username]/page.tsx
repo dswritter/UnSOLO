@@ -18,6 +18,7 @@ import { PhoneRequestButton } from './PhoneRequestButton'
 import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
 import { getStatusStoriesForProfile } from '@/actions/statusStories'
 import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
+import { StatesExploredCard } from '@/components/profile/StatesExploredCard'
 
 export default async function ProfilePage({
   params,
@@ -184,25 +185,7 @@ export default async function ProfilePage({
       </div>
     ) : null
 
-  const statesExploredCard = (
-    <Card className="bg-card border-border">
-      <CardContent className="p-5">
-        <h2 className="font-bold mb-4 flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-primary" /> States Explored
-          {statesPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-        </h2>
-        {statesPrivate ? (
-          <p className="text-sm text-muted-foreground">This user has made their explored states private.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {Array.from(uniqueStates).map(state => (
-              <Badge key={state} className="bg-primary/10 text-primary border-primary/30">{state}</Badge>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
+  const visitedStatesList = Array.from(uniqueStates)
 
   return (
     <div className="min-h-screen bg-background">
@@ -449,7 +432,7 @@ export default async function ProfilePage({
             {/* Badges & states: sidebar on lg+; stacked here on narrow screens */}
             <div className="space-y-6 lg:hidden">
               {badgesCard}
-              {uniqueStates.size > 0 ? statesExploredCard : null}
+              <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
             </div>
           </div>
 
@@ -466,7 +449,7 @@ export default async function ProfilePage({
               </CardContent>
             </Card>
             {badgesCard}
-            {uniqueStates.size > 0 ? statesExploredCard : null}
+            <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
           </aside>
         </div>
 
