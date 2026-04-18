@@ -110,12 +110,12 @@ export default function RefundPolicyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-foreground">8. Disputes</h2>
-            <p>If you disagree with a refund decision, email us at <a href="mailto:unsolo.in@gmail.com" className="text-primary hover:underline">unsolo.in@gmail.com</a> with your booking ID. We will review and respond within 5 business days.</p>
+            <p>If you disagree with a refund decision, email us at <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a> with your booking ID. We will review and respond within 5 business days.</p>
           </section>
 
           <section>
             <h2 className="text-lg font-bold text-foreground">9. Contact</h2>
-            <p>For refund queries: <a href="mailto:unsolo.in@gmail.com" className="text-primary hover:underline">unsolo.in@gmail.com</a></p>
+            <p>For refund queries: <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a></p>
           </section>
         </div>
       </div>

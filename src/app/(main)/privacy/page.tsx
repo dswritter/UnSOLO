@@ -90,7 +90,7 @@ export default function PrivacyPage() {
               <li><strong>Restrict:</strong> Limit how we use your data.</li>
               <li><strong>Withdraw consent:</strong> Opt out of non-essential communications.</li>
             </ul>
-            <p>To exercise these rights, email <a href="mailto:unsolo.in@gmail.com" className="text-primary hover:underline">unsolo.in@gmail.com</a>.</p>
+            <p>To exercise these rights, email <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a>.</p>
           </section>
 
           <section>
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-lg font-bold text-foreground">11. Contact</h2>
-            <p>For privacy-related queries, contact us at <a href="mailto:unsolo.in@gmail.com" className="text-primary hover:underline">unsolo.in@gmail.com</a>.</p>
+            <p>For privacy-related queries, contact us at <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a>.</p>
           </section>
         </div>
       </div>

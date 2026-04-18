@@ -195,7 +195,7 @@ export default async function HomePage() {
             <Link href="/leaderboard" className="hover:text-white transition-colors">Leaderboard</Link>
             <Link href="/community" className="hover:text-white transition-colors">Community</Link>
             <Link href="/contact" className="hover:text-white transition-colors">Contact</Link>
-            <a href="mailto:unsolo.in@gmail.com" className="hover:text-primary transition-colors">unsolo.in@gmail.com</a>
+            <a href="mailto:hello@unsolo.in" className="hover:text-primary transition-colors">hello@unsolo.in</a>
           </div>
           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} UnSOLO. All rights reserved.</p>
         </div>

@@ -101,7 +101,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-foreground">13. Contact</h2>
-            <p>For questions about these terms, contact us at <a href="mailto:unsolo.in@gmail.com" className="text-primary hover:underline">unsolo.in@gmail.com</a>.</p>
+            <p>For questions about these terms, contact us at <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a>.</p>
           </section>
         </div>
       </div>

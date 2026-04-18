@@ -15,7 +15,7 @@ export default function ContactPage() {
         <div className="grid gap-6">
           {/* Email Card */}
           <a
-            href="mailto:unsolo.in@gmail.com"
+            href="mailto:hello@unsolo.in"
             className="flex items-start gap-4 p-6 rounded-xl border border-border bg-card hover:border-primary/50 transition-colors group"
           >
             <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
@@ -23,7 +23,7 @@ export default function ContactPage() {
             </div>
             <div>
               <h3 className="font-bold text-lg group-hover:text-primary transition-colors">Email Us</h3>
-              <p className="text-primary font-medium mt-1">unsolo.in@gmail.com</p>
+              <p className="text-primary font-medium mt-1">hello@unsolo.in</p>
               <p className="text-sm text-muted-foreground mt-1">
                 For bookings, partnerships, or general enquiries.
               </p>

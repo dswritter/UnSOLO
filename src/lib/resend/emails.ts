@@ -4,7 +4,7 @@ import { resend } from './client'
 const FROM_EMAIL =
   process.env.RESEND_FROM_EMAIL ??
   (process.env.NODE_ENV === 'production' ? 'hello@unsolo.in' : 'onboarding@resend.dev')
-const ADMIN_EMAIL = 'unsolo.in@gmail.com'
+const ADMIN_EMAIL = 'hello@unsolo.in'
 
 interface CustomRequestDetails {
   packageTitle: string
@@ -116,7 +116,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
 
         <div style="text-align: center; margin-top: 24px;">
           <p style="color: #ccc;">A trip coordinator will be assigned shortly and will reach out to you with next steps.</p>
-          <p style="color: #888; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:unsolo.in@gmail.com" style="color: #FFAA00;">unsolo.in@gmail.com</a></p>
+          <p style="color: #888; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
         </div>
         <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>
       </div>
@@ -164,7 +164,7 @@ export async function sendPOCDetails(details: POCDetailsInput) {
           <p style="color: #ccc; margin-top: 12px; font-size: 14px;">They will reach out to you before your trip with all the details you need.</p>
         </div>
 
-        <p style="color: #888; text-align: center; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:unsolo.in@gmail.com" style="color: #FFAA00;">unsolo.in@gmail.com</a></p>
+        <p style="color: #888; text-align: center; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
         <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>
       </div>
     `,
