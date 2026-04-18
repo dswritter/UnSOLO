@@ -49,7 +49,7 @@ export default function RefundPolicyPage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>Cancellation requests are reviewed by the UnSOLO admin team.</li>
               <li>Refund amount is determined based on the timeline above and host&apos;s cancellation terms.</li>
-              <li>The platform fee (15%) is non-refundable.</li>
+              <li>The platform fee portion of community trip payments is non-refundable.</li>
             </ul>
 
             <h3 className="text-sm font-semibold mt-3">Cancellation by Host:</h3>
@@ -102,7 +102,7 @@ export default function RefundPolicyPage() {
           <section>
             <h2 className="text-lg font-bold text-foreground">7. Non-Refundable Items</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Platform fee on community trips (15%).</li>
+              <li>Platform fee on community trips (rate determined by UnSOLO).</li>
               <li>Bookings cancelled less than 7 days before departure.</li>
               <li>No-shows (failure to join the trip without prior cancellation).</li>
             </ul>

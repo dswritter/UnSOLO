@@ -24,8 +24,14 @@ export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://unsolo-two.ve
 
 // ── Peer Hosting Constants ──────────────────────────────────
 
-/** Platform fee percentage for community trips */
-export const PLATFORM_FEE_PERCENT = 15
+/**
+ * Fallback when `platform_settings.platform_fee_percent` is missing or invalid.
+ * Prefer `getPlatformFeePercent()` from `@/lib/platform-settings` on the server.
+ */
+export const DEFAULT_PLATFORM_FEE_PERCENT = 15
+
+/** @deprecated Use getPlatformFeePercent() or DEFAULT_PLATFORM_FEE_PERCENT */
+export const PLATFORM_FEE_PERCENT = DEFAULT_PLATFORM_FEE_PERCENT
 
 /** Hours a traveler has to complete payment after host approval */
 export const JOIN_PAYMENT_DEADLINE_HOURS = 48

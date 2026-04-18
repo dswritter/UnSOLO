@@ -387,7 +387,7 @@ export default function HostVerifyPage() {
                   </button>
                 )}
                 <p className="text-[10px] text-muted-foreground">
-                  Your earnings (trip price minus 15% platform fee) will be transferred to this UPI ID after each successful booking.
+                  Your share of each booking is the listed trip price minus UnSOLO&apos;s platform fee (shown when you set your price). That amount is recorded for payout to this UPI ID after successful bookings.
                 </p>
               </div>
             </div>

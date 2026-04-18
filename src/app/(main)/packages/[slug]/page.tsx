@@ -68,6 +68,8 @@ export default async function PackageDetailPage({
 
   const package_ = pkg as Package
   const isCommunityTrip = !!package_.host_id
+  const communityBookAndPay =
+    isCommunityTrip && package_.join_preferences?.payment_timing === 'pay_on_booking'
   const hostData = (pkg.host as unknown as HostProfile) || null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
 
@@ -105,18 +107,20 @@ export default async function PackageDetailPage({
     }
   }
 
-  // Calculate available slots per departure date (only for UnSOLO trips)
+  // Calculate available slots (UnSOLO trips, or community trips with immediate checkout)
   const availableSlotsMap: Record<string, number> = {}
-  if (!isCommunityTrip && package_.departure_dates && package_.max_group_size) {
-    for (const date of package_.departure_dates) {
-      const { data: dateBookings } = await supabase
-        .from('bookings')
-        .select('guests')
-        .eq('package_id', pkg.id)
-        .eq('travel_date', date)
-        .in('status', ['pending', 'confirmed', 'completed'])
-      const totalBooked = (dateBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
-      availableSlotsMap[date] = Math.max(0, package_.max_group_size - totalBooked)
+  if (!isCommunityTrip || communityBookAndPay) {
+    if (package_.departure_dates && package_.max_group_size) {
+      for (const date of package_.departure_dates) {
+        const { data: dateBookings } = await supabase
+          .from('bookings')
+          .select('guests')
+          .eq('package_id', pkg.id)
+          .eq('travel_date', date)
+          .in('status', ['pending', 'confirmed', 'completed'])
+        const totalBooked = (dateBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
+        availableSlotsMap[date] = Math.max(0, package_.max_group_size - totalBooked)
+      }
     }
   }
 
@@ -386,19 +390,77 @@ export default async function PackageDetailPage({
               <Card className="bg-card border-border">
                 <CardContent className="p-6 space-y-4">
                   {isCommunityTrip ? (
-                    /* Community trip: Join Request Form */
-                    <JoinRequestForm
-                      packageId={package_.id}
-                      packageTitle={package_.title}
-                      packageSlug={package_.slug}
-                      pricePerPersonPaise={package_.price_paise}
-                      priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
-                      hostName={hostData?.full_name || hostData?.username || 'the host'}
-                      joinPreferences={package_.join_preferences}
-                      existingRequest={existingRequest}
-                      isHost={isHost}
-                      isLoggedIn={!!user}
-                    />
+                    communityBookAndPay ? (
+                      isHost ? (
+                        <div className="space-y-4">
+                          <div>
+                            <span className="text-3xl font-black text-primary">
+                              {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                              {formatPrice(package_.price_paise)}
+                            </span>
+                            <span className="text-muted-foreground text-sm ml-2">per person</span>
+                          </div>
+                          <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400">
+                            You are the host of this trip. Travelers can book and pay directly for this listing.
+                          </div>
+                          <Button className="w-full font-bold" variant="outline" asChild>
+                            <Link href="/host">Go to Host Dashboard</Link>
+                          </Button>
+                        </div>
+                      ) : user ? (
+                        <>
+                          <div>
+                            <span className="text-3xl font-black text-primary">
+                              {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                              {formatPrice(package_.price_paise)}
+                            </span>
+                            <span className="text-muted-foreground text-sm ml-2">per person</span>
+                          </div>
+                          <BookingFormClient
+                            packageId={package_.id}
+                            packageSlug={package_.slug}
+                            pricePerPersonPaise={package_.price_paise}
+                            priceVariants={package_.price_variants}
+                            maxGroupSize={package_.max_group_size}
+                            packageTitle={package_.title}
+                            departureDates={package_.departure_dates}
+                            returnDates={package_.return_dates}
+                            durationDays={package_.trip_days ?? package_.duration_days}
+                            groupInvite={null}
+                            availableSlots={availableSlotsMap}
+                          />
+                        </>
+                      ) : (
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-3xl font-black text-primary">
+                              {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                              {formatPrice(package_.price_paise)}
+                            </span>
+                            <span className="text-muted-foreground text-sm ml-2">per person</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
+                          <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
+                            <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
+                              Sign In to Book
+                            </Link>
+                          </Button>
+                        </div>
+                      )
+                    ) : (
+                      <JoinRequestForm
+                        packageId={package_.id}
+                        packageTitle={package_.title}
+                        packageSlug={package_.slug}
+                        pricePerPersonPaise={package_.price_paise}
+                        priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                        hostName={hostData?.full_name || hostData?.username || 'the host'}
+                        joinPreferences={package_.join_preferences}
+                        existingRequest={existingRequest}
+                        isHost={isHost}
+                        isLoggedIn={!!user}
+                      />
+                    )
                   ) : (
                     /* UnSOLO trip: Standard booking flow */
                     <>

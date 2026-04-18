@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { PLATFORM_FEE_PERCENT, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
+import { JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 import {
   minPricePaiseFromVariants,
   type PriceVariant,
@@ -85,6 +85,7 @@ export async function createHostedTrip(formData: {
     gender_preference?: 'men' | 'women' | 'all'
     min_trips_completed?: number
     interest_tags?: string[]
+    payment_timing?: 'after_host_approval' | 'pay_on_booking'
   }
 }) {
   const { supabase, user } = await requireHost()
@@ -149,47 +150,92 @@ export async function createHostedTrip(formData: {
   return { success: true, slug: trip?.slug }
 }
 
+/** Changes to these columns on an approved trip do not reset moderation (no admin re-approval). */
+const HOST_TRIP_OPERATIONAL_FIELDS = new Set([
+  'departure_dates',
+  'return_dates',
+  'duration_days',
+  'max_group_size',
+  'trip_days',
+  'trip_nights',
+  'exclude_first_day_travel',
+  'departure_time',
+  'return_time',
+])
+
+function hostTripFieldChanged(prev: unknown, next: unknown): boolean {
+  if (prev === next) return false
+  if (prev == null && next == null) return false
+  if (typeof prev === 'object' || typeof next === 'object') {
+    return JSON.stringify(prev ?? null) !== JSON.stringify(next ?? null)
+  }
+  return prev !== next
+}
+
 export async function updateHostedTrip(tripId: string, updates: Record<string, unknown>) {
   const { supabase, user } = await requireHost()
 
-  // Verify ownership
-  const { data: trip } = await supabase
+  const { data: current } = await supabase
     .from('packages')
-    .select('host_id, moderation_status, title')
+    .select('*')
     .eq('id', tripId)
+    .eq('host_id', user.id)
     .single()
 
-  if (!trip || trip.host_id !== user.id) return { error: 'Not your trip' }
+  if (!current) return { error: 'Trip not found' }
 
-  // If trip was approved, edits require re-approval but trip stays visible
-  const wasApproved = trip.moderation_status === 'approved'
-  if (wasApproved) {
-    updates.moderation_status = 'pending'
-    // Keep is_active = true so trip stays visible to users during re-review
-    // Only first-time creation hides until approved
+  const payload: Record<string, unknown> = { ...updates }
+  for (const k of [
+    'id',
+    'slug',
+    'host_id',
+    'created_at',
+    'stripe_price_id',
+    'is_featured',
+    'is_active',
+    'moderation_status',
+  ]) {
+    delete payload[k]
+  }
+
+  let substantiveChange = false
+  for (const key of Object.keys(payload)) {
+    const nextVal = payload[key]
+    const prevVal = (current as Record<string, unknown>)[key]
+    if (!hostTripFieldChanged(prevVal, nextVal)) continue
+    if (HOST_TRIP_OPERATIONAL_FIELDS.has(key)) continue
+    substantiveChange = true
+    break
+  }
+
+  const wasApproved = current.moderation_status === 'approved'
+  const needsModerationReset = wasApproved && substantiveChange
+
+  if (needsModerationReset) {
+    payload.moderation_status = 'pending'
   }
 
   const { error } = await supabase
     .from('packages')
-    .update(updates)
+    .update(payload)
     .eq('id', tripId)
     .eq('host_id', user.id)
 
   if (error) return { error: error.message }
 
-  // Notify admins if edit needs re-approval
-  if (wasApproved) {
+  if (needsModerationReset) {
     const { createClient: createSC } = await import('@supabase/supabase-js')
     const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
     const { data: host } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
     const hostName = host?.full_name || host?.username || 'A host'
+    const tripTitle = typeof payload.title === 'string' ? payload.title : current.title
     const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
     for (const admin of admins || []) {
       await svcSupabase.from('notifications').insert({
         user_id: admin.id,
         type: 'booking',
         title: 'Trip Edit Needs Review',
-        body: `${hostName} edited "${trip.title}" (was approved). Review changes and re-approve.`,
+        body: `${hostName} edited "${tripTitle}" (was approved). Review changes and re-approve.`,
         link: '/admin/community-trips',
       })
     }
@@ -197,7 +243,9 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
 
   revalidatePath('/host')
   revalidatePath('/explore')
-  return { success: true, needsReapproval: wasApproved }
+  revalidatePath(`/host/${tripId}`)
+  revalidatePath(`/packages/${current.slug}`)
+  return { success: true, needsReapproval: needsModerationReset }
 }
 
 export async function cancelHostedTrip(tripId: string) {

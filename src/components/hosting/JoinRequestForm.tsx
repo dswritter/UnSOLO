@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { requestToJoin } from '@/actions/hosting'
 import { createCommunityTripOrder, confirmPayment } from '@/actions/booking'
 import { formatPrice } from '@/lib/utils'
-import { PLATFORM_FEE_PERCENT } from '@/lib/constants'
 import { toast } from 'sonner'
 import { CheckCircle, XCircle, Clock, Send, Shield, Info, CreditCard } from 'lucide-react'
 import type { JoinPreferences } from '@/types'
@@ -73,9 +72,10 @@ export function JoinRequestForm({
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const platformFee = Math.round(pricePerPersonPaise * PLATFORM_FEE_PERCENT / 100)
-  const totalPrice = pricePerPersonPaise + platformFee
+  /** Traveler pays the listed per-person price (platform fee is included, not added at checkout). */
   const tripPriceDisplay = `${priceLinePrefix}${formatPrice(pricePerPersonPaise)}`
+  const paymentAfterApproval =
+    (joinPreferences?.payment_timing ?? 'after_host_approval') === 'after_host_approval'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -167,7 +167,7 @@ export function JoinRequestForm({
       <ApprovedPaymentSection
         existingRequest={existingRequest}
         tripPriceDisplay={tripPriceDisplay}
-        totalPrice={totalPrice}
+        amountPaise={pricePerPersonPaise}
         hostName={hostName}
         packageTitle={packageTitle}
       />
@@ -245,22 +245,6 @@ export function JoinRequestForm({
         <div className="text-xs text-muted-foreground text-right mt-1">{message.length}/500</div>
       </div>
 
-      {/* Price breakdown */}
-      <div className="space-y-1.5 text-sm border-t border-border pt-3">
-        <div className="flex justify-between text-muted-foreground">
-          <span>Trip cost</span>
-          <span>{tripPriceDisplay}</span>
-        </div>
-        <div className="flex justify-between text-muted-foreground">
-          <span>Platform fee ({PLATFORM_FEE_PERCENT}%)</span>
-          <span>{formatPrice(platformFee)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-foreground pt-1 border-t border-border">
-          <span>Total</span>
-          <span className="text-primary">{formatPrice(totalPrice)}</span>
-        </div>
-      </div>
-
       <Button
         type="submit"
         className="w-full bg-primary text-black font-bold hover:bg-primary/90"
@@ -279,10 +263,12 @@ export function JoinRequestForm({
         )}
       </Button>
 
-      <div className="flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
-        <Shield className="h-3 w-3" />
-        <span>Payment only after host approves your request</span>
-      </div>
+      {paymentAfterApproval && (
+        <div className="flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
+          <Shield className="h-3 w-3" />
+          <span>Payment only after host approves your request</span>
+        </div>
+      )}
     </form>
   )
 }
@@ -291,13 +277,13 @@ export function JoinRequestForm({
 function ApprovedPaymentSection({
   existingRequest,
   tripPriceDisplay,
-  totalPrice,
+  amountPaise,
   hostName,
   packageTitle,
 }: {
   existingRequest: ExistingRequest
   tripPriceDisplay: string
-  totalPrice: number
+  amountPaise: number
   hostName: string
   packageTitle: string
 }) {
@@ -413,13 +399,13 @@ function ApprovedPaymentSection({
         ) : (
           <span className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
-            Proceed to Payment ({tripPriceDisplay})
+            Proceed to payment ({tripPriceDisplay})
           </span>
         )}
       </Button>
 
       <div className="text-xs text-muted-foreground text-center">
-        <span className="font-medium">Total:</span> {formatPrice(totalPrice)} (includes {PLATFORM_FEE_PERCENT}% platform fee)
+        <span className="font-medium">You pay:</span> {formatPrice(amountPaise)} per person
       </div>
     </div>
   )

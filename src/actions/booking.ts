@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
+import { getPlatformFeePercent } from '@/lib/platform-settings'
+import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 
 export async function createRazorpayOrder(
   packageId: string,
@@ -35,6 +37,26 @@ export async function createRazorpayOrder(
 
   if (!pkg) {
     return { error: 'Package not found' }
+  }
+
+  if (pkg.host_id && pkg.host_id === user.id) {
+    return { error: 'You cannot book your own trip' }
+  }
+
+  const joinPrefs = pkg.join_preferences && typeof pkg.join_preferences === 'object'
+    ? (pkg.join_preferences as Record<string, unknown>)
+    : {}
+  const communityPayOnBooking = joinPrefs.payment_timing === 'pay_on_booking'
+
+  if (pkg.host_id && !communityPayOnBooking) {
+    return { error: 'This trip uses join requests. Open the trip page to request a spot.' }
+  }
+
+  if (
+    pkg.host_id &&
+    (!pkg.is_active || pkg.moderation_status !== 'approved')
+  ) {
+    return { error: 'This trip is not available for booking' }
   }
 
   // Server-side date validation — must be at least 1 day in the future
@@ -326,9 +348,11 @@ export async function confirmPayment(
   try {
     const pkg = booking.package as { host_id?: string } | null
     if (pkg?.host_id) {
-      const { PLATFORM_FEE_PERCENT } = await import('@/lib/constants')
-      const platformFee = Math.round(booking.total_amount_paise * PLATFORM_FEE_PERCENT / 100)
-      const hostAmount = booking.total_amount_paise - platformFee
+      const feePercent = await getPlatformFeePercent()
+      const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
+        booking.total_amount_paise,
+        feePercent,
+      )
 
       const { createClient: createSC3 } = await import('@supabase/supabase-js')
       const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -337,18 +361,18 @@ export async function confirmPayment(
         booking_id: booking.id,
         host_id: pkg.host_id,
         total_paise: booking.total_amount_paise,
-        platform_fee_paise: platformFee,
-        host_paise: hostAmount,
+        platform_fee_paise: platformFeePaise,
+        host_paise: hostPaise,
         payout_status: 'pending',
       })
 
       // Notify host
-      const hostAmount_fmt = '₹' + (hostAmount / 100).toLocaleString('en-IN')
+      const hostAmount_fmt = '₹' + (hostPaise / 100).toLocaleString('en-IN')
       await svcSupa3.from('notifications').insert({
         user_id: pkg.host_id,
         type: 'split_payment',
         title: 'New Booking on Your Trip!',
-        body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (after 15% platform fee)`,
+        body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (list price includes a ${feePercent}% platform fee).`,
         link: '/host',
       })
     }

@@ -75,6 +75,11 @@ export type JoinPreferences = {
   gender_preference?: 'men' | 'women' | 'all'
   min_trips_completed?: number
   interest_tags?: string[]
+  /**
+   * `after_host_approval` (default): request → host approves → pay.
+   * `pay_on_booking`: standard checkout; no join-request gate.
+   */
+  payment_timing?: 'after_host_approval' | 'pay_on_booking'
 }
 
 export type HostProfile = {

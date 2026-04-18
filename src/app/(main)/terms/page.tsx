@@ -54,7 +54,7 @@ export default function TermsPage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>Hosts must complete phone and email verification before creating trips.</li>
               <li>All community trips are subject to admin approval before being listed.</li>
-              <li>UnSOLO charges a platform fee (currently 15%) on community trip bookings.</li>
+              <li>UnSOLO charges a platform fee on community trip bookings; the percentage is set by UnSOLO and applied as part of the listed trip price (not as a separate add-on at checkout).</li>
               <li>Hosts are responsible for the accuracy of their trip descriptions, itineraries, and inclusions.</li>
               <li>UnSOLO is not liable for the quality, safety, or execution of community-hosted trips.</li>
               <li>Hosts must not engage in misleading, fraudulent, or unsafe practices.</li>
