@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bell, X, Check, MessageCircle, CreditCard, Phone, Users } from 'lucide-react'
-import { timeAgo } from '@/lib/utils'
+import { Bell, X, MessageCircle, CreditCard, Phone, Users } from 'lucide-react'
+import { cn, timeAgo } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 
 interface Notification {
@@ -24,7 +24,14 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
   split_payment: CreditCard,
 }
 
-export function NotificationBell({ userId }: { userId: string }) {
+/** `below` = under trigger (navbar). `above` = opens upward (e.g. bell at bottom of admin sidebar). */
+export function NotificationBell({
+  userId,
+  placement = 'below',
+}: {
+  userId: string
+  placement?: 'below' | 'above'
+}) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -133,7 +140,14 @@ export function NotificationBell({ userId }: { userId: string }) {
       </button>
 
       {open && (
-        <div className="fixed sm:absolute left-2 right-2 sm:left-auto sm:right-0 top-14 sm:top-full sm:mt-2 sm:w-80 bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-50">
+        <div
+          className={cn(
+            'bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-[200]',
+            placement === 'below'
+              ? 'fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
+              : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col',
+          )}
+        >
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <span className="text-sm font-bold">Notifications</span>
             <div className="flex items-center gap-2">
@@ -148,7 +162,7 @@ export function NotificationBell({ userId }: { userId: string }) {
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto">
+          <div className={cn('min-h-0 overflow-y-auto', placement === 'above' ? 'max-h-72 sm:max-h-80' : 'max-h-80')}>
             {notifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No notifications yet

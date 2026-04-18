@@ -1,3 +1,7 @@
 'use client'
 
-export { NotificationBell as AdminNotificationBell } from '@/components/layout/NotificationBell'
+import { NotificationBell } from '@/components/layout/NotificationBell'
+
+export function AdminNotificationBell({ userId }: { userId: string }) {
+  return <NotificationBell userId={userId} placement="above" />
+}
