@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mountain, Gift, Mail } from 'lucide-react'
+import { Mountain, Gift, Mail, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 const TRAVEL_QUOTES = [
@@ -22,7 +22,10 @@ const TRAVEL_QUOTES = [
   "Traveling tends to magnify all human emotions.",
 ]
 
-function LoadingScreen() {
+const inputPlaceholderClass =
+  'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
+
+function LoadingScreen({ showEmailHint }: { showEmailHint?: boolean }) {
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * TRAVEL_QUOTES.length))
 
   useEffect(() => {
@@ -41,7 +44,14 @@ function LoadingScreen() {
         <div className="mt-8 mb-4">
           <div className="h-10 w-10 border-[3px] border-primary border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Setting up your adventure, please hold on...</p>
+        <p className="text-sm text-muted-foreground">Setting up your adventure, please hold on...</p>
+        {showEmailHint ? (
+          <p className="text-xs text-muted-foreground mt-3 mb-6 max-w-sm mx-auto leading-relaxed">
+            We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
+          </p>
+        ) : (
+          <div className="mb-6 mt-3" />
+        )}
         <div className="min-h-[60px] flex items-center justify-center">
           <p key={quoteIndex} className="text-primary italic text-sm font-medium" style={{ animation: 'fadeIn 0.5s ease-out' }}>
             &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
@@ -60,7 +70,9 @@ function LoadingScreen() {
 }
 
 function SignupForm() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState<false | 'google' | 'email'>(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const [resendBusy, setResendBusy] = useState(false)
   const submitLockRef = useRef(false)
@@ -71,7 +83,7 @@ function SignupForm() {
     e.preventDefault()
     if (submitLockRef.current) return
     submitLockRef.current = true
-    setLoading(true)
+    setLoading('email')
     try {
       const formData = new FormData(e.currentTarget)
       if (formData.get('password') !== formData.get('confirmPassword')) {
@@ -98,7 +110,7 @@ function SignupForm() {
     }
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <LoadingScreen showEmailHint={loading === 'email'} />
 
   if (pendingVerificationEmail) {
     return (
@@ -196,7 +208,7 @@ function SignupForm() {
             type="button"
             variant="outline"
             className="w-full border-border"
-            onClick={() => { setLoading(true); signInWithGoogle(refCode || undefined) }}
+            onClick={() => { setLoading('google'); signInWithGoogle(refCode || undefined) }}
           >
             <Mountain className="mr-2 h-4 w-4 text-primary" />
             Continue with Google
@@ -216,31 +228,81 @@ function SignupForm() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-sm font-medium">Full Name</label>
-                <Input name="fullName" placeholder="Priya Sharma" required className="bg-secondary border-border" />
+                <Input
+                  name="fullName"
+                  placeholder="e.g. River Walker"
+                  required
+                  className={`bg-secondary border-border ${inputPlaceholderClass}`}
+                />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium">Username</label>
-                <Input name="username" placeholder="priyatravels" required className="bg-secondary border-border" />
+                <Input
+                  name="username"
+                  placeholder="e.g. summit_seeker"
+                  required
+                  className={`bg-secondary border-border ${inputPlaceholderClass}`}
+                />
               </div>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Email</label>
-              <Input name="email" type="email" placeholder="you@example.com" required className="bg-secondary border-border" />
+              <Input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+                className={`bg-secondary border-border ${inputPlaceholderClass}`}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Password</label>
-              <Input name="password" type="password" placeholder="••••••••" minLength={8} required className="bg-secondary border-border" />
+              <div className="relative">
+                <Input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  required
+                  className={`bg-secondary border-border pr-10 ${inputPlaceholderClass}`}
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Confirm Password</label>
-              <Input name="confirmPassword" type="password" placeholder="••••••••" required className="bg-secondary border-border" />
+              <div className="relative">
+                <Input
+                  name="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Repeat password"
+                  required
+                  className={`bg-secondary border-border pr-10 ${inputPlaceholderClass}`}
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            <Button type="submit" className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+              disabled={!!loading}
+            >
               Create Account
             </Button>
-            <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-              We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
-            </p>
           </form>
 
           <p className="text-xs text-muted-foreground text-center">

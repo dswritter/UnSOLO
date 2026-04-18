@@ -6,9 +6,12 @@ import { useSearchParams } from 'next/navigation'
 import { signIn, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Mountain, CheckCircle } from 'lucide-react'
+import { Mountain, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+
+const inputPlaceholderClass =
+  'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
 
 const TRAVEL_QUOTES = [
   "The world is a book, and those who do not travel read only one page.",
@@ -30,6 +33,7 @@ function LoginPageInner() {
   const [quoteIndex, setQuoteIndex] = useState(0)
   const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
   const [hasSessionAfterVerify, setHasSessionAfterVerify] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (!verified) return
@@ -154,14 +158,36 @@ function LoginPageInner() {
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Email</label>
-              <Input name="email" type="email" placeholder="you@example.com" required className="bg-secondary border-border" />
+              <Input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+                className={`bg-secondary border-border ${inputPlaceholderClass}`}
+              />
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Password</label>
                 <Link href="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
               </div>
-              <Input name="password" type="password" placeholder="••••••••" required className="bg-secondary border-border" />
+              <div className="relative">
+                <Input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Your password"
+                  required
+                  className={`bg-secondary border-border pr-10 ${inputPlaceholderClass}`}
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full bg-primary text-black font-bold hover:bg-primary/90">Sign In</Button>
           </form>
