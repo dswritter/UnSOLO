@@ -187,11 +187,30 @@ export default async function ProfilePage({
 
   const visitedStatesList = Array.from(uniqueStates)
 
+  const achievementsHeading = (
+    <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Achievements & stats</p>
+    </div>
+  )
+
+  const atAGlanceCard = (
+    <Card className="bg-card border-border shadow-sm">
+      <CardContent className="p-5">
+        <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
+        {statsGrid}
+        {leaderboardRankRow}
+      </CardContent>
+    </Card>
+  )
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:gap-8 xl:gap-10 lg:items-start">
+          {/* Left ~70%: header, 24h, activity, tier & places */}
+          <div className="min-w-0 space-y-6 lg:col-span-7">
         {/* Profile Header */}
-        <div className="bg-card border border-border rounded-2xl p-6 md:p-8 mb-6">
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
             {profile.avatar_url && user ? (
               <ProfileAvatarWithStatusMenu
@@ -326,12 +345,6 @@ export default async function ProfilePage({
               )}
             </div>
           </div>
-
-          {/* Stats — stacked on small screens; lg+ uses sticky sidebar */}
-          <div className="mt-6 pt-6 border-t border-border lg:hidden">
-            {statsGrid}
-            {leaderboardRankRow}
-          </div>
         </div>
 
         {user ? (
@@ -340,9 +353,6 @@ export default async function ProfilePage({
 
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
-          {/* Main column (~2/3): activity + tier/places — matches SS2 */}
-          <div className="min-w-0 flex-1 space-y-6 lg:flex-[2] lg:basis-0">
             {/* Trips - clickable, with privacy */}
             {completedBookings && completedBookings.length > 0 && (
               <Card className="bg-card border-border">
@@ -432,25 +442,19 @@ export default async function ProfilePage({
 
             <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} deferToSidebar />
 
-            {/* Badges & states: sidebar on lg+; stacked here on narrow screens */}
+            {/* Mobile: same order as desktop sidebar — stats, badges, states */}
             <div className="space-y-6 lg:hidden">
+              {achievementsHeading}
+              {atAGlanceCard}
               {badgesCard}
               <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
             </div>
           </div>
 
-          {/* Achievements sidebar: stats, badges, states (lg+) */}
-          <aside className="hidden lg:flex lg:min-w-0 lg:flex-1 lg:basis-0 lg:max-w-md flex-col gap-6 lg:sticky lg:top-20 xl:top-24 self-start">
-            <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Achievements & stats</p>
-            </div>
-            <Card className="bg-card border-border shadow-sm">
-              <CardContent className="p-5">
-                <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
-                {statsGrid}
-                {leaderboardRankRow}
-              </CardContent>
-            </Card>
+          {/* Right ~30%: stats, badges, states only */}
+          <aside className="hidden min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:gap-6 lg:sticky lg:top-20 xl:top-24 lg:self-start">
+            {achievementsHeading}
+            {atAGlanceCard}
             {badgesCard}
             <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
           </aside>
