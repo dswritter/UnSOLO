@@ -1,5 +1,11 @@
-/** Session payload for `/host/trip-preview` (set from HostTripForm before opening the tab). */
+/**
+ * Payload for `/host/trip-preview`, written from HostTripForm before opening the preview.
+ * Use localStorage for the handoff: `sessionStorage` is per-tab, so `window.open(..., '_blank')`
+ * cannot see data set in the parent tab.
+ */
+export const TRIP_PREVIEW_HANDOFF_KEY = 'unsolo_host_trip_preview_handoff'
 
+/** @deprecated Prefer TRIP_PREVIEW_HANDOFF_KEY + localStorage; kept for one-time read fallback. */
 export const TRIP_PREVIEW_SESSION_KEY = 'trip-preview'
 
 export type HostTripPreviewPayload = {

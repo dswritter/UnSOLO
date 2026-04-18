@@ -45,7 +45,7 @@ import {
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
-  TRIP_PREVIEW_SESSION_KEY,
+  TRIP_PREVIEW_HANDOFF_KEY,
   type HostTripPreviewPayload,
 } from '@/lib/host-trip-preview-session'
 import {
@@ -1824,7 +1824,7 @@ export function HostTripForm({
                       livePackageSlug: isEdit ? editTripSlug : null,
                     }
                     try {
-                      sessionStorage.setItem(TRIP_PREVIEW_SESSION_KEY, JSON.stringify(previewPayload))
+                      localStorage.setItem(TRIP_PREVIEW_HANDOFF_KEY, JSON.stringify(previewPayload))
                     } catch {
                       toast.error('Could not open preview (storage blocked).')
                       return

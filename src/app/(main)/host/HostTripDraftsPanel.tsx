@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FileEdit, Trash2, Clock, Plus } from 'lucide-react'
+import { FileEdit, Trash2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
@@ -38,21 +38,13 @@ export function HostTripDraftsPanel() {
 
   return (
     <div className="mb-8 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 sm:p-5">
-      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-bold">Trip drafts</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Saved on this browser only. Drafts are removed automatically after {DRAFT_RETENTION_DAYS} days. Use{' '}
-            <span className="font-medium text-foreground">Create New Trip</span> for a fresh form — your drafts stay
-            here until you continue or delete them.
-          </p>
-        </div>
-        <Button asChild size="sm" variant="outline" className="shrink-0 gap-1.5 border-primary/40">
-          <Link href="/host/create">
-            <Plus className="h-3.5 w-3.5" />
-            New trip (blank)
-          </Link>
-        </Button>
+      <div className="mb-3">
+        <h2 className="text-lg font-bold">Trip drafts</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Saved on this browser only. Drafts are removed automatically after {DRAFT_RETENTION_DAYS} days. Use{' '}
+          <span className="font-medium text-foreground">Create New Trip</span> above for a fresh form — your drafts stay
+          here until you continue or delete them.
+        </p>
       </div>
       <ul className="space-y-2">
         {drafts.map((d) => {

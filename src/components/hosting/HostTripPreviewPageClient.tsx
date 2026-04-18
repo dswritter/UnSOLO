@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  TRIP_PREVIEW_HANDOFF_KEY,
   TRIP_PREVIEW_SESSION_KEY,
   type HostTripPreviewPayload,
 } from '@/lib/host-trip-preview-session'
@@ -63,7 +64,11 @@ export function HostTripPreviewPageClient() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(TRIP_PREVIEW_SESSION_KEY)
+      const raw =
+        typeof window !== 'undefined'
+          ? localStorage.getItem(TRIP_PREVIEW_HANDOFF_KEY) ||
+            sessionStorage.getItem(TRIP_PREVIEW_SESSION_KEY)
+          : null
       if (!raw) {
         setData(null)
         return
