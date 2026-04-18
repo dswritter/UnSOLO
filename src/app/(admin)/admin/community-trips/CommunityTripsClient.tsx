@@ -1,19 +1,23 @@
 'use client'
 
 import { useState, useTransition, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { moderateCommunityTrip, markHostPayout, updatePackage } from '@/actions/admin'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { toast } from 'sonner'
-import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 
 interface Props {
   trips: any[]
   pendingPayouts: any[]
+  /** Current platform fee % (inclusive in list price); from Admin → Settings */
+  platformFeePercent: number
 }
 
 const MOD_COLORS: Record<string, string> = {
@@ -22,8 +26,14 @@ const MOD_COLORS: Record<string, string> = {
   rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
 }
 
-export default function CommunityTripsClient({ trips: initialTrips, pendingPayouts: initialPayouts }: Props) {
+export default function CommunityTripsClient({
+  trips: initialTrips,
+  pendingPayouts: initialPayouts,
+  platformFeePercent,
+}: Props) {
+  const router = useRouter()
   const [trips, setTrips] = useState(initialTrips)
+  const [pendingPayouts, setPendingPayouts] = useState(initialPayouts)
   const [filter, setFilter] = useState('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -31,6 +41,9 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
   useEffect(() => {
     setTrips(initialTrips)
   }, [initialTrips])
+  useEffect(() => {
+    setPendingPayouts(initialPayouts)
+  }, [initialPayouts])
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
   const [payoutRef, setPayoutRef] = useState<Record<string, string>>({})
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
@@ -67,16 +80,148 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
 
   function handlePayout(earningId: string) {
     const ref = payoutRef[earningId]
-    if (!ref?.trim()) { toast.error('Enter payout reference'); return }
+    if (!ref?.trim()) {
+      toast.error('Enter a payout reference (e.g. UPI transaction ID)')
+      return
+    }
     startTransition(async () => {
-      const res = await markHostPayout(earningId, ref)
+      const res = await markHostPayout(earningId, ref.trim())
       if (res.error) toast.error(res.error)
-      else toast.success('Payout marked as completed!')
+      else {
+        toast.success('Payout marked completed. Host was notified.')
+        setPendingPayouts((prev) => prev.filter((e: { id: string }) => e.id !== earningId))
+        setPayoutRef((prev) => {
+          const next = { ...prev }
+          delete next[earningId]
+          return next
+        })
+        router.refresh()
+      }
     })
   }
 
   return (
     <div className="space-y-8">
+      {/* Host payouts — always visible so admins find settlement workflow */}
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Host payouts &amp; settlements
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+              After a traveler pays for a <strong>community</strong> trip, Razorpay settles to UnSOLO. Record each host
+              transfer here once you&apos;ve paid them manually (UPI/bank). List price includes a{' '}
+              <strong>{platformFeePercent}%</strong> platform fee — configure in{' '}
+              <Link href="/admin/settings" className="text-primary font-medium hover:underline inline-flex items-center gap-0.5">
+                <Settings className="h-3 w-3" /> Settings
+              </Link>
+              .
+            </p>
+          </div>
+          <Link href="/admin/bookings">
+            <Button variant="outline" size="sm" className="text-xs shrink-0">
+              View all bookings
+            </Button>
+          </Link>
+        </div>
+
+        {pendingPayouts.length === 0 ? (
+          <div className="flex gap-2 rounded-lg border border-border bg-card/80 px-3 py-3 text-sm text-muted-foreground">
+            <Info className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+            <div>
+              <p className="font-medium text-foreground">No pending host payouts</p>
+              <p className="text-xs mt-1 leading-relaxed">
+                Rows appear when a booking is confirmed and <code className="text-[10px] bg-secondary px-1 rounded">host_earnings</code> is
+                created (traveler paid, host share pending). Use <strong>Mark paid</strong> after you send the host their
+                share; enter your UPI/bank reference for the audit trail.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs font-medium text-foreground">
+              {pendingPayouts.length} pending — pay the host outside the app, then mark complete.
+            </p>
+            <div className="space-y-2">
+              {pendingPayouts.map((earning: any) => {
+                const host = earning.host as any
+                const booking = earning.booking as any
+                const pkg = booking?.package as any
+                return (
+                  <div
+                    key={earning.id}
+                    className="border border-border rounded-lg p-3 sm:p-4 bg-card flex flex-col lg:flex-row lg:items-end gap-4"
+                  >
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="text-sm font-semibold">{host?.full_name || host?.username || 'Host'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        <span className="text-foreground font-medium">{pkg?.title || 'Trip'}</span>
+                        {booking?.travel_date && (
+                          <>
+                            {' '}
+                            · Travel {formatDate(booking.travel_date)}
+                          </>
+                        )}
+                        {booking?.confirmation_code && (
+                          <>
+                            {' '}
+                            · Code <span className="font-mono text-foreground">{booking.confirmation_code}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
+                          <div className="text-muted-foreground">Traveler paid</div>
+                          <div className="font-semibold tabular-nums">{formatPrice(earning.total_paise)}</div>
+                        </div>
+                        <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
+                          <div className="text-muted-foreground">Platform ({platformFeePercent}%)</div>
+                          <div className="font-semibold tabular-nums">{formatPrice(earning.platform_fee_paise)}</div>
+                        </div>
+                        <div className="rounded-md bg-primary/10 px-2 py-1.5 border border-primary/25">
+                          <div className="text-muted-foreground">Pay host</div>
+                          <div className="font-bold text-primary tabular-nums">{formatPrice(earning.host_paise)}</div>
+                        </div>
+                      </div>
+                      {host?.upi_id ? (
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Host UPI: </span>
+                          <span className="font-mono text-primary break-all">{host.upi_id}</span>
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                          Host has not saved a UPI ID — check their profile or contact them for bank details.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto lg:min-w-[280px]">
+                      <input
+                        type="text"
+                        placeholder="UPI / bank ref (required)"
+                        value={payoutRef[earning.id] || ''}
+                        onChange={(e) => setPayoutRef((prev) => ({ ...prev, [earning.id]: e.target.value }))}
+                        className="text-xs bg-secondary border border-border rounded-lg px-3 py-2 flex-1 min-w-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => handlePayout(earning.id)}
+                        disabled={isPending}
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs shrink-0"
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        Mark paid
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         {['all', 'pending', 'approved', 'rejected'].map(s => (
@@ -172,11 +317,34 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
 
                   {/* Trip details */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><span className="text-muted-foreground">Price:</span> {formatPrice(trip.price_paise)}/person</div>
+                    <div><span className="text-muted-foreground">List price:</span> {formatPrice(trip.price_paise)}/person</div>
                     <div><span className="text-muted-foreground">Duration:</span> {packageDurationShortLabel(trip)}</div>
                     <div><span className="text-muted-foreground">Max Group:</span> {trip.max_group_size}</div>
                     <div><span className="text-muted-foreground">Difficulty:</span> {trip.difficulty}</div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Traveler checkout: </span>
+                      <span className="text-foreground">
+                        {trip.join_preferences?.payment_timing === 'pay_on_booking'
+                          ? 'Book & pay immediately'
+                          : 'Join request → pay after host approves'}
+                      </span>
+                    </div>
                   </div>
+                  {(() => {
+                    const split = splitInclusiveCommunityPayment(trip.price_paise || 0, platformFeePercent)
+                    return (
+                      <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2 text-[11px] space-y-1">
+                        <div className="font-medium text-foreground">Inclusive fee split (per person, lowest list tier)</div>
+                        <div className="text-muted-foreground">
+                          Traveler pays <span className="text-foreground font-medium">{formatPrice(trip.price_paise)}</span>
+                          {' · '}
+                          Platform ~{formatPrice(split.platformFeePaise)} ({platformFeePercent}%)
+                          {' · '}
+                          Host ~{formatPrice(split.hostPaise)}
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {trip.short_description && (
                     <div className="text-xs">
@@ -231,14 +399,16 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
 
                   {/* Join preferences */}
                   {trip.join_preferences && Object.keys(trip.join_preferences).length > 0 && (
-                    <div className="text-xs">
-                      <span className="font-medium">Join Preferences: </span>
-                      <span className="text-muted-foreground">
-                        {trip.join_preferences.gender_preference && trip.join_preferences.gender_preference !== 'all' && `${trip.join_preferences.gender_preference} only · `}
-                        {trip.join_preferences.min_age && `Age ${trip.join_preferences.min_age}-${trip.join_preferences.max_age || '∞'} · `}
-                        {trip.join_preferences.min_trips_completed && `Min ${trip.join_preferences.min_trips_completed} trips · `}
-                        {trip.join_preferences.interest_tags?.join(', ')}
-                      </span>
+                    <div className="text-xs space-y-1">
+                      <div>
+                        <span className="font-medium">Join Preferences: </span>
+                        <span className="text-muted-foreground">
+                          {trip.join_preferences.gender_preference && trip.join_preferences.gender_preference !== 'all' && `${trip.join_preferences.gender_preference} only · `}
+                          {trip.join_preferences.min_age != null && `Age ${trip.join_preferences.min_age}-${trip.join_preferences.max_age ?? '∞'} · `}
+                          {trip.join_preferences.min_trips_completed && `Min ${trip.join_preferences.min_trips_completed} trips · `}
+                          {trip.join_preferences.interest_tags?.join(', ')}
+                        </span>
+                      </div>
                     </div>
                   )}
 
@@ -323,52 +493,6 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
           )
         })}
       </div>
-
-      {/* Pending Payouts section */}
-      {initialPayouts.length > 0 && (
-        <div>
-          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-primary" /> Pending Host Payouts
-          </h2>
-          <div className="space-y-2">
-            {initialPayouts.map((earning: any) => {
-              const host = earning.host as any
-              const booking = earning.booking as any
-              const pkg = booking?.package as any
-              return (
-                <div key={earning.id} className="border border-border rounded-lg p-3 bg-card flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium">{host?.full_name || host?.username}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {pkg?.title} · {booking?.travel_date ? formatDate(booking.travel_date) : ''} · Host share: {formatPrice(earning.host_paise)}
-                    </div>
-                    {host?.upi_id && (
-                      <div className="text-xs text-primary font-mono mt-0.5">UPI: {host.upi_id}</div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Payout ref..."
-                      value={payoutRef[earning.id] || ''}
-                      onChange={e => setPayoutRef(prev => ({ ...prev, [earning.id]: e.target.value }))}
-                      className="text-xs bg-secondary border border-border rounded px-2 py-1 w-32 focus:outline-none focus:border-primary"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => handlePayout(earning.id)}
-                      disabled={isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white text-xs"
-                    >
-                      Mark Paid
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

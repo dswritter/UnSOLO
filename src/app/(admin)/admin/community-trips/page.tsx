@@ -17,18 +17,33 @@ export default async function AdminCommunityTripsPage() {
     .not('host_id', 'is', null)
     .order('created_at', { ascending: false })
 
-  // Get pending payouts
+  // Get pending payouts (booking details for admin transfer)
   const { data: pendingPayouts } = await supabase
     .from('host_earnings')
-    .select('*, host:profiles(username, full_name, upi_id), booking:bookings(travel_date, package:packages(title))')
+    .select(
+      '*, host:profiles(username, full_name, upi_id), booking:bookings(travel_date, confirmation_code, package:packages(title))',
+    )
     .eq('payout_status', 'pending')
     .order('created_at', { ascending: false })
+
+  const { data: feeRow } = await supabase
+    .from('platform_settings')
+    .select('value')
+    .eq('key', 'platform_fee_percent')
+    .maybeSingle()
+  const parsedFee = parseFloat(String(feeRow?.value ?? '').trim())
+  const platformFeePercent =
+    Number.isFinite(parsedFee) && parsedFee >= 0 && parsedFee <= 100 ? Math.round(parsedFee * 100) / 100 : 15
 
   return (
     <div>
       <h1 className="text-2xl font-black mb-1">Community <span className="text-primary">Trips</span></h1>
       <p className="text-muted-foreground text-sm mb-6">Moderate user-hosted trips and manage host payouts</p>
-      <CommunityTripsClient trips={trips || []} pendingPayouts={pendingPayouts || []} />
+      <CommunityTripsClient
+        trips={trips || []}
+        pendingPayouts={pendingPayouts || []}
+        platformFeePercent={platformFeePercent}
+      />
     </div>
   )
 }
