@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, Clock, MapPin, Users } from 'lucide-react'
+import { ArrowLeft, CheckCircle, MapPin, Users } from 'lucide-react'
 import { ImageGallery } from '@/components/packages/ImageGallery'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { packageDurationFullLabel } from '@/lib/package-trip-calendar'
+import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -112,14 +112,14 @@ export function HostTripPreviewPageClient() {
 
   const td = Math.max(1, parseInt(data.tripDays, 10) || 1)
   const tn = Math.max(0, parseInt(data.tripNights, 10) || 0)
-  const durationLabel = packageDurationFullLabel({
+  const durationDisplay = {
     duration_days: td,
     trip_days: td,
     trip_nights: tn,
     exclude_first_day_travel: data.excludeFirstTravel,
     departure_time: data.departureTime,
     return_time: data.returnTime,
-  })
+  }
 
   const destLine = data.destination ? `${data.destination.name}, ${data.destination.state}` : null
   const maxGroup = parseInt(data.maxGroupSize, 10) || 12
@@ -173,10 +173,8 @@ export function HostTripPreviewPageClient() {
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              {[
-                { icon: Clock, label: 'Duration', value: durationLabel },
-                { icon: Users, label: 'Group size', value: `Up to ${maxGroup}` },
-              ].map(({ icon: Icon, label, value }) => (
+              <TripDurationStatCard duration={durationDisplay} />
+              {[{ icon: Users, label: 'Group size', value: `Up to ${maxGroup}` }].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="rounded-xl border border-border bg-card p-4 text-center">
                   <Icon className="mx-auto mb-1 h-5 w-5 text-primary" />
                   <div className="text-sm font-bold leading-tight">{value}</div>

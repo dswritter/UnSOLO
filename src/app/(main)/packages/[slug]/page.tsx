@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { MapPin, Clock, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
+import { MapPin, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
@@ -282,8 +283,8 @@ export default async function PackageDetailPage({
 
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">
+              <TripDurationStatCard duration={package_} />
               {[
-                { icon: Clock, label: 'Duration', value: packageDurationShortLabel(package_) },
                 { icon: Users, label: 'Group Size', value: `Up to ${package_.max_group_size}` },
                 { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
               ].map(({ icon: Icon, label, value }) => (

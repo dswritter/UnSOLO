@@ -65,14 +65,24 @@ export function packageDurationShortLabel(p: PackageDurationDisplay): string {
   return `${d} day${d === 1 ? '' : 's'} · ${n} night${n === 1 ? '' : 's'}`
 }
 
-/** Longer label with times + optional travel-day note. */
-export function packageDurationFullLabel(p: PackageDurationDisplay): string {
-  let s = packageDurationShortLabel(p)
+/** Extra copy (times + travel-day note) shown beside or under the short label. */
+export function packageDurationDetailLines(p: PackageDurationDisplay): string[] {
+  const lines: string[] = []
   if (p.departure_time && p.return_time) {
-    s += ` · departs ${p.departure_time} · returns ${p.return_time}`
+    lines.push(`departs ${p.departure_time} · returns ${p.return_time}`)
   }
   if (p.exclude_first_day_travel) {
-    s += ' · day 1 / night 1 travel not counted in days/nights above'
+    lines.push('day 1 / night 1 travel not counted in days/nights above')
   }
-  return s
+  return lines
+}
+
+export function packageDurationHasExtraDetail(p: PackageDurationDisplay): boolean {
+  return packageDurationDetailLines(p).length > 0
+}
+
+/** Longer label with times + optional travel-day note (single string). */
+export function packageDurationFullLabel(p: PackageDurationDisplay): string {
+  const parts = [packageDurationShortLabel(p), ...packageDurationDetailLines(p)]
+  return parts.join(' · ')
 }
