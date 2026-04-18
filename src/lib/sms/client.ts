@@ -2,8 +2,9 @@
 // Priority: TWOFACTOR_API_KEY (2factor.in) → MSG91 → console fallback (dev).
 // `message` is the OTP digits for host phone verification.
 //
-// 2factor.in (see https://2factor.in/API/DOCS/SMS_OTP.html):
+// 2factor.in (see https://2factor.in/API/DOCS/SMS_OTP.html and 2factor-node sendOTP):
 // - SMS:  POST .../API/V1/{key}/SMS/{phone}/{otp}
+// - {phone} must be **10 digits only** (no leading 91). A 91 prefix in the path can mis-route delivery.
 // - Voice (different): .../VOICE/... — we only call /SMS/...
 // - If your account uses an approved OTP *template* (e.g. login_otp), use the
 //   manual-OTP + template path: .../SMS/{phone}/{otp}/{template_name}
@@ -16,6 +17,14 @@
 // build time; Vercel runtime env must be read when the function runs.
 
 type TwoFactorSendResponse = { Status?: string; Details?: string }
+
+/** 2factor OTP URLs expect a 10-digit Indian mobile only (no country code in path). */
+function twoFactorSmsPhoneSegment(phone: string): string {
+  let d = phone.replace(/\D/g, '')
+  if (d.startsWith('91') && d.length === 12) d = d.slice(2)
+  if (d.length !== 10) d = phone.replace(/\D/g, '')
+  return encodeURIComponent(d)
+}
 
 function env(name: string): string | undefined {
   const v = process.env[name]
@@ -31,7 +40,7 @@ export async function sendSMS(phone: string, message: string): Promise<{ success
   if (twoFactorKey) {
     try {
       const template = env('TWOFACTOR_OTP_TEMPLATE')
-      const phoneSeg = `91${encodeURIComponent(phone)}`
+      const phoneSeg = twoFactorSmsPhoneSegment(phone)
       const otpSeg = encodeURIComponent(message)
       const path = template
         ? `/API/V1/${encodeURIComponent(twoFactorKey)}/SMS/${phoneSeg}/${otpSeg}/${encodeURIComponent(template)}`
