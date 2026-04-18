@@ -63,7 +63,7 @@ export default async function HostDashboardPage() {
         {/* Compact Stats Row */}
         <HostTripsList
           stats={stats}
-          trips={trips as { id: string; title: string; slug: string; is_active: boolean; moderation_status: string | null; price_paise: number; duration_days: number; departure_dates: string[] | null; images: string[] | null; max_group_size: number; pending_requests: number; approved_requests: number; destination: { name: string; state: string } | null }[]}
+          trips={trips as { id: string; title: string; slug: string; is_active: boolean; moderation_status: string | null; price_paise: number; duration_days: number; trip_days?: number | null; trip_nights?: number | null; departure_dates: string[] | null; departure_dates_closed?: string[] | null; images: string[] | null; max_group_size: number; pending_requests: number; approved_requests: number; destination: { name: string; state: string } | null }[]}
         />
       </div>
     </div>

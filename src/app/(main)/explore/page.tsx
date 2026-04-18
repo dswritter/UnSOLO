@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import type { Package } from '@/types'
@@ -118,11 +118,15 @@ async function getPackages(searchParams: Record<string, string>) {
   const { data } = await query
   let packages = (data || []) as unknown as Package[]
 
-  // Hide trips where ALL departure dates are in the past
+  // Hide trips where every departure is past or host-marked full
   const todayStr = new Date().toISOString().split('T')[0]
   packages = packages.filter(pkg => {
     if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
-    return pkg.departure_dates.some(d => d >= todayStr)
+    const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
+    return pkg.departure_dates.some(d => {
+      const k = tripDepartureDateKey(d)
+      return k >= todayStr && !closed.has(k)
+    })
   })
 
   // Text search
@@ -143,7 +147,11 @@ async function getPackages(searchParams: Record<string, string>) {
     const targetMonth = parseInt(searchParams.month)
     packages = packages.filter(pkg => {
       if (!pkg.departure_dates || pkg.departure_dates.length === 0) return false
-      return pkg.departure_dates.some(d => new Date(d).getMonth() === targetMonth)
+      const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
+      return pkg.departure_dates.some(d => {
+        if (closed.has(tripDepartureDateKey(d))) return false
+        return new Date(d).getMonth() === targetMonth
+      })
     })
   }
 

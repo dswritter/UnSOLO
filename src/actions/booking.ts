@@ -7,6 +7,7 @@ import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
+import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 
 export async function createRazorpayOrder(
   packageId: string,
@@ -65,6 +66,11 @@ export async function createRazorpayOrder(
   const selectedDate = new Date(travelDate)
   if (selectedDate <= today) {
     return { error: 'Travel date must be in the future' }
+  }
+
+  const closedDates = (pkg.departure_dates_closed || []).map(tripDepartureDateKey)
+  if (closedDates.includes(tripDepartureDateKey(travelDate))) {
+    return { error: 'No spots left for this date' }
   }
 
   // Duplicate booking prevention — only block if already confirmed
@@ -926,7 +932,7 @@ export async function createCommunityTripOrder(joinRequestId: string) {
 
   const { data: request } = await supabase
     .from('join_requests')
-    .select('*, trip:packages(id, title, price_paise, host_id, departure_dates, duration_days)')
+    .select('*, trip:packages(id, title, price_paise, host_id, departure_dates, departure_dates_closed, duration_days)')
     .eq('id', joinRequestId)
     .eq('user_id', user.id)
     .single()
@@ -938,8 +944,24 @@ export async function createCommunityTripOrder(joinRequestId: string) {
     return { error: 'Payment deadline has passed. Please request to join again.' }
   }
 
-  const trip = request.trip as { id: string; title: string; price_paise: number; host_id: string; departure_dates?: string[]; duration_days?: number }
+  const trip = request.trip as {
+    id: string
+    title: string
+    price_paise: number
+    host_id: string
+    departure_dates?: string[] | null
+    departure_dates_closed?: string[] | null
+    duration_days?: number
+  }
   const totalPaise = trip.price_paise
+
+  const today = new Date().toISOString().split('T')[0]
+  const closedSet = new Set((trip.departure_dates_closed || []).map(tripDepartureDateKey))
+  const depKeys = (trip.departure_dates || []).map(tripDepartureDateKey)
+  const travelDate = depKeys.find(d => d >= today && !closedSet.has(d)) ?? null
+  if (!travelDate) {
+    return { error: 'This trip has no open departure dates right now. Contact the host or try again later.' }
+  }
 
   const order = await razorpay.orders.create({
     amount: totalPaise,
@@ -947,9 +969,6 @@ export async function createCommunityTripOrder(joinRequestId: string) {
     receipt: `unsolo_community_${Date.now()}`,
     notes: { userId: user.id, packageId: trip.id, joinRequestId: request.id, type: 'community_trip' },
   })
-
-  const today = new Date().toISOString().split('T')[0]
-  const travelDate = trip.departure_dates?.find(d => d >= today) || trip.departure_dates?.[0] || today
 
   await supabase.from('bookings').insert({
     user_id: user.id,

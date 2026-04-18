@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { toggleHostTripActive } from '@/actions/hosting'
+import { toggleHostTripActive, toggleHostTripDateClosed } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -31,11 +31,23 @@ interface Trip {
   trip_days?: number | null
   trip_nights?: number | null
   departure_dates: string[] | null
+  departure_dates_closed?: string[] | null
   images: string[] | null
   max_group_size: number
   pending_requests: number
   approved_requests: number
   destination: { name: string; state: string } | null
+}
+
+function nextOpenDeparture(dates: string[] | null, closed: string[] | null): string | null {
+  const todayStr = new Date().toISOString().split('T')[0]
+  const c = new Set((closed || []).map(tripDepartureDateKey))
+  const sorted = [...(dates || [])].sort()
+  for (const d of sorted) {
+    const k = tripDepartureDateKey(d)
+    if (k >= todayStr && !c.has(k)) return d
+  }
+  return null
 }
 
 interface Stats {
@@ -77,6 +89,20 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
       if (res.error) { toast.error(res.error); return }
       setTrips(prev => prev.map(t => t.id === tripId ? { ...t, is_active: res.is_active! } : t))
       toast.success(res.is_active ? 'Trip activated' : 'Trip hidden')
+    })
+  }
+
+  function handleToggleDateClosed(tripId: string, date: string, closed: boolean) {
+    startTransition(async () => {
+      const res = await toggleHostTripDateClosed(tripId, date, closed)
+      if ('error' in res) {
+        toast.error(res.error)
+        return
+      }
+      setTrips(prev => prev.map(t =>
+        t.id === tripId ? { ...t, departure_dates_closed: res.departure_dates_closed } : t,
+      ))
+      toast.success(closed ? 'Marked full for that date' : 'Reopened spots for that date')
     })
   }
 
@@ -192,11 +218,44 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{packageDurationShortLabel(trip)}</span>
                       <span className="flex items-center gap-1"><IndianRupee className="h-3 w-3" />{formatPrice(trip.price_paise)}</span>
                     </div>
+                    {(trip.departure_dates || []).length > 0 && (() => {
+                      const next = nextOpenDeparture(trip.departure_dates, trip.departure_dates_closed ?? null)
+                      return (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {next
+                            ? <>Next open: {formatDate(next)}{trip.departure_dates!.length > 1 && ` (+${trip.departure_dates!.length - 1} date${trip.departure_dates!.length > 2 ? 's' : ''})`}</>
+                            : <>All upcoming departures are full or past</>}
+                        </p>
+                      )
+                    })()}
                     {(trip.departure_dates || []).length > 0 && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        Next: {formatDate(trip.departure_dates![0])}
-                        {trip.departure_dates!.length > 1 && ` (+${trip.departure_dates!.length - 1} more)`}
-                      </p>
+                      <div className="mt-2 pt-2 border-t border-border/60 space-y-1.5 max-h-36 overflow-y-auto">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Mark seats full (per date)</p>
+                        {[...trip.departure_dates!].sort().map((date) => {
+                          const isClosed = new Set((trip.departure_dates_closed || []).map(tripDepartureDateKey))
+                            .has(tripDepartureDateKey(date))
+                          return (
+                            <div key={date} className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                              <span className="text-muted-foreground">{formatDate(date)}</span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <Badge className={isClosed ? 'bg-amber-900/50 text-amber-200 border border-amber-700 text-[9px]' : 'bg-emerald-900/40 text-emerald-200 border border-emerald-800 text-[9px]'}>
+                                  {isClosed ? 'Full' : 'Open'}
+                                </Badge>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] px-2"
+                                  disabled={isPending}
+                                  onClick={() => handleToggleDateClosed(trip.id, date, !isClosed)}
+                                >
+                                  {isClosed ? 'Reopen' : 'Mark full'}
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>

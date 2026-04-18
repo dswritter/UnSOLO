@@ -1,5 +1,10 @@
 /** Calendar math and copy for packages with optional per-departure return_dates. */
 
+/** Normalize DB/API date strings to YYYY-MM-DD for comparisons and closed-date sets. */
+export function tripDepartureDateKey(isoOrDate: string): string {
+  return String(isoOrDate).split('T')[0]
+}
+
 export type TripPackageCalendar = {
   duration_days: number
   departure_dates?: string[] | null

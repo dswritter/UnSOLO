@@ -120,6 +120,8 @@ export type Package = {
   is_active: boolean
   stripe_price_id: string | null
   departure_dates: string[] | null
+  /** Departure start dates the host marked full (no new bookings). */
+  departure_dates_closed?: string[] | null
   host_id: string | null
   moderation_status: 'pending' | 'approved' | 'rejected' | null
   join_preferences: JoinPreferences | null

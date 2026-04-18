@@ -7,6 +7,7 @@ import {
   minPricePaiseFromVariants,
   type PriceVariant,
 } from '@/lib/package-pricing'
+import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -31,6 +32,56 @@ export async function toggleHostTripActive(tripId: string) {
   if (error) return { error: error.message }
   revalidatePath('/host')
   return { success: true, is_active: !trip.is_active }
+}
+
+export async function toggleHostTripDateClosed(
+  tripId: string,
+  departureDateIso: string,
+  closed: boolean,
+) {
+  const { supabase, user } = await requireHost()
+  const dateKey = tripDepartureDateKey(departureDateIso)
+
+  const { data: trip } = await supabase
+    .from('packages')
+    .select('id, slug, host_id, departure_dates, departure_dates_closed')
+    .eq('id', tripId)
+    .eq('host_id', user.id)
+    .single()
+
+  if (!trip) return { error: 'Trip not found' }
+
+  const depKeys = new Set((trip.departure_dates || []).map(tripDepartureDateKey))
+  if (!depKeys.has(dateKey)) return { error: 'That date is not a departure for this trip' }
+
+  const prev = ((trip as { departure_dates_closed?: string[] | null }).departure_dates_closed || [])
+    .map(tripDepartureDateKey)
+  const set = new Set(prev)
+  if (closed) set.add(dateKey)
+  else set.delete(dateKey)
+  const next = Array.from(set).sort()
+
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const { data: updated, error } = await svcSupabase
+    .from('packages')
+    .update({ departure_dates_closed: next })
+    .eq('id', tripId)
+    .eq('host_id', user.id)
+    .select('departure_dates_closed')
+    .single()
+
+  if (error) return { error: error.message }
+
+  const out = (updated?.departure_dates_closed as string[] | null) ?? next
+
+  revalidatePath('/host')
+  revalidatePath('/explore')
+  revalidatePath(`/packages/${trip.slug}`)
+  revalidatePath(`/host/${tripId}`)
+
+  return { success: true, departure_dates_closed: out }
 }
 
 // ── Helpers ─────────────────────────────────────────────────
@@ -161,6 +212,7 @@ const HOST_TRIP_OPERATIONAL_FIELDS = new Set([
   'exclude_first_day_travel',
   'departure_time',
   'return_time',
+  'departure_dates_closed',
 ])
 
 function hostTripFieldChanged(prev: unknown, next: unknown): boolean {
@@ -194,8 +246,17 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
     'is_featured',
     'is_active',
     'moderation_status',
+    'departure_dates_closed',
   ]) {
     delete payload[k]
+  }
+
+  if (payload.departure_dates !== undefined) {
+    const nextDeps = Array.isArray(payload.departure_dates) ? (payload.departure_dates as string[]) : []
+    const depKeySet = new Set(nextDeps.map(tripDepartureDateKey))
+    const prevClosed = ((current as { departure_dates_closed?: string[] | null }).departure_dates_closed || [])
+      .map(tripDepartureDateKey)
+    payload.departure_dates_closed = prevClosed.filter(k => depKeySet.has(k))
   }
 
   let substantiveChange = false
@@ -378,6 +439,21 @@ export async function requestToJoin(tripId: string, message: string) {
   if (!trip.is_active) return { error: 'This trip is no longer available' }
   if (trip.moderation_status !== 'approved') return { error: 'Trip not yet approved' }
   if (trip.host_id === user.id) return { error: 'Cannot join your own trip' }
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const closed = new Set(
+    ((trip as { departure_dates_closed?: string[] | null }).departure_dates_closed || []).map(tripDepartureDateKey),
+  )
+  const deps = trip.departure_dates || []
+  if (
+    deps.length > 0 &&
+    !deps.some((d: string) => {
+      const k = tripDepartureDateKey(d)
+      return k >= todayStr && !closed.has(k)
+    })
+  ) {
+    return { error: 'This trip has no open departure dates at the moment.' }
+  }
 
   // Check if already requested
   const { data: existing } = await supabase

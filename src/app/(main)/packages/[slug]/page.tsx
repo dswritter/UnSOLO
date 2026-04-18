@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Clock, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
@@ -111,6 +111,9 @@ export default async function PackageDetailPage({
   const availableSlotsMap: Record<string, number> = {}
   if (!isCommunityTrip || communityBookAndPay) {
     if (package_.departure_dates && package_.max_group_size) {
+      const closedDates = new Set(
+        (package_.departure_dates_closed || []).map(tripDepartureDateKey),
+      )
       for (const date of package_.departure_dates) {
         const { data: dateBookings } = await supabase
           .from('bookings')
@@ -119,7 +122,9 @@ export default async function PackageDetailPage({
           .eq('travel_date', date)
           .in('status', ['pending', 'confirmed', 'completed'])
         const totalBooked = (dateBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
-        availableSlotsMap[date] = Math.max(0, package_.max_group_size - totalBooked)
+        let slots = Math.max(0, package_.max_group_size - totalBooked)
+        if (closedDates.has(tripDepartureDateKey(date))) slots = 0
+        availableSlotsMap[date] = slots
       }
     }
   }
