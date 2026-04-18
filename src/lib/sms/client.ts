@@ -5,8 +5,8 @@
 type TwoFactorSendResponse = { Status?: string; Details?: string }
 
 export async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string; devConsoleOnly?: boolean }> {
-  const twoFactorKey = process.env.TWOFACTOR_API_KEY
-  const authKey = process.env.MSG91_AUTH_KEY
+  const twoFactorKey = process.env.TWOFACTOR_API_KEY?.trim()
+  const authKey = process.env.MSG91_AUTH_KEY?.trim()
   const templateId = process.env.MSG91_TEMPLATE_ID
   const senderId = process.env.MSG91_SENDER_ID || 'UNSOLO'
 
