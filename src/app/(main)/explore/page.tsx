@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import Link from 'next/link'
 import type { Package } from '@/types'
 import { ExploreFilters } from './ExploreFilters'
@@ -282,7 +283,7 @@ export default async function ExplorePage({
                         <span className="text-muted-foreground text-xs ml-1">/ person</span>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs text-muted-foreground">{pkg.duration_days} days</div>
+                        <div className="text-xs text-muted-foreground">{packageDurationShortLabel(pkg)}</div>
                         <div className="text-xs text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>

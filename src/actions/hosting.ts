@@ -61,12 +61,19 @@ export async function createHostedTrip(formData: {
   description: string
   short_description?: string
   price_paise: number
+  /** Max inclusive calendar span across all dep/return pairs (bookings, filters). */
   duration_days: number
+  trip_days: number
+  trip_nights: number
+  exclude_first_day_travel: boolean
+  departure_time: 'morning' | 'evening'
+  return_time: 'morning' | 'evening'
+  departure_dates: string[]
+  return_dates: string[]
   max_group_size: number
   difficulty: string
   includes: string[]
   images: string[]
-  departure_dates: string[]
   join_preferences: {
     min_age?: number
     max_age?: number
@@ -89,11 +96,17 @@ export async function createHostedTrip(formData: {
       short_description: formData.short_description || '',
       price_paise: formData.price_paise,
       duration_days: formData.duration_days,
+      trip_days: formData.trip_days,
+      trip_nights: formData.trip_nights,
+      exclude_first_day_travel: formData.exclude_first_day_travel,
+      departure_time: formData.departure_time,
+      return_time: formData.return_time,
+      departure_dates: formData.departure_dates,
+      return_dates: formData.return_dates,
       max_group_size: formData.max_group_size,
       difficulty: formData.difficulty,
       includes: formData.includes,
       images: formData.images,
-      departure_dates: formData.departure_dates,
       host_id: user.id,
       moderation_status: 'pending',
       is_active: false, // Activated after admin approval

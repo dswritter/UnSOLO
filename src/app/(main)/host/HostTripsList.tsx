@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { toggleHostTripActive } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -27,6 +28,8 @@ interface Trip {
   moderation_status: string | null
   price_paise: number
   duration_days: number
+  trip_days?: number | null
+  trip_nights?: number | null
   departure_dates: string[] | null
   images: string[] | null
   max_group_size: number
@@ -186,7 +189,7 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                       {trip.destination && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{trip.destination.name}, {trip.destination.state}</span>}
-                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{trip.duration_days} days</span>
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{packageDurationShortLabel(trip)}</span>
                       <span className="flex items-center gap-1"><IndianRupee className="h-3 w-3" />{formatPrice(trip.price_paise)}</span>
                     </div>
                     {(trip.departure_dates || []).length > 0 && (

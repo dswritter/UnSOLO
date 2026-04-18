@@ -18,6 +18,7 @@ import {
   fetchNominatimIndiaDestinations,
   nominatimDebounceMs,
 } from '@/lib/nominatim-destinations'
+import { maxInclusiveSpanDays, packageDurationFullLabel } from '@/lib/package-trip-calendar'
 import {
   ArrowLeft,
   ArrowRight,
@@ -64,13 +65,17 @@ export default function CreateTripPage() {
   const [shortDescription, setShortDescription] = useState('')
 
   const [priceRupees, setPriceRupees] = useState('')
-  const [durationDays, setDurationDays] = useState('')
+  const [tripDays, setTripDays] = useState('')
+  const [tripNights, setTripNights] = useState('')
+  const [excludeFirstTravel, setExcludeFirstTravel] = useState(true)
   const [departureTime, setDepartureTime] = useState<'morning' | 'evening'>('morning')
   const [returnTime, setReturnTime] = useState<'morning' | 'evening'>('morning')
   const [maxGroupSize, setMaxGroupSize] = useState('12')
   const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
   const [difficulty, setDifficulty] = useState('moderate')
-  const [departureDates, setDepartureDates] = useState<string[]>([])
+  const [scheduleRows, setScheduleRows] = useState<{ dep: string; ret: string }[]>([
+    { dep: '', ret: '' },
+  ])
   const [selectedIncludes, setSelectedIncludes] = useState<string[]>([])
 
   const [images, setImages] = useState<string[]>([])
@@ -228,21 +233,22 @@ export default function CreateTripPage() {
     setImages(prev => prev.filter((_, i) => i !== idx))
   }
 
-  function addDepartureDate() {
-    setDepartureDates(prev => [...prev, ''])
+  function addScheduleRow() {
+    setScheduleRows((prev) => [...prev, { dep: '', ret: '' }])
   }
 
-  function updateDepartureDate(idx: number, value: string) {
-    // Only validate complete dates (YYYY-MM-DD = 10 chars)
+  function updateScheduleRow(idx: number, field: 'dep' | 'ret', value: string) {
     if (value && value.length === 10 && value < tomorrow) {
-      toast.error('Departure date must be in the future')
+      toast.error(field === 'dep' ? 'Departure date must be in the future' : 'Return date must be in the future')
       return
     }
-    setDepartureDates(prev => prev.map((d, i) => (i === idx ? value : d)))
+    setScheduleRows((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)),
+    )
   }
 
-  function removeDepartureDate(idx: number) {
-    setDepartureDates(prev => prev.filter((_, i) => i !== idx))
+  function removeScheduleRow(idx: number) {
+    setScheduleRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)))
   }
 
   function toggleInclude(label: string) {
@@ -262,8 +268,10 @@ export default function CreateTripPage() {
     switch (step) {
       case 0:
         return !!title.trim() && !!destinationId && !!description.trim()
-      case 1:
-        return !!priceRupees && !!durationDays && departureDates.filter(Boolean).length > 0
+      case 1: {
+        const pairs = scheduleRows.filter((r) => r.dep && r.ret)
+        return !!priceRupees && !!tripDays && !!tripNights && pairs.length > 0
+      }
       case 2:
         return images.length > 0
       case 3:
@@ -282,6 +290,27 @@ export default function CreateTripPage() {
       return
     }
 
+    const pairs = scheduleRows
+      .filter((r) => r.dep && r.ret)
+      .map((r) => ({ dep: r.dep, ret: r.ret }))
+    if (pairs.length === 0) {
+      toast.error('Add at least one departure date and return date')
+      return
+    }
+    for (const p of pairs) {
+      if (p.ret < p.dep) {
+        toast.error('Return date must be on or after departure for every row')
+        return
+      }
+    }
+    const td = parseInt(tripDays, 10)
+    const tn = parseInt(tripNights, 10)
+    if (!Number.isFinite(td) || td < 1 || !Number.isFinite(tn) || tn < 0) {
+      toast.error('Enter valid trip days (≥1) and nights (≥0)')
+      return
+    }
+    const duration_days = maxInclusiveSpanDays(pairs)
+
     startTransition(async () => {
       const result = await createHostedTrip({
         title: title.trim(),
@@ -289,12 +318,18 @@ export default function CreateTripPage() {
         description: description.trim(),
         short_description: shortDescription.trim() || undefined,
         price_paise: pricePaise,
-        duration_days: parseInt(durationDays),
+        duration_days,
+        trip_days: td,
+        trip_nights: tn,
+        exclude_first_day_travel: excludeFirstTravel,
+        departure_time: departureTime,
+        return_time: returnTime,
+        departure_dates: pairs.map((p) => p.dep),
+        return_dates: pairs.map((p) => p.ret),
         max_group_size: parseInt(maxGroupSize) || 12,
         difficulty,
         includes: selectedIncludes,
         images,
-        departure_dates: departureDates.filter(Boolean),
         join_preferences: {
           gender_preference: genderPreference !== 'all' ? genderPreference : undefined,
           min_trips_completed: minTripsCompleted ? parseInt(minTripsCompleted) : undefined,
@@ -450,26 +485,54 @@ export default function CreateTripPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Duration (nights) *</label>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Trip days (on trip) *</label>
                   <Input
                     type="number"
-                    value={durationDays}
-                    onChange={e => setDurationDays(e.target.value)}
-                    placeholder="3"
+                    value={tripDays}
+                    onChange={(e) => setTripDays(e.target.value)}
+                    placeholder="e.g. 4"
                     className="bg-secondary border-border"
                     min="1"
-                    max="30"
+                    max="60"
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Departs</label>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Trip nights (on trip) *</label>
+                  <Input
+                    type="number"
+                    value={tripNights}
+                    onChange={(e) => setTripNights(e.target.value)}
+                    placeholder="e.g. 3"
+                    className="bg-secondary border-border"
+                    min="0"
+                    max="60"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="flex items-start gap-2 text-sm cursor-pointer text-foreground">
+                    <input
+                      type="checkbox"
+                      className="mt-1 accent-primary"
+                      checked={excludeFirstTravel}
+                      onChange={(e) => setExcludeFirstTravel(e.target.checked)}
+                    />
+                    <span>
+                      Day 1 / night 1 is travel only — don&apos;t count it in the trip days &amp; nights above
+                      <span className="block text-xs text-muted-foreground font-normal mt-0.5">
+                        On by default. Turn off if your first day/night is part of the advertised experience.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Departure time (leave)</label>
                   <select value={departureTime} onChange={e => setDepartureTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
                     <option value="morning">Morning</option>
                     <option value="evening">Evening</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Returns</label>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Return / arrival time</label>
                   <select value={returnTime} onChange={e => setReturnTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
                     <option value="morning">Morning</option>
                     <option value="evening">Evening</option>
@@ -512,68 +575,73 @@ export default function CreateTripPage() {
               </div>
 
               {/* Duration summary */}
-              {durationDays && (
-                <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm">
-                  {(() => {
-                    const nights = parseInt(durationDays) || 0
-                    const depMorning = departureTime === 'morning'
-                    const days = depMorning ? nights : Math.max(nights - 1, 1)
-                    return <span className="font-bold text-primary">{days} Days {nights} Nights</span>
-                  })()}
-                  <span className="text-muted-foreground ml-2 text-xs">(Departs {departureTime}, returns {returnTime})</span>
+              {tripDays && tripNights && (
+                <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm space-y-1">
+                  <p className="font-bold text-primary">
+                    {packageDurationFullLabel({
+                      duration_days: Math.max(1, parseInt(tripDays, 10) || 1),
+                      trip_days: parseInt(tripDays, 10) || 1,
+                      trip_nights: parseInt(tripNights, 10) || 0,
+                      exclude_first_day_travel: excludeFirstTravel,
+                      departure_time: departureTime,
+                      return_time: returnTime,
+                    })}
+                  </p>
+                  {scheduleRows.some((r) => r.dep && r.ret) && (
+                    <p className="text-xs text-muted-foreground">
+                      Calendar span for bookings: up to{' '}
+                      {maxInclusiveSpanDays(
+                        scheduleRows.filter((r) => r.dep && r.ret).map((r) => ({ dep: r.dep, ret: r.ret })),
+                      )}{' '}
+                      day(s) inclusive (from your departure → return dates).
+                    </p>
+                  )}
                 </div>
               )}
 
-              {/* Departure Dates */}
+              {/* Departure + return (no auto end date) */}
               <div>
-                <label className="text-sm text-muted-foreground mb-2 block">Departure Dates *</label>
-                <div className="space-y-2 mb-3">
-                  {departureDates.map((d, i) => {
-                    const nights = parseInt(durationDays || '0')
-                    const returnDate =
-                      d && nights
-                        ? (() => {
-                            const r = new Date(d + 'T00:00:00')
-                            r.setDate(r.getDate() + nights)
-                            return r.toLocaleDateString('en-IN', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          })()
-                        : ''
-                    return (
-                      <div key={i} className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Offered departures — set departure and return / arrival for each *
+                </label>
+                <div className="space-y-3 mb-3">
+                  {scheduleRows.map((row, i) => (
+                    <div key={i} className="flex flex-wrap items-end gap-2">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block mb-1">Departure date</span>
                         <Input
                           type="date"
                           min={today}
                           max={maxDateStr}
-                          value={d}
-                          onChange={e => updateDepartureDate(i, e.target.value)}
-                          className="bg-secondary border-border text-sm max-w-[200px]"
+                          value={row.dep}
+                          onChange={(e) => updateScheduleRow(i, 'dep', e.target.value)}
+                          className="bg-secondary border-border text-sm w-[160px]"
                         />
-                        {returnDate && (
-                          <span className="text-xs text-muted-foreground">
-                            → Return: {returnDate} ({returnTime})
-                          </span>
-                        )}
-                        <button
-                          onClick={() => removeDepartureDate(i)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
                       </div>
-                    )
-                  })}
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block mb-1">Return / arrival date</span>
+                        <Input
+                          type="date"
+                          min={row.dep || today}
+                          max={maxDateStr}
+                          value={row.ret}
+                          onChange={(e) => updateScheduleRow(i, 'ret', e.target.value)}
+                          className="bg-secondary border-border text-sm w-[160px]"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeScheduleRow(i)}
+                        className="text-red-400 hover:text-red-300 p-2"
+                        title="Remove row"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={addDepartureDate}
-                >
-                  <Plus className="h-3 w-3" /> Add Date
+                <Button size="sm" variant="outline" className="gap-1.5" type="button" onClick={addScheduleRow}>
+                  <Plus className="h-3 w-3" /> Add another departure
                 </Button>
               </div>
 
@@ -880,20 +948,31 @@ export default function CreateTripPage() {
                       <IndianRupee className="h-3.5 w-3.5 text-primary" />
                       {formatPrice(Math.round(parseFloat(priceRupees || '0') * 100))} / person
                     </span>
-                    <span>{(() => { const n = parseInt(durationDays) || 0; const d = departureTime === 'morning' ? n : Math.max(n-1, 1); return `${d}D ${n}N` })()}</span>
+                    <span>
+                      {tripDays}D · {tripNights}N · departs {departureTime} · returns {returnTime}
+                      {excludeFirstTravel ? ' · travel day excluded from counts' : ''}
+                    </span>
                     <span>Max {maxGroupSize} people</span>
                     <span className="capitalize">{difficulty}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {departureDates.filter(Boolean).map((d, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </Badge>
-                    ))}
+                    {scheduleRows
+                      .filter((r) => r.dep && r.ret)
+                      .map((r, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs">
+                          {new Date(r.dep + 'T00:00:00').toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}{' '}
+                          →{' '}
+                          {new Date(r.ret + 'T00:00:00').toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </Badge>
+                      ))}
                   </div>
                   {selectedIncludes.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -997,8 +1076,8 @@ export default function CreateTripPage() {
                   onClick={() => {
                     // Open preview in new tab with data in sessionStorage
                     const previewData = {
-                      title, shortDescription, description, priceRupees, durationDays, maxGroupSize,
-                      difficulty, departureDates, selectedIncludes, images, interestTags,
+                      title, shortDescription, description, priceRupees, tripDays, tripNights, maxGroupSize,
+                      difficulty, scheduleRows, excludeFirstTravel, departureTime, returnTime, selectedIncludes, images, interestTags,
                       destination: destinationId ? destinations.find(d => d.id === destinationId) : null,
                     }
                     sessionStorage.setItem('trip-preview', JSON.stringify(previewData))

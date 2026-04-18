@@ -97,6 +97,14 @@ export type Package = {
   short_description: string | null
   price_paise: number
   duration_days: number
+  /** Display: on-trip days (host/admin entered). Falls back to duration_days if null. */
+  trip_days?: number | null
+  trip_nights?: number | null
+  exclude_first_day_travel?: boolean | null
+  /** Parallel to departure_dates — explicit return/arrival date per offered start date. */
+  return_dates?: string[] | null
+  departure_time?: 'morning' | 'evening' | null
+  return_time?: 'morning' | 'evening' | null
   max_group_size: number
   difficulty: 'easy' | 'moderate' | 'challenging'
   includes: string[] | null

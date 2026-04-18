@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { ManageRequestsClient } from './ManageRequestsClient'
 import { createClient } from '@/lib/supabase/server'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import type { Package } from '@/types'
 
 export default async function ManageTripPage({
   params,
@@ -100,7 +102,7 @@ export default async function ManageTripPage({
                 )}
                 <span className="flex items-center gap-1">
                   <Calendar className="h-3.5 w-3.5" />
-                  {trip.duration_days} days
+                  {packageDurationShortLabel(trip as Package)}
                 </span>
                 <span className="flex items-center gap-1">
                   <Users className="h-3.5 w-3.5" />

@@ -7,6 +7,7 @@ import { processCancellation, initiateRefund, markRefundComplete } from '@/actio
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign } from 'lucide-react'
+import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
 interface Props {
   bookings: Booking[]
@@ -212,7 +213,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
         )}
 
         {filtered.map((booking) => {
-          const pkg = booking.package as { title?: string; duration_days?: number; destination?: { name?: string; state?: string } } | null
+          const pkg = booking.package as (PackageDurationDisplay & { title?: string; destination?: { name?: string; state?: string } }) | null
           const usr = booking.user as Profile | null
           const poc = booking.poc as Profile | null
           const isExpanded = expandedId === booking.id
@@ -262,7 +263,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       <div className="flex items-center gap-1"><AtSign className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Email:</span> <span className="font-medium">{usr.email}</span></div>
                     )}
                     <div><span className="text-muted-foreground">Destination:</span> {pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : 'N/A'}</div>
-                    <div><span className="text-muted-foreground">Duration:</span> {pkg?.duration_days} days</div>
+                    <div><span className="text-muted-foreground">Duration:</span> {pkg ? packageDurationShortLabel(pkg) : 'N/A'}</div>
                     <div><span className="text-muted-foreground">Booked on:</span> {formatDate(booking.created_at)}</div>
                     <div><span className="text-muted-foreground">Payment ID:</span> <span className="text-xs text-zinc-600 font-mono">{booking.stripe_payment_intent || '—'}</span></div>
                     <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, MapPin, ChevronLeft, ChevronRight } from 'lucide-react'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 
 interface HeroPackage {
   slug: string
@@ -12,6 +13,8 @@ interface HeroPackage {
   short_description?: string | null
   price_paise: number
   duration_days: number
+  trip_days?: number | null
+  trip_nights?: number | null
   difficulty: string
   images?: string[] | null
   destination?: { name: string; state: string } | null
@@ -134,7 +137,7 @@ export function HeroCarousel({
               <div className="flex items-center justify-center gap-6 mb-8">
                 <span className="text-primary font-black text-2xl">{formatPrice(pkg.price_paise)}</span>
                 <span className="text-white/40">·</span>
-                <span className="text-white/60">{pkg.duration_days} days</span>
+                <span className="text-white/60">{packageDurationShortLabel(pkg)}</span>
               </div>
               <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90" asChild>
                 <Link href={`/packages/${pkg.slug}`}>View Trip <ArrowRight className="ml-2 h-5 w-5" /></Link>

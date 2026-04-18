@@ -68,22 +68,35 @@ export function getMaxDate(): string {
   return d.toISOString().split('T')[0]
 }
 
-export function getTripCountdown(travelDate: string, durationDays: number = 1): { text: string; emoji: string } | null {
+/** @param tripEndDateStr Last day on trip (YYYY-MM-DD) from package return_dates when available. */
+export function getTripCountdown(
+  travelDate: string,
+  durationDays: number = 1,
+  tripEndDateStr?: string | null,
+): { text: string; emoji: string } | null {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
-  const departure = new Date(travelDate)
+  const departure = new Date(travelDate + 'T12:00:00')
   departure.setHours(0, 0, 0, 0)
-  const returnDate = new Date(departure)
-  returnDate.setDate(returnDate.getDate() + durationDays)
+  const lastTripDay = tripEndDateStr
+    ? new Date(tripEndDateStr + 'T12:00:00')
+    : (() => {
+        const r = new Date(departure)
+        r.setDate(r.getDate() + Math.max(0, durationDays - 1))
+        return r
+      })()
+  lastTripDay.setHours(0, 0, 0, 0)
 
   const msPerDay = 86400000
   const daysUntilDep = Math.ceil((departure.getTime() - now.getTime()) / msPerDay)
-  const daysUntilReturn = Math.ceil((returnDate.getTime() - now.getTime()) / msPerDay)
+  const dayAfterTrip = new Date(lastTripDay)
+  dayAfterTrip.setDate(dayAfterTrip.getDate() + 1)
+  const daysUntilReturn = Math.ceil((dayAfterTrip.getTime() - now.getTime()) / msPerDay)
 
-  if (daysUntilReturn < 0) return null // trip is over
+  if (daysUntilReturn <= 0) return null // trip is over
 
-  if (daysUntilDep <= 0 && daysUntilReturn >= 0) {
-    return { text: "You're on the trip right now!", emoji: '🏔️' }
+  if (daysUntilDep <= 0 && daysUntilReturn > 0) {
+    return { text: "You're on the trip right now!", emoji: "🏔️" }
   }
 
   if (daysUntilDep === 0) return { text: 'TODAY! Have an amazing trip!', emoji: '🚀' }

@@ -95,15 +95,23 @@ export async function joinRoom(roomId: string) {
 
   if (roomMeta?.type === 'trip' && roomMeta.package_id) {
     const [{ data: pkg }, { data: userBookings }] = await Promise.all([
-      supabase.from('packages').select('duration_days').eq('id', roomMeta.package_id).single(),
+      supabase
+        .from('packages')
+        .select('duration_days, departure_dates, return_dates')
+        .eq('id', roomMeta.package_id)
+        .single(),
       supabase
         .from('bookings')
         .select('status, travel_date')
         .eq('user_id', user.id)
         .eq('package_id', roomMeta.package_id),
     ])
-    const durationDays = Math.max(1, Number(pkg?.duration_days) || 3)
-    if (!userHasTripChatAccess(userBookings || [], durationDays)) {
+    const pkgCal = {
+      duration_days: Math.max(1, Number(pkg?.duration_days) || 3),
+      departure_dates: pkg?.departure_dates as string[] | null | undefined,
+      return_dates: pkg?.return_dates as string[] | null | undefined,
+    }
+    if (!userHasTripChatAccess(userBookings || [], pkgCal)) {
       return { error: 'Only travelers with an active booking for this trip can join the chat' }
     }
   }

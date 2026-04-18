@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react'
 import { formatPrice, type Package, type Destination } from '@/types'
+import { maxInclusiveSpanDays, packageDurationFullLabel, packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,12 +33,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   // Form state
   const [form, setForm] = useState({
     title: '', slug: '', destination_id: '', description: '', short_description: '',
-    price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
+    price: '', trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
+    exclude_first_travel: true,
     departure_time: 'morning' as 'morning' | 'evening',
     return_time: 'morning' as 'morning' | 'evening',
     selectedIncludes: [] as string[],
     images: [] as string[],
-    departureDates: [] as { departure: string; }[],
+    departureDates: [] as { departure: string; returnDate: string }[],
     is_featured: false,
   })
 
@@ -56,7 +58,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   function resetForm() {
     setForm({
       title: '', slug: '', destination_id: '', description: '', short_description: '',
-      price: '', duration_days: '', max_group_size: '', difficulty: 'moderate',
+      price: '', trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
+      exclude_first_travel: true,
       departure_time: 'morning' as 'morning' | 'evening',
       return_time: 'morning' as 'morning' | 'evening',
       selectedIncludes: [], images: [],
@@ -79,14 +82,19 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       description: pkg.description,
       short_description: pkg.short_description || '',
       price: String(pkg.price_paise / 100),
-      duration_days: String(pkg.duration_days),
+      trip_days: String(pkg.trip_days ?? pkg.duration_days),
+      trip_nights: String(pkg.trip_nights ?? Math.max(0, pkg.duration_days - 1)),
       max_group_size: String(pkg.max_group_size),
       difficulty: pkg.difficulty,
-      departure_time: 'morning' as 'morning' | 'evening',
-      return_time: 'morning' as 'morning' | 'evening',
+      exclude_first_travel: pkg.exclude_first_day_travel ?? true,
+      departure_time: (pkg.departure_time as 'morning' | 'evening') || 'morning',
+      return_time: (pkg.return_time as 'morning' | 'evening') || 'morning',
       selectedIncludes: pkg.includes || [],
       images: pkg.images || [],
-      departureDates: (pkg.departure_dates || []).map(d => ({ departure: d })),
+      departureDates: (pkg.departure_dates || []).map((d, i) => ({
+        departure: d,
+        returnDate: (pkg.return_dates && pkg.return_dates[i]) || '',
+      })),
       is_featured: pkg.is_featured,
     })
     setEditingId(pkg.id)
@@ -94,9 +102,29 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   }
 
   function handleSubmit() {
-    if (!form.title || !form.destination_id || !form.price || !form.duration_days) {
-      setMessage({ type: 'error', text: 'Title, destination, price, and duration are required.' })
+    if (!form.title || !form.destination_id || !form.price || !form.trip_days || !form.trip_nights) {
+      setMessage({ type: 'error', text: 'Title, destination, price, trip days, and trip nights are required.' })
       window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    const depRows = form.departureDates.filter(d => d.departure && d.returnDate)
+    if (depRows.length === 0) {
+      setMessage({ type: 'error', text: 'Add at least one departure date and return / arrival date.' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    for (const row of depRows) {
+      if (row.returnDate < row.departure) {
+        setMessage({ type: 'error', text: 'Return date must be on or after departure for every row.' })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+        return
+      }
+    }
+    const duration_days = maxInclusiveSpanDays(depRows.map(d => ({ dep: d.departure, ret: d.returnDate })))
+    const trip_days = parseInt(form.trip_days, 10)
+    const trip_nights = parseInt(form.trip_nights, 10)
+    if (!Number.isFinite(trip_days) || trip_days < 1 || !Number.isFinite(trip_nights) || trip_nights < 0) {
+      setMessage({ type: 'error', text: 'Enter valid trip days (≥1) and nights (≥0).' })
       return
     }
     if (!editingId && form.images.length === 0) {
@@ -112,12 +140,18 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       description: form.description,
       short_description: form.short_description,
       price_paise: Math.round(parseFloat(form.price) * 100),
-      duration_days: parseInt(form.duration_days),
+      duration_days,
+      trip_days,
+      trip_nights,
+      exclude_first_day_travel: form.exclude_first_travel,
+      departure_time: form.departure_time,
+      return_time: form.return_time,
       max_group_size: parseInt(form.max_group_size) || 12,
       difficulty: form.difficulty,
       includes: form.selectedIncludes,
       images: form.images,
-      departure_dates: form.departureDates.map(d => d.departure).filter(Boolean),
+      departure_dates: depRows.map(d => d.departure),
+      return_dates: depRows.map(d => d.returnDate),
       is_featured: form.is_featured,
     }
 
@@ -234,13 +268,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   }
 
   function addDepartureDate() {
-    setForm(f => ({ ...f, departureDates: [...f.departureDates, { departure: '' }] }))
+    setForm(f => ({ ...f, departureDates: [...f.departureDates, { departure: '', returnDate: '' }] }))
   }
 
-  function updateDepartureDate(idx: number, value: string) {
+  function updateDepartureSlot(idx: number, field: 'departure' | 'returnDate', value: string) {
     setForm(f => ({
       ...f,
-      departureDates: f.departureDates.map((d, i) => i === idx ? { departure: value } : d),
+      departureDates: f.departureDates.map((d, i) => (i === idx ? { ...d, [field]: value } : d)),
     }))
   }
 
@@ -308,18 +342,26 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <Input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} placeholder="8999" className="bg-secondary border-zinc-700" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Duration (nights) *</label>
-              <Input type="number" value={form.duration_days} onChange={e => setForm(f => ({ ...f, duration_days: e.target.value }))} placeholder="3" className="bg-secondary border-zinc-700" />
+              <label className="text-xs text-muted-foreground mb-1 block">Trip days (on trip) *</label>
+              <Input type="number" value={form.trip_days} onChange={e => setForm(f => ({ ...f, trip_days: e.target.value }))} placeholder="4" className="bg-secondary border-zinc-700" min={1} />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Departs</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Trip nights (on trip) *</label>
+              <Input type="number" value={form.trip_nights} onChange={e => setForm(f => ({ ...f, trip_nights: e.target.value }))} placeholder="3" className="bg-secondary border-zinc-700" min={0} />
+            </div>
+            <div className="flex items-center gap-2 lg:col-span-2 self-end pb-1">
+              <input type="checkbox" id="exclude_travel" checked={form.exclude_first_travel} onChange={e => setForm(f => ({ ...f, exclude_first_travel: e.target.checked }))} className="accent-primary" />
+              <label htmlFor="exclude_travel" className="text-xs text-muted-foreground">Day 1 / night 1 is travel only (not counted in days/nights above)</label>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Departure time</label>
               <select value={form.departure_time} onChange={e => setForm(f => ({ ...f, departure_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
                 <option value="morning">Morning</option>
                 <option value="evening">Evening</option>
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Returns</label>
+              <label className="text-xs text-muted-foreground mb-1 block">Return / arrival time</label>
               <select value={form.return_time} onChange={e => setForm(f => ({ ...f, return_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
                 <option value="morning">Morning</option>
                 <option value="evening">Evening</option>
@@ -461,53 +503,55 @@ export function PackagesManagementClient({ packages: initial, destinations: init
           </div>
 
           {/* Duration summary */}
-          {form.duration_days && (
-            <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm">
-              {(() => {
-                const nights = parseInt(form.duration_days) || 0
-                const depMorning = form.departure_time === 'morning'
-                const retMorning = form.return_time === 'morning'
-                // Days = nights if depart evening & return morning, nights+1 if depart morning & return morning
-                const days = depMorning ? nights : (retMorning ? nights - 1 : nights)
-                return <span className="font-bold text-primary">{Math.max(days, 1)} Days {nights} Nights</span>
-              })()}
-              <span className="text-muted-foreground ml-2 text-xs">
-                (Departs {form.departure_time}, returns {form.return_time})
+          {form.trip_days && form.trip_nights && (
+            <div className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-sm space-y-1">
+              <span className="font-bold text-primary block">
+                {packageDurationFullLabel({
+                  duration_days: Math.max(1, parseInt(form.trip_days, 10) || 1),
+                  trip_days: parseInt(form.trip_days, 10) || 1,
+                  trip_nights: parseInt(form.trip_nights, 10) || 0,
+                  exclude_first_day_travel: form.exclude_first_travel,
+                  departure_time: form.departure_time,
+                  return_time: form.return_time,
+                })}
               </span>
             </div>
           )}
 
-          {/* Departure Dates — date pickers */}
+          {/* Departure + return — date pickers */}
           <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Departure Dates</label>
+            <label className="text-xs text-muted-foreground mb-2 block">Departure &amp; return / arrival (each row)</label>
             <div className="space-y-2 mb-2">
-              {form.departureDates.map((d, i) => {
-                const nights = parseInt(form.duration_days || '0')
-                const returnDate = d.departure && nights
-                  ? (() => { const r = new Date(d.departure + 'T00:00:00'); r.setDate(r.getDate() + nights); return r.toISOString().split('T')[0] })()
-                  : ''
-                return (
-                  <div key={i} className="flex items-center gap-2">
+              {form.departureDates.map((d, i) => (
+                <div key={i} className="flex flex-wrap items-end gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Departure</span>
                     <Input
                       type="date"
                       min={today}
                       max={maxDateStr}
                       value={d.departure}
-                      onChange={e => updateDepartureDate(i, e.target.value)}
+                      onChange={e => updateDepartureSlot(i, 'departure', e.target.value)}
                       className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
                     />
-                    {returnDate && (
-                      <span className="text-xs text-muted-foreground">
-                        → Return: {new Date(returnDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ({form.return_time})
-                      </span>
-                    )}
-                    <button onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300"><X className="h-4 w-4" /></button>
                   </div>
-                )
-              })}
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-0.5">Return</span>
+                    <Input
+                      type="date"
+                      min={d.departure || today}
+                      max={maxDateStr}
+                      value={d.returnDate}
+                      onChange={e => updateDepartureSlot(i, 'returnDate', e.target.value)}
+                      className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300 p-1"><X className="h-4 w-4" /></button>
+                </div>
+              ))}
             </div>
-            <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" onClick={addDepartureDate}>
-              <Plus className="h-3 w-3" /> Add Date
+            <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" type="button" onClick={addDepartureDate}>
+              <Plus className="h-3 w-3" /> Add row
             </Button>
           </div>
 
@@ -533,7 +577,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   {!pkg.is_active && <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">Inactive</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {pkg.destination?.name}, {pkg.destination?.state} · {pkg.duration_days}d · Max {pkg.max_group_size} · {pkg.difficulty}
+                  {pkg.destination?.name}, {pkg.destination?.state} · {packageDurationShortLabel(pkg)} · Max {pkg.max_group_size} · {pkg.difficulty}
                 </p>
                 <p className="text-xs text-zinc-600">
                   {(pkg.departure_dates || []).length} departure dates · {formatPrice(pkg.price_paise)}/person

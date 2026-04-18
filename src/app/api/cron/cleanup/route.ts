@@ -119,19 +119,31 @@ export async function POST(request: Request) {
 
     const { data: confirmedBookings } = await supabase
       .from('bookings')
-      .select('id, user_id, guests, travel_date, package:packages(title, slug, duration_days, destination_id)')
+      .select('id, user_id, guests, travel_date, package:packages(title, slug, duration_days, departure_dates, return_dates, destination_id)')
       .eq('status', 'confirmed')
       .lte('travel_date', today)
       .limit(50)
 
     for (const booking of confirmedBookings || []) {
-      const pkg = booking.package as unknown as { title: string; slug: string; duration_days?: number; destination_id?: string }
-      const duration = pkg?.duration_days || 1
-
-      // Calculate trip end date from booking's travel_date
-      const endDate = new Date(booking.travel_date)
-      endDate.setDate(endDate.getDate() + duration)
-      const endDateStr = endDate.toISOString().split('T')[0]
+      const pkg = booking.package as unknown as {
+        title: string
+        slug: string
+        duration_days?: number
+        departure_dates?: string[] | null
+        return_dates?: string[] | null
+        destination_id?: string
+      }
+      const deps = pkg?.departure_dates || []
+      const rets = pkg?.return_dates || []
+      const idx = deps.indexOf(booking.travel_date)
+      let endDateStr: string
+      if (idx >= 0 && rets[idx]) {
+        endDateStr = rets[idx]
+      } else {
+        const endDate = new Date(booking.travel_date + 'T12:00:00')
+        endDate.setDate(endDate.getDate() + Math.max(0, (pkg?.duration_days || 1) - 1))
+        endDateStr = endDate.toISOString().split('T')[0]
+      }
 
       // If trip has ended (end date <= today), auto-complete
       if (endDateStr <= today) {

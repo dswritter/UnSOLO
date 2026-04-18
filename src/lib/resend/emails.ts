@@ -67,25 +67,27 @@ interface BookingConfirmationDetails {
   packageTitle: string
   destination: string
   travelDate: string
+  /** Last day of trip (YYYY-MM-DD) */
+  returnDateIso: string
   guests: number
   totalAmount: number
   confirmationCode: string
-  durationDays: number
+  /** e.g. "4 days · 3 nights" */
+  durationSummary: string
 }
 
 export async function sendBookingConfirmation(details: BookingConfirmationDetails) {
   const {
     customerEmail, customerName, packageTitle, destination,
-    travelDate, guests, totalAmount, confirmationCode, durationDays,
+    travelDate, returnDateIso, guests, totalAmount, confirmationCode, durationSummary,
   } = details
 
   const formattedAmount = new Intl.NumberFormat('en-IN', {
     style: 'currency', currency: 'INR', maximumFractionDigits: 0,
   }).format(totalAmount / 100)
 
-  const departDate = new Date(travelDate)
-  const returnDate = new Date(departDate)
-  returnDate.setDate(returnDate.getDate() + durationDays - 1)
+  const departDate = new Date(travelDate + 'T12:00:00')
+  const returnDate = new Date(returnDateIso + 'T12:00:00')
 
   const fmtDate = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -108,7 +110,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Destination</td><td style="padding: 10px 8px;">${destination}</td></tr>
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Departure</td><td style="padding: 10px 8px;">${fmtDate(departDate)}</td></tr>
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Return</td><td style="padding: 10px 8px;">${fmtDate(returnDate)}</td></tr>
-            <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Duration</td><td style="padding: 10px 8px;">${durationDays} days</td></tr>
+            <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Duration</td><td style="padding: 10px 8px;">${durationSummary}</td></tr>
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Guests</td><td style="padding: 10px 8px;">${guests}</td></tr>
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold; color: #FFAA00;">Total Paid</td><td style="padding: 10px 8px; font-weight: bold; color: #FFAA00; font-size: 18px;">${formattedAmount}</td></tr>
           </table>

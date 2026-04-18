@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createRazorpayOrder, confirmPayment, submitCustomDateRequest } from '@/actions/booking'
 import { createGroupBooking } from '@/actions/group-booking'
-import { formatPrice, formatDate, formatDateRange, validateIndianPhone, getMaxDate } from '@/lib/utils'
+import { formatPrice, formatDate, validateIndianPhone, getMaxDate } from '@/lib/utils'
+import {
+  formatDateRangeFromEdges,
+  tripEndDateIsoForBooking,
+  type TripPackageCalendar,
+} from '@/lib/package-trip-calendar'
 import { toast } from 'sonner'
 import Script from 'next/script'
 import { Calendar, Phone, Mail, Users, Send, Copy, Check, X, UserPlus, Gift, Tag } from 'lucide-react'
@@ -46,6 +51,7 @@ interface BookingFormClientProps {
   maxGroupSize: number
   packageTitle?: string
   departureDates?: string[] | null
+  returnDates?: string[] | null
   durationDays?: number
   groupInvite?: GroupInvite | null
   availableSlots?: Record<string, number>
@@ -58,10 +64,22 @@ export function BookingFormClient({
   maxGroupSize,
   packageTitle,
   departureDates,
+  returnDates,
   durationDays,
   groupInvite,
   availableSlots = {},
 }: BookingFormClientProps) {
+  const pkgCal: TripPackageCalendar = {
+    duration_days: Math.max(1, durationDays || 1),
+    departure_dates: departureDates,
+    return_dates: returnDates,
+  }
+
+  function travelRangeLabel(depIso: string): string {
+    const end = tripEndDateIsoForBooking(depIso, pkgCal)
+    return formatDateRangeFromEdges(depIso, end)
+  }
+
   const [tab, setTab] = useState<'fixed' | 'custom' | 'group'>(groupInvite ? 'fixed' : 'fixed')
   const [guests, setGuests] = useState(1)
   const [selectedDate, setSelectedDate] = useState('')
@@ -292,7 +310,7 @@ export function BookingFormClient({
     const todayCheck = new Date()
     todayCheck.setHours(0, 0, 0, 0)
     const isExpired = inviteDate <= todayCheck
-    const returnDate = durationDays ? new Date(inviteDate.getTime() + (durationDays - 1) * 86400000) : null
+    const returnIso = tripEndDateIsoForBooking(groupInvite.travel_date, pkgCal)
 
     if (isExpired) {
       return (
@@ -323,7 +341,7 @@ export function BookingFormClient({
             <span className="text-muted-foreground">Travel Date</span>
             <span className="font-medium">
               {formatDate(groupInvite.travel_date)}
-              {returnDate ? ` — ${formatDate(returnDate.toISOString())}` : ''}
+              {returnIso ? ` → ${formatDate(returnIso)}` : ''}
             </span>
           </div>
           <div className="flex justify-between text-sm">
@@ -461,7 +479,7 @@ export function BookingFormClient({
                     }`}
                   >
                     <span className="flex items-center justify-between w-full">
-                      <span>{durationDays ? formatDateRange(date, durationDays) : formatDate(date)}</span>
+                      <span>{travelRangeLabel(date)}</span>
                       <span className={`text-[10px] font-medium ${
                         isPast ? 'text-muted-foreground' : soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'
                       }`}>
@@ -758,7 +776,7 @@ export function BookingFormClient({
                     <option value="">Select a date</option>
                     {futureDates.map(d => (
                       <option key={d} value={d}>
-                        {durationDays ? formatDateRange(d, durationDays) : formatDate(d)}
+                        {travelRangeLabel(d)}
                       </option>
                     ))}
                   </select>

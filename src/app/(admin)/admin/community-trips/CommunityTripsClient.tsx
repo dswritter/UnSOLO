@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { moderateCommunityTrip, markHostPayout, updatePackage } from '@/actions/admin'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { toast } from 'sonner'
 import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -121,7 +122,7 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                   <div className="text-left">
                     <div className="font-bold text-sm">{trip.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {dest?.name}, {dest?.state} · {trip.duration_days}d · Max {trip.max_group_size}
+                      {dest?.name}, {dest?.state} · {packageDurationShortLabel(trip)} · Max {trip.max_group_size}
                     </div>
                   </div>
                 </div>
@@ -172,7 +173,7 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                   {/* Trip details */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div><span className="text-muted-foreground">Price:</span> {formatPrice(trip.price_paise)}/person</div>
-                    <div><span className="text-muted-foreground">Duration:</span> {trip.duration_days} days</div>
+                    <div><span className="text-muted-foreground">Duration:</span> {packageDurationShortLabel(trip)}</div>
                     <div><span className="text-muted-foreground">Max Group:</span> {trip.max_group_size}</div>
                     <div><span className="text-muted-foreground">Difficulty:</span> {trip.difficulty}</div>
                   </div>
@@ -192,15 +193,21 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                   )}
 
                   {/* Departure dates */}
-                  {trip.departure_dates && trip.departure_dates.length > 0 && (
+                                   {trip.departure_dates && trip.departure_dates.length > 0 && (
                     <div className="text-xs">
-                      <span className="font-medium">Departure Dates: </span>
+                      <span className="font-medium">Depart → return: </span>
                       <div className="flex flex-wrap gap-1.5 mt-1">
-                        {trip.departure_dates.map((d: string, i: number) => (
-                          <Badge key={i} variant="secondary" className="text-[10px]">
-                            {new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </Badge>
-                        ))}
+                        {trip.departure_dates.map((d: string, i: number) => {
+                          const ret = trip.return_dates?.[i]
+                          const label = ret
+                            ? `${new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} → ${new Date(ret).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                            : new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                          return (
+                            <Badge key={i} variant="secondary" className="text-[10px]">
+                              {label}
+                            </Badge>
+                          )
+                        })}
                       </div>
                     </div>
                   )}

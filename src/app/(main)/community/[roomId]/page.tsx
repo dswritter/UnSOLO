@@ -19,6 +19,8 @@ type PackageJoin = {
   title?: string
   slug?: string
   duration_days?: number | null
+  departure_dates?: string[] | null
+  return_dates?: string[] | null
   images?: string[] | null
   destination?: { name: string; state: string } | { name: string; state: string }[] | null
 } | null
@@ -40,7 +42,7 @@ export default async function CommunityRoomPage({
 
   const { data: room } = await supabase
     .from('chat_rooms')
-    .select('*, package:packages(title, slug, duration_days, images, destination:destinations(name, state))')
+    .select('*, package:packages(title, slug, duration_days, departure_dates, return_dates, images, destination:destinations(name, state))')
     .eq('id', roomId)
     .maybeSingle()
 
@@ -66,7 +68,11 @@ export default async function CommunityRoomPage({
   }
 
   const pkg = unwrapPackage(room.package as PackageJoin | PackageJoin[])
-  const tripDurationDays = Math.max(1, Number(pkg?.duration_days) || 3)
+  const tripPkgCal = {
+    duration_days: Math.max(1, Number(pkg?.duration_days) || 3),
+    departure_dates: pkg?.departure_dates,
+    return_dates: pkg?.return_dates,
+  }
   const packageSlug = pkg?.slug || ''
 
   const { data: membership } = await supabase
@@ -89,7 +95,7 @@ export default async function CommunityRoomPage({
   }
 
   const tripEligible =
-    room.type !== 'trip' || !room.package_id || userHasTripChatAccess(userTripBookings, tripDurationDays)
+    room.type !== 'trip' || !room.package_id || userHasTripChatAccess(userTripBookings, tripPkgCal)
 
   if (room.type === 'trip' && room.package_id && effectiveMembership && !tripEligible) {
     await supabase.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', user.id)
@@ -193,7 +199,7 @@ export default async function CommunityRoomPage({
       const rows = byUserBookings.get(p.id) || []
       const trip_chat_badge: TripChatBookingPhase | null | undefined =
         room.type === 'trip' && room.package_id
-          ? bestTripChatPhaseForUser(rows, tripDurationDays)
+          ? bestTripChatPhaseForUser(rows, tripPkgCal)
           : undefined
       return { ...p, phone_request_status: requestMap.get(p.id) || null, trip_chat_badge } as ChatMemberProfile
     })

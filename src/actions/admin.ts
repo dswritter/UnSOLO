@@ -227,8 +227,16 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
 
   try {
     const { sendBookingConfirmation } = await import('@/lib/resend/emails')
-    const pkg = booking.package as { title?: string; duration_days?: number; destination?: { name?: string; state?: string } } | null
+    const { tripEndDateIsoForBooking, packageDurationShortLabel } = await import('@/lib/package-trip-calendar')
+    const pkg = booking.package as import('@/types').Package | null
     const usr = booking.user as { full_name?: string } | null
+
+    const cal = {
+      duration_days: Math.max(1, Number(pkg?.duration_days) || 1),
+      departure_dates: pkg?.departure_dates,
+      return_dates: pkg?.return_dates,
+    }
+    const returnDateIso = tripEndDateIsoForBooking(booking.travel_date, cal)
 
     await sendBookingConfirmation({
       customerEmail: authUser.user.email,
@@ -236,10 +244,11 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
       packageTitle: pkg?.title || 'Trip',
       destination: pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
       travelDate: booking.travel_date,
+      returnDateIso,
       guests: booking.guests,
       totalAmount: booking.total_amount_paise,
       confirmationCode: booking.confirmation_code || '',
-      durationDays: pkg?.duration_days || 0,
+      durationSummary: pkg ? packageDurationShortLabel(pkg) : `${cal.duration_days} days`,
     })
 
     return { success: true }
@@ -444,11 +453,17 @@ export async function createPackage(formData: {
   short_description: string
   price_paise: number
   duration_days: number
+  trip_days: number
+  trip_nights: number
+  exclude_first_day_travel: boolean
+  departure_time: 'morning' | 'evening'
+  return_time: 'morning' | 'evening'
   max_group_size: number
   difficulty: string
   includes: string[]
   images: string[]
   departure_dates: string[]
+  return_dates: string[]
   is_featured: boolean
 }) {
   const { supabase } = await requireAdmin()
@@ -472,11 +487,17 @@ export async function updatePackage(
     short_description?: string
     price_paise?: number
     duration_days?: number
+    trip_days?: number
+    trip_nights?: number
+    exclude_first_day_travel?: boolean
+    departure_time?: 'morning' | 'evening'
+    return_time?: 'morning' | 'evening'
     max_group_size?: number
     difficulty?: string
     includes?: string[]
     images?: string[]
     departure_dates?: string[]
+    return_dates?: string[]
     is_featured?: boolean
     is_active?: boolean
   },

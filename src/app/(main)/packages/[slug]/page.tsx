@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Clock, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
@@ -184,7 +185,7 @@ export default async function PackageDetailPage({
                 title={package_.title}
                 location={`${package_.destination?.name}, ${package_.destination?.state}`}
                 pricePaise={package_.price_paise}
-                durationDays={package_.duration_days}
+                durationSummary={packageDurationShortLabel(package_)}
               />
             </div>
 
@@ -270,7 +271,7 @@ export default async function PackageDetailPage({
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { icon: Clock, label: 'Duration', value: `${package_.duration_days} days` },
+                { icon: Clock, label: 'Duration', value: packageDurationShortLabel(package_) },
                 { icon: Users, label: 'Group Size', value: `Up to ${package_.max_group_size}` },
                 { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
               ].map(({ icon: Icon, label, value }) => (
@@ -410,6 +411,7 @@ export default async function PackageDetailPage({
                           maxGroupSize={package_.max_group_size}
                           packageTitle={package_.title}
                           departureDates={package_.departure_dates}
+                          returnDates={package_.return_dates}
                           durationDays={package_.duration_days}
                           groupInvite={groupInvite}
                           availableSlots={availableSlotsMap}
@@ -430,7 +432,7 @@ export default async function PackageDetailPage({
                   <div className="border-t border-border pt-4 space-y-2 text-xs text-muted-foreground">
                     <div className="flex justify-between">
                       <span>Duration</span>
-                      <span className="text-foreground">{package_.duration_days} days</span>
+                      <span className="text-foreground">{packageDurationShortLabel(package_)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Location</span>

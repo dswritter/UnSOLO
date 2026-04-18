@@ -1,5 +1,10 @@
 /** Trip chat: who may access, and how we label members (badges). */
 
+import {
+  tripEndDateIsoForBooking,
+  type TripPackageCalendar,
+} from '@/lib/package-trip-calendar'
+
 export type TripChatBookingPhase = 'upcoming' | 'ongoing' | 'completed'
 
 export type TripBookingRow = {
@@ -7,15 +12,15 @@ export type TripBookingRow = {
   travel_date: string
 }
 
+export type TripPackageForChat = TripPackageCalendar
+
 function parseTravelDate(travelDate: string): Date {
   const d = new Date(travelDate + 'T12:00:00')
   return Number.isNaN(d.getTime()) ? new Date() : d
 }
 
-function endOfTripDay(travelDate: string, durationDays: number): Date {
-  const start = parseTravelDate(travelDate)
-  const end = new Date(start)
-  end.setDate(end.getDate() + Math.max(1, durationDays) - 1)
+function endOfTripCalendarDay(tripEndDateStr: string): Date {
+  const end = parseTravelDate(tripEndDateStr)
   end.setHours(23, 59, 59, 999)
   return end
 }
@@ -23,7 +28,7 @@ function endOfTripDay(travelDate: string, durationDays: number): Date {
 /** Phase for chat access + UI badge (null = no access for this row). */
 export function computeTripChatPhase(
   booking: TripBookingRow,
-  durationDays: number,
+  pkg: TripPackageForChat,
   now = new Date(),
 ): TripChatBookingPhase | null {
   if (booking.status === 'cancelled') return null
@@ -35,7 +40,8 @@ export function computeTripChatPhase(
   start.setHours(0, 0, 0, 0)
   const today = new Date(now)
   today.setHours(0, 0, 0, 0)
-  const tripEnd = endOfTripDay(booking.travel_date, durationDays)
+  const endStr = tripEndDateIsoForBooking(booking.travel_date, pkg)
+  const tripEnd = endOfTripCalendarDay(endStr)
 
   if (today > tripEnd) return 'completed'
   if (today >= start && today <= tripEnd) return 'ongoing'
@@ -50,13 +56,13 @@ const PHASE_RANK: Record<TripChatBookingPhase, number> = {
 
 export function bestTripChatPhaseForUser(
   bookings: TripBookingRow[],
-  durationDays: number,
+  pkg: TripPackageForChat,
   now = new Date(),
 ): TripChatBookingPhase | null {
   let best: TripChatBookingPhase | null = null
   let rank = 0
   for (const b of bookings) {
-    const phase = computeTripChatPhase(b, durationDays, now)
+    const phase = computeTripChatPhase(b, pkg, now)
     if (!phase) continue
     const r = PHASE_RANK[phase]
     if (r > rank) {
@@ -69,8 +75,8 @@ export function bestTripChatPhaseForUser(
 
 export function userHasTripChatAccess(
   bookings: TripBookingRow[],
-  durationDays: number,
+  pkg: TripPackageForChat,
   now = new Date(),
 ): boolean {
-  return bestTripChatPhaseForUser(bookings, durationDays, now) !== null
+  return bestTripChatPhaseForUser(bookings, pkg, now) !== null
 }

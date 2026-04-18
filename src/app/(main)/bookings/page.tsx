@@ -19,7 +19,15 @@ export type GroupBookingInfo = {
   organizer_id: string
   created_at: string
   my_status: string // invited | accepted | paid
-  package?: { title: string; slug: string; images?: string[]; duration_days?: number; destination?: { name: string; state: string } }
+  package?: {
+    title: string
+    slug: string
+    images?: string[]
+    duration_days?: number
+    departure_dates?: string[] | null
+    return_dates?: string[] | null
+    destination?: { name: string; state: string }
+  }
   organizer?: { full_name: string | null; username: string }
   members: { user_id: string; status: string; full_name: string | null; username: string }[]
   total_paid: number
@@ -57,7 +65,7 @@ export default async function BookingsPage() {
     for (const mem of myMemberships) {
       const { data: group } = await supabase
         .from('group_bookings')
-        .select('*, package:packages(title, slug, images, duration_days, destination:destinations(name, state)), organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+        .select('*, package:packages(title, slug, images, duration_days, departure_dates, return_dates, destination:destinations(name, state)), organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
         .eq('id', mem.group_id)
         .single()
 

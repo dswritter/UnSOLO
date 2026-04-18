@@ -7,7 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock } from 'lucide-react'
-import { formatPrice, formatDate, formatDateRange, getTripCountdown } from '@/lib/utils'
+import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
+import {
+  tripEndDateIsoForBooking,
+  formatDateRangeFromEdges,
+  calendarInclusiveDaysForTravelDate,
+  packageDurationShortLabel,
+  type TripPackageCalendar,
+} from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import { requestCancellation, changeBookingDate } from '@/actions/booking'
@@ -16,6 +23,20 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Booking } from '@/types'
+
+function tripCalFromPackage(
+  pkg: {
+    duration_days?: number | null
+    departure_dates?: string[] | null
+    return_dates?: string[] | null
+  } | null | undefined,
+): TripPackageCalendar {
+  return {
+    duration_days: Math.max(1, Number(pkg?.duration_days) || 1),
+    departure_dates: pkg?.departure_dates,
+    return_dates: pkg?.return_dates,
+  }
+}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
@@ -243,10 +264,22 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                             </span>
                           )}
                           <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" /> {pkg?.duration_days ? formatDateRange(group.travel_date, pkg.duration_days) : formatDate(group.travel_date)}
+                            <Calendar className="h-3 w-3" />{' '}
+                            {pkg?.duration_days
+                              ? formatDateRangeFromEdges(
+                                  group.travel_date,
+                                  tripEndDateIsoForBooking(group.travel_date, tripCalFromPackage(pkg)),
+                                )
+                              : formatDate(group.travel_date)}
                           </span>
                           {group.status === 'confirmed' && (() => {
-                            const countdown = getTripCountdown(group.travel_date, pkg?.duration_days || 1)
+                            const cal = tripCalFromPackage(pkg)
+                            const endIso = tripEndDateIsoForBooking(group.travel_date, cal)
+                            const countdown = getTripCountdown(
+                              group.travel_date,
+                              calendarInclusiveDaysForTravelDate(group.travel_date, cal),
+                              endIso,
+                            )
                             return countdown ? (
                               <span className="flex items-center gap-1 text-primary font-medium">
                                 {countdown.emoji} {countdown.text}
@@ -429,6 +462,8 @@ function BookingItem({
 }) {
   const pkg = booking.package
   const duration = pkg?.duration_days || 0
+  const cal = tripCalFromPackage(pkg)
+  const tripEndIso = tripEndDateIsoForBooking(booking.travel_date, cal)
 
   return (
     <Card className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={onToggle}>
@@ -457,10 +492,17 @@ function BookingItem({
                 <MapPin className="h-3 w-3" /> {pkg?.destination?.name}, {pkg?.destination?.state}
               </span>
               <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> {duration > 0 ? formatDateRange(booking.travel_date, duration) : formatDate(booking.travel_date)}
+                <Calendar className="h-3 w-3" />{' '}
+                {duration > 0
+                  ? formatDateRangeFromEdges(booking.travel_date, tripEndIso)
+                  : formatDate(booking.travel_date)}
               </span>
               {booking.status === 'confirmed' && (() => {
-                const countdown = getTripCountdown(booking.travel_date, duration || 1)
+                const countdown = getTripCountdown(
+                  booking.travel_date,
+                  calendarInclusiveDaysForTravelDate(booking.travel_date, cal),
+                  tripEndIso,
+                )
                 return countdown ? (
                   <span className="flex items-center gap-1 text-primary font-medium">
                     {countdown.emoji} {countdown.text}
@@ -518,12 +560,12 @@ function BookingItem({
               {duration > 0 && (
                 <div>
                   <span className="text-muted-foreground text-xs block">Return</span>
-                  <span>{formatDate((() => { const d = new Date(booking.travel_date); d.setDate(d.getDate() + duration - 1); return d.toISOString() })())}</span>
+                  <span>{formatDate(tripEndIso)}</span>
                 </div>
               )}
               <div>
                 <span className="text-muted-foreground text-xs block">Duration</span>
-                <span>{duration} days</span>
+                <span>{pkg ? packageDurationShortLabel(pkg) : `${duration} days`}</span>
               </div>
               <div>
                 <span className="text-muted-foreground text-xs block">Total Paid</span>
@@ -559,9 +601,8 @@ function BookingItem({
 
               {/* Cancellation - for pending or confirmed bookings that haven't ended yet */}
               {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (() => {
-                const endDate = new Date(booking.travel_date)
-                endDate.setDate(endDate.getDate() + (duration || 1))
-                const tripEnded = endDate < new Date()
+                const end = new Date(tripEndIso + 'T23:59:59')
+                const tripEnded = end < new Date()
                 return tripEnded ? null : <CancelRequester bookingId={booking.id} />
               })()}
 
