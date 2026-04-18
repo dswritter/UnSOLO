@@ -19,6 +19,9 @@ import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
 import { getStatusStoriesForProfile } from '@/actions/statusStories'
 import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
 import { StatesExploredCard } from '@/components/profile/StatesExploredCard'
+import { LeaderboardRankLinkLabel, LeaderboardRankRowIcon } from '@/components/leaderboard/RankDisplay'
+import { ProfileSharePosterButton } from '@/components/profile/ProfileSharePoster'
+import { APP_URL } from '@/lib/constants'
 
 export default async function ProfilePage({
   params,
@@ -173,19 +176,36 @@ export default async function ProfilePage({
     leaderboardRank != null ? (
       <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
         <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 text-primary shrink-0" />
+          <LeaderboardRankRowIcon rank={leaderboardRank} />
           Leaderboard rank
         </span>
         <Link
           href="/leaderboard"
-          className="text-sm font-black text-primary hover:underline tabular-nums"
+          className="text-sm font-black text-primary hover:underline tabular-nums inline-flex items-center"
         >
-          #{leaderboardRank}
+          <LeaderboardRankLinkLabel rank={leaderboardRank} />
         </Link>
       </div>
     ) : null
 
   const visitedStatesList = Array.from(uniqueStates)
+
+  const profileShareUrl = `${APP_URL.replace(/\/$/, '')}/profile/${profile.username}`
+  const sharePosterTrips =
+    !tripsPrivate && completedBookings
+      ? completedBookings.map((booking) => {
+          const pkg = booking.package as {
+            title: string
+            destination?: { name: string; state: string }
+          } | null
+          const place = [pkg?.destination?.name, pkg?.destination?.state].filter(Boolean).join(', ')
+          return {
+            title: pkg?.title || 'Trip',
+            place: place || 'India',
+            date: formatDate(booking.travel_date),
+          }
+        })
+      : []
 
   const achievementsHeading = (
     <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
@@ -246,7 +266,22 @@ export default async function ProfilePage({
                   </h1>
                   <p className="text-muted-foreground">@{profile.username}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <ProfileSharePosterButton
+                    displayName={profile.full_name || profile.username}
+                    username={profile.username}
+                    profileUrl={profileShareUrl}
+                    trips={tripsCount ?? 0}
+                    states={uniqueStates.size || leaderboardScore?.destinations_count || 0}
+                    reviews={leaderboardScore?.reviews_written || 0}
+                    score={leaderboardScore?.total_score || 0}
+                    tripsStatHidden={tripsPrivate}
+                    statesStatHidden={statesPrivate}
+                    visitedStates={visitedStatesList}
+                    statesMapHidden={statesPrivate}
+                    tripsHidden={tripsPrivate}
+                    tripsList={sharePosterTrips}
+                  />
                   {isOwnProfile ? (
                     <Button variant="outline" size="sm" className="border-border" asChild>
                       <Link href="/profile">Edit Profile</Link>

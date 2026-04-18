@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Trophy, Star, MapPin, Search } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
 import Link from 'next/link'
+import { LeaderboardRankBadge } from '@/components/leaderboard/RankDisplay'
 
 type LeaderEntry = {
   user_id: string
@@ -81,15 +82,7 @@ export function LeaderboardList({ entries, currentUserId }: LeaderboardListProps
                 >
                   {/* Rank */}
                   <div className="w-10 text-center flex-shrink-0">
-                    {originalRank === 1 ? (
-                      <span className="text-2xl">🥇</span>
-                    ) : originalRank === 2 ? (
-                      <span className="text-2xl">🥈</span>
-                    ) : originalRank === 3 ? (
-                      <span className="text-2xl">🥉</span>
-                    ) : (
-                      <span className="text-sm font-bold text-muted-foreground">#{originalRank}</span>
-                    )}
+                    <LeaderboardRankBadge rank={originalRank} />
                   </div>
 
                   {/* Avatar */}
