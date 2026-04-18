@@ -38,7 +38,7 @@ async function getLandingPromos(): Promise<LandingPromoRow[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('landing_promo_cards')
-    .select('id, title, body, href, link_label, variant, is_active, starts_at, ends_at')
+    .select('id, title, body, href, link_label, image_url, variant, is_active, starts_at, ends_at')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
   const now = Date.now()
@@ -47,12 +47,13 @@ async function getLandingPromos(): Promise<LandingPromoRow[]> {
     if (r.ends_at && new Date(r.ends_at).getTime() < now) return false
     return true
   })
-  return rows.map(({ id, title, body, href, link_label, variant }) => ({
+  return rows.map(({ id, title, body, href, link_label, image_url, variant }) => ({
     id,
     title,
     body,
     href,
     link_label,
+    image_url: image_url as string | null,
     variant: variant as LandingPromoRow['variant'],
   }))
 }
@@ -230,7 +231,9 @@ export default async function HomePage() {
       {/* Chat notification widget + floating button (for logged-in users) */}
       {profile && <ChatNotificationWidget userId={profile.id} />}
       {profile && <PresenceTracker userId={profile.id} />}
-      {landingPromos.length > 0 ? <LandingPromoDock promos={landingPromos} /> : null}
+      {landingPromos.length > 0 ? (
+        <LandingPromoDock promos={landingPromos} liftForChatFab={!!profile} />
+      ) : null}
     </div>
   )
 }
