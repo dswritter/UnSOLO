@@ -1,14 +1,22 @@
 // ── SMS Gateway ─────────────────────────────────────────────
 // Priority: TWOFACTOR_API_KEY (2factor.in) → MSG91 → console fallback (dev).
 // `message` is the OTP digits for host phone verification.
+//
+// Use process.env['NAME'] (not dot access) so Next does not inline values at
+// build time; Vercel runtime env must be read when the function runs.
 
 type TwoFactorSendResponse = { Status?: string; Details?: string }
 
+function env(name: string): string | undefined {
+  const v = process.env[name]
+  return typeof v === 'string' ? v.trim() : undefined
+}
+
 export async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string; devConsoleOnly?: boolean }> {
-  const twoFactorKey = process.env.TWOFACTOR_API_KEY?.trim()
-  const authKey = process.env.MSG91_AUTH_KEY?.trim()
-  const templateId = process.env.MSG91_TEMPLATE_ID
-  const senderId = process.env.MSG91_SENDER_ID || 'UNSOLO'
+  const twoFactorKey = env('TWOFACTOR_API_KEY')
+  const authKey = env('MSG91_AUTH_KEY')
+  const templateId = env('MSG91_TEMPLATE_ID')
+  const senderId = env('MSG91_SENDER_ID') || 'UNSOLO'
 
   if (twoFactorKey) {
     try {
