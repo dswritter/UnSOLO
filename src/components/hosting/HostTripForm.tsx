@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition, useMemo, type ComponentProps } from 'react'
+import { useState, useEffect, useRef, useMemo, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -116,7 +116,7 @@ export function HostTripForm({
 }) {
   const router = useRouter()
   const isEdit = !!editTripId
-  const [isPending, startTransition] = useTransition()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
   const [editModerationStatus, setEditModerationStatus] = useState<string | null>(null)
@@ -794,13 +794,49 @@ export function HostTripForm({
       if (Number.isFinite(a)) join_preferences.max_age = a
     }
 
-    startTransition(async () => {
-      if (isEdit && editTripId) {
-        const result = await updateHostedTrip(editTripId, {
+    void (async () => {
+      setIsSubmitting(true)
+      try {
+        if (isEdit && editTripId) {
+          const result = await updateHostedTrip(editTripId, {
+            title: title.trim(),
+            destination_id: destinationId,
+            description: description.trim(),
+            short_description: shortDescription.trim() || null,
+            price_paise: pricePaise,
+            price_variants,
+            duration_days,
+            trip_days: td,
+            trip_nights: tn,
+            exclude_first_day_travel: excludeFirstTravel,
+            departure_time: departureTime,
+            return_time: returnTime,
+            departure_dates: pairs.map((p) => p.dep),
+            return_dates: pairs.map((p) => p.ret),
+            max_group_size: parseInt(maxGroupSize, 10) || 12,
+            difficulty,
+            includes: selectedIncludes,
+            images,
+            join_preferences,
+          })
+          if (result.error) {
+            toast.error(result.error)
+          } else {
+            if (result.needsReapproval) {
+              toast.success('Saved. This update requires admin review; your trip stays visible.')
+            } else {
+              toast.success('Trip updated.')
+            }
+            router.push(`/host/${editTripId}`)
+          }
+          return
+        }
+
+        const result = await createHostedTrip({
           title: title.trim(),
           destination_id: destinationId,
           description: description.trim(),
-          short_description: shortDescription.trim() || null,
+          short_description: shortDescription.trim() || undefined,
           price_paise: pricePaise,
           price_variants,
           duration_days,
@@ -817,49 +853,18 @@ export function HostTripForm({
           images,
           join_preferences,
         })
+
         if (result.error) {
           toast.error(result.error)
         } else {
-          if (result.needsReapproval) {
-            toast.success('Saved. This update requires admin review; your trip stays visible.')
-          } else {
-            toast.success('Trip updated.')
-          }
-          router.push(`/host/${editTripId}`)
+          toast.success('Trip created! It will be reviewed by our team before going live.')
+          if (draftSessionId) deleteHostTripDraft(draftSessionId)
+          router.push('/host')
         }
-        return
+      } finally {
+        setIsSubmitting(false)
       }
-
-      const result = await createHostedTrip({
-        title: title.trim(),
-        destination_id: destinationId,
-        description: description.trim(),
-        short_description: shortDescription.trim() || undefined,
-        price_paise: pricePaise,
-        price_variants,
-        duration_days,
-        trip_days: td,
-        trip_nights: tn,
-        exclude_first_day_travel: excludeFirstTravel,
-        departure_time: departureTime,
-        return_time: returnTime,
-        departure_dates: pairs.map((p) => p.dep),
-        return_dates: pairs.map((p) => p.ret),
-        max_group_size: parseInt(maxGroupSize, 10) || 12,
-        difficulty,
-        includes: selectedIncludes,
-        images,
-        join_preferences,
-      })
-
-      if (result.error) {
-        toast.error(result.error)
-      } else {
-        toast.success('Trip created! It will be reviewed by our team before going live.')
-        if (draftSessionId) deleteHostTripDraft(draftSessionId)
-        router.push('/host')
-      }
-    })
+    })()
   }
 
   if (loading) {
@@ -1838,10 +1843,10 @@ export function HostTripForm({
                 </Button>
                 <Button
                   onClick={handleSubmit}
-                  disabled={isPending}
+                  disabled={isSubmitting}
                   className="bg-primary text-primary-foreground font-bold gap-1.5"
                 >
-                  {isPending ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       {isEdit ? 'Saving...' : 'Submitting...'}
