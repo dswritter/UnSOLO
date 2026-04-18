@@ -28,6 +28,18 @@ export async function sendPhoneOTP(phoneNumber: string) {
     return { error: 'Too many OTP requests. Try again in an hour.' }
   }
 
+  const { data: phoneTaken } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('phone_number', phoneNumber)
+    .eq('is_phone_verified', true)
+    .neq('id', user.id)
+    .maybeSingle()
+
+  if (phoneTaken) {
+    return { error: 'This phone number is already registered to another account.' }
+  }
+
   // Generate and store OTP
   const otp = generateOTP()
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000).toISOString()
@@ -45,7 +57,7 @@ export async function sendPhoneOTP(phoneNumber: string) {
 
   const result = await sendSMS(phoneNumber, otp)
   if (!result.success) {
-    return { error: result.error || 'Failed to send OTP' }
+    return { error: 'SMS sending failed. Please try again.' }
   }
 
   return { success: true, devConsoleOnly: result.devConsoleOnly === true }
@@ -70,6 +82,18 @@ export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
 
   if (!otpRecord) {
     return { error: 'OTP expired or not found. Request a new one.' }
+  }
+
+  const { data: phoneTaken } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('phone_number', phoneNumber)
+    .eq('is_phone_verified', true)
+    .neq('id', user.id)
+    .maybeSingle()
+
+  if (phoneTaken) {
+    return { error: 'This phone number is already registered to another account.' }
   }
 
   // Check attempts

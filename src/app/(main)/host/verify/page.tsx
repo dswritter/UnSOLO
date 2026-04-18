@@ -1,12 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { sendPhoneOTP, verifyPhoneOTP, checkVerificationStatus, resendEmailVerification } from '@/actions/verification'
 import { toast } from 'sonner'
 import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const RESEND_COOLDOWN_SEC = 45
+
+function isLocalDevHostname(): boolean {
+  if (typeof window === 'undefined') return false
+  const h = window.location.hostname
+  return h === 'localhost' || h === '127.0.0.1'
+}
 
 export default function HostVerifyPage() {
   const router = useRouter()
@@ -21,8 +30,21 @@ export default function HostVerifyPage() {
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
   const [sending, setSending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const [upiId, setUpiId] = useState('')
   const [upiSaved, setUpiSaved] = useState(false)
+
+  const startResendCooldown = useCallback(() => {
+    setResendCooldown(RESEND_COOLDOWN_SEC)
+  }, [])
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const id = window.setInterval(() => {
+      setResendCooldown((s) => (s <= 1 ? 0 : s - 1))
+    }, 1000)
+    return () => window.clearInterval(id)
+  }, [resendCooldown])
 
   useEffect(() => {
     async function load() {
@@ -33,27 +55,60 @@ export default function HostVerifyPage() {
         setIsHost(status.isHost)
         setExistingPhone(status.phoneNumber)
         if (status.phoneNumber) setPhone(status.phoneNumber)
+        if (status.isEmailVerified && !status.isPhoneVerified) {
+          setStep('enter_phone')
+        }
       }
       setLoading(false)
     }
     load()
   }, [])
 
+  // Web OTP (Chrome/Android): SMS must include app origin (configure your 2factor template accordingly).
+  useEffect(() => {
+    if (step !== 'enter_otp' || typeof window === 'undefined') return
+    type OtpCred = { code?: string }
+    if (!('OTPCredential' in window)) return
+    const ac = new AbortController()
+    const opts = {
+      otp: { transport: ['sms'] as const },
+      signal: ac.signal,
+    } as CredentialRequestOptions
+    navigator.credentials
+      .get(opts)
+      .then((cred) => {
+        const code = (cred as OtpCred)?.code
+        if (code && /^\d{4,8}$/.test(code)) setOtp(code.replace(/\D/g, '').slice(0, 6))
+      })
+      .catch(() => {})
+    return () => ac.abort()
+  }, [step])
+
   async function handleSendOTP() {
-    if (phone.length !== 10) { toast.error('Enter 10-digit phone number'); return }
+    if (phone.length !== 10) {
+      toast.error('Enter 10-digit phone number')
+      return
+    }
+    if (resendCooldown > 0) return
     setSending(true)
     const result = await sendPhoneOTP(phone)
     if (result.error) {
       toast.error(result.error)
+      startResendCooldown()
+    } else if ('devConsoleOnly' in result && result.devConsoleOnly) {
+      if (isLocalDevHostname()) {
+        toast.success('OTP generated (local dev: check your server terminal for the code).')
+        setOtp('')
+        setStep('enter_otp')
+      } else {
+        toast.error('SMS sending failed. Please try again.')
+        startResendCooldown()
+      }
     } else {
       toast.success('OTP sent to +91 ' + phone)
-      if ('devConsoleOnly' in result && result.devConsoleOnly) {
-        toast.message('SMS not actually sent', {
-          description:
-            'The server has no SMS key (set TWOFACTOR_API_KEY on the host, redeploy, then try again). Until then the OTP only appears in server logs — not on your phone.',
-        })
-      }
+      setOtp('')
       setStep('enter_otp')
+      startResendCooldown()
     }
     setSending(false)
   }
@@ -150,72 +205,122 @@ export default function HostVerifyPage() {
           </div>
 
           {/* Phone Verification */}
-          <div className={`p-5 rounded-xl border ${phoneVerified ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card'}`}>
-            <div className="flex items-center gap-3 mb-3">
+          <div
+            className={cn(
+              'p-5 rounded-xl border transition-all duration-300',
+              phoneVerified && 'border-green-500/30 bg-green-500/5',
+              !phoneVerified &&
+                emailVerified &&
+                'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
+              !phoneVerified && !emailVerified && 'border-border bg-card opacity-90',
+            )}
+          >
+            <div className="flex items-start gap-3 mb-3">
               {phoneVerified ? (
-                <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
+                <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
               ) : (
-                <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />
               )}
-              <div>
-                <h3 className="font-bold flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" /> Phone Verification
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {phoneVerified ? `Verified: +91 ${existingPhone || phone}` : 'Verify your Indian mobile number via OTP'}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-primary" /> Phone Verification
+                  </h3>
+                  {!phoneVerified && emailVerified && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                      Next step
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {phoneVerified
+                    ? `Verified: +91 ${existingPhone || phone}`
+                    : 'Verify your Indian mobile number via OTP — required to host trips.'}
                 </p>
               </div>
             </div>
 
-            {!phoneVerified && step === 'idle' && (
-              <Button onClick={() => setStep('enter_phone')} variant="outline" size="sm" className="w-full">
-                Verify Phone Number
-              </Button>
+            {!phoneVerified && !emailVerified && (
+              <p className="text-xs text-muted-foreground pl-9">
+                Complete email verification above, then enter your mobile number here.
+              </p>
             )}
 
-            {!phoneVerified && step === 'enter_phone' && (
-              <div className="space-y-3">
+            {!phoneVerified && emailVerified && step === 'enter_phone' && (
+              <div className="space-y-3 pl-0 sm:pl-0">
                 <div className="flex gap-2">
-                  <span className="flex items-center px-3 bg-secondary rounded-lg text-sm font-medium">+91</span>
+                  <span className="flex items-center px-3 bg-secondary rounded-lg text-sm font-medium shrink-0">+91</span>
                   <Input
                     type="tel"
                     placeholder="9876543210"
                     value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                     maxLength={10}
                     inputMode="numeric"
+                    autoComplete="tel-national"
                     className="bg-secondary border-border"
                   />
                 </div>
-                <Button onClick={handleSendOTP} disabled={sending || phone.length !== 10} className="w-full bg-primary text-primary-foreground font-bold">
-                  {sending ? 'Sending OTP...' : 'Send OTP'}
+                <Button
+                  onClick={handleSendOTP}
+                  disabled={sending || phone.length !== 10 || resendCooldown > 0}
+                  className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+                >
+                  {sending ? 'Sending OTP...' : resendCooldown > 0 ? `Wait ${resendCooldown}s to resend` : 'Send OTP'}
                 </Button>
               </div>
             )}
 
-            {!phoneVerified && step === 'enter_otp' && (
+            {!phoneVerified && emailVerified && step === 'enter_otp' && (
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">OTP sent to +91 {phone}. Enter the 6-digit code:</p>
+                <p className="text-xs text-muted-foreground">
+                  OTP sent to +91 {phone}. Enter the 6-digit code (supported browsers can fill it automatically from SMS):
+                </p>
                 <Input
                   type="text"
-                  placeholder="Enter 6-digit OTP"
+                  name="one-time-code"
+                  placeholder="6-digit OTP"
                   value={otp}
-                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
                   inputMode="numeric"
+                  autoComplete="one-time-code"
                   className="bg-secondary border-border text-center text-lg tracking-widest font-mono"
                   autoFocus
                 />
                 <div className="flex gap-2">
-                  <Button onClick={handleVerifyOTP} disabled={sending || otp.length !== 6} className="flex-1 bg-primary text-primary-foreground font-bold">
+                  <Button
+                    onClick={handleVerifyOTP}
+                    disabled={sending || otp.length !== 6}
+                    className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+                  >
                     {sending ? 'Verifying...' : 'Verify OTP'}
                   </Button>
-                  <Button onClick={() => { setStep('enter_phone'); setOtp('') }} variant="outline" size="sm">
-                    Change Number
+                  <Button
+                    onClick={() => {
+                      setStep('enter_phone')
+                      setOtp('')
+                      setResendCooldown(0)
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                  >
+                    Change number
                   </Button>
                 </div>
-                <button onClick={handleSendOTP} disabled={sending} className="text-xs text-primary hover:underline w-full text-center">
-                  Resend OTP
+                <button
+                  type="button"
+                  onClick={handleSendOTP}
+                  disabled={sending || resendCooldown > 0 || phone.length !== 10}
+                  className={cn(
+                    'text-xs w-full text-center',
+                    resendCooldown > 0 || sending
+                      ? 'text-muted-foreground cursor-not-allowed'
+                      : 'text-primary hover:underline',
+                  )}
+                >
+                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
                 </button>
               </div>
             )}
