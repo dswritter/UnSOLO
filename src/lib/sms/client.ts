@@ -2,6 +2,16 @@
 // Priority: TWOFACTOR_API_KEY (2factor.in) → MSG91 → console fallback (dev).
 // `message` is the OTP digits for host phone verification.
 //
+// 2factor.in (see https://2factor.in/API/DOCS/SMS_OTP.html):
+// - SMS:  POST .../API/V1/{key}/SMS/{phone}/{otp}
+// - Voice (different): .../VOICE/... — we only call /SMS/...
+// - If your account uses an approved OTP *template* (e.g. login_otp), use the
+//   manual-OTP + template path: .../SMS/{phone}/{otp}/{template_name}
+//   Set TWOFACTOR_OTP_TEMPLATE=login_otp (exact name from the 2factor panel).
+// - Do NOT use AUTOGEN here: AUTOGEN makes 2factor generate the OTP; we already
+//   generate OTP server-side and verify in Supabase. AUTOGEN would require their
+//   verify API and a different flow.
+//
 // Use process.env['NAME'] (not dot access) so Next does not inline values at
 // build time; Vercel runtime env must be read when the function runs.
 
@@ -20,7 +30,12 @@ export async function sendSMS(phone: string, message: string): Promise<{ success
 
   if (twoFactorKey) {
     try {
-      const path = `/API/V1/${encodeURIComponent(twoFactorKey)}/SMS/91${encodeURIComponent(phone)}/${encodeURIComponent(message)}`
+      const template = env('TWOFACTOR_OTP_TEMPLATE')
+      const phoneSeg = `91${encodeURIComponent(phone)}`
+      const otpSeg = encodeURIComponent(message)
+      const path = template
+        ? `/API/V1/${encodeURIComponent(twoFactorKey)}/SMS/${phoneSeg}/${otpSeg}/${encodeURIComponent(template)}`
+        : `/API/V1/${encodeURIComponent(twoFactorKey)}/SMS/${phoneSeg}/${otpSeg}`
       const response = await fetch(`https://2factor.in${path}`, { method: 'POST' })
       const data = (await response.json()) as TwoFactorSendResponse
 
