@@ -250,6 +250,26 @@ export function ChatWindow({
     }
   }, [roomId, initialMessages, messagesKey, queryClient])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const vv = window.visualViewport
+    if (!vv) return
+
+    const sync = () => {
+      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      setVisualViewportBottomInset(inset)
+    }
+
+    vv.addEventListener('resize', sync)
+    vv.addEventListener('scroll', sync)
+    sync()
+
+    return () => {
+      vv.removeEventListener('resize', sync)
+      vv.removeEventListener('scroll', sync)
+    }
+  }, [])
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(
@@ -267,6 +287,8 @@ export function ChatWindow({
   const [pkgSearch, setPkgSearch] = useState('')
   const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  /** Pixels from layout viewport bottom to visual viewport bottom (mobile keyboard, browser chrome). */
+  const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
 
   // Read receipts state
   const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map())
@@ -1217,8 +1239,11 @@ export function ChatWindow({
         </div>
       )}
 
-      {/* Messages — extra bottom padding on mobile so content clears the fixed composer */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:pb-4">
+      {/* Messages — bottom padding clears fixed composer; --chat-vv-inset adds keyboard overlap on mobile */}
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4"
+        style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
+      >
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
@@ -1458,8 +1483,11 @@ export function ChatWindow({
         </div>
       ) : null}
 
-      {/* Input — fixed to viewport bottom on mobile (flex layout leaves a gap on some browsers) */}
-      <div className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed bottom-0 left-0 right-0 z-20 md:z-auto">
+      {/* Input — fixed; bottom tracks visualViewport so it sits above the mobile keyboard */}
+      <div
+        className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto"
+        style={{ bottom: visualViewportBottomInset }}
+      >
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           <button
             type="button"
@@ -1474,6 +1502,12 @@ export function ChatWindow({
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches) return
+              requestAnimationFrame(() => {
+                textareaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+              })
+            }}
             placeholder="Message"
             rows={1}
             className="bg-secondary border-border resize-none min-h-[36px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-sm py-2"
