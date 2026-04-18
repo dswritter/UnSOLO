@@ -1,8 +1,7 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
-import { toPng } from 'html-to-image'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { toBlob } from 'html-to-image'
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -396,36 +395,68 @@ function PosterBody({
   )
 }
 
+function downloadPngBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const ref = useRef<HTMLDivElement>(null)
+  const propsRef = useRef(props)
+  propsRef.current = props
+
   const [busy, setBusy] = useState(false)
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
   const [posterMode, setPosterMode] = useState<PosterMode>('full')
+  const [captureJob, setCaptureJob] = useState<{
+    aspect: PosterAspect
+    mode: PosterMode
+  } | null>(null)
 
-  const runCapture = useCallback(
-    async (aspect: PosterAspect, mode: PosterMode) => {
-      const node = ref.current
-      if (!node) return
-      const { w, h } = POSTER_DIMS[aspect]
-      setBusy(true)
-      const styleBackup = {
-        position: node.style.position,
-        left: node.style.left,
-        top: node.style.top,
-        width: node.style.width,
-        height: node.style.height,
-        zIndex: node.style.zIndex,
-        pointerEvents: node.style.pointerEvents,
-      }
+  const requestCapture = useCallback((aspect: PosterAspect, mode: PosterMode) => {
+    setBusy(true)
+    setCaptureJob({ aspect, mode })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!captureJob) return
+    const node = ref.current
+    if (!node) {
+      setCaptureJob(null)
+      setBusy(false)
+      return
+    }
+
+    const { aspect, mode } = captureJob
+    const { w, h } = POSTER_DIMS[aspect]
+    const p = propsRef.current
+    const aspectSlug = aspect === 'story' ? '9x16' : '4x5'
+    const modeSlug = mode === 'full' ? 'full' : 'stats'
+    const filename = `unsolo-${p.username}-${modeSlug}-${aspectSlug}.png`
+
+    const styleBackup = {
+      position: node.style.position,
+      left: node.style.left,
+      top: node.style.top,
+      width: node.style.width,
+      height: node.style.height,
+      zIndex: node.style.zIndex,
+      pointerEvents: node.style.pointerEvents,
+    }
+
+    let cancelled = false
+
+    const run = async () => {
+      let movedOnscreen = false
       try {
-        flushSync(() => {
-          setPosterAspect(aspect)
-          setPosterMode(mode)
-        })
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-        const el = ref.current
-        if (!el) return
-        Object.assign(el.style, {
+        if (cancelled) return
+
+        Object.assign(node.style, {
           position: 'fixed',
           left: '0',
           top: '0',
@@ -434,60 +465,87 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
           zIndex: '2147483646',
           pointerEvents: 'none',
         })
+        movedOnscreen = true
+
         await new Promise<void>((r) => requestAnimationFrame(() => r()))
-        const dataUrl = await toPng(el, {
+        if (cancelled) return
+
+        const blob = await toBlob(node, {
           pixelRatio: 1,
           cacheBust: true,
           backgroundColor: '#fffbeb',
           width: w,
           height: h,
         })
-        const res = await fetch(dataUrl)
-        const blob = await res.blob()
-        const aspectSlug = aspect === 'story' ? '9x16' : '4x5'
-        const modeSlug = mode === 'full' ? 'full' : 'stats'
-        const file = new File(
-          [blob],
-          `unsolo-${props.username}-${modeSlug}-${aspectSlug}.png`,
-          { type: 'image/png' },
-        )
+        if (!blob) {
+          throw new Error('Empty image')
+        }
 
-        if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare?.({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: `${props.displayName} on UnSOLO`,
-            text: `See my travel story on UnSOLO — ${props.profileUrl}`,
-          })
-          toast.success('Ready to post!')
-        } else {
-          const a = document.createElement('a')
-          a.href = dataUrl
-          a.download = `unsolo-${props.username}-${modeSlug}-${aspectSlug}.png`
-          a.click()
+        if (cancelled) return
+
+        setPosterAspect(aspect)
+        setPosterMode(mode)
+
+        const file = new File([blob], filename, { type: 'image/png' })
+        const canTryShare =
+          typeof navigator !== 'undefined' &&
+          typeof navigator.share === 'function' &&
+          (!navigator.canShare || navigator.canShare({ files: [file] }))
+
+        if (canTryShare) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: `${p.displayName} on UnSOLO`,
+              text: `See my travel story on UnSOLO — ${p.profileUrl}`,
+            })
+            if (!cancelled) toast.success('Ready to post!')
+            return
+          } catch (shareErr: unknown) {
+            const name = shareErr instanceof Error ? shareErr.name : ''
+            if (name === 'AbortError') {
+              return
+            }
+            console.warn('navigator.share failed, falling back to download', shareErr)
+          }
+        }
+
+        if (!cancelled) {
+          downloadPngBlob(blob, filename)
           toast.success('Poster saved — add it to WhatsApp or Instagram!')
         }
       } catch (e) {
-        console.error(e)
-        toast.error('Could not create poster. Try again.')
+        if (!cancelled) {
+          console.error(e)
+          toast.error('Could not create poster. Try again.')
+        }
       } finally {
-        const el = ref.current
-        if (el) Object.assign(el.style, styleBackup)
+        if (movedOnscreen) {
+          Object.assign(node.style, styleBackup)
+        }
+        setCaptureJob(null)
         setBusy(false)
       }
-    },
-    [props.displayName, props.profileUrl, props.username],
-  )
+    }
 
-  const dims = POSTER_DIMS[posterAspect]
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [captureJob])
+
+  const effectiveAspect = captureJob?.aspect ?? posterAspect
+  const effectiveMode = captureJob?.mode ?? posterMode
+  const dims = POSTER_DIMS[effectiveAspect]
 
   return (
     <span className="relative inline-flex shrink-0 align-top">
       <DropdownMenu>
         <DropdownMenuTrigger
-          disabled={busy}
           render={
             <button
               type="button"
+              disabled={busy}
               className={cn(
                 buttonVariants({ variant: 'outline', size: 'sm' }),
                 'border-border gap-1.5 min-w-[7.5rem]',
@@ -501,18 +559,34 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         />
         <DropdownMenuContent align="end" className="min-w-[14rem] bg-card border-border z-[300]">
           <DropdownMenuLabel className="text-xs text-muted-foreground">Full poster</DropdownMenuLabel>
-          <DropdownMenuItem className="cursor-pointer" onClick={() => void runCapture('story', 'full')}>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={busy}
+            onClick={() => requestCapture('story', 'full')}
+          >
             Story 9:16
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" onClick={() => void runCapture('feed', 'full')}>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={busy}
+            onClick={() => requestCapture('feed', 'full')}
+          >
             Feed 4:5
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-xs text-muted-foreground">Rank, trips & map</DropdownMenuLabel>
-          <DropdownMenuItem className="cursor-pointer" onClick={() => void runCapture('story', 'compact')}>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={busy}
+            onClick={() => requestCapture('story', 'compact')}
+          >
             Story 9:16
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" onClick={() => void runCapture('feed', 'compact')}>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={busy}
+            onClick={() => requestCapture('feed', 'compact')}
+          >
             Feed 4:5
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -532,12 +606,12 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
           fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
           boxSizing: 'border-box',
           background: 'linear-gradient(165deg, #fffbeb 0%, #fef3c7 35%, #fde68a 100%)',
-          padding: `${Math.round(48 * scaleForAspect(posterAspect))}px ${Math.round(44 * scaleForAspect(posterAspect))}px ${Math.round(56 * scaleForAspect(posterAspect))}px`,
+          padding: `${Math.round(48 * scaleForAspect(effectiveAspect))}px ${Math.round(44 * scaleForAspect(effectiveAspect))}px ${Math.round(56 * scaleForAspect(effectiveAspect))}px`,
           color: '#1c1917',
         }}
         aria-hidden
       >
-        <PosterBody props={props} aspect={posterAspect} mode={posterMode} />
+        <PosterBody props={props} aspect={effectiveAspect} mode={effectiveMode} />
       </div>
     </span>
   )
