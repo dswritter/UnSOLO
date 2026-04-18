@@ -56,7 +56,27 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     const node = ref.current
     if (!node) return
     setBusy(true)
+    const styleBackup = {
+      position: node.style.position,
+      left: node.style.left,
+      top: node.style.top,
+      width: node.style.width,
+      height: node.style.height,
+      zIndex: node.style.zIndex,
+      pointerEvents: node.style.pointerEvents,
+    }
     try {
+      // Move into the live viewport while capturing. html-to-image clones computed styles; an off-screen
+      // `left: -10000px` root often serializes to a blank foreignObject in WebKit/Chromium.
+      Object.assign(node.style, {
+        position: 'fixed',
+        left: '0',
+        top: '0',
+        width: '1080px',
+        height: '1920px',
+        zIndex: '2147483646',
+        pointerEvents: 'none',
+      })
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
       const dataUrl = await toPng(node, {
         pixelRatio: 1,
@@ -64,15 +84,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         backgroundColor: '#fffbeb',
         width: 1080,
         height: 1920,
-        // Live node is off-screen; foreignObject is only 1080×1920 — reset clone position so content paints.
-        style: {
-          position: 'relative',
-          left: '0',
-          top: '0',
-          transform: 'none',
-          margin: '0',
-          zIndex: 'auto',
-        },
       })
       const res = await fetch(dataUrl)
       const blob = await res.blob()
@@ -96,6 +107,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
       console.error(e)
       toast.error('Could not create poster. Try again.')
     } finally {
+      Object.assign(node.style, styleBackup)
       setBusy(false)
     }
   }, [props.displayName, props.profileUrl, props.username])

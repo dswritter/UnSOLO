@@ -59,10 +59,10 @@ export function IndiaStatesMap({
                 forRasterExport
                   ? undefined
                   : cn(
-                      'stroke-border transition-colors duration-200 [vector-effect:non-scaling-stroke]',
+                      'transition-colors duration-200 [vector-effect:non-scaling-stroke]',
                       isVisited
                         ? 'fill-primary/85 stroke-primary/40'
-                        : 'fill-muted/25 stroke-border/80',
+                        : 'fill-muted/30 stroke-border/80 dark:fill-zinc-600/45 dark:stroke-zinc-400',
                     )
               }
               style={
@@ -74,7 +74,7 @@ export function IndiaStatesMap({
                     }
                   : undefined
               }
-              strokeWidth={0.35}
+              strokeWidth={forRasterExport ? 0.35 : 0.45}
             />
           )
         })}
