@@ -57,13 +57,22 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     if (!node) return
     setBusy(true)
     try {
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
       const dataUrl = await toPng(node, {
         pixelRatio: 1,
         cacheBust: true,
         backgroundColor: '#fffbeb',
         width: 1080,
         height: 1920,
-        style: { transform: 'scale(1)' },
+        // Live node is off-screen; foreignObject is only 1080×1920 — reset clone position so content paints.
+        style: {
+          position: 'relative',
+          left: '0',
+          top: '0',
+          transform: 'none',
+          margin: '0',
+          zIndex: 'auto',
+        },
       })
       const res = await fetch(dataUrl)
       const blob = await res.blob()
@@ -92,7 +101,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   }, [props.displayName, props.profileUrl, props.username])
 
   return (
-    <>
+    <span className="relative inline-flex shrink-0 align-top">
       <Button
         type="button"
         variant="outline"
@@ -105,13 +114,16 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         Share story
       </Button>
 
+      {/* Absolutely positioned so it does not stretch the profile header; still off-screen for users */}
       <div
         ref={ref}
-        className="pointer-events-none fixed -left-[10000px] top-0 overflow-hidden"
+        className="pointer-events-none overflow-hidden"
         style={{
-          position: 'relative',
+          position: 'absolute',
+          left: -10000,
+          top: 0,
           width: 1080,
-          minHeight: 1920,
+          height: 1920,
           display: 'flex',
           flexDirection: 'column',
           fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
@@ -178,7 +190,11 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
           </div>
         ) : (
           <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(202,138,4,0.35)' }}>
-            <IndiaStatesMap visitedStates={props.visitedStates} className="max-h-[320px] border-0 bg-white/50" />
+            <IndiaStatesMap
+              visitedStates={props.visitedStates}
+              forRasterExport
+              className="border-0"
+            />
           </div>
         )}
 
@@ -248,6 +264,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
           </p>
         </div>
       </div>
-    </>
+    </span>
   )
 }
