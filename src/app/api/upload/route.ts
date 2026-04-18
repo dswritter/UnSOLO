@@ -7,18 +7,28 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Check role — admins can upload package images, all users can upload avatars
+  const formData = await req.formData()
+  const file = formData.get('file') as File | null
+  const purposeRaw = formData.get('purpose') as string | null
+
+  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_host')
     .eq('id', user.id)
     .single()
 
-  const formData = await req.formData()
-  const file = formData.get('file') as File | null
-  const purpose = (formData.get('purpose') as string) || 'package' // 'package' | 'host_trip' | 'avatar' | 'community_room' | 'status_story'
-
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  const purposeTrim = purposeRaw?.trim() || null
+  // UnSOLO package gallery = admin only. Verified hosts use host_trip (or we infer it when purpose is omitted).
+  let purpose: string
+  if (purposeTrim) {
+    purpose = purposeTrim
+  } else if (profile?.is_host === true && profile?.role !== 'admin') {
+    purpose = 'host_trip'
+  } else {
+    purpose = 'package'
+  }
 
   if (purpose === 'community_room') {
     if (profile?.role !== 'admin' && profile?.role !== 'social_media_manager') {
@@ -26,18 +36,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Package gallery images: admins or verified hosts
   if (purpose === 'package' && profile?.role !== 'admin') {
     return NextResponse.json({ error: 'Admin only for package images' }, { status: 403 })
   }
 
   if (purpose === 'host_trip') {
-    const { data: hostProfile } = await supabase
-      .from('profiles')
-      .select('is_host')
-      .eq('id', user.id)
-      .single()
-    if (!hostProfile?.is_host) {
+    const allowed = profile?.is_host === true || profile?.role === 'admin'
+    if (!allowed) {
       return NextResponse.json({ error: 'Host verification required to upload trip images' }, { status: 403 })
     }
   }
