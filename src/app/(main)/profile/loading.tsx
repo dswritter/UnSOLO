@@ -33,7 +33,7 @@ export default function ProfileLoading() {
 
         {/* Main + sidebar — matches lg:flex layout */}
         <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
-          <div className="min-w-0 flex-1 space-y-6">
+          <div className="min-w-0 flex-1 space-y-6 lg:flex-[2] lg:basis-0">
             <div className="rounded-xl border border-border bg-card p-5">
               <div className="h-5 w-40 bg-secondary rounded mb-4 animate-pulse" />
               <div className="space-y-3">
@@ -60,6 +60,14 @@ export default function ProfileLoading() {
               </div>
             </div>
 
+            {/* Current tier + places (TravelStats) — main column only */}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="h-6 w-40 bg-secondary rounded mb-4 animate-pulse" />
+              <div className="h-2 w-full bg-secondary/30 rounded-full animate-pulse mb-6" />
+              <div className="h-4 w-64 bg-secondary/60 rounded animate-pulse mb-4" />
+              <div className="h-4 w-48 bg-secondary/50 rounded animate-pulse" />
+            </div>
+
             {/* Narrow screens: sidebar blocks stacked */}
             <div className="space-y-6 lg:hidden">
               <div className="rounded-xl border border-border bg-card p-5">
@@ -82,7 +90,7 @@ export default function ProfileLoading() {
             </div>
           </div>
 
-          <aside className="hidden lg:flex lg:w-72 xl:w-80 2xl:w-[22rem] shrink-0 flex-col gap-6">
+          <aside className="hidden lg:flex lg:min-w-0 lg:flex-1 lg:basis-0 lg:max-w-md flex-col gap-6">
             <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
               <div className="h-3 w-36 bg-secondary/60 rounded animate-pulse" />
             </div>
@@ -117,13 +125,6 @@ export default function ProfileLoading() {
               </div>
             </div>
           </aside>
-        </div>
-
-        {/* Tier / places row (TravelStats) */}
-        <div className="mt-6 rounded-xl border border-border bg-card p-5">
-          <div className="h-6 w-40 bg-secondary rounded mb-4 animate-pulse" />
-          <div className="h-2 w-full bg-secondary/30 rounded-full animate-pulse mb-6" />
-          <div className="h-4 w-64 bg-secondary/60 rounded animate-pulse" />
         </div>
       </div>
     </div>

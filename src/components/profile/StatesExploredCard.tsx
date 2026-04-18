@@ -45,9 +45,6 @@ export function StatesExploredCard({
                 )
               })}
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              Map data © Victor Cazanave / svg-maps (CC-BY-4.0).
-            </p>
           </div>
         )}
       </CardContent>

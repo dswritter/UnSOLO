@@ -341,7 +341,8 @@ export default async function ProfilePage({
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
         <div className="flex flex-col lg:flex-row lg:items-start lg:gap-8 xl:gap-10">
-          <div className="min-w-0 flex-1 space-y-6">
+          {/* Main column (~2/3): activity + tier/places — matches SS2 */}
+          <div className="min-w-0 flex-1 space-y-6 lg:flex-[2] lg:basis-0">
             {/* Trips - clickable, with privacy */}
             {completedBookings && completedBookings.length > 0 && (
               <Card className="bg-card border-border">
@@ -429,6 +430,8 @@ export default async function ProfilePage({
               </Card>
             )}
 
+            <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} deferToSidebar />
+
             {/* Badges & states: sidebar on lg+; stacked here on narrow screens */}
             <div className="space-y-6 lg:hidden">
               {badgesCard}
@@ -437,7 +440,7 @@ export default async function ProfilePage({
           </div>
 
           {/* Achievements sidebar: stats, badges, states (lg+) */}
-          <aside className="hidden lg:flex lg:w-72 xl:w-80 2xl:w-[22rem] shrink-0 flex-col gap-6 lg:sticky lg:top-20 xl:top-24 self-start">
+          <aside className="hidden lg:flex lg:min-w-0 lg:flex-1 lg:basis-0 lg:max-w-md flex-col gap-6 lg:sticky lg:top-20 xl:top-24 self-start">
             <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Achievements & stats</p>
             </div>
@@ -452,9 +455,6 @@ export default async function ProfilePage({
             <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
           </aside>
         </div>
-
-        {/* Tier progress & places covered (badges/states grid lives in sidebar above) */}
-        <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} deferToSidebar />
       </div>
     </div>
   )
