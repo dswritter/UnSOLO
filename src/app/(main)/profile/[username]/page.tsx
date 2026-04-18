@@ -8,16 +8,16 @@ import { ProfileAvatarWithStatusMenu } from '@/components/profile/ProfileAvatarW
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, MessageCircle, Phone } from 'lucide-react'
+import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, Phone } from 'lucide-react'
 import { getInitials, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { ACHIEVEMENTS } from '@/types'
-import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
 import { PhoneRequestButton } from './PhoneRequestButton'
 import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
 import { getStatusStoriesForProfile } from '@/actions/statusStories'
+import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
 
 export default async function ProfilePage({
   params,
@@ -111,6 +111,12 @@ export default async function ProfilePage({
     if (dest?.state) uniqueStates.add(dest.state)
   })
 
+  const leaderboardScoreNum = leaderboardScore?.total_score
+  const leaderboardRank =
+    typeof leaderboardScoreNum === 'number'
+      ? await getLeaderboardRankByScore(supabase, leaderboardScoreNum)
+      : null
+
   const statItems = [
     { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },
     { icon: MapPin, label: 'States', value: uniqueStates.size || leaderboardScore?.destinations_count || 0, private: statesPrivate },
@@ -161,6 +167,22 @@ export default async function ProfilePage({
       ))}
     </div>
   )
+
+  const leaderboardRankRow =
+    leaderboardRank != null ? (
+      <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Trophy className="h-3.5 w-3.5 text-primary shrink-0" />
+          Leaderboard rank
+        </span>
+        <Link
+          href="/leaderboard"
+          className="text-sm font-black text-primary hover:underline tabular-nums"
+        >
+          #{leaderboardRank}
+        </Link>
+      </div>
+    ) : null
 
   const statesExploredCard = (
     <Card className="bg-card border-border">
@@ -325,6 +347,7 @@ export default async function ProfilePage({
           {/* Stats — in header on smaller screens; xl+ uses sticky sidebar */}
           <div className="mt-6 pt-6 border-t border-border xl:hidden">
             {statsGrid}
+            {leaderboardRankRow}
           </div>
         </div>
 
@@ -441,6 +464,7 @@ export default async function ProfilePage({
               <CardContent className="p-5">
                 <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
                 {statsGrid}
+                {leaderboardRankRow}
               </CardContent>
             </Card>
             {badgesCard}

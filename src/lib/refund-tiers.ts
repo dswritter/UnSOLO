@@ -73,3 +73,45 @@ export function tierTimelineLabel(t: RefundTier): string {
   }
   return `${t.minDaysBefore}+ days before departure`
 }
+
+/** Persist tiers to platform_settings `value` (pretty-printed JSON array). */
+export function serializeRefundTiersJson(tiers: RefundTier[]): string {
+  const rows = tiers.map((t) => {
+    const o: Record<string, number | string> = {
+      minDaysBefore: Math.round(Number(t.minDaysBefore)),
+      percent: Math.round(Number(t.percent)),
+    }
+    if (t.maxDaysBefore != null && Number.isFinite(t.maxDaysBefore)) {
+      o.maxDaysBefore = Math.round(Number(t.maxDaysBefore))
+    }
+    if (t.label?.trim()) o.label = t.label.trim()
+    return o
+  })
+  return JSON.stringify(rows, null, 2)
+}
+
+export function validateRefundTiers(
+  tiers: RefundTier[]
+): { ok: true } | { ok: false; message: string } {
+  if (tiers.length === 0) {
+    return { ok: false, message: 'Add at least one refund tier.' }
+  }
+  for (let i = 0; i < tiers.length; i++) {
+    const t = tiers[i]
+    const min = Number(t.minDaysBefore)
+    const pct = Number(t.percent)
+    if (!Number.isFinite(min) || min < 0) {
+      return { ok: false, message: `Tier ${i + 1}: “Min days” must be 0 or greater.` }
+    }
+    if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+      return { ok: false, message: `Tier ${i + 1}: Refund % must be between 0 and 100.` }
+    }
+    if (t.maxDaysBefore != null && Number.isFinite(t.maxDaysBefore)) {
+      const max = Number(t.maxDaysBefore)
+      if (max < min) {
+        return { ok: false, message: `Tier ${i + 1}: “Max days” must be ≥ “Min days” (or leave max empty).` }
+      }
+    }
+  }
+  return { ok: true }
+}
