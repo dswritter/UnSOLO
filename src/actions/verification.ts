@@ -3,8 +3,60 @@
 import { createClient } from '@/lib/supabase/server'
 import { sendSMS, generateOTP } from '@/lib/sms/client'
 import { validateIndianPhone } from '@/lib/utils'
-import { MAX_OTP_PER_HOUR, MAX_OTP_VERIFY_ATTEMPTS, OTP_EXPIRY_MINUTES } from '@/lib/constants'
+import {
+  MAX_OTP_PER_HOUR,
+  MAX_OTP_VERIFY_ATTEMPTS,
+  MIN_OTP_SEND_INTERVAL_SECONDS,
+  OTP_EXPIRY_MINUTES,
+} from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
+
+function formatOtpRetryMessage(notBefore: Date): string {
+  const sec = Math.ceil((notBefore.getTime() - Date.now()) / 1000)
+  if (sec <= 0) return 'Try again in a moment.'
+  if (sec < 60) return `Please wait ${sec} seconds before requesting another OTP.`
+  const min = Math.ceil(sec / 60)
+  return `Too many OTP requests. Try again in ${min} minute(s).`
+}
+
+/** Earliest time the user may send another OTP (server-side; survives refresh). */
+async function getOtpSendNotBefore(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<Date | null> {
+  const now = Date.now()
+  const oneHourAgoIso = new Date(now - 60 * 60 * 1000).toISOString()
+
+  const { data: hourlyRows } = await supabase
+    .from('phone_otp_verifications')
+    .select('created_at')
+    .eq('user_id', userId)
+    .gte('created_at', oneHourAgoIso)
+    .order('created_at', { ascending: true })
+
+  let notBeforeMs = 0
+
+  if (hourlyRows && hourlyRows.length >= MAX_OTP_PER_HOUR) {
+    const oldest = new Date(hourlyRows[0].created_at).getTime()
+    notBeforeMs = Math.max(notBeforeMs, oldest + 60 * 60 * 1000)
+  }
+
+  const { data: lastRow } = await supabase
+    .from('phone_otp_verifications')
+    .select('created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (lastRow) {
+    const last = new Date(lastRow.created_at).getTime()
+    notBeforeMs = Math.max(notBeforeMs, last + MIN_OTP_SEND_INTERVAL_SECONDS * 1000)
+  }
+
+  if (notBeforeMs > now) return new Date(notBeforeMs)
+  return null
+}
 
 export async function sendPhoneOTP(phoneNumber: string) {
   const supabase = await createClient()
@@ -14,18 +66,6 @@ export async function sendPhoneOTP(phoneNumber: string) {
   // Validate phone format
   if (!validateIndianPhone(phoneNumber)) {
     return { error: 'Enter a valid 10-digit Indian mobile number (starting with 6-9)' }
-  }
-
-  // Rate limit: max 3 OTPs per hour
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  const { count } = await supabase
-    .from('phone_otp_verifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .gte('created_at', oneHourAgo)
-
-  if ((count || 0) >= MAX_OTP_PER_HOUR) {
-    return { error: 'Too many OTP requests. Try again in an hour.' }
   }
 
   const { data: phoneTaken } = await supabase
@@ -38,6 +78,14 @@ export async function sendPhoneOTP(phoneNumber: string) {
 
   if (phoneTaken) {
     return { error: 'This phone number is already registered to another account.' }
+  }
+
+  const notBeforeSend = await getOtpSendNotBefore(supabase, user.id)
+  if (notBeforeSend) {
+    return {
+      error: formatOtpRetryMessage(notBeforeSend),
+      cooldownUntil: notBeforeSend.toISOString(),
+    }
   }
 
   // Generate and store OTP
@@ -57,10 +105,19 @@ export async function sendPhoneOTP(phoneNumber: string) {
 
   const result = await sendSMS(phoneNumber, otp)
   if (!result.success) {
-    return { error: 'SMS sending failed. Please try again.' }
+    const until = await getOtpSendNotBefore(supabase, user.id)
+    return {
+      error: 'SMS sending failed. Please try again.',
+      cooldownUntil: until?.toISOString(),
+    }
   }
 
-  return { success: true, devConsoleOnly: result.devConsoleOnly === true }
+  const untilAfterSend = await getOtpSendNotBefore(supabase, user.id)
+  return {
+    success: true,
+    devConsoleOnly: result.devConsoleOnly === true,
+    cooldownUntil: untilAfterSend?.toISOString(),
+  }
 }
 
 export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
@@ -158,11 +215,14 @@ export async function checkVerificationStatus() {
       .eq('id', user.id)
   }
 
+  const otpCooldownUntil = await getOtpSendNotBefore(supabase, user.id)
+
   return {
     isPhoneVerified: profile?.is_phone_verified || false,
     isEmailVerified,
     isHost: profile?.is_host || false,
     phoneNumber: profile?.phone_number || null,
+    otpSendCooldownUntil: otpCooldownUntil?.toISOString() ?? null,
   }
 }
 

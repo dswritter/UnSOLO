@@ -9,8 +9,6 @@ import { toast } from 'sonner'
 import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const RESEND_COOLDOWN_SEC = 45
-
 function isLocalDevHostname(): boolean {
   if (typeof window === 'undefined') return false
   const h = window.location.hostname
@@ -34,8 +32,10 @@ export default function HostVerifyPage() {
   const [upiId, setUpiId] = useState('')
   const [upiSaved, setUpiSaved] = useState(false)
 
-  const startResendCooldown = useCallback(() => {
-    setResendCooldown(RESEND_COOLDOWN_SEC)
+  const syncCooldownFromServer = useCallback((iso: string | undefined | null) => {
+    if (!iso) return
+    const sec = Math.ceil((new Date(iso).getTime() - Date.now()) / 1000)
+    setResendCooldown(sec > 0 ? sec : 0)
   }, [])
 
   useEffect(() => {
@@ -55,6 +55,10 @@ export default function HostVerifyPage() {
         setIsHost(status.isHost)
         setExistingPhone(status.phoneNumber)
         if (status.phoneNumber) setPhone(status.phoneNumber)
+        if (status.otpSendCooldownUntil) {
+          const sec = Math.ceil((new Date(status.otpSendCooldownUntil).getTime() - Date.now()) / 1000)
+          if (sec > 0) setResendCooldown(sec)
+        }
         if (status.isEmailVerified && !status.isPhoneVerified) {
           setStep('enter_phone')
         }
@@ -89,26 +93,34 @@ export default function HostVerifyPage() {
       toast.error('Enter 10-digit phone number')
       return
     }
-    if (resendCooldown > 0) return
     setSending(true)
     const result = await sendPhoneOTP(phone)
     if (result.error) {
       toast.error(result.error)
-      startResendCooldown()
+      if ('cooldownUntil' in result && result.cooldownUntil) {
+        syncCooldownFromServer(result.cooldownUntil)
+      }
     } else if ('devConsoleOnly' in result && result.devConsoleOnly) {
       if (isLocalDevHostname()) {
         toast.success('OTP generated (local dev: check your server terminal for the code).')
         setOtp('')
         setStep('enter_otp')
+        if ('cooldownUntil' in result && result.cooldownUntil) {
+          syncCooldownFromServer(result.cooldownUntil)
+        }
       } else {
         toast.error('SMS sending failed. Please try again.')
-        startResendCooldown()
+        if ('cooldownUntil' in result && result.cooldownUntil) {
+          syncCooldownFromServer(result.cooldownUntil)
+        }
       }
     } else {
       toast.success('OTP sent to +91 ' + phone)
       setOtp('')
       setStep('enter_otp')
-      startResendCooldown()
+      if ('cooldownUntil' in result && result.cooldownUntil) {
+        syncCooldownFromServer(result.cooldownUntil)
+      }
     }
     setSending(false)
   }

@@ -30,8 +30,11 @@ export const PLATFORM_FEE_PERCENT = 15
 /** Hours a traveler has to complete payment after host approval */
 export const JOIN_PAYMENT_DEADLINE_HOURS = 48
 
-/** Max OTP send attempts per hour */
-export const MAX_OTP_PER_HOUR = 3
+/** Max OTP send attempts per rolling hour (per user); enforced server-side */
+export const MAX_OTP_PER_HOUR = 8
+
+/** Minimum seconds between OTP send requests (per user); enforced server-side */
+export const MIN_OTP_SEND_INTERVAL_SECONDS = 45
 
 /** Max OTP verify attempts before lockout */
 export const MAX_OTP_VERIFY_ATTEMPTS = 5
