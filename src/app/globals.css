@@ -155,19 +155,20 @@
 }
 
 /* ── Light Mode Form Contrast ──────────────────────────────── */
+/* Exclude radio/checkbox: global focus ring is rectangular and clashes with round controls */
 :root select,
-:root input,
+:root input:not([type='radio']):not([type='checkbox']),
 :root textarea {
   border-color: var(--border);
   color: var(--foreground);
 }
 :root select:hover,
-:root input:hover,
+:root input:not([type='radio']):not([type='checkbox']):hover,
 :root textarea:hover {
   box-shadow: 0 1px 4px oklch(0 0 0 / 0.12);
 }
 :root select:focus,
-:root input:focus,
+:root input:not([type='radio']):not([type='checkbox']):focus,
 :root textarea:focus {
   border-color: var(--ring);
   box-shadow: 0 0 0 2px oklch(0.77 0.18 75 / 0.25);
