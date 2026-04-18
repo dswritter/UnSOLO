@@ -109,6 +109,7 @@ export type Package = {
   moderation_status: 'pending' | 'approved' | 'rejected' | null
   join_preferences: JoinPreferences | null
   created_at: string
+  updated_at?: string | null
   destination?: Destination
   host?: HostProfile
 }

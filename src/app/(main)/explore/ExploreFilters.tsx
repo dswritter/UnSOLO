@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Filter, ChevronDown, X, Heart, Globe, Users, Search } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+type TripSourceTab = 'all' | 'unsolo' | 'community'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -76,7 +79,8 @@ function FilterDropdown({ label, activeLabel, children, isActive }: {
 
 export function ExploreFilters({ params, resultCount }: Props) {
   const router = useRouter()
-  const activeTab = params.tab || 'unsolo'
+  const tripSource: TripSourceTab =
+    params.tab === 'community' ? 'community' : params.tab === 'unsolo' ? 'unsolo' : 'all'
   const [searchInput, setSearchInput] = useState(params.q || '')
 
   function handleSearch(e: React.FormEvent) {
@@ -96,14 +100,9 @@ export function ExploreFilters({ params, resultCount }: Props) {
     return `/explore${qs ? `?${qs}` : ''}`
   }
 
-  function setTab(tab: string) {
-    // When switching tabs, preserve other filters but update the tab
-    if (tab === 'unsolo') {
-      // Default tab: remove tab param entirely
-      router.push(buildUrl({ tab: null }))
-    } else {
-      router.push(buildUrl({ tab }))
-    }
+  function setTripSource(next: TripSourceTab) {
+    if (next === 'all') router.push(buildUrl({ tab: null }))
+    else router.push(buildUrl({ tab: next }))
   }
 
   const activeDifficulty = DIFFICULTY_OPTIONS.find(d => d.value === (params.difficulty || ''))
@@ -115,48 +114,20 @@ export function ExploreFilters({ params, resultCount }: Props) {
   ) || DURATION_OPTIONS[0]
   const activeMonth = params.month ? MONTHS[parseInt(params.month)] : null
 
-  const hasFilters = params.difficulty || params.minBudget || params.maxBudget || params.minDays || params.maxDays || params.month || params.q
+  const hasFilters =
+    !!(params.difficulty ||
+      params.minBudget ||
+      params.maxBudget ||
+      params.minDays ||
+      params.maxDays ||
+      params.month ||
+      params.q ||
+      params.tab ||
+      params.interested)
 
   return (
     <div className="space-y-2 mb-4">
-      {/* One compact row: trip toggle + search; wraps on narrow screens */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <div
-          className="relative flex h-9 w-full min-w-0 sm:max-w-[min(100%,20rem)] shrink-0 rounded-full border border-border bg-secondary/90 p-0.5 shadow-inner"
-          role="tablist"
-          aria-label="Trip source"
-        >
-          <div
-            className="pointer-events-none absolute top-0.5 bottom-0.5 w-[calc(50%-4px)] rounded-full bg-primary shadow-sm transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-            style={{ left: activeTab === 'community' ? 'calc(50% + 2px)' : '4px' }}
-          />
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'unsolo'}
-            onClick={() => setTab('unsolo')}
-            className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-full text-xs sm:text-sm font-semibold transition-colors min-h-0 py-1.5 ${
-              activeTab === 'unsolo' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-            <span className="truncate">UnSOLO Trips</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'community'}
-            onClick={() => setTab('community')}
-            className={`relative z-10 flex flex-1 items-center justify-center gap-1 rounded-full text-xs sm:text-sm font-semibold transition-colors min-h-0 py-1.5 ${
-              activeTab === 'community' ? 'text-black' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-            <span className="truncate">Community Trips</span>
-          </button>
-        </div>
-
-        <form onSubmit={handleSearch} className="flex w-full min-w-0 sm:flex-1 sm:max-w-md">
+      <form onSubmit={handleSearch} className="flex w-full min-w-0 max-w-xl">
           <div className="relative w-full">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <input
@@ -177,12 +148,63 @@ export function ExploreFilters({ params, resultCount }: Props) {
             )}
           </div>
         </form>
-      </div>
 
       {/* Filters — tight row */}
       <div className="flex flex-wrap items-center gap-1.5 pb-3 border-b border-border">
         <div className="flex items-center text-muted-foreground mr-0.5">
           <Filter className="h-3.5 w-3.5" />
+        </div>
+
+        {/* Trip source: all / UnSOLO / Community */}
+        <div
+          className="flex items-center rounded-lg border border-border bg-secondary/80 p-0.5 gap-0.5 shrink-0"
+          role="tablist"
+          aria-label="Trip type"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tripSource === 'all'}
+            onClick={() => setTripSource('all')}
+            className={cn(
+              'px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap',
+              tripSource === 'all'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            All trips
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tripSource === 'unsolo'}
+            onClick={() => setTripSource('unsolo')}
+            className={cn(
+              'flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap',
+              tripSource === 'unsolo'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Globe className="h-3 w-3 shrink-0" />
+            UnSOLO
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tripSource === 'community'}
+            onClick={() => setTripSource('community')}
+            className={cn(
+              'flex items-center gap-0.5 px-2 py-1 rounded-md text-[10px] sm:text-xs font-semibold transition-colors whitespace-nowrap',
+              tripSource === 'community'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Users className="h-3 w-3 shrink-0" />
+            Community
+          </button>
         </div>
 
         {/* Difficulty */}
@@ -294,7 +316,7 @@ export function ExploreFilters({ params, resultCount }: Props) {
         {hasFilters && (
           <>
             <button
-              onClick={() => router.push(activeTab === 'community' ? '/explore?tab=community' : '/explore')}
+              onClick={() => router.push('/explore')}
               className="flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="h-3 w-3" /> Clear

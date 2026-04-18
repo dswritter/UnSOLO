@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { moderateCommunityTrip, markHostPayout } from '@/actions/admin'
+import { moderateCommunityTrip, markHostPayout, updatePackage } from '@/actions/admin'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp } from 'lucide-react'
@@ -22,16 +22,33 @@ const MOD_COLORS: Record<string, string> = {
 }
 
 export default function CommunityTripsClient({ trips: initialTrips, pendingPayouts: initialPayouts }: Props) {
+  const [trips, setTrips] = useState(initialTrips)
   const [filter, setFilter] = useState('all')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  useEffect(() => {
+    setTrips(initialTrips)
+  }, [initialTrips])
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
   const [payoutRef, setPayoutRef] = useState<Record<string, string>>({})
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
 
   const filtered = filter === 'all'
-    ? initialTrips
-    : initialTrips.filter(t => t.moderation_status === filter)
+    ? trips
+    : trips.filter(t => t.moderation_status === filter)
+
+  function toggleFeatured(tripId: string, currentlyFeatured: boolean) {
+    startTransition(async () => {
+      const res = await updatePackage(tripId, { is_featured: !currentlyFeatured })
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success(!currentlyFeatured ? 'Trip is now featured on Explore' : 'Removed from featured')
+      setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, is_featured: !currentlyFeatured } : t)))
+    })
+  }
 
   function handleModerate(tripId: string, approve: boolean) {
     if (!approve && confirmReject !== tripId) {
@@ -72,7 +89,7 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
             {s.charAt(0).toUpperCase() + s.slice(1)}
             {s !== 'all' && (
               <span className="ml-1 opacity-70">
-                ({initialTrips.filter(t => t.moderation_status === s).length})
+                ({trips.filter(t => t.moderation_status === s).length})
               </span>
             )}
           </button>
@@ -109,6 +126,11 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {trip.is_featured && (
+                    <Badge className="bg-primary/20 text-primary border-primary/40 text-[10px]">
+                      <Star className="h-3 w-3 mr-0.5 inline fill-primary" /> Featured
+                    </Badge>
+                  )}
                   <Badge className={MOD_COLORS[trip.moderation_status] || ''}>
                     {trip.moderation_status}
                   </Badge>
@@ -213,12 +235,30 @@ export default function CommunityTripsClient({ trips: initialTrips, pendingPayou
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Link href={`/packages/${trip.slug}`} target="_blank">
                       <Button variant="outline" size="sm" className="text-xs border-border">
                         <Eye className="h-3 w-3 mr-1" /> Preview
                       </Button>
                     </Link>
+                    {trip.moderation_status === 'approved' && (
+                      <label className="flex items-center gap-2 text-xs cursor-pointer border border-border rounded-lg px-3 py-2 bg-secondary/30">
+                        <input
+                          type="checkbox"
+                          checked={!!trip.is_featured}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            toggleFeatured(trip.id, !!trip.is_featured)
+                          }}
+                          disabled={isPending}
+                          className="accent-primary rounded"
+                        />
+                        <span>
+                          <span className="font-medium">Featured on Explore</span>
+                          <span className="text-muted-foreground block text-[10px]">Pins to top of Explore (with UnSOLO featured trips)</span>
+                        </span>
+                      </label>
+                    )}
                   </div>
 
                   {/* Moderation actions */}

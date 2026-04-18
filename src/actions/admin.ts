@@ -489,6 +489,9 @@ export async function updatePackage(
     .eq('id', packageId)
 
   if (error) return { error: error.message }
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/explore')
+  revalidatePath('/admin/community-trips')
   return { success: true }
 }
 

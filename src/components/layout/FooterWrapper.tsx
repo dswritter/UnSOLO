@@ -19,7 +19,8 @@ export function FooterWrapper() {
           <div>
             <h4 className="font-bold text-foreground mb-3">Explore</h4>
             <ul className="space-y-1.5">
-              <li><a href="/explore" className="text-muted-foreground hover:text-primary text-xs">UnSOLO Trips</a></li>
+              <li><a href="/explore" className="text-muted-foreground hover:text-primary text-xs">All trips</a></li>
+              <li><a href="/explore?tab=unsolo" className="text-muted-foreground hover:text-primary text-xs">UnSOLO Trips</a></li>
               <li><a href="/explore?tab=community" className="text-muted-foreground hover:text-primary text-xs">Community Trips</a></li>
               <li><a href="/leaderboard" className="text-muted-foreground hover:text-primary text-xs">Leaderboard</a></li>
               <li><a href="/community" className="text-muted-foreground hover:text-primary text-xs">Community</a></li>

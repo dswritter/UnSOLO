@@ -27,23 +27,73 @@ const GENDER_LABELS: Record<string, string> = {
   all: 'All genders',
 }
 
+function packageRecencyMs(pkg: Package): number {
+  const u = pkg.updated_at
+  const t = u && u.length > 0 ? new Date(u).getTime() : new Date(pkg.created_at).getTime()
+  return Number.isFinite(t) ? t : 0
+}
+
+function sortExplorePackages(
+  packages: Package[],
+  bookedGuests: Map<string, number>,
+  interestCount: Map<string, number>,
+): Package[] {
+  return [...packages].sort((a, b) => {
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
+    const popA = (bookedGuests.get(a.id) || 0) + (interestCount.get(a.id) || 0)
+    const popB = (bookedGuests.get(b.id) || 0) + (interestCount.get(b.id) || 0)
+    if (popB !== popA) return popB - popA
+    const rec = packageRecencyMs(b) - packageRecencyMs(a)
+    if (rec !== 0) return rec
+    return a.slug.localeCompare(b.slug)
+  })
+}
+
+async function fetchPopularityMaps(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  packageIds: string[],
+): Promise<{ bookedGuests: Map<string, number>; interestCount: Map<string, number> }> {
+  const bookedGuests = new Map<string, number>()
+  const interestCount = new Map<string, number>()
+  if (packageIds.length === 0) return { bookedGuests, interestCount }
+
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('package_id, guests')
+    .in('package_id', packageIds)
+    .in('status', ['confirmed', 'completed'])
+
+  for (const b of bookings || []) {
+    const pid = b.package_id as string
+    const g = typeof b.guests === 'number' && b.guests > 0 ? b.guests : 1
+    bookedGuests.set(pid, (bookedGuests.get(pid) || 0) + g)
+  }
+
+  const { data: interests } = await supabase
+    .from('package_interests')
+    .select('package_id')
+    .in('package_id', packageIds)
+
+  for (const row of interests || []) {
+    const pid = row.package_id as string
+    interestCount.set(pid, (interestCount.get(pid) || 0) + 1)
+  }
+
+  return { bookedGuests, interestCount }
+}
+
 async function getPackages(searchParams: Record<string, string>) {
   const supabase = await createClient()
-  const tab = searchParams.tab || 'unsolo'
+  const tab = searchParams.tab
 
   let query = supabase
     .from('packages')
     .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('is_active', true)
-    .order('is_featured', { ascending: false })
-    .order('created_at', { ascending: false })
 
-  // Tab filtering
   if (tab === 'community') {
-    // is_active=true covers: approved trips + edited trips pending re-review
-    // New trips (never approved) have is_active=false, so they won't show
     query = query.not('host_id', 'is', null)
-  } else {
+  } else if (tab === 'unsolo') {
     query = query.is('host_id', null)
   }
 
@@ -108,6 +158,10 @@ async function getPackages(searchParams: Record<string, string>) {
     }
   }
 
+  const ids = packages.map((p) => p.id)
+  const { bookedGuests, interestCount } = await fetchPopularityMaps(supabase, ids)
+  packages = sortExplorePackages(packages, bookedGuests, interestCount)
+
   return packages
 }
 
@@ -117,7 +171,6 @@ export default async function ExplorePage({
   searchParams: Promise<Record<string, string>>
 }) {
   const params = await searchParams
-  const tab = params.tab || 'unsolo'
   const packages = await getPackages(params)
 
   return (
@@ -139,9 +192,11 @@ export default async function ExplorePage({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {packages.map((pkg) => (
               <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
-                <Card className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group ${
-                  tab === 'community' ? 'ring-1 ring-primary/10' : ''
-                }`}>
+                <Card
+                  className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group ${
+                    pkg.host_id ? 'ring-1 ring-primary/10' : ''
+                  }`}
+                >
                   <div className="relative h-52 bg-secondary overflow-hidden">
                     {pkg.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -163,7 +218,7 @@ export default async function ExplorePage({
                       {pkg.is_featured && (
                         <Badge className="text-xs bg-primary/90 text-black border-none">Featured</Badge>
                       )}
-                      {tab === 'community' && (
+                      {pkg.host_id && (
                         <Badge className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">Community</Badge>
                       )}
                     </div>
@@ -173,7 +228,7 @@ export default async function ExplorePage({
                     </div>
 
                     {/* Host avatar overlay for community trips */}
-                    {tab === 'community' && pkg.host && (
+                    {pkg.host_id && pkg.host && (
                       <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1">
                         {pkg.host.avatar_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -195,7 +250,7 @@ export default async function ExplorePage({
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{pkg.short_description}</p>
 
                     {/* Host info for community trips */}
-                    {tab === 'community' && pkg.host && (
+                    {pkg.host_id && pkg.host && (
                       <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border">
                         {pkg.host.host_rating != null && pkg.host.host_rating > 0 && (
                           <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
