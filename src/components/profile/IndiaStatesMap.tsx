@@ -30,10 +30,10 @@ export function IndiaStatesMap({
         forRasterExport
           ? {
               width: '100%',
-              overflow: 'hidden',
-              borderRadius: 16,
-              border: '1px solid rgba(202, 138, 4, 0.35)',
-              background: 'rgba(255, 255, 255, 0.65)',
+              overflow: 'visible',
+              borderRadius: 0,
+              border: 'none',
+              background: 'transparent',
             }
           : undefined
       }
@@ -69,12 +69,12 @@ export function IndiaStatesMap({
                 forRasterExport
                   ? {
                       vectorEffect: 'non-scaling-stroke',
-                      fill: isVisited ? 'rgba(202, 138, 4, 0.88)' : 'rgba(214, 211, 209, 0.45)',
-                      stroke: isVisited ? 'rgba(180, 83, 9, 0.45)' : 'rgba(120, 113, 108, 0.55)',
+                      fill: isVisited ? 'rgba(202, 138, 4, 0.88)' : 'rgba(200, 190, 175, 0.42)',
+                      stroke: isVisited ? 'rgba(146, 64, 14, 0.55)' : 'rgba(70, 60, 50, 0.62)',
                     }
                   : undefined
               }
-              strokeWidth={forRasterExport ? 0.35 : 0.45}
+              strokeWidth={forRasterExport ? 0.55 : 0.45}
             />
           )
         })}

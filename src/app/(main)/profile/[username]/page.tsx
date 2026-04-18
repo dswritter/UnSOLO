@@ -40,6 +40,15 @@ export default async function ProfilePage({
 
   if (!profile) notFound()
 
+  const { data: sharePosterTaglineRow } = await supabase
+    .from('platform_settings')
+    .select('value')
+    .eq('key', 'share_poster_footer_tagline')
+    .maybeSingle()
+  const sharePosterFooterTagline =
+    sharePosterTaglineRow?.value?.trim() ||
+    'Book treks, find your tribe, share the stoke.'
+
   const isOwnProfile = user?.id === profile.id
 
   const statusStoriesVisible = user ? await getStatusStoriesForProfile(profile.id) : []
@@ -271,16 +280,20 @@ export default async function ProfilePage({
                     displayName={profile.full_name || profile.username}
                     username={profile.username}
                     profileUrl={profileShareUrl}
+                    avatarUrl={profile.avatar_url}
+                    avatarInitials={getInitials(profile.full_name || profile.username)}
                     trips={tripsCount ?? 0}
                     states={uniqueStates.size || leaderboardScore?.destinations_count || 0}
                     reviews={leaderboardScore?.reviews_written || 0}
                     score={leaderboardScore?.total_score || 0}
+                    leaderboardRank={leaderboardRank}
                     tripsStatHidden={tripsPrivate}
                     statesStatHidden={statesPrivate}
                     visitedStates={visitedStatesList}
                     statesMapHidden={statesPrivate}
                     tripsHidden={tripsPrivate}
                     tripsList={sharePosterTrips}
+                    footerTagline={sharePosterFooterTagline}
                   />
                   {isOwnProfile ? (
                     <Button variant="outline" size="sm" className="border-border" asChild>

@@ -23,7 +23,7 @@ interface Setting {
 
 const SETTING_LABELS: Record<
   string,
-  { label: string; type: 'number' | 'text' | 'json' | 'refund_tiers' }
+  { label: string; type: 'number' | 'text' | 'textarea' | 'json' | 'refund_tiers' }
 > = {
   host_max_group_size: { label: 'Max group size (hosts)', type: 'number' },
   platform_fee_percent: { label: 'Platform fee %', type: 'number' },
@@ -35,6 +35,10 @@ const SETTING_LABELS: Record<
   refund_tiers_host: {
     label: 'Refund tiers — Community / host trips',
     type: 'refund_tiers',
+  },
+  share_poster_footer_tagline: {
+    label: 'Share poster footer tagline',
+    type: 'textarea',
   },
 }
 
@@ -120,6 +124,13 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                 onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
                 className="bg-secondary border-border max-w-xl min-h-[140px] font-mono text-xs"
                 spellCheck={false}
+              />
+            ) : config.type === 'textarea' ? (
+              <Textarea
+                value={settings[s.key] || ''}
+                onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                className="bg-secondary border-border max-w-xl min-h-[80px] text-sm"
+                spellCheck={true}
               />
             ) : (
               <Input
