@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition, useMemo } from 'react'
+import { useState, useEffect, useRef, useTransition, useMemo, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,7 +12,7 @@ import {
   UPLOAD_MAX_IMAGE_BYTES,
   UPLOAD_IMAGE_TOO_LARGE_MESSAGE,
 } from '@/lib/constants'
-import { formatPrice } from '@/lib/utils'
+import { cn, formatPrice } from '@/lib/utils'
 import {
   createHostedTrip,
   updateHostedTrip,
@@ -51,7 +51,35 @@ import {
   FileText,
    Eye,
   AlertTriangle,
+  ChevronDown,
 } from 'lucide-react'
+
+/** Native <select> strips OS glossy styling so fields match <Input />. */
+function FormSelect({
+  className,
+  children,
+  ...props
+}: ComponentProps<'select'>) {
+  return (
+    <div className="relative w-full">
+      <select
+        {...props}
+        className={cn(
+          'h-8 w-full cursor-pointer appearance-none rounded-lg border border-border bg-secondary px-2.5 pr-8 text-sm text-foreground shadow-none outline-none transition-colors',
+          'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          className,
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
+    </div>
+  )
+}
 
 type Destination = { id: string; name: string; state: string }
 type IncludesOption = { id: string; label: string }
@@ -872,17 +900,17 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Departure time (leave)</label>
-                  <select value={departureTime} onChange={e => setDepartureTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                  <FormSelect value={departureTime} onChange={e => setDepartureTime(e.target.value as 'morning' | 'evening')}>
                     <option value="morning">Morning</option>
                     <option value="evening">Evening</option>
-                  </select>
+                  </FormSelect>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Return / arrival time</label>
-                  <select value={returnTime} onChange={e => setReturnTime(e.target.value as 'morning' | 'evening')} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                  <FormSelect value={returnTime} onChange={e => setReturnTime(e.target.value as 'morning' | 'evening')}>
                     <option value="morning">Morning</option>
                     <option value="evening">Evening</option>
-                  </select>
+                  </FormSelect>
                 </div>
 
                 <div>
@@ -908,15 +936,11 @@ export function HostTripForm({ editTripId }: { editTripId?: string }) {
 
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Difficulty</label>
-                  <select
-                    className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm"
-                    value={difficulty}
-                    onChange={e => setDifficulty(e.target.value)}
-                  >
+                  <FormSelect value={difficulty} onChange={e => setDifficulty(e.target.value)}>
                     <option value="easy">Easy</option>
                     <option value="moderate">Moderate</option>
                     <option value="challenging">Challenging</option>
-                  </select>
+                  </FormSelect>
                 </div>
               </div>
 
