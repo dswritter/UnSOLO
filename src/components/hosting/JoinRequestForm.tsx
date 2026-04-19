@@ -15,6 +15,7 @@ import { validatePromoCode } from '@/actions/admin'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
+import { isCommunityDirectCheckout } from '@/lib/join-preferences'
 import Link from 'next/link'
 import Script from 'next/script'
 
@@ -80,8 +81,8 @@ export function JoinRequestForm({
 
   /** Traveler pays the listed per-person price (platform fee is included, not added at checkout). */
   const tripPriceDisplay = `${priceLinePrefix}${formatPrice(pricePerPersonPaise)}`
-  const paymentAfterApproval =
-    (joinPreferences?.payment_timing ?? 'after_host_approval') === 'after_host_approval'
+  /** Join-request flow (not direct checkout on the package page). */
+  const paymentAfterApproval = !isCommunityDirectCheckout(joinPreferences ?? undefined)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

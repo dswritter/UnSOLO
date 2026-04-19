@@ -25,6 +25,8 @@ import {
   createCommunityTripOrder,
   confirmPayment,
 } from '@/actions/booking'
+import { withdrawJoinRequest } from '@/actions/hosting'
+import { isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { GroupBookingInfo, IncompleteJoinTrip, IncompleteTripStatus } from './page'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -665,12 +667,50 @@ function CompleteJoinRequestPayment({
   )
 }
 
+function IncompleteJoinCancelTrip({
+  joinRequestId,
+  label,
+}: {
+  joinRequestId: string
+  label: string
+}) {
+  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+
+  async function onClick() {
+    if (!window.confirm('Are you sure? This will cancel this trip request.')) return
+    setLoading(true)
+    const r = await withdrawJoinRequest(joinRequestId)
+    if (r.error) toast.error(r.error)
+    else {
+      toast.success('Cancelled')
+      router.refresh()
+    }
+    setLoading(false)
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
+      disabled={loading}
+      onClick={() => void onClick()}
+    >
+      <Ban className="mr-1 h-3 w-3" />
+      {loading ? '…' : label}
+    </Button>
+  )
+}
+
 function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
   const cfg = INCOMPLETE_JOIN_BADGE[row.status]
   const pkg = row.trip
   const cal = tripCalFromPackage(pkg)
   const firstDep = pkg.departure_dates?.length ? [...pkg.departure_dates].sort()[0] : null
   const tripEndIso = firstDep ? tripEndDateIsoForBooking(firstDep, cal) : null
+  const cancelLabel = row.status === 'payment_pending' ? 'Cancel trip' : 'Withdraw request'
 
   return (
     <Card className="bg-card border-border hover:border-primary/20 transition-colors">
@@ -714,6 +754,7 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
               {row.status === 'payment_pending' && (
                 <CompleteJoinRequestPayment joinRequestId={row.joinRequestId} packageTitle={pkg.title} />
               )}
+              <IncompleteJoinCancelTrip joinRequestId={row.joinRequestId} label={cancelLabel} />
               <Button
                 size="sm"
                 variant={row.status === 'payment_pending' ? 'outline' : 'default'}
@@ -830,7 +871,7 @@ function BookingItem({
 }) {
   const pkg = booking.package
   const jp = (pkg?.join_preferences ?? null) as JoinPreferences | null
-  const isTokenTrip = !!pkg?.host_id && jp?.payment_timing === 'token_to_book'
+  const isTokenTrip = !!pkg?.host_id && isTokenDepositEnabled(jp ?? undefined)
   const paidToward = booking.deposit_paise ?? 0
   const balanceDue = Math.max(0, booking.total_amount_paise - paidToward)
   const showTokenBalance = isTokenTrip && booking.status === 'confirmed' && balanceDue > 0

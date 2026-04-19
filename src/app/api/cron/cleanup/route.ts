@@ -8,6 +8,8 @@ import {
 } from '@/lib/constants'
 import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
 import { sendTokenBalanceReminderEmail } from '@/lib/resend/emails'
+import { isTokenDepositEnabled } from '@/lib/join-preferences'
+import type { JoinPreferences } from '@/types'
 
 export async function POST(request: Request) {
   // Protect with secret
@@ -239,10 +241,10 @@ export async function POST(request: Request) {
       const pkg = b.package as unknown as {
         title: string
         host_id: string | null
-        join_preferences: { payment_timing?: string } | null
+        join_preferences: JoinPreferences | null
       } | null
       if (!pkg?.host_id) continue
-      if (pkg.join_preferences?.payment_timing !== 'token_to_book') continue
+      if (!isTokenDepositEnabled(pkg.join_preferences)) continue
       const paid = b.deposit_paise || 0
       if (paid >= b.total_amount_paise) continue
       const balance = b.total_amount_paise - paid

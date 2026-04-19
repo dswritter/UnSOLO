@@ -708,6 +708,80 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
   return { success: true }
 }
 
+/** Traveler withdraws a pending or approved (unpaid) join request; notifies host and staff. */
+export async function withdrawJoinRequest(joinRequestId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: jr } = await supabase
+    .from('join_requests')
+    .select('id, status, trip_id, trip:packages(host_id, title)')
+    .eq('id', joinRequestId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!jr) return { error: 'Request not found' }
+  if (jr.status !== 'pending' && jr.status !== 'approved') {
+    return { error: 'This request cannot be withdrawn' }
+  }
+
+  const trip = jr.trip as unknown as { host_id: string; title: string }
+
+  await supabase
+    .from('bookings')
+    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('package_id', jr.trip_id)
+    .eq('status', 'pending')
+
+  const { error } = await supabase
+    .from('join_requests')
+    .update({ status: 'withdrawn', updated_at: new Date().toISOString() })
+    .eq('id', joinRequestId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+
+  const { data: customerProfile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const customerName = customerProfile?.full_name || customerProfile?.username || 'A traveler'
+
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svc = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  await svc.from('notifications').insert({
+    user_id: trip.host_id,
+    type: 'booking',
+    title: 'Join request withdrawn',
+    body: `${customerName} withdrew their request to join "${trip.title}".`,
+    link: `/host/${jr.trip_id}`,
+  })
+
+  const { data: staff } = await svc
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+
+  for (const row of staff || []) {
+    await svc.from('notifications').insert({
+      user_id: row.id,
+      type: 'booking',
+      title: 'Join request withdrawn',
+      body: `${customerName} withdrew a join request for ${trip.title}.`,
+      link: '/admin/bookings',
+    })
+  }
+
+  revalidatePath('/bookings')
+  return { success: true as const }
+}
+
 // ── Public Data for Create Form ──────────────────────────────
 
 /** Hosts cannot INSERT destinations via the anon client (RLS). Creates row with service role after host check. */

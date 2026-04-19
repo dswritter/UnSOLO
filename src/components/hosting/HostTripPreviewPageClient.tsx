@@ -280,11 +280,21 @@ export function HostTripPreviewPageClient() {
                 </div>
                 <p className="mt-3 text-xs text-muted-foreground">
                   Payment:{' '}
-                  {data.paymentTiming === 'pay_on_booking'
-                    ? 'Book & pay after choosing dates'
-                    : data.paymentTiming === 'token_to_book'
-                      ? `Token to book now; balance later${data.tokenAmountRupees?.trim() ? ` (token ₹${data.tokenAmountRupees.trim()}/person)` : ''}`
-                      : 'Request to join, then pay if approved'}
+                  {(() => {
+                    const flow =
+                      data.standardFlow ??
+                      (data.paymentTiming === 'pay_on_booking' || data.paymentTiming === 'token_to_book'
+                        ? 'pay_on_booking'
+                        : 'after_host_approval')
+                    const tokenOn = data.tokenDepositEnabled ?? data.paymentTiming === 'token_to_book'
+                    const base =
+                      flow === 'pay_on_booking'
+                        ? 'Book & pay on the trip page when booking'
+                        : 'Request to join, then pay if approved'
+                    if (!tokenOn) return base
+                    const tok = data.tokenAmountRupees?.trim()
+                    return `${base}. Token deposit${tok ? ` (₹${tok}/person)` : ''}; balance from My Trips or pay in full at checkout.`
+                  })()}
                 </p>
               </div>
             ) : null}

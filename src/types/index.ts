@@ -78,10 +78,12 @@ export type JoinPreferences = {
   /**
    * `after_host_approval` (default): request → host approves → pay.
    * `pay_on_booking`: standard checkout; no join-request gate.
-   * `token_to_book`: pay host-set token per person now; balance later from My Trips.
+   * `token_to_book`: legacy only — same as pay_on_booking + token; prefer `token_deposit_enabled`.
    */
   payment_timing?: 'after_host_approval' | 'pay_on_booking' | 'token_to_book'
-  /** Required when payment_timing is token_to_book: token amount per person (INR paise). */
+  /** When true, travelers pay a per-person token first; balance from My Trips. Combines with `payment_timing`. */
+  token_deposit_enabled?: boolean
+  /** Required when token deposit is enabled (or legacy `token_to_book`). */
   token_amount_paise?: number
 }
 

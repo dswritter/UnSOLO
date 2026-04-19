@@ -25,8 +25,11 @@ export type HostTripCreateDraftV1 = {
   departureTime: 'morning' | 'evening'
   returnTime: 'morning' | 'evening'
   maxGroupSize: string
-  paymentTiming: 'after_host_approval' | 'pay_on_booking' | 'token_to_book'
-  /** Per-person token in INR (string for input), when paymentTiming is token_to_book */
+  /** @deprecated use standardFlow + tokenDepositEnabled */
+  paymentTiming?: 'after_host_approval' | 'pay_on_booking' | 'token_to_book'
+  standardFlow?: 'after_host_approval' | 'pay_on_booking'
+  tokenDepositEnabled?: boolean
+  /** Per-person token in INR (string for input), when token deposit is enabled */
   tokenAmountRupees?: string
   difficulty: string
   scheduleRows: { dep: string; ret: string }[]
@@ -71,6 +74,8 @@ export function emptyHostTripCreateDraftFields(): HostTripDraftPayload {
     returnTime: 'morning',
     maxGroupSize: '12',
     paymentTiming: 'after_host_approval',
+    standardFlow: 'after_host_approval',
+    tokenDepositEnabled: false,
     tokenAmountRupees: '',
     difficulty: 'moderate',
     scheduleRows: DEFAULT_SCHEDULE.map((r) => ({ ...r })),

@@ -19,6 +19,7 @@ import { ShareButton } from '@/components/packages/ShareButton'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
+import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -71,8 +72,7 @@ export default async function PackageDetailPage({
   const package_ = pkg as Package
   const isCommunityTrip = !!package_.host_id
   const jp = package_.join_preferences
-  const communityDirectCheckout =
-    isCommunityTrip && (jp?.payment_timing === 'pay_on_booking' || jp?.payment_timing === 'token_to_book')
+  const communityDirectCheckout = isCommunityTrip && isCommunityDirectCheckout(jp ?? undefined)
   const hostData = (pkg.host as unknown as HostProfile) || null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
 
@@ -441,7 +441,7 @@ export default async function PackageDetailPage({
                             groupInvite={null}
                             availableSlots={availableSlotsMap}
                             tokenBooking={
-                              jp?.payment_timing === 'token_to_book' &&
+                              isTokenDepositEnabled(jp ?? undefined) &&
                               typeof jp?.token_amount_paise === 'number'
                                 ? { tokenAmountPaisePerPerson: jp.token_amount_paise }
                                 : null

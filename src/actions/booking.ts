@@ -10,6 +10,8 @@ import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
+import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
+import type { JoinPreferences } from '@/types'
 
 const RAZORPAY_MIN_PAISE = 100 // ₹1 — Razorpay minimum for INR
 
@@ -600,13 +602,14 @@ export async function createRazorpayOrder(
     return { error: 'You cannot book your own trip' }
   }
 
-  const joinPrefs = pkg.join_preferences && typeof pkg.join_preferences === 'object'
-    ? (pkg.join_preferences as Record<string, unknown>)
-    : {}
-  const communityPayOnBooking = joinPrefs.payment_timing === 'pay_on_booking'
-  const communityTokenBook = joinPrefs.payment_timing === 'token_to_book'
+  const joinPrefs =
+    pkg.join_preferences && typeof pkg.join_preferences === 'object'
+      ? (pkg.join_preferences as JoinPreferences)
+      : null
+  const communityDirectCheckout = isCommunityDirectCheckout(joinPrefs)
+  const communityTokenBook = isTokenDepositEnabled(joinPrefs)
 
-  if (pkg.host_id && !communityPayOnBooking && !communityTokenBook) {
+  if (pkg.host_id && !communityDirectCheckout) {
     return { error: 'This trip uses join requests. Open the trip page to request a spot.' }
   }
 
@@ -711,8 +714,10 @@ export async function createRazorpayOrder(
   const afterDiscounts = Math.max(0, afterPromo - referredApplied)
 
   const tokenPaiseFromHost =
-    typeof joinPrefs.token_amount_paise === 'number' && Number.isFinite(joinPrefs.token_amount_paise)
-      ? Math.round(joinPrefs.token_amount_paise as number)
+    joinPrefs &&
+    typeof joinPrefs.token_amount_paise === 'number' &&
+    Number.isFinite(joinPrefs.token_amount_paise)
+      ? Math.round(joinPrefs.token_amount_paise)
       : 0
   let firstPaymentCap: number | null = null
   if (communityTokenBook) {
@@ -939,10 +944,11 @@ export async function createBookingBalanceOrder(bookingId: string) {
   if (booking.status !== 'confirmed') return { error: 'Booking is not confirmed' }
 
   const pkg = booking.package as { host_id?: string | null; join_preferences?: unknown } | null
-  const jp = pkg?.join_preferences && typeof pkg.join_preferences === 'object'
-    ? (pkg.join_preferences as Record<string, unknown>)
-    : {}
-  if (!pkg?.host_id || jp.payment_timing !== 'token_to_book') {
+  const jp =
+    pkg?.join_preferences && typeof pkg.join_preferences === 'object'
+      ? (pkg.join_preferences as JoinPreferences)
+      : null
+  if (!pkg?.host_id || !isTokenDepositEnabled(jp)) {
     return { error: 'Balance payment is not available for this booking' }
   }
 
@@ -1568,6 +1574,8 @@ export async function markRefundComplete(bookingId: string) {
 export type CommunityTripOrderOptions = {
   promoCode?: string | null
   useWalletCredits?: boolean
+  /** When trip uses token deposit: charge full trip amount instead of token slice */
+  payFullAmountForTokenTrip?: boolean
 }
 
 export async function createCommunityTripOrder(
@@ -1589,7 +1597,9 @@ export async function createCommunityTripOrder(
 
   const { data: request } = await supabase
     .from('join_requests')
-    .select('*, trip:packages(id, title, price_paise, host_id, departure_dates, departure_dates_closed, duration_days)')
+    .select(
+      '*, trip:packages(id, title, price_paise, host_id, departure_dates, departure_dates_closed, duration_days, join_preferences)',
+    )
     .eq('id', joinRequestId)
     .eq('user_id', user.id)
     .single()
@@ -1609,6 +1619,7 @@ export async function createCommunityTripOrder(
     departure_dates?: string[] | null
     departure_dates_closed?: string[] | null
     duration_days?: number
+    join_preferences?: unknown
   }
 
   const grossList = trip.price_paise
@@ -1625,6 +1636,25 @@ export async function createCommunityTripOrder(
   const referredApplied = Math.min(referredDisc, afterPromo)
   const afterDiscounts = Math.max(0, afterPromo - referredApplied)
 
+  const jp =
+    trip.join_preferences && typeof trip.join_preferences === 'object'
+      ? (trip.join_preferences as JoinPreferences)
+      : null
+  const communityTokenBook = isTokenDepositEnabled(jp)
+  const tokenPaiseFromHost =
+    jp && typeof jp.token_amount_paise === 'number' && Number.isFinite(jp.token_amount_paise)
+      ? Math.round(jp.token_amount_paise)
+      : 0
+  let firstPaymentCap: number | null = null
+  if (communityTokenBook) {
+    if (tokenPaiseFromHost < RAZORPAY_MIN_PAISE || tokenPaiseFromHost > trip.price_paise) {
+      return { error: 'This trip has an invalid token amount. Please contact support.' }
+    }
+    if (!options?.payFullAmountForTokenTrip) {
+      firstPaymentCap = Math.min(tokenPaiseFromHost, afterDiscounts)
+    }
+  }
+
   const { data: userProfileWallet } = await supabase
     .from('profiles')
     .select('referral_credits_paise')
@@ -1632,8 +1662,9 @@ export async function createCommunityTripOrder(
     .single()
   const availableCredits = userProfileWallet?.referral_credits_paise || 0
 
+  const walletTarget = firstPaymentCap != null ? firstPaymentCap : afterDiscounts
   const { walletDeducted, razorpayAmount } = walletAndRazorpayAmount(
-    afterDiscounts,
+    walletTarget,
     availableCredits,
     !!options?.useWalletCredits,
   )
@@ -1676,6 +1707,10 @@ export async function createCommunityTripOrder(
     const { generateConfirmationCode } = await import('@/lib/utils')
     const confirmationCode = generateConfirmationCode()
 
+    const depositPaiseInstant =
+      firstPaymentCap != null ? walletDeducted + razorpayAmount : afterDiscounts
+    const fullyPaidInstant = depositPaiseInstant >= afterDiscounts
+
     const { data: booking } = await supabase
       .from('bookings')
       .insert({
@@ -1685,6 +1720,7 @@ export async function createCommunityTripOrder(
         travel_date: travelDate,
         guests: 1,
         total_amount_paise: afterDiscounts,
+        deposit_paise: depositPaiseInstant,
         wallet_deducted_paise: walletDeducted,
         discount_paise: discountTotalPaise,
         promo_offer_id: promoOfferId,
@@ -1697,12 +1733,18 @@ export async function createCommunityTripOrder(
 
     if (!booking) return { error: 'Could not create booking' }
 
-    await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
+    if (firstPaymentCap != null && !fullyPaidInstant) {
+      await runPartialTokenFirstPaymentEffects(supabase, user.id, booking as never, confirmationCode)
+      await notifyTokenBalanceDue(supabase, user, booking as never, depositPaiseInstant)
+    } else {
+      await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
+    }
     revalidatePath('/bookings')
     return {
       instant: true as const,
       bookingId: booking.id,
       confirmationCode,
+      balanceDuePaise: fullyPaidInstant ? 0 : Math.max(0, afterDiscounts - depositPaiseInstant),
     }
   }
 
@@ -1720,6 +1762,7 @@ export async function createCommunityTripOrder(
     travel_date: travelDate,
     guests: 1,
     total_amount_paise: afterDiscounts,
+    deposit_paise: 0,
     wallet_deducted_paise: walletDeducted,
     discount_paise: discountTotalPaise,
     promo_offer_id: promoOfferId,

@@ -25,8 +25,10 @@ export type HostTripPreviewPayload = {
   images: string[]
   interestTags: string[]
   destination: { id: string; name: string; state: string } | null
+  /** @deprecated use standardFlow + tokenDepositEnabled */
   paymentTiming?: string
-  /** Shown when paymentTiming is token_to_book */
+  standardFlow?: 'after_host_approval' | 'pay_on_booking'
+  tokenDepositEnabled?: boolean
   tokenAmountRupees?: string
   genderPreference?: string
   minAge?: string
