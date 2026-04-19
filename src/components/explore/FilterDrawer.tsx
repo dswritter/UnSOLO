@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { X, ChevronDown } from 'lucide-react'
+import { X, ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
 
@@ -73,13 +73,21 @@ export function FilterDrawer({
   resultCount,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const router = useRouter()
+  const clearTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
     params.tripSource === 'community' ? 'community' : params.tripSource === 'unsolo' ? 'unsolo' : 'all'
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
+    }
   }, [])
 
   function buildUrl(updates: Record<string, string | null>) {
@@ -100,8 +108,13 @@ export function FilterDrawer({
   }
 
   function clearAllFilters() {
+    setIsClearing(true)
     router.push('/explore')
-    onClose()
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
+    clearTimerRef.current = setTimeout(() => {
+      setIsClearing(false)
+      onClose()
+    }, 1500)
   }
 
   if (!mounted || !isOpen) return null
@@ -346,9 +359,22 @@ export function FilterDrawer({
         <div className="border-t border-border p-4 flex-shrink-0 space-y-2">
           <button
             onClick={clearAllFilters}
-            className="w-full px-4 py-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors text-sm font-medium"
+            disabled={isClearing}
+            className={cn(
+              'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
+              isClearing
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+            )}
           >
-            Clear all filters
+            {isClearing ? (
+              <>
+                <Check className="h-4 w-4" />
+                Filters cleared
+              </>
+            ) : (
+              'Clear all filters'
+            )}
           </button>
         </div>
       </div>

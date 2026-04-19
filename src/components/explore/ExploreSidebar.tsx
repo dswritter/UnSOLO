@@ -1,8 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
 
@@ -70,6 +70,14 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
 
   // Track optimistic state for instant UI feedback
   const [optimisticParams, setOptimisticParams] = useState<Record<string, string | null>>({})
+  const [isClearing, setIsClearing] = useState(false)
+  const clearTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
+    }
+  }, [])
 
   // Check if any filters are active
   const hasActiveFilters = Object.entries(params).some(([key, value]) => {
@@ -108,8 +116,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
   }
 
   function clearAllFilters() {
+    setIsClearing(true)
     setOptimisticParams({})
     router.push('/explore')
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
+    clearTimerRef.current = setTimeout(() => setIsClearing(false), 1500)
   }
 
   // Get current values (prefer optimistic state, fall back to params)
@@ -445,9 +456,22 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
       <div className="mt-6 pt-4 border-t border-border">
         <button
           onClick={clearAllFilters}
-          className="w-full px-4 py-2 rounded-lg bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors text-sm font-medium"
+          disabled={isClearing}
+          className={cn(
+            'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
+            isClearing
+              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+          )}
         >
-          Clear all filters
+          {isClearing ? (
+            <>
+              <Check className="h-4 w-4" />
+              Filters cleared
+            </>
+          ) : (
+            'Clear all filters'
+          )}
         </button>
       </div>
     </div>
