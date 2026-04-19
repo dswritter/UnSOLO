@@ -17,7 +17,13 @@ import {
 } from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
-import { requestCancellation, changeBookingDate, createBookingBalanceOrder, confirmPayment } from '@/actions/booking'
+import {
+  requestCancellation,
+  changeBookingDate,
+  createBookingBalanceOrder,
+  createCommunityTripOrder,
+  confirmPayment,
+} from '@/actions/booking'
 import type { GroupBookingInfo, IncompleteJoinTrip, IncompleteTripStatus } from './page'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -554,6 +560,110 @@ function SoloBookingStatusBadge({ booking }: { booking: Booking }) {
   )
 }
 
+function CompleteJoinRequestPayment({
+  joinRequestId,
+  packageTitle,
+}: {
+  joinRequestId: string
+  packageTitle: string
+}) {
+  const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const router = useRouter()
+
+  async function onPay() {
+    setLoading(true)
+    try {
+      const result = await createCommunityTripOrder(joinRequestId, {})
+      if ('error' in result) {
+        toast.error(result.error)
+        setLoading(false)
+        return
+      }
+      if ('instant' in result && result.instant) {
+        toast.success('Booking confirmed!')
+        router.push(`/book/success?booking_id=${result.bookingId}`)
+        router.refresh()
+        setLoading(false)
+        return
+      }
+      const options = {
+        key: result.keyId,
+        amount: result.amount,
+        currency: result.currency,
+        name: 'UnSOLO',
+        description: packageTitle || 'Community trip',
+        order_id: result.orderId,
+        prefill: result.prefill,
+        notes: result.notes,
+        theme: { color: '#FFAA00', backdrop_color: '#000000' },
+        handler: async (response: {
+          razorpay_order_id: string
+          razorpay_payment_id: string
+          razorpay_signature: string
+        }) => {
+          setVerifying(true)
+          const verification = await confirmPayment(
+            response.razorpay_order_id,
+            response.razorpay_payment_id,
+            response.razorpay_signature,
+          )
+          if ('error' in verification && verification.error) {
+            toast.error(verification.error)
+          } else if ('success' in verification && verification.success) {
+            toast.success('Payment confirmed!')
+            router.push(`/book/success?booking_id=${verification.bookingId}`)
+            router.refresh()
+          } else {
+            toast.error('Payment verification failed')
+          }
+          setVerifying(false)
+          setLoading(false)
+        },
+        modal: { ondismiss: () => setLoading(false) },
+      }
+      const Rzp = window.Razorpay
+      if (!Rzp) {
+        toast.error('Payment could not load. Refresh the page.')
+        setLoading(false)
+        return
+      }
+      const rzp = new Rzp(options)
+      rzp.on('payment.failed', () => {
+        toast.error('Payment failed. Please try again.')
+        setLoading(false)
+      })
+      rzp.open()
+    } catch {
+      toast.error('Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      {verifying && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-card border border-border rounded-xl p-8 text-center max-w-sm mx-4">
+            <div className="h-12 w-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-bold">Confirming your booking...</p>
+            <p className="text-sm text-muted-foreground mt-1">Please wait while we verify your payment.</p>
+          </div>
+        </div>
+      )}
+      <Button
+        size="sm"
+        className="bg-primary text-primary-foreground text-xs font-bold"
+        disabled={loading || verifying}
+        onClick={() => void onPay()}
+      >
+        <CreditCard className="mr-1 h-3 w-3" />
+        {loading ? 'Opening…' : verifying ? 'Confirming…' : 'Complete payment'}
+      </Button>
+    </>
+  )
+}
+
 function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
   const cfg = INCOMPLETE_JOIN_BADGE[row.status]
   const pkg = row.trip
@@ -599,11 +709,25 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
                 </span>
               )}
             </div>
-            <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
-              <Link href={`/packages/${pkg.slug}`}>
-                <ArrowRight className="mr-1 h-3 w-3" /> Open trip
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {row.status === 'payment_pending' && (
+                <CompleteJoinRequestPayment joinRequestId={row.joinRequestId} packageTitle={pkg.title} />
+              )}
+              <Button
+                size="sm"
+                variant={row.status === 'payment_pending' ? 'outline' : 'default'}
+                className={
+                  row.status === 'payment_pending'
+                    ? 'border-border text-xs'
+                    : 'bg-primary text-primary-foreground text-xs'
+                }
+                asChild
+              >
+                <Link href={`/packages/${pkg.slug}`}>
+                  <ArrowRight className="mr-1 h-3 w-3" /> Open trip
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
