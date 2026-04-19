@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent, MessageSquare } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Home, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
+import { SearchBar } from './SearchBar'
 
 interface NavbarProps {
   user?: Profile | null
@@ -96,7 +97,7 @@ export function Navbar({ user }: NavbarProps) {
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/host', label: 'Host', icon: Tent },
+    { href: '/host', label: 'Become a Host', icon: Home },
   ]
 
   return (
@@ -112,7 +113,7 @@ export function Navbar({ user }: NavbarProps) {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
             {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
               <Link
                 key={href}
@@ -129,6 +130,11 @@ export function Navbar({ user }: NavbarProps) {
                 )}
               </Link>
             ))}
+          </div>
+
+          {/* Search Bar - Desktop only */}
+          <div className="hidden md:flex">
+            <SearchBar />
           </div>
 
           {/* Right side */}

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
+import { HostCreateDropdown } from './HostCreateDropdown'
 import {
   Plus,
   MapPin,
@@ -53,12 +54,7 @@ export default async function HostDashboardPage() {
               Host your own trips or experiences and invite travelers to join
             </p>
           </div>
-          <Button asChild className="bg-primary text-primary-foreground font-bold gap-2" size="sm">
-            <Link href="/host/create">
-              <Plus className="h-4 w-4" />
-              Create New Trip
-            </Link>
-          </Button>
+          <HostCreateDropdown />
         </div>
 
         <HostTripDraftsPanel />

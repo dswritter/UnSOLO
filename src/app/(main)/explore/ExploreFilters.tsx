@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Filter, ChevronDown, X, Heart, Globe, Users, Search } from 'lucide-react'
+import { Filter, ChevronDown, X, Heart, Globe, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
 
@@ -101,12 +101,6 @@ export function ExploreFilters({ params, resultCount, activeTab = 'trips' }: Pro
   const isTripsTab = activeTab === 'trips'
   const tripSource: TripSourceTab =
     params.tab === 'community' ? 'community' : params.tab === 'unsolo' ? 'unsolo' : 'all'
-  const [searchInput, setSearchInput] = useState(params.q || '')
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    router.push(buildUrl({ q: searchInput.trim() || null }))
-  }
 
   function buildUrl(updates: Record<string, string | null>) {
     const p = new URLSearchParams()
@@ -155,31 +149,6 @@ export function ExploreFilters({ params, resultCount, activeTab = 'trips' }: Pro
 
   return (
     <div className="space-y-2 mb-4">
-      <form onSubmit={handleSearch} className="flex w-full min-w-0 max-w-xl">
-        <div className="relative w-full">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="w-full pl-8 pr-7 py-1.5 rounded-full bg-secondary border border-border text-xs focus:outline-none focus:border-primary"
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput('')
-                router.push(buildUrl({ q: null }))
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      </form>
-
       {/* Filters — tight row */}
       <div className="flex flex-wrap items-center gap-1.5 pb-3 border-b border-border">
         <div className="flex items-center text-muted-foreground mr-0.5">
