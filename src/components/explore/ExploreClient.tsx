@@ -244,11 +244,13 @@ export function ExploreClient({
         </div>
       </div>
 
-      {/* Mobile Action Bar & Drawers */}
-      <MobileExploreActionBar
-        onSearchClick={() => setSearchDrawerOpen(true)}
-        onFilterClick={() => setFilterDrawerOpen(true)}
-      />
+      {/* Mobile Action Bar & Drawers - hide when search is open */}
+      {!searchDrawerOpen && (
+        <MobileExploreActionBar
+          onSearchClick={() => setSearchDrawerOpen(true)}
+          onFilterClick={() => setFilterDrawerOpen(true)}
+        />
+      )}
 
       <SearchDrawer
         isOpen={searchDrawerOpen}

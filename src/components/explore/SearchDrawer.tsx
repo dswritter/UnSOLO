@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createPortal } from 'react-dom'
 import { Search, X } from 'lucide-react'
 
 interface SearchDrawerProps {
@@ -13,41 +12,9 @@ interface SearchDrawerProps {
 
 export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawerProps) {
   const [searchInput, setSearchInput] = useState(initialValue)
-  const [mounted, setMounted] = useState(false)
-  const [drawerHeight, setDrawerHeight] = useState<number | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Detect keyboard appearance and adjust drawer height
-  useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') return
-
-    const viewport = window.visualViewport
-    if (!viewport) return
-
-    const handleViewportResize = () => {
-      // Calculate available space above keyboard
-      const keyboardHeight = window.innerHeight - viewport.height
-      // Set drawer max-height to content only (input + help text ~150px)
-      if (keyboardHeight > 0) {
-        setDrawerHeight(150)
-      } else {
-        // Keyboard hidden, let drawer be flexible
-        setDrawerHeight(undefined)
-      }
-    }
-
-    viewport.addEventListener('resize', handleViewportResize)
-    // Initial check
-    handleViewportResize()
-
-    return () => viewport.removeEventListener('resize', handleViewportResize)
-  }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
@@ -91,69 +58,49 @@ export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawe
     if (e.key === 'Escape') {
       onClose()
     }
+    if (e.key === 'Enter') {
+      onClose()
+    }
   }
 
-  if (!mounted || !isOpen) return null
+  if (!isOpen) return null
 
-  return createPortal(
-    <div className="fixed inset-0 z-50">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/50 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer from left - keyboard-aware height */}
-      <div
-        className="fixed left-0 top-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300 flex flex-col"
-        style={{ maxHeight: drawerHeight ? `${drawerHeight}px` : 'auto' }}
-      >
-        <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h2 className="text-lg font-semibold">Search</h2>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-secondary rounded-lg transition-colors"
-              aria-label="Close search"
-            >
-              <X className="h-5 w-5" />
-            </button>
+  return (
+    <>
+      {/* Full-width search bar above keyboard */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-bottom">
+        <div className="flex items-center gap-2 px-4 py-3">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Find trips, stays..."
+              className="w-full pl-9 pr-9 py-2 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-
-          {/* Search Input */}
-          <div className="p-4 flex-1">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Find trips, stays, activities..."
-                className="w-full pl-9 pr-9 py-2.5 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Help text */}
-            <p className="text-xs text-muted-foreground">
-              Press Escape to close
-            </p>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-secondary rounded-lg transition-colors flex-shrink-0"
+            aria-label="Close search"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </>
   )
 }

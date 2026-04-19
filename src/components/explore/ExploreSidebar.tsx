@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
@@ -67,6 +68,15 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
   const tripSource: 'all' | 'unsolo' | 'community' =
     params.tab === 'community' ? 'community' : params.tab === 'unsolo' ? 'unsolo' : 'all'
 
+  // Track optimistic state for instant UI feedback
+  const [optimisticParams, setOptimisticParams] = useState<Record<string, string | null>>({})
+
+  // Check if any filters are active
+  const hasActiveFilters = Object.entries(params).some(([key, value]) => {
+    if (key === 'q' || key === 'tab') return false // Don't count search or tab selection as filters
+    return !!value
+  })
+
   function buildUrl(updates: Record<string, string | null>) {
     const p = new URLSearchParams()
     Object.entries(params).forEach(([k, v]) => {
@@ -79,13 +89,33 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
     return `/explore${qs ? `?${qs}` : ''}`
   }
 
+  function handleFilterClick(filterKey: string, filterValue: string | null) {
+    // Optimistic update for instant feedback
+    setOptimisticParams((prev) => ({
+      ...prev,
+      [filterKey]: filterValue,
+    }))
+    router.push(buildUrl({ [filterKey]: filterValue }))
+  }
+
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
+    setOptimisticParams((prev) => ({
+      ...prev,
+      tab: next === 'all' ? null : next,
+    }))
     if (next === 'all') router.push(buildUrl({ tab: null }))
     else router.push(buildUrl({ tab: next }))
   }
 
   function clearAllFilters() {
+    setOptimisticParams({})
     router.push('/explore')
+  }
+
+  // Get current values (prefer optimistic state, fall back to params)
+  const getCurrentValue = (key: string, defaultValue: string = '') => {
+    if (key in optimisticParams) return optimisticParams[key] ?? defaultValue
+    return params[key] ?? defaultValue
   }
 
   return (
@@ -93,7 +123,9 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1">Filters</h2>
-        <p className="text-xs text-muted-foreground">{resultCount} found</p>
+        {hasActiveFilters && (
+          <p className="text-xs text-muted-foreground">{resultCount} found</p>
+        )}
       </div>
 
       {isTripsTab ? (
@@ -121,119 +153,198 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
           {/* Difficulty */}
           <FilterSection label="Difficulty">
             <div className="flex flex-col gap-2">
-              {DIFFICULTY_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
-                  className={cn(
-                    'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                    (params.difficulty || '') === opt.value
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {DIFFICULTY_OPTIONS.map((opt) => {
+                const currentValue = getCurrentValue('difficulty', '')
+                const isSelected = currentValue === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
+                    className={cn(
+                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </FilterSection>
 
           {/* Budget */}
           <FilterSection label="Budget">
             <div className="flex flex-col gap-2">
-              {BUDGET_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() =>
-                    router.push(buildUrl({ minBudget: opt.min || null, maxBudget: opt.max || null }))
-                  }
-                  className={cn(
-                    'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                    params.minBudget === opt.min && params.maxBudget === opt.max
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {BUDGET_OPTIONS.map((opt) => {
+                const minBudget = getCurrentValue('minBudget', '')
+                const maxBudget = getCurrentValue('maxBudget', '')
+                const isSelected = minBudget === opt.min && maxBudget === opt.max
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      if (isSelected) {
+                        handleFilterClick('minBudget', null)
+                        handleFilterClick('maxBudget', null)
+                      } else {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          minBudget: opt.min || null,
+                          maxBudget: opt.max || null,
+                        }))
+                        router.push(buildUrl({ minBudget: opt.min || null, maxBudget: opt.max || null }))
+                      }
+                    }}
+                    className={cn(
+                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </FilterSection>
 
           {/* Duration */}
           <FilterSection label="Duration">
             <div className="flex flex-col gap-2">
-              {DURATION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() =>
-                    router.push(buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
-                  }
-                  className={cn(
-                    'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                    params.minDays === opt.min && params.maxDays === opt.max
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {DURATION_OPTIONS.map((opt) => {
+                const minDays = getCurrentValue('minDays', '')
+                const maxDays = getCurrentValue('maxDays', '')
+                const isSelected = minDays === opt.min && maxDays === opt.max
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      if (isSelected) {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          minDays: null,
+                          maxDays: null,
+                        }))
+                        router.push(buildUrl({ minDays: null, maxDays: null }))
+                      } else {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          minDays: opt.min || null,
+                          maxDays: opt.max || null,
+                        }))
+                        router.push(buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
+                      }
+                    }}
+                    className={cn(
+                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </FilterSection>
 
           {/* Month */}
           <FilterSection label="Month">
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => router.push(buildUrl({ month: null }))}
-                className={cn(
-                  'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
-                  !params.month
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                )}
-              >
-                Any
-              </button>
-              <div className="grid grid-cols-3 gap-1">
-                {MONTHS.map((m, idx) => (
-                  <button
-                    key={m}
-                    onClick={() => router.push(buildUrl({ month: String(idx) }))}
-                    className={cn(
-                      'px-1 py-2 rounded-lg text-xs text-center transition-colors',
-                      params.month === String(idx)
-                        ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                    )}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                const currentMonth = getCurrentValue('month', '')
+                return (
+                  <>
+                    <button
+                      onClick={() => {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          month: null,
+                        }))
+                        router.push(buildUrl({ month: null }))
+                      }}
+                      className={cn(
+                        'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
+                        !currentMonth
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      )}
+                    >
+                      Any
+                    </button>
+                    <div className="grid grid-cols-3 gap-1">
+                      {MONTHS.map((m, idx) => (
+                        <button
+                          key={m}
+                          onClick={() => {
+                            const monthStr = String(idx)
+                            if (currentMonth === monthStr) {
+                              setOptimisticParams((prev) => ({
+                                ...prev,
+                                month: null,
+                              }))
+                              router.push(buildUrl({ month: null }))
+                            } else {
+                              setOptimisticParams((prev) => ({
+                                ...prev,
+                                month: monthStr,
+                              }))
+                              router.push(buildUrl({ month: monthStr }))
+                            }
+                          }}
+                          className={cn(
+                            'px-1 py-2 rounded-lg text-xs text-center transition-colors',
+                            currentMonth === String(idx)
+                              ? 'bg-primary text-primary-foreground font-medium'
+                              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          )}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </FilterSection>
 
           {/* My Interests */}
           <FilterSection label="Interests">
-            <button
-              onClick={() => {
-                if (params.interested) {
-                  router.push(buildUrl({ interested: null }))
-                } else {
-                  router.push(buildUrl({ interested: 'true' }))
-                }
-              }}
-              className={cn(
-                'w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                params.interested
-                  ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-              )}
-            >
-              ♥ My Interests
-            </button>
+            {(() => {
+              const interested = getCurrentValue('interested', '')
+              return (
+                <button
+                  onClick={() => {
+                    if (interested) {
+                      setOptimisticParams((prev) => ({
+                        ...prev,
+                        interested: null,
+                      }))
+                      router.push(buildUrl({ interested: null }))
+                    } else {
+                      setOptimisticParams((prev) => ({
+                        ...prev,
+                        interested: 'true',
+                      }))
+                      router.push(buildUrl({ interested: 'true' }))
+                    }
+                  }}
+                  className={cn(
+                    'w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    interested
+                      ? 'bg-red-500/15 text-red-400 border border-red-500/30'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                  )}
+                >
+                  ♥ My Interests
+                </button>
+              )
+            })()}
           </FilterSection>
         </>
       ) : (
@@ -241,22 +352,41 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
           {/* Price for services */}
           <FilterSection label="Price">
             <div className="flex flex-col gap-2">
-              {PRICE_OPTIONS_SERVICE.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() =>
-                    router.push(buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
-                  }
-                  className={cn(
-                    'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                    params.minPrice === opt.min && params.maxPrice === opt.max
-                      ? 'bg-primary text-primary-foreground font-medium'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {PRICE_OPTIONS_SERVICE.map((opt) => {
+                const minPrice = getCurrentValue('minPrice', '')
+                const maxPrice = getCurrentValue('maxPrice', '')
+                const isSelected = minPrice === opt.min && maxPrice === opt.max
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      if (isSelected) {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          minPrice: null,
+                          maxPrice: null,
+                        }))
+                        router.push(buildUrl({ minPrice: null, maxPrice: null }))
+                      } else {
+                        setOptimisticParams((prev) => ({
+                          ...prev,
+                          minPrice: opt.min || null,
+                          maxPrice: opt.max || null,
+                        }))
+                        router.push(buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
+                      }
+                    }}
+                    className={cn(
+                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      isSelected
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </FilterSection>
 
@@ -264,20 +394,24 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
           {activeTab === 'activities' && (
             <FilterSection label="Difficulty">
               <div className="flex flex-col gap-2">
-                {DIFFICULTY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
-                    className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                      (params.difficulty || '') === opt.value
-                        ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {DIFFICULTY_OPTIONS.map((opt) => {
+                  const currentValue = getCurrentValue('difficulty', '')
+                  const isSelected = currentValue === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
+                      className={cn(
+                        'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
               </div>
             </FilterSection>
           )}
@@ -286,20 +420,24 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
           {activeTab === 'activities' && (
             <FilterSection label="Activity Type">
               <div className="flex flex-col gap-2">
-                {ACTIVITY_TYPES.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => router.push(buildUrl({ activityType: opt.value || null }))}
-                    className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                      (params.activityType || '') === opt.value
-                        ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {ACTIVITY_TYPES.map((opt) => {
+                  const currentValue = getCurrentValue('activityType', '')
+                  const isSelected = currentValue === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleFilterClick('activityType', isSelected ? null : (opt.value || null))}
+                      className={cn(
+                        'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                        isSelected
+                          ? 'bg-primary text-primary-foreground font-medium'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
               </div>
             </FilterSection>
           )}
