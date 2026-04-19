@@ -26,6 +26,8 @@ export type HostTripPreviewPayload = {
   interestTags: string[]
   destination: { id: string; name: string; state: string } | null
   paymentTiming?: string
+  /** Shown when paymentTiming is token_to_book */
+  tokenAmountRupees?: string
   genderPreference?: string
   minAge?: string
   maxAge?: string

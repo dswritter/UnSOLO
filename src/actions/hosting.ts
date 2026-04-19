@@ -8,6 +8,7 @@ import {
   type PriceVariant,
 } from '@/lib/package-pricing'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import type { JoinPreferences } from '@/types'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -130,14 +131,7 @@ export async function createHostedTrip(formData: {
   difficulty: string
   includes: string[]
   images: string[]
-  join_preferences: {
-    min_age?: number
-    max_age?: number
-    gender_preference?: 'men' | 'women' | 'all'
-    min_trips_completed?: number
-    interest_tags?: string[]
-    payment_timing?: 'after_host_approval' | 'pay_on_booking'
-  }
+  join_preferences: JoinPreferences
 }) {
   const { supabase, user } = await requireHost()
 

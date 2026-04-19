@@ -50,6 +50,8 @@ interface BookingFormClientProps {
   durationDays?: number
   groupInvite?: GroupInvite | null
   availableSlots?: Record<string, number>
+  /** Community trips with payment_timing token_to_book */
+  tokenBooking?: { tokenAmountPaisePerPerson: number } | null
 }
 
 export function BookingFormClient({
@@ -64,6 +66,7 @@ export function BookingFormClient({
   durationDays,
   groupInvite,
   availableSlots = {},
+  tokenBooking = null,
 }: BookingFormClientProps) {
   const pkgCal: TripPackageCalendar = {
     duration_days: Math.max(1, durationDays || 1),
@@ -203,6 +206,11 @@ export function BookingFormClient({
   const [customLoading, setCustomLoading] = useState(false)
 
   const total = perPersonForBooking * guests
+  const tripTotalAfterDiscounts = Math.max(0, total - totalDiscount)
+  const tokenFirstSlicePaise =
+    tokenBooking && tokenBooking.tokenAmountPaisePerPerson > 0
+      ? Math.min(tokenBooking.tokenAmountPaisePerPerson * guests, tripTotalAfterDiscounts)
+      : null
   // Tomorrow is the earliest bookable date (not today)
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
@@ -245,7 +253,12 @@ export function BookingFormClient({
       }
 
       if ('instant' in result && result.instant) {
-        toast.success('Booking confirmed!')
+        const due = 'balanceDuePaise' in result && typeof result.balanceDuePaise === 'number' ? result.balanceDuePaise : 0
+        toast.success(
+          due > 0
+            ? 'Spot secured! Pay the remaining balance anytime from My Trips.'
+            : 'Booking confirmed!',
+        )
         router.push(`/book/success?booking_id=${result.bookingId}`)
         setLoading(false)
         return
@@ -273,7 +286,15 @@ export function BookingFormClient({
             response.razorpay_signature,
           )
           if (verification.success) {
-            toast.success('Booking confirmed!')
+            const due =
+              'balanceDuePaise' in verification && typeof verification.balanceDuePaise === 'number'
+                ? verification.balanceDuePaise
+                : 0
+            toast.success(
+              due > 0
+                ? 'Spot secured! Pay the remaining balance anytime from My Trips.'
+                : 'Booking confirmed!',
+            )
             router.push(`/book/success?booking_id=${verification.bookingId}`)
           } else {
             toast.error(verification.error || 'Payment verification failed')
@@ -667,10 +688,35 @@ export function BookingFormClient({
               </div>
             )}
             <div className="flex justify-between font-bold text-foreground pt-1 border-t border-border">
-              <span>Total</span>
-              <span className="text-primary">{formatPrice(Math.max(0, total - totalDiscount))}</span>
+              <span>Trip total</span>
+              <span className="text-primary">{formatPrice(tripTotalAfterDiscounts)}</span>
             </div>
+            {tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts && (
+              <>
+                <div className="flex justify-between text-xs text-amber-600/95 dark:text-amber-400/95 pt-1">
+                  <span>Due now (token, max)</span>
+                  <span>{formatPrice(tokenFirstSlicePaise)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Balance later (My Trips)</span>
+                  <span>{formatPrice(tripTotalAfterDiscounts - tokenFirstSlicePaise)}</span>
+                </div>
+              </>
+            )}
+            {tokenFirstSlicePaise != null && tokenFirstSlicePaise >= tripTotalAfterDiscounts && (
+              <p className="text-[11px] text-muted-foreground pt-1">
+                Your discounts bring the trip total to the same or less than the host token—you’ll pay the full trip
+                amount at checkout.
+              </p>
+            )}
           </div>
+
+          {tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts && (
+            <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 text-xs text-muted-foreground">
+              The host set a <span className="font-semibold text-foreground">token</span> to lock your spot. Wallet
+              credits and promos apply to the trip total; the first charge is capped at the token slice above.
+            </div>
+          )}
 
           <Button
             onClick={handleBook}
@@ -678,7 +724,11 @@ export function BookingFormClient({
             className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 glow-gold"
             size="lg"
           >
-            {loading ? 'Processing...' : 'Book This Trip'}
+            {loading
+              ? 'Processing...'
+              : tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts
+                ? 'Pay token & book'
+                : 'Book This Trip'}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">

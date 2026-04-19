@@ -78,8 +78,11 @@ export type JoinPreferences = {
   /**
    * `after_host_approval` (default): request → host approves → pay.
    * `pay_on_booking`: standard checkout; no join-request gate.
+   * `token_to_book`: pay host-set token per person now; balance later from My Trips.
    */
-  payment_timing?: 'after_host_approval' | 'pay_on_booking'
+  payment_timing?: 'after_host_approval' | 'pay_on_booking' | 'token_to_book'
+  /** Required when payment_timing is token_to_book: token amount per person (INR paise). */
+  token_amount_paise?: number
 }
 
 export type HostProfile = {
@@ -155,6 +158,8 @@ export type Booking = {
   travel_date: string
   guests: number
   total_amount_paise: number
+  /** Cumulative paid toward total (wallet + Razorpay); equals total when fully paid. */
+  deposit_paise?: number
   stripe_session_id: string | null
   stripe_payment_intent: string | null
   confirmation_code: string | null

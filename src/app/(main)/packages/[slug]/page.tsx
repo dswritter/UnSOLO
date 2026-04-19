@@ -70,8 +70,9 @@ export default async function PackageDetailPage({
 
   const package_ = pkg as Package
   const isCommunityTrip = !!package_.host_id
-  const communityBookAndPay =
-    isCommunityTrip && package_.join_preferences?.payment_timing === 'pay_on_booking'
+  const jp = package_.join_preferences
+  const communityDirectCheckout =
+    isCommunityTrip && (jp?.payment_timing === 'pay_on_booking' || jp?.payment_timing === 'token_to_book')
   const hostData = (pkg.host as unknown as HostProfile) || null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
 
@@ -111,7 +112,7 @@ export default async function PackageDetailPage({
 
   // Calculate available slots (UnSOLO trips, or community trips with immediate checkout)
   const availableSlotsMap: Record<string, number> = {}
-  if (!isCommunityTrip || communityBookAndPay) {
+  if (!isCommunityTrip || communityDirectCheckout) {
     if (package_.departure_dates && package_.max_group_size) {
       const closedDates = new Set(
         (package_.departure_dates_closed || []).map(tripDepartureDateKey),
@@ -401,7 +402,7 @@ export default async function PackageDetailPage({
               <Card className="bg-card border-border">
                 <CardContent className="p-6 space-y-4">
                   {isCommunityTrip ? (
-                    communityBookAndPay ? (
+                    communityDirectCheckout ? (
                       isHost ? (
                         <div className="space-y-4">
                           <div>
@@ -439,6 +440,12 @@ export default async function PackageDetailPage({
                             durationDays={package_.trip_days ?? package_.duration_days}
                             groupInvite={null}
                             availableSlots={availableSlotsMap}
+                            tokenBooking={
+                              jp?.payment_timing === 'token_to_book' &&
+                              typeof jp?.token_amount_paise === 'number'
+                                ? { tokenAmountPaisePerPerson: jp.token_amount_paise }
+                                : null
+                            }
                           />
                         </>
                       ) : (

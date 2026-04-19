@@ -158,9 +158,10 @@ export function HostTripForm({
   const [maxGroupSize, setMaxGroupSize] = useState('12')
   const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
   const [platformFeePercent, setPlatformFeePercent] = useState(15)
-  const [paymentTiming, setPaymentTiming] = useState<'after_host_approval' | 'pay_on_booking'>(
-    'after_host_approval',
-  )
+  const [paymentTiming, setPaymentTiming] = useState<
+    'after_host_approval' | 'pay_on_booking' | 'token_to_book'
+  >('after_host_approval')
+  const [tokenAmountRupees, setTokenAmountRupees] = useState('')
   const [difficulty, setDifficulty] = useState('moderate')
   const [scheduleRows, setScheduleRows] = useState<{ dep: string; ret: string }[]>([
     { dep: '', ret: '' },
@@ -279,7 +280,13 @@ export function HostTripForm({
         )
         if (jp.min_trips_completed != null) setMinTripsCompleted(String(jp.min_trips_completed))
         setInterestTags(jp.interest_tags ? [...jp.interest_tags] : [])
-        setPaymentTiming(jp.payment_timing === 'pay_on_booking' ? 'pay_on_booking' : 'after_host_approval')
+        if (jp.payment_timing === 'pay_on_booking') setPaymentTiming('pay_on_booking')
+        else if (jp.payment_timing === 'token_to_book') {
+          setPaymentTiming('token_to_book')
+          if (jp.token_amount_paise != null && Number.isFinite(jp.token_amount_paise)) {
+            setTokenAmountRupees(String(jp.token_amount_paise / 100))
+          }
+        } else setPaymentTiming('after_host_approval')
       } else {
         draftSaveNotifiedRef.current = false
         const resuming = resumeDraftId ? getHostTripDraftById(resumeDraftId) : null
@@ -311,7 +318,11 @@ export function HostTripForm({
           setDepartureTime(draft.departureTime === 'evening' ? 'evening' : 'morning')
           setReturnTime(draft.returnTime === 'evening' ? 'evening' : 'morning')
           setMaxGroupSize(draft.maxGroupSize ?? '12')
-          setPaymentTiming(draft.paymentTiming === 'pay_on_booking' ? 'pay_on_booking' : 'after_host_approval')
+          if (draft.paymentTiming === 'pay_on_booking') setPaymentTiming('pay_on_booking')
+          else if (draft.paymentTiming === 'token_to_book') {
+            setPaymentTiming('token_to_book')
+            setTokenAmountRupees(draft.tokenAmountRupees ?? '')
+          } else setPaymentTiming('after_host_approval')
           setDifficulty(draft.difficulty || 'moderate')
           setScheduleRows(
             Array.isArray(draft.scheduleRows) && draft.scheduleRows.length > 0
@@ -395,6 +406,7 @@ export function HostTripForm({
       returnTime,
       maxGroupSize,
       paymentTiming,
+      tokenAmountRupees,
       difficulty,
       scheduleRows: scheduleRows.map((r) => ({ dep: r.dep, ret: r.ret })),
       selectedIncludes: [...selectedIncludes],
@@ -420,6 +432,7 @@ export function HostTripForm({
     returnTime,
     maxGroupSize,
     paymentTiming,
+    tokenAmountRupees,
     difficulty,
     scheduleRows,
     selectedIncludes,
@@ -800,8 +813,18 @@ export function HostTripForm({
       }
       case 2:
         return images.length > 0
-      case 3:
-        return true // preferences are optional
+      case 3: {
+        if (paymentTiming !== 'token_to_book') return true
+        const t = Math.round(parseFloat(tokenAmountRupees) * 100)
+        if (!Number.isFinite(t) || t < 100) return false
+        if (priceRows.length >= 2) {
+          const tiers = priceRows.map((r) => Math.round(parseFloat(r.rupees) * 100))
+          const minP = Math.min(...tiers)
+          return Number.isFinite(minP) && t <= minP
+        }
+        const p0 = Math.round(parseFloat(priceRows[0]?.rupees || '') * 100)
+        return Number.isFinite(p0) && t <= p0
+      }
       case 4:
         return true
       default:
@@ -860,6 +883,18 @@ export function HostTripForm({
       min_trips_completed: minTripsCompleted ? parseInt(minTripsCompleted, 10) : undefined,
       interest_tags: interestTags.length > 0 ? interestTags : undefined,
       payment_timing: paymentTiming,
+    }
+    if (paymentTiming === 'token_to_book') {
+      const tokenPaise = Math.round(parseFloat(tokenAmountRupees) * 100)
+      if (!Number.isFinite(tokenPaise) || tokenPaise < 100) {
+        toast.error('Enter a valid token amount per person (minimum ₹1)')
+        return
+      }
+      if (tokenPaise > pricePaise) {
+        toast.error('Token amount cannot exceed your listed price per person')
+        return
+      }
+      join_preferences.token_amount_paise = tokenPaise
     }
     if (minAge.trim()) {
       const a = parseInt(minAge, 10)
@@ -1614,7 +1649,7 @@ export function HostTripForm({
                 <p className="text-xs text-muted-foreground">
                   Choose how travelers confirm and pay. This controls messaging on your trip page.
                 </p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setPaymentTiming('after_host_approval')}
@@ -1640,15 +1675,49 @@ export function HostTripForm({
                   >
                     <span className="font-semibold block">Book &amp; pay immediately</span>
                     <span className="text-xs mt-1 block opacity-90">
-                      Standard checkout: travelers pick a date and pay without a join-request step.
+                      Standard checkout: travelers pay the full amount when they book.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTiming('token_to_book')}
+                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                      paymentTiming === 'token_to_book'
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span className="font-semibold block">Token to book</span>
+                    <span className="text-xs mt-1 block opacity-90">
+                      Travelers pay only your token amount per person now; they pay the balance later from My Trips.
                     </span>
                   </button>
                 </div>
               </div>
-              {paymentTiming === 'pay_on_booking' && (
+              {paymentTiming === 'token_to_book' && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-foreground">Token amount (per person)</label>
+                  <div className="flex items-center gap-2 max-w-xs">
+                    <span className="text-muted-foreground text-sm">₹</span>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 500"
+                      value={tokenAmountRupees}
+                      onChange={(e) => setTokenAmountRupees(e.target.value.replace(/[^\d.]/g, ''))}
+                      className="bg-secondary border-border"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least ₹1 and no more than your price per person. Charged once per guest at checkout
+                    (promos and credits apply to the trip total; the first charge is capped at this token slice).
+                  </p>
+                </div>
+              )}
+              {(paymentTiming === 'pay_on_booking' || paymentTiming === 'token_to_book') && (
                 <p className="text-xs text-amber-600/90 dark:text-amber-400/90">
                   Note: gender and &quot;min trips completed&quot; filters only apply when you use request-first
-                  booking. Immediate checkout does not enforce them yet.
+                  booking. Immediate and token checkout do not enforce them yet.
                 </p>
               )}
 
@@ -1895,7 +1964,9 @@ export function HostTripForm({
                     <span className="font-medium text-foreground">
                       {paymentTiming === 'pay_on_booking'
                         ? 'Book & pay immediately'
-                        : 'Request first, pay after approval'}
+                        : paymentTiming === 'token_to_book'
+                          ? `Token to book${tokenAmountRupees.trim() ? ` (₹${tokenAmountRupees.trim()}/person)` : ''}`
+                          : 'Request first, pay after approval'}
                     </span>
                     {genderPreference !== 'all' && (
                       <span className="capitalize">{genderPreference} only</span>
@@ -1965,6 +2036,7 @@ export function HostTripForm({
                       interestTags,
                       destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
                       paymentTiming,
+                      tokenAmountRupees,
                       genderPreference,
                       minAge,
                       maxAge,

@@ -17,12 +17,13 @@ import {
 } from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
-import { requestCancellation, changeBookingDate } from '@/actions/booking'
+import { requestCancellation, changeBookingDate, createBookingBalanceOrder, confirmPayment } from '@/actions/booking'
 import type { GroupBookingInfo, IncompleteJoinTrip, IncompleteTripStatus } from './page'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import type { Booking } from '@/types'
+import type { Booking, JoinPreferences } from '@/types'
+import Script from 'next/script'
 
 function tripCalFromPackage(
   pkg: {
@@ -43,6 +44,15 @@ const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-500/20 text-green-400 border-green-500/30',
   cancelled: 'bg-red-500/20 text-red-400 border-red-500/30',
   completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void
+      on: (event: string, handler: () => void) => void
+    }
+  }
 }
 
 const INCOMPLETE_JOIN_BADGE: Record<IncompleteTripStatus, { label: string; className: string }> = {
@@ -191,6 +201,7 @@ export function BookingsClient({
 
   return (
     <div className="space-y-8">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(s => (
@@ -600,6 +611,83 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
   )
 }
 
+function TokenBalancePay({ bookingId }: { bookingId: string }) {
+  const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const router = useRouter()
+
+  async function onPay() {
+    setLoading(true)
+    const result = await createBookingBalanceOrder(bookingId)
+    if ('error' in result) {
+      toast.error(result.error)
+      setLoading(false)
+      return
+    }
+    const options = {
+      key: result.keyId,
+      amount: result.amount,
+      currency: result.currency,
+      name: 'UnSOLO',
+      description: 'Trip balance payment',
+      order_id: result.orderId,
+      prefill: result.prefill,
+      notes: result.notes,
+      theme: { color: '#FFAA00', backdrop_color: '#000000' },
+      handler: async (response: {
+        razorpay_order_id: string
+        razorpay_payment_id: string
+        razorpay_signature: string
+      }) => {
+        setVerifying(true)
+        const v = await confirmPayment(
+          response.razorpay_order_id,
+          response.razorpay_payment_id,
+          response.razorpay_signature,
+        )
+        if ('error' in v && v.error) {
+          toast.error(v.error)
+        } else if ('success' in v && v.success) {
+          toast.success('Trip fully paid!')
+          router.refresh()
+        } else {
+          toast.error('Payment verification failed')
+        }
+        setVerifying(false)
+        setLoading(false)
+      },
+      modal: { ondismiss: () => setLoading(false) },
+    }
+    const Rzp = window.Razorpay
+    if (!Rzp) {
+      toast.error('Payment could not load. Refresh the page and try again.')
+      setLoading(false)
+      return
+    }
+    const rzp = new Rzp(options)
+    rzp.on('payment.failed', () => {
+      toast.error('Payment failed. Please try again.')
+      setLoading(false)
+    })
+    rzp.open()
+  }
+
+  return (
+    <Button
+      size="sm"
+      className="bg-primary text-primary-foreground text-xs"
+      disabled={loading || verifying}
+      onClick={(e) => {
+        e.stopPropagation()
+        void onPay()
+      }}
+    >
+      <CreditCard className="mr-1 h-3 w-3" />
+      {verifying ? 'Verifying…' : loading ? 'Opening…' : 'Pay remaining balance'}
+    </Button>
+  )
+}
+
 function BookingItem({
   booking,
   expanded,
@@ -616,6 +704,11 @@ function BookingItem({
   hasReviewed?: boolean
 }) {
   const pkg = booking.package
+  const jp = (pkg?.join_preferences ?? null) as JoinPreferences | null
+  const isTokenTrip = !!pkg?.host_id && jp?.payment_timing === 'token_to_book'
+  const paidToward = booking.deposit_paise ?? 0
+  const balanceDue = Math.max(0, booking.total_amount_paise - paidToward)
+  const showTokenBalance = isTokenTrip && booking.status === 'confirmed' && balanceDue > 0
   const duration = pkg?.duration_days || 0
   const cal = tripCalFromPackage(pkg)
   const tripEndIso = tripEndDateIsoForBooking(booking.travel_date, cal)
@@ -668,12 +761,28 @@ function BookingItem({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
-                <span className="font-bold text-primary">{formatPrice(booking.total_amount_paise)}</span>
-                {booking.confirmation_code && (
-                  <span className="text-muted-foreground ml-2 text-xs">#{booking.confirmation_code}</span>
+                {showTokenBalance ? (
+                  <>
+                    <span className="text-muted-foreground">Paid </span>
+                    <span className="font-bold text-primary">{formatPrice(paidToward)}</span>
+                    <span className="text-muted-foreground"> of </span>
+                    <span className="font-bold text-primary">{formatPrice(booking.total_amount_paise)}</span>
+                    <span className="text-xs text-amber-600/90 dark:text-amber-400/90 ml-2">Balance due</span>
+                    {booking.confirmation_code && (
+                      <span className="text-muted-foreground ml-2 text-xs">#{booking.confirmation_code}</span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold text-primary">{formatPrice(booking.total_amount_paise)}</span>
+                    {booking.confirmation_code && (
+                      <span className="text-muted-foreground ml-2 text-xs">#{booking.confirmation_code}</span>
+                    )}
+                  </>
                 )}
               </div>
               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                {showTokenBalance && <TokenBalancePay bookingId={booking.id} />}
                 <Button variant="outline" size="sm" className="border-border text-xs" asChild>
                   <Link href="/community">
                     <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
@@ -721,9 +830,19 @@ function BookingItem({
                 <span>{pkg ? packageDurationShortLabel(pkg) : `${duration} days`}</span>
               </div>
               <div>
-                <span className="text-muted-foreground text-xs block">Total Paid</span>
-                <span className="font-bold text-primary">{formatPrice(booking.total_amount_paise)}</span>
+                <span className="text-muted-foreground text-xs block">
+                  {showTokenBalance ? 'Paid toward trip' : 'Total paid'}
+                </span>
+                <span className="font-bold text-primary">
+                  {showTokenBalance ? formatPrice(paidToward) : formatPrice(booking.total_amount_paise)}
+                </span>
               </div>
+              {showTokenBalance && (
+                <div>
+                  <span className="text-muted-foreground text-xs block">Balance remaining</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{formatPrice(balanceDue)}</span>
+                </div>
+              )}
             </div>
 
             {/* What's Included */}

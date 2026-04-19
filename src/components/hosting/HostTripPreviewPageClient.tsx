@@ -282,7 +282,9 @@ export function HostTripPreviewPageClient() {
                   Payment:{' '}
                   {data.paymentTiming === 'pay_on_booking'
                     ? 'Book & pay after choosing dates'
-                    : 'Request to join, then pay if approved'}
+                    : data.paymentTiming === 'token_to_book'
+                      ? `Token to book now; balance later${data.tokenAmountRupees?.trim() ? ` (token ₹${data.tokenAmountRupees.trim()}/person)` : ''}`
+                      : 'Request to join, then pay if approved'}
                 </p>
               </div>
             ) : null}
