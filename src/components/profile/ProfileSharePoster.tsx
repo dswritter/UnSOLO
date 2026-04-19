@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { toBlob } from 'html-to-image'
 import { Button } from '@/components/ui/button'
 import { Share2, Loader2, ChevronDown } from 'lucide-react'
@@ -37,7 +37,8 @@ export type ProfileSharePosterProps = {
 }
 
 type PosterAspect = 'story' | 'feed'
-type PosterMode = 'full' | 'compact'
+
+const POSTER_MAP_SCALE = 1.5
 
 const POSTER_DIMS: Record<PosterAspect, { w: number; h: number }> = {
   story: { w: 1080, h: 1920 },
@@ -124,25 +125,19 @@ function StatRow({
   )
 }
 
-function PosterBody({
-  props,
-  aspect,
-  mode,
-}: {
-  props: ProfileSharePosterProps
-  aspect: PosterAspect
-  mode: PosterMode
-}) {
+function PosterBody({ props, aspect }: { props: ProfileSharePosterProps; aspect: PosterAspect }) {
   const s = scaleForAspect(aspect)
-  const full = mode === 'full'
   const avatarSize = Math.round(260 * s)
-  const mapColW = aspect === 'feed' ? Math.round(340 * s) : Math.round(400 * s)
+  const mapColW = Math.round(
+    (aspect === 'feed' ? 340 * s : 400 * s) * POSTER_MAP_SCALE,
+  )
+  const mapRasterH = Math.round(320 * POSTER_MAP_SCALE)
 
   const mapBlock =
     props.statesMapHidden ? (
       <div
         style={{
-          minHeight: 260 * s,
+          minHeight: Math.round(260 * s * POSTER_MAP_SCALE),
           borderRadius: 12,
           border: '1px dashed #d6d3d1',
           display: 'flex',
@@ -157,7 +152,12 @@ function PosterBody({
       </div>
     ) : (
       <div style={{ width: '100%', maxWidth: mapColW }}>
-        <IndiaStatesMap visitedStates={props.visitedStates} forRasterExport className="border-0" />
+        <IndiaStatesMap
+          visitedStates={props.visitedStates}
+          forRasterExport
+          rasterMaxHeightPx={mapRasterH}
+          className="border-0"
+        />
       </div>
     )
 
@@ -178,170 +178,133 @@ function PosterBody({
         Your next trip starts here
       </p>
 
-      {full ? (
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: 28 * s,
+          marginBottom: 20 * s,
+        }}
+      >
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 28 * s,
-            marginBottom: 20 * s,
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: `${Math.max(4, 5 * s)}px solid rgba(202, 138, 4, 0.45)`,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
+            background: 'linear-gradient(145deg, #fef3c7, #fde68a)',
           }}
         >
-          <div
-            style={{
-              width: avatarSize,
-              height: avatarSize,
-              borderRadius: '50%',
-              overflow: 'hidden',
-              border: `${Math.max(4, 5 * s)}px solid rgba(202, 138, 4, 0.45)`,
-              boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
-              background: 'linear-gradient(145deg, #fef3c7, #fde68a)',
-            }}
-          >
-            {props.avatarUrl ? (
-              <img
-                src={props.avatarUrl}
-                alt=""
-                crossOrigin="anonymous"
-                referrerPolicy="no-referrer"
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: avatarSize * 0.38,
-                  fontWeight: 900,
-                  color: '#a16207',
-                }}
-              >
-                {props.avatarInitials}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div style={{ height: 12 * s }} />
-      )}
-
-      {full ? (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              gap: 28 * s,
-              marginTop: 8 * s,
-            }}
-          >
-            <div style={{ flex: '1 1 0', minWidth: 0 }}>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 40 * s,
-                  fontWeight: 900,
-                  lineHeight: 1.12,
-                }}
-              >
-                {props.displayName}
-              </p>
-              <p style={{ margin: `${6 * s}px 0 0`, fontSize: 26 * s, color: '#78716c' }}>@{props.username}</p>
-
-              <PosterLeaderboardBlock rank={props.leaderboardRank} s={s} />
-
-              <p
-                style={{
-                  margin: `${22 * s}px 0 ${10 * s}px`,
-                  fontSize: 22 * s,
-                  fontWeight: 800,
-                  color: '#57534e',
-                }}
-              >
-                At a glance
-              </p>
-              <div>
-                <StatRow label="Trips" value={String(props.trips)} hidden={props.tripsStatHidden} s={s} />
-                <StatRow label="States" value={String(props.states)} hidden={props.statesStatHidden} s={s} />
-                <StatRow label="Reviews" value={String(props.reviews)} s={s} />
-                <StatRow label="Score" value={String(props.score)} s={s} />
-                <div style={{ paddingTop: 4 * s, borderBottom: 'none' }} />
-              </div>
+          {props.avatarUrl ? (
+            <img
+              src={props.avatarUrl}
+              alt=""
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: avatarSize * 0.38,
+                fontWeight: 900,
+                color: '#a16207',
+              }}
+            >
+              {props.avatarInitials}
             </div>
-            <div style={{ flex: '0 0 auto', width: mapColW, paddingTop: 4 * s }}>{mapBlock}</div>
-          </div>
+          )}
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          gap: 28 * s,
+          marginTop: 8 * s,
+        }}
+      >
+        <div style={{ flex: '1 1 0', minWidth: 0 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 40 * s,
+              fontWeight: 900,
+              lineHeight: 1.12,
+            }}
+          >
+            {props.displayName}
+          </p>
+          <p style={{ margin: `${6 * s}px 0 0`, fontSize: 26 * s, color: '#78716c' }}>@{props.username}</p>
+
+          <PosterLeaderboardBlock rank={props.leaderboardRank} s={s} />
 
           <p
             style={{
-              margin: `${28 * s}px 0 ${12 * s}px`,
+              margin: `${22 * s}px 0 ${10 * s}px`,
               fontSize: 22 * s,
               fontWeight: 800,
               color: '#57534e',
             }}
           >
-            Recent adventures
+            At a glance
           </p>
-          {props.tripsHidden ? (
-            <p style={{ margin: 0, fontSize: 20 * s, color: '#78716c', fontStyle: 'italic' }}>
-              Some trips are private on UnSOLO
-            </p>
-          ) : props.tripsList.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 20 * s, color: '#78716c' }}>
-              Booking my next escape…
-            </p>
-          ) : (
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-              {props.tripsList.slice(0, aspect === 'feed' ? 3 : 6).map((t, i, arr) => (
-                <li
-                  key={i}
-                  style={{
-                    padding: `${12 * s}px 0`,
-                    borderBottom:
-                      i < arr.length - 1 ? '1px solid rgba(120,113,108,0.2)' : 'none',
-                    fontSize: 22 * s,
-                  }}
-                >
-                  <span style={{ fontWeight: 800 }}>{t.title}</span>
-                  <span style={{ display: 'block', fontSize: 18 * s, color: '#57534e', marginTop: 4 }}>
-                    {t.place} · {t.date}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : (
-        <div style={{ marginTop: 16 * s }}>
-          <PosterLeaderboardBlock rank={props.leaderboardRank} s={s} />
-          <div
-            style={{
-              display: 'flex',
-              gap: 36 * s,
-              marginTop: 20 * s,
-              marginBottom: 16 * s,
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 44 * s, fontWeight: 900, color: '#a16207' }}>
-                {props.tripsStatHidden ? '—' : props.trips}
-              </div>
-              <div style={{ fontSize: 18 * s, color: '#57534e', fontWeight: 600 }}>Trips</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 44 * s, fontWeight: 900, color: '#a16207' }}>
-                {props.statesStatHidden ? '—' : props.states}
-              </div>
-              <div style={{ fontSize: 18 * s, color: '#57534e', fontWeight: 600 }}>States</div>
-            </div>
+          <div>
+            <StatRow label="Trips" value={String(props.trips)} hidden={props.tripsStatHidden} s={s} />
+            <StatRow label="States" value={String(props.states)} hidden={props.statesStatHidden} s={s} />
+            <StatRow label="Reviews" value={String(props.reviews)} s={s} />
+            <StatRow label="Score" value={String(props.score)} s={s} />
+            <div style={{ paddingTop: 4 * s, borderBottom: 'none' }} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 * s }}>{mapBlock}</div>
         </div>
+        <div style={{ flex: '0 0 auto', width: mapColW, paddingTop: 4 * s }}>{mapBlock}</div>
+      </div>
+
+      <p
+        style={{
+          margin: `${28 * s}px 0 ${12 * s}px`,
+          fontSize: 22 * s,
+          fontWeight: 800,
+          color: '#57534e',
+        }}
+      >
+        Recent adventures
+      </p>
+      {props.tripsHidden ? (
+        <p style={{ margin: 0, fontSize: 20 * s, color: '#78716c', fontStyle: 'italic' }}>
+          Some trips are private on UnSOLO
+        </p>
+      ) : props.tripsList.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 20 * s, color: '#78716c' }}>
+          Booking my next escape…
+        </p>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+          {props.tripsList.slice(0, aspect === 'feed' ? 3 : 6).map((t, i, arr) => (
+            <li
+              key={i}
+              style={{
+                padding: `${12 * s}px 0`,
+                borderBottom: i < arr.length - 1 ? '1px solid rgba(120,113,108,0.2)' : 'none',
+                fontSize: 22 * s,
+              }}
+            >
+              <span style={{ fontWeight: 800 }}>{t.title}</span>
+              <span style={{ display: 'block', fontSize: 18 * s, color: '#57534e', marginTop: 4 }}>
+                {t.place} · {t.date}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div style={{ flex: '1 1 16px', minHeight: 16 }} />
@@ -416,7 +379,11 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const [busy, setBusy] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
-  const [posterMode, setPosterMode] = useState<PosterMode>('full')
+  const [posterPortalReady, setPosterPortalReady] = useState(false)
+
+  useEffect(() => {
+    setPosterPortalReady(true)
+  }, [])
 
   const positionShareMenu = useCallback(() => {
     const menu = menuRef.current
@@ -464,7 +431,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     return () => document.removeEventListener('mousedown', onDocMouseDown, true)
   }, [panelOpen])
 
-  const runCapture = useCallback(async (aspect: PosterAspect, mode: PosterMode) => {
+  const runCapture = useCallback(async (aspect: PosterAspect) => {
     const node = ref.current
     if (!node) return
 
@@ -472,8 +439,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     const { w, h } = POSTER_DIMS[aspect]
     const p = propsRef.current
     const aspectSlug = aspect === 'story' ? '9x16' : '4x5'
-    const modeSlug = mode === 'full' ? 'full' : 'stats'
-    const filename = `unsolo-${p.username}-${modeSlug}-${aspectSlug}.png`
+    const filename = `unsolo-${p.username}-${aspectSlug}.png`
 
     const styleBackup = {
       position: node.style.position,
@@ -490,7 +456,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     try {
       flushSync(() => {
         setPosterAspect(aspect)
-        setPosterMode(mode)
       })
 
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
@@ -533,7 +498,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
             title: `${p.displayName} on UnSOLO`,
             text: `See my travel story on UnSOLO — ${p.profileUrl}`,
           })
-          toast.success('Ready to post!')
           return
         } catch (shareErr: unknown) {
           const name = shareErr instanceof Error ? shareErr.name : ''
@@ -562,71 +526,71 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const menuBtn =
     'flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground'
 
-  return (
-    <span className="relative inline-flex shrink-0 align-top">
-      <div className="relative" ref={panelRef}>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          className="border-border gap-1.5 min-w-[7.5rem]"
-          onClick={() => setPanelOpen((o) => !o)}
-        >
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
-          Share
-          <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-        </Button>
-        {panelOpen && !busy ? (
+  const posterPortal =
+    posterPortalReady && typeof document !== 'undefined'
+      ? createPortal(
           <div
-            ref={menuRef}
-            role="menu"
-            className="z-[500] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10 touch-manipulation"
+            ref={ref}
+            className="pointer-events-none overflow-hidden"
+            style={{
+              position: 'fixed',
+              left: -10000,
+              top: 0,
+              width: dims.w,
+              height: dims.h,
+              display: 'flex',
+              flexDirection: 'column',
+              fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+              boxSizing: 'border-box',
+              background: 'linear-gradient(165deg, #fffbeb 0%, #fef3c7 35%, #fde68a 100%)',
+              padding: `${Math.round(48 * scaleForAspect(posterAspect))}px ${Math.round(44 * scaleForAspect(posterAspect))}px ${Math.round(56 * scaleForAspect(posterAspect))}px`,
+              color: '#1c1917',
+              margin: 0,
+            }}
+            aria-hidden
           >
-            <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Full poster
-            </p>
-            <button type="button" className={menuBtn} onClick={() => void runCapture('story', 'full')}>
-              Story 9:16
-            </button>
-            <button type="button" className={menuBtn} onClick={() => void runCapture('feed', 'full')}>
-              Feed 4:5
-            </button>
-            <div className="my-1 h-px bg-border" />
-            <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Rank, trips & map
-            </p>
-            <button type="button" className={menuBtn} onClick={() => void runCapture('story', 'compact')}>
-              Story 9:16
-            </button>
-            <button type="button" className={menuBtn} onClick={() => void runCapture('feed', 'compact')}>
-              Feed 4:5
-            </button>
-          </div>
-        ) : null}
-      </div>
+            <PosterBody props={props} aspect={posterAspect} />
+          </div>,
+          document.body,
+        )
+      : null
 
-      <div
-        ref={ref}
-        className="pointer-events-none overflow-hidden"
-        style={{
-          position: 'absolute',
-          left: -10000,
-          top: 0,
-          width: dims.w,
-          height: dims.h,
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-          boxSizing: 'border-box',
-          background: 'linear-gradient(165deg, #fffbeb 0%, #fef3c7 35%, #fde68a 100%)',
-          padding: `${Math.round(48 * scaleForAspect(posterAspect))}px ${Math.round(44 * scaleForAspect(posterAspect))}px ${Math.round(56 * scaleForAspect(posterAspect))}px`,
-          color: '#1c1917',
-        }}
-        aria-hidden
-      >
-        <PosterBody props={props} aspect={posterAspect} mode={posterMode} />
-      </div>
-    </span>
+  return (
+    <>
+      <span className="relative inline-flex shrink-0 align-top">
+        <div className="relative" ref={panelRef}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            className="border-border gap-1.5 min-w-[7.5rem]"
+            onClick={() => setPanelOpen((o) => !o)}
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+            Share
+            <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+          </Button>
+          {panelOpen && !busy ? (
+            <div
+              ref={menuRef}
+              role="menu"
+              className="z-[500] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10 touch-manipulation"
+            >
+              <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Poster size
+              </p>
+              <button type="button" className={menuBtn} onClick={() => void runCapture('story')}>
+                Story 9:16
+              </button>
+              <button type="button" className={menuBtn} onClick={() => void runCapture('feed')}>
+                Feed 4:5
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </span>
+      {posterPortal}
+    </>
   )
 }

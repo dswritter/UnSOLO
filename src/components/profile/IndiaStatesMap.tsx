@@ -11,10 +11,13 @@ export function IndiaStatesMap({
   className,
   /** Inline SVG colors so raster export (e.g. html-to-image) does not lose Tailwind/CSS-variable fills */
   forRasterExport = false,
+  /** Max SVG height (px) when `forRasterExport` — share poster passes a larger value */
+  rasterMaxHeightPx = 320,
 }: {
   visitedStates: Iterable<string>
   className?: string
   forRasterExport?: boolean
+  rasterMaxHeightPx?: number
 }) {
   const visited = [...visitedStates]
   const data = indiaMap as { viewBox: string; locations: Loc[] }
@@ -44,7 +47,7 @@ export function IndiaStatesMap({
           'h-auto w-full text-foreground',
           !forRasterExport && 'max-h-[220px]',
         )}
-        style={forRasterExport ? { display: 'block', maxHeight: 320 } : undefined}
+        style={forRasterExport ? { display: 'block', maxHeight: rasterMaxHeightPx } : undefined}
         role="img"
         aria-label="Map of India with visited states highlighted"
       >

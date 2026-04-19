@@ -140,8 +140,8 @@ export default async function ProfilePage({
   const badgesCard = (
     <Card className="bg-card border-border">
       <CardContent className="p-5">
-        <h2 className="font-bold mb-4 flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-primary" /> Badges
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-primary" /> Badges
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {ACHIEVEMENTS.map((achievement) => {
@@ -149,15 +149,15 @@ export default async function ProfilePage({
             return (
               <div
                 key={achievement.key}
-                className={`p-3 rounded-xl border text-center transition-opacity ${
+                className={`p-3.5 rounded-xl border text-center transition-opacity ${
                   earned
                     ? 'border-primary/30 bg-primary/10'
                     : 'border-border bg-secondary/50 opacity-40'
                 }`}
                 title={achievement.description}
               >
-                <div className="text-2xl mb-1">{earned ? achievement.icon : '\u{1F512}'}</div>
-                <div className="text-xs font-medium leading-tight">{achievement.name}</div>
+                <div className="text-3xl mb-1.5">{earned ? achievement.icon : '\u{1F512}'}</div>
+                <div className="text-sm font-medium leading-snug">{achievement.name}</div>
               </div>
             )
           })}
@@ -217,8 +217,10 @@ export default async function ProfilePage({
       : []
 
   const achievementsHeading = (
-    <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Achievements & stats</p>
+    <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
+      <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground">
+        Achievements & stats
+      </p>
     </div>
   )
 
