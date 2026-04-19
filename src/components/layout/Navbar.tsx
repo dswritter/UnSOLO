@@ -117,6 +117,7 @@ export function Navbar({ user }: NavbarProps) {
               <Link
                 key={href}
                 href={href}
+                prefetch
                 className="relative flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
@@ -206,6 +207,7 @@ export function Navbar({ user }: NavbarProps) {
             <Link
               key={href}
               href={href}
+              prefetch
               onClick={() => setMobileOpen(false)}
               className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
