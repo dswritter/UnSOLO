@@ -18,6 +18,7 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react'
+import Link from 'next/link'
 
 interface JoinRequest {
   id: string
@@ -115,139 +116,168 @@ function RequestCard({
   }
 
   if (handled) {
+    const profileHref = user?.username ? `/profile/${encodeURIComponent(user.username)}` : null
+    const headerInner = (
+      <>
+        <Avatar className="h-10 w-10 border border-border shrink-0">
+          <AvatarImage src={user?.avatar_url || ''} />
+          <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+            {getInitials(user?.full_name || user?.username || '?')}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium">{user?.full_name || user?.username}</p>
+          <StatusBadge status={handledStatus!} />
+        </div>
+      </>
+    )
     return (
       <div className="rounded-xl border border-border bg-card/50 p-4 opacity-60">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border border-border">
-            <AvatarImage src={user?.avatar_url || ''} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-              {getInitials(user?.full_name || user?.username || '?')}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium">{user?.full_name || user?.username}</p>
-            <StatusBadge status={handledStatus!} />
-          </div>
-        </div>
+        {profileHref ? (
+          <Link
+            href={profileHref}
+            className="flex items-center gap-3 rounded-lg -m-1 p-1 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          >
+            {headerInner}
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3">{headerInner}</div>
+        )}
       </div>
     )
   }
 
+  const profileHref = user?.username ? `/profile/${encodeURIComponent(user.username)}` : null
+
+  const profileHeader = (
+    <>
+      <Avatar className="h-12 w-12 border border-border shrink-0">
+        <AvatarImage src={user?.avatar_url || ''} />
+        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+          {getInitials(user?.full_name || user?.username || '?')}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="font-bold">{user?.full_name || user?.username || 'Unknown User'}</p>
+          {user?.username && (
+            <span className="text-xs text-muted-foreground">@{user.username}</span>
+          )}
+          {!showActions && <StatusBadge status={request.status} />}
+        </div>
+
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
+          {user?.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> {user.location}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <Trophy className="h-3 w-3" /> {request.trips_completed} trips completed
+          </span>
+          <span>Score: {request.total_score}</span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" /> {timeAgo(request.created_at)}
+          </span>
+        </div>
+
+        {user?.bio && (
+          <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{user.bio}</p>
+        )}
+      </div>
+    </>
+  )
+
   return (
     <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-        {/* User Info */}
-        <Avatar className="h-12 w-12 border border-border shrink-0">
-          <AvatarImage src={user?.avatar_url || ''} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
-            {getInitials(user?.full_name || user?.username || '?')}
-          </AvatarFallback>
-        </Avatar>
+      <div className="flex flex-col gap-4">
+        {/* Profile: link wraps avatar + meta (not message / actions — avoids nested buttons) */}
+        {profileHref ? (
+          <Link
+            href={profileHref}
+            className="flex gap-3 sm:gap-4 min-w-0 rounded-xl -m-1 p-1 hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+          >
+            {profileHeader}
+          </Link>
+        ) : (
+          <div className="flex gap-3 sm:gap-4 min-w-0">{profileHeader}</div>
+        )}
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold">{user?.full_name || user?.username || 'Unknown User'}</p>
-            {user?.username && (
-              <span className="text-xs text-muted-foreground">@{user.username}</span>
-            )}
-            {!showActions && <StatusBadge status={request.status} />}
+        {request.message && (
+          <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" /> Their message:
+            </p>
+            <p className="text-sm">{request.message}</p>
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mt-1">
-            {user?.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" /> {user.location}
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Trophy className="h-3 w-3" /> {request.trips_completed} trips completed
-            </span>
-            <span>Score: {request.total_score}</span>
-            <span className="flex items-center gap-1">
-              <Clock className="h-3 w-3" /> {timeAgo(request.created_at)}
-            </span>
+        {request.host_response && request.status === 'rejected' && (
+          <div className="p-3 rounded-lg bg-red-900/10 border border-red-900/30">
+            <p className="text-xs text-red-300 mb-1">Your response:</p>
+            <p className="text-sm text-red-200">{request.host_response}</p>
           </div>
+        )}
 
-          {user?.bio && (
-            <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{user.bio}</p>
-          )}
-
-          {request.message && (
-            <div className="mt-3 p-3 rounded-lg bg-secondary/50 border border-border">
-              <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-                <MessageSquare className="h-3 w-3" /> Their message:
-              </p>
-              <p className="text-sm">{request.message}</p>
-            </div>
-          )}
-
-          {request.host_response && request.status === 'rejected' && (
-            <div className="mt-2 p-3 rounded-lg bg-red-900/10 border border-red-900/30">
-              <p className="text-xs text-red-300 mb-1">Your response:</p>
-              <p className="text-sm text-red-200">{request.host_response}</p>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          {showActions && (
-            <div className="mt-4">
-              {!showRejectInput ? (
+        {showActions && (
+          <div>
+            {!showRejectInput ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleApprove}
+                  disabled={isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowRejectInput(true)}
+                  disabled={isPending}
+                  className="text-red-400 border-red-900/50 hover:bg-red-900/20 gap-1.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Reject
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="Reason for rejection (optional)"
+                  className="bg-secondary border-border text-sm"
+                />
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    onClick={handleApprove}
+                    onClick={handleReject}
                     disabled={isPending}
-                    className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                    className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
                   >
-                    <Check className="h-3.5 w-3.5" />
-                    Approve
+                    <X className="h-3.5 w-3.5" />
+                    Confirm Reject
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => setShowRejectInput(true)}
-                    disabled={isPending}
-                    className="text-red-400 border-red-900/50 hover:bg-red-900/20 gap-1.5"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowRejectInput(false)
+                      setRejectReason('')
+                    }}
+                    className="text-muted-foreground"
                   >
-                    <X className="h-3.5 w-3.5" />
-                    Reject
+                    Cancel
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Input
-                    value={rejectReason}
-                    onChange={e => setRejectReason(e.target.value)}
-                    placeholder="Reason for rejection (optional)"
-                    className="bg-secondary border-border text-sm"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      onClick={handleReject}
-                      disabled={isPending}
-                      className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Confirm Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowRejectInput(false)
-                        setRejectReason('')
-                      }}
-                      className="text-muted-foreground"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
