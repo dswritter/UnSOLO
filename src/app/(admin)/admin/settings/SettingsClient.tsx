@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -106,13 +106,63 @@ function buildInitialSettingsMap(initialSettings: Setting[]): Record<string, str
   return m
 }
 
+const SHARE_PLACEHOLDERS = [
+  {
+    token: '{displayName}',
+    hint: 'The member’s display name when someone shares their poster.',
+  },
+  {
+    token: '{profileUrl}',
+    hint: 'Full profile URL for the person being shared (filled in at share time).',
+  },
+] as const
+
+function insertTokenIntoField(
+  field: 'share_poster_share_title' | 'share_poster_share_text',
+  token: string,
+  setSettings: Dispatch<SetStateAction<Record<string, string>>>
+) {
+  const id = field === 'share_poster_share_title' ? 'admin-share-poster-title' : 'admin-share-poster-text'
+  const el =
+    typeof document !== 'undefined'
+      ? (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)
+      : null
+  let start = 0
+  let end = 0
+  if (el) {
+    start = el.selectionStart ?? 0
+    end = el.selectionEnd ?? 0
+  }
+  setSettings((prev) => {
+    const cur = prev[field] || ''
+    const next = el ? cur.slice(0, start) + token + cur.slice(end) : cur + token
+    return { ...prev, [field]: next }
+  })
+  if (el) {
+    const pos = start + token.length
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(pos, pos)
+    })
+  }
+}
+
 export default function SettingsClient({ settings: initialSettings }: { settings: Setting[] }) {
   const [settings, setSettings] = useState<Record<string, string>>(() =>
     buildInitialSettingsMap(initialSettings)
   )
+  const [generalOpen, setGeneralOpen] = useState(false)
+  const [shareSectionOpen, setShareSectionOpen] = useState(false)
   const [refundUnsoloOpen, setRefundUnsoloOpen] = useState(false)
   const [refundHostOpen, setRefundHostOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const insertShareToken = useCallback(
+    (field: 'share_poster_share_title' | 'share_poster_share_text', token: string) => {
+      insertTokenIntoField(field, token, setSettings)
+    },
+    []
+  )
 
   const generalSettings = initialSettings.filter(
     (s) => !SHARE_POSTER_KEYS.has(s.key) && !REFUND_KEYS.has(s.key)
@@ -158,90 +208,178 @@ export default function SettingsClient({ settings: initialSettings }: { settings
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="rounded-xl border border-border/80 bg-card/30 px-4 py-1">
-        {generalSettings.map((s) => {
-          const config = SETTING_LABELS[s.key] || { label: s.key, type: 'text' as const }
-          if (config.type === 'json') {
-            return (
-              <div key={s.key} className="py-3 space-y-2 border-b border-border/50 last:border-0">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Settings className="h-3.5 w-3.5 text-primary" />
-                  {config.label}
-                </label>
-                {s.description ? (
-                  <p className="text-xs text-muted-foreground">{s.description}</p>
-                ) : null}
-                <Textarea
-                  value={settings[s.key] || ''}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                  className="bg-secondary border-border max-w-xl min-h-[140px] font-mono text-xs"
-                  spellCheck={false}
-                />
-              </div>
-            )
-          }
-          return (
-            <CompactSettingRow key={s.key} label={config.label} description={s.description}>
-              {config.type === 'textarea' ? (
-                <Textarea
-                  value={settings[s.key] || ''}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                  className="bg-secondary border-border min-h-[72px] text-sm"
-                  spellCheck={true}
-                />
-              ) : (
-                <Input
-                  type={config.type === 'number' ? 'number' : 'text'}
-                  value={settings[s.key] || ''}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                  className="bg-secondary border-border h-9"
-                />
-              )}
-            </CompactSettingRow>
-          )
-        })}
+      <div className="rounded-xl border border-border bg-card/30 overflow-hidden max-w-3xl">
+        <button
+          type="button"
+          className="relative flex w-full items-start gap-2 pl-4 pr-10 py-3 text-left hover:bg-card/60 transition-colors"
+          onClick={() => setGeneralOpen((v) => !v)}
+        >
+          <Settings className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold leading-tight">General platform settings</div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed pr-1">
+              Group size, payment deadline, platform fee
+            </p>
+          </div>
+          <ChevronRight
+            className={cn(
+              'absolute right-3 top-3 h-3.5 w-3.5 text-muted-foreground transition-transform',
+              generalOpen && 'rotate-90'
+            )}
+            aria-hidden
+          />
+        </button>
+        {generalOpen ? (
+          <div className="border-t border-border px-4 py-1 bg-card/20">
+            {generalSettings.map((s) => {
+              const config = SETTING_LABELS[s.key] || { label: s.key, type: 'text' as const }
+              if (config.type === 'json') {
+                return (
+                  <div key={s.key} className="py-3 space-y-2 border-b border-border/50 last:border-0">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Settings className="h-3.5 w-3.5 text-primary" />
+                      {config.label}
+                    </label>
+                    {s.description ? (
+                      <p className="text-xs text-muted-foreground">{s.description}</p>
+                    ) : null}
+                    <Textarea
+                      value={settings[s.key] || ''}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                      className="bg-secondary border-border max-w-xl min-h-[140px] font-mono text-xs"
+                      spellCheck={false}
+                    />
+                  </div>
+                )
+              }
+              return (
+                <CompactSettingRow key={s.key} label={config.label} description={s.description}>
+                  {config.type === 'textarea' ? (
+                    <Textarea
+                      value={settings[s.key] || ''}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                      className="bg-secondary border-border min-h-[72px] text-sm"
+                      spellCheck={true}
+                    />
+                  ) : (
+                    <Input
+                      type={config.type === 'number' ? 'number' : 'text'}
+                      value={settings[s.key] || ''}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                      className="bg-secondary border-border h-9"
+                    />
+                  )}
+                </CompactSettingRow>
+              )
+            })}
+          </div>
+        ) : null}
       </div>
 
-      <div className="rounded-xl border border-border bg-card/40 p-4 space-y-4 max-w-3xl">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Share2 className="h-4 w-4 text-primary shrink-0" />
-          Profile share poster
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Native share sheet uses the title and message below. Placeholders:{' '}
-          <code className="text-[11px] bg-muted/80 px-1 rounded">{'{displayName}'}</code>,{' '}
-          <code className="text-[11px] bg-muted/80 px-1 rounded">{'{profileUrl}'}</code>. Footer
-          tagline is shown on the poster image only.
-        </p>
-        <div className="space-y-3">
-          {SHARE_POSTER_ORDER.map((key) => {
-            const row = initialSettings.find((x) => x.key === key)
-            const config = SETTING_LABELS[key]!
-            const description = row?.description ?? null
-            return (
-              <div key={key} className="space-y-1.5">
-                <label className="text-sm font-medium">{config.label}</label>
-                {description ? (
-                  <p className="text-xs text-muted-foreground leading-snug">{description}</p>
-                ) : null}
-                {config.type === 'textarea' ? (
-                  <Textarea
-                    value={settings[key] || ''}
-                    onChange={(e) => setSettings((prev) => ({ ...prev, [key]: e.target.value }))}
-                    className="bg-secondary border-border min-h-[72px] text-sm max-w-xl"
-                    spellCheck={true}
-                  />
-                ) : (
-                  <Input
-                    value={settings[key] || ''}
-                    onChange={(e) => setSettings((prev) => ({ ...prev, [key]: e.target.value }))}
-                    className="bg-secondary border-border h-9 max-w-xl"
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
+      <div className="rounded-xl border border-border bg-card/40 overflow-hidden max-w-3xl">
+        <button
+          type="button"
+          className="relative flex w-full items-start gap-2 pl-4 pr-10 py-3 text-left hover:bg-card/50 transition-colors"
+          onClick={() => setShareSectionOpen((v) => !v)}
+        >
+          <Share2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold leading-tight">Profile share poster</div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed pr-1">
+              Native share title, message, and poster footer
+            </p>
+          </div>
+          <ChevronRight
+            className={cn(
+              'absolute right-3 top-3 h-3.5 w-3.5 text-muted-foreground transition-transform',
+              shareSectionOpen && 'rotate-90'
+            )}
+            aria-hidden
+          />
+        </button>
+        {shareSectionOpen ? (
+          <div className="border-t border-border px-4 py-4 space-y-4 bg-card/20">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Tokens are replaced when someone shares <strong className="text-foreground">their</strong> poster — you
+              don’t need a real URL here. Use the buttons to insert at the cursor.
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed border-border/80 bg-muted/20 px-2 py-2">
+              <span className="text-[10px] font-medium text-muted-foreground w-full sm:w-auto">Insert at cursor:</span>
+              {SHARE_PLACEHOLDERS.map((p) => (
+                <button
+                  key={p.token}
+                  type="button"
+                  title={p.hint}
+                  className="text-[11px] font-mono px-2 py-1 rounded-md border border-border bg-secondary/80 hover:bg-secondary text-foreground"
+                  onClick={() => {
+                    const ae = document.activeElement
+                    const field =
+                      ae?.id === 'admin-share-poster-title'
+                        ? 'share_poster_share_title'
+                        : ae?.id === 'admin-share-poster-text'
+                          ? 'share_poster_share_text'
+                          : 'share_poster_share_text'
+                    insertShareToken(field, p.token)
+                  }}
+                >
+                  {p.token}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-4">
+              {SHARE_POSTER_ORDER.map((key) => {
+                const row = initialSettings.find((x) => x.key === key)
+                const config = SETTING_LABELS[key]!
+                const description = row?.description ?? null
+                const showTokens = key === 'share_poster_share_title' || key === 'share_poster_share_text'
+                return (
+                  <div key={key} className="space-y-1.5">
+                    <label className="text-sm font-medium">{config.label}</label>
+                    {description ? (
+                      <p className="text-xs text-muted-foreground leading-snug">{description}</p>
+                    ) : null}
+                    {config.type === 'textarea' ? (
+                      <Textarea
+                        id={key === 'share_poster_share_text' ? 'admin-share-poster-text' : undefined}
+                        value={settings[key] || ''}
+                        onChange={(e) => setSettings((prev) => ({ ...prev, [key]: e.target.value }))}
+                        className="bg-secondary border-border min-h-[72px] text-sm max-w-xl"
+                        spellCheck={true}
+                      />
+                    ) : (
+                      <Input
+                        id={key === 'share_poster_share_title' ? 'admin-share-poster-title' : undefined}
+                        value={settings[key] || ''}
+                        onChange={(e) => setSettings((prev) => ({ ...prev, [key]: e.target.value }))}
+                        className="bg-secondary border-border h-9 max-w-xl"
+                      />
+                    )}
+                    {showTokens ? (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {SHARE_PLACEHOLDERS.map((p) => (
+                          <button
+                            key={`${key}-${p.token}`}
+                            type="button"
+                            title={p.hint}
+                            className="text-[10px] text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                            onClick={() =>
+                              insertShareToken(
+                                key as 'share_poster_share_title' | 'share_poster_share_text',
+                                p.token
+                              )
+                            }
+                          >
+                            + {p.token}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-3 max-w-3xl">

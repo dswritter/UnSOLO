@@ -8,6 +8,8 @@ import { Share2, Loader2, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { IndiaStatesMap } from '@/components/profile/IndiaStatesMap'
 import { leaderboardMedalEmoji } from '@/components/leaderboard/RankDisplay'
+import { ACHIEVEMENTS } from '@/types'
+import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 
 export type ProfileSharePosterTrip = {
   title: string
@@ -38,6 +40,8 @@ export type ProfileSharePosterProps = {
   shareTitleTemplate?: string
   /** From `platform_settings.share_poster_share_text`; placeholders `{displayName}`, `{profileUrl}` */
   shareTextTemplate?: string
+  /** Achievement keys earned by this user (for poster badges grid). */
+  earnedAchievementKeys?: string[]
 }
 
 const DEFAULT_SHARE_TITLE_TEMPLATE = '{displayName} on UnSOLO'
@@ -140,6 +144,7 @@ function StatRow({
 
 function PosterBody({ props, aspect }: { props: ProfileSharePosterProps; aspect: PosterAspect }) {
   const s = scaleForAspect(aspect)
+  const earnedKeys = props.earnedAchievementKeys ?? []
   const avatarSize = Math.round(260 * s)
   const mapColW = Math.round(
     (aspect === 'feed' ? 340 * s : 400 * s) * POSTER_MAP_SCALE,
@@ -208,6 +213,7 @@ function PosterBody({ props, aspect }: { props: ProfileSharePosterProps; aspect:
             border: `${Math.max(4, 5 * s)}px solid rgba(202, 138, 4, 0.45)`,
             boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
             background: 'linear-gradient(145deg, #fef3c7, #fde68a)',
+            transform: `translate(${14 * s}px, ${-14 * s}px)`,
           }}
         >
           {props.avatarUrl ? (
@@ -279,12 +285,64 @@ function PosterBody({ props, aspect }: { props: ProfileSharePosterProps; aspect:
             <div style={{ paddingTop: 4 * s, borderBottom: 'none' }} />
           </div>
         </div>
-        <div style={{ flex: '0 0 auto', width: mapColW, paddingTop: 4 * s }}>{mapBlock}</div>
+        <div style={{ flex: '0 0 auto', width: mapColW, paddingTop: 22 * s, alignSelf: 'stretch' }}>
+          {mapBlock}
+        </div>
       </div>
 
       <p
         style={{
-          margin: `${28 * s}px 0 ${12 * s}px`,
+          margin: `${18 * s}px 0 ${10 * s}px`,
+          fontSize: 22 * s,
+          fontWeight: 800,
+          color: '#57534e',
+        }}
+      >
+        Badges
+      </p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: `${10 * s}px`,
+          marginBottom: `${8 * s}px`,
+        }}
+      >
+        {ACHIEVEMENTS.slice(0, aspect === 'feed' ? 6 : 8).map((a) => {
+          const earned = earnedKeys.includes(a.key)
+          return (
+            <div
+              key={a.key}
+              style={{
+                borderRadius: 12,
+                border: earned ? '2px solid rgba(202, 138, 4, 0.45)' : '1px solid rgba(120, 113, 108, 0.35)',
+                background: earned ? 'rgba(254, 243, 199, 0.55)' : 'rgba(255,255,255,0.35)',
+                padding: `${10 * s}px ${8 * s}px`,
+                textAlign: 'center',
+                opacity: earned ? 1 : 0.5,
+              }}
+            >
+              <div style={{ fontSize: 30 * s, lineHeight: 1.15, marginBottom: 4 * s }}>
+                {earned ? a.icon : '\u{1F512}'}
+              </div>
+              <div
+                style={{
+                  fontSize: 20 * s,
+                  fontWeight: 800,
+                  color: '#44403c',
+                  lineHeight: 1.2,
+                }}
+              >
+                {a.name}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <p
+        style={{
+          margin: `${20 * s}px 0 ${12 * s}px`,
           fontSize: 22 * s,
           fontWeight: 800,
           color: '#57534e',
@@ -388,14 +446,34 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const propsRef = useRef(props)
   propsRef.current = props
+  const posterPrimedRef = useRef(false)
+  const primeCancelRef = useRef(false)
 
   const [busy, setBusy] = useState(false)
+  const [preparingPoster, setPreparingPoster] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
   const [posterPortalReady, setPosterPortalReady] = useState(false)
 
   useEffect(() => {
     setPosterPortalReady(true)
+  }, [])
+
+  const primePosterAssets = useCallback(async () => {
+    const p = propsRef.current
+    await new Promise<void>((resolve) => {
+      if (!p.avatarUrl) {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        return
+      }
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.referrerPolicy = 'no-referrer'
+      img.onload = () => resolve()
+      img.onerror = () => resolve()
+      img.src = p.avatarUrl
+    })
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
   }, [])
 
   const positionShareMenu = useCallback(() => {
@@ -570,23 +648,78 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         )
       : null
 
+  const handleShareButtonClick = useCallback(async () => {
+    if (busy || preparingPoster) return
+    if (posterPrimedRef.current) {
+      setPanelOpen((o) => !o)
+      return
+    }
+    primeCancelRef.current = false
+    setPreparingPoster(true)
+    try {
+      await primePosterAssets()
+      if (primeCancelRef.current) return
+      posterPrimedRef.current = true
+      setPanelOpen(true)
+    } finally {
+      setPreparingPoster(false)
+    }
+  }, [busy, preparingPoster, primePosterAssets])
+
+  const cancelPosterPrep = useCallback(() => {
+    primeCancelRef.current = true
+    setPreparingPoster(false)
+  }, [])
+
+  const p = props
+
   return (
     <>
+      <ImageUploadOverlay
+        open={preparingPoster}
+        message="Getting your poster ready…"
+        subMessage="Preparing your stats, map, and badges for sharing."
+        onCancel={cancelPosterPrep}
+        className="z-[600]"
+        backdropClassName="backdrop-blur-md bg-black/60"
+      >
+        <div className="rounded-lg border border-border/80 bg-secondary/25 px-3 py-2.5 text-[11px] text-muted-foreground space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+            Your stats
+          </p>
+          <div className="flex justify-between gap-4">
+            <span>Trips</span>
+            <span className="font-mono tabular-nums text-foreground font-medium">{p.tripsStatHidden ? '—' : p.trips}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>States</span>
+            <span className="font-mono tabular-nums text-foreground font-medium">{p.statesStatHidden ? '—' : p.states}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span>Score</span>
+            <span className="font-mono tabular-nums text-foreground font-medium">{p.score}</span>
+          </div>
+        </div>
+      </ImageUploadOverlay>
       <span className="relative inline-flex shrink-0 align-top">
         <div className="relative" ref={panelRef}>
           <Button
             type="button"
             variant="outline"
             size="sm"
-            disabled={busy}
+            disabled={busy || preparingPoster}
             className="border-border gap-1.5 min-w-[7.5rem]"
-            onClick={() => setPanelOpen((o) => !o)}
+            onClick={() => void handleShareButtonClick()}
           >
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Share2 className="h-3.5 w-3.5" />}
+            {busy || preparingPoster ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Share2 className="h-3.5 w-3.5" />
+            )}
             Share
             <ChevronDown className="h-3.5 w-3.5 opacity-70" />
           </Button>
-          {panelOpen && !busy ? (
+          {panelOpen && !busy && !preparingPoster ? (
             <div
               ref={menuRef}
               role="menu"

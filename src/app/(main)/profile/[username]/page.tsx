@@ -310,6 +310,7 @@ export default async function ProfilePage({
                     footerTagline={sharePosterFooterTagline}
                     shareTitleTemplate={sharePosterShareTitle}
                     shareTextTemplate={sharePosterShareText}
+                    earnedAchievementKeys={[...earnedKeys]}
                   />
                   {isOwnProfile ? (
                     <Button variant="outline" size="sm" className="border-border" asChild>
