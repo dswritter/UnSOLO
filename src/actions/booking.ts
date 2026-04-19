@@ -513,12 +513,61 @@ async function runPostConfirmationPipeline(
   }
 }
 
+async function notifyTokenBalanceDue(
+  supabase: SupabaseServer,
+  user: { id: string; email?: string | null },
+  booking: {
+    id: string
+    travel_date: string
+    total_amount_paise: number
+    package?: unknown
+  },
+  depositAfterPayment: number,
+) {
+  const balance = booking.total_amount_paise - depositAfterPayment
+  if (balance <= 0) return
+  const fmt = (p: number) => '₹' + (p / 100).toLocaleString('en-IN')
+  const pkgTitle = (booking.package as { title?: string } | null)?.title || 'your trip'
+  try {
+    await supabase.from('notifications').insert({
+      user_id: user.id,
+      type: 'booking',
+      title: 'Complete your trip payment',
+      body: `You secured your spot with a token. ${fmt(balance)} remaining for ${pkgTitle} — pay from My Trips before your trip.`,
+      link: '/bookings',
+    })
+  } catch {
+    /* non-critical */
+  }
+  const email = user.email
+  if (!email?.trim()) return
+  try {
+    const { sendTokenBalanceDueEmail } = await import('@/lib/resend/emails')
+    const { APP_URL } = await import('@/lib/constants')
+    await sendTokenBalanceDueEmail({
+      to: email.trim(),
+      tripTitle: pkgTitle,
+      balancePaise: balance,
+      travelDateIso: booking.travel_date,
+      bookingsUrl: `${APP_URL}/bookings`,
+    })
+  } catch {
+    /* non-critical */
+  }
+}
+
 export async function createRazorpayOrder(
   packageId: string,
   travelDate: string,
   guests: number,
   useWalletCredits: boolean = false,
-  options?: { priceVariantIndex?: number; groupBookingId?: string; promoCode?: string },
+  options?: {
+    priceVariantIndex?: number
+    groupBookingId?: string
+    promoCode?: string
+    /** On token_to_book trips: charge full trip total now instead of host token slice */
+    payFullAmountForTokenTrip?: boolean
+  },
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -670,7 +719,9 @@ export async function createRazorpayOrder(
     if (tokenPaiseFromHost < RAZORPAY_MIN_PAISE || tokenPaiseFromHost > perPersonPaise) {
       return { error: 'This trip has an invalid token amount. Please contact support.' }
     }
-    firstPaymentCap = Math.min(tokenPaiseFromHost * guests, afterDiscounts)
+    if (!options?.payFullAmountForTokenTrip) {
+      firstPaymentCap = Math.min(tokenPaiseFromHost * guests, afterDiscounts)
+    }
   }
 
   const { data: userProfileWallet } = await supabase
@@ -722,6 +773,7 @@ export async function createRazorpayOrder(
 
     if (firstPaymentCap != null && !fullyPaidInstant) {
       await runPartialTokenFirstPaymentEffects(supabase, user.id, booking as never, confirmationCode)
+      await notifyTokenBalanceDue(supabase, user, booking as never, depositPaiseInstant)
     } else {
       await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
     }
@@ -853,6 +905,7 @@ export async function confirmPayment(
 
   if (wasDeposit === 0 && !fullyPaid) {
     await runPartialTokenFirstPaymentEffects(supabase, user.id, booking as never, confirmationCode)
+    await notifyTokenBalanceDue(supabase, user, booking as never, newDeposit)
   } else if (wasDeposit === 0 && fullyPaid) {
     await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
   } else if (wasDeposit > 0 && fullyPaid) {

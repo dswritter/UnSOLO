@@ -99,6 +99,97 @@ export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedE
   }
 }
 
+// ── Token booking: balance due (after partial payment) ───────
+
+export interface TokenBalanceEmailInput {
+  to: string
+  tripTitle: string
+  balancePaise: number
+  travelDateIso: string
+  bookingsUrl: string
+}
+
+function formatInrPaise(paise: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(paise / 100)
+}
+
+function formatTripDate(iso: string): string {
+  try {
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+  } catch {
+    return iso
+  }
+}
+
+/** Sent right after a traveler pays only the token amount */
+export async function sendTokenBalanceDueEmail(details: TokenBalanceEmailInput) {
+  const { to, tripTitle, balancePaise, travelDateIso, bookingsUrl } = details
+  const safeTitle = escapeHtml(tripTitle)
+  const balanceStr = formatInrPaise(balancePaise)
+  const depart = escapeHtml(formatTripDate(travelDateIso))
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Complete payment for ${tripTitle}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #FFAA00; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color: #FFAA00; text-align: center;">Balance remaining</h2>
+        <p style="color: #ddd; text-align: center; line-height: 1.5;">
+          You paid <strong style="color: #fff;">${safeTitle}</strong> with a token. Pay the remaining <strong style="color: #FFAA00;">${balanceStr}</strong> before your trip departs (starts <strong>${depart}</strong>).
+        </p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${safeUrl}" style="display: inline-block; background: #FFAA00; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">Open My Trips &amp; pay</a>
+        </div>
+        <p style="color: #888; font-size: 12px; text-align: center;">You’ll also see a reminder in the UnSOLO app.</p>
+        <p style="color: #888; font-size: 12px; margin-top: 32px; text-align: center;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
+/** Sent by cron ~7 days before departure if balance is still unpaid */
+export async function sendTokenBalanceReminderEmail(details: TokenBalanceEmailInput) {
+  const { to, tripTitle, balancePaise, travelDateIso, bookingsUrl } = details
+  const safeTitle = escapeHtml(tripTitle)
+  const balanceStr = formatInrPaise(balancePaise)
+  const depart = escapeHtml(formatTripDate(travelDateIso))
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Reminder: ${balanceStr} due for ${tripTitle}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #FFAA00; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color: #FFAA00; text-align: center;">Trip coming up</h2>
+        <p style="color: #ddd; text-align: center; line-height: 1.5;">
+          Your trip <strong style="color: #fff;">${safeTitle}</strong> starts <strong>${depart}</strong>. You still have <strong style="color: #FFAA00;">${balanceStr}</strong> to pay. Complete payment before departure.
+        </p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${safeUrl}" style="display: inline-block; background: #FFAA00; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">Pay balance in My Trips</a>
+        </div>
+        <p style="color: #888; font-size: 12px; text-align: center;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
 interface CustomRequestDetails {
   packageTitle: string
   requestedDate: string

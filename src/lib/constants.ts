@@ -36,6 +36,9 @@ export const PLATFORM_FEE_PERCENT = DEFAULT_PLATFORM_FEE_PERCENT
 /** Hours a traveler has to complete payment after host approval */
 export const JOIN_PAYMENT_DEADLINE_HOURS = 48
 
+/** Days before departure to send token-balance email + in-app reminder (cron) */
+export const TOKEN_BALANCE_REMINDER_DAYS_BEFORE = 7
+
 /** Max OTP send attempts per rolling hour (per user); enforced server-side */
 export const MAX_OTP_PER_HOUR = 8
 

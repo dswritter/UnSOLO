@@ -112,6 +112,8 @@ export function BookingFormClient({
   const [friendSearching, setFriendSearching] = useState(false)
   const [addedFriends, setAddedFriends] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
+  /** token_to_book only: pay host token slice now vs full trip now */
+  const [tokenPayMode, setTokenPayMode] = useState<'token' | 'full'>('token')
 
   const perPersonForBooking = variantTiers?.length
     ? variantTiers[selectedVariantIndex].price_paise
@@ -211,6 +213,13 @@ export function BookingFormClient({
     tokenBooking && tokenBooking.tokenAmountPaisePerPerson > 0
       ? Math.min(tokenBooking.tokenAmountPaisePerPerson * guests, tripTotalAfterDiscounts)
       : null
+  const needsTokenVsFullChoice =
+    !!tokenBooking &&
+    tokenFirstSlicePaise != null &&
+    tokenFirstSlicePaise < tripTotalAfterDiscounts
+  const payFullForTokenTrip = needsTokenVsFullChoice && tokenPayMode === 'full'
+  const dueNowDisplayPaise = payFullForTokenTrip ? tripTotalAfterDiscounts : tokenFirstSlicePaise ?? tripTotalAfterDiscounts
+  const balanceLaterDisplayPaise = Math.max(0, tripTotalAfterDiscounts - dueNowDisplayPaise)
   // Tomorrow is the earliest bookable date (not today)
   const tomorrow = new Date()
   tomorrow.setDate(tomorrow.getDate() + 1)
@@ -243,6 +252,7 @@ export function BookingFormClient({
         {
           ...(variantTiers ? { priceVariantIndex: selectedVariantIndex } : {}),
           ...(promoDiscount > 0 && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
+          ...(payFullForTokenTrip ? { payFullAmountForTokenTrip: true } : {}),
         },
       )
 
@@ -675,6 +685,46 @@ export function BookingFormClient({
             )}
           </div>
 
+          {needsTokenVsFullChoice && (
+            <div className="rounded-lg border border-border bg-secondary/30 p-2.5 space-y-2">
+              <p className="text-[11px] font-medium text-muted-foreground px-0.5">Payment today</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <label
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors ${
+                    tokenPayMode === 'token'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-transparent bg-background/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="token-pay-mode"
+                    className="accent-primary h-3.5 w-3.5 shrink-0"
+                    checked={tokenPayMode === 'token'}
+                    onChange={() => setTokenPayMode('token')}
+                  />
+                  <span className="leading-tight">Pay token</span>
+                </label>
+                <label
+                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition-colors ${
+                    tokenPayMode === 'full'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-transparent bg-background/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="token-pay-mode"
+                    className="accent-primary h-3.5 w-3.5 shrink-0"
+                    checked={tokenPayMode === 'full'}
+                    onChange={() => setTokenPayMode('full')}
+                  />
+                  <span className="leading-tight">Pay full amount</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Price breakdown */}
           <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
             <div className="flex justify-between text-muted-foreground">
@@ -691,16 +741,18 @@ export function BookingFormClient({
               <span>Trip total</span>
               <span className="text-primary">{formatPrice(tripTotalAfterDiscounts)}</span>
             </div>
-            {tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts && (
+            {needsTokenVsFullChoice && (
               <>
                 <div className="flex justify-between text-xs text-amber-600/95 dark:text-amber-400/95 pt-1">
-                  <span>Due now (token, max)</span>
-                  <span>{formatPrice(tokenFirstSlicePaise)}</span>
+                  <span>{payFullForTokenTrip ? 'Due now' : 'Due now (token, max)'}</span>
+                  <span>{formatPrice(dueNowDisplayPaise)}</span>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Balance later (My Trips)</span>
-                  <span>{formatPrice(tripTotalAfterDiscounts - tokenFirstSlicePaise)}</span>
-                </div>
+                {balanceLaterDisplayPaise > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Balance later (My Trips)</span>
+                    <span>{formatPrice(balanceLaterDisplayPaise)}</span>
+                  </div>
+                )}
               </>
             )}
             {tokenFirstSlicePaise != null && tokenFirstSlicePaise >= tripTotalAfterDiscounts && (
@@ -711,10 +763,15 @@ export function BookingFormClient({
             )}
           </div>
 
-          {tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts && (
+          {needsTokenVsFullChoice && tokenPayMode === 'token' && (
             <div className="p-3 rounded-lg border border-primary/25 bg-primary/5 text-xs text-muted-foreground">
               The host set a <span className="font-semibold text-foreground">token</span> to lock your spot. Wallet
               credits and promos apply to the trip total; the first charge is capped at the token slice above.
+            </div>
+          )}
+          {needsTokenVsFullChoice && tokenPayMode === 'full' && (
+            <div className="p-3 rounded-lg border border-border bg-secondary/40 text-xs text-muted-foreground">
+              You’ll pay the full trip total in one checkout (after discounts and any credits you apply).
             </div>
           )}
 
@@ -726,9 +783,11 @@ export function BookingFormClient({
           >
             {loading
               ? 'Processing...'
-              : tokenFirstSlicePaise != null && tokenFirstSlicePaise < tripTotalAfterDiscounts
-                ? 'Pay token & book'
-                : 'Book This Trip'}
+              : !tokenBooking
+                ? 'Book This Trip'
+                : needsTokenVsFullChoice && tokenPayMode === 'token'
+                  ? 'Pay token & book'
+                  : 'Pay and book'}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">

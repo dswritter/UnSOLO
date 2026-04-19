@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { PENDING_BOOKING_EXPIRY_HOURS, GROUP_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
+import {
+  PENDING_BOOKING_EXPIRY_HOURS,
+  GROUP_PAYMENT_DEADLINE_HOURS,
+  TOKEN_BALANCE_REMINDER_DAYS_BEFORE,
+  APP_URL,
+} from '@/lib/constants'
 import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
+import { sendTokenBalanceReminderEmail } from '@/lib/resend/emails'
 
 export async function POST(request: Request) {
   // Protect with secret
@@ -16,7 +22,14 @@ export async function POST(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const results = { staleBookings: 0, expiredGroups: 0, refundsQueued: 0, reviewReminders: 0, statusStoriesPurged: 0 }
+  const results = {
+    staleBookings: 0,
+    expiredGroups: 0,
+    refundsQueued: 0,
+    reviewReminders: 0,
+    statusStoriesPurged: 0,
+    tokenBalanceReminders: 0,
+  }
 
   try {
     await supabase.from('status_stories').delete().lt('expires_at', new Date().toISOString())
@@ -207,6 +220,57 @@ export async function POST(request: Request) {
 
         results.reviewReminders++
       }
+    }
+
+    // 4. Token bookings: reminder 7 days before departure if balance unpaid
+    const remindDay = new Date()
+    remindDay.setDate(remindDay.getDate() + TOKEN_BALANCE_REMINDER_DAYS_BEFORE)
+    const remindDateStr = remindDay.toISOString().split('T')[0]
+
+    const { data: tokenBalanceRows } = await supabase
+      .from('bookings')
+      .select(
+        'id, user_id, total_amount_paise, deposit_paise, travel_date, package:packages(title, slug, host_id, join_preferences)',
+      )
+      .eq('status', 'confirmed')
+      .eq('travel_date', remindDateStr)
+
+    for (const b of tokenBalanceRows || []) {
+      const pkg = b.package as unknown as {
+        title: string
+        host_id: string | null
+        join_preferences: { payment_timing?: string } | null
+      } | null
+      if (!pkg?.host_id) continue
+      if (pkg.join_preferences?.payment_timing !== 'token_to_book') continue
+      const paid = b.deposit_paise || 0
+      if (paid >= b.total_amount_paise) continue
+      const balance = b.total_amount_paise - paid
+
+      await supabase.from('notifications').insert({
+        user_id: b.user_id,
+        type: 'booking',
+        title: 'Complete your trip payment',
+        body: `Your trip "${pkg.title}" starts in ${TOKEN_BALANCE_REMINDER_DAYS_BEFORE} days. Pay ${(balance / 100).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })} from My Trips.`,
+        link: '/bookings',
+      })
+
+      try {
+        const { data: authData } = await supabase.auth.admin.getUserById(b.user_id)
+        const email = authData?.user?.email
+        if (email) {
+          await sendTokenBalanceReminderEmail({
+            to: email,
+            tripTitle: pkg.title,
+            balancePaise: balance,
+            travelDateIso: b.travel_date,
+            bookingsUrl: `${APP_URL}/bookings`,
+          })
+        }
+      } catch {
+        /* email optional */
+      }
+      results.tokenBalanceReminders++
     }
   } catch (err) {
     return NextResponse.json({ error: String(err), results }, { status: 500 })

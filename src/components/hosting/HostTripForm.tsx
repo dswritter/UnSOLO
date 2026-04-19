@@ -1644,52 +1644,82 @@ export function HostTripForm({
                 Optional filters for who can join your trip.
               </p>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Booking &amp; payment</label>
-                <p className="text-xs text-muted-foreground">
-                  Choose how travelers confirm and pay. This controls messaging on your trip page.
-                </p>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentTiming('after_host_approval')}
-                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
-                      paymentTiming === 'after_host_approval'
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span className="font-semibold block">Request first, pay after you approve</span>
-                    <span className="text-xs mt-1 block opacity-90">
-                      Travelers send a join request; they only pay once you approve (default).
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentTiming('pay_on_booking')}
-                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
-                      paymentTiming === 'pay_on_booking'
-                        ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    <span className="font-semibold block">Book &amp; pay immediately</span>
-                    <span className="text-xs mt-1 block opacity-90">
-                      Standard checkout: travelers pay the full amount when they book.
-                    </span>
-                  </button>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">Booking &amp; payment</label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This controls messaging and checkout on your trip page. Standard options are one pair; token booking
+                    is a separate model.
+                  </p>
+                </div>
+
+                {/* Standard: pick join-request flow OR immediate full payment (choose one) */}
+                <div className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Standard — pick one
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Either gate the trip with join requests, or let travelers book and pay the full amount right away.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTiming('after_host_approval')}
+                      className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                        paymentTiming === 'after_host_approval'
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-background/40 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span className="font-semibold block">Request first, pay after you approve</span>
+                      <span className="text-xs mt-1 block opacity-90">
+                        Travelers send a join request; they only pay once you approve (default).
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTiming('pay_on_booking')}
+                      className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                        paymentTiming === 'pay_on_booking'
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-background/40 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span className="font-semibold block">Book &amp; pay immediately</span>
+                      <span className="text-xs mt-1 block opacity-90">
+                        Open checkout: travelers pay the full amount when they book.
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative flex items-center gap-3 py-0.5">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">or</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {/* Independent: token deposit model (not mixed with the two above) */}
+                <div className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4 space-y-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Token deposit — separate option
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Use this instead of the standard pair above. Travelers pay a deposit per person to lock a spot; they
+                    settle the rest from My Trips, or can pay in full at checkout if they prefer.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setPaymentTiming('token_to_book')}
-                    className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                    className={`w-full rounded-lg border p-3 text-left text-sm transition-colors ${
                       paymentTiming === 'token_to_book'
                         ? 'border-primary bg-primary/10 text-foreground'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
+                        : 'border-border bg-background/40 text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <span className="font-semibold block">Token to book</span>
                     <span className="text-xs mt-1 block opacity-90">
-                      Travelers pay only your token amount per person now; they pay the balance later from My Trips.
+                      You set the token per person; UnSOLO handles balance reminders and checkout choices.
                     </span>
                   </button>
                 </div>
