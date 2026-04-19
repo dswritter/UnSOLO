@@ -123,9 +123,6 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold mb-1">Filters</h2>
-        {hasActiveFilters && (
-          <p className="text-xs text-muted-foreground">{resultCount} found</p>
-        )}
       </div>
 
       {isTripsTab ? (
