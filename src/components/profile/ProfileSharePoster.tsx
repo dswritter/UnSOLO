@@ -484,7 +484,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const propsRef = useRef(props)
   propsRef.current = props
-  const posterPrimedRef = useRef(false)
   const primeCancelRef = useRef(false)
 
   const [busy, setBusy] = useState(false)
@@ -681,21 +680,27 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
 
   const handleShareButtonClick = useCallback(async () => {
     if (busy || preparingPoster) return
-    if (posterPrimedRef.current) {
-      setPanelOpen((o) => !o)
+    if (panelOpen) {
+      setPanelOpen(false)
       return
     }
     primeCancelRef.current = false
-    setPreparingPoster(true)
+    flushSync(() => {
+      setPreparingPoster(true)
+    })
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+    const MIN_PREP_MS = 650
     try {
-      await primePosterAssets()
+      await Promise.all([
+        primePosterAssets(),
+        new Promise<void>((r) => setTimeout(r, MIN_PREP_MS)),
+      ])
       if (primeCancelRef.current) return
-      posterPrimedRef.current = true
       setPanelOpen(true)
     } finally {
       setPreparingPoster(false)
     }
-  }, [busy, preparingPoster, primePosterAssets])
+  }, [busy, preparingPoster, panelOpen, primePosterAssets])
 
   const cancelPosterPrep = useCallback(() => {
     primeCancelRef.current = true
@@ -707,7 +712,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     posterPortalReady && preparingPoster && typeof document !== 'undefined'
       ? createPortal(
           <div
-            className="fixed inset-0 z-[600] flex flex-col"
+            className="fixed inset-0 z-[9999] flex flex-col pointer-events-auto bg-zinc-950/90"
             role="dialog"
             aria-modal="true"
             aria-busy="true"
@@ -733,7 +738,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
               </div>
             </div>
             <div
-              className="absolute inset-0 bg-black/40 backdrop-blur-md pointer-events-none"
+              className="absolute inset-0 bg-black/55 backdrop-blur-xl pointer-events-auto"
               aria-hidden
             />
             <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center p-4">
