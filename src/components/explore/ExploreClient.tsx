@@ -7,7 +7,7 @@ import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Zap, Navigation, Heart } from 'lucide-react'
+import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock } from 'lucide-react'
 import { formatPrice, cn, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -25,7 +25,7 @@ const TABS: { id: TabType; label: string; icon: any }[] = [
   { id: 'trips', label: 'Trips', icon: Plane },
   { id: 'stays', label: 'Stays', icon: Home },
   { id: 'activities', label: 'Activities', icon: Compass },
-  { id: 'rentals', label: 'Rentals', icon: Zap },
+  { id: 'rentals', label: 'Rentals', icon: Key },
   { id: 'getting_around', label: 'Getting Around', icon: Navigation },
 ]
 

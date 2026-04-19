@@ -479,18 +479,19 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
         </>
       )}
 
-      {/* Clear filters button */}
-      <div className="mt-6 pt-4 border-t border-border">
-        <button
-          onClick={clearAllFilters}
-          disabled={isClearing}
-          className={cn(
-            'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
-            isClearing
-              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-          )}
-        >
+      {/* Clear filters button - only show when filters are active */}
+      {hasActiveFilters && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <button
+            onClick={clearAllFilters}
+            disabled={isClearing}
+            className={cn(
+              'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
+              isClearing
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+            )}
+          >
           {isClearing ? (
             <>
               <Check className="h-4 w-4" />
@@ -500,7 +501,8 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
             'Clear all filters'
           )}
         </button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
