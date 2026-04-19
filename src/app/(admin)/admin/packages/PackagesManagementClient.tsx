@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
-import { formatPrice, type Package, type Destination } from '@/types'
+import { useState, useTransition, useRef, useEffect } from 'react'
+import { formatPrice, type Package, type Destination, type JoinPreferences } from '@/types'
 import { maxInclusiveSpanDays, packageDurationFullLabel, packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import {
   hasTieredPricing,
@@ -9,14 +9,15 @@ import {
   priceVariantsFromFormRows,
   type PriceVariant,
 } from '@/lib/package-pricing'
-import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+import { INTEREST_TAGS, UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
-import { Plus, Eye, EyeOff, Star, MapPin, Edit2, X, Upload, Image as ImageIcon } from 'lucide-react'
+import { TripImageGridWithCover } from '@/components/ui/TripImageGridWithCover'
+import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users } from 'lucide-react'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
 interface IncludesOption {
@@ -51,6 +52,12 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     images: [] as string[],
     departureDates: [] as { departure: string; returnDate: string }[],
     is_featured: false,
+    join_payment_timing: 'after_host_approval' as 'after_host_approval' | 'pay_on_booking',
+    join_gender: 'all' as 'all' | 'men' | 'women',
+    join_min_trips: '',
+    join_min_age: '',
+    join_max_age: '',
+    join_interest_tags: [] as string[],
   })
 
   // Inline new destination
@@ -66,6 +73,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   const uploadAbortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
+  const packageFormRef = useRef<HTMLDivElement>(null)
 
   function resetForm() {
     setForm({
@@ -77,6 +85,12 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       return_time: 'morning' as 'morning' | 'evening',
       selectedIncludes: [], images: [],
       departureDates: [], is_featured: false,
+      join_payment_timing: 'after_host_approval',
+      join_gender: 'all',
+      join_min_trips: '',
+      join_min_age: '',
+      join_max_age: '',
+      join_interest_tags: [],
     })
     setEditingId(null)
     setShowForm(false)
@@ -115,10 +129,34 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         returnDate: (pkg.return_dates && pkg.return_dates[i]) || '',
       })),
       is_featured: pkg.is_featured,
+      join_payment_timing:
+        pkg.join_preferences?.payment_timing === 'pay_on_booking'
+          ? 'pay_on_booking'
+          : 'after_host_approval',
+      join_gender:
+        pkg.join_preferences?.gender_preference === 'men' ||
+        pkg.join_preferences?.gender_preference === 'women'
+          ? pkg.join_preferences.gender_preference
+          : 'all',
+      join_min_trips:
+        pkg.join_preferences?.min_trips_completed != null
+          ? String(pkg.join_preferences.min_trips_completed)
+          : '',
+      join_min_age: pkg.join_preferences?.min_age != null ? String(pkg.join_preferences.min_age) : '',
+      join_max_age: pkg.join_preferences?.max_age != null ? String(pkg.join_preferences.max_age) : '',
+      join_interest_tags: pkg.join_preferences?.interest_tags ? [...pkg.join_preferences.interest_tags] : [],
     })
     setEditingId(pkg.id)
     setShowForm(true)
   }
+
+  useEffect(() => {
+    if (!showForm) return
+    const t = window.setTimeout(() => {
+      packageFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => window.clearTimeout(t)
+  }, [showForm, editingId])
 
   function handleSubmit() {
     const singleOk =
@@ -156,6 +194,25 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       setMessage({ type: 'error', text: 'Enter valid trip days (≥1) and nights (≥0).' })
       return
     }
+
+    const join_preferences: JoinPreferences = {
+      payment_timing: form.join_payment_timing,
+    }
+    if (form.join_gender !== 'all') join_preferences.gender_preference = form.join_gender
+    if (form.join_min_trips.trim()) {
+      const m = parseInt(form.join_min_trips, 10)
+      if (Number.isFinite(m)) join_preferences.min_trips_completed = m
+    }
+    if (form.join_min_age.trim()) {
+      const a = parseInt(form.join_min_age, 10)
+      if (Number.isFinite(a)) join_preferences.min_age = a
+    }
+    if (form.join_max_age.trim()) {
+      const a = parseInt(form.join_max_age, 10)
+      if (Number.isFinite(a)) join_preferences.max_age = a
+    }
+    if (form.join_interest_tags.length > 0) join_preferences.interest_tags = [...form.join_interest_tags]
+
     if (!editingId && form.images.length === 0) {
       setMessage({ type: 'error', text: 'Please add at least one thumbnail image for the package.' })
       window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -206,6 +263,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       departure_dates: depRows.map(d => d.departure),
       return_dates: depRows.map(d => d.returnDate),
       is_featured: form.is_featured,
+      join_preferences,
     }
 
     startTransition(async () => {
@@ -298,6 +356,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         }
         const fd = new FormData()
         fd.append('file', file)
+        fd.append('purpose', 'package')
         try {
           const res = await fetch('/api/upload', { method: 'POST', body: fd, signal: ac.signal })
           const json = await res.json()
@@ -351,8 +410,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     setImageUrlInput('')
   }
 
-  function removeImage(idx: number) {
-    setForm(f => ({ ...f, images: f.images.filter((_, i) => i !== idx) }))
+  function toggleInterestTag(tag: string) {
+    setForm(f => ({
+      ...f,
+      join_interest_tags: f.join_interest_tags.includes(tag)
+        ? f.join_interest_tags.filter(t => t !== tag)
+        : [...f.join_interest_tags, tag],
+    }))
   }
 
   function addDepartureDate() {
@@ -399,10 +463,18 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
       {/* Package form */}
       {showForm && (
-        <div className="rounded-xl border border-border bg-card/50 p-5 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-lg">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
-            <button onClick={resetForm}><X className="h-4 w-4 text-muted-foreground" /></button>
+        <div
+          ref={packageFormRef}
+          className="rounded-xl border border-border bg-card p-6 space-y-6 shadow-sm"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="font-semibold text-lg text-foreground">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Aligned with the host trip form: pricing, descriptions, join rules, and gallery (cover = first image).</p>
+            </div>
+            <button type="button" onClick={resetForm} aria-label="Close form">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
 
           {/* Basic info */}
@@ -570,8 +642,142 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={5}
               placeholder="Detailed trip description (Markdown: **bold**, ## heading, - list)"
-              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-y min-h-[100px]"
+              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
             />
+          </div>
+
+          {/* Join preferences (parity with host trip form) */}
+          <div className="space-y-4 rounded-lg border border-border bg-secondary/20 p-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+              <Users className="h-4 w-4 text-primary shrink-0" /> Join preferences
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Booking flow and optional filters for who can request to join (same fields hosts use).
+            </p>
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-foreground">Booking &amp; payment</span>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, join_payment_timing: 'after_host_approval' }))}
+                  className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                    form.join_payment_timing === 'after_host_approval'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-zinc-700 bg-secondary/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span className="font-semibold block">Request first, pay after approval</span>
+                  <span className="text-xs mt-1 block opacity-90">Travelers send a join request; they pay after approval.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, join_payment_timing: 'pay_on_booking' }))}
+                  className={`rounded-lg border p-3 text-left text-sm transition-colors ${
+                    form.join_payment_timing === 'pay_on_booking'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-zinc-700 bg-secondary/40 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span className="font-semibold block">Book &amp; pay immediately</span>
+                  <span className="text-xs mt-1 block opacity-90">Standard checkout without a join-request step.</span>
+                </button>
+              </div>
+            </div>
+            {form.join_payment_timing === 'pay_on_booking' && (
+              <p className="text-xs text-amber-600/90 dark:text-amber-400/90">
+                Gender and min-trips filters apply when using request-first booking.
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Min trips completed</label>
+                <Input
+                  type="number"
+                  value={form.join_min_trips}
+                  onChange={e => setForm(f => ({ ...f, join_min_trips: e.target.value }))}
+                  placeholder="e.g. 1"
+                  className="bg-secondary border-zinc-700"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Gender preference</label>
+                <div className="flex gap-2">
+                  {(['all', 'men', 'women'] as const).map(g => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, join_gender: g }))}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs border transition-colors capitalize ${
+                        form.join_gender === g
+                          ? 'bg-primary/10 border-primary text-primary'
+                          : 'bg-secondary border-zinc-700 text-muted-foreground'
+                      }`}
+                    >
+                      {g === 'all' ? 'Everyone' : g === 'men' ? 'Men only' : 'Women only'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Min age</label>
+                <Input
+                  type="number"
+                  value={form.join_min_age}
+                  onChange={e => setForm(f => ({ ...f, join_min_age: e.target.value }))}
+                  placeholder="Optional"
+                  className="bg-secondary border-zinc-700"
+                  min={0}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Max age</label>
+                <Input
+                  type="number"
+                  value={form.join_max_age}
+                  onChange={e => setForm(f => ({ ...f, join_max_age: e.target.value }))}
+                  placeholder="Optional"
+                  className="bg-secondary border-zinc-700"
+                  min={0}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-2 block">Interest tags</label>
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_TAGS.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleInterestTag(tag)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                      form.join_interest_tags.includes(tag)
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-secondary border-zinc-700 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {form.join_interest_tags.includes(tag) && <Check className="h-3 w-3 inline mr-1" />}
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder="Custom tag — Enter"
+                  className="bg-secondary border-zinc-700 text-sm max-w-xs"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const val = (e.target as HTMLInputElement).value.trim()
+                      if (val && !form.join_interest_tags.includes(val)) {
+                        toggleInterestTag(val)
+                        ;(e.target as HTMLInputElement).value = ''
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
           </div>
 
           {/* What's Included — checkbox grid */}
@@ -611,27 +817,35 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             </div>
           </div>
 
-          {/* Images — upload + URL */}
+          {/* Images — upload + URL (cover = first image; right-click / long-press to change) */}
           <div>
             <label className="text-xs text-muted-foreground mb-2 block">
-              Images <span className="text-zinc-600">(Recommended: 1200×800px, max 5MB each, JPEG/PNG/WebP)</span>
+              Images <span className="text-zinc-600">(Recommended: 16:9, max 5MB each, JPEG/PNG/WebP)</span>
             </label>
+            {form.images.length >= 2 && (
+              <p className="text-xs text-muted-foreground mb-2">
+                First image is the cover. Right-click an image (desktop) or press and hold (mobile) on another image to make it the cover.
+              </p>
+            )}
 
-            {/* Current images */}
             {form.images.length > 0 && (
-              <div className="flex gap-2 flex-wrap mb-3">
-                {form.images.map((url, i) => (
-                  <div key={i} className="relative group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="h-20 w-28 rounded-lg object-cover border border-zinc-700" />
-                    <button
-                      onClick={() => removeImage(i)}
-                      className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+              <div className="flex gap-3 flex-wrap mb-3">
+                <TripImageGridWithCover
+                  images={form.images}
+                  onChange={next => setForm(f => ({ ...f, images: next }))}
+                  imgClassName="h-20 w-28 rounded-lg object-cover border border-zinc-700"
+                  removeButtonClassName="absolute -top-1.5 -right-1.5 z-10 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-20 w-28 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-zinc-600 bg-secondary/20 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+                  aria-label="Add image from device"
+                >
+                  <Plus className="h-6 w-6" />
+                  <span className="mt-1 text-[10px] font-medium">Add image</span>
+                </button>
               </div>
             )}
 

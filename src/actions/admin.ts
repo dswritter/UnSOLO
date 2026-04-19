@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import type { UserRole } from '@/types'
+import type { JoinPreferences, UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 
 // ── Audit Log ─────────────────────────────────────────────────
@@ -467,6 +467,7 @@ export async function createPackage(formData: {
   departure_dates: string[]
   return_dates: string[]
   is_featured: boolean
+  join_preferences?: JoinPreferences | null
 }) {
   const { supabase } = await requireAdmin()
 
@@ -509,6 +510,7 @@ export async function updatePackage(
     return_dates?: string[]
     is_featured?: boolean
     is_active?: boolean
+    join_preferences?: JoinPreferences | null
   },
 ) {
   const { supabase } = await requireAdmin()

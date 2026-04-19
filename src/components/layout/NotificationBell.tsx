@@ -190,7 +190,9 @@ export function NotificationBell({
                         </span>
                         <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
                       </div>
-                      {n.body && <p className="text-xs text-muted-foreground truncate mt-0.5">{n.body}</p>}
+                      {n.body && (
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3 break-words">{n.body}</p>
+                      )}
                     </div>
                     {!n.is_read && <span className="h-2 w-2 bg-primary rounded-full flex-shrink-0 mt-2" />}
                   </button>

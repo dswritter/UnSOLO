@@ -587,6 +587,16 @@ export async function approveJoinRequest(requestId: string) {
     .update({ status: 'approved', payment_deadline: deadline, updated_at: new Date().toISOString() })
     .eq('id', requestId)
 
+  const { data: hostProfile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const hostName =
+    (hostProfile?.full_name && hostProfile.full_name.trim()) ||
+    hostProfile?.username?.trim() ||
+    'Host'
+
   // Notify traveler
   const { createClient: createSC } = await import('@supabase/supabase-js')
   const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -595,7 +605,7 @@ export async function approveJoinRequest(requestId: string) {
     user_id: request.user_id,
     type: 'group_invite',
     title: 'Request Approved!',
-    body: `You&apos;ve been approved to join "${trip.title}". Complete payment within ${JOIN_PAYMENT_DEADLINE_HOURS} hours.`,
+    body: `${hostName} approved your request to join "${trip.title}". Complete payment within ${JOIN_PAYMENT_DEADLINE_HOURS} hours.`,
     link: `/packages/${trip.slug}`,
   })
 
