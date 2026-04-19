@@ -23,44 +23,40 @@ export function HostCreateDropdown() {
           <ChevronDown className="h-3.5 w-3.5 ml-1" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 bg-card border-border">
-        <DropdownMenuItem onClick={() => router.push('/host/create')}>
-          <div>
-            <div className="font-semibold text-sm">Trip</div>
-            <div className="text-xs text-muted-foreground">Create a multi-day trip experience</div>
-          </div>
+      <DropdownMenuContent align="end" className="w-56">
+        {/* Trip Option */}
+        <DropdownMenuItem onClick={() => router.push('/host/create')} className="flex flex-col items-start cursor-pointer">
+          <span className="font-semibold text-sm">Trip</span>
+          <span className="text-xs text-muted-foreground">Create a multi-day trip experience</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
-        <div className="px-2 py-2 text-xs font-semibold text-muted-foreground">Services</div>
+        {/* Services Header */}
+        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground select-none">Services</div>
 
-        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=stays')}>
-          <div>
-            <div className="font-semibold text-sm">Stays</div>
-            <div className="text-xs text-muted-foreground">List a property or room</div>
-          </div>
+        {/* Stays */}
+        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=stays')} className="flex flex-col items-start cursor-pointer">
+          <span className="font-semibold text-sm">Stays</span>
+          <span className="text-xs text-muted-foreground">List a property or room</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=activities')}>
-          <div>
-            <div className="font-semibold text-sm">Activities</div>
-            <div className="text-xs text-muted-foreground">Host guided tours or experiences</div>
-          </div>
+        {/* Activities */}
+        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=activities')} className="flex flex-col items-start cursor-pointer">
+          <span className="font-semibold text-sm">Activities</span>
+          <span className="text-xs text-muted-foreground">Host guided tours or experiences</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=rentals')}>
-          <div>
-            <div className="font-semibold text-sm">Rentals</div>
-            <div className="text-xs text-muted-foreground">Rent vehicles or equipment</div>
-          </div>
+        {/* Rentals */}
+        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=rentals')} className="flex flex-col items-start cursor-pointer">
+          <span className="font-semibold text-sm">Rentals</span>
+          <span className="text-xs text-muted-foreground">Rent vehicles or equipment</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=getting_around')}>
-          <div>
-            <div className="font-semibold text-sm">Getting Around</div>
-            <div className="text-xs text-muted-foreground">Offer transport services</div>
-          </div>
+        {/* Getting Around */}
+        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=getting_around')} className="flex flex-col items-start cursor-pointer">
+          <span className="font-semibold text-sm">Getting Around</span>
+          <span className="text-xs text-muted-foreground">Offer transport services</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

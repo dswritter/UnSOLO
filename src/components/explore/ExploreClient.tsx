@@ -7,7 +7,7 @@ import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck } from 'lucide-react'
+import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Zap, Navigation } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -17,12 +17,12 @@ import { ServiceListingCard } from './ServiceListingCard'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
-const TABS: { id: TabType; label: string; emoji: string }[] = [
-  { id: 'trips', label: 'Trips', emoji: '✈️' },
-  { id: 'stays', label: 'Stays', emoji: '🏠' },
-  { id: 'activities', label: 'Activities', emoji: '🎯' },
-  { id: 'rentals', label: 'Rentals', emoji: '🚗' },
-  { id: 'getting_around', label: 'Getting Around', emoji: '🚕' },
+const TABS: { id: TabType; label: string; icon: any }[] = [
+  { id: 'trips', label: 'Trips', icon: Plane },
+  { id: 'stays', label: 'Stays', icon: Home },
+  { id: 'activities', label: 'Activities', icon: Compass },
+  { id: 'rentals', label: 'Rentals', icon: Zap },
+  { id: 'getting_around', label: 'Getting Around', icon: Navigation },
 ]
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -79,20 +79,23 @@ export function ExploreClient({
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              <span>{tab.emoji}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+          {TABS.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
         </div>
 
         {/* Filters */}
