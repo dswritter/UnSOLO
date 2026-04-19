@@ -487,6 +487,13 @@ function delayAfterNativeShareResolves(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** Hand-triggered download confuses mobile flows (Chrome “download again?”); only use as fallback on desktop-ish UA. */
+function allowProgrammaticPosterDownloadFallback(): boolean {
+  if (typeof navigator === 'undefined') return true
+  const ua = navigator.userAgent || ''
+  return !/Android|iPhone|iPad|iPod/i.test(ua)
+}
+
 const MENU_PAD = 12
 const MENU_WIDTH_PX = 224 // ~14rem
 /** Ignore outside-close / Share re-clicks right after menu opens (mobile ghost clicks after overlay unmount). */
@@ -667,20 +674,23 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         }
 
         const file = new File([blob], filename, { type: 'image/png' })
-        const canTryShare =
+        const titleTpl = (p.shareTitleTemplate?.trim() || DEFAULT_SHARE_TITLE_TEMPLATE)
+        const textTpl = (p.shareTextTemplate?.trim() || DEFAULT_SHARE_TEXT_TEMPLATE)
+        const shareTitle = interpolateShareCopy(titleTpl, p.displayName, p.profileUrl)
+        const shareText = interpolateShareCopy(textTpl, p.displayName, p.profileUrl)
+
+        const preferNativeUi =
           !prefersPosterDownloadOverNativeShare() &&
           typeof navigator !== 'undefined' &&
-          typeof navigator.share === 'function' &&
-          (!navigator.canShare || navigator.canShare({ files: [file] }))
+          typeof navigator.share === 'function'
 
-        if (canTryShare) {
-          const titleTpl = (p.shareTitleTemplate?.trim() || DEFAULT_SHARE_TITLE_TEMPLATE)
-          const textTpl = (p.shareTextTemplate?.trim() || DEFAULT_SHARE_TEXT_TEMPLATE)
+        if (preferNativeUi) {
           try {
+            // Do not gate on canShare() — on Android Chrome it often lies false; share() may still work.
             await navigator.share({
               files: [file],
-              title: interpolateShareCopy(titleTpl, p.displayName, p.profileUrl),
-              text: interpolateShareCopy(textTpl, p.displayName, p.profileUrl),
+              title: shareTitle,
+              text: shareText,
             })
             await delayAfterNativeShareResolves()
             return
@@ -689,12 +699,34 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
             if (name === 'AbortError') {
               return
             }
-            console.warn('navigator.share failed, falling back to download', shareErr)
+            console.warn('navigator.share (files) failed, trying text-only', shareErr)
+          }
+          try {
+            await navigator.share({
+              title: shareTitle,
+              text: shareText,
+              url: p.profileUrl,
+            })
+            await delayAfterNativeShareResolves()
+            toast.message('Shared your profile link. If the image did not attach, try Share again in Chrome.')
+            return
+          } catch (textShareErr: unknown) {
+            const name = textShareErr instanceof Error ? textShareErr.name : ''
+            if (name === 'AbortError') {
+              return
+            }
+            console.warn('navigator.share (text) failed', textShareErr)
           }
         }
 
-        downloadPngBlob(blob, filename)
-        toast.success('Poster saved — open it from your downloads or gallery to post.')
+        if (prefersPosterDownloadOverNativeShare() || allowProgrammaticPosterDownloadFallback()) {
+          downloadPngBlob(blob, filename)
+          toast.success('Poster saved — open it from your downloads or gallery to post.')
+        } else {
+          toast.error(
+            'Could not open the share sheet from this browser. Open unsolo.in in Chrome, then try Share again.'
+          )
+        }
       } catch (e) {
         console.error(e)
         toast.error('Could not create poster. Try again in Safari or Chrome.')
