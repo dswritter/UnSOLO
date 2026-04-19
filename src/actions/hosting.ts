@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { APP_URL, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 import {
   minPricePaiseFromVariants,
@@ -597,11 +597,10 @@ export async function approveJoinRequest(requestId: string) {
     hostProfile?.username?.trim() ||
     'Host'
 
-  // Notify traveler
-  const { createClient: createSC } = await import('@supabase/supabase-js')
-  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+  // Notify traveler (service role for notifications + auth email lookup)
+  const serviceClient = await createServiceClient()
 
-  await svcSupabase.from('notifications').insert({
+  await serviceClient.from('notifications').insert({
     user_id: request.user_id,
     type: 'group_invite',
     title: 'Request Approved!',
@@ -609,10 +608,18 @@ export async function approveJoinRequest(requestId: string) {
     link: `/packages/${trip.slug}`,
   })
 
-  const { data: authTraveler } = await svcSupabase.auth.admin.getUserById(request.user_id)
-  const travelerEmail = authTraveler?.user?.email
-  if (travelerEmail) {
-    const { data: travelerProfile } = await svcSupabase
+  const { data: authTraveler, error: authTravelerError } = await serviceClient.auth.admin.getUserById(
+    request.user_id,
+  )
+  if (authTravelerError) {
+    console.error('approveJoinRequest getUserById:', authTravelerError.message)
+  }
+
+  const travelerEmail = authTraveler?.user?.email ?? undefined
+  if (!travelerEmail) {
+    console.warn('approveJoinRequest: no traveler email in auth for user', request.user_id)
+  } else {
+    const { data: travelerProfile } = await serviceClient
       .from('profiles')
       .select('full_name, username')
       .eq('id', request.user_id)

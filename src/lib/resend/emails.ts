@@ -40,13 +40,17 @@ export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedE
     paymentDeadlineLabel,
   } = details
 
+  if (!process.env.RESEND_API_KEY?.trim()) {
+    throw new Error('RESEND_API_KEY is not set')
+  }
+
   const greeting = (travelerName && travelerName.trim()) || 'there'
   const safeTitle = escapeHtml(tripTitle)
   const safeHost = escapeHtml(hostName)
   const safeDeadlineLabel = escapeHtml(paymentDeadlineLabel)
   const safeUrl = packageUrl.replace(/"/g, '&quot;')
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: travelerEmail,
     subject: `You're approved — complete payment for ${tripTitle}`,
@@ -81,6 +85,17 @@ export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedE
       </div>
     `,
   })
+
+  if (result.error) {
+    const msg =
+      typeof result.error === 'object' &&
+      result.error !== null &&
+      'message' in result.error &&
+      typeof (result.error as { message: unknown }).message === 'string'
+        ? (result.error as { message: string }).message
+        : JSON.stringify(result.error)
+    throw new Error(`Resend: ${msg}`)
+  }
 }
 
 interface CustomRequestDetails {
