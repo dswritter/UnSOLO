@@ -477,6 +477,8 @@ function prefersPosterDownloadOverNativeShare(): boolean {
 
 const MENU_PAD = 12
 const MENU_WIDTH_PX = 224 // ~14rem
+/** Ignore outside-close / Share re-clicks right after menu opens (mobile ghost clicks after overlay unmount). */
+const MENU_OPEN_GUARD_MS = 1200
 
 export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -485,6 +487,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const propsRef = useRef(props)
   propsRef.current = props
   const primeCancelRef = useRef(false)
+  const menuOpenGuardUntilRef = useRef(0)
 
   const [busy, setBusy] = useState(false)
   const [preparingPoster, setPreparingPoster] = useState(false)
@@ -546,6 +549,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
       left = MENU_PAD
     }
     menu.style.position = 'fixed'
+    menu.style.zIndex = '10050'
     menu.style.top = `${anchor.bottom + 4}px`
     menu.style.left = `${left}px`
     menu.style.right = 'auto'
@@ -566,13 +570,18 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
 
   useEffect(() => {
     if (!panelOpen) return
-    const onDocMouseDown = (e: MouseEvent) => {
+    const onDocPointerDown = (e: MouseEvent | TouchEvent) => {
       const t = e.target as Node | null
-      if (t && panelRef.current?.contains(t)) return
+      if (!t) return
+      if (menuRef.current?.contains(t) || panelRef.current?.contains(t)) return
       setPanelOpen(false)
     }
-    document.addEventListener('mousedown', onDocMouseDown, true)
-    return () => document.removeEventListener('mousedown', onDocMouseDown, true)
+    document.addEventListener('mousedown', onDocPointerDown, true)
+    document.addEventListener('touchstart', onDocPointerDown, true)
+    return () => {
+      document.removeEventListener('mousedown', onDocPointerDown, true)
+      document.removeEventListener('touchstart', onDocPointerDown, true)
+    }
   }, [panelOpen])
 
   const runCapture = useCallback(async (aspect: PosterAspect) => {
@@ -681,6 +690,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const handleShareButtonClick = useCallback(async () => {
     if (busy || preparingPoster) return
     if (panelOpen) {
+      if (Date.now() < menuOpenGuardUntilRef.current) return
       setPanelOpen(false)
       return
     }
@@ -696,6 +706,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         new Promise<void>((r) => setTimeout(r, MIN_PREP_MS)),
       ])
       if (primeCancelRef.current) return
+      menuOpenGuardUntilRef.current = Date.now() + MENU_OPEN_GUARD_MS
       setPanelOpen(true)
     } finally {
       setPreparingPoster(false)
@@ -788,9 +799,32 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         )
       : null
 
+  const shareMenuPortal =
+    panelOpen && !busy && !preparingPoster && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            className="z-[10050] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10 touch-manipulation"
+          >
+            <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Poster size
+            </p>
+            <button type="button" className={menuBtn} onClick={() => void runCapture('story')}>
+              Story 9:16
+            </button>
+            <button type="button" className={menuBtn} onClick={() => void runCapture('feed')}>
+              Feed 4:5
+            </button>
+          </div>,
+          document.body,
+        )
+      : null
+
   return (
     <>
       {posterPrepPortal}
+      {shareMenuPortal}
       <span className="relative inline-flex shrink-0 align-top">
         <div className="relative" ref={panelRef}>
           <Button
@@ -809,23 +843,6 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
             Share
             <ChevronDown className="h-3.5 w-3.5 opacity-70" />
           </Button>
-          {panelOpen && !busy && !preparingPoster ? (
-            <div
-              ref={menuRef}
-              role="menu"
-              className="z-[500] rounded-lg border border-border bg-card p-1 shadow-lg ring-1 ring-foreground/10 touch-manipulation"
-            >
-              <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Poster size
-              </p>
-              <button type="button" className={menuBtn} onClick={() => void runCapture('story')}>
-                Story 9:16
-              </button>
-              <button type="button" className={menuBtn} onClick={() => void runCapture('feed')}>
-                Feed 4:5
-              </button>
-            </div>
-          ) : null}
         </div>
       </span>
       {posterPortal}
