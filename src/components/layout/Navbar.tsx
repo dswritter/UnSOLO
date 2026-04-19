@@ -113,7 +113,7 @@ export function Navbar({ user }: NavbarProps) {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
+          <div className="hidden md:flex items-center gap-6">
             {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
               <Link
                 key={href}
@@ -133,7 +133,7 @@ export function Navbar({ user }: NavbarProps) {
           </div>
 
           {/* Search Bar - Desktop only */}
-          <div className="hidden md:flex">
+          <div className="hidden md:block w-56">
             <SearchBar />
           </div>
 
