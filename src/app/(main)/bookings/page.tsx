@@ -72,6 +72,14 @@ export default async function BookingsPage() {
     .eq('user_id', user.id)
 
   const reviewedBookingIds = new Set((reviews || []).map(r => r.booking_id))
+
+  // Check which bookings already have host ratings
+  const { data: hostRatings } = await supabase
+    .from('host_ratings')
+    .select('booking_id')
+    .eq('user_id', user.id)
+
+  const ratedHostBookingIds = new Set((hostRatings || []).map(r => r.booking_id))
   const bookings = (data || []) as Booking[]
 
   // Separate trip bookings from service bookings
@@ -214,6 +222,7 @@ export default async function BookingsPage() {
             bookings={tripBookings}
             serviceBookings={serviceBookings}
             reviewedBookingIds={Array.from(reviewedBookingIds)}
+            ratedHostBookingIds={Array.from(ratedHostBookingIds)}
             groupBookings={groupBookings}
             incompleteJoinTrips={incompleteJoinTrips}
             currentUserId={user.id}

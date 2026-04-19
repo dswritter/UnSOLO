@@ -32,6 +32,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Booking, JoinPreferences } from '@/types'
+import { HostRatingCard } from '@/components/hosting/HostRatingCard'
 import Script from 'next/script'
 
 function tripCalFromPackage(
@@ -90,6 +91,7 @@ interface Props {
   bookings: Booking[]
   serviceBookings?: Booking[]
   reviewedBookingIds: string[]
+  ratedHostBookingIds?: string[]
   groupBookings?: GroupBookingInfo[]
   incompleteJoinTrips?: IncompleteJoinTrip[]
   currentUserId?: string
@@ -99,6 +101,7 @@ export function BookingsClient({
   bookings,
   serviceBookings = [],
   reviewedBookingIds,
+  ratedHostBookingIds = [],
   groupBookings = [],
   incompleteJoinTrips = [],
   currentUserId,
@@ -106,6 +109,8 @@ export function BookingsClient({
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewed, setReviewed] = useState<Set<string>>(new Set(reviewedBookingIds))
+  const [ratedHosts, setRatedHosts] = useState<Set<string>>(new Set(ratedHostBookingIds))
+  const [ratingBookingId, setRatingBookingId] = useState<string | null>(null)
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
   const router = useRouter()
@@ -552,7 +557,43 @@ export function BookingsClient({
                   showReview={booking.status === 'completed' && !reviewed.has(booking.id)}
                   onReview={() => openReview(booking.id)}
                   hasReviewed={reviewed.has(booking.id)}
+                  showHostRating={booking.status === 'completed' && !!booking.package?.host_id && !ratedHosts.has(booking.id)}
+                  onRateHost={() => setRatingBookingId(booking.id)}
+                  hasRatedHost={ratedHosts.has(booking.id)}
+                  ratingOpen={ratingBookingId === booking.id}
+                  onRatingClose={() => setRatingBookingId(null)}
+                  onRatingSubmitted={() => {
+                    setRatedHosts(prev => new Set([...prev, booking.id]))
+                    setRatingBookingId(null)
+                  }}
                 />
+
+                {/* Host Rating Card */}
+                {ratingOpen && onRatingClose && onRatingSubmitted && (
+                  <div className="mt-2 ml-4" onClick={e => e.stopPropagation()}>
+                    <HostRatingCard
+                      hostName={pkg?.host?.full_name || pkg?.host?.username || 'Your host'}
+                      hostAvatar={pkg?.host?.avatar_url}
+                      bookingId={booking.id}
+                      onSubmit={async (rating, comment) => {
+                        const response = await fetch('/api/host-ratings', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            booking_id: booking.id,
+                            rating,
+                            comment: comment || null,
+                          }),
+                        })
+                        if (!response.ok) {
+                          throw new Error('Failed to submit rating')
+                        }
+                        onRatingSubmitted()
+                      }}
+                      onSkip={onRatingClose}
+                    />
+                  </div>
+                )}
 
                 {/* Review form */}
                 {reviewingId === booking.id && (
@@ -927,6 +968,12 @@ function BookingItem({
   showReview,
   onReview,
   hasReviewed,
+  showHostRating,
+  onRateHost,
+  hasRatedHost,
+  ratingOpen,
+  onRatingClose,
+  onRatingSubmitted,
 }: {
   booking: Booking
   expanded: boolean
@@ -934,6 +981,12 @@ function BookingItem({
   showReview?: boolean
   onReview?: () => void
   hasReviewed?: boolean
+  showHostRating?: boolean
+  onRateHost?: () => void
+  hasRatedHost?: boolean
+  ratingOpen?: boolean
+  onRatingClose?: () => void
+  onRatingSubmitted?: () => void
 }) {
   const pkg = booking.package
   const jp = (pkg?.join_preferences ?? null) as JoinPreferences | null
@@ -1028,6 +1081,16 @@ function BookingItem({
                 {hasReviewed && (
                   <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
                     <CheckCircle className="mr-1 h-3 w-3" /> Reviewed
+                  </Badge>
+                )}
+                {showHostRating && onRateHost && (
+                  <Button size="sm" className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs relative z-10" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRateHost(); }}>
+                    <Star className="mr-1 h-3 w-3" /> Rate Host
+                  </Button>
+                )}
+                {hasRatedHost && (
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
+                    <CheckCircle className="mr-1 h-3 w-3" /> Host Rated
                   </Badge>
                 )}
               </div>

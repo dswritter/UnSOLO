@@ -185,6 +185,11 @@ export type Booking = {
   admin_cancellation_note?: string | null
   quantity?: number
   amount_paise?: number
+  /** Host contact info - exposed to booker */
+  host_phone?: string | null
+  host_email?: string | null
+  /** Confirmation email tracking */
+  confirmation_email_sent_at?: string | null
   created_at: string
   updated_at: string
   package?: Package
@@ -285,9 +290,37 @@ export type Review = {
   title: string | null
   body: string | null
   images: string[] | null
+  /** Review edit tracking */
+  is_edited: boolean
+  edited_at?: string | null
   created_at: string
+  updated_at?: string
   user?: Profile
   package?: Package
+}
+
+export type HostRating = {
+  id: string
+  host_id: string
+  booking_id: string
+  user_id: string
+  rating: number
+  comment?: string | null
+  created_at: string
+  user?: Profile
+}
+
+export type ServiceInventoryItem = {
+  id: string
+  service_listing_id: string
+  title: string
+  description?: string | null
+  price_paise: number
+  quantity_available: number
+  max_per_booking: number
+  images: string[] | null
+  created_at: string
+  updated_at?: string
 }
 
 export type UserAchievement = {

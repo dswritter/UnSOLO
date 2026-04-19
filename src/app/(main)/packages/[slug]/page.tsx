@@ -19,6 +19,7 @@ import { ShareButton } from '@/components/packages/ShareButton'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
+import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 
@@ -336,76 +337,13 @@ export default async function PackageDetailPage({
             )}
 
             {/* Reviews */}
-            <div id="review" className="bg-card border border-border rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">
-                Reviews {reviews?.length ? `(${reviews.length})` : ''}
-              </h2>
-
-              {/* Rating summary */}
-              {reviews && reviews.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 mb-6 p-4 bg-secondary/30 rounded-lg">
-                  <div className="text-center">
-                    <div className="text-2xl font-black text-primary">{avgRating.toFixed(1)}</div>
-                    <div className="text-xs text-muted-foreground">Overall</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold">{avgDest.toFixed(1)}</div>
-                    <div className="text-xs text-muted-foreground">Destination</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold">{avgExp.toFixed(1)}</div>
-                    <div className="text-xs text-muted-foreground">Experience</div>
-                  </div>
-                </div>
-              )}
-
-              {reviews && reviews.length > 0 ? (
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="border-b border-border pb-4 last:border-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Link href={`/profile/${review.user?.username || ''}`} className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary hover:ring-2 hover:ring-primary/40 transition-all">
-                          {review.user?.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={review.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                          ) : (
-                            (review.user?.full_name || review.user?.username || 'U')[0].toUpperCase()
-                          )}
-                        </Link>
-                        <div className="flex-1">
-                          <Link href={`/profile/${review.user?.username || ''}`} className="text-sm font-medium hover:text-primary transition-colors">
-                            {review.user?.full_name || review.user?.username}
-                          </Link>
-                          <div className="text-xs text-muted-foreground">{formatDate(review.created_at)}</div>
-                        </div>
-                        <div className="text-right text-xs space-y-0.5">
-                          <div className="flex items-center gap-1 justify-end">
-                            <span className="text-muted-foreground">Destination</span>
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star key={i} className={`h-3 w-3 ${i < (review.rating_destination || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1 justify-end">
-                            <span className="text-muted-foreground">Experience</span>
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star key={i} className={`h-3 w-3 ${i < (review.rating_experience || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      {review.title && <h4 className="text-sm font-semibold mb-1">{review.title}</h4>}
-                      {review.body && <p className="text-sm text-muted-foreground">{review.body}</p>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No reviews yet. Be the first to explore this trip!</p>
-              )}
-            </div>
+            <ReviewsSection
+              reviews={reviews || []}
+              averageRating={avgRating}
+              averageDestination={avgDest}
+              averageExperience={avgExp}
+              currentUserId={user?.id || null}
+            />
           </div>
 
           {/* Sidebar - Booking / Join */}
