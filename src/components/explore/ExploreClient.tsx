@@ -12,7 +12,7 @@ import { formatPrice } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
-import { ExploreFilters } from './ExploreFilters'
+import { ExploreFilters } from '@/app/(main)/explore/ExploreFilters'
 import { ServiceListingCard } from './ServiceListingCard'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
