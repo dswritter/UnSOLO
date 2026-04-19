@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Zap, Navigation } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, cn } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
@@ -17,6 +17,7 @@ import { ServiceListingCard } from './ServiceListingCard'
 import { MobileExploreActionBar } from './MobileExploreActionBar'
 import { SearchDrawer } from './SearchDrawer'
 import { FilterDrawer } from './FilterDrawer'
+import { SkeletonCard } from './SkeletonCard'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -66,13 +67,37 @@ export function ExploreClient({
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [shouldFade, setShouldFade] = useState(false)
+  const prevParamsRef = useRef<string>('')
+
+  useEffect(() => {
+    const currentParams = searchParams.toString()
+    if (prevParamsRef.current && prevParamsRef.current !== currentParams) {
+      setIsLoading(true)
+      setShouldFade(true)
+      const timer = setTimeout(() => {
+        setIsLoading(false)
+        setShouldFade(false)
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+    prevParamsRef.current = currentParams
+  }, [searchParams])
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
+    setIsLoading(true)
+    setShouldFade(true)
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', tab)
     newParams.delete('q') // Clear search on tab change (will re-run in new tab)
     router.push(`/explore?${newParams.toString()}`)
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+      setShouldFade(false)
+    }, 600)
+    return () => clearTimeout(timer)
   }
 
   const isTripsTab = activeTab === 'trips'
@@ -112,7 +137,13 @@ export function ExploreClient({
 
           {/* Results Grid */}
           <div className="flex-1">
-            {results.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonCard key={i} variant={isTripsTab ? 'trip' : 'service'} />
+                ))}
+              </div>
+            ) : results.length === 0 ? (
               <div className="text-center py-24">
                 <Mountain className="h-16 w-16 text-primary/30 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">
@@ -125,13 +156,19 @@ export function ExploreClient({
               </div>
             ) : isTripsTab ? (
               /* Trips Grid */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className={cn(
+                'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 transition-all duration-500',
+                shouldFade ? 'opacity-0' : 'opacity-100'
+              )}>
             {(packages as Package[]).map((pkg) => (
               <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
                 <Card
-                  className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group py-0 gap-0 ${
+                  className={cn(
+                    'bg-card border-border overflow-hidden cursor-pointer h-full group py-0 gap-0',
+                    'transition-all duration-300 hover:shadow-xl hover:scale-[1.02]',
+                    'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
                     pkg.host_id ? 'ring-1 ring-primary/10' : ''
-                  }`}
+                  )}
                 >
                   <div className="relative h-52 bg-secondary overflow-hidden shrink-0 rounded-t-xl">
                     {pkg.images?.[0] ? (
@@ -234,7 +271,10 @@ export function ExploreClient({
           </div>
             ) : (
               /* Service Listings Grid */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className={cn(
+                'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 transition-all duration-500',
+                shouldFade ? 'opacity-0' : 'opacity-100'
+              )}>
                 {(serviceListings as ServiceListing[]).map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} />
                 ))}

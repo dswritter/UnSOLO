@@ -71,6 +71,9 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
   // Track optimistic state for instant UI feedback
   const [optimisticParams, setOptimisticParams] = useState<Record<string, string | null>>({})
   const [isClearing, setIsClearing] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    month: false,
+  })
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -78,6 +81,13 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
       if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
     }
   }, [])
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }))
+  }
 
   // Check if any filters are active
   const hasActiveFilters = Object.entries(params).some(([key, value]) => {
@@ -260,66 +270,75 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
             </div>
           </FilterSection>
 
-          {/* Month */}
-          <FilterSection label="Month">
-            <div className="flex flex-col gap-2">
-              {(() => {
-                const currentMonth = getCurrentValue('month', '')
-                return (
-                  <>
-                    <button
-                      onClick={() => {
-                        setOptimisticParams((prev) => ({
-                          ...prev,
-                          month: null,
-                        }))
-                        router.push(buildUrl({ month: null }))
-                      }}
-                      className={cn(
-                        'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
-                        !currentMonth
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                      )}
-                    >
-                      Any
-                    </button>
-                    <div className="grid grid-cols-3 gap-1">
-                      {MONTHS.map((m, idx) => (
-                        <button
-                          key={m}
-                          onClick={() => {
-                            const monthStr = String(idx)
-                            if (currentMonth === monthStr) {
-                              setOptimisticParams((prev) => ({
-                                ...prev,
-                                month: null,
-                              }))
-                              router.push(buildUrl({ month: null }))
-                            } else {
-                              setOptimisticParams((prev) => ({
-                                ...prev,
-                                month: monthStr,
-                              }))
-                              router.push(buildUrl({ month: monthStr }))
-                            }
-                          }}
-                          className={cn(
-                            'px-1 py-2 rounded-lg text-xs text-center transition-colors',
-                            currentMonth === String(idx)
-                              ? 'bg-primary text-primary-foreground font-medium'
-                              : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                          )}
-                        >
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          </FilterSection>
+          {/* Month - Collapsible */}
+          <div className="border-b border-border pb-4 mb-4">
+            <button
+              onClick={() => toggleSection('month')}
+              className="w-full flex items-center justify-between text-sm font-semibold mb-3 hover:text-foreground transition-colors"
+            >
+              <span>Month</span>
+              <ChevronDown className={cn('h-4 w-4 transition-transform', expandedSections.month && 'rotate-180')} />
+            </button>
+            {expandedSections.month && (
+              <div className="flex flex-col gap-2">
+                {(() => {
+                  const currentMonth = getCurrentValue('month', '')
+                  return (
+                    <>
+                      <button
+                        onClick={() => {
+                          setOptimisticParams((prev) => ({
+                            ...prev,
+                            month: null,
+                          }))
+                          router.push(buildUrl({ month: null }))
+                        }}
+                        className={cn(
+                          'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
+                          !currentMonth
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        )}
+                      >
+                        Any
+                      </button>
+                      <div className="grid grid-cols-3 gap-1">
+                        {MONTHS.map((m, idx) => (
+                          <button
+                            key={m}
+                            onClick={() => {
+                              const monthStr = String(idx)
+                              if (currentMonth === monthStr) {
+                                setOptimisticParams((prev) => ({
+                                  ...prev,
+                                  month: null,
+                                }))
+                                router.push(buildUrl({ month: null }))
+                              } else {
+                                setOptimisticParams((prev) => ({
+                                  ...prev,
+                                  month: monthStr,
+                                }))
+                                router.push(buildUrl({ month: monthStr }))
+                              }
+                            }}
+                            className={cn(
+                              'px-1 py-2 rounded-lg text-xs text-center transition-colors',
+                              currentMonth === String(idx)
+                                ? 'bg-primary text-primary-foreground font-medium'
+                                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                            )}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
 
           {/* My Interests */}
           <FilterSection label="Interests">
