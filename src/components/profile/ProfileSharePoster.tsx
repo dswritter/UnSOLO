@@ -1,15 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { toBlob } from 'html-to-image'
 import { Button } from '@/components/ui/button'
-import { Share2, Loader2, ChevronDown } from 'lucide-react'
+import { Share2, Loader2, ChevronDown, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { IndiaStatesMap } from '@/components/profile/IndiaStatesMap'
 import { leaderboardMedalEmoji } from '@/components/leaderboard/RankDisplay'
 import { ACHIEVEMENTS } from '@/types'
-import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 
 export type ProfileSharePosterTrip = {
   title: string
@@ -421,6 +427,38 @@ function PosterBody({ props, aspect }: { props: ProfileSharePosterProps; aspect:
   )
 }
 
+/** Shared poster canvas for capture (off-screen) or prep preview (inline, scaled by parent). */
+const PosterShell = forwardRef<
+  HTMLDivElement,
+  { posterProps: ProfileSharePosterProps; aspect: PosterAspect; offscreen?: boolean }
+>(function PosterShell({ posterProps, aspect, offscreen = true }, ref) {
+  const dims = POSTER_DIMS[aspect]
+  return (
+    <div
+      ref={ref}
+      className="pointer-events-none overflow-hidden"
+      style={{
+        ...(offscreen
+          ? { position: 'fixed', left: -10000, top: 0 }
+          : { position: 'relative' }),
+        width: dims.w,
+        height: dims.h,
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+        boxSizing: 'border-box',
+        background: 'linear-gradient(165deg, #fffbeb 0%, #fef3c7 35%, #fde68a 100%)',
+        padding: `${Math.round(48 * scaleForAspect(aspect))}px ${Math.round(44 * scaleForAspect(aspect))}px ${Math.round(56 * scaleForAspect(aspect))}px`,
+        color: '#1c1917',
+        margin: 0,
+      }}
+      aria-hidden
+    >
+      <PosterBody props={posterProps} aspect={aspect} />
+    </div>
+  )
+})
+
 function downloadPngBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -454,10 +492,26 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
   const [posterPortalReady, setPosterPortalReady] = useState(false)
+  const [prepScale, setPrepScale] = useState(0.34)
 
   useEffect(() => {
     setPosterPortalReady(true)
   }, [])
+
+  useLayoutEffect(() => {
+    if (!preparingPoster) return
+    const update = () => {
+      const pad = 12
+      const vw = window.innerWidth - pad * 2
+      const vh = window.innerHeight - pad * 2
+      const { w, h } = POSTER_DIMS.story
+      const s = Math.min(vw / w, vh / h, 0.52)
+      setPrepScale(Math.max(0.2, Math.min(s, 0.52)))
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [preparingPoster])
 
   const primePosterAssets = useCallback(async () => {
     const p = propsRef.current
@@ -614,36 +668,13 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     }
   }, [])
 
-  const dims = POSTER_DIMS[posterAspect]
-
   const menuBtn =
     'flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground'
 
   const posterPortal =
     posterPortalReady && typeof document !== 'undefined'
       ? createPortal(
-          <div
-            ref={ref}
-            className="pointer-events-none overflow-hidden"
-            style={{
-              position: 'fixed',
-              left: -10000,
-              top: 0,
-              width: dims.w,
-              height: dims.h,
-              display: 'flex',
-              flexDirection: 'column',
-              fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-              boxSizing: 'border-box',
-              background: 'linear-gradient(165deg, #fffbeb 0%, #fef3c7 35%, #fde68a 100%)',
-              padding: `${Math.round(48 * scaleForAspect(posterAspect))}px ${Math.round(44 * scaleForAspect(posterAspect))}px ${Math.round(56 * scaleForAspect(posterAspect))}px`,
-              color: '#1c1917',
-              margin: 0,
-            }}
-            aria-hidden
-          >
-            <PosterBody props={props} aspect={posterAspect} />
-          </div>,
+          <PosterShell ref={ref} posterProps={props} aspect={posterAspect} />,
           document.body,
         )
       : null
@@ -671,36 +702,90 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     setPreparingPoster(false)
   }, [])
 
-  const p = props
+  const prepDims = POSTER_DIMS.story
+  const posterPrepPortal =
+    posterPortalReady && preparingPoster && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[600] flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-busy="true"
+            aria-label="Getting your poster ready"
+          >
+            <div className="absolute inset-0 flex items-start justify-center overflow-hidden pt-[max(env(safe-area-inset-top),10px)]">
+              <div
+                style={{
+                  width: prepDims.w * prepScale,
+                  height: prepDims.h * prepScale,
+                }}
+              >
+                <div
+                  style={{
+                    width: prepDims.w,
+                    height: prepDims.h,
+                    transform: `scale(${prepScale})`,
+                    transformOrigin: 'top left',
+                  }}
+                >
+                  <PosterShell posterProps={props} aspect="story" offscreen={false} />
+                </div>
+              </div>
+            </div>
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-md pointer-events-none"
+              aria-hidden
+            />
+            <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center p-4">
+              <div className="pointer-events-auto w-full max-w-sm rounded-xl border border-border/80 bg-card/95 px-4 py-3 shadow-2xl ring-1 ring-foreground/10 backdrop-blur-sm">
+                <div className="flex items-start gap-3">
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">Getting your poster ready…</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Preparing your stats, map, and badges for sharing.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cancelPosterPrep}
+                    className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    aria-label="Cancel"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="mt-3 rounded-lg border border-border/60 bg-secondary/30 px-3 py-2.5 text-[11px] text-muted-foreground space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/90">
+                    Your stats
+                  </p>
+                  <div className="flex justify-between gap-4">
+                    <span>Trips</span>
+                    <span className="font-mono tabular-nums font-medium text-foreground">
+                      {props.tripsStatHidden ? '—' : props.trips}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>States</span>
+                    <span className="font-mono tabular-nums font-medium text-foreground">
+                      {props.statesStatHidden ? '—' : props.states}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Score</span>
+                    <span className="font-mono tabular-nums font-medium text-foreground">{props.score}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null
 
   return (
     <>
-      <ImageUploadOverlay
-        open={preparingPoster}
-        message="Getting your poster ready…"
-        subMessage="Preparing your stats, map, and badges for sharing."
-        onCancel={cancelPosterPrep}
-        className="z-[600]"
-        backdropClassName="backdrop-blur-md bg-black/60"
-      >
-        <div className="rounded-lg border border-border/80 bg-secondary/25 px-3 py-2.5 text-[11px] text-muted-foreground space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/90">
-            Your stats
-          </p>
-          <div className="flex justify-between gap-4">
-            <span>Trips</span>
-            <span className="font-mono tabular-nums text-foreground font-medium">{p.tripsStatHidden ? '—' : p.trips}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>States</span>
-            <span className="font-mono tabular-nums text-foreground font-medium">{p.statesStatHidden ? '—' : p.states}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Score</span>
-            <span className="font-mono tabular-nums text-foreground font-medium">{p.score}</span>
-          </div>
-        </div>
-      </ImageUploadOverlay>
+      {posterPrepPortal}
       <span className="relative inline-flex shrink-0 align-top">
         <div className="relative" ref={panelRef}>
           <Button
