@@ -52,3 +52,70 @@ export function toggleBulletLine(text: string, cursor: number) {
   const pos = ls + nextLine.length
   return { next, selStart: pos, selEnd: pos }
 }
+
+/** Line range [rangeStart, rangeEnd) covering the selection (full lines when multi-line). */
+function selectedLineBlockBounds(text: string, selStart: number, selEnd: number): { rangeStart: number; rangeEnd: number } {
+  const a = Math.min(selStart, selEnd)
+  const b = Math.max(selStart, selEnd)
+  if (a === b) {
+    const ls = lineStartIndex(text, a)
+    const le = lineEndIndex(text, a)
+    return { rangeStart: ls, rangeEnd: le }
+  }
+  const rangeStart = lineStartIndex(text, a)
+  const rangeEnd = lineEndIndex(text, Math.max(a, b - 1))
+  return { rangeStart, rangeEnd }
+}
+
+function mapBlockLines(
+  block: string,
+  allHavePrefix: (line: string) => boolean,
+  strip: (line: string) => string,
+  add: (line: string) => string,
+): string {
+  const rawLines = block.split('\n')
+  const all = rawLines.length > 0 && rawLines.every(allHavePrefix)
+  return rawLines.map((line) => (all ? strip(line) : add(line))).join('\n')
+}
+
+/** Toggle `- ` on every line in the selection at once (multi-line aware). */
+export function toggleBulletRange(text: string, selStart: number, selEnd: number) {
+  const a = Math.min(selStart, selEnd)
+  const b = Math.max(selStart, selEnd)
+  if (a === b) {
+    return toggleBulletLine(text, a)
+  }
+  const { rangeStart, rangeEnd } = selectedLineBlockBounds(text, selStart, selEnd)
+  const block = text.slice(rangeStart, rangeEnd)
+  const newBlock = mapBlockLines(
+    block,
+    (line) => line.startsWith(BULLET_PREFIX),
+    (line) => (line.startsWith(BULLET_PREFIX) ? line.slice(BULLET_PREFIX.length) : line),
+    (line) => (line.startsWith(BULLET_PREFIX) ? line : BULLET_PREFIX + line),
+  )
+  const next = text.slice(0, rangeStart) + newBlock + text.slice(rangeEnd)
+  const sel0 = rangeStart
+  const sel1 = rangeStart + newBlock.length
+  return { next, selStart: sel0, selEnd: sel1 }
+}
+
+/** Toggle `## ` on every line in the selection at once (multi-line aware). */
+export function toggleHeadingRange(text: string, selStart: number, selEnd: number) {
+  const a = Math.min(selStart, selEnd)
+  const b = Math.max(selStart, selEnd)
+  if (a === b) {
+    return toggleHeadingLine(text, a)
+  }
+  const { rangeStart, rangeEnd } = selectedLineBlockBounds(text, selStart, selEnd)
+  const block = text.slice(rangeStart, rangeEnd)
+  const newBlock = mapBlockLines(
+    block,
+    (line) => line.startsWith(HEADING_PREFIX),
+    (line) => (line.startsWith(HEADING_PREFIX) ? line.slice(HEADING_PREFIX.length) : line),
+    (line) => (line.startsWith(HEADING_PREFIX) ? line : HEADING_PREFIX + line),
+  )
+  const next = text.slice(0, rangeStart) + newBlock + text.slice(rangeEnd)
+  const sel0 = rangeStart
+  const sel1 = rangeStart + newBlock.length
+  return { next, selStart: sel0, selEnd: sel1 }
+}

@@ -4,7 +4,7 @@ import type { RefObject } from 'react'
 import { flushSync } from 'react-dom'
 import { Bold, Heading2, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { toggleBulletLine, toggleHeadingLine, wrapBold } from '@/lib/trip-description-markdown'
+import { toggleBulletRange, toggleHeadingRange, wrapBold } from '@/lib/trip-description-markdown'
 import { cn } from '@/lib/utils'
 
 type Props = {
@@ -50,13 +50,7 @@ export function TripDescriptionMarkdownToolbar({ textareaRef, value, onChange, c
         size="sm"
         className="h-8 w-8 p-0"
         title="Heading (line: ## text)"
-        onClick={() =>
-          apply((t, s, e) => {
-            const cursor = Math.min(s, e)
-            const { next, selStart, selEnd } = toggleHeadingLine(t, cursor)
-            return { next, selStart, selEnd }
-          })
-        }
+        onClick={() => apply((t, s, e) => toggleHeadingRange(t, s, e))}
       >
         <Heading2 className="h-3.5 w-3.5" />
         <span className="sr-only">Heading</span>
@@ -67,13 +61,7 @@ export function TripDescriptionMarkdownToolbar({ textareaRef, value, onChange, c
         size="sm"
         className="h-8 w-8 p-0"
         title="Bullet list (- item)"
-        onClick={() =>
-          apply((t, s, e) => {
-            const cursor = Math.min(s, e)
-            const { next, selStart, selEnd } = toggleBulletLine(t, cursor)
-            return { next, selStart, selEnd }
-          })
-        }
+        onClick={() => apply((t, s, e) => toggleBulletRange(t, s, e))}
       >
         <List className="h-3.5 w-3.5" />
         <span className="sr-only">Bullet list</span>

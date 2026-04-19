@@ -1022,18 +1022,24 @@ export function HostTripForm({
             const Icon = s.icon
             const isActive = i === step
             const isDone = i < step
+            const canJump = isEdit || i < step
             return (
               <button
                 key={i}
+                type="button"
+                title={isEdit ? `Go to ${s.label}` : isDone ? `Back to ${s.label}` : undefined}
                 onClick={() => {
-                  if (i < step) setStep(i)
+                  if (isEdit) setStep(i)
+                  else if (i < step) setStep(i)
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : isDone
                     ? 'bg-primary/10 text-primary cursor-pointer'
-                    : 'bg-secondary text-muted-foreground'
+                    : canJump
+                    ? 'bg-secondary text-muted-foreground hover:bg-muted cursor-pointer'
+                    : 'bg-secondary text-muted-foreground cursor-not-allowed opacity-70'
                 }`}
               >
                 {isDone ? (
