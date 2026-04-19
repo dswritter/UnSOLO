@@ -180,7 +180,9 @@ export function ExploreClient({
                     'bg-card border-border overflow-hidden cursor-pointer h-full group py-0 gap-0',
                     'transition-all duration-300 hover:shadow-xl hover:scale-[1.02]',
                     'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
-                    pkg.host_id ? 'ring-1 ring-primary/10' : ''
+                    pkg.host_id
+                      ? 'ring-2 ring-blue-500/50 bg-gradient-to-br from-card to-blue-500/5'
+                      : ''
                   )}
                 >
                   <div className="relative h-52 bg-secondary overflow-hidden shrink-0 rounded-t-xl">
