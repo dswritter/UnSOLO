@@ -1197,6 +1197,92 @@ export async function changeBookingDate(bookingId: string, newDate: string) {
   return { success: true }
 }
 
+// ── Cancel before payment (pending only) — no admin review queue ─────────
+export async function cancelPendingBooking(bookingId: string, reason?: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, status, package_id, package:packages(title, host_id, slug)')
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'Already cancelled' }
+  if (booking.status !== 'pending') {
+    return {
+      error:
+        'Only bookings that have not completed payment can be cancelled here. For confirmed trips, use request cancellation.',
+    }
+  }
+
+  const trimmed = reason?.trim() || null
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      status: 'cancelled',
+      cancellation_reason: trimmed,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+
+  if (error) return { error: error.message }
+
+  try {
+    const { removeUserFromPackageTripChat } = await import('@/lib/chat/tripChatMembership')
+    await removeUserFromPackageTripChat(supabase, user.id, booking.package_id)
+  } catch {
+    /* non-critical */
+  }
+
+  const pkg = booking.package as { title?: string; host_id?: string | null }
+  const pkgTitle = pkg?.title || 'a trip'
+
+  const { data: customerProfile } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', user.id)
+    .single()
+  const customerName = customerProfile?.full_name || customerProfile?.username || 'A traveler'
+
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svc = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  if (pkg?.host_id) {
+    await svc.from('notifications').insert({
+      user_id: pkg.host_id,
+      type: 'booking',
+      title: 'Booking cancelled before payment',
+      body: `${customerName} cancelled an unpaid booking for "${pkgTitle}".${trimmed ? ` Reason: ${trimmed}` : ''}`,
+      link: '/host',
+    })
+  }
+
+  const { data: staff } = await svc
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+
+  for (const row of staff || []) {
+    await svc.from('notifications').insert({
+      user_id: row.id,
+      type: 'booking',
+      title: 'Booking cancelled (unpaid)',
+      body: `${customerName} cancelled a pending booking for ${pkgTitle} before payment.`,
+      link: '/admin/bookings',
+    })
+  }
+
+  revalidatePath('/bookings')
+  return { success: true as const }
+}
+
 // ── Cancellation Request ────────────────────────────────────
 export async function requestCancellation(bookingId: string, reason: string) {
   const supabase = await createClient()
@@ -1213,6 +1299,9 @@ export async function requestCancellation(bookingId: string, reason: string) {
   if (!booking) return { error: 'Booking not found' }
   if (booking.status === 'cancelled') return { error: 'Already cancelled' }
   if (booking.status === 'completed') return { error: 'Cannot cancel a completed trip' }
+  if (booking.status === 'pending') {
+    return { error: 'Unpaid bookings can be cancelled directly — use cancel booking instead of request cancellation.' }
+  }
 
   const { error } = await supabase
     .from('bookings')

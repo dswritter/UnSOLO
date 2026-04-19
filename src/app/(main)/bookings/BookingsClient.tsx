@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban } from 'lucide-react'
 import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
 import {
   tripEndDateIsoForBooking,
@@ -19,6 +19,7 @@ import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import {
   requestCancellation,
+  cancelPendingBooking,
   changeBookingDate,
   createBookingBalanceOrder,
   createCommunityTripOrder,
@@ -999,7 +1000,9 @@ function BookingItem({
               {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (() => {
                 const end = new Date(tripEndIso + 'T23:59:59')
                 const tripEnded = end < new Date()
-                return tripEnded ? null : <CancelRequester bookingId={booking.id} />
+                return tripEnded ? null : (
+                  <CancelRequester bookingId={booking.id} bookingStatus={booking.status} />
+                )
               })()}
 
               {booking.cancellation_status === 'requested' && (
@@ -1082,47 +1085,94 @@ function DateChanger({ bookingId, currentDate }: { bookingId: string; currentDat
   )
 }
 
-// ── Cancellation Requester (inline) ─────────────────────────
-function CancelRequester({ bookingId }: { bookingId: string }) {
+// ── Cancellation: unpaid = instant cancel + notify host/staff; paid = request flow ──
+function CancelRequester({
+  bookingId,
+  bookingStatus,
+}: {
+  bookingId: string
+  bookingStatus: 'pending' | 'confirmed'
+}) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
+  const isPending = bookingStatus === 'pending'
 
   async function submit() {
-    if (!reason.trim()) { toast.error('Please provide a reason'); return }
+    if (!isPending && !reason.trim()) {
+      toast.error('Please provide a reason')
+      return
+    }
     setSubmitting(true)
-    const result = await requestCancellation(bookingId, reason)
+    const result = isPending
+      ? await cancelPendingBooking(bookingId, reason.trim() || undefined)
+      : await requestCancellation(bookingId, reason)
     if (result.error) toast.error(result.error)
-    else { toast.success('Cancellation request submitted'); router.refresh() }
+    else {
+      toast.success(isPending ? 'Booking cancelled' : 'Cancellation request submitted')
+      router.refresh()
+    }
     setSubmitting(false)
     setOpen(false)
   }
 
   if (!open) {
     return (
-      <Button variant="outline" size="sm" className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10" onClick={() => setOpen(true)}>
-        <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
+        onClick={() => setOpen(true)}
+      >
+        {isPending ? (
+          <>
+            <Ban className="mr-1 h-3 w-3" /> Cancel booking
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
+          </>
+        )}
       </Button>
     )
   }
 
   return (
     <div className="w-full space-y-2 mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
-      <p className="text-xs font-medium text-red-400">Why do you want to cancel?</p>
-      <Textarea
-        value={reason}
-        onChange={e => setReason(e.target.value)}
-        placeholder="Reason for cancellation..."
-        rows={2}
-        className="bg-secondary border-border resize-none text-xs"
-      />
+      {isPending ? (
+        <>
+          <p className="text-xs font-medium text-foreground">Cancel before payment?</p>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            No payment has been completed. Your booking will be cancelled immediately and the host and UnSOLO will be
+            notified.
+          </p>
+          <Textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Optional note for the host…"
+            rows={2}
+            className="bg-secondary border-border resize-none text-xs"
+          />
+        </>
+      ) : (
+        <>
+          <p className="text-xs font-medium text-red-400">Why do you want to cancel?</p>
+          <Textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Reason for cancellation..."
+            rows={2}
+            className="bg-secondary border-border resize-none text-xs"
+          />
+        </>
+      )}
       <div className="flex gap-2">
         <Button size="sm" className="bg-red-500 text-white text-xs hover:bg-red-600" onClick={submit} disabled={submitting}>
-          {submitting ? 'Submitting...' : 'Submit Request'}
+          {submitting ? 'Submitting...' : isPending ? 'Cancel booking' : 'Submit Request'}
         </Button>
         <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => setOpen(false)}>
-          Cancel
+          Back
         </Button>
       </div>
     </div>
