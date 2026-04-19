@@ -27,10 +27,10 @@ function TripStatusBadge({ phase, className = '' }: { phase: TripChatBookingPhas
   const label = phase === 'upcoming' ? 'Booked' : phase === 'ongoing' ? 'On trip' : 'Completed'
   const cls =
     phase === 'upcoming'
-      ? 'bg-sky-500/15 text-sky-300 border-sky-500/40'
+      ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/40'
       : phase === 'ongoing'
-        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-        : 'bg-zinc-500/15 text-zinc-300 border-zinc-500/40'
+        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/40'
+        : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/40'
   return (
     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${cls} ${className}`}>{label}</span>
   )
@@ -87,10 +87,10 @@ function renderTextWithMentionsAndTags(
   chatLinkTargets: ChatLinkTarget[],
 ) {
   const mentionClass = isOwn
-    ? 'font-bold text-black/80 hover:underline'
+    ? 'font-bold text-foreground/80 hover:underline'
     : 'font-bold text-primary hover:underline'
   const hashClass = isOwn
-    ? 'font-semibold text-black/90 bg-black/10 px-0.5 rounded hover:underline'
+    ? 'font-semibold text-foreground/90 bg-foreground/10 px-0.5 rounded hover:underline'
     : 'font-semibold text-primary bg-primary/15 px-0.5 rounded hover:underline'
 
   const nodes: React.ReactNode[] = []
@@ -156,10 +156,10 @@ function renderMessageContent(content: string, isOwn: boolean = false, chatLinkT
   const lines = content.split('\n')
 
   const linkClass = isOwn
-    ? 'text-black underline font-semibold hover:text-black/70 break-all'
+    ? 'text-foreground underline font-semibold hover:text-foreground/70 break-all'
     : 'text-primary underline hover:text-primary/80 break-all'
   const pkgBtnClass = isOwn
-    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/15 text-black text-xs font-semibold hover:bg-black/25 transition-colors'
+    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-foreground/15 text-foreground text-xs font-semibold hover:bg-foreground/25 transition-colors'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
   const urlRegex = /(https?:\/\/[^\s<]+)/g
@@ -1771,7 +1771,7 @@ function MessageBubble({
         <div
           className={`px-3.5 py-2 rounded-[1.25rem] text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation shadow-sm ${
             isOwn
-              ? 'bg-gradient-to-br from-primary to-amber-500 text-black rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30'
+              ? 'bg-gradient-to-br from-primary to-amber-500 text-black dark:text-white rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30'
               : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
           }`}
           {...(canReact ? bubbleLongPress : {})}
@@ -1781,7 +1781,7 @@ function MessageBubble({
           {renderWithMentions(message.content, isOwn)}
           {message.is_edited ? (
             <span
-              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-black/50' : 'text-muted-foreground'}`}
+              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-black/50 dark:text-white/50' : 'text-muted-foreground'}`}
             >
               Edited
             </span>
