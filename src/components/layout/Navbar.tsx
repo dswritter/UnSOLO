@@ -112,8 +112,8 @@ export function Navbar({ user }: NavbarProps) {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-6">
+          {/* Desktop Nav - Centered */}
+          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
             {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
               <Link
                 key={href}
@@ -132,13 +132,18 @@ export function Navbar({ user }: NavbarProps) {
             ))}
           </div>
 
-          {/* Search Bar - Desktop only */}
-          <div className="hidden md:block w-56">
+          {/* Search Bar - Desktop only, shifted right */}
+          <div className="hidden md:block w-56 ml-4">
             <SearchBar />
           </div>
 
+          {/* Mobile Search - only on mobile */}
+          <div className="md:hidden">
+            <SearchBar isMobile={true} />
+          </div>
+
           {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             {user ? (
               <>
                 <NotificationBell userId={user.id} />
