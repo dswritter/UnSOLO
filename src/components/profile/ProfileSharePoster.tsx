@@ -475,6 +475,18 @@ function prefersPosterDownloadOverNativeShare(): boolean {
   return /Instagram|FBAN|FBAV|FB_IAB|FB4A|Line\/|MicroMessenger|Twitter|Snapchat/i.test(ua)
 }
 
+/**
+ * `navigator.share` can resolve before the system share sheet has painted (notably Android).
+ * Keep the prep overlay up briefly so the sheet has time to appear over our UI.
+ */
+function delayAfterNativeShareResolves(): Promise<void> {
+  if (typeof navigator === 'undefined') return Promise.resolve()
+  const ua = navigator.userAgent || ''
+  const isAndroid = /Android/i.test(ua)
+  const ms = isAndroid ? 900 : 320
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 const MENU_PAD = 12
 const MENU_WIDTH_PX = 224 // ~14rem
 /** Ignore outside-close / Share re-clicks right after menu opens (mobile ghost clicks after overlay unmount). */
@@ -670,6 +682,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
               title: interpolateShareCopy(titleTpl, p.displayName, p.profileUrl),
               text: interpolateShareCopy(textTpl, p.displayName, p.profileUrl),
             })
+            await delayAfterNativeShareResolves()
             return
           } catch (shareErr: unknown) {
             const name = shareErr instanceof Error ? shareErr.name : ''
