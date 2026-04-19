@@ -87,6 +87,7 @@ export default async function AdminDashboardPage() {
           { href: '/admin/bookings', icon: BookOpen, title: 'Manage Bookings', desc: 'View, assign POC, manage cancellations' },
           { href: '/admin/requests', icon: FileText, title: 'Custom Requests', desc: 'Review custom date requests' },
           { href: '/admin/packages', icon: Package, title: 'Manage Packages', desc: 'Create, edit packages & destinations' },
+          { href: '/admin/service-listings', icon: Tag, title: 'Service Listings', desc: 'Create stays, activities, rentals' },
           { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips' },
           { href: '/admin/community-chats', icon: MessageCircle, title: 'Community chats', desc: 'Rooms, images, enable/disable' },
           { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers' },

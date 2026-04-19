@@ -61,7 +61,7 @@ export default async function BookingsPage() {
 
   const { data } = await supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*))')
+    .select('*, package:packages(*, destination:destinations(*)), service_listings(*)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
@@ -73,6 +73,10 @@ export default async function BookingsPage() {
 
   const reviewedBookingIds = new Set((reviews || []).map(r => r.booking_id))
   const bookings = (data || []) as Booking[]
+
+  // Separate trip bookings from service bookings
+  const tripBookings = bookings.filter(b => b.booking_type !== 'service')
+  const serviceBookings = bookings.filter(b => b.booking_type === 'service')
 
   const { data: joinRequestRows } = await supabase
     .from('join_requests')
@@ -186,28 +190,29 @@ export default async function BookingsPage() {
   }
 
   const hasContent =
-    bookings.length > 0 || groupBookings.length > 0 || incompleteJoinTrips.length > 0
+    tripBookings.length > 0 || serviceBookings.length > 0 || groupBookings.length > 0 || incompleteJoinTrips.length > 0
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-black">My <span className="text-primary">Trips</span></h1>
+          <h1 className="text-3xl font-black">My <span className="text-primary">Bookings</span></h1>
           <p className="text-muted-foreground mt-1">Your travel history and upcoming adventures</p>
         </div>
 
         {!hasContent ? (
           <div className="text-center py-24">
             <BookOpen className="h-16 w-16 text-primary/30 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">No trips yet</h3>
+            <h3 className="text-xl font-bold mb-2">No bookings yet</h3>
             <p className="text-muted-foreground mb-6">Start your solo adventure across India</p>
             <Button className="bg-primary text-black font-bold" asChild>
-              <Link href="/explore">Explore Trips</Link>
+              <Link href="/explore">Explore</Link>
             </Button>
           </div>
         ) : (
           <BookingsClient
-            bookings={bookings}
+            bookings={tripBookings}
+            serviceBookings={serviceBookings}
             reviewedBookingIds={Array.from(reviewedBookingIds)}
             groupBookings={groupBookings}
             incompleteJoinTrips={incompleteJoinTrips}

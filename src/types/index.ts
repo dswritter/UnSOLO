@@ -155,13 +155,19 @@ export type CustomDateRequest = {
 export type Booking = {
   id: string
   user_id: string
-  package_id: string
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
-  travel_date: string
+  package_id: string | null
+  service_listing_id?: string | null
+  booking_type?: 'trip' | 'service'
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'pending_approval'
+  travel_date: string | null
+  check_in_date?: string | null
+  check_out_date?: string | null
   guests: number
   total_amount_paise: number
   /** Cumulative paid toward total (wallet + Razorpay); equals total when fully paid. */
   deposit_paise?: number
+  wallet_deducted_paise?: number
+  price_variant_label?: string | null
   stripe_session_id: string | null
   stripe_payment_intent: string | null
   confirmation_code: string | null
@@ -177,11 +183,73 @@ export type Booking = {
   refund_status?: 'pending' | 'processing' | 'completed' | null
   refund_razorpay_id?: string | null
   admin_cancellation_note?: string | null
+  quantity?: number
+  amount_paise?: number
   created_at: string
   updated_at: string
   package?: Package
+  service_listing?: ServiceListing
   user?: Profile
   poc?: Profile
+}
+
+export type ServiceListingType = 'stays' | 'activities' | 'rentals' | 'getting_around'
+
+export type ServiceListingMetadata = {
+  // Stays
+  num_rooms?: number
+  num_bathrooms?: number
+  check_in_time?: string
+  check_out_time?: string
+  cancellation_policy?: string
+  // Activities
+  duration_hours?: number
+  difficulty?: 'easy' | 'moderate' | 'challenging'
+  activity_category?: string
+  guide_included?: boolean
+  // Rentals
+  vehicle_type?: string
+  fuel_type?: string
+  transmission?: string
+  mileage_limit_km?: number
+  // Getting Around
+  transport_type?: string
+  capacity_persons?: number
+  route_origin?: string
+  route_destination?: string
+}
+
+export type ServiceListing = {
+  id: string
+  title: string
+  slug: string
+  description: string | null
+  short_description: string | null
+  type: ServiceListingType
+  price_paise: number
+  /** When set: 2+ tiers { description, price_paise }; price_paise is min tier for filters. */
+  price_variants?: { description: string; price_paise: number }[] | null
+  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week'
+  location: string
+  destination_id: string
+  latitude: number | null
+  longitude: number | null
+  max_guests_per_booking: number | null
+  quantity_available: number | null
+  images: string[] | null
+  amenities: string[] | null
+  tags: string[] | null
+  metadata: ServiceListingMetadata | null
+  host_id: string | null
+  is_active: boolean
+  is_featured: boolean
+  status: 'pending' | 'approved' | 'rejected' | 'archived'
+  average_rating: number
+  review_count: number
+  created_at: string
+  updated_at: string
+  destination?: Destination
+  host?: HostProfile
 }
 
 export type ChatRoom = {

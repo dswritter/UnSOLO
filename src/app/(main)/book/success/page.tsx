@@ -75,7 +75,7 @@ export default async function BookingSuccessPage({
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Travel Date</span>
-                <span>{formatDate(booking.travel_date)}</span>
+                <span>{booking.travel_date ? formatDate(booking.travel_date) : '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Guests</span>

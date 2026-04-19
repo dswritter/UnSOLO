@@ -68,7 +68,7 @@ Efficient implementation:
 
 ## Risks / decisions
 
-- **Payments**: Razorpay (or current stack) per listing vs cart with package — needs product decision.
+- **Payments**: **Locked for v1** — separate checkout per listing vs trip; no combined cart. See [service-marketplace-decisions.md](./service-marketplace-decisions.md).
 - **Liability & insurance**: category-specific terms; display on listing.
 - **Search cost**: Geo queries must be indexed; cache popular package pages.
 - **Spam**: rate limits, verification gates before appearing on package pages.
@@ -79,4 +79,8 @@ Efficient implementation:
 - **Read path** for package page: one aggregated query or edge-cached JSON for “related services” to keep TTFB low.
 - **Write path**: async indexing when listing location or package destination changes.
 
-This document is a planning artifact only; implementation should follow P0 → P1 after schema and payment decisions are locked.
+## Locked product decisions
+
+Cross-sell priority, checkout model, and trip-page copy rules: [service-marketplace-decisions.md](./service-marketplace-decisions.md).
+
+This document is a planning artifact only; implementation should follow P0 → P1 after schema work; payment shape for listings follows **service-marketplace-decisions.md**.

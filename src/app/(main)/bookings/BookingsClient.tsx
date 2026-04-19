@@ -88,6 +88,7 @@ function firstDepartureMonthKey(trip: IncompleteJoinTrip['trip']): number | null
 
 interface Props {
   bookings: Booking[]
+  serviceBookings?: Booking[]
   reviewedBookingIds: string[]
   groupBookings?: GroupBookingInfo[]
   incompleteJoinTrips?: IncompleteJoinTrip[]
@@ -96,6 +97,7 @@ interface Props {
 
 export function BookingsClient({
   bookings,
+  serviceBookings = [],
   reviewedBookingIds,
   groupBookings = [],
   incompleteJoinTrips = [],
@@ -126,7 +128,10 @@ export function BookingsClient({
     filteredBookings = filteredBookings.filter(b => b.status === filterStatus)
   }
   if (filterMonth) {
-    filteredBookings = filteredBookings.filter(b => new Date(b.travel_date).getMonth() === parseInt(filterMonth))
+    filteredBookings = filteredBookings.filter(b => {
+      if (!b.travel_date) return false
+      return new Date(b.travel_date).getMonth() === parseInt(filterMonth)
+    })
   }
 
   // Apply filters to group bookings
@@ -170,6 +175,10 @@ export function BookingsClient({
   async function handleSubmitReview(booking: Booking) {
     if (ratingDest === 0 || ratingExp === 0) {
       toast.error('Please rate both categories')
+      return
+    }
+    if (!booking.package_id) {
+      toast.error('Unable to submit review for this booking')
       return
     }
     setSubmitting(true)
@@ -454,6 +463,63 @@ export function BookingsClient({
                         </div>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Service Bookings */}
+      {serviceBookings.length > 0 && (
+        <div>
+          <h2 className="text-xl font-bold mb-4">Service Bookings</h2>
+          <div className="space-y-4">
+            {serviceBookings.map((booking) => {
+              const listing = (booking as any).service_listings
+              const imageUrl = listing?.images?.[0] || '/placeholder-listing.jpg'
+              const checkInDate = booking.check_in_date ? formatDate(booking.check_in_date) : 'N/A'
+              const checkOutDate = booking.check_out_date ? formatDate(booking.check_out_date) : null
+
+              return (
+                <Card key={booking.id} className="bg-card border-border hover:border-primary/20 transition-colors">
+                  <CardContent className="p-5">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={imageUrl} alt={listing?.title} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <div>
+                            <h3 className="font-bold text-lg leading-tight">{listing?.title}</h3>
+                            <p className="text-sm text-muted-foreground">{listing?.location}</p>
+                          </div>
+                          <Badge className={STATUS_COLORS[booking.status] || STATUS_COLORS.pending}>
+                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" /> {checkInDate}{checkOutDate ? ` — ${checkOutDate}` : ''}
+                          </span>
+                          {booking.quantity && (
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3 w-3" /> {booking.quantity} {listing?.type === 'stays' ? 'room(s)' : 'unit(s)'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-bold text-primary text-sm">{formatPrice(booking.total_amount_paise)}</span>
+                          <Link href={`/listings/${listing?.type}/${listing?.slug}`} className="flex">
+                            <Button variant="outline" size="sm" className="border-border text-xs">
+                              <ArrowRight className="mr-1 h-3 w-3" /> View Booking
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               )
@@ -877,7 +943,7 @@ function BookingItem({
   const showTokenBalance = isTokenTrip && booking.status === 'confirmed' && balanceDue > 0
   const duration = pkg?.duration_days || 0
   const cal = tripCalFromPackage(pkg)
-  const tripEndIso = tripEndDateIsoForBooking(booking.travel_date, cal)
+  const tripEndIso = booking.travel_date ? tripEndDateIsoForBooking(booking.travel_date, cal) : null
 
   return (
     <Card className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={onToggle}>
@@ -905,11 +971,11 @@ function BookingItem({
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />{' '}
-                {duration > 0
-                  ? formatDateRangeFromEdges(booking.travel_date, tripEndIso)
-                  : formatDate(booking.travel_date)}
+                {duration > 0 && tripEndIso
+                  ? formatDateRangeFromEdges(booking.travel_date!, tripEndIso)
+                  : booking.travel_date ? formatDate(booking.travel_date) : '—'}
               </span>
-              {booking.status === 'confirmed' && (() => {
+              {booking.status === 'confirmed' && booking.travel_date && tripEndIso && (() => {
                 const countdown = getTripCountdown(
                   booking.travel_date,
                   calendarInclusiveDaysForTravelDate(booking.travel_date, cal),
@@ -983,9 +1049,9 @@ function BookingItem({
               </div>
               <div>
                 <span className="text-muted-foreground text-xs block">Departure</span>
-                <span>{formatDate(booking.travel_date)}</span>
+                <span>{booking.travel_date ? formatDate(booking.travel_date) : '—'}</span>
               </div>
-              {duration > 0 && (
+              {duration > 0 && tripEndIso && (
                 <div>
                   <span className="text-muted-foreground text-xs block">Return</span>
                   <span>{formatDate(tripEndIso)}</span>
@@ -1033,7 +1099,7 @@ function BookingItem({
               </Button>
 
               {/* Date change - only for pending bookings */}
-              {booking.status === 'pending' && (
+              {booking.status === 'pending' && booking.travel_date && (
                 <DateChanger bookingId={booking.id} currentDate={booking.travel_date} />
               )}
 

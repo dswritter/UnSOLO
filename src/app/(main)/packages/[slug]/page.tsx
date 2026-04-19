@@ -18,6 +18,7 @@ import { InterestButton } from '@/components/packages/InterestButton'
 import { ShareButton } from '@/components/packages/ShareButton'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
+import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 
@@ -320,6 +321,17 @@ export default async function PackageDetailPage({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Related Services - Cross-Sell */}
+            {package_.destination?.name && (
+              <div className="bg-card border border-border rounded-xl p-6">
+                <RelatedServicesSection
+                  packageId={package_.id}
+                  destinationId={package_.destination_id}
+                  destinationName={package_.destination.name}
+                />
               </div>
             )}
 

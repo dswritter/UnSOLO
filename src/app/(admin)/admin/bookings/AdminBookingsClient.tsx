@@ -58,6 +58,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
   // Month filter
   if (filterMonth) {
     filtered = filtered.filter(b => {
+      if (!b.travel_date) return false
       const d = new Date(b.travel_date)
       return d.getMonth() === parseInt(filterMonth)
     })
@@ -66,6 +67,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
   // Year filter
   if (filterYear) {
     filtered = filtered.filter(b => {
+      if (!b.travel_date) return false
       const d = new Date(b.travel_date)
       return d.getFullYear() === parseInt(filterYear)
     })
@@ -232,7 +234,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                   <div className="min-w-0">
                     <p className="font-semibold truncate">{pkg?.title || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">
-                      {usr?.full_name || usr?.username || 'Unknown'} · {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {formatDate(booking.travel_date)}
+                      {usr?.full_name || usr?.username || 'Unknown'} · {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {booking.travel_date ? formatDate(booking.travel_date) : '—'}
                     </p>
                   </div>
                 </div>
