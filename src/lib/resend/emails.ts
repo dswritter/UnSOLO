@@ -6,6 +6,83 @@ const FROM_EMAIL =
   (process.env.NODE_ENV === 'production' ? 'hello@unsolo.in' : 'onboarding@resend.dev')
 const ADMIN_EMAIL = 'hello@unsolo.in'
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// ── Join request approved (pay on trip page) ─────────────────
+
+export interface JoinRequestApprovedEmailInput {
+  travelerEmail: string
+  /** Greeting; falls back to "there" */
+  travelerName?: string | null
+  hostName: string
+  tripTitle: string
+  /** Absolute URL to /packages/[slug] */
+  packageUrl: string
+  paymentDeadlineHours: number
+  /** Human-readable deadline, e.g. "19 Apr 2026, 5:30 pm" */
+  paymentDeadlineLabel: string
+}
+
+export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedEmailInput) {
+  const {
+    travelerEmail,
+    travelerName,
+    hostName,
+    tripTitle,
+    packageUrl,
+    paymentDeadlineHours,
+    paymentDeadlineLabel,
+  } = details
+
+  const greeting = (travelerName && travelerName.trim()) || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeHost = escapeHtml(hostName)
+  const safeDeadlineLabel = escapeHtml(paymentDeadlineLabel)
+  const safeUrl = packageUrl.replace(/"/g, '&quot;')
+
+  await resend.emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: travelerEmail,
+    subject: `You're approved — complete payment for ${tripTitle}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #FFAA00; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color: #FFAA00; text-align: center;">Request approved</h2>
+        <p style="color: #ccc; text-align: center;">Hey ${escapeHtml(greeting)},</p>
+        <p style="color: #ddd; text-align: center; line-height: 1.5;">
+          <strong style="color: #fff;">${safeHost}</strong> approved your request to join <strong style="color: #FFAA00;">${safeTitle}</strong>.
+        </p>
+
+        <div style="background: #1a1a1a; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #333;">
+          <p style="color: #ddd; margin: 8px 0;"><strong style="color: #FFAA00;">Pay within ${paymentDeadlineHours} hours</strong></p>
+          <p style="color: #aaa; margin: 8px 0; font-size: 14px;">Complete payment by: <strong style="color: #fff;">${safeDeadlineLabel}</strong></p>
+        </div>
+
+        <p style="color: #ccc; font-size: 14px; line-height: 1.5;">
+          Open your trip page while signed in, then use <strong>Proceed to payment</strong> to pay securely with Razorpay.
+        </p>
+
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${safeUrl}" style="display: inline-block; background: #FFAA00; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">Go to trip &amp; pay</a>
+        </div>
+
+        <p style="color: #888; font-size: 12px; text-align: center; word-break: break-all;">Or copy this link:<br /><a href="${safeUrl}" style="color: #FFAA00;">${escapeHtml(packageUrl)}</a></p>
+
+        <p style="color: #888; font-size: 12px; margin-top: 32px; text-align: center;">Questions? <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
+        <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
 interface CustomRequestDetails {
   packageTitle: string
   requestedDate: string

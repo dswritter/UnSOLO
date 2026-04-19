@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
+import { APP_URL, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 import {
   minPricePaiseFromVariants,
   type PriceVariant,
@@ -608,6 +608,44 @@ export async function approveJoinRequest(requestId: string) {
     body: `${hostName} approved your request to join "${trip.title}". Complete payment within ${JOIN_PAYMENT_DEADLINE_HOURS} hours.`,
     link: `/packages/${trip.slug}`,
   })
+
+  const { data: authTraveler } = await svcSupabase.auth.admin.getUserById(request.user_id)
+  const travelerEmail = authTraveler?.user?.email
+  if (travelerEmail) {
+    const { data: travelerProfile } = await svcSupabase
+      .from('profiles')
+      .select('full_name, username')
+      .eq('id', request.user_id)
+      .single()
+    const travelerDisplayName =
+      (travelerProfile?.full_name && travelerProfile.full_name.trim()) ||
+      travelerProfile?.username?.trim() ||
+      null
+    const base = APP_URL.replace(/\/$/, '')
+    const packageUrl = `${base}/packages/${trip.slug}`
+    const deadlineDate = new Date(deadline)
+    const paymentDeadlineLabel = deadlineDate.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    try {
+      const { sendJoinRequestApprovedEmail } = await import('@/lib/resend/emails')
+      await sendJoinRequestApprovedEmail({
+        travelerEmail,
+        travelerName: travelerDisplayName,
+        hostName,
+        tripTitle: trip.title,
+        packageUrl,
+        paymentDeadlineHours: JOIN_PAYMENT_DEADLINE_HOURS,
+        paymentDeadlineLabel,
+      })
+    } catch (err) {
+      console.error('sendJoinRequestApprovedEmail failed:', err)
+    }
+  }
 
   revalidatePath(`/host/${request.trip_id}`)
   return { success: true }
