@@ -94,7 +94,15 @@ function RequestCard({
       if (result.error) {
         toast.error(result.error)
       } else {
-        toast.success(`Approved ${user?.full_name || user?.username || 'request'}`)
+        const name = user?.full_name || user?.username || 'request'
+        let successMsg = `Approved ${name}`
+        if ('emailSent' in result && result.emailSent) {
+          successMsg += ' — confirmation email sent.'
+        }
+        toast.success(successMsg)
+        if ('emailWarning' in result && result.emailWarning) {
+          toast.warning(result.emailWarning)
+        }
         setHandled(true)
         setHandledStatus('approved')
       }

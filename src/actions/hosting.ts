@@ -9,6 +9,7 @@ import {
 } from '@/lib/package-pricing'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import type { JoinPreferences } from '@/types'
+import { getEmailFromAuthUser } from '@/lib/auth-email'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -576,10 +577,15 @@ export async function approveJoinRequest(requestId: string) {
 
   const deadline = new Date(Date.now() + JOIN_PAYMENT_DEADLINE_HOURS * 60 * 60 * 1000).toISOString()
 
-  await supabase
+  const { error: updateError } = await supabase
     .from('join_requests')
     .update({ status: 'approved', payment_deadline: deadline, updated_at: new Date().toISOString() })
     .eq('id', requestId)
+
+  if (updateError) {
+    console.error('approveJoinRequest update:', updateError.message)
+    return { error: updateError.message || 'Could not approve request' }
+  }
 
   const { data: hostProfile } = await supabase
     .from('profiles')
@@ -609,29 +615,40 @@ export async function approveJoinRequest(requestId: string) {
     console.error('approveJoinRequest getUserById:', authTravelerError.message)
   }
 
-  const travelerEmail = authTraveler?.user?.email?.trim() || undefined
-  if (!travelerEmail) {
-    console.warn('approveJoinRequest: no traveler email in auth for user', request.user_id)
+  const travelerEmail = getEmailFromAuthUser(authTraveler?.user)
+
+  const { data: travelerProfile } = await serviceClient
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', request.user_id)
+    .single()
+  const travelerDisplayName =
+    (travelerProfile?.full_name && travelerProfile.full_name.trim()) ||
+    travelerProfile?.username?.trim() ||
+    null
+
+  const base = APP_URL.replace(/\/$/, '')
+  const packageUrl = `${base}/packages/${trip.slug}`
+  const deadlineDate = new Date(deadline)
+  const paymentDeadlineLabel = deadlineDate.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  let emailSent = false
+  let emailWarning: string | undefined
+
+  if (!process.env.RESEND_API_KEY?.trim()) {
+    emailWarning = 'RESEND_API_KEY is not set — approval email was not sent.'
+    console.warn('approveJoinRequest: RESEND_API_KEY missing')
+  } else if (!travelerEmail) {
+    emailWarning =
+      'Traveler has no email on their account (e.g. phone-only signup). They were notified in the app only.'
+    console.warn('approveJoinRequest: no traveler email for user', request.user_id)
   } else {
-    const { data: travelerProfile } = await serviceClient
-      .from('profiles')
-      .select('full_name, username')
-      .eq('id', request.user_id)
-      .single()
-    const travelerDisplayName =
-      (travelerProfile?.full_name && travelerProfile.full_name.trim()) ||
-      travelerProfile?.username?.trim() ||
-      null
-    const base = APP_URL.replace(/\/$/, '')
-    const packageUrl = `${base}/packages/${trip.slug}`
-    const deadlineDate = new Date(deadline)
-    const paymentDeadlineLabel = deadlineDate.toLocaleString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
     try {
       const { sendJoinRequestApprovedEmail } = await import('@/lib/resend/emails')
       await sendJoinRequestApprovedEmail({
@@ -643,13 +660,16 @@ export async function approveJoinRequest(requestId: string) {
         paymentDeadlineHours: JOIN_PAYMENT_DEADLINE_HOURS,
         paymentDeadlineLabel,
       })
+      emailSent = true
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error('sendJoinRequestApprovedEmail failed:', err)
+      emailWarning = `Email could not be sent: ${msg}`
     }
   }
 
   revalidatePath(`/host/${request.trip_id}`)
-  return { success: true }
+  return { success: true as const, emailSent, emailWarning }
 }
 
 export async function rejectJoinRequest(requestId: string, reason?: string) {
