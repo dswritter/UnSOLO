@@ -9,13 +9,300 @@ import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
+import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
+
+const RAZORPAY_MIN_PAISE = 100 // ₹1 — Razorpay minimum for INR
+
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>
+
+async function validatePromoForCheckout(
+  supabase: SupabaseServer,
+  code: string,
+): Promise<{ discountPaise: number; offerId: string } | { error: string }> {
+  const trimmed = code.toUpperCase().trim()
+  if (!trimmed) return { error: 'Enter a promo code' }
+
+  const { data: offer } = await supabase
+    .from('discount_offers')
+    .select('id, discount_paise, max_uses, used_count, valid_until')
+    .eq('promo_code', trimmed)
+    .eq('is_active', true)
+    .single()
+
+  if (!offer) return { error: 'Invalid promo code' }
+  if (offer.max_uses && (offer.used_count ?? 0) >= offer.max_uses) {
+    return { error: 'This promo code has expired' }
+  }
+  if (offer.valid_until && new Date(offer.valid_until) < new Date()) {
+    return { error: 'This promo code has expired' }
+  }
+
+  return { discountPaise: offer.discount_paise, offerId: offer.id }
+}
+
+async function referredDiscountForUser(
+  supabase: SupabaseServer,
+  userId: string,
+): Promise<number> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('referred_by')
+    .eq('id', userId)
+    .single()
+  if (!profile?.referred_by) return 0
+
+  const { count } = await supabase
+    .from('bookings')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('status', ['confirmed', 'completed'])
+
+  if ((count ?? 0) > 0) return 0
+  return REFERRED_DISCOUNT_PAISE
+}
+
+/** Wallet + Razorpay split (same rules as legacy wallet block). */
+function walletAndRazorpayAmount(
+  grossAfterPromoAndReferred: number,
+  availableCredits: number,
+  useWallet: boolean,
+): { walletDeducted: number; razorpayAmount: number } {
+  if (!useWallet || availableCredits <= 0) {
+    return { walletDeducted: 0, razorpayAmount: grossAfterPromoAndReferred }
+  }
+  if (availableCredits >= grossAfterPromoAndReferred) {
+    return { walletDeducted: grossAfterPromoAndReferred, razorpayAmount: 0 }
+  }
+  let walletDeducted = Math.min(
+    availableCredits,
+    Math.max(0, grossAfterPromoAndReferred - RAZORPAY_MIN_PAISE),
+  )
+  let razorpayAmount = grossAfterPromoAndReferred - walletDeducted
+  if (razorpayAmount > 0 && razorpayAmount < RAZORPAY_MIN_PAISE) {
+    walletDeducted = Math.min(availableCredits, grossAfterPromoAndReferred - RAZORPAY_MIN_PAISE)
+    if (walletDeducted < 0) walletDeducted = 0
+    razorpayAmount = grossAfterPromoAndReferred - walletDeducted
+  }
+  return { walletDeducted, razorpayAmount }
+}
+
+async function incrementPromoOfferUsed(supabase: SupabaseServer, offerId: string) {
+  const { data: row } = await supabase
+    .from('discount_offers')
+    .select('used_count')
+    .eq('id', offerId)
+    .single()
+  if (!row) return
+  await supabase
+    .from('discount_offers')
+    .update({ used_count: (row.used_count ?? 0) + 1 })
+    .eq('id', offerId)
+}
+
+/** Shared: chat, wallet deduction, host earnings, referral — after booking row is confirmed. */
+async function runPostConfirmationPipeline(
+  supabase: SupabaseServer,
+  userId: string,
+  booking: Record<string, unknown> & {
+    id: string
+    package_id: string
+    wallet_deducted_paise?: number | null
+    total_amount_paise: number
+    promo_offer_id?: string | null
+    package?: unknown
+  },
+  confirmationCode: string,
+) {
+  if (booking.wallet_deducted_paise && booking.wallet_deducted_paise > 0) {
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('referral_credits_paise')
+      .eq('id', userId)
+      .single()
+
+    const currentCredits = userProfile?.referral_credits_paise || 0
+    const newCredits = Math.max(0, currentCredits - booking.wallet_deducted_paise)
+    await supabase.from('profiles').update({ referral_credits_paise: newCredits }).eq('id', userId)
+  }
+
+  if (booking.promo_offer_id) {
+    await incrementPromoOfferUsed(supabase, booking.promo_offer_id)
+  }
+
+  const { data: existingRoom } = await supabase
+    .from('chat_rooms')
+    .select('id')
+    .eq('package_id', booking.package_id)
+    .eq('type', 'trip')
+    .single()
+
+  let roomId = existingRoom?.id
+
+  if (!roomId) {
+    const pkg = booking.package as { title?: string } | null
+    const { data: newRoom } = await supabase
+      .from('chat_rooms')
+      .insert({
+        name: pkg?.title ? `${pkg.title} - Trip Chat` : 'Trip Chat',
+        type: 'trip',
+        package_id: booking.package_id,
+        created_by: userId,
+      })
+      .select('id')
+      .single()
+    roomId = newRoom?.id
+  }
+
+  if (roomId) {
+    await supabase.from('chat_room_members').upsert({
+      room_id: roomId,
+      user_id: userId,
+    })
+
+    const { data: joinerProfile } = await supabase
+      .from('profiles')
+      .select('username, full_name')
+      .eq('id', userId)
+      .single()
+    const displayName = joinerProfile?.full_name || joinerProfile?.username || 'A new traveler'
+
+    await supabase.from('messages').insert({
+      room_id: roomId,
+      user_id: null,
+      content: `🎉 ${displayName} (@${joinerProfile?.username || 'traveler'}) has joined the trip!`,
+      message_type: 'system',
+    })
+  }
+
+  const pkgDetail = booking.package as { difficulty?: string } | null
+  if (pkgDetail?.difficulty === 'challenging') {
+    await supabase.from('user_achievements').upsert({
+      user_id: userId,
+      achievement_key: 'trailblazer',
+    })
+  }
+
+  try {
+    const { createClient: createSC } = await import('@supabase/supabase-js')
+    const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { data: customerProfile } = await supabase
+      .from('profiles')
+      .select('full_name, username')
+      .eq('id', userId)
+      .single()
+    const customerName = customerProfile?.full_name || customerProfile?.username || 'A user'
+    const pkgName = (booking.package as { title?: string })?.title || 'a trip'
+    const amountFormatted = '₹' + (booking.total_amount_paise / 100).toLocaleString('en-IN')
+
+    const { data: admins } = await svcSupabase
+      .from('profiles')
+      .select('id')
+      .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+    for (const admin of admins || []) {
+      await svcSupabase.from('notifications').insert({
+        user_id: admin.id,
+        type: 'booking',
+        title: 'New Booking!',
+        body: `${customerName} booked ${pkgName} for ${amountFormatted}. Code: ${confirmationCode}`,
+        link: '/admin/bookings',
+      })
+    }
+  } catch {
+    /* non-critical */
+  }
+
+  try {
+    const pkg = booking.package as { host_id?: string } | null
+    if (pkg?.host_id) {
+      const feePercent = await getPlatformFeePercent()
+      const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
+        booking.total_amount_paise,
+        feePercent,
+      )
+
+      const { createClient: createSC3 } = await import('@supabase/supabase-js')
+      const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+      await svcSupa3.from('host_earnings').insert({
+        booking_id: booking.id,
+        host_id: pkg.host_id,
+        total_paise: booking.total_amount_paise,
+        platform_fee_paise: platformFeePaise,
+        host_paise: hostPaise,
+        payout_status: 'pending',
+      })
+
+      const hostAmount_fmt = '₹' + (hostPaise / 100).toLocaleString('en-IN')
+      await svcSupa3.from('notifications').insert({
+        user_id: pkg.host_id,
+        type: 'split_payment',
+        title: 'New Booking on Your Trip!',
+        body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (list price includes a ${feePercent}% platform fee).`,
+        link: '/host',
+      })
+    }
+  } catch {
+    /* non-critical */
+  }
+
+  try {
+    const { createClient: createSC2 } = await import('@supabase/supabase-js')
+    const svcSupa = createSC2(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const { REFERRAL_CREDIT_PAISE } = await import('@/lib/constants')
+
+    const { count: confirmedCount } = await svcSupa
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+
+    if (confirmedCount === 1) {
+      const { data: userProfile } = await svcSupa
+        .from('profiles')
+        .select('referred_by')
+        .eq('id', userId)
+        .single()
+
+      if (userProfile?.referred_by) {
+        const { data: referrer } = await svcSupa
+          .from('profiles')
+          .select('referral_credits_paise')
+          .eq('id', userProfile.referred_by)
+          .single()
+
+        await svcSupa
+          .from('profiles')
+          .update({
+            referral_credits_paise: (referrer?.referral_credits_paise || 0) + REFERRAL_CREDIT_PAISE,
+          })
+          .eq('id', userProfile.referred_by)
+
+        await svcSupa
+          .from('referrals')
+          .update({ status: 'credited', credited_at: new Date().toISOString(), booking_id: booking.id })
+          .eq('referrer_id', userProfile.referred_by)
+          .eq('referred_id', userId)
+
+        await svcSupa.from('notifications').insert({
+          user_id: userProfile.referred_by,
+          type: 'booking',
+          title: 'Referral Reward!',
+          body: `Your friend completed their first trip! You earned ₹${REFERRAL_CREDIT_PAISE / 100}!`,
+          link: '/profile',
+        })
+      }
+    }
+  } catch {
+    /* non-critical */
+  }
+}
 
 export async function createRazorpayOrder(
   packageId: string,
   travelDate: string,
   guests: number,
   useWalletCredits: boolean = false,
-  options?: { priceVariantIndex?: number; groupBookingId?: string },
+  options?: { priceVariantIndex?: number; groupBookingId?: string; promoCode?: string },
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -143,30 +430,72 @@ export async function createRazorpayOrder(
     }
   }
 
-  let totalPaise = perPersonPaise * guests
-  let walletDeducted = 0
+  const grossList = perPersonPaise * guests
+  let promoOfferId: string | null = null
+  let promoDiscountPaise = 0
+  if (options?.promoCode?.trim()) {
+    const pr = await validatePromoForCheckout(supabase, options.promoCode)
+    if ('error' in pr) return { error: pr.error }
+    promoDiscountPaise = Math.min(pr.discountPaise, grossList)
+    promoOfferId = pr.offerId
+  }
+  const afterPromo = Math.max(0, grossList - promoDiscountPaise)
+  const referredDisc = await referredDiscountForUser(supabase, user.id)
+  const referredApplied = Math.min(referredDisc, afterPromo)
+  const afterDiscounts = Math.max(0, afterPromo - referredApplied)
 
-  // Apply wallet credits if requested
-  if (useWalletCredits) {
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('referral_credits_paise')
-      .eq('id', user.id)
+  const { data: userProfileWallet } = await supabase
+    .from('profiles')
+    .select('referral_credits_paise')
+    .eq('id', user.id)
+    .single()
+  const availableCredits = userProfileWallet?.referral_credits_paise || 0
+
+  const { walletDeducted, razorpayAmount } = walletAndRazorpayAmount(
+    afterDiscounts,
+    availableCredits,
+    useWalletCredits,
+  )
+
+  const discountTotalPaise = grossList - afterDiscounts
+
+  if (razorpayAmount <= 0) {
+    const { generateConfirmationCode } = await import('@/lib/utils')
+    const confirmationCode = generateConfirmationCode()
+
+    const { data: booking } = await supabase
+      .from('bookings')
+      .insert({
+        user_id: user.id,
+        package_id: packageId,
+        status: 'confirmed',
+        travel_date: travelDate,
+        guests,
+        total_amount_paise: afterDiscounts,
+        wallet_deducted_paise: walletDeducted,
+        discount_paise: discountTotalPaise,
+        promo_offer_id: promoOfferId,
+        stripe_session_id: null,
+        stripe_payment_intent: null,
+        confirmation_code: confirmationCode,
+        price_variant_label: priceVariantLabel,
+      })
+      .select('*, package:packages(*, destination:destinations(*))')
       .single()
 
-    const availableCredits = userProfile?.referral_credits_paise || 0
-    if (availableCredits > 0) {
-      // Deduct up to the total amount (can't go below ₹1 for Razorpay minimum)
-      const minPayment = 100 // ₹1 in paise — Razorpay minimum
-      walletDeducted = Math.min(availableCredits, totalPaise - minPayment)
-      if (walletDeducted < 0) walletDeducted = 0
-      totalPaise -= walletDeducted
+    if (!booking) return { error: 'Could not create booking' }
+
+    await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
+    revalidatePath('/bookings')
+    return {
+      instant: true as const,
+      bookingId: booking.id,
+      confirmationCode,
     }
   }
 
-  // Create Razorpay order
   const order = await razorpay.orders.create({
-    amount: totalPaise,
+    amount: razorpayAmount,
     currency: 'INR',
     receipt: `unsolo_${Date.now()}`,
     notes: {
@@ -178,7 +507,6 @@ export async function createRazorpayOrder(
     },
   })
 
-  // Create a pending booking
   const { data: booking } = await supabase
     .from('bookings')
     .insert({
@@ -187,9 +515,11 @@ export async function createRazorpayOrder(
       status: 'pending',
       travel_date: travelDate,
       guests,
-      total_amount_paise: totalPaise,
+      total_amount_paise: afterDiscounts,
       wallet_deducted_paise: walletDeducted,
-      stripe_session_id: order.id, // reusing column for razorpay order id
+      discount_paise: discountTotalPaise,
+      promo_offer_id: promoOfferId,
+      stripe_session_id: order.id,
       price_variant_label: priceVariantLabel,
     })
     .select()
@@ -197,7 +527,7 @@ export async function createRazorpayOrder(
 
   return {
     orderId: order.id,
-    amount: totalPaise,
+    amount: razorpayAmount,
     currency: 'INR',
     bookingId: booking?.id,
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -259,190 +589,14 @@ export async function confirmPayment(
     return { error: 'Booking not found' }
   }
 
-  // Deduct wallet credits if any were used
-  if (booking.wallet_deducted_paise && booking.wallet_deducted_paise > 0) {
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('referral_credits_paise')
-      .eq('id', user.id)
-      .single()
+  await runPostConfirmationPipeline(
+    supabase,
+    user.id,
+    booking as never,
+    confirmationCode,
+  )
 
-    const currentCredits = userProfile?.referral_credits_paise || 0
-    const newCredits = Math.max(0, currentCredits - booking.wallet_deducted_paise)
-    await supabase
-      .from('profiles')
-      .update({ referral_credits_paise: newCredits })
-      .eq('id', user.id)
-  }
-
-  // Find or create trip chat room
-  const { data: existingRoom } = await supabase
-    .from('chat_rooms')
-    .select('id')
-    .eq('package_id', booking.package_id)
-    .eq('type', 'trip')
-    .single()
-
-  let roomId = existingRoom?.id
-
-  if (!roomId) {
-    const pkg = booking.package as { title?: string } | null
-    const { data: newRoom } = await supabase
-      .from('chat_rooms')
-      .insert({
-        name: pkg?.title ? `${pkg.title} - Trip Chat` : 'Trip Chat',
-        type: 'trip',
-        package_id: booking.package_id,
-        created_by: user.id,
-      })
-      .select('id')
-      .single()
-    roomId = newRoom?.id
-  }
-
-  if (roomId) {
-    await supabase.from('chat_room_members').upsert({
-      room_id: roomId,
-      user_id: user.id,
-    })
-
-    // Get user's display name for the system message
-    const { data: joinerProfile } = await supabase
-      .from('profiles')
-      .select('username, full_name')
-      .eq('id', user.id)
-      .single()
-    const displayName = joinerProfile?.full_name || joinerProfile?.username || 'A new traveler'
-
-    await supabase.from('messages').insert({
-      room_id: roomId,
-      user_id: null,
-      content: `🎉 ${displayName} (@${joinerProfile?.username || 'traveler'}) has joined the trip!`,
-      message_type: 'system',
-    })
-  }
-
-  // Leaderboard scores are now updated by the cron job when trips are completed
-  // (not at booking time — points should only be awarded after trip ends)
-
-  const pkgDetail = booking.package as { difficulty?: string } | null
-  if (pkgDetail?.difficulty === 'challenging') {
-    await supabase.from('user_achievements').upsert({
-      user_id: user.id,
-      achievement_key: 'trailblazer',
-    })
-  }
-
-  // Notify admins about new booking
-  try {
-    const { createClient: createSC } = await import('@supabase/supabase-js')
-    const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-    const { data: customerProfile } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
-    const customerName = customerProfile?.full_name || customerProfile?.username || 'A user'
-    const pkgName = (booking.package as { title?: string })?.title || 'a trip'
-    const amountFormatted = '₹' + (booking.total_amount_paise / 100).toLocaleString('en-IN')
-
-    const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
-    for (const admin of admins || []) {
-      await svcSupabase.from('notifications').insert({
-        user_id: admin.id,
-        type: 'booking',
-        title: 'New Booking!',
-        body: `${customerName} booked ${pkgName} for ${amountFormatted}. Code: ${confirmationCode}`,
-        link: '/admin/bookings',
-      })
-    }
-  } catch { /* non-critical */ }
-
-  // ── Host Earnings: Track platform fee for community trips ────
-  try {
-    const pkg = booking.package as { host_id?: string } | null
-    if (pkg?.host_id) {
-      const feePercent = await getPlatformFeePercent()
-      const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
-        booking.total_amount_paise,
-        feePercent,
-      )
-
-      const { createClient: createSC3 } = await import('@supabase/supabase-js')
-      const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-      await svcSupa3.from('host_earnings').insert({
-        booking_id: booking.id,
-        host_id: pkg.host_id,
-        total_paise: booking.total_amount_paise,
-        platform_fee_paise: platformFeePaise,
-        host_paise: hostPaise,
-        payout_status: 'pending',
-      })
-
-      // Notify host
-      const hostAmount_fmt = '₹' + (hostPaise / 100).toLocaleString('en-IN')
-      await svcSupa3.from('notifications').insert({
-        user_id: pkg.host_id,
-        type: 'split_payment',
-        title: 'New Booking on Your Trip!',
-        body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (list price includes a ${feePercent}% platform fee).`,
-        link: '/host',
-      })
-    }
-  } catch { /* non-critical */ }
-
-  // ── Referral Credit: Credit referrer on first booking ────────
-  try {
-    const { createClient: createSC2 } = await import('@supabase/supabase-js')
-    const svcSupa = createSC2(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-    const { REFERRAL_CREDIT_PAISE } = await import('@/lib/constants')
-
-    // Check if this is user's first confirmed booking
-    const { count: confirmedCount } = await svcSupa
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('status', 'confirmed')
-
-    if (confirmedCount === 1) {
-      // First booking! Check if user was referred
-      const { data: userProfile } = await svcSupa
-        .from('profiles')
-        .select('referred_by')
-        .eq('id', user.id)
-        .single()
-
-      if (userProfile?.referred_by) {
-        // Credit the referrer
-        const { data: referrer } = await svcSupa
-          .from('profiles')
-          .select('referral_credits_paise')
-          .eq('id', userProfile.referred_by)
-          .single()
-
-        await svcSupa
-          .from('profiles')
-          .update({
-            referral_credits_paise: (referrer?.referral_credits_paise || 0) + REFERRAL_CREDIT_PAISE,
-          })
-          .eq('id', userProfile.referred_by)
-
-        // Update referral status
-        await svcSupa
-          .from('referrals')
-          .update({ status: 'credited', credited_at: new Date().toISOString(), booking_id: booking.id })
-          .eq('referrer_id', userProfile.referred_by)
-          .eq('referred_id', user.id)
-
-        // Notify referrer
-        await svcSupa.from('notifications').insert({
-          user_id: userProfile.referred_by,
-          type: 'booking',
-          title: 'Referral Reward!',
-          body: `Your friend completed their first trip! You earned ₹${REFERRAL_CREDIT_PAISE / 100}!`,
-          link: '/profile',
-        })
-      }
-    }
-  } catch { /* non-critical */ }
-
+  revalidatePath('/bookings')
   return {
     success: true,
     confirmationCode,
@@ -933,7 +1087,15 @@ export async function markRefundComplete(bookingId: string) {
 
 // ── Community Trip Payment (after host approves join request) ──
 
-export async function createCommunityTripOrder(joinRequestId: string) {
+export type CommunityTripOrderOptions = {
+  promoCode?: string | null
+  useWalletCredits?: boolean
+}
+
+export async function createCommunityTripOrder(
+  joinRequestId: string,
+  options?: CommunityTripOrderOptions,
+) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -970,7 +1132,35 @@ export async function createCommunityTripOrder(joinRequestId: string) {
     departure_dates_closed?: string[] | null
     duration_days?: number
   }
-  const totalPaise = trip.price_paise
+
+  const grossList = trip.price_paise
+  let promoOfferId: string | null = null
+  let promoDiscountPaise = 0
+  if (options?.promoCode?.trim()) {
+    const pr = await validatePromoForCheckout(supabase, options.promoCode)
+    if ('error' in pr) return { error: pr.error }
+    promoDiscountPaise = Math.min(pr.discountPaise, grossList)
+    promoOfferId = pr.offerId
+  }
+  const afterPromo = Math.max(0, grossList - promoDiscountPaise)
+  const referredDisc = await referredDiscountForUser(supabase, user.id)
+  const referredApplied = Math.min(referredDisc, afterPromo)
+  const afterDiscounts = Math.max(0, afterPromo - referredApplied)
+
+  const { data: userProfileWallet } = await supabase
+    .from('profiles')
+    .select('referral_credits_paise')
+    .eq('id', user.id)
+    .single()
+  const availableCredits = userProfileWallet?.referral_credits_paise || 0
+
+  const { walletDeducted, razorpayAmount } = walletAndRazorpayAmount(
+    afterDiscounts,
+    availableCredits,
+    !!options?.useWalletCredits,
+  )
+
+  const discountTotalPaise = grossList - afterDiscounts
 
   const today = new Date().toISOString().split('T')[0]
   const closedSet = new Set((trip.departure_dates_closed || []).map(tripDepartureDateKey))
@@ -980,8 +1170,66 @@ export async function createCommunityTripOrder(joinRequestId: string) {
     return { error: 'This trip has no open departure dates right now. Contact the host or try again later.' }
   }
 
+  const { data: existingConfirmed } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('package_id', trip.id)
+    .eq('travel_date', travelDate)
+    .eq('status', 'confirmed')
+    .maybeSingle()
+  if (existingConfirmed) {
+    return { error: 'You already have a confirmed booking for this trip' }
+  }
+
+  const { data: stalePending } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('package_id', trip.id)
+    .eq('travel_date', travelDate)
+    .eq('status', 'pending')
+    .maybeSingle()
+  if (stalePending) {
+    await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', stalePending.id)
+  }
+
+  if (razorpayAmount <= 0) {
+    const { generateConfirmationCode } = await import('@/lib/utils')
+    const confirmationCode = generateConfirmationCode()
+
+    const { data: booking } = await supabase
+      .from('bookings')
+      .insert({
+        user_id: user.id,
+        package_id: trip.id,
+        status: 'confirmed',
+        travel_date: travelDate,
+        guests: 1,
+        total_amount_paise: afterDiscounts,
+        wallet_deducted_paise: walletDeducted,
+        discount_paise: discountTotalPaise,
+        promo_offer_id: promoOfferId,
+        stripe_session_id: null,
+        stripe_payment_intent: null,
+        confirmation_code: confirmationCode,
+      })
+      .select('*, package:packages(*, destination:destinations(*))')
+      .single()
+
+    if (!booking) return { error: 'Could not create booking' }
+
+    await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
+    revalidatePath('/bookings')
+    return {
+      instant: true as const,
+      bookingId: booking.id,
+      confirmationCode,
+    }
+  }
+
   const order = await razorpay.orders.create({
-    amount: totalPaise,
+    amount: razorpayAmount,
     currency: 'INR',
     receipt: `unsolo_community_${Date.now()}`,
     notes: { userId: user.id, packageId: trip.id, joinRequestId: request.id, type: 'community_trip' },
@@ -993,13 +1241,16 @@ export async function createCommunityTripOrder(joinRequestId: string) {
     status: 'pending',
     travel_date: travelDate,
     guests: 1,
-    total_amount_paise: totalPaise,
+    total_amount_paise: afterDiscounts,
+    wallet_deducted_paise: walletDeducted,
+    discount_paise: discountTotalPaise,
+    promo_offer_id: promoOfferId,
     stripe_session_id: order.id,
   })
 
   return {
     orderId: order.id,
-    amount: totalPaise,
+    amount: razorpayAmount,
     currency: 'INR',
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {

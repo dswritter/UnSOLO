@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
 import { validatePromoCode } from '@/actions/admin'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
+import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
 
 declare global {
   interface Window {
@@ -35,15 +36,6 @@ interface GroupInvite {
   travel_date: string
   organizer_name: string
   per_person_paise: number
-}
-
-interface DiscountOfferPromoRow {
-  promo_code: string | null
-  name: string | null
-  discount_paise: number
-  max_uses: number | null
-  used_count: number | null
-  valid_until: string | null
 }
 
 interface BookingFormClientProps {
@@ -103,7 +95,7 @@ export function BookingFormClient({
   const [isFirstBooking, setIsFirstBooking] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
   const [availablePromos, setAvailablePromos] = useState<{ code: string; name: string; discountPaise: number }[]>([])
-  const [promosLoaded, setPromosLoaded] = useState(false)
+  const [promosLoading, setPromosLoading] = useState(false)
 
   // Group booking state
   const [groupDate, setGroupDate] = useState('')
@@ -156,36 +148,29 @@ export function BookingFormClient({
     setAddedFriends(prev => prev.filter(f => f.id !== id))
   }
 
-  // Fetch user credits and available promos on mount
-  useState(() => {
+  useEffect(() => {
     getUserCredits().then(data => {
       setUserCredits(data.credits)
       setIsReferred(data.isReferred)
       setIsFirstBooking(data.isFirstBooking)
     })
-    // Fetch available promo codes
+  }, [])
+
+  useEffect(() => {
+    if (!showPromoInput) return
+    let cancelled = false
+    setPromosLoading(true)
     const supabase = createClient()
-    supabase
-      .from('discount_offers')
-      .select('promo_code, name, discount_paise, max_uses, used_count, valid_until')
-      .eq('is_active', true)
-      .eq('type', 'promo')
-      .not('promo_code', 'is', null)
-      .then((res: { data: DiscountOfferPromoRow[] | null }) => {
-        const data = res.data
-        const now = new Date()
-        const valid = (data || []).filter((d: DiscountOfferPromoRow) =>
-          (!d.max_uses || (d.used_count ?? 0) < d.max_uses) &&
-          (!d.valid_until || new Date(d.valid_until) > now)
-        )
-        setAvailablePromos(valid.map((d: DiscountOfferPromoRow) => ({
-          code: d.promo_code!,
-          name: d.name ?? '',
-          discountPaise: d.discount_paise,
-        })))
-        setPromosLoaded(true)
-      })
-  })
+    fetchCheckoutPromoList(supabase).then((list) => {
+      if (!cancelled) {
+        setAvailablePromos(list)
+        setPromosLoading(false)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [showPromoInput])
 
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
@@ -247,11 +232,21 @@ export function BookingFormClient({
         selectedDate,
         guests,
         applyCredits,
-        variantTiers ? { priceVariantIndex: selectedVariantIndex } : undefined,
+        {
+          ...(variantTiers ? { priceVariantIndex: selectedVariantIndex } : {}),
+          ...(promoDiscount > 0 && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
+        },
       )
 
       if ('error' in result) {
         toast.error(result.error)
+        setLoading(false)
+        return
+      }
+
+      if ('instant' in result && result.instant) {
+        toast.success('Booking confirmed!')
+        router.push(`/book/success?booking_id=${result.bookingId}`)
         setLoading(false)
         return
       }
@@ -602,13 +597,15 @@ export function BookingFormClient({
                 </button>
                 {showPromoInput && (
                   <div className="space-y-2">
-                    {/* Available promos dropdown */}
-                    {availablePromos.length > 0 && (
+                    {promosLoading ? (
+                      <p className="text-[10px] text-muted-foreground">Loading UnSOLO offers…</p>
+                    ) : availablePromos.length > 0 ? (
                       <div className="space-y-1">
-                        <span className="text-[10px] text-muted-foreground">Available offers:</span>
+                        <span className="text-[10px] text-muted-foreground">Tap to apply:</span>
                         {availablePromos.map(p => (
                           <button
                             key={p.code}
+                            type="button"
                             onClick={() => { setPromoCode(p.code); setPromoDiscount(p.discountPaise); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
                             className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:border-primary/40 transition-colors text-left"
                           >
@@ -620,6 +617,8 @@ export function BookingFormClient({
                           </button>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground">No featured codes right now — enter yours below.</p>
                     )}
                     {/* Manual entry */}
                     <div className="flex gap-2">
