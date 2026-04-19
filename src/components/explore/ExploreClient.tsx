@@ -14,6 +14,9 @@ import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
 import { ExploreFilters } from '@/app/(main)/explore/ExploreFilters'
 import { ServiceListingCard } from './ServiceListingCard'
+import { MobileExploreActionBar } from './MobileExploreActionBar'
+import { SearchDrawer } from './SearchDrawer'
+import { FilterDrawer } from './FilterDrawer'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -61,6 +64,8 @@ export function ExploreClient({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
+  const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
@@ -75,7 +80,7 @@ export function ExploreClient({
   const results = isTripsTab ? packages : serviceListings
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
         {/* Tabs */}
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
@@ -98,8 +103,10 @@ export function ExploreClient({
           })}
         </div>
 
-        {/* Filters */}
-        <ExploreFilters params={params} resultCount={resultCount} activeTab={activeTab} />
+        {/* Desktop Filters */}
+        <div className="hidden md:block">
+          <ExploreFilters params={params} resultCount={resultCount} activeTab={activeTab} />
+        </div>
 
         {/* Results Grid */}
         {results.length === 0 ? (
@@ -231,6 +238,26 @@ export function ExploreClient({
           </div>
         )}
       </div>
+
+      {/* Mobile Action Bar & Drawers */}
+      <MobileExploreActionBar
+        onSearchClick={() => setSearchDrawerOpen(true)}
+        onFilterClick={() => setFilterDrawerOpen(true)}
+      />
+
+      <SearchDrawer
+        isOpen={searchDrawerOpen}
+        onClose={() => setSearchDrawerOpen(false)}
+        initialValue={params.q || ''}
+      />
+
+      <FilterDrawer
+        isOpen={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        params={params}
+        activeTab={activeTab}
+        resultCount={resultCount}
+      />
     </div>
   )
 }

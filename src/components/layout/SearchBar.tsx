@@ -117,48 +117,9 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
     setSearchInput(e.target.value)
   }
 
-  // Mobile: Icon only, expands left
+  // Mobile: Hidden on mobile (search is now in explore page action bar)
   if (isMobile) {
-    return (
-      <div ref={containerRef} className="relative">
-        {!isExpanded && (
-          <button
-            type="button"
-            onClick={() => setIsExpanded(true)}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            aria-label="Search"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-        )}
-
-        {isExpanded && (
-          <div className="absolute left-0 top-full mt-2 max-w-xs z-50">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={searchInput}
-                onChange={handleInputChange}
-                placeholder="Find"
-                className="w-full pl-9 pr-9 py-2 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="Clear"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    )
+    return null
   }
 
   // Desktop: Full search bar with live search
