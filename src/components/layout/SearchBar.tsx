@@ -133,7 +133,7 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
         )}
 
         {isExpanded && (
-          <div className="absolute right-0 top-full mt-2 w-72 z-50">
+          <div className="absolute left-0 top-full mt-2 max-w-xs z-50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
