@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Home, MessageSquare } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -97,7 +97,7 @@ export function Navbar({ user }: NavbarProps) {
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/host', label: 'Become a Host', icon: Home },
+    { href: '/host', label: 'Become a Host', icon: Tent },
   ]
 
   return (
