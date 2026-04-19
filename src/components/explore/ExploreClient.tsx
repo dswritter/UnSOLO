@@ -12,7 +12,7 @@ import { formatPrice } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
-import { ExploreFilters } from '@/app/(main)/explore/ExploreFilters'
+import { ExploreSidebar } from './ExploreSidebar'
 import { ServiceListingCard } from './ServiceListingCard'
 import { MobileExploreActionBar } from './MobileExploreActionBar'
 import { SearchDrawer } from './SearchDrawer'
@@ -81,7 +81,7 @@ export function ExploreClient({
 
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {/* Tabs */}
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
           {TABS.map((tab) => {
@@ -103,26 +103,29 @@ export function ExploreClient({
           })}
         </div>
 
-        {/* Desktop Filters */}
-        <div className="hidden md:block">
-          <ExploreFilters params={params} resultCount={resultCount} activeTab={activeTab} />
-        </div>
-
-        {/* Results Grid */}
-        {results.length === 0 ? (
-          <div className="text-center py-24">
-            <Mountain className="h-16 w-16 text-primary/30 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">
-              No {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]} found
-            </h3>
-            <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
-            <Button asChild variant="outline">
-              <Link href="/explore">Clear filters</Link>
-            </Button>
+        {/* Sidebar + Results Layout */}
+        <div className="flex gap-6 flex-1">
+          {/* Desktop Sidebar - hidden on mobile */}
+          <div className="hidden lg:block w-64 flex-shrink-0">
+            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} />
           </div>
-        ) : isTripsTab ? (
-          /* Trips Grid */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          {/* Results Grid */}
+          <div className="flex-1">
+            {results.length === 0 ? (
+              <div className="text-center py-24">
+                <Mountain className="h-16 w-16 text-primary/30 mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2">
+                  No {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]} found
+                </h3>
+                <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
+                <Button asChild variant="outline">
+                  <Link href="/explore">Clear filters</Link>
+                </Button>
+              </div>
+            ) : isTripsTab ? (
+              /* Trips Grid */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {(packages as Package[]).map((pkg) => (
               <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
                 <Card
@@ -229,14 +232,16 @@ export function ExploreClient({
               </Link>
             ))}
           </div>
-        ) : (
-          /* Service Listings Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(serviceListings as ServiceListing[]).map((listing) => (
-              <ServiceListingCard key={listing.id} listing={listing} />
-            ))}
+            ) : (
+              /* Service Listings Grid */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {(serviceListings as ServiceListing[]).map((listing) => (
+                  <ServiceListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Mobile Action Bar & Drawers */}

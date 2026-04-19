@@ -14,6 +14,7 @@ interface SearchDrawerProps {
 export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawerProps) {
   const [searchInput, setSearchInput] = useState(initialValue)
   const [mounted, setMounted] = useState(false)
+  const [drawerHeight, setDrawerHeight] = useState<number | undefined>(undefined)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
@@ -21,6 +22,32 @@ export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawe
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Detect keyboard appearance and adjust drawer height
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return
+
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    const handleViewportResize = () => {
+      // Calculate available space above keyboard
+      const keyboardHeight = window.innerHeight - viewport.height
+      // Set drawer max-height to content only (input + help text ~150px)
+      if (keyboardHeight > 0) {
+        setDrawerHeight(150)
+      } else {
+        // Keyboard hidden, let drawer be flexible
+        setDrawerHeight(undefined)
+      }
+    }
+
+    viewport.addEventListener('resize', handleViewportResize)
+    // Initial check
+    handleViewportResize()
+
+    return () => viewport.removeEventListener('resize', handleViewportResize)
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
@@ -76,8 +103,11 @@ export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawe
         onClick={onClose}
       />
 
-      {/* Drawer from left */}
-      <div className="absolute inset-y-0 left-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300">
+      {/* Drawer from left - keyboard-aware height */}
+      <div
+        className="fixed left-0 top-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300 flex flex-col"
+        style={{ maxHeight: drawerHeight ? `${drawerHeight}px` : 'auto' }}
+      >
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
