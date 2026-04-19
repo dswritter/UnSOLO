@@ -51,6 +51,7 @@ interface ExploreSidebarProps {
   params: Record<string, string>
   activeTab: 'trips' | ServiceListingType
   resultCount: number
+  isLoading?: boolean
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -62,7 +63,7 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
   )
 }
 
-export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSidebarProps) {
+export function ExploreSidebar({ params, activeTab, resultCount, isLoading = false }: ExploreSidebarProps) {
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
@@ -154,12 +155,14 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
               {['all', 'unsolo', 'community'].map((source) => (
                 <button
                   key={source}
+                  disabled={isLoading}
                   onClick={() => setTripSource(source as 'all' | 'unsolo' | 'community')}
                   className={cn(
-                    'px-3 py-2 rounded-lg text-sm font-medium text-left transition-colors',
+                    'px-3 py-2 rounded-lg text-sm font-medium text-left transition-all',
                     tripSource === source
                       ? 'bg-primary text-primary-foreground'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                    isLoading && 'opacity-50 cursor-not-allowed'
                   )}
                 >
                   {source === 'all' ? 'All trips' : source === 'unsolo' ? 'UnSOLO' : 'Community'}
@@ -177,12 +180,14 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                 return (
                   <button
                     key={opt.value}
+                    disabled={isLoading}
                     onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                      isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     {opt.label}
@@ -202,6 +207,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                 return (
                   <button
                     key={opt.value}
+                    disabled={isLoading}
                     onClick={() => {
                       if (isSelected) {
                         handleFilterClick('minBudget', null)
@@ -216,10 +222,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                       }
                     }}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                      isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     {opt.label}
@@ -239,6 +246,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                 return (
                   <button
                     key={opt.value}
+                    disabled={isLoading}
                     onClick={() => {
                       if (isSelected) {
                         setOptimisticParams((prev) => ({
@@ -257,10 +265,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                       }
                     }}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                      isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     {opt.label}
@@ -286,6 +295,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                   return (
                     <>
                       <button
+                        disabled={isLoading}
                         onClick={() => {
                           setOptimisticParams((prev) => ({
                             ...prev,
@@ -294,10 +304,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                           router.push(buildUrl({ month: null }))
                         }}
                         className={cn(
-                          'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
+                          'px-2 py-2 rounded-lg text-xs text-center transition-all font-medium',
                           !currentMonth
                             ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                          isLoading && 'opacity-50 cursor-not-allowed'
                         )}
                       >
                         Any
@@ -306,6 +317,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                         {MONTHS.map((m, idx) => (
                           <button
                             key={m}
+                            disabled={isLoading}
                             onClick={() => {
                               const monthStr = String(idx)
                               if (currentMonth === monthStr) {
@@ -323,10 +335,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                               }
                             }}
                             className={cn(
-                              'px-1 py-2 rounded-lg text-xs text-center transition-colors',
+                              'px-1 py-2 rounded-lg text-xs text-center transition-all',
                               currentMonth === String(idx)
                                 ? 'bg-primary text-primary-foreground font-medium'
-                                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                              isLoading && 'opacity-50 cursor-not-allowed'
                             )}
                           >
                             {m}
@@ -346,6 +359,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
               const interested = getCurrentValue('interested', '')
               return (
                 <button
+                  disabled={isLoading}
                   onClick={() => {
                     if (interested) {
                       setOptimisticParams((prev) => ({
@@ -362,10 +376,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                     }
                   }}
                   className={cn(
-                    'w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'w-full px-3 py-2 rounded-lg text-sm font-medium transition-all',
                     interested
                       ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                    isLoading && 'opacity-50 cursor-not-allowed'
                   )}
                 >
                   ♥ My Interests
@@ -386,6 +401,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                 return (
                   <button
                     key={opt.value}
+                    disabled={isLoading}
                     onClick={() => {
                       if (isSelected) {
                         setOptimisticParams((prev) => ({
@@ -404,10 +420,11 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                       }
                     }}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                      isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     {opt.label}
@@ -427,12 +444,14 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                   return (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
                       className={cn(
-                        'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                        'px-3 py-2 rounded-lg text-sm text-left transition-all',
                         isSelected
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}
@@ -453,12 +472,14 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
                   return (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() => handleFilterClick('activityType', isSelected ? null : (opt.value || null))}
                       className={cn(
-                        'px-3 py-2 rounded-lg text-sm text-left transition-colors',
+                        'px-3 py-2 rounded-lg text-sm text-left transition-all',
                         isSelected
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}

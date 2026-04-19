@@ -54,6 +54,7 @@ interface FilterDrawerProps {
   params: Record<string, string>
   activeTab: 'trips' | ServiceListingType
   resultCount: number
+  isLoading?: boolean
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -71,6 +72,7 @@ export function FilterDrawer({
   params,
   activeTab,
   resultCount,
+  isLoading = false,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -154,12 +156,14 @@ export function FilterDrawer({
                   {['all', 'unsolo', 'community'].map((source) => (
                     <button
                       key={source}
+                      disabled={isLoading}
                       onClick={() => setTripSource(source as 'all' | 'unsolo' | 'community')}
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm font-medium text-left transition-colors',
                         tripSource === source
                           ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {source === 'all' ? 'All trips' : source === 'unsolo' ? 'UnSOLO' : 'Community'}
@@ -174,12 +178,14 @@ export function FilterDrawer({
                   {DIFFICULTY_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                         (params.difficulty || '') === opt.value
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}
@@ -194,6 +200,7 @@ export function FilterDrawer({
                   {BUDGET_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() =>
                         router.push(buildUrl({ minBudget: opt.min || null, maxBudget: opt.max || null }))
                       }
@@ -201,7 +208,8 @@ export function FilterDrawer({
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                         params.minBudget === opt.min && params.maxBudget === opt.max
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}
@@ -216,6 +224,7 @@ export function FilterDrawer({
                   {DURATION_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() =>
                         router.push(buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
                       }
@@ -223,7 +232,8 @@ export function FilterDrawer({
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                         params.minDays === opt.min && params.maxDays === opt.max
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}
@@ -236,12 +246,14 @@ export function FilterDrawer({
               <FilterSection label="Month">
                 <div className="grid grid-cols-3 gap-2">
                   <button
+                    disabled={isLoading}
                     onClick={() => router.push(buildUrl({ month: null }))}
                     className={cn(
                       'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
                       !params.month
                         ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                      isLoading && 'opacity-50 cursor-not-allowed'
                     )}
                   >
                     Any
@@ -249,12 +261,14 @@ export function FilterDrawer({
                   {MONTHS.map((m, idx) => (
                     <button
                       key={m}
+                      disabled={isLoading}
                       onClick={() => router.push(buildUrl({ month: String(idx) }))}
                       className={cn(
                         'px-2 py-2 rounded-lg text-xs text-center transition-colors',
                         params.month === String(idx)
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {m}
@@ -266,6 +280,7 @@ export function FilterDrawer({
               {/* My Interests */}
               <FilterSection label="Interests">
                 <button
+                  disabled={isLoading}
                   onClick={() => {
                     if (params.interested) {
                       router.push(buildUrl({ interested: null }))
@@ -277,7 +292,8 @@ export function FilterDrawer({
                     'w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     params.interested
                       ? 'bg-red-500/15 text-red-400 border border-red-500/30'
-                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                      : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                    isLoading && 'opacity-50 cursor-not-allowed'
                   )}
                 >
                   ♥ My Interests
@@ -292,6 +308,7 @@ export function FilterDrawer({
                   {PRICE_OPTIONS_SERVICE.map((opt) => (
                     <button
                       key={opt.value}
+                      disabled={isLoading}
                       onClick={() =>
                         router.push(buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
                       }
@@ -299,7 +316,8 @@ export function FilterDrawer({
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                         params.minPrice === opt.min && params.maxPrice === opt.max
                           ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                        isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
                       {opt.label}
@@ -315,12 +333,14 @@ export function FilterDrawer({
                     {DIFFICULTY_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
+                        disabled={isLoading}
                         onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
                         className={cn(
                           'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                           (params.difficulty || '') === opt.value
                             ? 'bg-primary text-primary-foreground font-medium'
-                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                          isLoading && 'opacity-50 cursor-not-allowed'
                         )}
                       >
                         {opt.label}
@@ -337,12 +357,14 @@ export function FilterDrawer({
                     {ACTIVITY_TYPES.map((opt) => (
                       <button
                         key={opt.value}
+                        disabled={isLoading}
                         onClick={() => router.push(buildUrl({ activityType: opt.value || null }))}
                         className={cn(
                           'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                           (params.activityType || '') === opt.value
                             ? 'bg-primary text-primary-foreground font-medium'
-                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                          isLoading && 'opacity-50 cursor-not-allowed'
                         )}
                       >
                         {opt.label}

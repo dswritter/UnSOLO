@@ -3,8 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import type { ServiceListing } from '@/types'
-import { formatPrice } from '@/types'
-import { cn } from '@/lib/utils'
+import { formatPrice, cn } from '@/lib/utils'
 import { Star } from 'lucide-react'
 
 interface ServiceListingCardProps {

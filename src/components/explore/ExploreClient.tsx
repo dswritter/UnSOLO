@@ -7,8 +7,8 @@ import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Zap, Navigation } from 'lucide-react'
-import { formatPrice, cn } from '@/lib/utils'
+import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Zap, Navigation, Heart } from 'lucide-react'
+import { formatPrice, cn, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
@@ -69,7 +69,20 @@ export function ExploreClient({
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [shouldFade, setShouldFade] = useState(false)
+  const [wishlisted, setWishlisted] = useState<Set<string>>(new Set())
   const prevParamsRef = useRef<string>('')
+
+  const toggleWishlist = (packageId: string) => {
+    setWishlisted(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(packageId)) {
+        newSet.delete(packageId)
+      } else {
+        newSet.add(packageId)
+      }
+      return newSet
+    })
+  }
 
   useEffect(() => {
     const currentParams = searchParams.toString()
@@ -132,7 +145,7 @@ export function ExploreClient({
         <div className="flex gap-6 flex-1">
           {/* Desktop Sidebar - hidden on mobile */}
           <div className="hidden lg:block w-64 flex-shrink-0">
-            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} />
+            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} isLoading={isLoading} />
           </div>
 
           {/* Results Grid */}
@@ -195,6 +208,26 @@ export function ExploreClient({
                         <Badge className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">Community</Badge>
                       )}
                     </div>
+
+                    {/* Wishlist heart button */}
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        toggleWishlist(pkg.id)
+                      }}
+                      className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 transition-all z-10 backdrop-blur-sm"
+                      aria-label="Add to wishlist"
+                    >
+                      <Heart
+                        className={cn(
+                          'h-5 w-5 transition-all duration-300',
+                          wishlisted.has(pkg.id)
+                            ? 'fill-red-500 text-red-500 scale-110'
+                            : 'text-white/80 hover:text-white'
+                        )}
+                      />
+                    </button>
                     <div className="absolute bottom-3 left-3 flex items-center gap-1 text-xs text-white/80">
                       <MapPin className="h-3 w-3" />
                       {pkg.destination?.name}, {pkg.destination?.state}
@@ -264,6 +297,25 @@ export function ExploreClient({
                         <div className="text-xs text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>
+
+                    {/* Departure dates preview */}
+                    {pkg.departure_dates && pkg.departure_dates.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="text-xs font-medium text-muted-foreground mb-1.5">Upcoming starts:</div>
+                        <div className="space-y-1">
+                          {pkg.departure_dates.slice(0, 3).map((date, idx) => (
+                            <div key={idx} className="text-xs text-foreground">
+                              {formatDate(date)}
+                            </div>
+                          ))}
+                          {pkg.departure_dates.length > 3 && (
+                            <div className="text-xs text-muted-foreground">
+                              +{pkg.departure_dates.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </Link>
@@ -304,6 +356,7 @@ export function ExploreClient({
         params={params}
         activeTab={activeTab}
         resultCount={resultCount}
+        isLoading={isLoading}
       />
     </div>
   )
