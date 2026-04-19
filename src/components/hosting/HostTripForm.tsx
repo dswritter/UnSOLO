@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
+import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { toast } from 'sonner'
 import {
   INTEREST_TAGS,
@@ -157,6 +158,7 @@ export function HostTripForm({
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null)
   const uploadAbortRef = useRef<AbortController | null>(null)
   const imageUrlGenerationRef = useRef(0)
 
@@ -1017,12 +1019,26 @@ export function HostTripForm({
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Full Description *</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Use the toolbar for <strong className="text-foreground/90">bold</strong>,{' '}
+                  <span className="font-medium text-foreground/90">headings</span>, and bullet lists — or type Markdown (
+                  <code className="text-[11px] bg-muted/60 px-1 rounded">**bold**</code>,{' '}
+                  <code className="text-[11px] bg-muted/60 px-1 rounded">## Heading</code>,{' '}
+                  <code className="text-[11px] bg-muted/60 px-1 rounded">- item</code>).
+                </p>
+                <TripDescriptionMarkdownToolbar
+                  textareaRef={descriptionTextareaRef}
+                  value={description}
+                  onChange={setDescription}
+                  className="mb-2"
+                />
                 <textarea
+                  ref={descriptionTextareaRef}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  rows={5}
-                  placeholder="Describe your trip in detail -- what travelers can expect, itinerary highlights, etc."
-                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-none"
+                  rows={8}
+                  placeholder="Describe your trip in detail — what travelers can expect, itinerary highlights, etc."
+                  className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
                 />
               </div>
             </div>

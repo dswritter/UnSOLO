@@ -9,6 +9,7 @@ import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import {
   TRIP_PREVIEW_HANDOFF_KEY,
   TRIP_PREVIEW_SESSION_KEY,
@@ -213,9 +214,13 @@ export function HostTripPreviewPageClient() {
 
             <div className="rounded-xl border border-border bg-card p-6">
               <h2 className="mb-3 text-xl font-bold">About this trip</h2>
-              <p className="whitespace-pre-line leading-relaxed text-muted-foreground">
-                {data.description || 'No description yet.'}
-              </p>
+              {data.description?.trim() ? (
+                <TripDescriptionDisplay className="text-muted-foreground">
+                  {data.description}
+                </TripDescriptionDisplay>
+              ) : (
+                <p className="text-muted-foreground">No description yet.</p>
+              )}
             </div>
 
             {data.selectedIncludes?.length ? (

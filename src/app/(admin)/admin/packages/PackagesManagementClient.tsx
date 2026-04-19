@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
+import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { Plus, Eye, EyeOff, Star, MapPin, Edit2, X, Upload, Image as ImageIcon } from 'lucide-react'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
@@ -61,6 +62,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
   // Image upload
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null)
   const uploadAbortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
@@ -556,12 +558,19 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Full Description</label>
+            <TripDescriptionMarkdownToolbar
+              textareaRef={descriptionTextareaRef}
+              value={form.description}
+              onChange={next => setForm(f => ({ ...f, description: next }))}
+              className="mb-1.5"
+            />
             <textarea
+              ref={descriptionTextareaRef}
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              rows={3}
-              placeholder="Detailed trip description..."
-              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+              rows={5}
+              placeholder="Detailed trip description (Markdown: **bold**, ## heading, - list)"
+              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-y min-h-[100px]"
             />
           </div>
 

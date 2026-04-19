@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
+import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 
 interface Props {
   trips: any[]
@@ -356,7 +357,9 @@ export default function CommunityTripsClient({
                   {trip.description && (
                     <div className="text-xs">
                       <span className="font-medium">Full Description: </span>
-                      <p className="text-muted-foreground leading-relaxed mt-1">{trip.description}</p>
+                      <div className="text-muted-foreground mt-1 leading-relaxed">
+                        <TripDescriptionDisplay>{trip.description}</TripDescriptionDisplay>
+                      </div>
                     </div>
                   )}
 

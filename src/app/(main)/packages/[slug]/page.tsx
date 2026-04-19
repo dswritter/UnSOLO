@@ -16,6 +16,7 @@ import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
 import { InterestButton } from '@/components/packages/InterestButton'
 import { ShareButton } from '@/components/packages/ShareButton'
+import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
 
@@ -299,7 +300,11 @@ export default async function PackageDetailPage({
             {/* Description */}
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="text-xl font-bold mb-3">About This Trip</h2>
-              <p className="text-muted-foreground leading-relaxed whitespace-pre-line">{package_.description}</p>
+              {package_.description?.trim() ? (
+                <TripDescriptionDisplay className="text-muted-foreground">{package_.description}</TripDescriptionDisplay>
+              ) : (
+                <p className="text-muted-foreground text-sm">No description yet.</p>
+              )}
             </div>
 
             {/* What's Included */}
