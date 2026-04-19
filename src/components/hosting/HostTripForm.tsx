@@ -99,6 +99,19 @@ function FormSelect({
 type Destination = { id: string; name: string; state: string }
 type IncludesOption = { id: string; label: string }
 
+const COVER_MENU_MIN_W = 200
+const COVER_MENU_APPROX_H = 44
+const COVER_LONG_PRESS_MS = 550
+
+function clampCoverMenuPosition(clientX: number, clientY: number) {
+  if (typeof window === 'undefined') return { x: clientX, y: clientY }
+  const pad = 8
+  return {
+    x: Math.max(pad, Math.min(clientX, window.innerWidth - COVER_MENU_MIN_W - pad)),
+    y: Math.max(pad, Math.min(clientY, window.innerHeight - COVER_MENU_APPROX_H - pad)),
+  }
+}
+
 const STEPS = [
   { label: 'Basic Info', icon: FileText },
   { label: 'Details', icon: Calendar },
@@ -155,9 +168,14 @@ export function HostTripForm({
   const [selectedIncludes, setSelectedIncludes] = useState<string[]>([])
 
   const [images, setImages] = useState<string[]>([])
+  const imagesRef = useRef(images)
+  imagesRef.current = images
+  const [coverMenu, setCoverMenu] = useState<{ x: number; y: number; index: number } | null>(null)
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressCleanupRef = useRef<(() => void) | null>(null)
   const descriptionTextareaRef = useRef<HTMLTextAreaElement>(null)
   const uploadAbortRef = useRef<AbortController | null>(null)
   const imageUrlGenerationRef = useRef(0)
@@ -170,6 +188,22 @@ export function HostTripForm({
 
   const [draftSessionId, setDraftSessionId] = useState<string | null>(null)
   const draftSaveNotifiedRef = useRef(false)
+
+  useEffect(() => {
+    if (!coverMenu) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCoverMenu(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [coverMenu])
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+      longPressCleanupRef.current?.()
+    }
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -675,6 +709,46 @@ export function HostTripForm({
 
   function removeImage(idx: number) {
     setImages(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function clearCoverLongPress() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    longPressCleanupRef.current?.()
+    longPressCleanupRef.current = null
+  }
+
+  function moveImageToCover(idx: number) {
+    if (idx <= 0 || idx >= imagesRef.current.length) return
+    setImages(prev => {
+      if (idx <= 0 || idx >= prev.length) return prev
+      const next = [...prev]
+      const [chosen] = next.splice(idx, 1)
+      return [chosen, ...next]
+    })
+    toast.success('Cover image updated', { id: 'trip-cover-image-updated' })
+  }
+
+  function startCoverLongPress(i: number, e: React.PointerEvent) {
+    if (e.button !== 0) return
+    const n = imagesRef.current.length
+    if (n < 2 || i === 0) return
+    clearCoverLongPress()
+    const onEnd = () => clearCoverLongPress()
+    window.addEventListener('pointerup', onEnd)
+    window.addEventListener('pointercancel', onEnd)
+    longPressCleanupRef.current = () => {
+      window.removeEventListener('pointerup', onEnd)
+      window.removeEventListener('pointercancel', onEnd)
+    }
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null
+      longPressCleanupRef.current?.()
+      longPressCleanupRef.current = null
+      moveImageToCover(i)
+    }, COVER_LONG_PRESS_MS)
   }
 
   function addScheduleRow() {
@@ -1389,30 +1463,48 @@ export function HostTripForm({
               <p className="text-sm text-muted-foreground">
                 Add at least one image. Use 16:9 ratio photos for best display (e.g. 1920×1080).
               </p>
+              {images.length >= 2 && (
+                <p className="text-xs text-muted-foreground">
+                  First image is the cover. Right-click an image (desktop) or press and hold (mobile) on any other image to make it the cover.
+                </p>
+              )}
 
               {/* Current images */}
               {images.length > 0 && (
                 <div className="flex gap-3 flex-wrap">
                   {images.map((url, i) => (
-                    <div key={i} className="relative group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={url}
-                        alt=""
-                        className="h-24 w-36 rounded-lg object-cover border border-border"
-                      />
+                    <div key={`${url}-${i}`} className="relative group">
+                      <div
+                        className="relative touch-manipulation select-none rounded-lg overflow-hidden"
+                        style={{ WebkitTouchCallout: 'none' }}
+                        onContextMenu={e => {
+                          if (images.length < 2 || i === 0) return
+                          e.preventDefault()
+                          const { x, y } = clampCoverMenuPosition(e.clientX, e.clientY)
+                          setCoverMenu({ x, y, index: i })
+                        }}
+                        onPointerDown={e => startCoverLongPress(i, e)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={url}
+                          alt=""
+                          draggable={false}
+                          className="h-24 w-36 rounded-lg object-cover border border-border pointer-events-none"
+                        />
+                        {i === 0 && (
+                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
+                            Cover
+                          </span>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeImage(i)}
-                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 z-10 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="h-3 w-3" />
                       </button>
-                      {i === 0 && (
-                        <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
-                          Cover
-                        </span>
-                      )}
                     </div>
                   ))}
                   <button
@@ -1471,6 +1563,35 @@ export function HostTripForm({
               <p className="text-[10px] text-muted-foreground">
                 Max 5MB each. JPEG, PNG, or WebP.
               </p>
+
+              {coverMenu && (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-[100] cursor-default bg-transparent"
+                    aria-label="Close cover menu"
+                    onClick={() => setCoverMenu(null)}
+                  />
+                  <div
+                    role="menu"
+                    className="fixed z-[101] min-w-[200px] rounded-md border border-border bg-popover p-1 text-sm shadow-lg"
+                    style={{ left: coverMenu.x, top: coverMenu.y }}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center rounded-sm px-3 py-2 text-left text-foreground hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        const idx = coverMenu.index
+                        setCoverMenu(null)
+                        moveImageToCover(idx)
+                      }}
+                    >
+                      Set as cover image
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
