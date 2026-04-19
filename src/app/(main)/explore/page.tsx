@@ -207,10 +207,22 @@ export default async function ExplorePage({
   let packages: Package[] = []
   let serviceListings: ServiceListing[] = []
   let resultCount = 0
+  let interestedPackageIds: string[] = []
 
   if (activeTab === 'trips') {
     packages = await getPackages(params)
     resultCount = packages.length
+
+    // Fetch user's interested packages
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: interests } = await supabase
+        .from('package_interests')
+        .select('package_id')
+        .eq('user_id', user.id)
+      interestedPackageIds = (interests || []).map(i => i.package_id)
+    }
   } else {
     serviceListings = await getServiceListings(params)
     resultCount = serviceListings.length
@@ -223,6 +235,7 @@ export default async function ExplorePage({
       params={params}
       resultCount={resultCount}
       activeTab={activeTab}
+      interestedPackageIds={interestedPackageIds}
     />
   )
 }

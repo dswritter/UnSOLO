@@ -53,6 +53,7 @@ interface ExploreClientProps {
   params: Record<string, string>
   resultCount: number
   activeTab: TabType
+  interestedPackageIds?: string[]
 }
 
 export function ExploreClient({
@@ -61,6 +62,7 @@ export function ExploreClient({
   params,
   resultCount,
   activeTab: initialTab,
+  interestedPackageIds = [],
 }: ExploreClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -69,8 +71,13 @@ export function ExploreClient({
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [shouldFade, setShouldFade] = useState(false)
-  const [wishlisted, setWishlisted] = useState<Set<string>>(new Set())
+  const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set()
+    const saved = localStorage.getItem('wishlisted_packages')
+    return new Set(saved ? JSON.parse(saved) : [])
+  })
   const prevParamsRef = useRef<string>('')
+  const interestedSet = new Set(interestedPackageIds)
 
   const toggleWishlist = (packageId: string) => {
     setWishlisted(prev => {
@@ -79,6 +86,10 @@ export function ExploreClient({
         newSet.delete(packageId)
       } else {
         newSet.add(packageId)
+      }
+      // Persist to localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('wishlisted_packages', JSON.stringify(Array.from(newSet)))
       }
       return newSet
     })
@@ -211,7 +222,7 @@ export function ExploreClient({
                       )}
                     </div>
 
-                    {/* Wishlist heart button */}
+                    {/* Wishlist heart button - synced with interest status */}
                     <button
                       onClick={(e) => {
                         e.preventDefault()
@@ -224,7 +235,7 @@ export function ExploreClient({
                       <Heart
                         className={cn(
                           'h-5 w-5 transition-all duration-300',
-                          wishlisted.has(pkg.id)
+                          wishlisted.has(pkg.id) || interestedSet.has(pkg.id)
                             ? 'fill-red-500 text-red-500 scale-110'
                             : 'text-white/80 hover:text-white'
                         )}
@@ -299,25 +310,6 @@ export function ExploreClient({
                         <div className="text-xs text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>
-
-                    {/* Departure dates preview */}
-                    {pkg.departure_dates && pkg.departure_dates.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="text-xs font-medium text-muted-foreground mb-1.5">Upcoming starts:</div>
-                        <div className="space-y-1">
-                          {pkg.departure_dates.slice(0, 3).map((date, idx) => (
-                            <div key={idx} className="text-xs text-foreground">
-                              {formatDate(date)}
-                            </div>
-                          ))}
-                          {pkg.departure_dates.length > 3 && (
-                            <div className="text-xs text-muted-foreground">
-                              +{pkg.departure_dates.length - 3} more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               </Link>
