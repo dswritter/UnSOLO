@@ -203,11 +203,11 @@ export default async function ExplorePage({
             {packages.map((pkg) => (
               <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
                 <Card
-                  className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group ${
+                  className={`bg-card border-border overflow-hidden card-hover cursor-pointer h-full group py-0 gap-0 ${
                     pkg.host_id ? 'ring-1 ring-primary/10' : ''
                   }`}
                 >
-                  <div className="relative h-52 bg-secondary overflow-hidden">
+                  <div className="relative h-52 bg-secondary overflow-hidden shrink-0 rounded-t-xl">
                     {pkg.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

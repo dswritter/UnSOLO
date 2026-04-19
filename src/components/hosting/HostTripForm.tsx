@@ -6,14 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
+import { TripImageCropModal } from '@/components/hosting/TripImageCropModal'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { toast } from 'sonner'
-import {
-  INTEREST_TAGS,
-  UPLOAD_MAX_IMAGE_BYTES,
-  UPLOAD_IMAGE_TOO_LARGE_MESSAGE,
-} from '@/lib/constants'
-import { cn, formatPrice } from '@/lib/utils'
+import { INTEREST_TAGS, UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
+import { cn, formatPrice, formatFileSize } from '@/lib/utils'
 import {
   createHostedTrip,
   updateHostedTrip,
@@ -175,6 +172,8 @@ export function HostTripForm({
   const [coverMenu, setCoverMenu] = useState<{ x: number; y: number; index: number } | null>(null)
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [uploading, setUploading] = useState(false)
+  /** Files waiting for optional 16:9 crop (each has object URL for preview). */
+  const [cropQueue, setCropQueue] = useState<{ file: File; url: string }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressCleanupRef = useRef<(() => void) | null>(null)
@@ -607,61 +606,71 @@ export function HostTripForm({
     uploadAbortRef.current?.abort()
   }
 
-  // Image upload handler (same pattern as admin)
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files
-    if (!files?.length) return
+  function handleCropModalClose() {
+    setCropQueue((q) => {
+      if (q.length === 0) return q
+      const [first, ...rest] = q
+      URL.revokeObjectURL(first.url)
+      return rest
+    })
+  }
 
+  async function handleCropConfirm(file: File, source: { file: File; url: string }) {
     const ac = new AbortController()
     uploadAbortRef.current = ac
     setUploading(true)
-    let cancelled = false
-
     try {
-      for (const file of Array.from(files)) {
-        if (ac.signal.aborted) {
-          cancelled = true
-          break
-        }
-        if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
-          toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
-          continue
-        }
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('purpose', 'host_trip')
-        try {
-          const res = await fetch('/api/upload', { method: 'POST', body: fd, signal: ac.signal })
-          const json = await res.json()
-          if (ac.signal.aborted) {
-            cancelled = true
-            break
-          }
-          if (json.url) {
-            setImages(prev => [...prev, json.url])
-          } else {
-            toast.error(json.error || 'Upload failed')
-          }
-        } catch (err) {
-          if (err instanceof DOMException && err.name === 'AbortError') {
-            cancelled = true
-            break
-          }
-          if (err instanceof Error && err.name === 'AbortError') {
-            cancelled = true
-            break
-          }
-          toast.error('Upload failed')
-        }
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('purpose', 'host_trip')
+      const res = await fetch('/api/upload', { method: 'POST', body: fd, signal: ac.signal })
+      const json = await res.json()
+      if (json.url) {
+        setImages((prev) => [...prev, json.url])
+        URL.revokeObjectURL(source.url)
+        setCropQueue((q) => q.slice(1))
+      } else {
+        toast.error(json.error || 'Upload failed')
       }
-      if (cancelled) {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         toast.message('Upload cancelled')
+      } else if (err instanceof Error && err.name === 'AbortError') {
+        toast.message('Upload cancelled')
+      } else {
+        toast.error('Upload failed')
       }
     } finally {
       uploadAbortRef.current = null
       setUploading(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
+  }
+
+  /** Validate size/type, then open crop step for each file (sequential modals). */
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files?.length) return
+
+    const next: { file: File; url: string }[] = []
+    for (const file of Array.from(files)) {
+      if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+        toast.error(
+          `${file.name}: ${formatFileSize(file.size)} — max ${formatFileSize(UPLOAD_MAX_IMAGE_BYTES)} per image.`,
+        )
+        continue
+      }
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name} is not a supported image type (JPEG, PNG, or WebP).`)
+        continue
+      }
+      next.push({ file, url: URL.createObjectURL(file) })
+    }
+    if (next.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setCropQueue((q) => [...q, ...next])
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const [imageLoading, setImageLoading] = useState(false)
@@ -1030,6 +1039,17 @@ export function HostTripForm({
         subMessage="Validating the image URL"
         onCancel={cancelImageUrlLoad}
       />
+      {cropQueue[0] && !uploading && (
+        <TripImageCropModal
+          imageSrc={cropQueue[0].url}
+          originalFile={cropQueue[0].file}
+          onClose={handleCropModalClose}
+          onConfirm={(f) => {
+            const src = cropQueue[0]
+            if (src) void handleCropConfirm(f, src)
+          }}
+        />
+      )}
       <div className="mx-auto max-w-3xl px-4 py-10">
         {/* Header */}
         <div className="mb-8">
@@ -1630,7 +1650,8 @@ export function HostTripForm({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Max 5MB each. JPEG, PNG, or WebP.
+                Max {formatFileSize(UPLOAD_MAX_IMAGE_BYTES)} per file (JPEG, PNG, or WebP). Oversize files are rejected
+                before upload; after choosing a file you can crop to a 16∶9 banner or use the original.
               </p>
 
               {coverMenu && (

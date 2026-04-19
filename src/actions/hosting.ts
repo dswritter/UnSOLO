@@ -641,7 +641,14 @@ export async function approveJoinRequest(requestId: string) {
   let emailSent = false
   let emailWarning: string | undefined
 
-  if (!process.env.RESEND_API_KEY?.trim()) {
+  const rawKey = process.env.RESEND_API_KEY
+  const hasResendKey =
+    rawKey &&
+    rawKey
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .trim()
+  if (!hasResendKey) {
     emailWarning = 'RESEND_API_KEY is not set — approval email was not sent.'
     console.warn('approveJoinRequest: RESEND_API_KEY missing')
   } else if (!travelerEmail) {
