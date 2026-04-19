@@ -495,6 +495,8 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
   const [posterAspect, setPosterAspect] = useState<PosterAspect>('story')
   const [posterPortalReady, setPosterPortalReady] = useState(false)
   const [prepScale, setPrepScale] = useState(0.34)
+  /** Aspect chosen in the menu; drives prep overlay preview + capture. */
+  const [prepAspect, setPrepAspect] = useState<PosterAspect>('story')
 
   useEffect(() => {
     setPosterPortalReady(true)
@@ -506,14 +508,14 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
       const pad = 12
       const vw = window.innerWidth - pad * 2
       const vh = window.innerHeight - pad * 2
-      const { w, h } = POSTER_DIMS.story
+      const { w, h } = POSTER_DIMS[prepAspect]
       const s = Math.min(vw / w, vh / h, 0.52)
       setPrepScale(Math.max(0.2, Math.min(s, 0.52)))
     }
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [preparingPoster])
+  }, [preparingPoster, prepAspect])
 
   const primePosterAssets = useCallback(async () => {
     const p = propsRef.current
@@ -589,6 +591,14 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
     if (!node) return
 
     setPanelOpen(false)
+    primeCancelRef.current = false
+    flushSync(() => {
+      setPrepAspect(aspect)
+      setPreparingPoster(true)
+    })
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+    const MIN_PREP_MS = 650
+
     const { w, h } = POSTER_DIMS[aspect]
     const p = propsRef.current
     const aspectSlug = aspect === 'story' ? '9x16' : '4x5'
@@ -604,77 +614,87 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
       pointerEvents: node.style.pointerEvents,
     }
 
-    setBusy(true)
-    let movedOnscreen = false
     try {
-      flushSync(() => {
-        setPosterAspect(aspect)
-      })
+      await Promise.all([
+        primePosterAssets(),
+        new Promise<void>((r) => setTimeout(r, MIN_PREP_MS)),
+      ])
+      if (primeCancelRef.current) return
 
-      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      setBusy(true)
+      let movedOnscreen = false
+      try {
+        flushSync(() => {
+          setPosterAspect(aspect)
+        })
 
-      Object.assign(node.style, {
-        position: 'fixed',
-        left: '0',
-        top: '0',
-        width: `${w}px`,
-        height: `${h}px`,
-        zIndex: '2147483646',
-        pointerEvents: 'none',
-      })
-      movedOnscreen = true
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 
-      await new Promise<void>((r) => requestAnimationFrame(() => r()))
+        Object.assign(node.style, {
+          position: 'fixed',
+          left: '0',
+          top: '0',
+          width: `${w}px`,
+          height: `${h}px`,
+          zIndex: '2147483646',
+          pointerEvents: 'none',
+        })
+        movedOnscreen = true
 
-      const blob = await toBlob(node, {
-        pixelRatio: 1,
-        cacheBust: true,
-        backgroundColor: '#fffbeb',
-        width: w,
-        height: h,
-      })
-      if (!blob) {
-        throw new Error('Empty image')
-      }
+        await new Promise<void>((r) => requestAnimationFrame(() => r()))
 
-      const file = new File([blob], filename, { type: 'image/png' })
-      const canTryShare =
-        !prefersPosterDownloadOverNativeShare() &&
-        typeof navigator !== 'undefined' &&
-        typeof navigator.share === 'function' &&
-        (!navigator.canShare || navigator.canShare({ files: [file] }))
-
-      if (canTryShare) {
-        const titleTpl = (p.shareTitleTemplate?.trim() || DEFAULT_SHARE_TITLE_TEMPLATE)
-        const textTpl = (p.shareTextTemplate?.trim() || DEFAULT_SHARE_TEXT_TEMPLATE)
-        try {
-          await navigator.share({
-            files: [file],
-            title: interpolateShareCopy(titleTpl, p.displayName, p.profileUrl),
-            text: interpolateShareCopy(textTpl, p.displayName, p.profileUrl),
-          })
-          return
-        } catch (shareErr: unknown) {
-          const name = shareErr instanceof Error ? shareErr.name : ''
-          if (name === 'AbortError') {
-            return
-          }
-          console.warn('navigator.share failed, falling back to download', shareErr)
+        const blob = await toBlob(node, {
+          pixelRatio: 1,
+          cacheBust: true,
+          backgroundColor: '#fffbeb',
+          width: w,
+          height: h,
+        })
+        if (!blob) {
+          throw new Error('Empty image')
         }
-      }
 
-      downloadPngBlob(blob, filename)
-      toast.success('Poster saved — open it from your downloads or gallery to post.')
-    } catch (e) {
-      console.error(e)
-      toast.error('Could not create poster. Try again in Safari or Chrome.')
-    } finally {
-      if (movedOnscreen) {
-        Object.assign(node.style, styleBackup)
+        const file = new File([blob], filename, { type: 'image/png' })
+        const canTryShare =
+          !prefersPosterDownloadOverNativeShare() &&
+          typeof navigator !== 'undefined' &&
+          typeof navigator.share === 'function' &&
+          (!navigator.canShare || navigator.canShare({ files: [file] }))
+
+        if (canTryShare) {
+          const titleTpl = (p.shareTitleTemplate?.trim() || DEFAULT_SHARE_TITLE_TEMPLATE)
+          const textTpl = (p.shareTextTemplate?.trim() || DEFAULT_SHARE_TEXT_TEMPLATE)
+          try {
+            await navigator.share({
+              files: [file],
+              title: interpolateShareCopy(titleTpl, p.displayName, p.profileUrl),
+              text: interpolateShareCopy(textTpl, p.displayName, p.profileUrl),
+            })
+            return
+          } catch (shareErr: unknown) {
+            const name = shareErr instanceof Error ? shareErr.name : ''
+            if (name === 'AbortError') {
+              return
+            }
+            console.warn('navigator.share failed, falling back to download', shareErr)
+          }
+        }
+
+        downloadPngBlob(blob, filename)
+        toast.success('Poster saved — open it from your downloads or gallery to post.')
+      } catch (e) {
+        console.error(e)
+        toast.error('Could not create poster. Try again in Safari or Chrome.')
+      } finally {
+        if (movedOnscreen) {
+          Object.assign(node.style, styleBackup)
+        }
+        setBusy(false)
       }
-      setBusy(false)
+    } finally {
+      setPreparingPoster(false)
     }
-  }, [])
+  }, [primePosterAssets])
 
   const menuBtn =
     'flex w-full cursor-pointer items-center rounded-md px-2 py-2 text-left text-sm outline-none hover:bg-accent hover:text-accent-foreground'
@@ -687,38 +707,23 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         )
       : null
 
-  const handleShareButtonClick = useCallback(async () => {
+  const handleShareButtonClick = useCallback(() => {
     if (busy || preparingPoster) return
     if (panelOpen) {
       if (Date.now() < menuOpenGuardUntilRef.current) return
       setPanelOpen(false)
       return
     }
-    primeCancelRef.current = false
-    flushSync(() => {
-      setPreparingPoster(true)
-    })
-    await new Promise<void>((r) => requestAnimationFrame(() => r()))
-    const MIN_PREP_MS = 650
-    try {
-      await Promise.all([
-        primePosterAssets(),
-        new Promise<void>((r) => setTimeout(r, MIN_PREP_MS)),
-      ])
-      if (primeCancelRef.current) return
-      menuOpenGuardUntilRef.current = Date.now() + MENU_OPEN_GUARD_MS
-      setPanelOpen(true)
-    } finally {
-      setPreparingPoster(false)
-    }
-  }, [busy, preparingPoster, panelOpen, primePosterAssets])
+    menuOpenGuardUntilRef.current = Date.now() + MENU_OPEN_GUARD_MS
+    setPanelOpen(true)
+  }, [busy, preparingPoster, panelOpen])
 
   const cancelPosterPrep = useCallback(() => {
     primeCancelRef.current = true
     setPreparingPoster(false)
   }, [])
 
-  const prepDims = POSTER_DIMS.story
+  const prepDims = POSTER_DIMS[prepAspect]
   const posterPrepPortal =
     posterPortalReady && preparingPoster && typeof document !== 'undefined'
       ? createPortal(
@@ -744,7 +749,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
                     transformOrigin: 'top left',
                   }}
                 >
-                  <PosterShell posterProps={props} aspect="story" offscreen={false} />
+                  <PosterShell posterProps={props} aspect={prepAspect} offscreen={false} />
                 </div>
               </div>
             </div>
