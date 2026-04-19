@@ -16,13 +16,22 @@ type Props = {
   defaults: RefundTier[]
   title: string
   description?: string | null
+  /** When true, omit the titled header (e.g. parent provides a collapsible title). */
+  hideOuterTitle?: boolean
 }
 
 function emptyTier(): RefundTier {
   return { minDaysBefore: 0, maxDaysBefore: undefined, percent: 0, label: '' }
 }
 
-export function RefundTiersEditor({ value, onChange, defaults, title, description }: Props) {
+export function RefundTiersEditor({
+  value,
+  onChange,
+  defaults,
+  title,
+  description,
+  hideOuterTitle = false,
+}: Props) {
   const [tiers, setTiers] = useState<RefundTier[]>(() => parseRefundTiersJson(value, defaults))
 
   const commit = useCallback(
@@ -47,16 +56,24 @@ export function RefundTiersEditor({ value, onChange, defaults, title, descriptio
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card/50 p-4 max-w-3xl">
-      <div className="flex items-start gap-2">
-        <Settings className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-        <div>
-          <div className="text-sm font-semibold">{title}</div>
-          {description ? (
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
-          ) : null}
+    <div
+      className={
+        hideOuterTitle
+          ? 'space-y-3 max-w-3xl'
+          : 'space-y-3 rounded-xl border border-border bg-card/50 p-4 max-w-3xl'
+      }
+    >
+      {!hideOuterTitle ? (
+        <div className="flex items-start gap-2">
+          <Settings className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <div>
+            <div className="text-sm font-semibold">{title}</div>
+            {description ? (
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <p className="text-[11px] text-muted-foreground">
         Each row is a band of <strong className="text-foreground/80">days before departure</strong>. Leave{' '}

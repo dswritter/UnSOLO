@@ -40,14 +40,26 @@ export default async function ProfilePage({
 
   if (!profile) notFound()
 
-  const { data: sharePosterTaglineRow } = await supabase
+  const { data: sharePosterRows } = await supabase
     .from('platform_settings')
-    .select('value')
-    .eq('key', 'share_poster_footer_tagline')
-    .maybeSingle()
+    .select('key, value')
+    .in('key', [
+      'share_poster_footer_tagline',
+      'share_poster_share_title',
+      'share_poster_share_text',
+    ])
+  const sharePosterByKey = Object.fromEntries(
+    (sharePosterRows ?? []).map((r) => [r.key, r.value ?? ''])
+  )
   const sharePosterFooterTagline =
-    sharePosterTaglineRow?.value?.trim() ||
+    String(sharePosterByKey['share_poster_footer_tagline'] ?? '').trim() ||
     'Book treks, find your tribe, share the stoke.'
+  const sharePosterShareTitle =
+    String(sharePosterByKey['share_poster_share_title'] ?? '').trim() ||
+    '{displayName} on UnSOLO'
+  const sharePosterShareText =
+    String(sharePosterByKey['share_poster_share_text'] ?? '').trim() ||
+    'See my travel story on UnSOLO — {profileUrl}'
 
   const isOwnProfile = user?.id === profile.id
 
@@ -296,6 +308,8 @@ export default async function ProfilePage({
                     tripsHidden={tripsPrivate}
                     tripsList={sharePosterTrips}
                     footerTagline={sharePosterFooterTagline}
+                    shareTitleTemplate={sharePosterShareTitle}
+                    shareTextTemplate={sharePosterShareText}
                   />
                   {isOwnProfile ? (
                     <Button variant="outline" size="sm" className="border-border" asChild>

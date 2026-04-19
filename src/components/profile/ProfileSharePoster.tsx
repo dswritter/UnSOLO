@@ -31,9 +31,22 @@ export type ProfileSharePosterProps = {
   visitedStates: string[]
   statesMapHidden: boolean
   tripsHidden: boolean
-  tripsList: ProfileSharePosterTrip[]
+   tripsList: ProfileSharePosterTrip[]
   /** From `platform_settings.share_poster_footer_tagline` */
   footerTagline: string
+  /** From `platform_settings.share_poster_share_title`; placeholders `{displayName}`, `{profileUrl}` */
+  shareTitleTemplate?: string
+  /** From `platform_settings.share_poster_share_text`; placeholders `{displayName}`, `{profileUrl}` */
+  shareTextTemplate?: string
+}
+
+const DEFAULT_SHARE_TITLE_TEMPLATE = '{displayName} on UnSOLO'
+const DEFAULT_SHARE_TEXT_TEMPLATE = 'See my travel story on UnSOLO — {profileUrl}'
+
+function interpolateShareCopy(template: string, displayName: string, profileUrl: string): string {
+  return template
+    .replace(/\{displayName\}/g, displayName)
+    .replace(/\{profileUrl\}/g, profileUrl)
 }
 
 type PosterAspect = 'story' | 'feed'
@@ -492,11 +505,13 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
         (!navigator.canShare || navigator.canShare({ files: [file] }))
 
       if (canTryShare) {
+        const titleTpl = (p.shareTitleTemplate?.trim() || DEFAULT_SHARE_TITLE_TEMPLATE)
+        const textTpl = (p.shareTextTemplate?.trim() || DEFAULT_SHARE_TEXT_TEMPLATE)
         try {
           await navigator.share({
             files: [file],
-            title: `${p.displayName} on UnSOLO`,
-            text: `See my travel story on UnSOLO — ${p.profileUrl}`,
+            title: interpolateShareCopy(titleTpl, p.displayName, p.profileUrl),
+            text: interpolateShareCopy(textTpl, p.displayName, p.profileUrl),
           })
           return
         } catch (shareErr: unknown) {
