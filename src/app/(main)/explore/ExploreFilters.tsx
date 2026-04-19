@@ -142,8 +142,9 @@ export function ExploreFilters({ params, resultCount, activeTab = 'trips' }: Pro
       params.minPrice ||
       params.maxPrice ||
       params.q ||
-      params.tab ||
       params.interested)
+
+  const hasAnyFilterApplied = hasFilters || params.tab // Show count only if filters/search active
 
   const searchPlaceholder = isTripsTab ? 'Search trips...' : `Search ${activeTab}...`
 
@@ -380,7 +381,7 @@ export function ExploreFilters({ params, resultCount, activeTab = 'trips' }: Pro
         )}
 
         {/* Clear all + count */}
-        {hasFilters && (
+        {hasAnyFilterApplied && (
           <>
             <button
               onClick={() => router.push('/explore')}

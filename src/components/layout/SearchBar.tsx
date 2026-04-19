@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 
 interface SearchBarProps {
@@ -15,8 +15,9 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Get initial search value from URL
+  // Get initial search value from URL (client-side only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -26,6 +27,36 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
       }
     }
   }, [])
+
+  // Handle live search as user types (with debounce)
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // Set new timer for debounced search
+    debounceTimerRef.current = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        const trimmedInput = searchInput.trim()
+        const params = new URLSearchParams(window.location.search)
+
+        if (trimmedInput) {
+          params.set('q', trimmedInput)
+        } else {
+          params.delete('q')
+        }
+
+        router.push(`/explore?${params.toString()}`)
+      }
+    }, 300) // 300ms debounce
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [searchInput, router])
 
   // Handle keyboard shortcut "/" to focus search
   useEffect(() => {
@@ -42,11 +73,19 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
           inputRef.current?.focus()
         }
       }
+
+      // Escape to clear search
+      if (event.key === 'Escape' && searchInput) {
+        setSearchInput('')
+        if (isMobile) {
+          setIsExpanded(false)
+        }
+      }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isMobile])
+  }, [isMobile, searchInput])
 
   // Focus input when expanded (mobile)
   useEffect(() => {
@@ -69,21 +108,13 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
     }
   }, [isExpanded, isMobile])
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault()
-    if (searchInput.trim()) {
-      const params = new URLSearchParams()
-      params.set('q', searchInput.trim())
-      router.push(`/explore?${params.toString()}`)
-      if (isMobile) {
-        setIsExpanded(false)
-      }
-    }
-  }
-
   function handleClear() {
     setSearchInput('')
     inputRef.current?.focus()
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setSearchInput(e.target.value)
   }
 
   // Mobile: Icon only, expands left
@@ -102,20 +133,15 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
         )}
 
         {isExpanded && (
-          <form onSubmit={handleSearch} className="absolute right-0 top-full mt-2 w-72 z-50">
+          <div className="absolute right-0 top-full mt-2 w-72 z-50">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 ref={inputRef}
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="Find"
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape') {
-                    setIsExpanded(false)
-                  }
-                }}
                 className="w-full pl-9 pr-9 py-2 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
               />
               {searchInput && (
@@ -129,25 +155,25 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
                 </button>
               )}
             </div>
-          </form>
+          </div>
         )}
       </div>
     )
   }
 
-  // Desktop: Full search bar
+  // Desktop: Full search bar with live search
   return (
-    <form onSubmit={handleSearch} className={`relative flex items-center ${className}`}>
+    <div className={`relative flex items-center ${className}`}>
       <div className="relative w-full">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Find"
           className="w-full pl-9 pr-9 py-2 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
-          title="Search (press / to focus)"
+          title="Search (press / to focus, Esc to clear)"
         />
 
         {/* Clear button */}
@@ -162,6 +188,6 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
           </button>
         )}
       </div>
-    </form>
+    </div>
   )
 }
