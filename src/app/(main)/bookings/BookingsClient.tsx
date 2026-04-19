@@ -18,7 +18,7 @@ import {
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import { requestCancellation, changeBookingDate } from '@/actions/booking'
-import type { GroupBookingInfo } from './page'
+import type { GroupBookingInfo, IncompleteJoinTrip, IncompleteTripStatus } from './page'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -45,14 +45,43 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
 }
 
+const INCOMPLETE_JOIN_BADGE: Record<IncompleteTripStatus, { label: string; className: string }> = {
+  awaiting_unsolo: {
+    label: 'Awaiting UnSOLO approval',
+    className: 'bg-amber-500/15 text-amber-300 border-amber-500/35',
+  },
+  awaiting_host: {
+    label: 'Awaiting host approval',
+    className: 'bg-sky-500/15 text-sky-300 border-sky-500/35',
+  },
+  payment_pending: {
+    label: 'Payment pending',
+    className: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  },
+}
+
+function firstDepartureMonthKey(trip: IncompleteJoinTrip['trip']): number | null {
+  const dates = trip.departure_dates
+  if (!dates?.length) return null
+  const first = [...dates].sort()[0]
+  return new Date(first + 'T12:00:00').getMonth()
+}
+
 interface Props {
   bookings: Booking[]
   reviewedBookingIds: string[]
   groupBookings?: GroupBookingInfo[]
+  incompleteJoinTrips?: IncompleteJoinTrip[]
   currentUserId?: string
 }
 
-export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [], currentUserId }: Props) {
+export function BookingsClient({
+  bookings,
+  reviewedBookingIds,
+  groupBookings = [],
+  incompleteJoinTrips = [],
+  currentUserId,
+}: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [reviewed, setReviewed] = useState<Set<string>>(new Set(reviewedBookingIds))
@@ -92,6 +121,21 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
 
   const showSolo = filterType === 'all' || filterType === 'solo'
   const showGroup = filterType === 'all' || filterType === 'group'
+
+  let filteredIncompleteJoin = incompleteJoinTrips
+  if (filterStatus !== 'all' && filterStatus !== 'pending') {
+    filteredIncompleteJoin = []
+  }
+  if (filterMonth) {
+    const m = parseInt(filterMonth, 10)
+    filteredIncompleteJoin = filteredIncompleteJoin.filter(row => {
+      const mk = firstDepartureMonthKey(row.trip)
+      return mk === m
+    })
+  }
+  if (!showSolo) {
+    filteredIncompleteJoin = []
+  }
 
   const upcoming = filteredBookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
   const past = filteredBookings.filter((b) => b.status === 'completed' || b.status === 'cancelled')
@@ -189,6 +233,24 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
         )}
       </div>
 
+      {/* Community trips: join request not yet matched to a booking row */}
+      {showSolo && filteredIncompleteJoin.length > 0 && (
+        <div>
+          <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Trips in progress
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Host or UnSOLO approval pending, or complete payment to confirm your spot.
+          </p>
+          <div className="space-y-4">
+            {filteredIncompleteJoin.map(row => (
+              <IncompleteJoinCard key={row.joinRequestId} row={row} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Join Group Trip */}
       <div className="p-4 rounded-xl border border-border bg-card/50">
         <h3 className="text-sm font-bold mb-2 flex items-center gap-2">
@@ -253,9 +315,16 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                           <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Group Trip'}</h3>
-                          <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
-                            {group.total_paid}/{group.total_members} paid
-                          </Badge>
+                          <div className="flex flex-wrap gap-2 justify-end">
+                            {needsPayment && (
+                              <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                                Payment pending
+                              </Badge>
+                            )}
+                            <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                              {group.total_paid}/{group.total_members} paid
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
                           {pkg?.destination && (
@@ -445,6 +514,92 @@ export function BookingsClient({ bookings, reviewedBookingIds, groupBookings = [
   )
 }
 
+function SoloBookingStatusBadge({ booking }: { booking: Booking }) {
+  const pkg = booking.package
+  const isHostTrip = !!pkg?.host_id
+  if (booking.status === 'confirmed') {
+    return <Badge className={`text-xs border ${STATUS_COLORS.confirmed}`}>Confirmed</Badge>
+  }
+  if (booking.status === 'cancelled') {
+    return <Badge className={`text-xs border ${STATUS_COLORS.cancelled}`}>Cancelled</Badge>
+  }
+  if (booking.status === 'completed') {
+    return <Badge className={`text-xs border ${STATUS_COLORS.completed}`}>Completed</Badge>
+  }
+  if (booking.status === 'pending') {
+    if (isHostTrip && pkg?.moderation_status === 'pending') {
+      return (
+        <Badge className="text-xs border bg-amber-500/15 text-amber-300 border-amber-500/35">
+          Awaiting UnSOLO approval
+        </Badge>
+      )
+    }
+    return <Badge className={`text-xs border ${STATUS_COLORS.pending}`}>Payment pending</Badge>
+  }
+  return (
+    <Badge className={`text-xs border ${STATUS_COLORS[booking.status] || 'bg-secondary text-muted-foreground border-border'}`}>
+      {booking.status}
+    </Badge>
+  )
+}
+
+function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
+  const cfg = INCOMPLETE_JOIN_BADGE[row.status]
+  const pkg = row.trip
+  const cal = tripCalFromPackage(pkg)
+  const firstDep = pkg.departure_dates?.length ? [...pkg.departure_dates].sort()[0] : null
+  const tripEndIso = firstDep ? tripEndDateIsoForBooking(firstDep, cal) : null
+
+  return (
+    <Card className="bg-card border-border hover:border-primary/20 transition-colors">
+      <CardContent className="p-5">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+            {pkg.images?.[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+              <h3 className="font-bold text-lg leading-tight">{pkg.title}</h3>
+              <Badge className={`text-xs border ${cfg.className}`}>{cfg.label}</Badge>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
+              {pkg.destination && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
+                </span>
+              )}
+              {firstDep && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {pkg.duration_days > 0 && tripEndIso
+                    ? formatDateRangeFromEdges(firstDep, tripEndIso)
+                    : formatDate(firstDep)}
+                </span>
+              )}
+              {row.status === 'payment_pending' && row.paymentDeadline && (
+                <span className="flex items-center gap-1 text-amber-400/90">
+                  <Clock className="h-3 w-3" />
+                  Pay by {formatDate(row.paymentDeadline.split('T')[0])}
+                </span>
+              )}
+            </div>
+            <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
+              <Link href={`/packages/${pkg.slug}`}>
+                <ArrowRight className="mr-1 h-3 w-3" /> Open trip
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function BookingItem({
   booking,
   expanded,
@@ -483,9 +638,7 @@ function BookingItem({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
               <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Trip'}</h3>
-              <Badge className={`text-xs ${STATUS_COLORS[booking.status] || 'bg-secondary text-muted-foreground'}`}>
-                {booking.status}
-              </Badge>
+              <SoloBookingStatusBadge booking={booking} />
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
               <span className="flex items-center gap-1">

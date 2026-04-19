@@ -8,6 +8,26 @@ import Link from 'next/link'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
 
+/** Community-trip join requests not yet fully booked (deduped against active bookings). */
+export type IncompleteTripStatus = 'awaiting_unsolo' | 'awaiting_host' | 'payment_pending'
+
+export type IncompleteJoinTrip = {
+  joinRequestId: string
+  status: IncompleteTripStatus
+  paymentDeadline: string | null
+  updatedAt: string
+  trip: {
+    id: string
+    title: string
+    slug: string
+    images: string[] | null
+    duration_days: number
+    departure_dates: string[] | null
+    return_dates?: string[] | null
+    destination: { name: string; state: string } | null
+  }
+}
+
 export type GroupBookingInfo = {
   id: string
   package_id: string
@@ -53,6 +73,68 @@ export default async function BookingsPage() {
 
   const reviewedBookingIds = new Set((reviews || []).map(r => r.booking_id))
   const bookings = (data || []) as Booking[]
+
+  const { data: joinRequestRows } = await supabase
+    .from('join_requests')
+    .select(
+      `id, status, payment_deadline, updated_at,
+      trip:packages(id, title, slug, images, moderation_status, host_id, duration_days, departure_dates, return_dates, destination:destinations(name, state))`,
+    )
+    .eq('user_id', user.id)
+    .in('status', ['pending', 'approved'])
+
+  const incompleteJoinTrips: IncompleteJoinTrip[] = []
+  for (const row of joinRequestRows || []) {
+    const trip = row.trip as unknown as {
+      id: string
+      title: string
+      slug: string
+      images: string[] | null
+      moderation_status: string | null
+      host_id: string | null
+      duration_days: number
+      departure_dates: string[] | null
+      return_dates: string[] | null
+      destination: { name: string; state: string } | null
+    } | null
+    if (!trip?.host_id) continue
+    if (trip.moderation_status === 'rejected') continue
+
+    const hasActiveBooking = bookings.some(
+      b => b.package_id === trip.id && (b.status === 'pending' || b.status === 'confirmed'),
+    )
+    if (row.status === 'approved' && hasActiveBooking) continue
+
+    let status: IncompleteTripStatus
+    if (trip.moderation_status === 'pending') {
+      status = 'awaiting_unsolo'
+    } else if (row.status === 'pending') {
+      status = 'awaiting_host'
+    } else {
+      status = 'payment_pending'
+    }
+
+    incompleteJoinTrips.push({
+      joinRequestId: row.id,
+      status,
+      paymentDeadline: row.payment_deadline,
+      updatedAt: row.updated_at,
+      trip: {
+        id: trip.id,
+        title: trip.title,
+        slug: trip.slug,
+        images: trip.images,
+        duration_days: trip.duration_days,
+        departure_dates: trip.departure_dates,
+        return_dates: trip.return_dates,
+        destination: trip.destination,
+      },
+    })
+  }
+
+  incompleteJoinTrips.sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  )
 
   // Fetch group bookings where user is a member
   const { data: myMemberships } = await supabase
@@ -103,7 +185,8 @@ export default async function BookingsPage() {
     }
   }
 
-  const hasContent = bookings.length > 0 || groupBookings.length > 0
+  const hasContent =
+    bookings.length > 0 || groupBookings.length > 0 || incompleteJoinTrips.length > 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -127,6 +210,7 @@ export default async function BookingsPage() {
             bookings={bookings}
             reviewedBookingIds={Array.from(reviewedBookingIds)}
             groupBookings={groupBookings}
+            incompleteJoinTrips={incompleteJoinTrips}
             currentUserId={user.id}
           />
         )}
