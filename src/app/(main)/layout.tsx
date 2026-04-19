@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/Navbar'
-import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
+import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import type { Profile } from '@/types'
 
 export default async function MainLayout({
@@ -31,8 +31,8 @@ export default async function MainLayout({
       <main className="flex-1">
         {children}
       </main>
-      {user && <ChatNotificationWidget userId={user.id} />}
       {user && <PresenceTracker userId={user.id} />}
+      <MobileChatButton isAuthenticated={!!user} />
       <FooterWrapper />
     </div>
   )
