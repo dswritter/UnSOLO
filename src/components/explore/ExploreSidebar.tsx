@@ -66,7 +66,7 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
-    params.tab === 'community' ? 'community' : params.tab === 'unsolo' ? 'unsolo' : 'all'
+    params.tripSource === 'community' ? 'community' : params.tripSource === 'unsolo' ? 'unsolo' : 'all'
 
   // Track optimistic state for instant UI feedback
   const [optimisticParams, setOptimisticParams] = useState<Record<string, string | null>>({})
@@ -101,10 +101,10 @@ export function ExploreSidebar({ params, activeTab, resultCount }: ExploreSideba
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
     setOptimisticParams((prev) => ({
       ...prev,
-      tab: next === 'all' ? null : next,
+      tripSource: next === 'all' ? null : next,
     }))
-    if (next === 'all') router.push(buildUrl({ tab: null }))
-    else router.push(buildUrl({ tab: next }))
+    if (next === 'all') router.push(buildUrl({ tripSource: null }))
+    else router.push(buildUrl({ tripSource: next }))
   }
 
   function clearAllFilters() {

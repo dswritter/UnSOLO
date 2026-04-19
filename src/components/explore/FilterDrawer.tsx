@@ -76,7 +76,7 @@ export function FilterDrawer({
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
-    params.tab === 'community' ? 'community' : params.tab === 'unsolo' ? 'unsolo' : 'all'
+    params.tripSource === 'community' ? 'community' : params.tripSource === 'unsolo' ? 'unsolo' : 'all'
 
   useEffect(() => {
     setMounted(true)
@@ -95,8 +95,8 @@ export function FilterDrawer({
   }
 
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
-    if (next === 'all') router.push(buildUrl({ tab: null }))
-    else router.push(buildUrl({ tab: next }))
+    if (next === 'all') router.push(buildUrl({ tripSource: null }))
+    else router.push(buildUrl({ tripSource: next }))
   }
 
   function clearAllFilters() {

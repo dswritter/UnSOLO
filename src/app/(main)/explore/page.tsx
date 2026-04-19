@@ -63,16 +63,16 @@ async function fetchPopularityMaps(
 
 async function getPackages(searchParams: Record<string, string>) {
   const supabase = await createClient()
-  const tab = searchParams.tab
+  const tripSource = searchParams.tripSource
 
   let query = supabase
     .from('packages')
     .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('is_active', true)
 
-  if (tab === 'community') {
+  if (tripSource === 'community') {
     query = query.not('host_id', 'is', null)
-  } else if (tab === 'unsolo') {
+  } else if (tripSource === 'unsolo') {
     query = query.is('host_id', null)
   }
 
