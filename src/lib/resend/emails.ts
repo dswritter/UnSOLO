@@ -1,4 +1,4 @@
-import { resend } from './client'
+import { getResend } from './client'
 
 /** Verified sender in Resend (e.g. hello@unsolo.in). Dev fallback uses Resend’s test domain until unsolo.in is verified. */
 const FROM_EMAIL =
@@ -40,8 +40,9 @@ export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedE
     paymentDeadlineLabel,
   } = details
 
-  if (!process.env.RESEND_API_KEY?.trim()) {
-    throw new Error('RESEND_API_KEY is not set')
+  const to = travelerEmail.trim()
+  if (!to) {
+    throw new Error('Traveler email is empty')
   }
 
   const greeting = (travelerName && travelerName.trim()) || 'there'
@@ -50,9 +51,9 @@ export async function sendJoinRequestApprovedEmail(details: JoinRequestApprovedE
   const safeDeadlineLabel = escapeHtml(paymentDeadlineLabel)
   const safeUrl = packageUrl.replace(/"/g, '&quot;')
 
-  const result = await resend.emails.send({
+  const result = await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
-    to: travelerEmail,
+    to,
     subject: `You're approved — complete payment for ${tripTitle}`,
     html: `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
@@ -109,7 +110,7 @@ interface CustomRequestDetails {
 export async function sendAdminNotification(details: CustomRequestDetails) {
   const { packageTitle, requestedDate, guests, contactNumber, contactEmail } = details
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: ADMIN_EMAIL,
     subject: `New Custom Date Request — ${packageTitle}`,
@@ -132,7 +133,7 @@ export async function sendAdminNotification(details: CustomRequestDetails) {
 export async function sendUserConfirmation(details: CustomRequestDetails) {
   const { packageTitle, requestedDate, guests, contactEmail } = details
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: contactEmail,
     subject: `Your Custom Date Request — ${packageTitle}`,
@@ -183,7 +184,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
 
   const fmtDate = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: customerEmail,
     subject: `Booking Confirmed! 🎉 ${packageTitle} — #${confirmationCode}`,
@@ -233,7 +234,7 @@ interface POCDetailsInput {
 export async function sendPOCDetails(details: POCDetailsInput) {
   const { customerEmail, customerName, packageTitle, confirmationCode, travelDate, pocName, pocUsername } = details
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: customerEmail,
     subject: `Your Trip Coordinator — ${packageTitle}`,

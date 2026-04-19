@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { APP_URL, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 import {
   minPricePaiseFromVariants,
@@ -597,8 +597,8 @@ export async function approveJoinRequest(requestId: string) {
     hostProfile?.username?.trim() ||
     'Host'
 
-  // Notify traveler (service role for notifications + auth email lookup)
-  const serviceClient = await createServiceClient()
+  // Notify traveler — plain service client so auth.admin.getUserById works reliably
+  const serviceClient = createServiceRoleClient()
 
   await serviceClient.from('notifications').insert({
     user_id: request.user_id,
@@ -615,7 +615,7 @@ export async function approveJoinRequest(requestId: string) {
     console.error('approveJoinRequest getUserById:', authTravelerError.message)
   }
 
-  const travelerEmail = authTraveler?.user?.email ?? undefined
+  const travelerEmail = authTraveler?.user?.email?.trim() || undefined
   if (!travelerEmail) {
     console.warn('approveJoinRequest: no traveler email in auth for user', request.user_id)
   } else {
