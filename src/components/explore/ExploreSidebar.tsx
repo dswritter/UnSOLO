@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
+import { PriceSlider } from './PriceSlider'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -197,43 +198,29 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
             </div>
           </FilterSection>
 
-          {/* Budget */}
+          {/* Budget - Slider */}
           <FilterSection label="Budget">
-            <div className="flex flex-col gap-2">
-              {BUDGET_OPTIONS.map((opt) => {
-                const minBudget = getCurrentValue('minBudget', '')
-                const maxBudget = getCurrentValue('maxBudget', '')
-                const isSelected = minBudget === opt.min && maxBudget === opt.max
-                return (
-                  <button
-                    key={opt.value}
-                    disabled={isLoading}
-                    onClick={() => {
-                      if (isSelected) {
-                        handleFilterClick('minBudget', null)
-                        handleFilterClick('maxBudget', null)
-                      } else {
-                        setOptimisticParams((prev) => ({
-                          ...prev,
-                          minBudget: opt.min || null,
-                          maxBudget: opt.max || null,
-                        }))
-                        router.push(buildUrl({ minBudget: opt.min || null, maxBudget: opt.max || null }))
-                      }
-                    }}
-                    className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
-                      isSelected
-                        ? 'bg-primary text-primary-foreground font-medium'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
-                      isLoading && 'opacity-50 cursor-not-allowed'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
+            <PriceSlider
+              minValue={0}
+              maxValue={200000}
+              currentMin={parseInt(getCurrentValue('minBudget', '0')) || 0}
+              currentMax={parseInt(getCurrentValue('maxBudget', '200000')) || 200000}
+              onMinChange={(value) => {
+                setOptimisticParams((prev) => ({
+                  ...prev,
+                  minBudget: value ? String(value) : null,
+                }))
+                router.push(buildUrl({ minBudget: value ? String(value) : null }))
+              }}
+              onMaxChange={(value) => {
+                setOptimisticParams((prev) => ({
+                  ...prev,
+                  maxBudget: value ? String(value) : null,
+                }))
+                router.push(buildUrl({ maxBudget: value ? String(value) : null }))
+              }}
+              step={5000}
+            />
           </FilterSection>
 
           {/* Duration */}
