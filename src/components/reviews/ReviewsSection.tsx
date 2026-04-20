@@ -107,24 +107,14 @@ export function ReviewsSection({
                     )}
                   </div>
 
-                  {/* Edit mode will be handled by EditableReviewCard, but we need to show ratings */}
-                  <div className="text-right text-xs space-y-0.5 mb-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="text-muted-foreground">Destination</span>
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`h-3 w-3 ${i < (review.rating_destination || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
-                        ))}
-                      </div>
+                  {/* Rating display */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
+                      ))}
                     </div>
-                    <div className="flex items-center gap-1 justify-end">
-                      <span className="text-muted-foreground">Experience</span>
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`h-3 w-3 ${i < (review.rating_experience || review.rating) ? 'text-primary fill-primary' : 'text-muted-foreground'}`} />
-                        ))}
-                      </div>
-                    </div>
+                    <span className="text-sm font-semibold text-foreground">{review.rating}/5</span>
                   </div>
 
                   {/* Editable review card */}

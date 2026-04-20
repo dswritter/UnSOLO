@@ -568,33 +568,6 @@ export function BookingsClient({
                   }}
                 />
 
-                {/* Host Rating Card */}
-                {ratingOpen && onRatingClose && onRatingSubmitted && (
-                  <div className="mt-2 ml-4" onClick={e => e.stopPropagation()}>
-                    <HostRatingCard
-                      hostName={pkg?.host?.full_name || pkg?.host?.username || 'Your host'}
-                      hostAvatar={pkg?.host?.avatar_url}
-                      bookingId={booking.id}
-                      onSubmit={async (rating, comment) => {
-                        const response = await fetch('/api/host-ratings', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            booking_id: booking.id,
-                            rating,
-                            comment: comment || null,
-                          }),
-                        })
-                        if (!response.ok) {
-                          throw new Error('Failed to submit rating')
-                        }
-                        onRatingSubmitted()
-                      }}
-                      onSkip={onRatingClose}
-                    />
-                  </div>
-                )}
-
                 {/* Review form */}
                 {reviewingId === booking.id && (
                   <Card className="bg-card border-primary/30 mt-2 ml-4">
@@ -1097,6 +1070,33 @@ function BookingItem({
             </div>
           </div>
         </div>
+
+        {/* Host Rating Card */}
+        {ratingOpen && onRatingClose && onRatingSubmitted && (
+          <div className="mt-2 ml-0" onClick={e => e.stopPropagation()}>
+            <HostRatingCard
+              hostName={pkg?.host?.full_name || pkg?.host?.username || 'Your host'}
+              hostAvatar={pkg?.host?.avatar_url}
+              bookingId={booking.id}
+              onSubmit={async (rating, comment) => {
+                const response = await fetch('/api/host-ratings', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    booking_id: booking.id,
+                    rating,
+                    comment: comment || null,
+                  }),
+                })
+                if (!response.ok) {
+                  throw new Error('Failed to submit rating')
+                }
+                onRatingSubmitted()
+              }}
+              onSkip={onRatingClose}
+            />
+          </div>
+        )}
 
         {/* Expanded details */}
         {expanded && (
