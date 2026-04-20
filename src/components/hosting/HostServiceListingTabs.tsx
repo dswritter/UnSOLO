@@ -7,6 +7,7 @@ import { Building2, Package, Eye, ChevronLeft, ChevronRight, X } from 'lucide-re
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
+import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import {
   createHostServiceListing,
   updateHostServiceListing,
@@ -208,6 +209,7 @@ export function HostServiceListingTabs(props: Props) {
     initialItems.length > 0 ? initialItems.map(itemFromRow) : [emptyDraft()],
   )
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
+  const itemDescRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
 
   // ── Helpers ───────────────────────────────────────────────────────────
   const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean)
@@ -679,14 +681,20 @@ export function HostServiceListingTabs(props: Props) {
                   />
                 </div>
 
-                <div>
+                <div className="space-y-1">
                   <label className="text-xs font-semibold">Description</label>
+                  <TripDescriptionMarkdownToolbar
+                    textareaRef={{ current: itemDescRefs.current[draft.localKey] ?? null }}
+                    value={draft.description}
+                    onChange={(next) => updateDraft(draft.localKey, { description: next })}
+                  />
                   <textarea
+                    ref={(el) => { itemDescRefs.current[draft.localKey] = el }}
                     value={draft.description}
                     onChange={(e) => updateDraft(draft.localKey, { description: e.target.value })}
-                    rows={2}
-                    placeholder="Optional details specific to this item"
-                    className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary resize-none"
+                    rows={3}
+                    placeholder="Optional details specific to this item. Use **bold**, ## heading, - bullet."
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary resize-y"
                   />
                 </div>
 
@@ -797,27 +805,36 @@ export function HostServiceListingTabs(props: Props) {
           {description && (
             <div>
               <h4 className="text-sm font-semibold mb-1">About</h4>
-              <pre className="text-sm text-muted-foreground whitespace-pre-wrap font-sans">
+              <TripDescriptionDisplay className="text-sm text-muted-foreground">
                 {description}
-              </pre>
+              </TripDescriptionDisplay>
             </div>
           )}
 
           <div>
             <h4 className="text-sm font-semibold mb-2">Items ({items.length})</h4>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {items.map(i => (
-                <li key={i.localKey} className="flex items-center gap-3 rounded-lg border border-border p-2">
-                  {i.images[0] && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={i.images[0]} alt="" className="h-12 w-12 rounded object-cover flex-shrink-0" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      ₹{i.priceRupees.toLocaleString('en-IN')} · Qty {i.quantity} · Max {i.maxPerBooking}/booking
+                <li key={i.localKey} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start gap-3">
+                    {i.images[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={i.images[0]} alt="" className="h-14 w-14 rounded object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="h-14 w-14 rounded bg-secondary flex-shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        ₹{i.priceRupees.toLocaleString('en-IN')} · Qty {i.quantity} · Max {i.maxPerBooking}/booking · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
+                      </div>
                     </div>
                   </div>
+                  {i.description.trim() && (
+                    <TripDescriptionDisplay className="mt-2 text-xs text-muted-foreground">
+                      {i.description}
+                    </TripDescriptionDisplay>
+                  )}
                 </li>
               ))}
             </ul>

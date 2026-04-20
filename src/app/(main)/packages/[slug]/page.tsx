@@ -175,9 +175,9 @@ export default async function PackageDetailPage({
                 <MapPin className="h-4 w-4 text-primary" />
                 {package_.destination?.name}, {package_.destination?.state}
               </div>
-              <div className="flex items-start justify-between gap-4">
-                <h1 className="text-3xl md:text-4xl font-black">{package_.title}</h1>
-                <div className="flex gap-2 flex-shrink-0 mt-1">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight">{package_.title}</h1>
+                <div className="flex flex-wrap gap-2 md:flex-shrink-0 md:mt-1">
                   <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
                     {package_.difficulty}
                   </Badge>

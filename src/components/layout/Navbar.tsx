@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
 import { getInitials } from '@/lib/utils'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
@@ -29,6 +29,46 @@ export function Navbar({ user }: NavbarProps) {
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileToggleRef = useRef<HTMLButtonElement>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  // Dismiss the mobile menu on outside tap or Escape.
+  useEffect(() => {
+    if (!mobileOpen) return
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as Node
+      if (mobileMenuRef.current?.contains(target)) return
+      if (mobileToggleRef.current?.contains(target)) return
+      setMobileOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMobileOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [mobileOpen])
+
+  // Swipe up or swipe left on the drawer closes it.
+  function onMenuTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  function onMenuTouchEnd(e: React.TouchEvent) {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    const SWIPE = 40
+    if (dy < -SWIPE && Math.abs(dy) > Math.abs(dx)) { setMobileOpen(false); return }
+    if (dx < -SWIPE && Math.abs(dx) > Math.abs(dy)) { setMobileOpen(false); return }
+  }
 
   // Track unread messages for Community badge
   useEffect(() => {
@@ -209,8 +249,11 @@ export function Navbar({ user }: NavbarProps) {
 
             {/* Mobile menu toggle */}
             <button
+              ref={mobileToggleRef}
               className="md:hidden text-muted-foreground hover:text-foreground"
               onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -220,7 +263,12 @@ export function Navbar({ user }: NavbarProps) {
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2">
+        <div
+          ref={mobileMenuRef}
+          onTouchStart={onMenuTouchStart}
+          onTouchEnd={onMenuTouchEnd}
+          className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2"
+        >
           {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
             const isActive = pathname === href
             return (
