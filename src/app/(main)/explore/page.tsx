@@ -94,10 +94,16 @@ async function getPackages(searchParams: Record<string, string>) {
     query = query.eq('difficulty', searchParams.difficulty)
   }
   if (searchParams.minBudget) {
-    query = query.gte('price_paise', parseInt(searchParams.minBudget) * 100)
+    const minPaise = parseInt(searchParams.minBudget, 10) * 100
+    if (!isNaN(minPaise)) {
+      query = query.gte('price_paise', minPaise)
+    }
   }
   if (searchParams.maxBudget) {
-    query = query.lte('price_paise', parseInt(searchParams.maxBudget) * 100)
+    const maxPaise = parseInt(searchParams.maxBudget, 10) * 100
+    if (!isNaN(maxPaise)) {
+      query = query.lte('price_paise', maxPaise)
+    }
   }
   if (searchParams.maxDays) {
     query = query.lte('duration_days', parseInt(searchParams.maxDays))
