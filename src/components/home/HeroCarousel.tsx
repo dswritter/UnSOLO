@@ -77,15 +77,15 @@ export function HeroCarousel({
 
   return (
     <section
-      className="relative w-full overflow-hidden bg-black h-[clamp(420px,52vh,600px)]"
+      className="relative w-full overflow-hidden bg-black h-[clamp(460px,62vh,720px)]"
     >
       {/* Background layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-[#1a0f00] pointer-events-none" />
       {/* Package image background when showing a trip */}
       {pkg?.images?.[0] && (
         <div className="absolute inset-0 transition-opacity duration-700">
-          <img src={pkg.images[0]} alt="" className="w-full h-full object-cover opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/40" />
+          <img src={pkg.images[0]} alt="" className="w-full h-full object-cover opacity-70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
         </div>
       )}
       {!pkg && (
