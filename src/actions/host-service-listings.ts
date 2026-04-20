@@ -9,7 +9,7 @@ export async function createHostServiceListing(input: {
   short_description: string | null
   type: ServiceListingType
   price_paise: number
-  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week'
+  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
   destination_id: string
   location: string | null
   max_guests_per_booking?: number | null

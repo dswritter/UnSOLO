@@ -49,6 +49,7 @@ export function HostServiceListingForm({
 }: HostServiceListingFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [customAmenityInput, setCustomAmenityInput] = useState('')
   const [formData, setFormData] = useState({
     title: '',
     destinationId: '',
@@ -59,10 +60,19 @@ export function HostServiceListingForm({
     unit: TYPE_CONFIGS[type].defaultUnit,
     maxGuestsPerBooking: 1,
     quantityAvailable: 1,
-    amenities: TYPE_CONFIGS[type].suggestedAmenities,
+    amenities: [...TYPE_CONFIGS[type].suggestedAmenities] as string[],
     difficulty: type === 'activities' ? 'easy' : undefined,
-    tags: [],
+    tags: [] as string[],
   })
+
+  function addCustomAmenity() {
+    const v = customAmenityInput.trim()
+    if (!v) return
+    setFormData((prev) =>
+      prev.amenities.includes(v) ? prev : { ...prev, amenities: [...prev.amenities, v] },
+    )
+    setCustomAmenityInput('')
+  }
 
   const config = TYPE_CONFIGS[type]
   const selectedDest = destinations.find(d => d.id === formData.destinationId)
@@ -151,10 +161,10 @@ export function HostServiceListingForm({
 
       {/* Location */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold">Specific Location</label>
+        <label className="text-sm font-semibold">Specific Location (Full Address)</label>
         <input
           type="text"
-          placeholder="e.g., Near Lake, Downtown area"
+          placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
           value={formData.location}
           onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
           className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
@@ -224,6 +234,7 @@ export function HostServiceListingForm({
                 <option value="per_day">Per day</option>
                 <option value="per_hour">Per hour</option>
                 <option value="per_week">Per week</option>
+                <option value="per_month">Per month</option>
               </>
             )}
             {type === 'getting_around' && (
@@ -284,7 +295,7 @@ export function HostServiceListingForm({
       <div className="space-y-2">
         <label className="text-sm font-semibold">Amenities/Features</label>
         <div className="flex flex-wrap gap-2">
-          {config.suggestedAmenities.map(amenity => (
+          {Array.from(new Set([...config.suggestedAmenities, ...formData.amenities])).map(amenity => (
             <button
               key={amenity}
               type="button"
@@ -303,6 +314,29 @@ export function HostServiceListingForm({
               {amenity}
             </button>
           ))}
+        </div>
+        <div className="flex gap-2 pt-1">
+          <input
+            type="text"
+            placeholder="Add your own (e.g., Heater, Balcony)"
+            value={customAmenityInput}
+            onChange={(e) => setCustomAmenityInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addCustomAmenity()
+              }
+            }}
+            className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-xs"
+          />
+          <button
+            type="button"
+            onClick={addCustomAmenity}
+            disabled={!customAmenityInput.trim()}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            + Add
+          </button>
         </div>
       </div>
 

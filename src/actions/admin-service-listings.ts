@@ -68,7 +68,7 @@ export async function createServiceListing(input: {
   type: ServiceListingType
   price_paise: number
   price_variants?: PriceVariant[] | null
-  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week'
+  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
   destination_id: string
   location: string
   latitude?: number | null
@@ -138,7 +138,7 @@ export async function updateServiceListing(
     short_description: string | null
     price_paise: number
     price_variants: PriceVariant[] | null
-    unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week'
+    unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
     location: string
     latitude: number | null
     longitude: number | null

@@ -234,7 +234,7 @@ export type ServiceListing = {
   price_paise: number
   /** When set: 2+ tiers { description, price_paise }; price_paise is min tier for filters. */
   price_variants?: { description: string; price_paise: number }[] | null
-  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week'
+  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
   location: string
   destination_id: string
   latitude: number | null
