@@ -48,21 +48,30 @@ async function notifyAdminsOfServiceListing(opts: {
   )
 }
 
+type ServiceUnit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
+
+export type HostServiceItemDraft = {
+  name: string
+  description: string | null
+  price_paise: number
+  quantity_available: number
+  max_per_booking: number
+  images: string[]
+}
+
 export async function createHostServiceListing(input: {
   title: string
   description: string | null
   short_description: string | null
   type: ServiceListingType
-  price_paise: number
-  unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
+  unit: ServiceUnit
   destination_ids: string[]
   location: string | null
-  max_guests_per_booking?: number | null
-  quantity_available?: number | null
   amenities: string[]
   tags: string[]
   metadata: ServiceListingMetadata | null
   host_id: string
+  items: HostServiceItemDraft[]
 }) {
   try {
     const supabase = await createClient()
@@ -94,6 +103,28 @@ export async function createHostServiceListing(input: {
     }
     const primaryDestinationId = destinationIds[0]
 
+    // Validate items: need at least one.
+    const items = input.items.filter(i => i.name.trim().length > 0)
+    if (items.length === 0) {
+      return { error: 'Please add at least one item to your listing' }
+    }
+    if (items.length > 100) {
+      return { error: 'A listing can hold at most 100 items' }
+    }
+    for (const item of items) {
+      if (item.images.length > 5) {
+        return { error: `"${item.name}": max 5 photos per item` }
+      }
+      if (item.price_paise < 0 || item.quantity_available < 0 || item.max_per_booking < 1) {
+        return { error: `"${item.name}" has invalid price, quantity, or max` }
+      }
+    }
+
+    // Derive master-level price/images from items: min price for discovery
+    // sort, first item's photos so the card has something to show.
+    const minPricePaise = Math.min(...items.map(i => i.price_paise))
+    const heroImages = items[0].images.slice(0, 5)
+
     // Generate slug from title
     const slug = input.title
       .toLowerCase()
@@ -112,23 +143,23 @@ export async function createHostServiceListing(input: {
         description: input.description,
         short_description: input.short_description,
         type: input.type,
-        price_paise: input.price_paise,
+        price_paise: minPricePaise,
         unit: input.unit,
         destination_id: primaryDestinationId,
         destination_ids: destinationIds,
         location: input.location,
         latitude: null,
         longitude: null,
-        max_guests_per_booking: input.max_guests_per_booking || 1,
-        quantity_available: input.quantity_available,
+        max_guests_per_booking: null,
+        quantity_available: null,
         amenities: input.amenities.length > 0 ? input.amenities : null,
         tags: input.tags.length > 0 ? input.tags : null,
-        images: null, // Can be added later
+        images: heroImages.length > 0 ? heroImages : null,
         metadata: input.metadata,
         host_id: input.host_id,
         is_active: true,
         is_featured: false,
-        status: 'pending', // Hosts' listings need admin approval
+        status: 'pending',
       })
       .select('id, slug')
       .single()
@@ -136,6 +167,27 @@ export async function createHostServiceListing(input: {
     if (insertError) {
       console.error('Database error:', insertError)
       return { error: 'Failed to create listing' }
+    }
+
+    // Batch-insert items with stable ordering.
+    const { error: itemsError } = await supabase
+      .from('service_listing_items')
+      .insert(items.map((item, idx) => ({
+        service_listing_id: data.id,
+        name: item.name.trim(),
+        description: item.description?.trim() || null,
+        price_paise: item.price_paise,
+        quantity_available: item.quantity_available,
+        max_per_booking: item.max_per_booking,
+        images: item.images,
+        position_order: idx,
+      })))
+
+    if (itemsError) {
+      console.error('Items insert error:', itemsError)
+      // Roll back the parent so the host can retry cleanly.
+      await supabase.from('service_listings').delete().eq('id', data.id)
+      return { error: 'Failed to save items. Please try again.' }
     }
 
     await notifyAdminsOfServiceListing({
@@ -190,6 +242,97 @@ export async function resubmitServiceListing(listingId: string) {
     return { success: true }
   } catch (error) {
     console.error('Error resubmitting service listing:', error)
+    return { error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Edit the master / business fields of a service listing owned by the current
+ * host. Items are managed separately via host-service-listing-items actions.
+ * An edit on an approved listing resets its status to `pending` so admins
+ * re-review the changes.
+ */
+export async function updateHostServiceListing(
+  listingId: string,
+  patch: {
+    title?: string
+    description?: string | null
+    short_description?: string | null
+    unit?: ServiceUnit
+    destination_ids?: string[]
+    location?: string | null
+    amenities?: string[]
+    tags?: string[]
+    metadata?: ServiceListingMetadata | null
+  },
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('service_listings')
+      .select('id, host_id, title, status')
+      .eq('id', listingId)
+      .single()
+
+    if (fetchError || !existing) return { error: 'Listing not found' }
+    if (existing.host_id !== user.id) return { error: 'Unauthorized' }
+
+    const update: Record<string, unknown> = {}
+    if (patch.title !== undefined) update.title = patch.title.trim()
+    if (patch.description !== undefined) update.description = patch.description
+    if (patch.short_description !== undefined) update.short_description = patch.short_description
+    if (patch.unit !== undefined) update.unit = patch.unit
+    if (patch.location !== undefined) update.location = patch.location
+    if (patch.amenities !== undefined) update.amenities = patch.amenities.length > 0 ? patch.amenities : null
+    if (patch.tags !== undefined) update.tags = patch.tags.length > 0 ? patch.tags : null
+    if (patch.metadata !== undefined) update.metadata = patch.metadata
+
+    if (patch.destination_ids !== undefined) {
+      const ids = Array.from(new Set(patch.destination_ids.filter(Boolean)))
+      if (ids.length === 0) return { error: 'Please pick at least one location' }
+      const { data: dests } = await supabase.from('destinations').select('id').in('id', ids)
+      if (!dests || dests.length !== ids.length) {
+        return { error: 'One or more locations could not be found' }
+      }
+      update.destination_ids = ids
+      update.destination_id = ids[0]
+    }
+
+    // Approved listings bounce back to pending after an edit — admin re-reviews.
+    let wasApproved = false
+    if (existing.status === 'approved') {
+      update.status = 'pending'
+      wasApproved = true
+    }
+
+    if (Object.keys(update).length === 0) {
+      return { success: true }
+    }
+
+    const { error: updateError } = await supabase
+      .from('service_listings')
+      .update(update)
+      .eq('id', listingId)
+
+    if (updateError) {
+      console.error('updateHostServiceListing:', updateError)
+      return { error: 'Failed to save changes' }
+    }
+
+    if (wasApproved) {
+      await notifyAdminsOfServiceListing({
+        hostId: user.id,
+        listingTitle: (patch.title?.trim() || existing.title) as string,
+        variant: 'resubmitted',
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating service listing:', error)
     return { error: 'An unexpected error occurred' }
   }
 }

@@ -110,10 +110,16 @@ export default async function HostDashboardPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <Link
-                      href={`/host/service-listings/${listing.id}/items`}
+                      href={`/host/service-listings/${listing.id}/edit`}
                       className="text-xs text-primary hover:underline"
                     >
-                      Manage items →
+                      Edit listing →
+                    </Link>
+                    <Link
+                      href={`/host/service-listings/${listing.id}/edit?tab=items`}
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      Items
                     </Link>
                     {listing.status === 'rejected' && (
                       <ResubmitServiceListingButton listingId={listing.id} />

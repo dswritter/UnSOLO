@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { checkIsHost } from '@/actions/hosting'
 import { getDestinations } from '@/actions/admin'
 import { createClient } from '@/lib/supabase/server'
-import { HostServiceListingForm } from '../HostServiceListingForm'
+import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { ServiceListingType } from '@/types'
 
 interface CreateServiceListingPageProps {
@@ -59,8 +59,9 @@ export default async function CreateServiceListingPage({
           </p>
         </div>
 
-        {/* Form */}
-        <HostServiceListingForm
+        {/* Tabbed form */}
+        <HostServiceListingTabs
+          mode="create"
           type={type}
           destinations={destinations}
           userId={user.id}
