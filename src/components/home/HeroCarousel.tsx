@@ -76,7 +76,9 @@ export function HeroCarousel({
   const pkg = current > 0 ? packages[current - 1] : null
 
   return (
-    <section className="relative overflow-hidden bg-black" style={{ minHeight: '70vh' }}>
+    <section
+      className="relative overflow-hidden bg-black aspect-[21/9] min-h-[440px] max-h-[72vh]"
+    >
       {/* Background layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-[#1a0f00] pointer-events-none" />
       {/* Package image background when showing a trip */}
@@ -94,7 +96,7 @@ export function HeroCarousel({
       )}
 
       {/* Content */}
-      <div className="relative flex items-center justify-center px-4 py-24 md:py-32" style={{ minHeight: '70vh' }}>
+      <div className="relative flex h-full items-center justify-center px-4 py-10 md:py-16">
         <div className="mx-auto max-w-4xl text-center w-full">
           {current === 0 ? (
             /* Slide 0: Hero text */

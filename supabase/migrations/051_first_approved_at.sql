@@ -17,8 +17,9 @@ ALTER TABLE service_listings
 -- Backfill: any listing currently in the approved state was clearly approved
 -- at some point — stamp the column so existing approved content continues to
 -- behave identically after the migration.
+-- packages has no updated_at column — fall back to created_at.
 UPDATE packages
-   SET first_approved_at = COALESCE(updated_at, created_at, now())
+   SET first_approved_at = COALESCE(created_at, now())
  WHERE moderation_status = 'approved'
    AND first_approved_at IS NULL;
 
