@@ -185,7 +185,11 @@ export function ExploreClient({
                 shouldFade ? 'opacity-0' : 'opacity-100'
               )}>
             {(packages as Package[]).map((pkg) => (
-              <Link key={pkg.id} href={`/packages/${pkg.slug}`}>
+              <div
+                key={pkg.id}
+                onClick={() => router.push(`/packages/${pkg.slug}`)}
+                className="cursor-pointer"
+              >
                 <Card
                   className={cn(
                     'bg-card border-border overflow-hidden cursor-pointer h-full group py-0 gap-0',
@@ -312,7 +316,7 @@ export function ExploreClient({
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              </div>
             ))}
           </div>
             ) : (
