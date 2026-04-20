@@ -27,7 +27,11 @@ const SETTING_LABELS: Record<
   { label: string; type: 'number' | 'text' | 'textarea' | 'json' | 'refund_tiers' }
 > = {
   host_max_group_size: { label: 'Max group size (hosts)', type: 'number' },
-  platform_fee_percent: { label: 'Platform fee %', type: 'number' },
+  platform_fee_percent: { label: 'Commission % — Trips', type: 'number' },
+  platform_fee_percent_stays: { label: 'Commission % — Stays', type: 'number' },
+  platform_fee_percent_activities: { label: 'Commission % — Activities', type: 'number' },
+  platform_fee_percent_rentals: { label: 'Commission % — Rentals', type: 'number' },
+  platform_fee_percent_getting_around: { label: 'Commission % — Getting Around', type: 'number' },
   join_payment_deadline_hours: { label: 'Payment deadline (hours)', type: 'number' },
   refund_tiers_unsolo: {
     label: 'Refund tiers — UnSOLO trips',
@@ -218,7 +222,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold leading-tight">General platform settings</div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed pr-1">
-              Group size, payment deadline, platform fee
+              Group size, payment deadline, per-category commissions
             </p>
           </div>
           <ChevronRight
