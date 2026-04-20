@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
+import type { ServiceListingWithItems } from '@/app/(main)/explore/page'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,7 @@ const GENDER_LABELS: Record<string, string> = {
 
 interface ExploreClientProps {
   packages: Package[]
-  serviceListings: ServiceListing[]
+  serviceListings: ServiceListingWithItems[]
   params: Record<string, string>
   resultCount: number
   activeTab: TabType
@@ -316,8 +317,8 @@ export function ExploreClient({
             ) : (
               /* Service Listings Grid */
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                {(serviceListings as ServiceListing[]).map((listing) => (
-                  <ServiceListingCard key={listing.id} listing={listing} />
+                {serviceListings.map((listing) => (
+                  <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
                 ))}
               </div>
             )}

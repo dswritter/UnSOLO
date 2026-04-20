@@ -2,6 +2,16 @@ export const revalidate = 300 // 5 minutes
 
 import { createClient } from '@/lib/supabase/server'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
+
+export type ServiceListingWithItems = ServiceListing & {
+  items: Array<{
+    id: string
+    name: string
+    price_paise: number
+    images: string[]
+    unit: string | null
+  }>
+}
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { fuzzyMatch } from '@/lib/utils'
 import { getServiceListingsByType } from '@/actions/service-listing-discovery'
@@ -182,7 +192,7 @@ async function getPackages(searchParams: Record<string, string>) {
   return packages
 }
 
-async function getServiceListings(searchParams: Record<string, string>) {
+async function getServiceListings(searchParams: Record<string, string>): Promise<ServiceListingWithItems[]> {
   // Map tab to service listing type
   const tabToType: Record<string, ServiceListingType> = {
     stays: 'stays',
@@ -217,13 +227,47 @@ async function getServiceListings(searchParams: Record<string, string>) {
     filters.difficulty = searchParams.difficulty
   }
 
+  let listings: ServiceListing[] = []
   try {
     const result = await getServiceListingsByType(type, filters as any, 1, 12)
-    return result.listings
+    listings = result.listings
   } catch (error) {
     console.error('Error fetching service listings:', error)
     return []
   }
+
+  if (listings.length === 0) return []
+
+  // Batch-fetch items for all returned listings so cards can show a carousel
+  // without extra round-trips. Fetch only the fields needed for the card.
+  const supabase = await createClient()
+  const ids = listings.map((l) => l.id)
+  const { data: itemRows } = await supabase
+    .from('service_listing_items')
+    .select('id, name, price_paise, images, unit, service_listing_id')
+    .in('service_listing_id', ids)
+    .eq('is_active', true)
+    .order('position_order', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  // Group items by listing id
+  const itemsByListing = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>>()
+  for (const row of itemRows || []) {
+    const lid = (row as { service_listing_id: string }).service_listing_id
+    if (!itemsByListing.has(lid)) itemsByListing.set(lid, [])
+    itemsByListing.get(lid)!.push({
+      id: row.id,
+      name: row.name,
+      price_paise: row.price_paise,
+      images: (row.images as string[]) || [],
+      unit: row.unit as string | null,
+    })
+  }
+
+  return listings.map((l) => ({
+    ...l,
+    items: itemsByListing.get(l.id) || [],
+  }))
 }
 
 export default async function ExplorePage({
@@ -236,7 +280,7 @@ export default async function ExplorePage({
   const supabase = await createClient()
 
   let packages: Package[] = []
-  let serviceListings: ServiceListing[] = []
+  let serviceListings: ServiceListingWithItems[] = []
   let resultCount = 0
   let interestedPackageIds: string[] = []
   let maxPackagePrice = 2000000
