@@ -14,8 +14,7 @@ export async function HomeStatusRail({ avatarUrl }: { avatarUrl?: string | null 
 
   return (
     <div className="border-b border-border bg-background/90 dark:bg-black/40 backdrop-blur-md">
-      <div className="mx-auto max-w-7xl px-3 sm:px-4 py-3">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Status</p>
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2">
         <StatusStoriesBar
           initialStories={stories}
           currentUserId={currentUserId}
