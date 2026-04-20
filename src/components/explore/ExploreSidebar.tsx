@@ -145,8 +145,17 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
   return (
     <div className="bg-background border-r border-border p-4 overflow-y-auto max-h-[calc(100vh-120px)]">
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-1">Filters</h2>
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Filters</h2>
+        {hasActiveFilters && (
+          <button
+            onClick={clearAllFilters}
+            disabled={isClearing}
+            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {isTripsTab ? (
@@ -480,31 +489,6 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
             </FilterSection>
           )}
         </>
-      )}
-
-      {/* Clear filters button - only show when filters are active */}
-      {hasActiveFilters && (
-        <div className="mt-6 pt-4 border-t border-border">
-          <button
-            onClick={clearAllFilters}
-            disabled={isClearing}
-            className={cn(
-              'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
-              isClearing
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-            )}
-          >
-          {isClearing ? (
-            <>
-              <Check className="h-4 w-4" />
-              Filters cleared
-            </>
-          ) : (
-            'Clear all filters'
-          )}
-        </button>
-        </div>
       )}
     </div>
   )
