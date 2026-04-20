@@ -1,9 +1,9 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -231,6 +231,89 @@ export function HostServiceListingTabs(props: Props) {
   /** Per-item "add your own amenity" input buffer, keyed by draft.localKey. */
   const [customItemAmenity, setCustomItemAmenity] = useState<Record<string, string>>({})
 
+  // ── Dirty tracking + unsaved-changes guard ────────────────────────────
+  // Snapshot of persisted form state. `isDirty` compares the current state
+  // JSON against it; cleared again after any successful save so the guard
+  // stops blocking navigation once the host has actually saved.
+  const serializeFormState = () => JSON.stringify({
+    title: title.trim(),
+    destinationIds,
+    location: location.trim(),
+    shortDescription: shortDescription.trim(),
+    description: description.trim(),
+    unit,
+    amenities,
+    tagsInput: tagsInput.trim(),
+    items: items.map(i => ({
+      dbId: i.dbId ?? null,
+      name: i.name.trim(),
+      description: i.description.trim(),
+      priceRupees: i.priceRupees,
+      quantity: i.quantity,
+      maxPerBooking: i.maxPerBooking,
+      images: i.images,
+      unit: i.unit ?? null,
+      amenities: i.amenities ?? null,
+    })),
+  })
+
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+
+  // Stamp the initial snapshot on mount so the very first render doesn't
+  // read as dirty (current === saved).
+  useEffect(() => {
+    setSavedSnapshot(serializeFormState())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const currentSnapshot = useMemo(
+    () => serializeFormState(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [title, destinationIds, location, shortDescription, description, unit, amenities, tagsInput, items],
+  )
+
+  const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot
+
+  // Modal state: path the host clicked on (internal), or 'external' when the
+  // browser is firing beforeunload (which can't show our custom UI).
+  const [pendingNav, setPendingNav] = useState<string | null>(null)
+
+  // Browser-level guard: tab close / refresh / external URL. Can only show
+  // the generic native prompt — custom buttons aren't allowed.
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  // In-app nav guard: intercept clicks on internal <a> links anywhere on
+  // the page. Capture phase + stopImmediatePropagation so Next.js Link's
+  // own onClick doesn't fire. External links (http, mailto, #anchors) and
+  // new-tab clicks (cmd/ctrl/shift/middle) pass through untouched.
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: MouseEvent) => {
+      if (e.defaultPrevented) return
+      if (e.button !== 0) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const target = (e.target as HTMLElement | null)?.closest('a') as HTMLAnchorElement | null
+      if (!target) return
+      if (target.target === '_blank') return
+      const href = target.getAttribute('href')
+      if (!href) return
+      if (/^(https?:|mailto:|tel:|#)/i.test(href)) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      setPendingNav(href)
+    }
+    document.addEventListener('click', handler, true)
+    return () => document.removeEventListener('click', handler, true)
+  }, [isDirty])
+
   // ── Helpers ───────────────────────────────────────────────────────────
   const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean)
   const amenitiesAll = Array.from(new Set([...config.suggestedAmenities, ...amenities]))
@@ -408,6 +491,7 @@ export function HostServiceListingTabs(props: Props) {
       return
     }
     toast.success('Business details saved')
+    setSavedSnapshot(serializeFormState())
     router.refresh()
   }
 
@@ -456,10 +540,106 @@ export function HostServiceListingTabs(props: Props) {
           toast.success('Item added')
         }
       }
+      setSavedSnapshot(serializeFormState())
       router.refresh()
     } finally {
       setSaving(false)
     }
+  }
+
+  /**
+   * Master save: run the Business-tab save and then save every item. Used by
+   * the footer "Save changes" button and by the unsaved-changes dialog's
+   * "Save and leave" path. Returns true only when everything persisted.
+   */
+  async function saveAll(): Promise<boolean> {
+    if (mode !== 'edit') return false
+    const businessErr = validBusinessTab()
+    if (businessErr) { toast.error(businessErr); setStep(0); return false }
+    const itemsErr = validItemsTab()
+    if (itemsErr) { toast.error(itemsErr); setStep(1); return false }
+
+    setSaving(true)
+    try {
+      const businessRes = await updateHostServiceListing(props.listing.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        short_description: shortDescription.trim() || null,
+        ...(isRental ? {} : { unit, amenities }),
+        destination_ids: destinationIds,
+        location: location.trim() || null,
+        tags,
+      })
+      if ('error' in businessRes && businessRes.error) {
+        toast.error(businessRes.error)
+        return false
+      }
+
+      // Save each item sequentially — order matters for position_order on
+      // brand-new items, and concurrent writes to the same listing can race.
+      for (const draft of items) {
+        if (draft.dbId) {
+          const res = await updateServiceListingItem(draft.dbId, {
+            name: draft.name,
+            description: draft.description || null,
+            price_paise: Math.round((draft.priceRupees ?? 0) * 100),
+            quantity_available: draft.quantity,
+            max_per_booking: draft.maxPerBooking,
+            images: draft.images,
+            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+          })
+          if ('error' in res && res.error) {
+            toast.error(`"${draft.name}": ${res.error}`)
+            return false
+          }
+        } else {
+          const res = await createServiceListingItem({
+            service_listing_id: props.listing.id,
+            name: draft.name,
+            description: draft.description,
+            price_paise: Math.round((draft.priceRupees ?? 0) * 100),
+            quantity_available: draft.quantity,
+            max_per_booking: draft.maxPerBooking,
+            images: draft.images,
+            position_order: items.findIndex(i => i.localKey === draft.localKey),
+            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+          })
+          if ('error' in res && res.error) {
+            toast.error(`"${draft.name}": ${res.error}`)
+            return false
+          }
+          if ('item' in res && res.item) {
+            updateDraft(draft.localKey, { dbId: res.item.id })
+          }
+        }
+      }
+
+      setSavedSnapshot(serializeFormState())
+      toast.success('All changes saved')
+      router.refresh()
+      return true
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function goToPendingNav() {
+    const target = pendingNav
+    setPendingNav(null)
+    if (!target) return
+    // Clear the saved snapshot so the click handler won't re-trap our own
+    // nav — we've already confirmed.
+    setSavedSnapshot(currentSnapshot)
+    router.push(target)
+  }
+
+  async function saveAndLeave() {
+    const ok = await saveAll()
+    if (ok) goToPendingNav()
+  }
+
+  function discardAndLeave() {
+    goToPendingNav()
   }
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -1057,10 +1237,58 @@ export function HostServiceListingTabs(props: Props) {
           )}
           {mode === 'edit' && (
             <div className="pt-2 text-xs text-muted-foreground">
-              Edits on each tab are saved independently via their Save buttons.
-              Changes to an approved listing reset its status to Pending for re-review.
+              Use <strong>Save changes</strong> below to persist edits from every tab in one go —
+              or keep using each tab&apos;s own Save button. Substantive changes to an approved
+              listing reset its status to Pending for re-review.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit-mode action bar: master save + preview. Sits above the
+          back/next nav so hosts can commit or preview from any tab. */}
+      {mode === 'edit' && (
+        <div className="sticky bottom-0 z-20 -mx-4 px-4 sm:mx-0 sm:px-0 pt-3 pb-3 bg-gradient-to-t from-background via-background to-background/60 border-t border-border backdrop-blur">
+          <div className="flex flex-wrap items-center gap-2 justify-between">
+            <div className="text-xs">
+              {isDirty ? (
+                <span className="inline-flex items-center gap-1.5 text-amber-500">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  Unsaved changes
+                </span>
+              ) : (
+                <span className="text-muted-foreground">All changes saved</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Preview reflects last-saved state only — warn the host so
+                  // they don't wonder why their draft edits aren't showing.
+                  if (isDirty) {
+                    toast.message('Preview shows last-saved version — save changes first to preview edits.')
+                  }
+                  window.open(`/listings/${type}/${initialListing?.slug}`, '_blank', 'noopener,noreferrer')
+                }}
+                title="Open public listing page in a new tab"
+              >
+                <ExternalLink className="h-4 w-4 mr-1.5" />
+                Preview
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={saveAll}
+                disabled={saving || !isDirty}
+              >
+                <Save className="h-4 w-4 mr-1.5" />
+                {saving ? 'Saving…' : 'Save changes'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1079,11 +1307,66 @@ export function HostServiceListingTabs(props: Props) {
             Next <ChevronRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
-          <Button type="button" variant="outline" onClick={() => router.push('/host')}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (isDirty) { setPendingNav('/host'); return }
+              router.push('/host')
+            }}
+          >
             Back to host dashboard
           </Button>
         )}
       </div>
+
+      {/* Unsaved-changes dialog: fires when host clicks an internal link
+          with unsaved edits. beforeunload handles tab close via the
+          browser's generic prompt. */}
+      {pendingNav && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setPendingNav(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 space-y-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-semibold text-base">Unsaved changes</h3>
+            <p className="text-sm text-muted-foreground">
+              You have edits that haven&apos;t been saved yet. What would you like to do?
+            </p>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPendingNav(null)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={discardAndLeave}
+                disabled={saving}
+                className="text-red-500 hover:text-red-600"
+              >
+                Discard &amp; leave
+              </Button>
+              <Button
+                type="button"
+                onClick={saveAndLeave}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : 'Save & leave'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
