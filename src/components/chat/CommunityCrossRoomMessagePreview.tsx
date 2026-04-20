@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { AnimatePresence, motion } from 'framer-motion'
 
 type RoomLite = { id: string; name: string }
 
@@ -31,6 +30,10 @@ export function CommunityCrossRoomMessagePreview({
   const pathname = usePathname()
   const router = useRouter()
   const [preview, setPreview] = useState<PreviewState | null>(null)
+  // CSS-based enter/exit animation state — replaces framer-motion AnimatePresence.
+  // `shown` is the element-in-DOM gate; `visible` drives the opacity/transform class.
+  const [shown, setShown] = useState(false)
+  const [visible, setVisible] = useState(false)
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const suppressClickRef = useRef(false)
 
@@ -73,6 +76,22 @@ export function CommunityCrossRoomMessagePreview({
     return () => window.removeEventListener('unsolo:new-message', onNewMessage)
   }, [pathname, viewerUserId, rooms, roomNameById])
 
+  // Manage enter/exit lifecycle without framer-motion:
+  // preview set  → mount (shown=true) then next-frame animate in (visible=true)
+  // preview null → animate out (visible=false) then unmount after 280 ms
+  useEffect(() => {
+    if (preview) {
+      setShown(true)
+      const raf = requestAnimationFrame(() => setVisible(true))
+      return () => cancelAnimationFrame(raf)
+    } else {
+      setVisible(false)
+      const t = window.setTimeout(() => setShown(false), 280)
+      return () => window.clearTimeout(t)
+    }
+  }, [preview])
+
+  // Auto-dismiss after 2.4 s
   useEffect(() => {
     if (!preview) return
     const t = window.setTimeout(() => setPreview(null), 2400)
@@ -117,39 +136,37 @@ export function CommunityCrossRoomMessagePreview({
 
   return (
     <div className="md:hidden fixed top-[calc(64px+env(safe-area-inset-top,0px))] left-2 right-2 z-[45] pointer-events-none">
-      <AnimatePresence mode="sync">
-        {preview ? (
-          <motion.div
-            key={preview.id}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16, transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] } }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="pointer-events-auto rounded-xl border border-border bg-card/95 backdrop-blur-md shadow-lg overflow-hidden text-left"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-            onClick={e => {
-              if (suppressClickRef.current) {
-                e.preventDefault()
-                e.stopPropagation()
-              }
-            }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={ev => {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault()
-                goToChat()
-              }
-            }}
-          >
-            <div className="px-3 py-2.5 active:bg-secondary/40">
-              <p className="text-[10px] font-semibold text-primary truncate">{preview.roomName}</p>
-              <p className="text-xs text-foreground line-clamp-2 mt-0.5">{preview.content}</p>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {shown && preview && (
+        <div
+          style={{
+            transition: 'opacity 0.28s cubic-bezier(0.16,1,0.3,1), transform 0.28s cubic-bezier(0.16,1,0.3,1)',
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(-18px)',
+          }}
+          className="pointer-events-auto rounded-xl border border-border bg-card/95 backdrop-blur-md shadow-lg overflow-hidden text-left"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          onClick={e => {
+            if (suppressClickRef.current) {
+              e.preventDefault()
+              e.stopPropagation()
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={ev => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault()
+              goToChat()
+            }
+          }}
+        >
+          <div className="px-3 py-2.5 active:bg-secondary/40">
+            <p className="text-[10px] font-semibold text-primary truncate">{preview.roomName}</p>
+            <p className="text-xs text-foreground line-clamp-2 mt-0.5">{preview.content}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

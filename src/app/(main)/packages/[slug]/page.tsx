@@ -14,7 +14,14 @@ import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
-import { InterestButton } from '@/components/packages/InterestButton'
+// InterestButton pulls in framer-motion (~41 KB gz). Lazy-load it so the
+// spark-burst animation code is only downloaded when this page is visited,
+// not included in any shared chunk loaded on the home/explore pages.
+import dynamic from 'next/dynamic'
+const InterestButton = dynamic(
+  () => import('@/components/packages/InterestButton').then(m => ({ default: m.InterestButton })),
+  { ssr: false, loading: () => <div className="h-10 w-36 rounded-xl bg-secondary animate-pulse" /> },
+)
 import { ShareButton } from '@/components/packages/ShareButton'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'

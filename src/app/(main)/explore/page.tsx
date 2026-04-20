@@ -112,6 +112,16 @@ async function getPackages(searchParams: Record<string, string>) {
     query = query.gte('duration_days', parseInt(searchParams.minDays))
   }
 
+  // Safety cap: never stream more than 200 rows to the server render.
+  // Client-side filters (fuzzy search, month, departure-expiry) operate on
+  // this pre-filtered set. 200 is generous enough for real-world catalog
+  // sizes. If you ever exceed 200 active packages, move text-search and
+  // month-filter to server-side SQL to restore accurate pagination.
+  query = query
+    .order('is_featured', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(200)
+
   const { data } = await query
   let packages = (data || []) as unknown as Package[]
 

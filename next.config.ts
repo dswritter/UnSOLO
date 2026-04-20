@@ -2,11 +2,19 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    // Explicit allowlist — prevents the Next.js image optimizer from being
+    // used as an open proxy for arbitrary external URLs.
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
+      // Supabase Storage (all projects under *.supabase.co) — covers file uploads
+      { protocol: 'https', hostname: '*.supabase.co' },
+      // Google OAuth profile pictures
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      // GitHub avatars (OAuth via GitHub)
+      { protocol: 'https', hostname: 'avatars.githubusercontent.com' },
+      // Dicebear avatars (generated default avatars if used)
+      { protocol: 'https', hostname: 'api.dicebear.com' },
+      // Unsplash (stock photos sometimes used for admin-created packages)
+      { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
   /**

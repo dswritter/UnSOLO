@@ -15,7 +15,12 @@ export default async function CommunityLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  // Narrow projection — avoids fetching 20+ columns we don't use here
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, role')
+    .eq('id', user.id)
+    .single()
   if (!profile) redirect('/login')
 
   const rooms = await getSidebarRooms(supabase, user.id)

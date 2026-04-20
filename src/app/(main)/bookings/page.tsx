@@ -148,7 +148,10 @@ export default async function BookingsPage() {
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )
 
-  // Fetch group bookings where user is a member
+  // Fetch group bookings where user is a member.
+  // Uses 3 parallel queries instead of a loop that fired 2 DB round-trips
+  // per group membership (N+1 pattern). All group rows + all member rows
+  // are fetched in one shot each; assembly happens in JS.
   const { data: myMemberships } = await supabase
     .from('group_members')
     .select('group_id, status')
@@ -156,21 +159,32 @@ export default async function BookingsPage() {
 
   const groupBookings: GroupBookingInfo[] = []
   if (myMemberships && myMemberships.length > 0) {
-    for (const mem of myMemberships) {
-      const { data: group } = await supabase
+    const groupIds = myMemberships.map(m => m.group_id)
+
+    const [{ data: groupRows }, { data: allMemberRows }] = await Promise.all([
+      supabase
         .from('group_bookings')
         .select('*, package:packages(title, slug, images, duration_days, departure_dates, return_dates, destination:destinations(name, state)), organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
-        .eq('id', mem.group_id)
-        .single()
-
-      if (!group) continue
-
-      const { data: members } = await supabase
+        .in('id', groupIds),
+      supabase
         .from('group_members')
-        .select('user_id, status, user:profiles(full_name, username)')
-        .eq('group_id', mem.group_id)
+        .select('group_id, user_id, status, user:profiles(full_name, username)')
+        .in('group_id', groupIds),
+    ])
 
-      const memberList = (members || []).map(m => ({
+    // Index members by group_id for O(1) lookup
+    const membersByGroupId = new Map<string, NonNullable<typeof allMemberRows>>()
+    for (const row of allMemberRows || []) {
+      const list = membersByGroupId.get(row.group_id) ?? []
+      list.push(row)
+      membersByGroupId.set(row.group_id, list)
+    }
+
+    for (const group of groupRows || []) {
+      const myMem = myMemberships.find(m => m.group_id === group.id)
+      if (!myMem) continue
+      const rawMembers = membersByGroupId.get(group.id) || []
+      const memberList = rawMembers.map(m => ({
         user_id: m.user_id,
         status: m.status,
         full_name: (m.user as unknown as { full_name: string | null })?.full_name,
@@ -187,7 +201,7 @@ export default async function BookingsPage() {
         invite_code: group.invite_code,
         organizer_id: group.organizer_id,
         created_at: group.created_at,
-        my_status: mem.status,
+        my_status: myMem.status,
         package: group.package as GroupBookingInfo['package'],
         organizer: group.organizer as unknown as { full_name: string | null; username: string },
         members: memberList,

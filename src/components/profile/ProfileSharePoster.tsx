@@ -9,7 +9,8 @@ import {
   useState,
 } from 'react'
 import { createPortal, flushSync } from 'react-dom'
-import { toBlob } from 'html-to-image'
+// html-to-image is ~26 KB gzipped. Dynamic import defers it until the user
+// actually triggers the share poster flow — keeps it out of the initial bundle.
 import { Button } from '@/components/ui/button'
 import { Share2, Loader2, ChevronDown, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -662,6 +663,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
 
         await new Promise<void>((r) => requestAnimationFrame(() => r()))
 
+        const { toBlob } = await import('html-to-image')
         const blob = await toBlob(node, {
           pixelRatio: 1,
           cacheBust: true,
