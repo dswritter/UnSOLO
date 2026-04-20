@@ -119,8 +119,16 @@ export function HostServiceListingForm({
       }
 
       toast.success('Service listing created successfully! It will be reviewed by our team.')
-      // Redirect to host dashboard
-      router.push('/host')
+
+      // If host filled location + address + description, offer multi-item management.
+      // Otherwise treat as a flat 1-item listing and return to dashboard.
+      const hasAddressAndDesc =
+        !!formData.location.trim() && !!formData.description.trim()
+      if (hasAddressAndDesc && result.data?.id) {
+        router.push(`/host/service-listings/${result.data.id}/items`)
+      } else {
+        router.push('/host')
+      }
     } catch (error) {
       console.error('Error creating service listing:', error)
       toast.error('Failed to create service listing')

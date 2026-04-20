@@ -313,18 +313,23 @@ export type HostRating = {
   user?: Profile
 }
 
-export type ServiceInventoryItem = {
+export type ServiceListingItem = {
   id: string
   service_listing_id: string
-  title: string
-  description?: string | null
+  name: string
+  description: string | null
   price_paise: number
   quantity_available: number
   max_per_booking: number
-  images: string[] | null
+  images: string[]
+  position_order: number
+  is_active: boolean
   created_at: string
-  updated_at?: string
+  updated_at: string
 }
+
+/** @deprecated Use ServiceListingItem. Kept for back-compat. */
+export type ServiceInventoryItem = ServiceListingItem
 
 export type UserAchievement = {
   id: string
