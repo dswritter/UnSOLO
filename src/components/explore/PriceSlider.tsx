@@ -26,6 +26,7 @@ export function PriceSlider({
 }: PriceSliderProps) {
   const [min, setMin] = useState(currentMin)
   const [max, setMax] = useState(currentMax)
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     setMin(currentMin)
@@ -35,13 +36,21 @@ export function PriceSlider({
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMin = Math.min(Number(e.target.value), max)
     setMin(newMin)
-    onMinChange(newMin)
   }
 
   const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMax = Math.max(Number(e.target.value), min)
     setMax(newMax)
-    onMaxChange(newMax)
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+    onMinChange(min)
+    onMaxChange(max)
+  }
+
+  const handleDragStart = () => {
+    setIsDragging(true)
   }
 
   const getPercentage = (value: number) => ((value - minValue) / (maxValue - minValue)) * 100
@@ -70,6 +79,10 @@ export function PriceSlider({
           max={maxValue}
           value={min}
           onChange={handleMinChange}
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
           className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-5"
           style={{
             WebkitAppearance: 'slider-horizontal',
@@ -83,6 +96,10 @@ export function PriceSlider({
           max={maxValue}
           value={max}
           onChange={handleMaxChange}
+          onMouseDown={handleDragStart}
+          onMouseUp={handleDragEnd}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
           className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-6"
           style={{
             WebkitAppearance: 'slider-horizontal',

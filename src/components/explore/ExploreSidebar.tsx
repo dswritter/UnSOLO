@@ -202,9 +202,9 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
           <FilterSection label="Budget">
             <PriceSlider
               minValue={0}
-              maxValue={200000}
+              maxValue={2000000}
               currentMin={parseInt(getCurrentValue('minBudget', '0')) || 0}
-              currentMax={parseInt(getCurrentValue('maxBudget', '200000')) || 200000}
+              currentMax={parseInt(getCurrentValue('maxBudget', '2000000')) || 2000000}
               onMinChange={(value) => {
                 setOptimisticParams((prev) => ({
                   ...prev,
@@ -219,7 +219,7 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
                 }))
                 router.push(buildUrl({ maxBudget: value ? String(value) : null }))
               }}
-              step={5000}
+              step={50000}
             />
           </FilterSection>
 
