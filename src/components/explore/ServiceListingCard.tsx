@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import type { ServiceListing } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -111,7 +112,12 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
 }
 
 // ── Items carousel card ────────────────────────────────────────────────────
+// NOTE: This card intentionally does NOT use <Link> as a wrapper.
+// Nesting <button> elements inside <a> is invalid HTML — browsers collapse
+// the structure and the inner buttons end up triggering navigation regardless
+// of stopPropagation. We use router.push() on the card body instead.
 function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items: CardItem[] }) {
+  const router = useRouter()
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ratingDisplay =
@@ -149,15 +155,22 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
   const activeItem = items[idx]
   const heroImage = activeItem.images[0] || listing.images?.[0] || '/placeholder-listing.svg'
 
+  const href = `/listings/${listing.type}/${listing.slug}`
+
   return (
-    <Link href={`/listings/${listing.type}/${listing.slug}`}>
-      <div className={cn(
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(href)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(href) }}
+      className={cn(
         'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
         'hover:shadow-xl hover:scale-[1.02]',
-        'border-border dark:border-border'
-      )}>
-        {/* ── Hero image with overlay info ──────────────────────────────── */}
-        <div className="relative h-52 overflow-hidden bg-secondary">
+        'border-border dark:border-border cursor-pointer'
+      )}
+    >
+      {/* ── Hero image with overlay info ──────────────────────────────── */}
+      <div className="relative h-52 overflow-hidden bg-secondary">
           <Image
             src={heroImage}
             alt={activeItem.name}
@@ -277,12 +290,14 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
             </div>
           )}
 
-          <button className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors">
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(href) }}
+            className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
+          >
             View Details
           </button>
         </div>
-      </div>
-    </Link>
+    </div>
   )
 }
 
