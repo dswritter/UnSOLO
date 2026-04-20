@@ -73,15 +73,13 @@ export function PriceSlider({
   return (
     <div className="space-y-4">
       {/* Slider Track */}
-      <div className="relative h-6 flex items-center">
+      <div className="relative pt-2 pb-4">
         {/* Filled Range */}
         <div
-          className="absolute h-2 bg-primary rounded-full"
+          className="absolute top-4 h-2 bg-primary rounded-full"
           style={{
             left: `${getPercentage(min)}%`,
             right: `${100 - getPercentage(max)}%`,
-            top: '50%',
-            transform: 'translateY(-50%)',
           }}
         />
 
@@ -94,11 +92,9 @@ export function PriceSlider({
           onChange={handleMinChange}
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
-          className="absolute left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-5"
+          className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-5"
           style={{
             WebkitAppearance: 'slider-horizontal',
-            top: '50%',
-            transform: 'translateY(-50%)',
           }}
         />
 
@@ -111,11 +107,9 @@ export function PriceSlider({
           onChange={handleMaxChange}
           onMouseDown={handleDragStart}
           onTouchStart={handleDragStart}
-          className="absolute left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-6"
+          className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-6"
           style={{
             WebkitAppearance: 'slider-horizontal',
-            top: '50%',
-            transform: 'translateY(-50%)',
           }}
         />
       </div>
@@ -156,11 +150,10 @@ export function PriceSlider({
           border-radius: 50%;
           background: var(--color-primary, rgb(var(--primary) / var(--tw-bg-opacity, 1)));
           cursor: pointer;
-          border: none;
-          box-shadow: none;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           pointer-events: auto;
-          transform: translateY(-50%);
-          top: 50%;
+          margin-top: -6px;
         }
 
         input[type='range']::-moz-range-thumb {
@@ -169,18 +162,20 @@ export function PriceSlider({
           border-radius: 50%;
           background: var(--color-primary, rgb(var(--primary) / var(--tw-bg-opacity, 1)));
           cursor: pointer;
-          border: none;
-          box-shadow: none;
+          border: 2px solid white;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           pointer-events: auto;
-          transform: translateY(-50%);
+          margin-top: -6px;
         }
 
         input[type='range']::-webkit-slider-thumb:hover {
-          background: var(--color-primary, rgb(var(--primary) / calc(var(--tw-bg-opacity, 1) * 0.9)));
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transform: scale(1.1);
         }
 
         input[type='range']::-moz-range-thumb:hover {
-          background: var(--color-primary, rgb(var(--primary) / calc(var(--tw-bg-opacity, 1) * 0.9)));
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+          transform: scale(1.1);
         }
       `}</style>
     </div>
