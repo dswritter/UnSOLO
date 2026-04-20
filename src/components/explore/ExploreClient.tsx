@@ -12,7 +12,7 @@ import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, 
 import { formatPrice, cn, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
-import { typeEmojis, typeLabels } from '@/lib/service-listing-filters'
+import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { ExploreSidebar } from './ExploreSidebar'
 import { ServiceListingCard } from './ServiceListingCard'
 import { MobileExploreActionBar } from './MobileExploreActionBar'
@@ -22,13 +22,14 @@ import { SkeletonCard } from './SkeletonCard'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
-const TABS: { id: TabType; label: string; icon: any }[] = [
+const ALL_TABS: { id: TabType; label: string; icon: any }[] = [
   { id: 'trips', label: 'Trips', icon: Plane },
   { id: 'stays', label: 'Stays', icon: Home },
   { id: 'activities', label: 'Activities', icon: Compass },
   { id: 'rentals', label: 'Rentals', icon: Key },
   { id: 'getting_around', label: 'Getting Around', icon: Navigation },
 ]
+const TABS = ALL_TABS.filter(t => t.id !== 'getting_around' || GETTING_AROUND_ENABLED)
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-black/60 text-white backdrop-blur-sm border-white/10',

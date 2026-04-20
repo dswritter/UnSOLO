@@ -50,7 +50,7 @@ export default async function ServiceListingDetailPage({
             </div>
           )}
 
-          <ListingDetailClient listing={listing} items={items} />
+          <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} />
         </div>
       </div>
     )

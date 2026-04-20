@@ -1,19 +1,33 @@
 'use client'
 
 import Image from 'next/image'
-import { Star, MapPin, Zap, ChevronLeft, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import { Star, MapPin, Zap, ChevronLeft, ChevronRight, MessageCircle, User as UserIcon } from 'lucide-react'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { startDirectMessage } from '@/actions/profile'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
+
+type ListingHost = {
+  id: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  host_rating: number | null
+  is_verified: boolean
+}
 
 interface ListingDetailClientProps {
   listing: ServiceListing
   items?: ServiceListingItem[]
+  host?: ListingHost | null
 }
 
-export function ListingDetailClient({ listing, items = [] }: ListingDetailClientProps) {
+export function ListingDetailClient({ listing, items = [], host }: ListingDetailClientProps) {
   const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
@@ -69,6 +83,18 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
       setSelectedItemId(itemId)
     }
   }, [items])
+
+  const router = useRouter()
+  const [openingChat, setOpeningChat] = useState(false)
+
+  async function handleMessageHost() {
+    if (!host) return
+    setOpeningChat(true)
+    const res = await startDirectMessage(host.id)
+    setOpeningChat(false)
+    if ('error' in res && res.error) { toast.error(res.error); return }
+    if ('roomId' in res && res.roomId) router.push(`/community/${res.roomId}`)
+  }
 
   const displayPricePaise = selectedItem?.price_paise ?? listing.price_paise
   const displayAvailable = selectedItem
@@ -183,6 +209,59 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
             <h2 className="text-xl font-bold mb-4">About</h2>
             <div className="text-muted-foreground whitespace-pre-wrap">
               {listing.description}
+            </div>
+          </div>
+        )}
+
+        {/* Hosted by */}
+        {host && (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Hosted by</p>
+            <div className="flex items-center gap-3">
+              {host.avatar_url ? (
+                <Image
+                  src={host.avatar_url}
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                  <UserIcon className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/profile/${host.username}`}
+                  className="font-bold text-foreground hover:text-primary transition-colors"
+                >
+                  {host.full_name || host.username}
+                </Link>
+                {host.host_rating != null && host.host_rating > 0 && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    <span className="text-xs text-muted-foreground">{host.host_rating.toFixed(1)} host rating</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <Link
+                  href={`/profile/${host.username}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                >
+                  View profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleMessageHost}
+                  disabled={openingChat}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {openingChat ? 'Opening…' : 'Message'}
+                </button>
+              </div>
             </div>
           </div>
         )}

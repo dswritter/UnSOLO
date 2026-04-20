@@ -1,5 +1,9 @@
 import type { ServiceListingType } from '@/types'
 
+// Flip to true to re-enable the Getting Around category site-wide.
+// Keep false until there's sufficient listing inventory.
+export const GETTING_AROUND_ENABLED = false
+
 export interface FilterOption {
   label: string
   value: string

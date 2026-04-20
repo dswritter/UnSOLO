@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronDown } from 'lucide-react'
+import { GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -53,11 +54,13 @@ export function HostCreateDropdown() {
           <span className="text-xs text-muted-foreground">Rent vehicles or equipment</span>
         </DropdownMenuItem>
 
-        {/* Getting Around */}
-        <DropdownMenuItem onClick={() => router.push('/host/create-service?type=getting_around')} className="flex flex-col items-start cursor-pointer">
-          <span className="font-semibold text-sm">Getting Around</span>
-          <span className="text-xs text-muted-foreground">Offer transport services</span>
-        </DropdownMenuItem>
+        {/* Getting Around — hidden until inventory is sufficient */}
+        {GETTING_AROUND_ENABLED && (
+          <DropdownMenuItem onClick={() => router.push('/host/create-service?type=getting_around')} className="flex flex-col items-start cursor-pointer">
+            <span className="font-semibold text-sm">Getting Around</span>
+            <span className="text-xs text-muted-foreground">Offer transport services</span>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

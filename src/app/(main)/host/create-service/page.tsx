@@ -4,12 +4,18 @@ import { getDestinations } from '@/actions/admin'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { ServiceListingType } from '@/types'
+import { GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 
 interface CreateServiceListingPageProps {
   searchParams: Promise<{ type?: string }>
 }
 
-const VALID_TYPES: ServiceListingType[] = ['stays', 'activities', 'rentals', 'getting_around']
+const VALID_TYPES: ServiceListingType[] = [
+  'stays',
+  'activities',
+  'rentals',
+  ...(GETTING_AROUND_ENABLED ? (['getting_around'] as ServiceListingType[]) : []),
+]
 
 export default async function CreateServiceListingPage({
   searchParams,
