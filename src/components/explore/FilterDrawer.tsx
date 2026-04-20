@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import { X, ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
+import { PriceSlider } from './PriceSlider'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -14,14 +15,6 @@ const DIFFICULTY_OPTIONS = [
   { label: 'Easy', value: 'easy' },
   { label: 'Moderate', value: 'moderate' },
   { label: 'Challenging', value: 'challenging' },
-]
-
-const BUDGET_OPTIONS = [
-  { label: 'Any Budget', value: '', min: '', max: '' },
-  { label: 'Under ₹10K', value: 'u10', min: '', max: '10000' },
-  { label: '₹10K – ₹20K', value: '10-20', min: '10000', max: '20000' },
-  { label: '₹20K – ₹35K', value: '20-35', min: '20000', max: '35000' },
-  { label: '₹35K+', value: '35+', min: '35000', max: '' },
 ]
 
 const DURATION_OPTIONS = [
@@ -55,6 +48,7 @@ interface FilterDrawerProps {
   activeTab: 'trips' | ServiceListingType
   resultCount: number
   isLoading?: boolean
+  maxPackagePrice?: number
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -73,9 +67,11 @@ export function FilterDrawer({
   activeTab,
   resultCount,
   isLoading = false,
+  maxPackagePrice = 2000000,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [monthExpanded, setMonthExpanded] = useState(false)
   const router = useRouter()
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isTripsTab = activeTab === 'trips'
@@ -196,26 +192,23 @@ export function FilterDrawer({
 
               {/* Budget */}
               <FilterSection label="Budget">
-                <div className="flex flex-col gap-2">
-                  {BUDGET_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      disabled={isLoading}
-                      onClick={() =>
-                        router.push(buildUrl({ minBudget: opt.min || null, maxBudget: opt.max || null }))
-                      }
-                      className={cn(
-                        'px-3 py-2 rounded-lg text-sm text-left transition-colors',
-                        params.minBudget === opt.min && params.maxBudget === opt.max
-                          ? 'bg-primary text-primary-foreground font-medium'
-                          : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
-                        isLoading && 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <PriceSlider
+                  minValue={0}
+                  maxValue={maxPackagePrice}
+                  currentMin={parseInt(params.minBudget || '0') * 100 || 0}
+                  currentMax={parseInt(params.maxBudget || String(Math.floor(maxPackagePrice / 100))) * 100 || maxPackagePrice}
+                  onChange={(minPaise, maxPaise) => {
+                    const minRupees = minPaise > 0 ? Math.floor(minPaise / 100) : null
+                    const maxRupees = maxPaise < maxPackagePrice ? Math.floor(maxPaise / 100) : null
+                    router.push(
+                      buildUrl({
+                        minBudget: minRupees ? String(minRupees) : null,
+                        maxBudget: maxRupees ? String(maxRupees) : null,
+                      }),
+                    )
+                  }}
+                  step={50000}
+                />
               </FilterSection>
 
               {/* Duration */}
@@ -243,39 +236,60 @@ export function FilterDrawer({
               </FilterSection>
 
               {/* Month */}
-              <FilterSection label="Month">
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    disabled={isLoading}
-                    onClick={() => router.push(buildUrl({ month: null }))}
-                    className={cn(
-                      'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
-                      !params.month
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
-                      isLoading && 'opacity-50 cursor-not-allowed'
+              <div className="border-b border-border pb-4">
+                <button
+                  onClick={() => setMonthExpanded((v) => !v)}
+                  className="w-full flex items-center justify-between mb-3"
+                >
+                  <h3 className="text-sm font-semibold">
+                    Month
+                    {params.month && (
+                      <span className="ml-2 text-xs font-normal text-primary">
+                        ({MONTHS[parseInt(params.month)]})
+                      </span>
                     )}
-                  >
-                    Any
-                  </button>
-                  {MONTHS.map((m, idx) => (
+                  </h3>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 text-muted-foreground transition-transform',
+                      monthExpanded && 'rotate-180',
+                    )}
+                  />
+                </button>
+                {monthExpanded && (
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      key={m}
                       disabled={isLoading}
-                      onClick={() => router.push(buildUrl({ month: String(idx) }))}
+                      onClick={() => router.push(buildUrl({ month: null }))}
                       className={cn(
-                        'px-2 py-2 rounded-lg text-xs text-center transition-colors',
-                        params.month === String(idx)
-                          ? 'bg-primary text-primary-foreground font-medium'
+                        'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
+                        !params.month
+                          ? 'bg-primary text-primary-foreground'
                           : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
                         isLoading && 'opacity-50 cursor-not-allowed'
                       )}
                     >
-                      {m}
+                      Any
                     </button>
-                  ))}
-                </div>
-              </FilterSection>
+                    {MONTHS.map((m, idx) => (
+                      <button
+                        key={m}
+                        disabled={isLoading}
+                        onClick={() => router.push(buildUrl({ month: String(idx) }))}
+                        className={cn(
+                          'px-2 py-2 rounded-lg text-xs text-center transition-colors',
+                          params.month === String(idx)
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+                          isLoading && 'opacity-50 cursor-not-allowed'
+                        )}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* My Interests */}
               <FilterSection label="Interests">

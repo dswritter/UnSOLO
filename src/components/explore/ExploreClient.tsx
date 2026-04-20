@@ -346,6 +346,7 @@ export function ExploreClient({
         activeTab={activeTab}
         resultCount={resultCount}
         isLoading={isLoading}
+        maxPackagePrice={maxPackagePrice}
       />
     </div>
   )
