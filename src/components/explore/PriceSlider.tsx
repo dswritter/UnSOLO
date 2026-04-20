@@ -57,12 +57,8 @@ export function PriceSlider({
 
   return (
     <div className="space-y-4">
-      <label className="text-sm font-medium text-foreground">{label}</label>
-
       {/* Slider Track */}
       <div className="relative pt-2 pb-4">
-        <div className="absolute top-6 left-0 right-0 h-2 bg-secondary rounded-full" />
-
         {/* Filled Range */}
         <div
           className="absolute top-6 h-2 bg-primary rounded-full"
