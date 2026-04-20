@@ -74,6 +74,8 @@ export async function getAdminDashboardStats() {
     { count: cancellationRequested },
     { count: pendingDateRequests },
     { count: teamCount },
+    { count: pendingServiceListings },
+    { count: pendingCommunityTrips },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }),
@@ -82,6 +84,12 @@ export async function getAdminDashboardStats() {
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('cancellation_status', 'requested'),
     supabase.from('custom_date_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    // Pending host-submitted service listings (stays, rentals, activities, etc.)
+    supabase.from('service_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    // Pending host-created community trips (packages with a host_id and pending moderation)
+    supabase.from('packages').select('*', { count: 'exact', head: true })
+      .not('host_id', 'is', null)
+      .eq('moderation_status', 'pending'),
   ])
 
   // Revenue from confirmed + completed bookings minus refunds
@@ -108,6 +116,8 @@ export async function getAdminDashboardStats() {
     pendingDateRequests: pendingDateRequests || 0,
     teamCount: teamCount || 0,
     totalRevenue,
+    pendingServiceListings: pendingServiceListings || 0,
+    pendingCommunityTrips: pendingCommunityTrips || 0,
   }
 }
 

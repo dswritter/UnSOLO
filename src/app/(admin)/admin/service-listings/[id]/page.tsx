@@ -2,9 +2,11 @@ import { getDestinations } from '@/actions/admin'
 import { getServiceListingDetail } from '@/actions/admin-service-listings'
 import { ServiceListingForm } from '../ServiceListingForm'
 
-export default async function EditServiceListingPage({ params }: { params: { id: string } }) {
+// Next.js 15: params is a Promise — must be awaited before use.
+export default async function EditServiceListingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const [listing, destinations] = await Promise.all([
-    getServiceListingDetail(params.id),
+    getServiceListingDetail(id),
     getDestinations(),
   ])
 

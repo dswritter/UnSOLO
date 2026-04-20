@@ -82,23 +82,41 @@ export default async function AdminDashboardPage() {
       {/* Quick Actions */}
       <h2 className="text-lg font-bold mb-3">Quick Actions</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {[
-          { href: '/admin/users', icon: Users, title: 'Manage Users', desc: 'Search, filter, view user details' },
-          { href: '/admin/bookings', icon: BookOpen, title: 'Manage Bookings', desc: 'View, assign POC, manage cancellations' },
-          { href: '/admin/requests', icon: FileText, title: 'Custom Requests', desc: 'Review custom date requests' },
-          { href: '/admin/packages', icon: Package, title: 'Manage Packages', desc: 'Create, edit packages & destinations' },
-          { href: '/admin/service-listings', icon: Tag, title: 'Service Listings', desc: 'Create stays, activities, rentals' },
-          { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips' },
-          { href: '/admin/community-chats', icon: MessageCircle, title: 'Community chats', desc: 'Rooms, images, enable/disable' },
-          { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers' },
-        ].map(({ href, icon: Icon, title, desc }) => (
-          <Link key={href} href={href} className="group rounded-xl border border-border bg-card p-4 hover:border-primary/30 transition-colors">
+        {([
+          { href: '/admin/users', icon: Users, title: 'Manage Users', desc: 'Search, filter, view user details', badge: 0 },
+          { href: '/admin/bookings', icon: BookOpen, title: 'Manage Bookings', desc: 'View, assign POC, manage cancellations', badge: 0 },
+          { href: '/admin/requests', icon: FileText, title: 'Custom Requests', desc: 'Review custom date requests', badge: stats.pendingDateRequests },
+          { href: '/admin/packages', icon: Package, title: 'Manage Packages', desc: 'Create, edit packages & destinations', badge: 0 },
+          { href: '/admin/service-listings', icon: Tag, title: 'Service Listings', desc: 'Create stays, activities, rentals', badge: stats.pendingServiceListings },
+          { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips', badge: stats.pendingCommunityTrips },
+          { href: '/admin/community-chats', icon: MessageCircle, title: 'Community chats', desc: 'Rooms, images, enable/disable', badge: 0 },
+          { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers', badge: 0 },
+        ] as const).map(({ href, icon: Icon, title, desc, badge }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`group rounded-xl border bg-card p-4 hover:border-primary/30 transition-colors ${
+              badge > 0 ? 'border-amber-500/40 bg-amber-500/5' : 'border-border'
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Icon className="h-4 w-4 text-primary" />
+                <div className="relative">
+                  <Icon className="h-4 w-4 text-primary" />
+                  {badge > 0 && (
+                    <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                </div>
                 <div>
                   <h3 className="font-semibold text-sm">{title}</h3>
                   <p className="text-xs text-muted-foreground">{desc}</p>
+                  {badge > 0 && (
+                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">
+                      {badge} pending review
+                    </p>
+                  )}
                 </div>
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
