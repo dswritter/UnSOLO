@@ -137,9 +137,12 @@ export async function createHostServiceListing(input: {
     }
 
     // Derive master-level price/images from items: min price for discovery
-    // sort, first item's photos so the card has something to show.
+    // sort, and the first item that actually has photos (not strictly
+    // items[0]) so the hero never ends up empty when a host leaves the
+    // lead item's photos blank but uploads images on subsequent items.
     const minPricePaise = Math.min(...items.map(i => i.price_paise))
-    const heroImages = items[0].images.slice(0, 5)
+    const firstItemWithImages = items.find(i => i.images.length > 0)
+    const heroImages = firstItemWithImages?.images.slice(0, 5) ?? []
 
     // Rentals: each item owns its unit. Master unit gets the cheapest
     // item's unit so "from ₹X / unit" discovery cards stay coherent.
@@ -367,7 +370,9 @@ export async function updateHostServiceListing(
       })
     }
 
-    return { success: true }
+    // Let callers distinguish "saved quietly" from "saved and back in
+    // admin queue" so hosts see an appropriate confirmation toast.
+    return { success: true, statusChangedToPending: wasApproved }
   } catch (error) {
     console.error('Error updating service listing:', error)
     return { error: 'An unexpected error occurred' }

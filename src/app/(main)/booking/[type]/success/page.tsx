@@ -1,11 +1,12 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CheckCircle2, Share2, Home, MessageCircle } from 'lucide-react'
+import { CheckCircle2, Share2, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
+import { HostContactCard } from '@/components/bookings/HostContactCard'
 
 const validTypes: ServiceListingType[] = ['stays', 'activities', 'rentals', 'getting_around']
 
@@ -38,7 +39,8 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
         price_paise,
         unit,
         location,
-        images
+        images,
+        host_id
       )
     `)
     .eq('id', bookingId)
@@ -54,7 +56,31 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
   }
 
   const listing = booking.service_listings as any
-  const imageUrl = listing?.images?.[0] || '/placeholder-listing.jpg'
+  const imageUrl = listing?.images?.[0] || '/placeholder-listing.svg'
+
+  // Fetch host profile separately. The service_listings row may have a null
+  // host_id for UnSOLO-hosted listings — in that case we skip the contact
+  // card entirely. Phone privacy here is booking.com-style: show the number
+  // once the booking is confirmed/completed, regardless of the host's
+  // general `phone_public` preference, since the traveler now has a
+  // legitimate paid-booking reason to reach them.
+  const hostId: string | null = listing?.host_id ?? null
+  const bookingConfirmed = booking.status === 'confirmed' || booking.status === 'completed'
+  let host: {
+    id: string
+    username: string | null
+    full_name: string | null
+    phone_number: string | null
+    avatar_url: string | null
+  } | null = null
+  if (hostId && bookingConfirmed) {
+    const { data: hostRow } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, phone_number, avatar_url')
+      .eq('id', hostId)
+      .single()
+    host = (hostRow as typeof host) ?? null
+  }
 
   return (
     <div className="space-y-6">
@@ -150,6 +176,11 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Host contact — shown once the booking is confirmed. Gives the
+          traveler the host's number (click to call) plus a direct chat
+          so they don't have to dig through the listing to reach them. */}
+      {host && <HostContactCard host={host} />}
 
       {/* Action buttons */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

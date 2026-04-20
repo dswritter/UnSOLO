@@ -483,7 +483,7 @@ export function BookingsClient({
           <div className="space-y-4">
             {serviceBookings.map((booking) => {
               const listing = (booking as any).service_listings
-              const imageUrl = listing?.images?.[0] || '/placeholder-listing.jpg'
+              const imageUrl = listing?.images?.[0] || '/placeholder-listing.svg'
               const checkInDate = booking.check_in_date ? formatDate(booking.check_in_date) : 'N/A'
               const checkOutDate = booking.check_out_date ? formatDate(booking.check_out_date) : null
 

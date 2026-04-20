@@ -490,7 +490,11 @@ export function HostServiceListingTabs(props: Props) {
       toast.error(res.error)
       return
     }
-    toast.success('Business details saved')
+    if ('statusChangedToPending' in res && res.statusChangedToPending) {
+      toast.success('Saved — changes sent for admin review. Your listing stays visible.')
+    } else {
+      toast.success('Business details saved')
+    }
     setSavedSnapshot(serializeFormState())
     router.refresh()
   }
@@ -518,7 +522,11 @@ export function HostServiceListingTabs(props: Props) {
           toast.error(res.error)
           return
         }
-        toast.success('Item saved')
+        if ('statusChangedToPending' in res && res.statusChangedToPending) {
+          toast.success('Item saved — changes sent for admin review. Your listing stays visible.')
+        } else {
+          toast.success('Item saved')
+        }
       } else {
         const res = await createServiceListingItem({
           service_listing_id: props.listing.id,
@@ -537,7 +545,11 @@ export function HostServiceListingTabs(props: Props) {
         }
         if ('item' in res && res.item) {
           updateDraft(draft.localKey, { dbId: res.item.id })
-          toast.success('Item added')
+          if ('statusChangedToPending' in res && res.statusChangedToPending) {
+            toast.success('Item added — changes sent for admin review. Your listing stays visible.')
+          } else {
+            toast.success('Item added')
+          }
         }
       }
       setSavedSnapshot(serializeFormState())
@@ -574,6 +586,9 @@ export function HostServiceListingTabs(props: Props) {
         toast.error(businessRes.error)
         return false
       }
+      let anyStatusChange = 'statusChangedToPending' in businessRes
+        ? !!businessRes.statusChangedToPending
+        : false
 
       // Save each item sequentially — order matters for position_order on
       // brand-new items, and concurrent writes to the same listing can race.
@@ -591,6 +606,9 @@ export function HostServiceListingTabs(props: Props) {
           if ('error' in res && res.error) {
             toast.error(`"${draft.name}": ${res.error}`)
             return false
+          }
+          if ('statusChangedToPending' in res && res.statusChangedToPending) {
+            anyStatusChange = true
           }
         } else {
           const res = await createServiceListingItem({
@@ -611,11 +629,18 @@ export function HostServiceListingTabs(props: Props) {
           if ('item' in res && res.item) {
             updateDraft(draft.localKey, { dbId: res.item.id })
           }
+          if ('statusChangedToPending' in res && res.statusChangedToPending) {
+            anyStatusChange = true
+          }
         }
       }
 
       setSavedSnapshot(serializeFormState())
-      toast.success('All changes saved')
+      if (anyStatusChange) {
+        toast.success('All changes saved — sent for admin review. Your listing stays visible.')
+      } else {
+        toast.success('All changes saved')
+      }
       router.refresh()
       return true
     } finally {

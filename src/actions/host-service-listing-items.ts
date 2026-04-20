@@ -1,7 +1,116 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { ServiceListingItem } from '@/types'
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Item fields that are safe to tweak on an approved listing without
+ * dragging the listing back into re-review. Mirror of
+ * HOST_SERVICE_OPERATIONAL_FIELDS on the master listing — keep small so we
+ * don't let hosts slip substantive changes (price, images, name) past
+ * moderation silently.
+ */
+const OPERATIONAL_ITEM_FIELDS = new Set<string>([
+  'quantity_available',
+  'max_per_booking',
+  'is_active',
+  'position_order',
+])
+
+/**
+ * After any item insert/update/delete, recompute the parent listing's
+ * `images` column from the first item that actually has photos. Keeps the
+ * public hero in sync when a host rearranges items or adds pictures to a
+ * later item. Runs silently — failures don't block the caller.
+ */
+async function refreshListingHeroImages(
+  supabase: SupabaseServerClient,
+  listingId: string,
+) {
+  const { data: allItems } = await supabase
+    .from('service_listing_items')
+    .select('images, position_order, created_at')
+    .eq('service_listing_id', listingId)
+    .order('position_order', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  const firstWithImages = (allItems || []).find(
+    (r: { images: string[] | null }) => Array.isArray(r.images) && r.images.length > 0,
+  ) as { images: string[] } | undefined
+  const hero = firstWithImages?.images.slice(0, 5) ?? []
+
+  await supabase
+    .from('service_listings')
+    .update({ images: hero.length > 0 ? hero : null })
+    .eq('id', listingId)
+}
+
+/**
+ * Fan out an admin notification after an item change bounced the parent
+ * listing back to `pending`. Uses the service role so we can write to
+ * admin user rows the host doesn't own. No-op if the service key is
+ * absent (local/dev without secrets).
+ */
+async function notifyAdminsOfItemResubmission(opts: {
+  hostId: string
+  listingTitle: string
+}) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) return
+  const svc = createServiceClient(url, serviceKey)
+  const { data: host } = await svc
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', opts.hostId)
+    .single()
+  const hostName = host?.full_name || host?.username || 'A host'
+  const { data: admins } = await svc.from('profiles').select('id').in('role', ['admin'])
+  if (!admins || admins.length === 0) return
+  await Promise.all(
+    admins.map(a =>
+      svc.from('notifications').insert({
+        user_id: a.id,
+        type: 'booking',
+        title: 'Service Listing Resubmitted for Review',
+        body: `${hostName} changed items on "${opts.listingTitle}" — re-review needed.`,
+        link: '/admin/service-listings',
+      }),
+    ),
+  )
+}
+
+/**
+ * If the parent listing is currently 'approved', flip it back to 'pending'
+ * and notify admins. Returns true when a flip happened so the caller can
+ * surface a "sent for review" toast on the host's next save.
+ */
+async function maybeBounceListingToPending(
+  supabase: SupabaseServerClient,
+  listingId: string,
+): Promise<boolean> {
+  const { data: listing } = await supabase
+    .from('service_listings')
+    .select('id, title, host_id, status')
+    .eq('id', listingId)
+    .single()
+  if (!listing || listing.status !== 'approved') return false
+
+  const { error } = await supabase
+    .from('service_listings')
+    .update({ status: 'pending' })
+    .eq('id', listingId)
+  if (error) return false
+
+  await notifyAdminsOfItemResubmission({
+    hostId: listing.host_id,
+    listingTitle: listing.title,
+  })
+  return true
+}
 
 async function requireHostOfListing(listingId: string) {
   const supabase = await createClient()
@@ -78,7 +187,21 @@ export async function createServiceListingItem(input: {
     console.error('createServiceListingItem:', error)
     return { error: 'Failed to create item' }
   }
-  return { success: true, item: data as ServiceListingItem }
+
+  // Adding an item is always substantive — it changes what travelers can
+  // book. Bounce back to pending if the listing was approved, and refresh
+  // the master hero so newly-added photos show up publicly.
+  const statusChangedToPending = await maybeBounceListingToPending(
+    ctx.supabase,
+    input.service_listing_id,
+  )
+  await refreshListingHeroImages(ctx.supabase, input.service_listing_id)
+
+  return {
+    success: true,
+    item: data as ServiceListingItem,
+    statusChangedToPending,
+  }
 }
 
 export async function updateServiceListingItem(
@@ -133,7 +256,24 @@ export async function updateServiceListingItem(
     console.error('updateServiceListingItem:', error)
     return { error: 'Failed to update item' }
   }
-  return { success: true, item: data as ServiceListingItem }
+
+  // Did this edit touch anything moderation-worthy? Inventory / active
+  // toggles don't count; name / price / images / description / unit do.
+  const substantivePatch = Object.keys(patch).some(k => !OPERATIONAL_ITEM_FIELDS.has(k))
+  const listingId = (existing as { service_listing_id: string }).service_listing_id
+  let statusChangedToPending = false
+  if (substantivePatch) {
+    statusChangedToPending = await maybeBounceListingToPending(supabase, listingId)
+  }
+  // Always refresh the master hero — an `images` edit here is the whole
+  // reason the hero used to go stale. Cheap enough to run for any update.
+  await refreshListingHeroImages(supabase, listingId)
+
+  return {
+    success: true,
+    item: data as ServiceListingItem,
+    statusChangedToPending,
+  }
 }
 
 export async function deleteServiceListingItem(itemId: string) {
@@ -143,7 +283,7 @@ export async function deleteServiceListingItem(itemId: string) {
 
   const { data: existing } = await supabase
     .from('service_listing_items')
-    .select('id, service_listings!inner(host_id)')
+    .select('id, service_listing_id, service_listings!inner(host_id)')
     .eq('id', itemId)
     .single()
 
@@ -153,13 +293,20 @@ export async function deleteServiceListingItem(itemId: string) {
     return { error: 'Unauthorized' }
   }
 
+  const listingId = (existing as { service_listing_id: string }).service_listing_id
+
   const { error } = await supabase
     .from('service_listing_items')
     .delete()
     .eq('id', itemId)
 
   if (error) return { error: 'Failed to delete item' }
-  return { success: true }
+
+  // Removing an item changes what's bookable — always substantive.
+  const statusChangedToPending = await maybeBounceListingToPending(supabase, listingId)
+  await refreshListingHeroImages(supabase, listingId)
+
+  return { success: true, statusChangedToPending }
 }
 
 // Public: for detail pages. RLS ensures only approved+active listings' active items are returned.
