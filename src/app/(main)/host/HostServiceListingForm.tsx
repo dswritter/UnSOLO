@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { createHostServiceListing } from '@/actions/host-service-listings'
+import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import type { ServiceListingType, Destination } from '@/types'
 
 interface HostServiceListingFormProps {
@@ -51,6 +52,8 @@ export function HostServiceListingForm({
   const [isLoading, setIsLoading] = useState(false)
   const [customAmenityInput, setCustomAmenityInput] = useState('')
   const [addingLocation, setAddingLocation] = useState(false)
+  // Known destination list grows as hosts create new ones via search.
+  const [knownDestinations, setKnownDestinations] = useState<Destination[]>(destinations)
   const [formData, setFormData] = useState({
     title: '',
     destinationIds: [] as string[],
@@ -76,7 +79,6 @@ export function HostServiceListingForm({
   }
 
   const config = TYPE_CONFIGS[type]
-  const availableDestinations = destinations.filter(d => !formData.destinationIds.includes(d.id))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -139,12 +141,12 @@ export function HostServiceListingForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-xl p-6">
-      {/* Locations (multi) */}
+      {/* Locations (multi, searchable) */}
       <div className="space-y-2">
         <label className="text-sm font-semibold">Locations *</label>
         <div className="flex flex-wrap items-center gap-2">
           {formData.destinationIds.map(id => {
-            const d = destinations.find(x => x.id === id)
+            const d = knownDestinations.find(x => x.id === id)
             if (!d) return null
             return (
               <span
@@ -167,40 +169,58 @@ export function HostServiceListingForm({
             )
           })}
 
-          {addingLocation ? (
-            <select
-              autoFocus
-              value=""
-              onChange={(e) => {
-                const v = e.target.value
-                if (v) {
-                  setFormData(prev => ({ ...prev, destinationIds: [...prev.destinationIds, v] }))
-                }
-                setAddingLocation(false)
-              }}
-              onBlur={() => setAddingLocation(false)}
-              className="px-3 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-xs"
+          {!addingLocation && (
+            <button
+              type="button"
+              onClick={() => setAddingLocation(true)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80"
             >
-              <option value="">Pick a location...</option>
-              {availableDestinations.map(dest => (
-                <option key={dest.id} value={dest.id}>
-                  {dest.name}, {dest.state}
-                </option>
-              ))}
-            </select>
-          ) : (
-            availableDestinations.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setAddingLocation(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80"
-              >
-                + Add location
-              </button>
-            )
+              + Add location
+            </button>
           )}
         </div>
-        {formData.destinationIds.length === 0 && (
+
+        {addingLocation && (
+          <div className="pt-1">
+            <HostDestinationSearch
+              destinations={knownDestinations}
+              excludeIds={formData.destinationIds}
+              onPick={(picked) => {
+                setKnownDestinations(prev =>
+                  prev.find(d => d.id === picked.id)
+                    ? prev
+                    : [
+                        ...prev,
+                        {
+                          ...picked,
+                          country: 'India',
+                          slug: '',
+                          image_url: null,
+                          description: null,
+                          created_at: new Date().toISOString(),
+                        } as Destination,
+                      ],
+                )
+                setFormData(prev =>
+                  prev.destinationIds.includes(picked.id)
+                    ? prev
+                    : { ...prev, destinationIds: [...prev.destinationIds, picked.id] },
+                )
+                setAddingLocation(false)
+              }}
+              placeholder="Search any destination in India (or add a new one)..."
+            />
+            <button
+              type="button"
+              onClick={() => setAddingLocation(false)}
+              className="mt-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {formData.destinationIds.length === 0 && !addingLocation && (
           <p className="text-xs text-muted-foreground">Pick one or more locations where this listing is offered.</p>
         )}
       </div>
