@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
+import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
 import {
   Plus,
   MapPin,
@@ -107,13 +108,16 @@ export default async function HostDashboardPage() {
                     </div>
                     <ModerationBadge status={listing.status} />
                   </div>
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
                     <Link
                       href={`/host/service-listings/${listing.id}/items`}
                       className="text-xs text-primary hover:underline"
                     >
                       Manage items →
                     </Link>
+                    {listing.status === 'rejected' && (
+                      <ResubmitServiceListingButton listingId={listing.id} />
+                    )}
                   </div>
                 </div>
               ))}

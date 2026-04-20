@@ -233,6 +233,30 @@ export async function deleteServiceListing(id: string) {
   await logAuditEvent(user.id, 'DELETE_SERVICE_LISTING', 'service_listing', id)
 }
 
+async function notifyHostOfModeration(opts: {
+  listingId: string
+  approved: boolean
+  reason?: string
+}) {
+  const svc = await createServiceClient()
+  const { data: listing } = await svc
+    .from('service_listings')
+    .select('host_id, title')
+    .eq('id', opts.listingId)
+    .single()
+  if (!listing?.host_id) return
+
+  await svc.from('notifications').insert({
+    user_id: listing.host_id,
+    type: 'booking',
+    title: opts.approved ? 'Listing Approved!' : 'Listing Not Approved',
+    body: opts.approved
+      ? `Your listing "${listing.title}" has been approved and is now live on UnSOLO!`
+      : `Your listing "${listing.title}" was not approved.${opts.reason ? ` Reason: ${opts.reason}` : ''} You can edit and resubmit from your host dashboard.`,
+    link: '/host',
+  })
+}
+
 export async function approveServiceListing(id: string) {
   const { supabase, user } = await requireAdmin()
 
@@ -244,6 +268,7 @@ export async function approveServiceListing(id: string) {
   if (error) throw error
 
   await logAuditEvent(user.id, 'APPROVE_SERVICE_LISTING', 'service_listing', id)
+  await notifyHostOfModeration({ listingId: id, approved: true })
 }
 
 export async function rejectServiceListing(id: string, reason: string) {
@@ -257,6 +282,7 @@ export async function rejectServiceListing(id: string, reason: string) {
   if (error) throw error
 
   await logAuditEvent(user.id, 'REJECT_SERVICE_LISTING', 'service_listing', id, { reason })
+  await notifyHostOfModeration({ listingId: id, approved: false, reason })
 }
 
 // ── Service-Package Links (Cross-Sell) ─────────────────────────────────────

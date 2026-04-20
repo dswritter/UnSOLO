@@ -1,7 +1,52 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { ServiceListingType, ServiceListingMetadata } from '@/types'
+
+/**
+ * Fan out a notification to every admin. Uses the service-role client so the
+ * write bypasses RLS on `notifications` for users we don't own.
+ */
+async function notifyAdminsOfServiceListing(opts: {
+  hostId: string
+  listingTitle: string
+  variant: 'submitted' | 'resubmitted'
+}) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) return // silently no-op in environments without service key
+
+  const svc = createServiceClient(url, serviceKey)
+  const { data: host } = await svc
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', opts.hostId)
+    .single()
+  const hostName = host?.full_name || host?.username || 'A host'
+
+  const { data: admins } = await svc.from('profiles').select('id').in('role', ['admin'])
+  if (!admins || admins.length === 0) return
+
+  const title = opts.variant === 'resubmitted'
+    ? 'Service Listing Resubmitted for Review'
+    : 'New Service Listing for Review'
+  const body = opts.variant === 'resubmitted'
+    ? `${hostName} resubmitted "${opts.listingTitle}" after making changes.`
+    : `${hostName} submitted "${opts.listingTitle}" for moderation.`
+
+  await Promise.all(
+    admins.map(a =>
+      svc.from('notifications').insert({
+        user_id: a.id,
+        type: 'booking',
+        title,
+        body,
+        link: '/admin/service-listings',
+      }),
+    ),
+  )
+}
 
 export async function createHostServiceListing(input: {
   title: string
@@ -93,9 +138,58 @@ export async function createHostServiceListing(input: {
       return { error: 'Failed to create listing' }
     }
 
+    await notifyAdminsOfServiceListing({
+      hostId: input.host_id,
+      listingTitle: input.title,
+      variant: 'submitted',
+    })
+
     return { success: true, data }
   } catch (error) {
     console.error('Error creating service listing:', error)
+    return { error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Re-submit a rejected service listing for another round of admin review.
+ * Mirrors `resubmitTrip` — flips status back to pending and re-notifies admins.
+ * Hosts can only resubmit their own rejected listings.
+ */
+export async function resubmitServiceListing(listingId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { data: listing, error: fetchError } = await supabase
+      .from('service_listings')
+      .select('id, title, host_id, status')
+      .eq('id', listingId)
+      .single()
+
+    if (fetchError || !listing) return { error: 'Listing not found' }
+    if (listing.host_id !== user.id) return { error: 'Unauthorized' }
+    if (listing.status !== 'rejected') {
+      return { error: 'Only rejected listings can be resubmitted' }
+    }
+
+    const { error: updateError } = await supabase
+      .from('service_listings')
+      .update({ status: 'pending' })
+      .eq('id', listingId)
+
+    if (updateError) return { error: 'Failed to resubmit listing' }
+
+    await notifyAdminsOfServiceListing({
+      hostId: user.id,
+      listingTitle: listing.title,
+      variant: 'resubmitted',
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error resubmitting service listing:', error)
     return { error: 'An unexpected error occurred' }
   }
 }

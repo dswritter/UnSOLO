@@ -16,22 +16,30 @@ interface HostServiceListingFormProps {
 
 const TYPE_CONFIGS = {
   stays: {
-    placeholder: 'Cozy 2BHK apartment with mountain view',
+    titleLabel: 'Business / property name',
+    titleHint: 'The name of your stay or property — travelers see this first.',
+    placeholder: 'e.g., Mountain View Homestay, Riverbank Cottages',
     defaultUnit: 'per_night' as const,
     suggestedAmenities: ['WiFi', 'Kitchen', 'Bathroom', 'AC', 'Parking'],
   },
   activities: {
-    placeholder: 'Mountain trekking with guide (6 hours)',
+    titleLabel: 'Business / experience name',
+    titleHint: 'Your company or offering name. You can add individual activities as items after the listing is approved.',
+    placeholder: 'e.g., Himalayan Adventures, Spiti Photography Tours',
     defaultUnit: 'per_person' as const,
     suggestedAmenities: ['Guide included', 'Equipment provided', 'Snacks', 'Photos included'],
   },
   rentals: {
-    placeholder: 'Maruti Alto car rental',
+    titleLabel: 'Shop / business name',
+    titleHint: 'Your rental business name — not a single vehicle. Individual cars/bikes go in as items after approval.',
+    placeholder: 'e.g., Manali Car Rentals, Leh Bike Hub',
     defaultUnit: 'per_day' as const,
     suggestedAmenities: ['Insurance', 'Fuel', 'Free mileage', 'GPS'],
   },
   getting_around: {
-    placeholder: 'Airport pickup and drop service',
+    titleLabel: 'Service / agency name',
+    titleHint: 'Your transport agency name. Add individual routes or vehicles as items after approval.',
+    placeholder: 'e.g., Spiti Cab Service, Himachal Tempo Travellers',
     defaultUnit: 'per_day' as const,
     suggestedAmenities: ['Airport service', 'On-time pickup', 'AC vehicle'],
   },
@@ -225,9 +233,10 @@ export function HostServiceListingForm({
         )}
       </div>
 
-      {/* Title */}
+      {/* Title (business / parent name — not a single item) */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold">Title *</label>
+        <label className="text-sm font-semibold">{config.titleLabel} *</label>
+        <p className="text-xs text-muted-foreground">{config.titleHint}</p>
         <input
           type="text"
           placeholder={config.placeholder}
