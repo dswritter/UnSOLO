@@ -3,6 +3,7 @@ export const revalidate = 300 // 5 minutes
 import { createClient } from '@/lib/supabase/server'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { fuzzyMatch } from '@/lib/utils'
 import { getServiceListingsByType } from '@/actions/service-listing-discovery'
 import { ExploreClient } from '@/components/explore/ExploreClient'
 
@@ -71,7 +72,7 @@ async function getMaxPackagePrice(supabase: Awaited<ReturnType<typeof createClie
     .single()
 
   if (!data?.price_paise) return 2000000 // fallback to 2 lakhs
-  return Math.ceil(data.price_paise / 100) // convert paise to rupees and round up
+  return data.price_paise
 }
 
 async function getPackages(searchParams: Record<string, string>) {
@@ -119,7 +120,7 @@ async function getPackages(searchParams: Record<string, string>) {
     })
   })
 
-  // Text search
+  // Text search with fuzzy matching for locations and exact match for titles
   if (searchParams.q) {
     const q = searchParams.q.toLowerCase()
     packages = packages.filter(pkg => {
@@ -127,8 +128,8 @@ async function getPackages(searchParams: Record<string, string>) {
       return (
         pkg.title.toLowerCase().includes(q) ||
         (pkg.short_description || '').toLowerCase().includes(q) ||
-        (dest?.name || '').toLowerCase().includes(q) ||
-        (dest?.state || '').toLowerCase().includes(q)
+        fuzzyMatch(dest?.name || '', searchParams.q) ||
+        fuzzyMatch(dest?.state || '', searchParams.q)
       )
     })
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface PriceSliderProps {
@@ -27,11 +27,31 @@ export function PriceSlider({
   const [min, setMin] = useState(currentMin)
   const [max, setMax] = useState(currentMax)
   const [isDragging, setIsDragging] = useState(false)
+  const isDraggingRef = useRef(false)
 
   useEffect(() => {
     setMin(currentMin)
     setMax(currentMax)
   }, [currentMin, currentMax])
+
+  useEffect(() => {
+    const handleDragEnd = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false
+        setIsDragging(false)
+        onMinChange(min)
+        onMaxChange(max)
+      }
+    }
+
+    document.addEventListener('mouseup', handleDragEnd)
+    document.addEventListener('touchend', handleDragEnd)
+
+    return () => {
+      document.removeEventListener('mouseup', handleDragEnd)
+      document.removeEventListener('touchend', handleDragEnd)
+    }
+  }, [min, max, onMinChange, onMaxChange])
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMin = Math.min(Number(e.target.value), max)
@@ -43,13 +63,8 @@ export function PriceSlider({
     setMax(newMax)
   }
 
-  const handleDragEnd = () => {
-    setIsDragging(false)
-    onMinChange(min)
-    onMaxChange(max)
-  }
-
   const handleDragStart = () => {
+    isDraggingRef.current = true
     setIsDragging(true)
   }
 
@@ -61,7 +76,7 @@ export function PriceSlider({
       <div className="relative pt-2 pb-4">
         {/* Filled Range */}
         <div
-          className="absolute top-6 h-2 bg-primary rounded-full"
+          className="absolute top-4 h-2 bg-primary rounded-full"
           style={{
             left: `${getPercentage(min)}%`,
             right: `${100 - getPercentage(max)}%`,
@@ -76,9 +91,7 @@ export function PriceSlider({
           value={min}
           onChange={handleMinChange}
           onMouseDown={handleDragStart}
-          onMouseUp={handleDragEnd}
           onTouchStart={handleDragStart}
-          onTouchEnd={handleDragEnd}
           className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-5"
           style={{
             WebkitAppearance: 'slider-horizontal',
@@ -93,9 +106,7 @@ export function PriceSlider({
           value={max}
           onChange={handleMaxChange}
           onMouseDown={handleDragStart}
-          onMouseUp={handleDragEnd}
           onTouchStart={handleDragStart}
-          onTouchEnd={handleDragEnd}
           className="absolute top-4 left-0 right-0 w-full h-2 bg-transparent rounded-full appearance-none cursor-pointer pointer-events-none z-6"
           style={{
             WebkitAppearance: 'slider-horizontal',
@@ -115,6 +126,23 @@ export function PriceSlider({
       </div>
 
       <style>{`
+        input[type='range'] {
+          -webkit-appearance: none;
+          appearance: none;
+        }
+
+        input[type='range']::-webkit-slider-runnable-track {
+          background: transparent;
+          border: none;
+          outline: none;
+        }
+
+        input[type='range']::-moz-range-track {
+          background: transparent;
+          border: none;
+          outline: none;
+        }
+
         input[type='range']::-webkit-slider-thumb {
           appearance: none;
           width: 18px;
@@ -125,6 +153,7 @@ export function PriceSlider({
           border: 2px solid white;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           pointer-events: auto;
+          margin-top: -8px;
         }
 
         input[type='range']::-moz-range-thumb {
@@ -136,6 +165,7 @@ export function PriceSlider({
           border: 2px solid white;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
           pointer-events: auto;
+          margin-top: -8px;
         }
 
         input[type='range']::-webkit-slider-thumb:hover {
