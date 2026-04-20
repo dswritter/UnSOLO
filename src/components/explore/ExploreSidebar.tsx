@@ -204,21 +204,23 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
             <PriceSlider
               minValue={0}
               maxValue={maxPackagePrice}
-              currentMin={parseInt(getCurrentValue('minBudget', '0')) || 0}
-              currentMax={parseInt(getCurrentValue('maxBudget', String(maxPackagePrice))) || maxPackagePrice}
+              currentMin={parseInt(getCurrentValue('minBudget', '0')) * 100 || 0}
+              currentMax={parseInt(getCurrentValue('maxBudget', String(Math.floor(maxPackagePrice / 100)))) * 100 || maxPackagePrice}
               onMinChange={(value) => {
+                const rupees = value ? Math.floor(value / 100) : null
                 setOptimisticParams((prev) => ({
                   ...prev,
-                  minBudget: value ? String(value) : null,
+                  minBudget: rupees ? String(rupees) : null,
                 }))
-                router.push(buildUrl({ minBudget: value ? String(value) : null }))
+                router.push(buildUrl({ minBudget: rupees ? String(rupees) : null }))
               }}
               onMaxChange={(value) => {
+                const rupees = value ? Math.floor(value / 100) : null
                 setOptimisticParams((prev) => ({
                   ...prev,
-                  maxBudget: value ? String(value) : null,
+                  maxBudget: rupees ? String(rupees) : null,
                 }))
-                router.push(buildUrl({ maxBudget: value ? String(value) : null }))
+                router.push(buildUrl({ maxBudget: rupees ? String(rupees) : null }))
               }}
               step={50000}
             />
