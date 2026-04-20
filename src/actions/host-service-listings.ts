@@ -50,6 +50,18 @@ async function notifyAdminsOfServiceListing(opts: {
 
 type ServiceUnit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
 
+/**
+ * Master-level fields that are safe for a host to tweak on an approved listing
+ * without forcing a full admin re-review. Mirrors HOST_TRIP_OPERATIONAL_FIELDS
+ * in hosting.ts — changes here stay live; changes to anything else (title,
+ * description, unit, destinations) bounce the listing back to `pending`.
+ */
+const HOST_SERVICE_OPERATIONAL_FIELDS = new Set<string>([
+  'amenities',
+  'tags',
+  'location', // street address / specific location text
+])
+
 export type HostServiceItemDraft = {
   name: string
   description: string | null
@@ -301,11 +313,13 @@ export async function updateHostServiceListing(
       update.destination_id = ids[0]
     }
 
-    // Approved listings bounce back to pending after an edit — admin re-reviews.
-    let wasApproved = false
-    if (existing.status === 'approved') {
+    // Approved listings bounce back to pending only when a *substantive* field
+    // changed. Tags / amenities / address-text edits stay live so travelers
+    // can keep booking while the host polishes details.
+    const substantiveChange = Object.keys(update).some(k => !HOST_SERVICE_OPERATIONAL_FIELDS.has(k))
+    const wasApproved = existing.status === 'approved' && substantiveChange
+    if (wasApproved) {
       update.status = 'pending'
-      wasApproved = true
     }
 
     if (Object.keys(update).length === 0) {

@@ -613,9 +613,16 @@ export async function createRazorpayOrder(
     return { error: 'This trip uses join requests. Open the trip page to request a spot.' }
   }
 
+  if (pkg.host_id && !pkg.is_active) {
+    return { error: 'This trip is not available for booking' }
+  }
+  // Allow bookings while status is 'pending' *if* the trip was ever approved
+  // before (host just edited something; admin is re-reviewing). Brand-new
+  // pending trips and rejected trips stay gated.
   if (
     pkg.host_id &&
-    (!pkg.is_active || pkg.moderation_status !== 'approved')
+    pkg.moderation_status !== 'approved' &&
+    !(pkg.moderation_status === 'pending' && pkg.first_approved_at)
   ) {
     return { error: 'This trip is not available for booking' }
   }

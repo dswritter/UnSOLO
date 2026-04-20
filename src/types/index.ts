@@ -129,6 +129,8 @@ export type Package = {
   departure_dates_closed?: string[] | null
   host_id: string | null
   moderation_status: 'pending' | 'approved' | 'rejected' | null
+  /** Set once, on first admin approval; never cleared on later pending resets. */
+  first_approved_at?: string | null
   join_preferences: JoinPreferences | null
   created_at: string
   updated_at?: string | null
@@ -252,6 +254,8 @@ export type ServiceListing = {
   is_active: boolean
   is_featured: boolean
   status: 'pending' | 'approved' | 'rejected' | 'archived'
+  /** Set once, on first admin approval; never cleared on later pending resets. */
+  first_approved_at?: string | null
   average_rating: number
   review_count: number
   created_at: string

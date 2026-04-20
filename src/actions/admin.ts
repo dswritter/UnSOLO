@@ -830,12 +830,26 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
 
   const newStatus = approve ? 'approved' : 'rejected'
 
+  const updatePayload: Record<string, unknown> = {
+    moderation_status: newStatus,
+    is_active: approve, // Only active if approved
+  }
+  if (approve) {
+    // Stamp first_approved_at on the very first approval; never overwrite it
+    // on subsequent re-approvals (edits that bounced to pending).
+    const { data: existing } = await supabase
+      .from('packages')
+      .select('first_approved_at')
+      .eq('id', tripId)
+      .single()
+    if (!existing?.first_approved_at) {
+      updatePayload.first_approved_at = new Date().toISOString()
+    }
+  }
+
   await supabase
     .from('packages')
-    .update({
-      moderation_status: newStatus,
-      is_active: approve, // Only active if approved
-    })
+    .update(updatePayload)
     .eq('id', tripId)
 
   // Notify host

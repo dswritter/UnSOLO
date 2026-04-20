@@ -163,6 +163,19 @@ export default async function PackageDetailPage({
           <ArrowLeft className="h-4 w-4" /> Back to Explore
         </Link>
 
+        {/* Edits-under-review banner: shown to the public when the host recently
+            updated a previously-approved trip and an admin is re-reviewing.
+            Bookings stay open throughout (see `createBookingOrder`). */}
+        {isCommunityTrip
+          && package_.moderation_status === 'pending'
+          && package_.first_approved_at
+          && !isHost
+          && !isAdminUser && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Recent host edits are under review — booking stays open.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">

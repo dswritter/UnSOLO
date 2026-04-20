@@ -24,7 +24,7 @@ export async function getServiceListingsByType(
     .select('*, destination:destinations(id, name, slug)', { count: 'exact' })
     .eq('type', type)
     .eq('is_active', true)
-    .eq('status', 'approved')
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
 
   // Apply filters
   if (filters.destination_id) {
@@ -98,7 +98,7 @@ export async function getServiceListingDetail(slug: string) {
     `)
     .eq('slug', slug)
     .eq('is_active', true)
-    .eq('status', 'approved')
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
     .single()
 
   if (error) throw error
@@ -127,7 +127,7 @@ export async function searchServiceListings(
     .select('id, title, slug, location, images, price_paise, type')
     .eq('type', type)
     .eq('is_active', true)
-    .eq('status', 'approved')
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
     .or(`title.ilike.%${query}%,location.ilike.%${query}%`)
     .limit(limit)
 
@@ -162,7 +162,7 @@ export async function getRelatedServicesForPackage(
       .select('*')
       .in('id', curatedLinks)
       .eq('is_active', true)
-      .eq('status', 'approved')
+      .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
 
     curated = (data || []) as ServiceListing[]
   }
@@ -173,7 +173,7 @@ export async function getRelatedServicesForPackage(
     .select('*')
     .contains('destination_ids', [destinationId])
     .eq('is_active', true)
-    .eq('status', 'approved')
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
     .order('is_featured', { ascending: false })
     .order('average_rating', { ascending: false })
     .limit(12)
@@ -204,7 +204,7 @@ export async function getServiceListingsByDestination(
     .select('*')
     .contains('destination_ids', [destinationId])
     .eq('is_active', true)
-    .eq('status', 'approved')
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
 
   if (type) {
     query = query.eq('type', type)

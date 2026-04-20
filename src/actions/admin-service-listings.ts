@@ -260,9 +260,21 @@ async function notifyHostOfModeration(opts: {
 export async function approveServiceListing(id: string) {
   const { supabase, user } = await requireAdmin()
 
+  const update: Record<string, unknown> = { status: 'approved', is_active: true }
+  // Stamp first_approved_at on the very first approval — lets downstream
+  // logic tell "never reviewed" apart from "re-review after edit".
+  const { data: existing } = await supabase
+    .from('service_listings')
+    .select('first_approved_at')
+    .eq('id', id)
+    .single()
+  if (!existing?.first_approved_at) {
+    update.first_approved_at = new Date().toISOString()
+  }
+
   const { error } = await supabase
     .from('service_listings')
-    .update({ status: 'approved', is_active: true })
+    .update(update)
     .eq('id', id)
 
   if (error) throw error
