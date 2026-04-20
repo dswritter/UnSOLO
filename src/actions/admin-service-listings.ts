@@ -43,20 +43,44 @@ export async function getAdminServiceListings() {
 export async function getServiceListingDetail(id: string) {
   const { supabase } = await requireAdmin()
 
-  const { data, error } = await supabase
-    .from('service_listings')
-    .select(`
-      *,
-      destination:destinations(id, name, slug),
-      host:profiles(id, username, full_name, avatar_url)
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data, error }, { data: items }] = await Promise.all([
+    supabase
+      .from('service_listings')
+      .select(`
+        *,
+        destination:destinations(id, name, slug),
+        host:profiles(id, username, full_name, avatar_url)
+      `)
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('service_listing_items')
+      .select('*')
+      .eq('service_listing_id', id)
+      .order('position_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ])
 
   if (error) throw error
-  return data as ServiceListing & {
-    destination?: { id: string; name: string; slug: string }
-    host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
+  return {
+    ...(data as ServiceListing & {
+      destination?: { id: string; name: string; slug: string }
+      host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
+    }),
+    items: (items || []) as Array<{
+      id: string
+      name: string
+      description: string | null
+      price_paise: number
+      unit: string | null
+      quantity_available: number
+      max_per_booking: number
+      images: string[]
+      amenities: string[] | null
+      is_active: boolean
+      position_order: number
+      created_at: string
+    }>,
   }
 }
 

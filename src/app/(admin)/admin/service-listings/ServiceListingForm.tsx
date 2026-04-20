@@ -48,7 +48,7 @@ const AMENITIES_BY_TYPE = {
 
 interface ServiceListingFormProps {
   destinations: Destination[]
-  listing?: ServiceListing
+  listing?: ServiceListing & { items?: { id: string }[] }
 }
 
 export function ServiceListingForm({ destinations, listing }: ServiceListingFormProps) {
@@ -304,6 +304,16 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       {/* Pricing */}
       <section>
         <h2 className="mb-4 text-lg font-semibold">Pricing</h2>
+        {listing?.host_id && listing.items && listing.items.length > 0 && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            <p className="font-semibold">Per-item pricing active</p>
+            <p className="mt-0.5 text-xs text-blue-600">
+              This listing has {listing.items.length} item{listing.items.length !== 1 ? 's' : ''} — the
+              base price below is automatically synced to the cheapest active item&apos;s price and
+              used on explore cards. Edit individual items to change prices.
+            </p>
+          </div>
+        )}
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -26,25 +26,44 @@ const OPERATIONAL_ITEM_FIELDS = new Set<string>([
  * public hero in sync when a host rearranges items or adds pictures to a
  * later item. Runs silently — failures don't block the caller.
  */
+/**
+ * Keeps the master listing row in sync with its items after any CRUD:
+ * - images  → hero images from first item that has photos
+ * - price_paise → minimum price across all active items (so explore cards
+ *   always reflect the cheapest option rather than showing a stale master value
+ *   that was set under the old single-price flow)
+ */
 async function refreshListingHeroImages(
   supabase: SupabaseServerClient,
   listingId: string,
 ) {
   const { data: allItems } = await supabase
     .from('service_listing_items')
-    .select('images, position_order, created_at')
+    .select('images, price_paise, is_active, position_order, created_at')
     .eq('service_listing_id', listingId)
     .order('position_order', { ascending: true })
     .order('created_at', { ascending: true })
 
-  const firstWithImages = (allItems || []).find(
+  const items = allItems || []
+  const activeItems = items.filter((r: { is_active: boolean | null }) => r.is_active !== false)
+
+  // Hero: first item (active preferred) that has at least one image
+  const firstWithImages = (activeItems.length > 0 ? activeItems : items).find(
     (r: { images: string[] | null }) => Array.isArray(r.images) && r.images.length > 0,
   ) as { images: string[] } | undefined
   const hero = firstWithImages?.images.slice(0, 5) ?? []
 
+  // Min price: lowest price_paise across active items, fallback to all items
+  const pricePool = (activeItems.length > 0 ? activeItems : items) as { price_paise: number }[]
+  const prices = pricePool.map(i => i.price_paise).filter(p => typeof p === 'number' && p > 0)
+  const minPrice = prices.length > 0 ? Math.min(...prices) : null
+
   await supabase
     .from('service_listings')
-    .update({ images: hero.length > 0 ? hero : null })
+    .update({
+      images: hero.length > 0 ? hero : null,
+      ...(minPrice !== null ? { price_paise: minPrice } : {}),
+    })
     .eq('id', listingId)
 }
 

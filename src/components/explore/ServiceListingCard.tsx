@@ -76,6 +76,7 @@ export function ServiceListingCard({ listing }: ServiceListingCardProps) {
 
           {/* Price */}
           <div className="flex items-baseline gap-1">
+            <span className="text-xs text-muted-foreground">From</span>
             <span className="text-lg font-bold text-foreground">{formatPrice(listing.price_paise)}</span>
             <span className="text-xs text-muted-foreground">/ {listing.unit.replace('_', ' ')}</span>
           </div>
