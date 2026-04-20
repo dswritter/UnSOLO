@@ -77,7 +77,7 @@ export function HeroCarousel({
 
   return (
     <section
-      className="relative overflow-hidden bg-black aspect-[21/9] min-h-[440px] max-h-[72vh]"
+      className="relative w-full overflow-hidden bg-black h-[clamp(420px,52vh,600px)]"
     >
       {/* Background layers */}
       <div className="absolute inset-0 bg-gradient-to-br from-black via-black to-[#1a0f00] pointer-events-none" />
