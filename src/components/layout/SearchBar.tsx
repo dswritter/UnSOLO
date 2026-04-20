@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 
 interface SearchBarProps {
@@ -16,6 +16,7 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const userEditedRef = useRef(false)
 
   // Get initial search value from URL (client-side only)
   useEffect(() => {
@@ -28,14 +29,16 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
     }
   }, [])
 
-  // Handle live search as user types (with debounce)
+  // Handle live search as user types (with debounce). Only fires after the user
+  // actually edits the input — prevents an empty-input push on mount that would
+  // redirect users away from `/` (or any other page) to `/explore?`.
   useEffect(() => {
-    // Clear previous timer
+    if (!userEditedRef.current) return
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
 
-    // Set new timer for debounced search
     debounceTimerRef.current = setTimeout(() => {
       if (typeof window !== 'undefined') {
         const trimmedInput = searchInput.trim()
@@ -47,9 +50,14 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
           params.delete('q')
         }
 
-        router.push(`/explore?${params.toString()}`)
+        // Only stay-navigate when already on /explore; otherwise a clear should
+        // not rip the user off their current page.
+        const onExplore = window.location.pathname.startsWith('/explore')
+        if (trimmedInput || onExplore) {
+          router.push(`/explore?${params.toString()}`)
+        }
       }
-    }, 300) // 300ms debounce
+    }, 300)
 
     return () => {
       if (debounceTimerRef.current) {
@@ -76,6 +84,7 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
 
       // Escape to clear search
       if (event.key === 'Escape' && searchInput) {
+        userEditedRef.current = true
         setSearchInput('')
         if (isMobile) {
           setIsExpanded(false)
@@ -109,11 +118,13 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
   }, [isExpanded, isMobile])
 
   function handleClear() {
+    userEditedRef.current = true
     setSearchInput('')
     inputRef.current?.focus()
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    userEditedRef.current = true
     setSearchInput(e.target.value)
   }
 
