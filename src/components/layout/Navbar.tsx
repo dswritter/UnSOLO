@@ -114,12 +114,18 @@ export function Navbar({ user }: NavbarProps) {
 
           {/* Desktop Nav - Centered */}
           <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
-            {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
+            {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
+              const isActive = pathname === href
+              return (
               <Link
                 key={href}
                 href={href}
                 prefetch
-                className="relative flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className={`relative flex items-center gap-1.5 text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'text-primary border-b-2 border-primary pb-1'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
               >
                 <Icon className="h-4 w-4" />
                 {label}
@@ -129,7 +135,8 @@ export function Navbar({ user }: NavbarProps) {
                   </span>
                 )}
               </Link>
-            ))}
+            )
+            })}
           </div>
 
           {/* Search Bar - Desktop only, shifted right */}
@@ -214,13 +221,19 @@ export function Navbar({ user }: NavbarProps) {
       {/* Mobile menu */}
       {mobileOpen && (
         <div className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2">
-          {navLinks.map(({ href, label, icon: Icon, showBadge }) => (
+          {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
+            const isActive = pathname === href
+            return (
             <Link
               key={href}
               href={href}
               prefetch
               onClick={() => setMobileOpen(false)}
-              className="relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                isActive
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+              }`}
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -230,7 +243,8 @@ export function Navbar({ user }: NavbarProps) {
                 </span>
               )}
             </Link>
-          ))}
+            )
+          })}
           {user && (
             <Link
               href="/bookings"

@@ -70,7 +70,6 @@ export function ExploreClient({
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [shouldFade, setShouldFade] = useState(false)
   const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
     const saved = localStorage.getItem('wishlisted_packages')
@@ -99,11 +98,9 @@ export function ExploreClient({
     const currentParams = searchParams.toString()
     if (prevParamsRef.current && prevParamsRef.current !== currentParams) {
       setIsLoading(true)
-      setShouldFade(true)
       const timer = setTimeout(() => {
         setIsLoading(false)
-        setShouldFade(false)
-      }, 600)
+      }, 100)
       return () => clearTimeout(timer)
     }
     prevParamsRef.current = currentParams
@@ -112,15 +109,13 @@ export function ExploreClient({
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
     setIsLoading(true)
-    setShouldFade(true)
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', tab)
     newParams.delete('q') // Clear search on tab change (will re-run in new tab)
     router.push(`/explore?${newParams.toString()}`)
     const timer = setTimeout(() => {
       setIsLoading(false)
-      setShouldFade(false)
-    }, 600)
+    }, 100)
     return () => clearTimeout(timer)
   }
 
@@ -180,10 +175,7 @@ export function ExploreClient({
               </div>
             ) : isTripsTab ? (
               /* Trips Grid */
-              <div className={cn(
-                'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 transition-all duration-500',
-                shouldFade ? 'opacity-0' : 'opacity-100'
-              )}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {(packages as Package[]).map((pkg) => (
               <div
                 key={pkg.id}
@@ -321,10 +313,7 @@ export function ExploreClient({
           </div>
             ) : (
               /* Service Listings Grid */
-              <div className={cn(
-                'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 transition-all duration-500',
-                shouldFade ? 'opacity-0' : 'opacity-100'
-              )}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 {(serviceListings as ServiceListing[]).map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} />
                 ))}
