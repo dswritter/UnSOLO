@@ -215,21 +215,18 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
               maxValue={maxPackagePrice}
               currentMin={parseInt(getCurrentValue('minBudget', '0')) * 100 || 0}
               currentMax={parseInt(getCurrentValue('maxBudget', String(Math.floor(maxPackagePrice / 100)))) * 100 || maxPackagePrice}
-              onMinChange={(value) => {
-                const rupees = value ? Math.floor(value / 100) : null
+              onChange={(minPaise, maxPaise) => {
+                const minRupees = minPaise > 0 ? Math.floor(minPaise / 100) : null
+                const maxRupees = maxPaise < maxPackagePrice ? Math.floor(maxPaise / 100) : null
                 setOptimisticParams((prev) => ({
                   ...prev,
-                  minBudget: rupees ? String(rupees) : null,
+                  minBudget: minRupees ? String(minRupees) : null,
+                  maxBudget: maxRupees ? String(maxRupees) : null,
                 }))
-                router.push(buildUrl({ minBudget: rupees ? String(rupees) : null }))
-              }}
-              onMaxChange={(value) => {
-                const rupees = value ? Math.floor(value / 100) : null
-                setOptimisticParams((prev) => ({
-                  ...prev,
-                  maxBudget: rupees ? String(rupees) : null,
+                router.push(buildUrl({
+                  minBudget: minRupees ? String(minRupees) : null,
+                  maxBudget: maxRupees ? String(maxRupees) : null,
                 }))
-                router.push(buildUrl({ maxBudget: rupees ? String(rupees) : null }))
               }}
               step={50000}
             />

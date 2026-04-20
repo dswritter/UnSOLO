@@ -8,8 +8,7 @@ interface PriceSliderProps {
   maxValue: number
   currentMin: number
   currentMax: number
-  onMinChange: (value: number) => void
-  onMaxChange: (value: number) => void
+  onChange: (min: number, max: number) => void
   step?: number
   label?: string
 }
@@ -19,8 +18,7 @@ export function PriceSlider({
   maxValue,
   currentMin,
   currentMax,
-  onMinChange,
-  onMaxChange,
+  onChange,
   step = 1000,
   label = 'Price Range',
 }: PriceSliderProps) {
@@ -39,8 +37,7 @@ export function PriceSlider({
       if (isDraggingRef.current) {
         isDraggingRef.current = false
         setIsDragging(false)
-        onMinChange(min)
-        onMaxChange(max)
+        onChange(min, max)
       }
     }
 
@@ -51,7 +48,7 @@ export function PriceSlider({
       document.removeEventListener('mouseup', handleDragEnd)
       document.removeEventListener('touchend', handleDragEnd)
     }
-  }, [min, max, onMinChange, onMaxChange])
+  }, [min, max, onChange])
 
   const handleMinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newMin = Math.min(Number(e.target.value), max)
