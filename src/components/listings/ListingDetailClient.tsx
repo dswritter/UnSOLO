@@ -1,20 +1,34 @@
 'use client'
 
 import Image from 'next/image'
-import { Star, MapPin, Users, Zap } from 'lucide-react'
-import type { ServiceListing } from '@/types'
+import { Star, MapPin, Zap } from 'lucide-react'
+import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 
 interface ListingDetailClientProps {
   listing: ServiceListing
+  items?: ServiceListingItem[]
 }
 
-export function ListingDetailClient({ listing }: ListingDetailClientProps) {
+export function ListingDetailClient({ listing, items = [] }: ListingDetailClientProps) {
   const imageUrl = listing.images?.[0] || '/placeholder-listing.jpg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
+
+  // When items exist, exactly one must be picked to book. Auto-select the
+  // first item so the sidebar price/form has something to render; user can
+  // switch by clicking another card.
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(
+    items.length > 0 ? items[0].id : null,
+  )
+  const selectedItem = items.find(i => i.id === selectedItemId) || null
+
+  const displayPricePaise = selectedItem?.price_paise ?? listing.price_paise
+  const displayAvailable = selectedItem
+    ? selectedItem.quantity_available
+    : listing.quantity_available
 
   // Type-specific metadata display
   const getMetadataDisplay = () => {
@@ -126,6 +140,55 @@ export function ListingDetailClient({ listing }: ListingDetailClientProps) {
           </div>
         )}
 
+        {/* Items picker */}
+        {items.length > 0 && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Choose an option</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {items.map(item => {
+                const isSelected = item.id === selectedItemId
+                const soldOut = item.quantity_available === 0
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => !soldOut && setSelectedItemId(item.id)}
+                    disabled={soldOut}
+                    className={`text-left rounded-xl border bg-card p-3 transition-colors ${
+                      isSelected
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-primary/40'
+                    } ${soldOut ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="flex gap-3">
+                      {item.images[0] && (
+                        <Image
+                          src={item.images[0]}
+                          alt={item.name}
+                          width={80}
+                          height={80}
+                          className="h-20 w-20 rounded-lg object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold truncate">{item.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatPrice(item.price_paise)} · {soldOut ? 'Sold out' : `${item.quantity_available} left`}
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Tags */}
         {listing.tags && listing.tags.length > 0 && (
           <div>
@@ -146,8 +209,13 @@ export function ListingDetailClient({ listing }: ListingDetailClientProps) {
         <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4">
           {/* Price */}
           <div>
+            {selectedItem && (
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                {selectedItem.name}
+              </div>
+            )}
             <div className="text-3xl font-bold text-primary mb-1">
-              {formatPrice(listing.price_paise)}
+              {formatPrice(displayPricePaise)}
             </div>
             <div className="text-sm text-muted-foreground">
               per {listing.unit.replace('_', ' ')}
@@ -155,11 +223,11 @@ export function ListingDetailClient({ listing }: ListingDetailClientProps) {
           </div>
 
           {/* Availability */}
-          {listing.quantity_available != null && (
+          {displayAvailable != null && (
             <div className="text-sm">
-              <span className={listing.quantity_available > 0 ? 'text-green-600' : 'text-red-600'}>
-                {listing.quantity_available > 0
-                  ? `${listing.quantity_available} available`
+              <span className={displayAvailable > 0 ? 'text-green-600' : 'text-red-600'}>
+                {displayAvailable > 0
+                  ? `${displayAvailable} available`
                   : 'Sold out'}
               </span>
             </div>
@@ -168,7 +236,7 @@ export function ListingDetailClient({ listing }: ListingDetailClientProps) {
           {/* Booking form */}
           <div className="border-t border-border pt-4">
             <Suspense fallback={<div className="h-64 bg-secondary/50 rounded-lg animate-pulse" />}>
-              <ListingBookingForm listing={listing} />
+              <ListingBookingForm listing={listing} selectedItem={selectedItem} />
             </Suspense>
           </div>
         </div>

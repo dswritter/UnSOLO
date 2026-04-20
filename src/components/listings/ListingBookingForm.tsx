@@ -13,7 +13,7 @@ import { Calendar, Users, Gift, Tag, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
 import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
-import type { ServiceListing } from '@/types'
+import type { ServiceListing, ServiceListingItem } from '@/types'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 
 declare global {
@@ -27,9 +27,18 @@ declare global {
 
 interface ListingBookingFormProps {
   listing: ServiceListing
+  /**
+   * When the listing has child items, the parent component drives item
+   * selection and passes the chosen one here. Pricing, per-booking limits,
+   * and inventory all pivot to the item's values when present.
+   */
+  selectedItem?: ServiceListingItem | null
 }
 
-export function ListingBookingForm({ listing }: ListingBookingFormProps) {
+export function ListingBookingForm({ listing, selectedItem }: ListingBookingFormProps) {
+  const unitPricePaise = selectedItem?.price_paise ?? listing.price_paise
+  const maxPerBooking = selectedItem?.max_per_booking ?? listing.max_guests_per_booking ?? 10
+  const availableQty = selectedItem?.quantity_available ?? listing.quantity_available
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
 
@@ -91,7 +100,7 @@ export function ListingBookingForm({ listing }: ListingBookingFormProps) {
   }, [showPromoInput])
 
   // Calculate totals
-  const basePrice = listing.price_paise * quantity
+  const basePrice = unitPricePaise * quantity
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
   const creditsToApply = applyCredits ? Math.min(userCredits, basePrice) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
@@ -123,8 +132,8 @@ export function ListingBookingForm({ listing }: ListingBookingFormProps) {
     if (listing.type === 'stays' && new Date(checkOutDate) <= new Date(checkInDate)) return false
 
     if (quantity < 1) return false
-    if (listing.max_guests_per_booking && quantity > listing.max_guests_per_booking) return false
-    if (listing.quantity_available != null && quantity > listing.quantity_available) return false
+    if (quantity > maxPerBooking) return false
+    if (availableQty != null && quantity > availableQty) return false
 
     return true
   }
@@ -156,15 +165,26 @@ export function ListingBookingForm({ listing }: ListingBookingFormProps) {
     setLoading(true)
 
     try {
-      const bookingData = {
+      const bookingData: {
+        check_in_date: string
+        check_out_date?: string
+        quantity: number
+        applyCredits: boolean
+        service_listing_item_id?: string
+        promoCode?: string
+      } = {
         check_in_date: listing.type === 'stays' ? checkInDate : selectedDate,
         check_out_date: listing.type === 'stays' ? checkOutDate : undefined,
         quantity,
         applyCredits,
       }
 
+      if (selectedItem) {
+        bookingData.service_listing_item_id = selectedItem.id
+      }
+
       if (promoDiscount > 0 && promoCode.trim()) {
-        (bookingData as any).promoCode = promoCode.trim()
+        bookingData.promoCode = promoCode.trim()
       }
 
       const result = await createServiceListingOrder(listing.id, bookingData)
@@ -350,9 +370,8 @@ export function ListingBookingForm({ listing }: ListingBookingFormProps) {
             size="sm"
             className="h-9 w-9 p-0 border-border"
             onClick={() => {
-              const maxQty = listing.max_guests_per_booking || 10
-              const availableQty = listing.quantity_available ?? maxQty
-              setQuantity(Math.min(Math.min(maxQty, availableQty), quantity + 1))
+              const cap = availableQty != null ? Math.min(maxPerBooking, availableQty) : maxPerBooking
+              setQuantity(Math.min(cap, quantity + 1))
             }}
           >
             +
@@ -454,7 +473,7 @@ export function ListingBookingForm({ listing }: ListingBookingFormProps) {
       {/* Price breakdown */}
       <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
         <div className="flex justify-between text-muted-foreground">
-          <span>{formatPrice(listing.price_paise)} x {quantity} {quantity === 1 ? listing.unit.replace('_', ' ') : listing.unit.replace('_', ' ')}</span>
+          <span>{formatPrice(unitPricePaise)} x {quantity} {listing.unit.replace('_', ' ')}</span>
           <span>{formatPrice(basePrice)}</span>
         </div>
         {totalDiscount > 0 && (

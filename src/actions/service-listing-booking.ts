@@ -9,6 +9,41 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 })
 
+type SupabaseFromCreateClient = Awaited<ReturnType<typeof createClient>>
+
+async function deductInventory(
+  supabase: SupabaseFromCreateClient,
+  listingId: string,
+  itemId: string | null | undefined,
+  quantity: number,
+) {
+  if (itemId) {
+    const { data: item } = await supabase
+      .from('service_listing_items')
+      .select('quantity_available')
+      .eq('id', itemId)
+      .single()
+    if (item && item.quantity_available != null) {
+      await supabase
+        .from('service_listing_items')
+        .update({ quantity_available: Math.max(0, item.quantity_available - quantity) })
+        .eq('id', itemId)
+    }
+    return
+  }
+  const { data: listing } = await supabase
+    .from('service_listings')
+    .select('quantity_available')
+    .eq('id', listingId)
+    .single()
+  if (listing && listing.quantity_available != null) {
+    await supabase
+      .from('service_listings')
+      .update({ quantity_available: Math.max(0, listing.quantity_available - quantity) })
+      .eq('id', listingId)
+  }
+}
+
 export async function createServiceListingOrder(
   listingId: string,
   bookingData: {
@@ -17,6 +52,7 @@ export async function createServiceListingOrder(
     quantity: number
     applyCredits: boolean
     promoCode?: string
+    service_listing_item_id?: string
   },
 ) {
   try {
@@ -38,13 +74,32 @@ export async function createServiceListingOrder(
       return { error: 'Listing not found or inactive' }
     }
 
-    // Check availability
-    if (listing.quantity_available != null && bookingData.quantity > listing.quantity_available) {
+    // If an item is specified, it drives price and inventory checks.
+    let unitPricePaise: number = listing.price_paise
+    let itemId: string | null = null
+    if (bookingData.service_listing_item_id) {
+      const { data: item, error: itemError } = await supabase
+        .from('service_listing_items')
+        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active')
+        .eq('id', bookingData.service_listing_item_id)
+        .single()
+      if (itemError || !item || !item.is_active || item.service_listing_id !== listingId) {
+        return { error: 'Selected item is unavailable' }
+      }
+      if (bookingData.quantity > item.max_per_booking) {
+        return { error: `Maximum ${item.max_per_booking} per booking for this item` }
+      }
+      if (item.quantity_available != null && bookingData.quantity > item.quantity_available) {
+        return { error: 'Not enough availability for this item' }
+      }
+      unitPricePaise = item.price_paise
+      itemId = item.id
+    } else if (listing.quantity_available != null && bookingData.quantity > listing.quantity_available) {
       return { error: 'Not enough availability' }
     }
 
     // Calculate price
-    let totalPaise = listing.price_paise * bookingData.quantity
+    let totalPaise = unitPricePaise * bookingData.quantity
     let discountPaise = 0
     let appliedPromoCode = ''
 
@@ -88,6 +143,7 @@ export async function createServiceListingOrder(
         .insert({
           user_id: user.id,
           service_listing_id: listingId,
+          service_listing_item_id: itemId,
           booking_type: 'service',
           check_in_date: bookingData.check_in_date,
           check_out_date: bookingData.check_out_date,
@@ -115,6 +171,8 @@ export async function createServiceListingOrder(
           .eq('id', user.id)
       }
 
+      await deductInventory(supabase, listingId, itemId, bookingData.quantity)
+
       return {
         instant: true,
         bookingId: booking.id,
@@ -139,6 +197,7 @@ export async function createServiceListingOrder(
       .insert({
         user_id: user.id,
         service_listing_id: listingId,
+        service_listing_item_id: itemId,
         booking_type: 'service',
         check_in_date: bookingData.check_in_date,
         check_out_date: bookingData.check_out_date,
@@ -203,7 +262,7 @@ export async function confirmServiceListingPayment(
     // Get booking by order ID
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, amount_paise, user_id, service_listing_id, wallet_deducted_paise')
+      .select('id, amount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
       .single()
@@ -242,20 +301,13 @@ export async function confirmServiceListingPayment(
       }
     }
 
-    // Reduce availability if quantity_available is set
     if (booking.service_listing_id) {
-      const { data: listing } = await supabase
-        .from('service_listings')
-        .select('quantity_available')
-        .eq('id', booking.service_listing_id)
-        .single()
-
-      if (listing && listing.quantity_available != null) {
-        await supabase
-          .from('service_listings')
-          .update({ quantity_available: Math.max(0, listing.quantity_available - 1) })
-          .eq('id', booking.service_listing_id)
-      }
+      await deductInventory(
+        supabase,
+        booking.service_listing_id,
+        booking.service_listing_item_id,
+        booking.quantity ?? 1,
+      )
     }
 
     return { success: true, bookingId: booking.id }

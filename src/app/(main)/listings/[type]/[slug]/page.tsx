@@ -3,6 +3,7 @@ export const revalidate = 300 // 5 minutes
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getServiceListingDetail } from '@/actions/service-listing-discovery'
+import { getPublicServiceListingItems } from '@/actions/host-service-listing-items'
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
 
@@ -28,6 +29,10 @@ export default async function ServiceListingDetailPage({
       notFound()
     }
 
+    // `service_listing_items` may not exist yet if migration 049 hasn't been
+    // applied. The action swallows the error and returns [] in that case.
+    const items = await getPublicServiceListingItems(listing.id)
+
     return (
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
@@ -39,7 +44,7 @@ export default async function ServiceListingDetailPage({
             ← Back to Explore
           </Link>
 
-          <ListingDetailClient listing={listing} />
+          <ListingDetailClient listing={listing} items={items} />
         </div>
       </div>
     )
