@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -124,7 +124,8 @@ type DraftItem = {
   localKey: string
   name: string
   description: string
-  priceRupees: number
+  /** Null = blank / unentered. Host must enter a value before the item is valid. */
+  priceRupees: number | null
   quantity: number
   maxPerBooking: number
   images: string[]
@@ -141,7 +142,7 @@ function emptyDraft(type: ServiceListingType): DraftItem {
       : `new-${Math.random().toString(36).slice(2)}`,
     name: '',
     description: '',
-    priceRupees: 0,
+    priceRupees: null,
     quantity: 1,
     maxPerBooking: 1,
     images: [],
@@ -227,6 +228,8 @@ export function HostServiceListingTabs(props: Props) {
   const isRental = type === 'rentals'
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
   const itemDescRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
+  /** Per-item "add your own amenity" input buffer, keyed by draft.localKey. */
+  const [customItemAmenity, setCustomItemAmenity] = useState<Record<string, string>>({})
 
   // ── Helpers ───────────────────────────────────────────────────────────
   const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean)
@@ -242,13 +245,29 @@ export function HostServiceListingTabs(props: Props) {
     if (items.length === 0) return 'Add at least one item'
     for (const i of items) {
       if (!i.name.trim()) return 'Every item needs a name'
-      if (i.priceRupees < 0) return `"${i.name || 'Item'}" has a negative price`
+      if (i.priceRupees == null || Number.isNaN(i.priceRupees)) return `"${i.name || 'Item'}" needs a price`
+      if (i.priceRupees <= 0) return `"${i.name || 'Item'}" needs a price greater than 0`
       if (i.quantity < 0) return `"${i.name || 'Item'}" has a negative quantity`
       if (i.maxPerBooking < 1) return `"${i.name || 'Item'}" max-per-booking must be at least 1`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
       if (isRental && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
     }
     return null
+  }
+
+  /**
+   * Gate the "+ Add item" control: don't let hosts pile up blank cards. New
+   * cards only unlock once every existing draft has the two required fields
+   * (name + positive price) filled in.
+   */
+  function canAddAnother(): boolean {
+    if (items.length >= 100) return false
+    return items.every(i =>
+      i.name.trim().length > 0 &&
+      i.priceRupees != null &&
+      !Number.isNaN(i.priceRupees) &&
+      i.priceRupees > 0,
+    )
   }
 
   function tryGoTo(next: number) {
@@ -270,7 +289,14 @@ export function HostServiceListingTabs(props: Props) {
       toast.error('Maximum 100 items per listing')
       return
     }
-    setItems(prev => [...prev, emptyDraft(type)])
+    if (!canAddAnother()) {
+      toast.error('Fill in name and price on your current item first')
+      return
+    }
+    // Prepend so the freshly-added blank card shows at the top of the list —
+    // users expect the thing they just clicked "+ Add" for to be immediately
+    // visible rather than scrolled off the bottom.
+    setItems(prev => [emptyDraft(type), ...prev])
   }
 
   function updateDraft(localKey: string, patch: Partial<DraftItem>) {
@@ -324,7 +350,7 @@ export function HostServiceListingTabs(props: Props) {
     const payload: HostServiceItemDraft[] = items.map(i => ({
       name: i.name.trim(),
       description: i.description.trim() || null,
-      price_paise: Math.round(i.priceRupees * 100),
+      price_paise: Math.round((i.priceRupees ?? 0) * 100),
       quantity_available: i.quantity,
       max_per_booking: i.maxPerBooking,
       images: i.images,
@@ -388,6 +414,10 @@ export function HostServiceListingTabs(props: Props) {
   async function saveItemEdit(draft: DraftItem) {
     if (mode !== 'edit') return
     if (!draft.name.trim()) { toast.error('Item name required'); return }
+    if (draft.priceRupees == null || Number.isNaN(draft.priceRupees) || draft.priceRupees <= 0) {
+      toast.error('Please enter a price greater than 0')
+      return
+    }
     setSaving(true)
     try {
       if (draft.dbId) {
@@ -410,7 +440,7 @@ export function HostServiceListingTabs(props: Props) {
           service_listing_id: props.listing.id,
           name: draft.name,
           description: draft.description,
-          price_paise: Math.round(draft.priceRupees * 100),
+          price_paise: Math.round((draft.priceRupees ?? 0) * 100),
           quantity_available: draft.quantity,
           max_per_booking: draft.maxPerBooking,
           images: draft.images,
@@ -679,7 +709,14 @@ export function HostServiceListingTabs(props: Props) {
                 Add up to 100 items. Each item can have up to 5 photos.
               </p>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={addDraft}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addDraft}
+              disabled={!canAddAnother()}
+              title={canAddAnother() ? '' : 'Fill in name and price on your current item first'}
+            >
               + Add item
             </Button>
           </div>
@@ -730,12 +767,19 @@ export function HostServiceListingTabs(props: Props) {
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-xs font-semibold">Price (₹)</label>
+                    <label className="text-xs font-semibold">Price (₹) *</label>
                     <input
                       type="number"
                       min="0"
-                      value={draft.priceRupees}
-                      onChange={(e) => updateDraft(draft.localKey, { priceRupees: Number(e.target.value) })}
+                      required
+                      placeholder="Enter price"
+                      value={draft.priceRupees ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        updateDraft(draft.localKey, {
+                          priceRupees: v === '' ? null : Number(v),
+                        })
+                      }}
                       className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
@@ -802,27 +846,93 @@ export function HostServiceListingTabs(props: Props) {
                           )
                         })}
                       </div>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Add your own (e.g., Helmet, Child seat)"
+                          value={customItemAmenity[draft.localKey] || ''}
+                          onChange={(e) =>
+                            setCustomItemAmenity(prev => ({ ...prev, [draft.localKey]: e.target.value }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              const v = (customItemAmenity[draft.localKey] || '').trim()
+                              const current = draft.amenities || []
+                              if (v && !current.includes(v)) {
+                                updateDraft(draft.localKey, { amenities: [...current, v] })
+                              }
+                              setCustomItemAmenity(prev => ({ ...prev, [draft.localKey]: '' }))
+                            }
+                          }}
+                          className="flex-1 px-2.5 py-1 rounded-md border border-border bg-background text-[11px] focus:outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const v = (customItemAmenity[draft.localKey] || '').trim()
+                            const current = draft.amenities || []
+                            if (v && !current.includes(v)) {
+                              updateDraft(draft.localKey, { amenities: [...current, v] })
+                            }
+                            setCustomItemAmenity(prev => ({ ...prev, [draft.localKey]: '' }))
+                          }}
+                          disabled={!(customItemAmenity[draft.localKey] || '').trim()}
+                          className="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80 disabled:opacity-50"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
                 <div>
                   <label className="text-xs font-semibold">Photos ({draft.images.length} / 5)</label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    The first photo is the cover — click the star on any other photo to make it the cover.
+                  </p>
                   <div className="mt-1 flex flex-wrap gap-2">
-                    {draft.images.map(url => (
-                      <div key={url} className="relative">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt="item" className="h-16 w-16 rounded-lg object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => updateDraft(draft.localKey, { images: draft.images.filter(u => u !== url) })}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-background border border-border text-xs shadow"
-                          aria-label="Remove"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
+                    {draft.images.map((url, i) => {
+                      const isCover = i === 0
+                      return (
+                        <div key={url} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt="item"
+                            className={`h-16 w-16 rounded-lg object-cover ${isCover ? 'ring-2 ring-primary' : ''}`}
+                          />
+                          {isCover ? (
+                            <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-primary-foreground text-[9px] font-semibold text-center rounded-b-lg py-0.5">
+                              Cover
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDraft(draft.localKey, {
+                                  images: [url, ...draft.images.filter(u => u !== url)],
+                                })
+                              }
+                              className="absolute bottom-0.5 left-0.5 h-5 w-5 rounded-full bg-background/90 border border-border flex items-center justify-center shadow hover:bg-primary hover:text-primary-foreground transition-colors"
+                              aria-label="Make cover"
+                              title="Make this the cover photo"
+                            >
+                              <Star className="h-3 w-3" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => updateDraft(draft.localKey, { images: draft.images.filter(u => u !== url) })}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-background border border-border text-xs shadow"
+                            aria-label="Remove"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    })}
                     {draft.images.length < 5 && (
                       <label className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:border-primary">
                         {uploadingLocalKey === draft.localKey ? '…' : '+ Add'}
@@ -901,7 +1011,7 @@ export function HostServiceListingTabs(props: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
                       <div className="text-xs text-muted-foreground">
-                        ₹{i.priceRupees.toLocaleString('en-IN')}
+                        ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
                         {isRental && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
                         {' · '}Qty {i.quantity} · Max {i.maxPerBooking}/booking · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                       </div>
