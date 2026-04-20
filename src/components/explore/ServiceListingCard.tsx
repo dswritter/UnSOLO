@@ -15,21 +15,29 @@ export function ServiceListingCard({ listing }: ServiceListingCardProps) {
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
 
-  // Type-specific display logic
+  // Type-specific display logic — only render parts that have real data.
   const getMetadataDisplay = () => {
     const m = listing.metadata || {}
+    const parts: string[] = []
     switch (listing.type) {
       case 'stays':
-        return `${m.num_rooms || '?'} rooms • ${m.num_bathrooms || '?'} baths`
+        if (m.num_rooms) parts.push(`${m.num_rooms} rooms`)
+        if (m.num_bathrooms) parts.push(`${m.num_bathrooms} baths`)
+        break
       case 'activities':
-        return `${m.duration_hours || '?'}h • ${m.difficulty || 'varies'}`
+        if (m.duration_hours) parts.push(`${m.duration_hours}h`)
+        if (m.difficulty) parts.push(m.difficulty)
+        break
       case 'rentals':
-        return `${m.vehicle_type || 'Vehicle'} • ${m.mileage_limit_km || '∞'} km limit`
+        if (m.vehicle_type) parts.push(m.vehicle_type)
+        if (m.mileage_limit_km) parts.push(`${m.mileage_limit_km} km limit`)
+        break
       case 'getting_around':
-        return `${m.transport_type || 'Transport'} • ${m.capacity_persons || '?'} seats`
-      default:
-        return ''
+        if (m.transport_type) parts.push(m.transport_type)
+        if (m.capacity_persons) parts.push(`${m.capacity_persons} seats`)
+        break
     }
+    return parts.join(' • ')
   }
 
   return (

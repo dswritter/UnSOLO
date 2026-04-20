@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CheckCircle2, Share2, Home } from 'lucide-react'
+import { CheckCircle2, Share2, Home, Navigation } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
@@ -176,6 +176,53 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Navigation — shown for stays & rentals so the traveler can open
+          Google Maps directly to the listing address with one tap.
+          We encode the raw location string; Google Maps handles partial
+          addresses and landmarks well enough for practical use. */}
+      {listing?.location && (listing.type === 'stays' || listing.type === 'rentals') && (() => {
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`
+        const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(listing.location)}&navigate=yes`
+        return (
+          <div className="border border-border rounded-xl p-5 space-y-3 bg-card">
+            <div className="flex items-center gap-2">
+              <Navigation className="h-5 w-5 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Get directions</p>
+                <p className="text-xs text-muted-foreground mt-0.5 break-words">{listing.location}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-secondary/60 transition-colors"
+              >
+                {/* Google Maps logo mark */}
+                <svg viewBox="0 0 24 24" className="h-4 w-4 flex-shrink-0" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#EA4335"/>
+                  <circle cx="12" cy="9" r="2.5" fill="#fff"/>
+                </svg>
+                Google Maps
+              </a>
+              <a
+                href={wazeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-secondary/60 transition-colors"
+              >
+                {/* Waze icon approximation */}
+                <svg viewBox="0 0 24 24" className="h-4 w-4 flex-shrink-0" fill="#33CCFF" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C6.48 2 2 6.48 2 12c0 4.1 2.45 7.62 6 9.19V22l1.5-.75L11 20.5c.33.03.66.05 1 .05s.67-.02 1-.05l1.5.75L16 21.19C19.55 19.62 22 16.1 22 12c0-5.52-4.48-10-10-10z" fill="#33CCFF"/>
+                </svg>
+                Waze
+              </a>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Host contact — shown once the booking is confirmed. Gives the
           traveler the host's number (click to call) plus a direct chat

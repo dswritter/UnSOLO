@@ -321,6 +321,11 @@ export function HostServiceListingTabs(props: Props) {
   function validBusinessTab(): string | null {
     if (!title.trim()) return 'Please enter a name'
     if (destinationIds.length === 0) return 'Please add at least one location'
+    // Stays and rentals require a physical address so travelers (and later
+    // Google Maps integration) have a precise pickup / check-in point.
+    if ((type === 'stays' || type === 'rentals') && !location.trim()) {
+      return 'Please enter a specific address — it is required for stays and rentals'
+    }
     return null
   }
 
@@ -522,11 +527,7 @@ export function HostServiceListingTabs(props: Props) {
           toast.error(res.error)
           return
         }
-        if ('statusChangedToPending' in res && res.statusChangedToPending) {
-          toast.success('Item saved — changes sent for admin review. Your listing stays visible.')
-        } else {
-          toast.success('Item saved')
-        }
+        toast.success('Item saved')
       } else {
         const res = await createServiceListingItem({
           service_listing_id: props.listing.id,
@@ -545,11 +546,7 @@ export function HostServiceListingTabs(props: Props) {
         }
         if ('item' in res && res.item) {
           updateDraft(draft.localKey, { dbId: res.item.id })
-          if ('statusChangedToPending' in res && res.statusChangedToPending) {
-            toast.success('Item added — changes sent for admin review. Your listing stays visible.')
-          } else {
-            toast.success('Item added')
-          }
+          toast.success('Item added')
         }
       }
       setSavedSnapshot(serializeFormState())
@@ -770,7 +767,16 @@ export function HostServiceListingTabs(props: Props) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold">Specific address</label>
+            <label className="text-sm font-semibold">
+              Specific address{(type === 'stays' || type === 'rentals') && (
+                <span className="text-red-500 ml-0.5">*</span>
+              )}
+            </label>
+            {(type === 'stays' || type === 'rentals') && (
+              <p className="text-xs text-muted-foreground">
+                Required — shown to travelers after booking so they can navigate to you.
+              </p>
+            )}
             <input
               type="text"
               placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
@@ -896,9 +902,12 @@ export function HostServiceListingTabs(props: Props) {
 
           {mode === 'edit' && (
             <div className="pt-4 border-t border-border">
-              <Button onClick={saveBusinessEdit} disabled={saving}>
+              <Button onClick={saveBusinessEdit} disabled={saving || !isDirty}>
                 {saving ? 'Saving…' : 'Save business details'}
               </Button>
+              {!isDirty && (
+                <p className="text-xs text-muted-foreground mt-1.5">No unsaved changes.</p>
+              )}
             </div>
           )}
         </div>

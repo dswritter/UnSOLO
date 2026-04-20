@@ -97,10 +97,14 @@ export function ServiceListingsClient({ serviceListings, destinations }: Service
           </thead>
           <tbody>
             {filtered.map((listing) => (
-              <tr key={listing.id} className="border-b border-zinc-200 hover:bg-zinc-50">
+              <tr
+                key={listing.id}
+                className="border-b border-zinc-200 hover:bg-blue-50 cursor-pointer"
+                onClick={() => window.location.href = `/admin/service-listings/${listing.id}`}
+              >
                 <td className="px-4 py-3">
                   <div className="max-w-xs truncate">
-                    <div className="font-medium text-zinc-900">{listing.title}</div>
+                    <div className="font-medium text-blue-700 hover:underline">{listing.title}</div>
                     <div className="text-xs text-zinc-500">{listing.location}</div>
                   </div>
                 </td>

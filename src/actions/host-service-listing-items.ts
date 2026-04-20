@@ -188,19 +188,15 @@ export async function createServiceListingItem(input: {
     return { error: 'Failed to create item' }
   }
 
-  // Adding an item is always substantive — it changes what travelers can
-  // book. Bounce back to pending if the listing was approved, and refresh
-  // the master hero so newly-added photos show up publicly.
-  const statusChangedToPending = await maybeBounceListingToPending(
-    ctx.supabase,
-    input.service_listing_id,
-  )
+  // Refresh the master hero so newly-added photos show up publicly.
+  // Re-review is triggered only when the host saves the Business Details
+  // tab (updateHostServiceListing), not on individual item CRUD.
   await refreshListingHeroImages(ctx.supabase, input.service_listing_id)
 
   return {
     success: true,
     item: data as ServiceListingItem,
-    statusChangedToPending,
+    statusChangedToPending: false,
   }
 }
 
@@ -257,22 +253,17 @@ export async function updateServiceListingItem(
     return { error: 'Failed to update item' }
   }
 
-  // Did this edit touch anything moderation-worthy? Inventory / active
-  // toggles don't count; name / price / images / description / unit do.
-  const substantivePatch = Object.keys(patch).some(k => !OPERATIONAL_ITEM_FIELDS.has(k))
-  const listingId = (existing as { service_listing_id: string }).service_listing_id
-  let statusChangedToPending = false
-  if (substantivePatch) {
-    statusChangedToPending = await maybeBounceListingToPending(supabase, listingId)
-  }
   // Always refresh the master hero — an `images` edit here is the whole
   // reason the hero used to go stale. Cheap enough to run for any update.
+  // Re-review is triggered only when the host saves Business Details
+  // (updateHostServiceListing), not on individual item saves.
+  const listingId = (existing as { service_listing_id: string }).service_listing_id
   await refreshListingHeroImages(supabase, listingId)
 
   return {
     success: true,
     item: data as ServiceListingItem,
-    statusChangedToPending,
+    statusChangedToPending: false,
   }
 }
 
@@ -302,11 +293,11 @@ export async function deleteServiceListingItem(itemId: string) {
 
   if (error) return { error: 'Failed to delete item' }
 
-  // Removing an item changes what's bookable — always substantive.
-  const statusChangedToPending = await maybeBounceListingToPending(supabase, listingId)
+  // Refresh hero in case the deleted item was the cover image source.
+  // Re-review is triggered only via Business Details save, not item deletes.
   await refreshListingHeroImages(supabase, listingId)
 
-  return { success: true, statusChangedToPending }
+  return { success: true, statusChangedToPending: false }
 }
 
 // Public: for detail pages. RLS ensures only approved+active listings' active items are returned.
