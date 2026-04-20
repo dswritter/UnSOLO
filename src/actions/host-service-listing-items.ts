@@ -35,6 +35,8 @@ export async function listServiceListingItems(listingId: string) {
   return { items: (data || []) as ServiceListingItem[] }
 }
 
+type ItemUnit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
+
 export async function createServiceListingItem(input: {
   service_listing_id: string
   name: string
@@ -44,6 +46,8 @@ export async function createServiceListingItem(input: {
   max_per_booking: number
   images: string[]
   position_order?: number
+  unit?: ItemUnit | null
+  amenities?: string[] | null
 }) {
   const ctx = await requireHostOfListing(input.service_listing_id)
   if ('error' in ctx) return { error: ctx.error }
@@ -64,6 +68,8 @@ export async function createServiceListingItem(input: {
       max_per_booking: input.max_per_booking,
       images: input.images,
       position_order: input.position_order ?? 0,
+      unit: input.unit ?? null,
+      amenities: input.amenities ?? null,
     })
     .select('*')
     .single()
@@ -86,6 +92,8 @@ export async function updateServiceListingItem(
     images: string[]
     position_order: number
     is_active: boolean
+    unit: ItemUnit | null
+    amenities: string[] | null
   }>,
 ) {
   const supabase = await createClient()

@@ -69,6 +69,10 @@ export type HostServiceItemDraft = {
   quantity_available: number
   max_per_booking: number
   images: string[]
+  /** Rentals only: item-level pricing unit. Null on other types. */
+  unit?: ServiceUnit | null
+  /** Rentals only: item-level amenities. Null on other types. */
+  amenities?: string[] | null
 }
 
 export async function createHostServiceListing(input: {
@@ -137,6 +141,22 @@ export async function createHostServiceListing(input: {
     const minPricePaise = Math.min(...items.map(i => i.price_paise))
     const heroImages = items[0].images.slice(0, 5)
 
+    // Rentals: each item owns its unit. Master unit gets the cheapest
+    // item's unit so "from ₹X / unit" discovery cards stay coherent.
+    // Master amenities stays null — item cards render their own.
+    let effectiveMasterUnit: ServiceUnit = input.unit
+    let effectiveMasterAmenities: string[] = input.amenities
+    if (input.type === 'rentals') {
+      const cheapest = items.reduce((a, b) => (a.price_paise <= b.price_paise ? a : b))
+      if (cheapest.unit) effectiveMasterUnit = cheapest.unit
+      effectiveMasterAmenities = []
+      for (const item of items) {
+        if (!item.unit) {
+          return { error: `"${item.name}": please pick a pricing unit` }
+        }
+      }
+    }
+
     // Generate slug from title
     const slug = input.title
       .toLowerCase()
@@ -156,7 +176,7 @@ export async function createHostServiceListing(input: {
         short_description: input.short_description,
         type: input.type,
         price_paise: minPricePaise,
-        unit: input.unit,
+        unit: effectiveMasterUnit,
         destination_id: primaryDestinationId,
         destination_ids: destinationIds,
         location: input.location,
@@ -164,7 +184,7 @@ export async function createHostServiceListing(input: {
         longitude: null,
         max_guests_per_booking: null,
         quantity_available: null,
-        amenities: input.amenities.length > 0 ? input.amenities : null,
+        amenities: effectiveMasterAmenities.length > 0 ? effectiveMasterAmenities : null,
         tags: input.tags.length > 0 ? input.tags : null,
         images: heroImages.length > 0 ? heroImages : null,
         metadata: input.metadata,
@@ -193,6 +213,9 @@ export async function createHostServiceListing(input: {
         max_per_booking: item.max_per_booking,
         images: item.images,
         position_order: idx,
+        // Rentals carry per-item unit/amenities; other types leave these null.
+        unit: input.type === 'rentals' ? (item.unit ?? null) : null,
+        amenities: input.type === 'rentals' ? (item.amenities ?? []) : null,
       })))
 
     if (itemsError) {

@@ -128,10 +128,14 @@ type DraftItem = {
   quantity: number
   maxPerBooking: number
   images: string[]
+  /** Rentals only. Other types inherit master unit. */
+  unit?: Unit
+  /** Rentals only. Other types inherit master amenities. */
+  amenities?: string[]
 }
 
-function emptyDraft(): DraftItem {
-  return {
+function emptyDraft(type: ServiceListingType): DraftItem {
+  const base: DraftItem = {
     localKey: typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `new-${Math.random().toString(36).slice(2)}`,
@@ -142,10 +146,15 @@ function emptyDraft(): DraftItem {
     maxPerBooking: 1,
     images: [],
   }
+  if (type === 'rentals') {
+    base.unit = TYPE_CONFIG.rentals.defaultUnit
+    base.amenities = []
+  }
+  return base
 }
 
-function itemFromRow(row: ServiceListingItem): DraftItem {
-  return {
+function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftItem {
+  const draft: DraftItem = {
     dbId: row.id,
     localKey: row.id,
     name: row.name,
@@ -155,6 +164,11 @@ function itemFromRow(row: ServiceListingItem): DraftItem {
     maxPerBooking: row.max_per_booking,
     images: row.images,
   }
+  if (type === 'rentals') {
+    draft.unit = (row.unit as Unit) || TYPE_CONFIG.rentals.defaultUnit
+    draft.amenities = row.amenities || []
+  }
+  return draft
 }
 
 async function uploadImage(file: File): Promise<string | null> {
@@ -206,8 +220,11 @@ export function HostServiceListingTabs(props: Props) {
 
   // ── Items tab state ───────────────────────────────────────────────────
   const [items, setItems] = useState<DraftItem[]>(
-    initialItems.length > 0 ? initialItems.map(itemFromRow) : [emptyDraft()],
+    initialItems.length > 0
+      ? initialItems.map(row => itemFromRow(row, type))
+      : [emptyDraft(type)],
   )
+  const isRental = type === 'rentals'
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
   const itemDescRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
 
@@ -229,6 +246,7 @@ export function HostServiceListingTabs(props: Props) {
       if (i.quantity < 0) return `"${i.name || 'Item'}" has a negative quantity`
       if (i.maxPerBooking < 1) return `"${i.name || 'Item'}" max-per-booking must be at least 1`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
+      if (isRental && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
     }
     return null
   }
@@ -252,7 +270,7 @@ export function HostServiceListingTabs(props: Props) {
       toast.error('Maximum 100 items per listing')
       return
     }
-    setItems(prev => [...prev, emptyDraft()])
+    setItems(prev => [...prev, emptyDraft(type)])
   }
 
   function updateDraft(localKey: string, patch: Partial<DraftItem>) {
@@ -310,6 +328,8 @@ export function HostServiceListingTabs(props: Props) {
       quantity_available: i.quantity,
       max_per_booking: i.maxPerBooking,
       images: i.images,
+      unit: isRental ? (i.unit || config.defaultUnit) : null,
+      amenities: isRental ? (i.amenities || []) : null,
     }))
 
     const result = await createHostServiceListing({
@@ -317,10 +337,14 @@ export function HostServiceListingTabs(props: Props) {
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
       type,
+      // For rentals, master unit is derived server-side from the cheapest
+      // item's unit so "from ₹X / unit" cards stay coherent; client-sent
+      // unit is a harmless fallback.
       unit,
       destination_ids: destinationIds,
       location: location.trim() || null,
-      amenities,
+      // Rentals keep master amenities empty — each item owns its own.
+      amenities: isRental ? [] : amenities,
       tags,
       metadata: null,
       host_id: userId,
@@ -346,10 +370,10 @@ export function HostServiceListingTabs(props: Props) {
       title: title.trim(),
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
-      unit,
+      // Rentals: unit + amenities live on each item now, skip here.
+      ...(isRental ? {} : { unit, amenities }),
       destination_ids: destinationIds,
       location: location.trim() || null,
-      amenities,
       tags,
     })
     setSaving(false)
@@ -374,6 +398,7 @@ export function HostServiceListingTabs(props: Props) {
           quantity_available: draft.quantity,
           max_per_booking: draft.maxPerBooking,
           images: draft.images,
+          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -390,6 +415,7 @@ export function HostServiceListingTabs(props: Props) {
           max_per_booking: draft.maxPerBooking,
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
+          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -551,20 +577,23 @@ export function HostServiceListingTabs(props: Props) {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold">Pricing unit *</label>
-            <p className="text-xs text-muted-foreground">Applied to every item under this listing.</p>
-            <select
-              value={unit}
-              onChange={(e) => setUnit(e.target.value as Unit)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
-            >
-              {config.unitOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
+          {!isRental && (
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Pricing unit *</label>
+              <p className="text-xs text-muted-foreground">Applied to every item under this listing.</p>
+              <select
+                value={unit}
+                onChange={(e) => setUnit(e.target.value as Unit)}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
+              >
+                {config.unitOptions.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
+          {!isRental && (
           <div className="space-y-2">
             <label className="text-sm font-semibold">Amenities / features</label>
             <div className="flex flex-wrap gap-2">
@@ -616,6 +645,7 @@ export function HostServiceListingTabs(props: Props) {
               </button>
             </div>
           </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">Tags</label>
@@ -731,6 +761,51 @@ export function HostServiceListingTabs(props: Props) {
                   </div>
                 </div>
 
+                {isRental && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold">Pricing unit *</label>
+                      <select
+                        value={draft.unit || config.defaultUnit}
+                        onChange={(e) => updateDraft(draft.localKey, { unit: e.target.value as Unit })}
+                        className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+                      >
+                        {config.unitOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold">Amenities / features</label>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {Array.from(new Set([...config.suggestedAmenities, ...(draft.amenities || [])])).map(a => {
+                          const selected = (draft.amenities || []).includes(a)
+                          return (
+                            <button
+                              key={a}
+                              type="button"
+                              onClick={() =>
+                                updateDraft(draft.localKey, {
+                                  amenities: selected
+                                    ? (draft.amenities || []).filter(x => x !== a)
+                                    : [...(draft.amenities || []), a],
+                                })
+                              }
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                                selected
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-secondary border border-border text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {a}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-semibold">Photos ({draft.images.length} / 5)</label>
                   <div className="mt-1 flex flex-wrap gap-2">
@@ -783,7 +858,7 @@ export function HostServiceListingTabs(props: Props) {
           <div>
             <h3 className="font-bold text-lg">{title || 'Untitled listing'}</h3>
             <p className="text-xs text-muted-foreground mt-1 capitalize">
-              {config.heading.toLowerCase()} · {unit.replace('_', ' ')}
+              {config.heading.toLowerCase()}{isRental ? '' : ` · ${unit.replace('_', ' ')}`}
             </p>
             {shortDescription && (
               <p className="text-sm text-muted-foreground mt-2">{shortDescription}</p>
@@ -826,7 +901,9 @@ export function HostServiceListingTabs(props: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
                       <div className="text-xs text-muted-foreground">
-                        ₹{i.priceRupees.toLocaleString('en-IN')} · Qty {i.quantity} · Max {i.maxPerBooking}/booking · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
+                        ₹{i.priceRupees.toLocaleString('en-IN')}
+                        {isRental && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                        {' · '}Qty {i.quantity} · Max {i.maxPerBooking}/booking · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                       </div>
                     </div>
                   </div>
@@ -835,12 +912,19 @@ export function HostServiceListingTabs(props: Props) {
                       {i.description}
                     </TripDescriptionDisplay>
                   )}
+                  {isRental && i.amenities && i.amenities.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {i.amenities.map(a => (
+                        <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary">{a}</span>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
           </div>
 
-          {amenities.length > 0 && (
+          {!isRental && amenities.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold mb-1">Amenities</h4>
               <div className="flex flex-wrap gap-1.5">

@@ -328,6 +328,10 @@ export type ServiceListingItem = {
   images: string[]
   position_order: number
   is_active: boolean
+  /** Rentals only: each item carries its own unit (per_hour bike vs per_day car). Null on non-rentals. */
+  unit?: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month' | null
+  /** Rentals only: per-item amenities (one bike has GPS, another doesn't). Null on non-rentals. */
+  amenities?: string[] | null
   created_at: string
   updated_at: string
 }

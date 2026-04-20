@@ -29,6 +29,8 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
   const displayAvailable = selectedItem
     ? selectedItem.quantity_available
     : listing.quantity_available
+  const isRental = listing.type === 'rentals'
+  const displayUnit = (isRental && selectedItem?.unit) || listing.unit
 
   // Type-specific metadata display
   const getMetadataDisplay = () => {
@@ -115,8 +117,8 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
           </div>
         )}
 
-        {/* Amenities */}
-        {listing.amenities && listing.amenities.length > 0 && (
+        {/* Amenities (master level — hidden for rentals since they live per-item) */}
+        {!isRental && listing.amenities && listing.amenities.length > 0 && (
           <div>
             <h2 className="text-xl font-bold mb-4">Amenities</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -173,12 +175,24 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold truncate">{item.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {formatPrice(item.price_paise)} · {soldOut ? 'Sold out' : `${item.quantity_available} left`}
+                          {formatPrice(item.price_paise)}
+                          {isRental && item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                          {' · '}
+                          {soldOut ? 'Sold out' : `${item.quantity_available} left`}
                         </div>
                         {item.description && (
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                             {item.description}
                           </p>
+                        )}
+                        {isRental && item.amenities && item.amenities.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {item.amenities.map(a => (
+                              <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                                {a}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -218,7 +232,7 @@ export function ListingDetailClient({ listing, items = [] }: ListingDetailClient
               {formatPrice(displayPricePaise)}
             </div>
             <div className="text-sm text-muted-foreground">
-              per {listing.unit.replace('_', ' ')}
+              per {displayUnit.replace('per_', '').replace('_', ' ')}
             </div>
           </div>
 
