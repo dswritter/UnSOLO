@@ -69,7 +69,7 @@ export async function createServiceListing(input: {
   price_paise: number
   price_variants?: PriceVariant[] | null
   unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
-  destination_id: string
+  destination_ids: string[]
   location: string
   latitude?: number | null
   longitude?: number | null
@@ -95,24 +95,32 @@ export async function createServiceListing(input: {
 
   if (existing) throw new Error('Slug already exists')
 
-  // Validate destination exists
-  const { data: dest } = await supabase
+  // Validate destinations: must have at least one, and all must exist.
+  const destinationIds = Array.from(new Set(input.destination_ids.filter(Boolean)))
+  if (destinationIds.length === 0) throw new Error('Please pick at least one location')
+
+  const { data: dests } = await supabase
     .from('destinations')
     .select('id')
-    .eq('id', input.destination_id)
-    .single()
+    .in('id', destinationIds)
 
-  if (!dest) throw new Error('Destination not found')
+  if (!dests || dests.length !== destinationIds.length) {
+    throw new Error('One or more locations could not be found')
+  }
+  const primaryDestinationId = destinationIds[0]
 
   // Validate images
   if (!input.images || input.images.length === 0) {
     throw new Error('At least one image is required')
   }
 
+  const { destination_ids: _omit, ...rest } = input
   const { data, error } = await supabase
     .from('service_listings')
     .insert({
-      ...input,
+      ...rest,
+      destination_id: primaryDestinationId,
+      destination_ids: destinationIds,
       price_variants: input.price_variants || null,
     })
     .select()
@@ -139,6 +147,7 @@ export async function updateServiceListing(
     price_paise: number
     price_variants: PriceVariant[] | null
     unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
+    destination_ids: string[]
     location: string
     latitude: number | null
     longitude: number | null
@@ -169,10 +178,30 @@ export async function updateServiceListing(
     if (existing) throw new Error('Slug already exists')
   }
 
+  // If destination_ids provided, validate and derive primary
+  let destinationPatch: { destination_id?: string; destination_ids?: string[] } = {}
+  if (input.destination_ids) {
+    const destinationIds = Array.from(new Set(input.destination_ids.filter(Boolean)))
+    if (destinationIds.length === 0) throw new Error('Please pick at least one location')
+    const { data: dests } = await supabase
+      .from('destinations')
+      .select('id')
+      .in('id', destinationIds)
+    if (!dests || dests.length !== destinationIds.length) {
+      throw new Error('One or more locations could not be found')
+    }
+    destinationPatch = {
+      destination_id: destinationIds[0],
+      destination_ids: destinationIds,
+    }
+  }
+
+  const { destination_ids: _omit, ...rest } = input
   const { data, error } = await supabase
     .from('service_listings')
     .update({
-      ...input,
+      ...rest,
+      ...destinationPatch,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

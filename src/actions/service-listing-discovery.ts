@@ -28,7 +28,7 @@ export async function getServiceListingsByType(
 
   // Apply filters
   if (filters.destination_id) {
-    query = query.eq('destination_id', filters.destination_id)
+    query = query.contains('destination_ids', [filters.destination_id])
   }
 
   if (filters.min_price) {
@@ -168,16 +168,21 @@ export async function getRelatedServicesForPackage(
   }
 
   // Get nearby listings (auto-geo) by destination
-  const { data: nearby } = await supabase
+  let nearbyQuery = supabase
     .from('service_listings')
     .select('*')
-    .eq('destination_id', destinationId)
+    .contains('destination_ids', [destinationId])
     .eq('is_active', true)
     .eq('status', 'approved')
-    .not('id', 'in', `(${curatedLinks.join(',')})`) // Exclude already-curated
     .order('is_featured', { ascending: false })
     .order('average_rating', { ascending: false })
     .limit(12)
+
+  if (curatedLinks.length > 0) {
+    nearbyQuery = nearbyQuery.not('id', 'in', `(${curatedLinks.join(',')})`)
+  }
+
+  const { data: nearby } = await nearbyQuery
 
   return {
     curated: curated as ServiceListing[],
@@ -197,7 +202,7 @@ export async function getServiceListingsByDestination(
   let query = supabase
     .from('service_listings')
     .select('*')
-    .eq('destination_id', destinationId)
+    .contains('destination_ids', [destinationId])
     .eq('is_active', true)
     .eq('status', 'approved')
 

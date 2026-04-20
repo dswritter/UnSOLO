@@ -236,7 +236,10 @@ export type ServiceListing = {
   price_variants?: { description: string; price_paise: number }[] | null
   unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
   location: string
+  /** Primary destination (kept for joins/back-compat; equals `destination_ids[0]`). */
   destination_id: string
+  /** Full set of destinations this listing is offered at. First entry is the primary. */
+  destination_ids: string[]
   latitude: number | null
   longitude: number | null
   max_guests_per_booking: number | null

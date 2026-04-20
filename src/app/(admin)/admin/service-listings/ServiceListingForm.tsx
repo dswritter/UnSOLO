@@ -56,6 +56,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const [type, setType] = useState<ServiceListingType>(listing?.type || 'stays')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addingLocation, setAddingLocation] = useState(false)
 
   const [formData, setFormData] = useState({
     title: listing?.title || '',
@@ -65,7 +66,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
     price_paise: listing?.price_paise || 0,
     price_variants: (listing?.price_variants || []) as PriceVariant[],
     unit: (listing?.unit || 'per_night') as ServiceListing['unit'],
-    destination_id: listing?.destination_id || '',
+    destination_ids: (listing?.destination_ids && listing.destination_ids.length > 0
+      ? listing.destination_ids
+      : listing?.destination_id
+        ? [listing.destination_id]
+        : []) as string[],
     location: listing?.location || '',
     latitude: listing?.latitude || null,
     longitude: listing?.longitude || null,
@@ -185,20 +190,68 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <h2 className="mb-4 text-lg font-semibold">Location</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Destination</label>
-            <select
-              required
-              value={formData.destination_id}
-              onChange={(e) => setFormData({ ...formData, destination_id: e.target.value })}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
-            >
-              <option value="">Select a destination</option>
-              {destinations.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-zinc-700">Locations</label>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              {formData.destination_ids.map(id => {
+                const d = destinations.find(x => x.id === id)
+                if (!d) return null
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm"
+                  >
+                    {d.name}
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        destination_ids: prev.destination_ids.filter(x => x !== id),
+                      }))}
+                      className="text-blue-600 hover:text-blue-800"
+                      aria-label={`Remove ${d.name}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                )
+              })}
+
+              {addingLocation ? (
+                <select
+                  autoFocus
+                  value=""
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) {
+                      setFormData(prev => ({ ...prev, destination_ids: [...prev.destination_ids, v] }))
+                    }
+                    setAddingLocation(false)
+                  }}
+                  onBlur={() => setAddingLocation(false)}
+                  className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                >
+                  <option value="">Pick a destination...</option>
+                  {destinations
+                    .filter(d => !formData.destination_ids.includes(d.id))
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setAddingLocation(true)}
+                  className="rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50"
+                >
+                  + Add location
+                </button>
+              )}
+            </div>
+            {formData.destination_ids.length === 0 && (
+              <p className="mt-1 text-xs text-zinc-500">At least one location is required.</p>
+            )}
           </div>
 
           <div>
@@ -285,6 +338,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 <option value="per_day">Per Day</option>
                 <option value="per_hour">Per Hour</option>
                 <option value="per_week">Per Week</option>
+                <option value="per_month">Per Month</option>
               </select>
             </div>
           </div>

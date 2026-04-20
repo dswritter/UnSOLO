@@ -50,9 +50,10 @@ export function HostServiceListingForm({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [customAmenityInput, setCustomAmenityInput] = useState('')
+  const [addingLocation, setAddingLocation] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
-    destinationId: '',
+    destinationIds: [] as string[],
     location: '',
     shortDescription: '',
     description: '',
@@ -75,13 +76,13 @@ export function HostServiceListingForm({
   }
 
   const config = TYPE_CONFIGS[type]
-  const selectedDest = destinations.find(d => d.id === formData.destinationId)
+  const availableDestinations = destinations.filter(d => !formData.destinationIds.includes(d.id))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
-    if (!formData.destinationId) {
-      toast.error('Please select a destination')
+    if (formData.destinationIds.length === 0) {
+      toast.error('Please select at least one location')
       return
     }
 
@@ -94,7 +95,7 @@ export function HostServiceListingForm({
 
     try {
       const result = await createHostServiceListing({
-        destination_id: formData.destinationId,
+        destination_ids: formData.destinationIds,
         title: formData.title,
         type,
         description: formData.description || null,
@@ -130,21 +131,70 @@ export function HostServiceListingForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-card border border-border rounded-xl p-6">
-      {/* Destination */}
+      {/* Locations (multi) */}
       <div className="space-y-2">
-        <label className="text-sm font-semibold">Destination *</label>
-        <select
-          value={formData.destinationId}
-          onChange={(e) => setFormData(prev => ({ ...prev, destinationId: e.target.value }))}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
-        >
-          <option value="">Select a destination...</option>
-          {destinations.map(dest => (
-            <option key={dest.id} value={dest.id}>
-              {dest.name}, {dest.state}
-            </option>
-          ))}
-        </select>
+        <label className="text-sm font-semibold">Locations *</label>
+        <div className="flex flex-wrap items-center gap-2">
+          {formData.destinationIds.map(id => {
+            const d = destinations.find(x => x.id === id)
+            if (!d) return null
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium"
+              >
+                {d.name}, {d.state}
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({
+                    ...prev,
+                    destinationIds: prev.destinationIds.filter(x => x !== id),
+                  }))}
+                  className="ml-1 opacity-80 hover:opacity-100"
+                  aria-label={`Remove ${d.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            )
+          })}
+
+          {addingLocation ? (
+            <select
+              autoFocus
+              value=""
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) {
+                  setFormData(prev => ({ ...prev, destinationIds: [...prev.destinationIds, v] }))
+                }
+                setAddingLocation(false)
+              }}
+              onBlur={() => setAddingLocation(false)}
+              className="px-3 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-xs"
+            >
+              <option value="">Pick a location...</option>
+              {availableDestinations.map(dest => (
+                <option key={dest.id} value={dest.id}>
+                  {dest.name}, {dest.state}
+                </option>
+              ))}
+            </select>
+          ) : (
+            availableDestinations.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAddingLocation(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80"
+              >
+                + Add location
+              </button>
+            )
+          )}
+        </div>
+        {formData.destinationIds.length === 0 && (
+          <p className="text-xs text-muted-foreground">Pick one or more locations where this listing is offered.</p>
+        )}
       </div>
 
       {/* Title */}

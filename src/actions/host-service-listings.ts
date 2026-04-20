@@ -10,7 +10,7 @@ export async function createHostServiceListing(input: {
   type: ServiceListingType
   price_paise: number
   unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
-  destination_id: string
+  destination_ids: string[]
   location: string | null
   max_guests_per_booking?: number | null
   quantity_available?: number | null
@@ -33,16 +33,21 @@ export async function createHostServiceListing(input: {
       return { error: 'Unauthorized' }
     }
 
-    // Verify destination exists
-    const { data: dest } = await supabase
+    // Validate destinations: must have at least one, and all must exist.
+    const destinationIds = Array.from(new Set(input.destination_ids.filter(Boolean)))
+    if (destinationIds.length === 0) {
+      return { error: 'Please pick at least one location' }
+    }
+
+    const { data: dests } = await supabase
       .from('destinations')
       .select('id')
-      .eq('id', input.destination_id)
-      .single()
+      .in('id', destinationIds)
 
-    if (!dest) {
-      return { error: 'Destination not found' }
+    if (!dests || dests.length !== destinationIds.length) {
+      return { error: 'One or more locations could not be found' }
     }
+    const primaryDestinationId = destinationIds[0]
 
     // Generate slug from title
     const slug = input.title
@@ -64,7 +69,8 @@ export async function createHostServiceListing(input: {
         type: input.type,
         price_paise: input.price_paise,
         unit: input.unit,
-        destination_id: input.destination_id,
+        destination_id: primaryDestinationId,
+        destination_ids: destinationIds,
         location: input.location,
         latitude: null,
         longitude: null,
