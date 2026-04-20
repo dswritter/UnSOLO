@@ -53,6 +53,7 @@ interface ExploreSidebarProps {
   activeTab: 'trips' | ServiceListingType
   resultCount: number
   isLoading?: boolean
+  maxPackagePrice?: number
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -64,7 +65,7 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
   )
 }
 
-export function ExploreSidebar({ params, activeTab, resultCount, isLoading = false }: ExploreSidebarProps) {
+export function ExploreSidebar({ params, activeTab, resultCount, isLoading = false, maxPackagePrice = 2000000 }: ExploreSidebarProps) {
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
@@ -202,9 +203,9 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
           <FilterSection label="Budget">
             <PriceSlider
               minValue={0}
-              maxValue={2000000}
+              maxValue={maxPackagePrice}
               currentMin={parseInt(getCurrentValue('minBudget', '0')) || 0}
-              currentMax={parseInt(getCurrentValue('maxBudget', '2000000')) || 2000000}
+              currentMax={parseInt(getCurrentValue('maxBudget', String(maxPackagePrice))) || maxPackagePrice}
               onMinChange={(value) => {
                 setOptimisticParams((prev) => ({
                   ...prev,

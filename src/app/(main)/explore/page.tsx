@@ -61,6 +61,19 @@ async function fetchPopularityMaps(
   return { bookedGuests, interestCount }
 }
 
+async function getMaxPackagePrice(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
+  const { data } = await supabase
+    .from('packages')
+    .select('price_paise')
+    .eq('is_active', true)
+    .order('price_paise', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!data?.price_paise) return 2000000 // fallback to 2 lakhs
+  return Math.ceil(data.price_paise / 100) // convert paise to rupees and round up
+}
+
 async function getPackages(searchParams: Record<string, string>) {
   const supabase = await createClient()
   const tripSource = searchParams.tripSource
@@ -203,18 +216,20 @@ export default async function ExplorePage({
 }) {
   const params = await searchParams
   const activeTab = (params.tab || 'trips') as 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
+  const supabase = await createClient()
 
   let packages: Package[] = []
   let serviceListings: ServiceListing[] = []
   let resultCount = 0
   let interestedPackageIds: string[] = []
+  let maxPackagePrice = 2000000
 
   if (activeTab === 'trips') {
     packages = await getPackages(params)
     resultCount = packages.length
+    maxPackagePrice = await getMaxPackagePrice(supabase)
 
     // Fetch user's interested packages
-    const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       const { data: interests } = await supabase
@@ -236,6 +251,7 @@ export default async function ExplorePage({
       resultCount={resultCount}
       activeTab={activeTab}
       interestedPackageIds={interestedPackageIds}
+      maxPackagePrice={maxPackagePrice}
     />
   )
 }

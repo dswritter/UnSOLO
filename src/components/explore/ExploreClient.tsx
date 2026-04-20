@@ -54,6 +54,7 @@ interface ExploreClientProps {
   resultCount: number
   activeTab: TabType
   interestedPackageIds?: string[]
+  maxPackagePrice?: number
 }
 
 export function ExploreClient({
@@ -63,6 +64,7 @@ export function ExploreClient({
   resultCount,
   activeTab: initialTab,
   interestedPackageIds = [],
+  maxPackagePrice = 2000000,
 }: ExploreClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -151,7 +153,7 @@ export function ExploreClient({
         <div className="flex gap-6 flex-1">
           {/* Desktop Sidebar - hidden on mobile */}
           <div className="hidden lg:block w-64 flex-shrink-0">
-            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} isLoading={isLoading} />
+            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} isLoading={isLoading} maxPackagePrice={maxPackagePrice} />
           </div>
 
           {/* Results Grid */}
