@@ -434,6 +434,21 @@ export function HostServiceListingTabs(props: Props) {
       ? { lat: initialListing.latitude as number, lon: initialListing.longitude as number }
       : null,
   )
+  const [pinDisplayName, setPinDisplayName] = useState<string | null>(null)
+
+  // For edit mode: reverse-geocode the saved pin on mount so the chip
+  // below the address input shows a readable place name rather than raw coords.
+  useEffect(() => {
+    if (!pinLatLon || pinDisplayName) return
+    let cancelled = false
+    void (async () => {
+      const name = await reverseGeocode(pinLatLon.lat, pinLatLon.lon)
+      if (!cancelled) setPinDisplayName(name)
+    })()
+    return () => { cancelled = true }
+    // Run once on mount — we don't want to re-fetch when pinDisplayName changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [shortDescription, setShortDescription] = useState(initialListing?.short_description || '')
   const [description, setDescription] = useState(initialListing?.description || '')
   const [unit, setUnit] = useState<Unit>((initialListing?.unit as Unit) || config.defaultUnit)
@@ -547,10 +562,11 @@ export function HostServiceListingTabs(props: Props) {
   function validBusinessTab(): string | null {
     if (!title.trim()) return 'Please enter a name'
     if (destinationIds.length === 0) return 'Please add at least one location'
-    // Stays and rentals require a physical address so travelers (and later
-    // Google Maps integration) have a precise pickup / check-in point.
-    if ((type === 'stays' || type === 'rentals') && !location.trim()) {
-      return 'Please enter a specific address — it is required for stays and rentals'
+    // Stays and rentals need a map pin so travelers can navigate with GPS.
+    // The free-text address field (building / floor / landmark) is optional
+    // metadata on top — coords are what actually drive navigation.
+    if ((type === 'stays' || type === 'rentals') && !pinLatLon) {
+      return 'Please drop a map pin — use search, paste a Google Maps link, or tap "current location"'
     }
     return null
   }
@@ -575,8 +591,8 @@ export function HostServiceListingTabs(props: Props) {
     const errs: ValidationError[] = []
     if (!title.trim()) errs.push({ label: 'Business / property name', fieldId: 'field-title' })
     if (destinationIds.length === 0) errs.push({ label: 'Location (add at least one destination)', fieldId: 'field-location' })
-    if ((type === 'stays' || type === 'rentals') && !location.trim())
-      errs.push({ label: 'Specific address — required for stays & rentals', fieldId: 'field-address' })
+    if ((type === 'stays' || type === 'rentals') && !pinLatLon)
+      errs.push({ label: 'Map pin — required for stays & rentals', fieldId: 'field-address' })
     return errs
   }
 
@@ -1025,20 +1041,17 @@ export function HostServiceListingTabs(props: Props) {
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">
-              Specific address{(type === 'stays' || type === 'rentals') && (
-                <span className="text-red-500 ml-0.5">*</span>
-              )}
+              Address details <span className="text-xs font-normal text-muted-foreground">(optional)</span>
             </label>
-            {(type === 'stays' || type === 'rentals') && (
-              <p className="text-xs text-muted-foreground">
-                Required — shown to travelers after booking so they can navigate to you.
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Building name, floor, landmark — anything beyond what a map pin can show.
+              e.g., <em>2nd floor, above Cafe Coffee Day</em>.
+            </p>
             <div className="relative" ref={suggestionsRef}>
               <input
                 id="field-address"
                 type="text"
-                placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
+                placeholder="Building / floor / landmark (optional)"
                 value={location}
                 onChange={(e) => { setLocation(e.target.value); setShowSuggestions(false) }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); previewLocationOnMap() } }}
@@ -1120,6 +1133,49 @@ export function HostServiceListingTabs(props: Props) {
                     Use link
                   </button>
                 </div>
+              )}
+            </div>
+
+            {/* Map pin — separate required field for stays/rentals. Holds the
+                coordinates used for GPS navigation, independent of the free-text
+                address above (which is for building / floor / landmark info). */}
+            <div className="pt-1">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Map pin{(type === 'stays' || type === 'rentals') && (
+                  <span className="text-red-500 ml-0.5">*</span>
+                )}
+              </label>
+              {pinLatLon ? (
+                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/30">
+                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${pinLatLon.lat},${pinLatLon.lon}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-primary hover:underline truncate block"
+                      title="Open in Google Maps"
+                    >
+                      {pinDisplayName || 'Saved map pin'}
+                    </a>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {pinLatLon.lat.toFixed(5)}, {pinLatLon.lon.toFixed(5)} · Opens in Google Maps
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setPinLatLon(null); setPinDisplayName(null) }}
+                    className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-colors"
+                    title="Remove pin"
+                    aria-label="Remove map pin"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <p className={`mt-1.5 text-xs ${(type === 'stays' || type === 'rentals') ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                  No pin set yet — use the search icon, paste a Google Maps link, or tap the locate button above.
+                </p>
               )}
             </div>
           </div>
@@ -1720,8 +1776,10 @@ export function HostServiceListingTabs(props: Props) {
               lat={mapPreview.lat}
               lon={mapPreview.lon}
               onChange={(newLat, newLon, displayName) => {
+                // Only update the preview while dragging — the pin isn't
+                // committed to the form until "Use this location" is clicked,
+                // so closing the modal doesn't leak an unintended pin.
                 setMapPreview({ lat: newLat, lon: newLon, displayName })
-                setPinLatLon({ lat: newLat, lon: newLon })
               }}
             />
             <div className="flex flex-wrap justify-between items-center gap-2 pt-1">
@@ -1741,12 +1799,12 @@ export function HostServiceListingTabs(props: Props) {
                   size="sm"
                   onClick={() => {
                     setPinLatLon({ lat: mapPreview.lat, lon: mapPreview.lon })
-                    setLocation(mapPreview.displayName)
+                    setPinDisplayName(mapPreview.displayName)
                     setMapPreview(null)
-                    toast.success('Location updated')
+                    toast.success('Map pin saved')
                   }}
                 >
-                  Use this location
+                  Use this pin
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setMapPreview(null)}>
                   Close
