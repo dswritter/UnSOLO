@@ -78,7 +78,11 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
 
   const isReReview = !!listing.first_approved_at
-  const previewUrl = `/listings/${listing.type}/${listing.slug}`
+  // Use admin preview route for pending listings without first_approved_at —
+  // those are invisible to the public discovery query so the public URL 404s.
+  const previewUrl = listing.first_approved_at
+    ? `/listings/${listing.type}/${listing.slug}`
+    : `/admin/service-listings/${listing.id}/preview`
 
   async function handleApprove() {
     if (!confirm('Approve this listing? It will become publicly visible immediately.')) return
