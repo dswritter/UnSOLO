@@ -196,42 +196,42 @@ export function Navbar({ user }: NavbarProps) {
                 <NotificationBell userId={user.id} />
                 <DropdownMenu>
                   <DropdownMenuTrigger>
-                    <Avatar className="h-9 w-9 border border-border cursor-pointer">
+                    <Avatar className="h-11 w-11 border-2 border-border cursor-pointer hover:border-primary/50 transition-colors">
                       <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
                         {getInitials(user.full_name || user.username)}
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                    <div className="px-3 py-2">
-                      <p className="text-sm font-semibold truncate">{user.full_name || user.username}</p>
-                      <p className="text-xs text-muted-foreground">@{user.username}</p>
+                  <DropdownMenuContent align="end" className="w-60 bg-card border-border">
+                    <div className="px-4 py-3">
+                      <p className="text-base font-semibold truncate">{user.full_name || user.username}</p>
+                      <p className="text-sm text-muted-foreground">@{user.username}</p>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => router.push(`/profile/${user.username}`)}>
-                      <User className="mr-2 h-4 w-4" /> My Profile
+                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push(`/profile/${user.username}`)}>
+                      <User className="mr-3 h-4 w-4" /> My Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push('/profile')}>
-                      <Pencil className="mr-2 h-4 w-4" /> Edit Profile
+                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/profile')}>
+                      <Pencil className="mr-3 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push('/bookings')}>
-                      <BookOpen className="mr-2 h-4 w-4" /> My Trips
+                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/bookings')}>
+                      <BookOpen className="mr-3 h-4 w-4" /> My Trips
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push('/referrals')}>
-                      <Gift className="mr-2 h-4 w-4 text-primary" /> Refer & Earn
+                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/referrals')}>
+                      <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
-                      <DropdownMenuItem onClick={() => router.push('/admin')}>
-                        <Shield className="mr-2 h-4 w-4 text-red-400" /> Admin Panel
+                      <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/admin')}>
+                        <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-destructive"
+                      className="py-2.5 text-sm text-destructive"
                       onClick={() => signOut()}
                     >
-                      <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                      <LogOut className="mr-3 h-4 w-4" /> Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

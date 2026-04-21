@@ -27,7 +27,7 @@ export function MobileChatButton({ isAuthenticated = false }: MobileChatButtonPr
   return (
     <button
       onClick={handleClick}
-      className="md:hidden fixed bottom-20 md:bottom-6 right-6 z-40 bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all active:scale-95"
+      className="fixed bottom-20 md:bottom-6 right-6 z-40 bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all active:scale-95"
       aria-label="Open Tribe community chat"
     >
       <MessageCircle className="h-6 w-6" />

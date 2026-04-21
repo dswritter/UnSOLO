@@ -28,10 +28,13 @@ export async function proxy(request: NextRequest) {
       },
     )
 
-    // Refresh the session and write updated cookies back to the browser.
-    // This is what keeps the session alive across tabs in Chrome.
-    // Do NOT add any logic between createServerClient and getUser().
-    const { data: { user } } = await supabase.auth.getUser()
+    // Use getSession() here — reads the JWT from cookies locally with no
+    // network round-trip. getUser() (which calls the Supabase auth server on
+    // every request) can intermittently return null in Chrome when the token
+    // is valid but the upstream call is slow or fails, causing spurious logouts.
+    // Token validity and expiry are still enforced; refresh happens via the
+    // Supabase client when the access token is near expiry.
+    const { data: { session } } = await supabase.auth.getSession()
 
     const { pathname } = request.nextUrl
 
@@ -47,7 +50,7 @@ export async function proxy(request: NextRequest) {
       return supabaseResponse
     }
 
-    if (!user) {
+    if (!session) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('redirectTo', pathname)

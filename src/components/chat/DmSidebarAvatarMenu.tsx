@@ -97,29 +97,13 @@ export function DmSidebarAvatarMenu({
   if (!hasStatus) {
     return (
       <>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className="relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                onClick={e => e.stopPropagation()}
-              >
-                {avatarButton}
-              </button>
-            }
-          />
-          <DropdownMenuContent align="start" className="min-w-[12rem] bg-card border-border z-[200]">
-            {avatarUrl && (
-              <DropdownMenuItem
-                className="cursor-pointer"
-                onClick={e => { e.preventDefault(); setPicOpen(true) }}
-              >
-                <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          className="relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          onClick={e => { e.stopPropagation(); if (avatarUrl) setPicOpen(true) }}
+        >
+          {avatarButton}
+        </button>
 
         {picOpen && avatarUrl ? (
           <div className="fixed inset-0 z-[640] bg-black/85 flex items-center justify-center p-4" onClick={() => setPicOpen(false)}>
