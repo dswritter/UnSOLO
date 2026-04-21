@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Image as ImageIcon, Sparkles, User, X } from 'lucide-react'
+import { Image as ImageIcon, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -118,12 +118,6 @@ export function DmSidebarAvatarMenu({
                 <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={e => { e.preventDefault(); router.push(`/profile/${username}`) }}
-            >
-              <User className="h-4 w-4 mr-2" /> View profile
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -176,12 +170,6 @@ export function DmSidebarAvatarMenu({
               <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={e => { e.preventDefault(); router.push(`/profile/${username}`) }}
-          >
-            <User className="h-4 w-4 mr-2" /> View profile
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
