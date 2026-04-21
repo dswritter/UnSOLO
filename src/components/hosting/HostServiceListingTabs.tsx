@@ -9,7 +9,7 @@ const DraggablePinMap = dynamic(
 )
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2 } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -212,28 +212,110 @@ export function HostServiceListingTabs(props: Props) {
   const [validationPopup, setValidationPopup] = useState<ValidationError[] | null>(null)
 
   // ── Address map preview ───────────────────────────────────────────────
+  type GeoResult = { lat: string; lon: string; display_name: string }
   const [mapPreview, setMapPreview] = useState<{ lat: number; lon: number; displayName: string } | null>(null)
   const [geocoding, setGeocoding] = useState(false)
+  const [geoSuggestions, setGeoSuggestions] = useState<GeoResult[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [mapsUrlInput, setMapsUrlInput] = useState('')
+  const [showMapsUrl, setShowMapsUrl] = useState(false)
+  const [mapsUrlLoading, setMapsUrlLoading] = useState(false)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  // Close suggestions dropdown on outside click
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [])
+
+  function openMapAt(r: GeoResult) {
+    setShowSuggestions(false)
+    setGeoSuggestions([])
+    setMapPreview({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), displayName: r.display_name })
+  }
 
   async function previewLocationOnMap() {
     const addr = location.trim()
     if (!addr) { toast.error('Enter an address first'); return }
     setGeocoding(true)
+    setGeoSuggestions([])
+    setShowSuggestions(false)
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'en' } },
-      )
-      const data: Array<{ lat: string; lon: string; display_name: string }> = await res.json()
+      // Try with India bias first, then global fallback
+      const trySearch = async (extra = '') => {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=5&addressdetails=1${extra}`,
+          { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
+        )
+        return res.json() as Promise<GeoResult[]>
+      }
+      let data = await trySearch('&countrycodes=in')
+      if (!data || data.length === 0) data = await trySearch()
+
       if (!data || data.length === 0) {
-        toast.error('Address not found — try adding city / state for better results')
+        toast.error('Address not found — try pasting a Google Maps link below')
+        setShowMapsUrl(true)
         return
       }
-      setMapPreview({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), displayName: data[0].display_name })
+      if (data.length === 1) {
+        openMapAt(data[0])
+      } else {
+        setGeoSuggestions(data)
+        setShowSuggestions(true)
+      }
     } catch {
       toast.error('Could not load map preview')
     } finally {
       setGeocoding(false)
+    }
+  }
+
+  /** Extract @lat,lon from a Google Maps long URL */
+  function parseGoogleMapsCoords(url: string): { lat: number; lon: number } | null {
+    const m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+    if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) }
+    const q = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+    if (q) return { lat: parseFloat(q[1]), lon: parseFloat(q[2]) }
+    return null
+  }
+
+  async function handleMapsUrl() {
+    const raw = mapsUrlInput.trim()
+    if (!raw) return
+    setMapsUrlLoading(true)
+    try {
+      let finalUrl = raw
+      // Short URLs need server-side redirect resolution
+      if (/maps\.app\.goo\.gl|goo\.gl\/maps/.test(raw)) {
+        const res = await fetch(`/api/resolve-maps-url?url=${encodeURIComponent(raw)}`)
+        const json = await res.json()
+        if (!json.url) throw new Error('Could not resolve short link')
+        finalUrl = json.url
+      }
+      const coords = parseGoogleMapsCoords(finalUrl)
+      if (!coords) throw new Error('No coordinates found in this link — try copying the full Google Maps URL')
+      // Reverse-geocode to get a human-readable address
+      const rev = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${coords.lat}&lon=${coords.lon}&format=json`,
+        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
+      )
+      const revData: { display_name?: string } = await rev.json()
+      setMapPreview({
+        lat: coords.lat,
+        lon: coords.lon,
+        displayName: revData.display_name || `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`,
+      })
+      setMapsUrlInput('')
+      setShowMapsUrl(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not process that link')
+    } finally {
+      setMapsUrlLoading(false)
     }
   }
 
@@ -850,13 +932,14 @@ export function HostServiceListingTabs(props: Props) {
                 Required — shown to travelers after booking so they can navigate to you.
               </p>
             )}
-            <div className="relative">
+            <div className="relative" ref={suggestionsRef}>
               <input
                 id="field-address"
                 type="text"
                 placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => { setLocation(e.target.value); setShowSuggestions(false) }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); previewLocationOnMap() } }}
                 className="w-full px-3 py-2 pr-10 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
               />
               <button
@@ -864,10 +947,69 @@ export function HostServiceListingTabs(props: Props) {
                 onClick={previewLocationOnMap}
                 disabled={geocoding || !location.trim()}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
-                title="Preview this address on a map"
+                title="Search this address on the map"
               >
                 {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
               </button>
+
+              {/* Multi-result suggestions dropdown */}
+              {showSuggestions && geoSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                  <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
+                    Multiple results — pick the right one
+                  </p>
+                  {geoSuggestions.map((r, i) => {
+                    const parts = r.display_name.split(', ')
+                    const primary = parts.slice(0, 2).join(', ')
+                    const secondary = parts.slice(2).join(', ')
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => openMapAt(r)}
+                        className="w-full text-left px-3 py-2.5 hover:bg-primary/10 transition-colors border-b border-border last:border-0"
+                      >
+                        <p className="text-sm font-medium truncate">{primary}</p>
+                        {secondary && <p className="text-xs text-muted-foreground truncate">{secondary}</p>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Google Maps URL fallback */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowMapsUrl(v => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors mt-1"
+              >
+                <LinkIcon className="h-3 w-3" />
+                Paste a Google Maps link instead
+                <ChevronDown className={`h-3 w-3 transition-transform ${showMapsUrl ? 'rotate-180' : ''}`} />
+              </button>
+              {showMapsUrl && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://maps.app.goo.gl/... or google.com/maps/place/..."
+                    value={mapsUrlInput}
+                    onChange={(e) => setMapsUrlInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleMapsUrl() } }}
+                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleMapsUrl}
+                    disabled={mapsUrlLoading || !mapsUrlInput.trim()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors whitespace-nowrap"
+                  >
+                    {mapsUrlLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
+                    Use link
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
