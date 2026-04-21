@@ -284,11 +284,23 @@ export default async function ExplorePage({
   let resultCount = 0
   let interestedPackageIds: string[] = []
   let maxPackagePrice = 2000000
+  let spotsBooked: Record<string, number> = {}
+  let interestCounts: Record<string, number> = {}
 
   if (activeTab === 'trips') {
     packages = await getPackages(params)
     resultCount = packages.length
     maxPackagePrice = await getMaxPackagePrice(supabase)
+
+    // Re-use the popularity data already fetched inside getPackages — but
+    // getPackages doesn't expose it, so we do a lightweight second pass
+    // using only confirmed/completed bookings (guest count = spots consumed).
+    if (packages.length > 0) {
+      const ids = packages.map(p => p.id)
+      const { bookedGuests, interestCount } = await fetchPopularityMaps(supabase, ids)
+      for (const [id, count] of bookedGuests) spotsBooked[id] = count
+      for (const [id, count] of interestCount) interestCounts[id] = count
+    }
 
     // Fetch user's interested packages
     const { data: { user } } = await supabase.auth.getUser()
@@ -313,6 +325,8 @@ export default async function ExplorePage({
       activeTab={activeTab}
       interestedPackageIds={interestedPackageIds}
       maxPackagePrice={maxPackagePrice}
+      spotsBooked={spotsBooked}
+      interestCounts={interestCounts}
     />
   )
 }

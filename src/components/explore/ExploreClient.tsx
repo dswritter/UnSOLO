@@ -49,6 +49,25 @@ const GENDER_LABELS: Record<string, string> = {
   all: 'All genders',
 }
 
+type RecentlyViewedPkg = { id: string; title: string; slug: string; image: string | null; destName: string }
+
+const RECENTLY_VIEWED_KEY = 'rv_packages'
+const RECENTLY_VIEWED_MAX = 8
+
+function readRecentlyViewed(): RecentlyViewedPkg[] {
+  if (typeof window === 'undefined') return []
+  try { return JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || '[]') } catch { return [] }
+}
+
+function writeRecentlyViewed(pkg: RecentlyViewedPkg) {
+  if (typeof window === 'undefined') return
+  try {
+    const list = readRecentlyViewed().filter(p => p.id !== pkg.id)
+    list.unshift(pkg)
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list.slice(0, RECENTLY_VIEWED_MAX)))
+  } catch {}
+}
+
 interface ExploreClientProps {
   packages: Package[]
   serviceListings: ServiceListingWithItems[]
@@ -57,6 +76,8 @@ interface ExploreClientProps {
   activeTab: TabType
   interestedPackageIds?: string[]
   maxPackagePrice?: number
+  spotsBooked?: Record<string, number>
+  interestCounts?: Record<string, number>
 }
 
 export function ExploreClient({
@@ -67,6 +88,8 @@ export function ExploreClient({
   activeTab: initialTab,
   interestedPackageIds = [],
   maxPackagePrice = 2000000,
+  spotsBooked = {},
+  interestCounts = {},
 }: ExploreClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -84,6 +107,8 @@ export function ExploreClient({
   })
   const prevParamsRef = useRef<string>('')
   const interestedSet = new Set(interestedPackageIds)
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPkg[]>([])
+  useEffect(() => { setRecentlyViewed(readRecentlyViewed()) }, [])
 
   const toggleWishlist = (packageId: string) => {
     setWishlisted(prev => {
@@ -137,6 +162,34 @@ export function ExploreClient({
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
+        {/* Recently Viewed Strip */}
+        {recentlyViewed.length > 0 && isTripsTab && (
+          <div className="mb-5">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recently Viewed</h2>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {recentlyViewed.map(rv => (
+                <button
+                  key={rv.id}
+                  onClick={() => router.push(`/packages/${rv.slug}`)}
+                  className="flex-shrink-0 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 hover:border-primary/40 transition-colors text-left"
+                >
+                  {rv.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                      <Mountain className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold truncate max-w-[120px]">{rv.title}</p>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{rv.destName}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Tabs */}
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
           {TABS.map((tab) => {
@@ -187,10 +240,20 @@ export function ExploreClient({
             ) : isTripsTab ? (
               /* Trips Grid */
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {(packages as Package[]).map((pkg) => (
+            {(packages as Package[]).map((pkg) => {
+              const spotsLeft = pkg.max_group_size - (spotsBooked[pkg.id] || 0)
+              const interestTotal = interestCounts[pkg.id] || 0
+              return (
               <div
                 key={pkg.id}
-                onClick={() => router.push(`/packages/${pkg.slug}`)}
+                onClick={() => {
+                  writeRecentlyViewed({
+                    id: pkg.id, title: pkg.title, slug: pkg.slug,
+                    image: pkg.images?.[0] || null,
+                    destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
+                  })
+                  router.push(`/packages/${pkg.slug}`)
+                }}
                 className="cursor-pointer"
               >
                 <Card
@@ -217,7 +280,7 @@ export function ExploreClient({
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute top-3 left-3 flex gap-2">
+                    <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
                       <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty]}`}>
                         {DIFFICULTY_ICONS[pkg.difficulty] || ''} {pkg.difficulty}
                       </Badge>
@@ -226,6 +289,9 @@ export function ExploreClient({
                       )}
                       {pkg.host_id && (
                         <Badge className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">Community</Badge>
+                      )}
+                      {spotsLeft > 0 && spotsLeft <= 5 && (
+                        <Badge className="text-xs bg-red-500/80 text-white border-none">Only {spotsLeft} left!</Badge>
                       )}
                     </div>
 
@@ -317,10 +383,17 @@ export function ExploreClient({
                         <div className="text-xs text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>
+                    {interestTotal > 0 && (
+                      <div className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Heart className="h-3 w-3 text-red-400 fill-red-400" />
+                        {interestTotal} {interestTotal === 1 ? 'person' : 'people'} interested
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
-            ))}
+              )
+            })}
           </div>
             ) : (
               /* Service Listings Grid */
