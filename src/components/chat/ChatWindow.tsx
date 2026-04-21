@@ -271,6 +271,8 @@ export function ChatWindow({
   }, [])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const [showJumpButton, setShowJumpButton] = useState(false)
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(
     roomId,
@@ -318,8 +320,20 @@ export function ChatWindow({
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastTapRef = useRef<{ id: string; t: number } | null>(null)
 
+  function isNearBottom() {
+    const el = scrollAreaRef.current
+    if (!el) return true
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120
+  }
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isNearBottom()) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      setShowJumpButton(false)
+    } else {
+      setShowJumpButton(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages])
 
   useEffect(() => {
@@ -1240,8 +1254,25 @@ export function ChatWindow({
       )}
 
       {/* Messages — bottom padding clears fixed composer; --chat-vv-inset adds keyboard overlap on mobile */}
+      <div className="relative flex-1 min-h-0">
+      {showJumpButton && (
+        <button
+          type="button"
+          onClick={() => {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+            setShowJumpButton(false)
+          }}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-primary/90 transition-colors animate-bounce"
+        >
+          ↓ New messages
+        </button>
+      )}
       <div
-        className="flex-1 overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4"
+        ref={scrollAreaRef}
+        onScroll={() => {
+          if (isNearBottom()) setShowJumpButton(false)
+        }}
+        className="h-full overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4"
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
       >
         <div className="space-y-4">
@@ -1294,6 +1325,7 @@ export function ChatWindow({
           )}
           <div ref={bottomRef} />
         </div>
+      </div>
       </div>
 
       {/* Package Picker — in-flow, shrinks the scroll area above */}
