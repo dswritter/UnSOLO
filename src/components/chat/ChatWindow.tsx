@@ -1837,8 +1837,8 @@ function MessageBubble({
             </div>
             {emojiPickerOpen && (
               <div
-                className={`absolute top-0 z-40 flex min-h-[28px] items-center rounded-lg border border-border/70 bg-card/98 backdrop-blur-sm px-1 py-0.5 shadow-md ring-1 ring-primary/25 pointer-events-auto ${
-                  isOwn ? 'left-8 right-0' : 'left-0 right-8'
+                className={`absolute top-0 z-40 flex w-[220px] min-h-[28px] items-center rounded-lg border border-border/70 bg-card/98 backdrop-blur-sm px-1 py-0.5 shadow-md ring-1 ring-primary/25 pointer-events-auto ${
+                  isOwn ? 'right-8' : 'left-0'
                 }`}
                 aria-label="Quick reactions"
               >
