@@ -233,35 +233,43 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
           </div>
         )}
 
-        {/* Location map — shows for stays, rentals, activities */}
-        {listing.location && listing.type !== 'getting_around' && (
-          <div>
-            <h2 className="text-xl font-bold mb-3">Location</h2>
-            <div className="rounded-xl overflow-hidden border border-border" style={{ height: 260 }}>
-              <iframe
-                title="Listing location"
-                width="100%"
-                height="290"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=-0.1,0,0.1,0&layer=mapnik&marker=0,0&query=${encodeURIComponent(listing.location)}`}
-                className="w-full block"
-                style={{ border: 0, marginBottom: -30 }}
-              />
+        {/* Location map — shows for stays, rentals, activities when a pin has been set */}
+        {listing.latitude && listing.longitude && listing.type !== 'getting_around' && (() => {
+          const lat = listing.latitude
+          const lon = listing.longitude
+          const delta = 0.008
+          const bbox = `${lon - delta},${lat - delta},${lon + delta},${lat + delta}`
+          const osmSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
+          const gmapsHref = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+          return (
+            <div>
+              <h2 className="text-xl font-bold mb-3">Location</h2>
+              <div className="rounded-xl overflow-hidden border border-border" style={{ height: 260 }}>
+                <iframe
+                  title="Listing location"
+                  width="100%"
+                  height="290"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src={osmSrc}
+                  className="w-full block"
+                  style={{ border: 0, marginBottom: -30 }}
+                />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <a
+                  href={gmapsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Google Maps
+                </a>
+              </div>
             </div>
-            <div className="flex gap-2 mt-2">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Google Maps
-              </a>
-            </div>
-          </div>
-        )}
+          )
+        })()}
 
         {/* Items picker — grid, 3 per row, each card clickable to select */}
         {items.length > 0 && (
