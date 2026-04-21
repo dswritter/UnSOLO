@@ -27,11 +27,41 @@ export default async function LeaderboardPage() {
   }[]
 
   let myRank: number | null = null
+  let myEntry: (typeof entries)[0] | null = null
   if (user) {
     myRank = await getLeaderboardRank(supabase, user.id)
+    const inTop100 = entries.some((e) => e.user_id === user.id)
+    if (!inTop100) {
+      // Fetch the user's own score entry to show pinned at bottom
+      const { data: myScore } = await supabase
+        .from('leaderboard_scores')
+        .select('*, profile:profiles(username, full_name, avatar_url, location)')
+        .eq('user_id', user.id)
+        .single()
+      if (myScore) myEntry = myScore as (typeof entries)[0]
+    }
   }
 
   const inTop100 = user ? entries.some((e) => e.user_id === user.id) : false
+
+  // Monthly leaderboard: count trips completed this month per user
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+  const { data: monthlyBookings } = await supabase
+    .from('bookings')
+    .select('user_id')
+    .in('status', ['confirmed', 'completed'])
+    .gte('created_at', monthStart.toISOString())
+  const monthlyTripCount: Record<string, number> = {}
+  for (const b of monthlyBookings || []) {
+    monthlyTripCount[b.user_id] = (monthlyTripCount[b.user_id] || 0) + 1
+  }
+  const monthlyEntries = entries
+    .filter(e => monthlyTripCount[e.user_id])
+    .map(e => ({ ...e, monthly_trips: monthlyTripCount[e.user_id] }))
+    .sort((a, b) => b.monthly_trips - a.monthly_trips)
+    .slice(0, 20)
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,19 +90,14 @@ export default async function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Your global rank when you are outside the top-100 list */}
-        {user && myRank != null && !inTop100 && (
-          <div className="mb-4 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Your rank (global):</span>
-              <span className="text-lg font-black text-primary">#{myRank}</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground">Only the top 100 are listed below.</span>
-          </div>
-        )}
-
         {/* Searchable leaderboard list */}
-        <LeaderboardList entries={entries} currentUserId={user?.id} />
+        <LeaderboardList
+          entries={entries}
+          currentUserId={user?.id}
+          myRank={!inTop100 ? myRank : null}
+          myEntry={myEntry}
+          monthlyEntries={monthlyEntries}
+        />
       </div>
     </div>
   )
