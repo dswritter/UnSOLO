@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
-import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
+import { splitHostEarning } from '@/lib/community-payment'
 import type { ServiceListingType } from '@/types'
 
 const razorpay = new Razorpay({
@@ -152,6 +152,8 @@ export async function createServiceListingOrder(
           check_out_date: bookingData.check_out_date,
           quantity: bookingData.quantity,
           amount_paise: finalAmount,
+          gross_paise: totalPaise,
+          discount_paise: discountPaise,
           wallet_deducted_paise: creditsUsed,
           status: 'confirmed',
           payment_status: 'paid',
@@ -206,6 +208,8 @@ export async function createServiceListingOrder(
         check_out_date: bookingData.check_out_date,
         quantity: bookingData.quantity,
         amount_paise: finalAmount,
+        gross_paise: totalPaise,
+        discount_paise: discountPaise,
         wallet_deducted_paise: creditsUsed,
         status: 'pending',
         payment_status: 'pending',
@@ -265,7 +269,7 @@ export async function confirmServiceListingPayment(
     // Get booking by order ID
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, amount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise')
+      .select('id, amount_paise, gross_paise, discount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
       .single()
@@ -314,7 +318,9 @@ export async function confirmServiceListingPayment(
     }
 
     // Record host earnings ledger entry so admin can see and pay out the host.
-    if (booking.service_listing_id && booking.amount_paise > 0) {
+    // Host share is always gross × (1 − fee%); discounts come out of platform share only.
+    const grossPaise = booking.gross_paise || booking.amount_paise || 0
+    if (booking.service_listing_id && grossPaise > 0) {
       try {
         const { data: listing } = await supabase
           .from('service_listings')
@@ -324,10 +330,18 @@ export async function confirmServiceListingPayment(
 
         if (listing?.host_id) {
           const feePercent = await getPlatformFeePercentByCategory(listing.type as ServiceListingType)
-          const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
-            booking.amount_paise,
+          const {
+            hostPaise,
+            platformGrossPaise,
+            platformNetPaise,
+            promoPaise,
+            walletPaise,
+          } = splitHostEarning({
+            grossPaise,
             feePercent,
-          )
+            promoPaise: booking.discount_paise || 0,
+            walletPaise: booking.wallet_deducted_paise || 0,
+          })
 
           const { createClient: createSC } = await import('@supabase/supabase-js')
           const svc = createSC(
@@ -338,8 +352,11 @@ export async function confirmServiceListingPayment(
           await svc.from('host_earnings').insert({
             booking_id: booking.id,
             host_id: listing.host_id,
-            total_paise: booking.amount_paise,
-            platform_fee_paise: platformFeePaise,
+            total_paise: grossPaise,
+            platform_fee_paise: platformGrossPaise,
+            platform_net_paise: platformNetPaise,
+            promo_paise: promoPaise,
+            wallet_paise: walletPaise,
             host_paise: hostPaise,
             payout_status: 'pending',
           })

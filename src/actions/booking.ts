@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
-import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
+import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
@@ -222,6 +222,9 @@ async function runBalanceCompletionEffects(
     id: string
     package_id: string
     total_amount_paise: number
+    gross_paise?: number | null
+    discount_paise?: number | null
+    wallet_deducted_paise?: number | null
     promo_offer_id?: string | null
     package?: unknown
   },
@@ -235,10 +238,20 @@ async function runBalanceCompletionEffects(
     const pkg = booking.package as { host_id?: string } | null
     if (pkg?.host_id) {
       const feePercent = await getPlatformFeePercent()
-      const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
-        booking.total_amount_paise,
+      const grossPaise = booking.gross_paise
+        ?? (booking.total_amount_paise + (booking.discount_paise || 0))
+      const {
+        hostPaise,
+        platformGrossPaise,
+        platformNetPaise,
+        promoPaise,
+        walletPaise,
+      } = splitHostEarning({
+        grossPaise,
         feePercent,
-      )
+        promoPaise: booking.discount_paise || 0,
+        walletPaise: booking.wallet_deducted_paise || 0,
+      })
 
       const { createClient: createSC3 } = await import('@supabase/supabase-js')
       const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -246,8 +259,11 @@ async function runBalanceCompletionEffects(
       await svcSupa3.from('host_earnings').insert({
         booking_id: booking.id,
         host_id: pkg.host_id,
-        total_paise: booking.total_amount_paise,
-        platform_fee_paise: platformFeePaise,
+        total_paise: grossPaise,
+        platform_fee_paise: platformGrossPaise,
+        platform_net_paise: platformNetPaise,
+        promo_paise: promoPaise,
+        wallet_paise: walletPaise,
         host_paise: hostPaise,
         payout_status: 'pending',
       })
@@ -325,7 +341,9 @@ async function runPostConfirmationPipeline(
     id: string
     package_id: string
     wallet_deducted_paise?: number | null
+    discount_paise?: number | null
     total_amount_paise: number
+    gross_paise?: number | null
     promo_offer_id?: string | null
     package?: unknown
   },
@@ -433,10 +451,20 @@ async function runPostConfirmationPipeline(
     const pkg = booking.package as { host_id?: string } | null
     if (pkg?.host_id) {
       const feePercent = await getPlatformFeePercent()
-      const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
-        booking.total_amount_paise,
+      const grossPaise = booking.gross_paise
+        ?? (booking.total_amount_paise + (booking.discount_paise || 0))
+      const {
+        hostPaise,
+        platformGrossPaise,
+        platformNetPaise,
+        promoPaise,
+        walletPaise,
+      } = splitHostEarning({
+        grossPaise,
         feePercent,
-      )
+        promoPaise: booking.discount_paise || 0,
+        walletPaise: booking.wallet_deducted_paise || 0,
+      })
 
       const { createClient: createSC3 } = await import('@supabase/supabase-js')
       const svcSupa3 = createSC3(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -444,8 +472,11 @@ async function runPostConfirmationPipeline(
       await svcSupa3.from('host_earnings').insert({
         booking_id: booking.id,
         host_id: pkg.host_id,
-        total_paise: booking.total_amount_paise,
-        platform_fee_paise: platformFeePaise,
+        total_paise: grossPaise,
+        platform_fee_paise: platformGrossPaise,
+        platform_net_paise: platformNetPaise,
+        promo_paise: promoPaise,
+        wallet_paise: walletPaise,
         host_paise: hostPaise,
         payout_status: 'pending',
       })
@@ -769,6 +800,7 @@ export async function createRazorpayOrder(
         travel_date: travelDate,
         guests,
         total_amount_paise: afterDiscounts,
+        gross_paise: grossList,
         deposit_paise: depositPaiseInstant,
         wallet_deducted_paise: walletDeducted,
         discount_paise: discountTotalPaise,
@@ -820,6 +852,7 @@ export async function createRazorpayOrder(
       travel_date: travelDate,
       guests,
       total_amount_paise: afterDiscounts,
+      gross_paise: grossList,
       deposit_paise: 0,
       wallet_deducted_paise: walletDeducted,
       discount_paise: discountTotalPaise,
@@ -1727,6 +1760,7 @@ export async function createCommunityTripOrder(
         travel_date: travelDate,
         guests: 1,
         total_amount_paise: afterDiscounts,
+        gross_paise: grossList,
         deposit_paise: depositPaiseInstant,
         wallet_deducted_paise: walletDeducted,
         discount_paise: discountTotalPaise,
@@ -1769,6 +1803,7 @@ export async function createCommunityTripOrder(
     travel_date: travelDate,
     guests: 1,
     total_amount_paise: afterDiscounts,
+    gross_paise: grossList,
     deposit_paise: 0,
     wallet_deducted_paise: walletDeducted,
     discount_paise: discountTotalPaise,
