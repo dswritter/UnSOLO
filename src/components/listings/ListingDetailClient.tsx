@@ -2,15 +2,23 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, MapPin, Zap, ChevronLeft, ChevronRight, MessageCircle, User as UserIcon } from 'lucide-react'
+import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink } from 'lucide-react'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
-import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
+import { Suspense, useState } from 'react'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .trim()
+}
 
 type ListingHost = {
   id: string
@@ -40,49 +48,8 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
   )
   const selectedItem = items.find(i => i.id === selectedItemId) || null
 
-  // ── Item carousel ───────────────────────────────────────────────────────
-  // carouselIdx tracks which item card is "focused" in the carousel. It is
-  // kept in sync with selectedItemId so arrow navigation and card clicks
-  // both update the selection. A timer auto-advances every 5 s; any manual
-  // interaction resets the timer to prevent fighting the user.
-  const [carouselIdx, setCarouselIdx] = useState(0)
-  const autoAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const goToIdx = useCallback((idx: number) => {
-    const clamped = Math.max(0, Math.min(idx, items.length - 1))
-    setCarouselIdx(clamped)
-    if (items[clamped] && !items[clamped].quantity_available === false) {
-      // Only auto-select non-sold-out items
-      if (items[clamped].quantity_available > 0) {
-        setSelectedItemId(items[clamped].id)
-      }
-    }
-  }, [items])
-
-  // Auto-advance
-  useEffect(() => {
-    if (items.length <= 1) return
-    const tick = () => {
-      setCarouselIdx(prev => {
-        const next = (prev + 1) % items.length
-        // keep selection in sync (skip sold-out)
-        if (items[next]?.quantity_available > 0) setSelectedItemId(items[next].id)
-        return next
-      })
-    }
-    autoAdvanceRef.current = setTimeout(tick, 5000)
-    return () => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current) }
-  }, [carouselIdx, items])
-
-  // When user manually clicks a card, sync carouselIdx to it and reset timer
-  const handleItemSelect = useCallback((itemId: string) => {
-    const idx = items.findIndex(i => i.id === itemId)
-    if (idx !== -1) {
-      if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current)
-      setCarouselIdx(idx)
-      setSelectedItemId(itemId)
-    }
-  }, [items])
+  // No carousel state needed — items are shown in a grid, each card is
+  // individually clickable to select for booking.
 
   const router = useRouter()
   const [openingChat, setOpeningChat] = useState(false)
@@ -266,135 +233,114 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
           </div>
         )}
 
-        {/* Items picker — horizontal carousel with auto-scroll + arrow nav */}
+        {/* Location map — shows for stays, rentals, activities */}
+        {listing.location && listing.type !== 'getting_around' && (
+          <div>
+            <h2 className="text-xl font-bold mb-3">Location</h2>
+            <div className="rounded-xl overflow-hidden border border-border">
+              <iframe
+                title="Listing location"
+                width="100%"
+                height="260"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=-0.1,0,0.1,0&layer=mapnik&marker=0,0&query=${encodeURIComponent(listing.location)}`}
+                className="w-full block"
+                style={{ border: 0 }}
+              />
+            </div>
+            <div className="flex gap-2 mt-2">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Google Maps
+              </a>
+              <a
+                href={`https://waze.com/ul?q=${encodeURIComponent(listing.location)}&navigate=yes`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Waze
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Items picker — grid, 3 per row, each card clickable to select */}
         {items.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xl font-bold">Choose an option</h2>
-              {items.length > 1 && (
-                <span className="text-xs text-muted-foreground">
-                  {carouselIdx + 1} / {items.length}
-                </span>
-              )}
-            </div>
+            <h2 className="text-xl font-bold mb-3">Choose an option</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {items.map((item) => {
+                const isSelected = item.id === selectedItemId
+                const soldOut = item.quantity_available === 0
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => !soldOut && setSelectedItemId(item.id)}
+                    disabled={soldOut}
+                    className={`text-left rounded-xl border overflow-hidden transition-all ${
+                      isSelected
+                        ? 'border-primary ring-2 ring-primary/20'
+                        : 'border-border hover:border-primary/50'
+                    } ${soldOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    {/* Square image */}
+                    <div className="aspect-square bg-secondary overflow-hidden relative">
+                      {item.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.images[0]}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className="h-8 w-8 text-muted-foreground/30" />
+                        </div>
+                      )}
+                      {soldOut && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">Sold out</span>
+                        </div>
+                      )}
+                    </div>
 
-            <div className="relative">
-              {/* Left arrow */}
-              {items.length > 1 && (
-                <button
-                  type="button"
-                  aria-label="Previous item"
-                  onClick={() => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); goToIdx(carouselIdx - 1) }}
-                  disabled={carouselIdx === 0}
-                  className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card shadow-md hover:bg-secondary disabled:opacity-30 transition-opacity"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Carousel track — shows current card + peek of neighbours */}
-              <div className="overflow-hidden rounded-xl mx-4">
-                <div
-                  className="flex transition-transform duration-300 ease-in-out"
-                  style={{ transform: `translateX(-${carouselIdx * 100}%)` }}
-                >
-                  {items.map((item, idx) => {
-                    const isSelected = item.id === selectedItemId
-                    const soldOut = item.quantity_available === 0
-                    return (
-                      <div key={item.id} className="w-full flex-shrink-0 px-1">
-                        <button
-                          type="button"
-                          onClick={() => !soldOut && handleItemSelect(item.id)}
-                          disabled={soldOut}
-                          className={`w-full text-left rounded-xl border bg-card p-3 transition-all ${
-                            isSelected
-                              ? 'border-primary ring-2 ring-primary/20'
-                              : 'border-border hover:border-primary/40'
-                          } ${soldOut ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <div className="flex gap-3">
-                            {item.images[0] ? (
-                              <ImageLightbox
-                                src={item.images[0]}
-                                alt={item.name}
-                                className="flex-shrink-0"
-                              >
-                                <Image
-                                  src={item.images[0]}
-                                  alt={item.name}
-                                  width={96}
-                                  height={96}
-                                  className="h-24 w-24 rounded-lg object-cover"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </ImageLightbox>
-                            ) : null}
-                            <div className="min-w-0 flex-1">
-                              <div className="font-semibold">{item.name}</div>
-                              <div className="text-sm font-bold text-primary mt-0.5">
-                                {formatPrice(item.price_paise)}
-                                {isRental && item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-0.5">
-                                {soldOut ? (
-                                  <span className="text-red-500">Sold out</span>
-                                ) : (
-                                  <span className="text-green-600">{item.quantity_available} available</span>
-                                )}
-                              </div>
-                              {item.description && (
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {item.description}
-                                </p>
-                              )}
-                              {isRental && item.amenities && item.amenities.length > 0 && (
-                                <div className="mt-1.5 flex flex-wrap gap-1">
-                                  {item.amenities.map(a => (
-                                    <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                                      {a}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Right arrow */}
-              {items.length > 1 && (
-                <button
-                  type="button"
-                  aria-label="Next item"
-                  onClick={() => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); goToIdx(carouselIdx + 1) }}
-                  disabled={carouselIdx === items.length - 1}
-                  className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card shadow-md hover:bg-secondary disabled:opacity-30 transition-opacity"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Dot indicators */}
-              {items.length > 1 && (
-                <div className="flex justify-center gap-1.5 mt-3">
-                  {items.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      aria-label={`Go to item ${idx + 1}`}
-                      onClick={() => { if (autoAdvanceRef.current) clearTimeout(autoAdvanceRef.current); goToIdx(idx) }}
-                      className={`h-1.5 rounded-full transition-all ${
-                        idx === carouselIdx ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
+                    {/* Info */}
+                    <div className="p-2.5 space-y-0.5">
+                      <p className="font-semibold text-sm leading-tight line-clamp-2">{item.name}</p>
+                      <p className="text-sm font-bold text-primary">
+                        {formatPrice(item.price_paise)}
+                        {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                      </p>
+                      {!soldOut && (
+                        <p className="text-xs text-green-600">{item.quantity_available} available</p>
+                      )}
+                      {item.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 pt-0.5">
+                          {stripMarkdown(item.description)}
+                        </p>
+                      )}
+                      {item.amenities && item.amenities.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {item.amenities.slice(0, 3).map(a => (
+                            <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
