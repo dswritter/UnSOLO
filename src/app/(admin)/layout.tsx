@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
+import { getAdminDashboardStats } from '@/actions/admin'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -20,6 +21,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/')
   }
 
+  let pendingCounts = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
+  try {
+    const stats = await getAdminDashboardStats()
+    pendingCounts = {
+      bookings: stats.pendingBookings,
+      requests: stats.pendingDateRequests,
+      serviceListings: stats.pendingServiceListings,
+      communityTrips: stats.pendingCommunityTrips,
+    }
+  } catch { /* non-fatal */ }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
@@ -27,6 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         role={profile.role as UserRole}
         name={profile.full_name || profile.username}
         userId={user.id}
+        pendingCounts={pendingCounts}
       />
 
       {/* Main content */}

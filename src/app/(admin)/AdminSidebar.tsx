@@ -18,16 +18,18 @@ import {
   X,
   MessageCircle,
   Sparkles,
+  Store,
 } from 'lucide-react'
 import { useState } from 'react'
 
-const navItems: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[] }[] = [
+const navItems: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[]; badgeKey?: string }[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
   { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
-  { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
-  { href: '/admin/requests', label: 'Custom Requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'] },
+  { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'], badgeKey: 'bookings' },
+  { href: '/admin/requests', label: 'Custom Requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'], badgeKey: 'requests' },
   { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'] },
-  { href: '/admin/community-trips', label: 'Community Trips', icon: Mountain, roles: ['admin'] },
+  { href: '/admin/service-listings', label: 'Service Listings', icon: Store, roles: ['admin'], badgeKey: 'serviceListings' },
+  { href: '/admin/community-trips', label: 'Community Trips', icon: Mountain, roles: ['admin'], badgeKey: 'communityTrips' },
   { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager'] },
   { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
@@ -40,13 +42,15 @@ interface AdminSidebarProps {
   role: UserRole
   name: string
   userId: string
+  pendingCounts?: { bookings: number; requests: number; serviceListings: number; communityTrips: number }
 }
 
-export function AdminSidebar({ role, name, userId }: AdminSidebarProps) {
+export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebarProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const isAdmin = role === 'admin'
   const visible = navItems.filter(n => n.roles.includes(role))
+  const counts = pendingCounts ?? { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
 
   const sidebarContent = (
     <>
@@ -64,8 +68,9 @@ export function AdminSidebar({ role, name, userId }: AdminSidebarProps) {
 
       {/* Nav links */}
       <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {visible.map(({ href, label, icon: Icon }) => {
+        {visible.map(({ href, label, icon: Icon, badgeKey }) => {
           const isActive = pathname === href || (href !== '/admin' && pathname?.startsWith(href))
+          const badgeCount = badgeKey ? counts[badgeKey as keyof typeof counts] : 0
           return (
             <Link
               key={href}
@@ -78,7 +83,12 @@ export function AdminSidebar({ role, name, userId }: AdminSidebarProps) {
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {badgeCount > 0 && (
+                <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+              )}
             </Link>
           )
         })}
