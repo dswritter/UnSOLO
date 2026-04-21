@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -201,6 +201,36 @@ export function HostServiceListingTabs(props: Props) {
   })
   const [saving, setSaving] = useState(false)
 
+  // ── Validation popup ──────────────────────────────────────────────────
+  type ValidationError = { label: string; fieldId: string }
+  const [validationPopup, setValidationPopup] = useState<ValidationError[] | null>(null)
+
+  // ── Address map preview ───────────────────────────────────────────────
+  const [mapPreview, setMapPreview] = useState<{ lat: number; lon: number; displayName: string } | null>(null)
+  const [geocoding, setGeocoding] = useState(false)
+
+  async function previewLocationOnMap() {
+    const addr = location.trim()
+    if (!addr) { toast.error('Enter an address first'); return }
+    setGeocoding(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } },
+      )
+      const data: Array<{ lat: string; lon: string; display_name: string }> = await res.json()
+      if (!data || data.length === 0) {
+        toast.error('Address not found — try adding city / state for better results')
+        return
+      }
+      setMapPreview({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), displayName: data[0].display_name })
+    } catch {
+      toast.error('Could not load map preview')
+    } finally {
+      setGeocoding(false)
+    }
+  }
+
   // ── Business tab state ────────────────────────────────────────────────
   const [knownDestinations, setKnownDestinations] = useState<Destination[]>(destinations)
   const [addingLocation, setAddingLocation] = useState(false)
@@ -331,16 +361,44 @@ export function HostServiceListingTabs(props: Props) {
 
   function validItemsTab(): string | null {
     if (items.length === 0) return 'Add at least one item'
+    const needsImages = ['stays', 'activities', 'rentals'].includes(type)
     for (const i of items) {
       if (!i.name.trim()) return 'Every item needs a name'
       if (i.priceRupees == null || Number.isNaN(i.priceRupees)) return `"${i.name || 'Item'}" needs a price`
       if (i.priceRupees <= 0) return `"${i.name || 'Item'}" needs a price greater than 0`
       if (i.quantity < 0) return `"${i.name || 'Item'}" has a negative quantity`
       if (i.maxPerBooking < 1) return `"${i.name || 'Item'}" max-per-booking must be at least 1`
+      if (needsImages && i.images.length === 0) return `"${i.name || 'Item'}" needs at least one photo`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
       if (isRental && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
     }
     return null
+  }
+
+  function collectBusinessErrors(): ValidationError[] {
+    const errs: ValidationError[] = []
+    if (!title.trim()) errs.push({ label: 'Business / property name', fieldId: 'field-title' })
+    if (destinationIds.length === 0) errs.push({ label: 'Location (add at least one destination)', fieldId: 'field-location' })
+    if ((type === 'stays' || type === 'rentals') && !location.trim())
+      errs.push({ label: 'Specific address — required for stays & rentals', fieldId: 'field-address' })
+    return errs
+  }
+
+  function collectItemErrors(): ValidationError[] {
+    const errs: ValidationError[] = []
+    const needsImages = ['stays', 'activities', 'rentals'].includes(type)
+    if (items.length === 0) { errs.push({ label: 'Add at least one item', fieldId: '' }); return errs }
+    for (const item of items) {
+      const label = item.name.trim() || `Item ${items.indexOf(item) + 1}`
+      if (!item.name.trim()) errs.push({ label: `Name for ${label}`, fieldId: `item-name-${item.localKey}` })
+      if (item.priceRupees == null || item.priceRupees <= 0)
+        errs.push({ label: `Price for "${label}"`, fieldId: `item-price-${item.localKey}` })
+      if (needsImages && item.images.length === 0)
+        errs.push({ label: `At least one photo for "${label}"`, fieldId: `item-images-${item.localKey}` })
+      if (isRental && !item.unit)
+        errs.push({ label: `Pricing unit for "${label}"`, fieldId: `item-price-${item.localKey}` })
+    }
+    return errs
   }
 
   /**
@@ -361,11 +419,11 @@ export function HostServiceListingTabs(props: Props) {
   function tryGoTo(next: number) {
     if (next === step) return
     if (next > step) {
-      const businessErr = validBusinessTab()
-      if (businessErr) { toast.error(businessErr); return }
+      const errs = collectBusinessErrors()
+      if (errs.length > 0) { setValidationPopup(errs); return }
       if (next > 1) {
-        const itemsErr = validItemsTab()
-        if (itemsErr) { toast.error(itemsErr); return }
+        const itemErrs = collectItemErrors()
+        if (itemErrs.length > 0) { setValidationPopup(itemErrs); return }
       }
     }
     setStep(next)
@@ -693,7 +751,7 @@ export function HostServiceListingTabs(props: Props) {
       {/* Business tab */}
       {step === 0 && (
         <div className="space-y-6 bg-card border border-border rounded-xl p-6">
-          <div className="space-y-2">
+          <div id="field-location" className="space-y-2">
             <label className="text-sm font-semibold">Locations *</label>
             <div className="flex flex-wrap items-center gap-2">
               {destinationIds.map(id => {
@@ -758,6 +816,7 @@ export function HostServiceListingTabs(props: Props) {
             <label className="text-sm font-semibold">{config.titleLabel} *</label>
             <p className="text-xs text-muted-foreground">{config.titleHint}</p>
             <input
+              id="field-title"
               type="text"
               placeholder={config.titlePlaceholder}
               value={title}
@@ -777,13 +836,25 @@ export function HostServiceListingTabs(props: Props) {
                 Required — shown to travelers after booking so they can navigate to you.
               </p>
             )}
-            <input
-              type="text"
-              placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
-            />
+            <div className="relative">
+              <input
+                id="field-address"
+                type="text"
+                placeholder="e.g., 12 Lakeside Road, Manali, HP 175131"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="w-full px-3 py-2 pr-10 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
+              />
+              <button
+                type="button"
+                onClick={previewLocationOnMap}
+                disabled={geocoding || !location.trim()}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
+                title="Preview this address on a map"
+              >
+                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -954,6 +1025,7 @@ export function HostServiceListingTabs(props: Props) {
                 <div>
                   <label className="text-xs font-semibold">Name *</label>
                   <input
+                    id={`item-name-${draft.localKey}`}
                     type="text"
                     value={draft.name}
                     onChange={(e) => updateDraft(draft.localKey, { name: e.target.value })}
@@ -983,6 +1055,7 @@ export function HostServiceListingTabs(props: Props) {
                   <div>
                     <label className="text-xs font-semibold">Price (₹) *</label>
                     <input
+                      id={`item-price-${draft.localKey}`}
                       type="number"
                       min="0"
                       required
@@ -1101,7 +1174,7 @@ export function HostServiceListingTabs(props: Props) {
                   </div>
                 )}
 
-                <div>
+                <div id={`item-images-${draft.localKey}`}>
                   <label className="text-xs font-semibold">Photos ({draft.images.length} / 5)</label>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     The first photo is the cover — click the star on any other photo to make it the cover.
@@ -1353,6 +1426,102 @@ export function HostServiceListingTabs(props: Props) {
           </Button>
         )}
       </div>
+
+      {/* Map preview modal — shows geocoded address on OSM */}
+      {mapPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setMapPreview(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-lg rounded-xl border border-border bg-card p-5 space-y-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">Location preview</h3>
+              <button type="button" onClick={() => setMapPreview(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{mapPreview.displayName}</p>
+            <div className="rounded-lg overflow-hidden border border-border">
+              <iframe
+                title="Map preview"
+                width="100%"
+                height="300"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapPreview.lon - 0.01},${mapPreview.lat - 0.01},${mapPreview.lon + 0.01},${mapPreview.lat + 0.01}&layer=mapnik&marker=${mapPreview.lat},${mapPreview.lon}`}
+                className="w-full block"
+                style={{ border: 0 }}
+              />
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${mapPreview.lat},${mapPreview.lon}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open in Google Maps
+              </a>
+              <Button type="button" variant="outline" size="sm" onClick={() => setMapPreview(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation popup — lists empty required fields; clicking an error scrolls to it */}
+      {validationPopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setValidationPopup(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-border bg-card p-5 space-y-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-base">Please fill in required fields</h3>
+              <button type="button" onClick={() => setValidationPopup(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <ul className="space-y-1.5">
+              {validationPopup.map((err) => (
+                <li key={`${err.fieldId}-${err.label}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValidationPopup(null)
+                      if (err.fieldId) {
+                        const el = document.getElementById(err.fieldId)
+                        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                        ;(el as HTMLInputElement | null)?.focus?.()
+                      }
+                    }}
+                    className="text-left text-sm text-primary hover:underline w-full"
+                  >
+                    → {err.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end pt-1">
+              <Button type="button" variant="outline" size="sm" onClick={() => setValidationPopup(null)}>
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Unsaved-changes dialog: fires when host clicks an internal link
           with unsaved edits. beforeunload handles tab close via the

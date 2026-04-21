@@ -259,15 +259,6 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
                 <ExternalLink className="h-3.5 w-3.5" />
                 Google Maps
               </a>
-              <a
-                href={`https://waze.com/ul?q=${encodeURIComponent(listing.location)}&navigate=yes`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Waze
-              </a>
             </div>
           </div>
         )}
