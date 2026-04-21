@@ -137,7 +137,7 @@ export function Navbar({ user }: NavbarProps) {
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/host', label: 'Become a Host', icon: Tent },
+    { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent },
   ]
 
   return (

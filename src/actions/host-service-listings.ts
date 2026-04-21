@@ -83,6 +83,8 @@ export async function createHostServiceListing(input: {
   unit: ServiceUnit
   destination_ids: string[]
   location: string | null
+  latitude?: number | null
+  longitude?: number | null
   amenities: string[]
   tags: string[]
   metadata: ServiceListingMetadata | null
@@ -183,8 +185,8 @@ export async function createHostServiceListing(input: {
         destination_id: primaryDestinationId,
         destination_ids: destinationIds,
         location: input.location,
-        latitude: null,
-        longitude: null,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
         max_guests_per_booking: null,
         quantity_available: null,
         amenities: effectiveMasterAmenities.length > 0 ? effectiveMasterAmenities : null,
@@ -299,6 +301,8 @@ export async function updateHostServiceListing(
     unit?: ServiceUnit
     destination_ids?: string[]
     location?: string | null
+    latitude?: number | null
+    longitude?: number | null
     amenities?: string[]
     tags?: string[]
     metadata?: ServiceListingMetadata | null
@@ -324,6 +328,8 @@ export async function updateHostServiceListing(
     if (patch.short_description !== undefined) update.short_description = patch.short_description
     if (patch.unit !== undefined) update.unit = patch.unit
     if (patch.location !== undefined) update.location = patch.location
+    if (patch.latitude !== undefined) update.latitude = patch.latitude
+    if (patch.longitude !== undefined) update.longitude = patch.longitude
     if (patch.amenities !== undefined) update.amenities = patch.amenities.length > 0 ? patch.amenities : null
     if (patch.tags !== undefined) update.tags = patch.tags.length > 0 ? patch.tags : null
     if (patch.metadata !== undefined) update.metadata = patch.metadata

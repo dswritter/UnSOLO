@@ -1,6 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const DraggablePinMap = dynamic(
+  () => import('@/components/ui/DraggablePinMap').then(m => ({ default: m.DraggablePinMap })),
+  { ssr: false, loading: () => <div className="h-[300px] rounded-lg bg-secondary animate-pulse" /> },
+)
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2 } from 'lucide-react'
@@ -239,6 +245,11 @@ export function HostServiceListingTabs(props: Props) {
     initialListing?.destination_ids || (initialListing?.destination_id ? [initialListing.destination_id] : []),
   )
   const [location, setLocation] = useState(initialListing?.location || '')
+  const [pinLatLon, setPinLatLon] = useState<{ lat: number; lon: number } | null>(
+    initialListing?.latitude && initialListing?.longitude
+      ? { lat: initialListing.latitude as number, lon: initialListing.longitude as number }
+      : null,
+  )
   const [shortDescription, setShortDescription] = useState(initialListing?.short_description || '')
   const [description, setDescription] = useState(initialListing?.description || '')
   const [unit, setUnit] = useState<Unit>((initialListing?.unit as Unit) || config.defaultUnit)
@@ -269,6 +280,7 @@ export function HostServiceListingTabs(props: Props) {
     title: title.trim(),
     destinationIds,
     location: location.trim(),
+    pinLatLon,
     shortDescription: shortDescription.trim(),
     description: description.trim(),
     unit,
@@ -299,7 +311,7 @@ export function HostServiceListingTabs(props: Props) {
   const currentSnapshot = useMemo(
     () => serializeFormState(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, destinationIds, location, shortDescription, description, unit, amenities, tagsInput, items],
+    [title, destinationIds, location, pinLatLon, shortDescription, description, unit, amenities, tagsInput, items],
   )
 
   const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot
@@ -509,12 +521,11 @@ export function HostServiceListingTabs(props: Props) {
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
       type,
-      // For rentals, master unit is derived server-side from the cheapest
-      // item's unit so "from ₹X / unit" cards stay coherent; client-sent
-      // unit is a harmless fallback.
       unit,
       destination_ids: destinationIds,
       location: location.trim() || null,
+      latitude: pinLatLon?.lat ?? null,
+      longitude: pinLatLon?.lon ?? null,
       // Rentals keep master amenities empty — each item owns its own.
       amenities: isRental ? [] : amenities,
       tags,
@@ -542,10 +553,11 @@ export function HostServiceListingTabs(props: Props) {
       title: title.trim(),
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
-      // Rentals: unit + amenities live on each item now, skip here.
       ...(isRental ? {} : { unit, amenities }),
       destination_ids: destinationIds,
       location: location.trim() || null,
+      latitude: pinLatLon?.lat ?? null,
+      longitude: pinLatLon?.lon ?? null,
       tags,
     })
     setSaving(false)
@@ -635,6 +647,8 @@ export function HostServiceListingTabs(props: Props) {
         ...(isRental ? {} : { unit, amenities }),
         destination_ids: destinationIds,
         location: location.trim() || null,
+        latitude: pinLatLon?.lat ?? null,
+        longitude: pinLatLon?.lon ?? null,
         tags,
       })
       if ('error' in businessRes && businessRes.error) {
@@ -1427,7 +1441,7 @@ export function HostServiceListingTabs(props: Props) {
         )}
       </div>
 
-      {/* Map preview modal — shows geocoded address on OSM */}
+      {/* Map preview modal — interactive draggable-pin map */}
       {mapPreview && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -1440,25 +1454,24 @@ export function HostServiceListingTabs(props: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-base">Location preview</h3>
+              <div>
+                <h3 className="font-semibold text-base">Adjust pin location</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Drag the pin to the exact spot</p>
+              </div>
               <button type="button" onClick={() => setMapPreview(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{mapPreview.displayName}</p>
-            <div className="rounded-lg overflow-hidden border border-border" style={{ height: 300 }}>
-              <iframe
-                title="Map preview"
-                width="100%"
-                height="330"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapPreview.lon - 0.01},${mapPreview.lat - 0.01},${mapPreview.lon + 0.01},${mapPreview.lat + 0.01}&layer=mapnik&marker=${mapPreview.lat},${mapPreview.lon}`}
-                className="w-full block"
-                style={{ border: 0, marginBottom: -30 }}
-              />
-            </div>
-            <div className="flex justify-between items-center pt-1">
+            <DraggablePinMap
+              lat={mapPreview.lat}
+              lon={mapPreview.lon}
+              onChange={(newLat, newLon, displayName) => {
+                setMapPreview({ lat: newLat, lon: newLon, displayName })
+                setPinLatLon({ lat: newLat, lon: newLon })
+              }}
+            />
+            <div className="flex flex-wrap justify-between items-center gap-2 pt-1">
               <a
                 href={`https://www.google.com/maps/search/?api=1&query=${mapPreview.lat},${mapPreview.lon}`}
                 target="_blank"
@@ -1466,11 +1479,26 @@ export function HostServiceListingTabs(props: Props) {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Open in Google Maps
+                Google Maps
               </a>
-              <Button type="button" variant="outline" size="sm" onClick={() => setMapPreview(null)}>
-                Close
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPinLatLon({ lat: mapPreview.lat, lon: mapPreview.lon })
+                    setLocation(mapPreview.displayName)
+                    setMapPreview(null)
+                    toast.success('Location updated')
+                  }}
+                >
+                  Use this location
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setMapPreview(null)}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </div>
