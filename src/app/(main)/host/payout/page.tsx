@@ -42,7 +42,16 @@ export default async function PayoutDetailsPage({
           <PayoutDetailsForm initial={payout} compact />
         </div>
 
-        <div className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-xs text-muted-foreground">
+        <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-4 text-xs">
+          <p className="font-semibold text-foreground">Fair-split refunds</p>
+          <p className="text-muted-foreground mt-1 leading-relaxed">
+            If a traveler cancels, UnSOLO and you share the refund proportionally — you only absorb your share,
+            never ours. Platform fees, promos, and discounts never come out of your pocket.{' '}
+            <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
+          </p>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-border bg-secondary/40 p-4 text-xs text-muted-foreground">
           <p>
             Earnings are paid out on a regular cycle to the details above. Each payout&apos;s status shows up under
             your host earnings.

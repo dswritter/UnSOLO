@@ -42,3 +42,49 @@ export function splitHostEarning(input: {
     walletPaise: wallet,
   }
 }
+
+/**
+ * Pro-rata refund split between host and platform.
+ *
+ * Fair-split rule: on cancellation, both host and platform give up the tier %
+ * of their own share. The traveler's refund is `hostPaise × pct + platformPaise × pct`.
+ * Neither side subsidises the other's share.
+ *
+ * Claw-back order for already-released host advances:
+ *   1. First, deduct hostRefund from the host's unpaid balance.
+ *   2. If unpaid balance is insufficient, the platform absorbs the shortfall
+ *      (host is not pursued for money already sitting in their bank account).
+ *
+ * Inputs:
+ *   - hostPaise: booked host share
+ *   - platformPaise: booked platform share (gross, before promo/wallet)
+ *   - tierPercent: 0..100
+ *   - alreadyReleasedPaise: how much of hostPaise has been paid out so far
+ */
+export function splitRefundPaise(input: {
+  hostPaise: number
+  platformPaise: number
+  tierPercent: number
+  alreadyReleasedPaise?: number
+}) {
+  const pct = Math.min(100, Math.max(0, input.tierPercent)) / 100
+  const hostPaise = Math.max(0, Math.round(input.hostPaise))
+  const platformPaise = Math.max(0, Math.round(input.platformPaise))
+  const released = Math.max(0, Math.round(input.alreadyReleasedPaise || 0))
+
+  const hostRefundPaise = Math.round(hostPaise * pct)
+  const platformRefundPaise = Math.round(platformPaise * pct)
+  const totalRefundPaise = hostRefundPaise + platformRefundPaise
+
+  const hostUnreleased = Math.max(0, hostPaise - released)
+  const hostClawbackPaise = Math.min(hostRefundPaise, hostUnreleased)
+  const platformWriteOffPaise = Math.max(0, hostRefundPaise - hostClawbackPaise)
+
+  return {
+    totalRefundPaise,
+    hostRefundPaise,
+    platformRefundPaise,
+    hostClawbackPaise,
+    platformWriteOffPaise,
+  }
+}

@@ -7,6 +7,7 @@ import { processCancellation, initiateRefund, markRefundComplete } from '@/actio
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign } from 'lucide-react'
+import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
 interface Props {
@@ -73,9 +74,9 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
     })
   }
 
-  function handleProcessCancellation(bookingId: string, approve: boolean, refundPaise?: number, note?: string) {
+  function handleProcessCancellation(bookingId: string, approve: boolean, refundPaise?: number, note?: string, tierPercent?: number) {
     startTransition(async () => {
-      const res = await processCancellation(bookingId, approve, refundPaise, note)
+      const res = await processCancellation(bookingId, approve, refundPaise, note, tierPercent)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else showFeedback(bookingId, approve ? 'Cancellation approved — user notified. Now initiate refund.' : 'Cancellation denied & user notified')
     })
@@ -331,64 +332,16 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                   {/* Cancellation Review */}
                   {booking.cancellation_status === 'requested' && (
-                    <div className="p-3 rounded-lg border border-orange-500/30 bg-orange-500/5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-orange-400" />
-                        <span className="text-sm font-bold text-orange-400">Cancellation Requested</span>
-                      </div>
-                      {booking.cancellation_reason && (
-                        <p className="text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground">Reason:</span> {booking.cancellation_reason}
-                        </p>
-                      )}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs text-muted-foreground">Refund amount (₹):</label>
-                          <input
-                            type="number"
-                            id={`refund-${booking.id}`}
-                            defaultValue={Math.round(booking.total_amount_paise / 100)}
-                            className="bg-secondary border border-zinc-700 rounded px-2 py-1 text-sm w-28"
-                            min={0}
-                            max={Math.round(booking.total_amount_paise / 100)}
-                          />
-                          <span className="text-xs text-muted-foreground">Max: ₹{Math.round(booking.total_amount_paise / 100).toLocaleString('en-IN')}</span>
-                        </div>
-                        <textarea
-                          id={`cancel-note-${booking.id}`}
-                          className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
-                          rows={2}
-                          placeholder="Note to customer (reason for refund amount, deductions etc.)..."
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs"
-                            onClick={() => {
-                              const refundEl = document.getElementById(`refund-${booking.id}`) as HTMLInputElement
-                              const noteEl = document.getElementById(`cancel-note-${booking.id}`) as HTMLTextAreaElement
-                              const refundPaise = Math.round(parseFloat(refundEl?.value || '0') * 100)
-                              handleProcessCancellation(booking.id, true, refundPaise, noteEl?.value)
-                            }}
-                            disabled={isPending}
-                          >
-                            Approve & Refund
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
-                            onClick={() => {
-                              const noteEl = document.getElementById(`cancel-note-${booking.id}`) as HTMLTextAreaElement
-                              handleProcessCancellation(booking.id, false, undefined, noteEl?.value)
-                            }}
-                            disabled={isPending}
-                          >
-                            Deny
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                    <CancellationReviewPanel
+                      bookingId={booking.id}
+                      totalAmountPaise={booking.total_amount_paise}
+                      cancellationReason={booking.cancellation_reason}
+                      disabled={isPending}
+                      onApprove={(refundPaise, tierPercent, note) =>
+                        handleProcessCancellation(booking.id, true, refundPaise, note, tierPercent)
+                      }
+                      onDeny={(note) => handleProcessCancellation(booking.id, false, undefined, note)}
+                    />
                   )}
 
                   {/* Refund Tracking — for approved cancellations */}

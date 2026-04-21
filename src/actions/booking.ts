@@ -1403,6 +1403,7 @@ export async function processCancellation(
   approve: boolean,
   refundAmountPaise?: number,
   adminNote?: string,
+  tierPercent?: number,
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -1446,6 +1447,18 @@ export async function processCancellation(
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
+
+  // Pro-rata split: write host/platform refund shares to host_earnings so the
+  // host sees exactly which portion came out of their earnings.
+  if (approve && typeof refundAmountPaise === 'number' && refundAmountPaise > 0) {
+    try {
+      const { applyRefundSplitToEarning } = await import('@/actions/cancellation-refund')
+      await applyRefundSplitToEarning(bookingId, tierPercent ?? 0, refundAmountPaise)
+    } catch (err) {
+      console.error('applyRefundSplitToEarning failed', err)
+      // Non-fatal: the booking is already marked cancelled. Admins can re-run if needed.
+    }
+  }
 
   // Get booking to notify user
   const { data: booking } = await supabase

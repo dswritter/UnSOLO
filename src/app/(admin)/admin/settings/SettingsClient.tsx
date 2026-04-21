@@ -13,6 +13,9 @@ import {
   validateRefundTiers,
   defaultHostRefundTiers,
   defaultUnsoloRefundTiers,
+  defaultStaysRefundTiers,
+  defaultActivitiesRefundTiers,
+  defaultRentalsRefundTiers,
 } from '@/lib/refund-tiers'
 import { cn } from '@/lib/utils'
 
@@ -41,6 +44,18 @@ const SETTING_LABELS: Record<
     label: 'Refund tiers — Community / host trips',
     type: 'refund_tiers',
   },
+  refund_tiers_stays: {
+    label: 'Refund tiers — Stays',
+    type: 'refund_tiers',
+  },
+  refund_tiers_activities: {
+    label: 'Refund tiers — Activities',
+    type: 'refund_tiers',
+  },
+  refund_tiers_rentals: {
+    label: 'Refund tiers — Rentals',
+    type: 'refund_tiers',
+  },
   share_poster_share_title: { label: 'Native share title', type: 'text' },
   share_poster_share_text: { label: 'Native share message', type: 'textarea' },
   share_poster_footer_tagline: {
@@ -56,7 +71,13 @@ const SHARE_POSTER_ORDER = [
 ] as const
 
 const SHARE_POSTER_KEYS = new Set<string>(SHARE_POSTER_ORDER)
-const REFUND_KEYS = new Set(['refund_tiers_unsolo', 'refund_tiers_host'])
+const REFUND_KEYS = new Set([
+  'refund_tiers_unsolo',
+  'refund_tiers_host',
+  'refund_tiers_stays',
+  'refund_tiers_activities',
+  'refund_tiers_rentals',
+])
 
 /** Defaults when rows are missing (e.g. before migration). */
 const SHARE_POSTER_DEFAULTS: Record<(typeof SHARE_POSTER_ORDER)[number], string> = {
@@ -66,13 +87,20 @@ const SHARE_POSTER_DEFAULTS: Record<(typeof SHARE_POSTER_ORDER)[number], string>
 }
 
 function refundSettingDescription(key: string, fallback: string | null): string | null {
-  if (key === 'refund_tiers_host') {
-    return 'Used when an admin reviews cancellations for community and host-led trips. Platform fee rules still apply.'
+  switch (key) {
+    case 'refund_tiers_host':
+      return 'Community / host-led trips. Host and platform absorb the refund proportionally (fair-split).'
+    case 'refund_tiers_unsolo':
+      return 'UnSOLO curated packages: refund percentage by how many days remain before departure.'
+    case 'refund_tiers_stays':
+      return 'Overnight stays — homestays, cabins, hotels. Hours shown relative to check-in.'
+    case 'refund_tiers_activities':
+      return 'Day experiences — tours, workshops, classes. Hours shown relative to start time.'
+    case 'refund_tiers_rentals':
+      return 'Rentals — bikes, scooters, gear, vehicles. Sub-day precision supported (12h granularity).'
+    default:
+      return fallback
   }
-  if (key === 'refund_tiers_unsolo') {
-    return 'Used for UnSOLO curated packages: refund percentage by how many days remain before departure.'
-  }
-  return fallback
 }
 
 function CompactSettingRow({
@@ -157,8 +185,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
   )
   const [generalOpen, setGeneralOpen] = useState(false)
   const [shareSectionOpen, setShareSectionOpen] = useState(false)
-  const [refundUnsoloOpen, setRefundUnsoloOpen] = useState(false)
-  const [refundHostOpen, setRefundHostOpen] = useState(false)
+  const [refundOpenByKey, setRefundOpenByKey] = useState<Record<string, boolean>>({})
   const [isPending, startTransition] = useTransition()
 
   const insertShareToken = useCallback(
@@ -171,21 +198,26 @@ export default function SettingsClient({ settings: initialSettings }: { settings
   const generalSettings = initialSettings.filter(
     (s) => !SHARE_POSTER_KEYS.has(s.key) && !REFUND_KEYS.has(s.key)
   )
+  const refundOrder = ['refund_tiers_unsolo', 'refund_tiers_host', 'refund_tiers_stays', 'refund_tiers_activities', 'refund_tiers_rentals']
   const refundSettings = initialSettings
     .filter((s) => REFUND_KEYS.has(s.key))
-    .sort((a, b) => {
-      if (a.key === 'refund_tiers_unsolo') return -1
-      if (b.key === 'refund_tiers_unsolo') return 1
-      return a.key.localeCompare(b.key)
-    })
+    .sort((a, b) => refundOrder.indexOf(a.key) - refundOrder.indexOf(b.key))
+
+  function defaultsForKey(key: string) {
+    switch (key) {
+      case 'refund_tiers_host': return defaultHostRefundTiers()
+      case 'refund_tiers_stays': return defaultStaysRefundTiers()
+      case 'refund_tiers_activities': return defaultActivitiesRefundTiers()
+      case 'refund_tiers_rentals': return defaultRentalsRefundTiers()
+      default: return defaultUnsoloRefundTiers()
+    }
+  }
 
   function handleSave() {
     startTransition(async () => {
       for (const [key, value] of Object.entries(settings)) {
-        if (key === 'refund_tiers_unsolo' || key === 'refund_tiers_host') {
-          const defaults =
-            key === 'refund_tiers_host' ? defaultHostRefundTiers() : defaultUnsoloRefundTiers()
-          const tiers = parseRefundTiersJson(value, defaults)
+        if (REFUND_KEYS.has(key)) {
+          const tiers = parseRefundTiersJson(value, defaultsForKey(key))
           const check = validateRefundTiers(tiers)
           if (!check.ok) {
             toast.error(check.message)
@@ -389,8 +421,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
       <div className="space-y-3 max-w-3xl">
         {refundSettings.map((s) => {
           const config = SETTING_LABELS[s.key]!
-          const open = s.key === 'refund_tiers_unsolo' ? refundUnsoloOpen : refundHostOpen
-          const setOpen = s.key === 'refund_tiers_unsolo' ? setRefundUnsoloOpen : setRefundHostOpen
+          const open = !!refundOpenByKey[s.key]
           return (
             <div
               key={s.key}
@@ -399,7 +430,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
               <button
                 type="button"
                 className="relative flex w-full items-start gap-2 pl-4 pr-10 py-3 text-left hover:bg-card/60 transition-colors"
-                onClick={() => setOpen((v) => !v)}
+                onClick={() => setRefundOpenByKey((m) => ({ ...m, [s.key]: !open }))}
               >
                 <Settings className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
@@ -423,11 +454,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                   <RefundTiersEditor
                     value={settings[s.key] || ''}
                     onChange={(v) => setSettings((prev) => ({ ...prev, [s.key]: v }))}
-                    defaults={
-                      s.key === 'refund_tiers_host'
-                        ? defaultHostRefundTiers()
-                        : defaultUnsoloRefundTiers()
-                    }
+                    defaults={defaultsForKey(s.key)}
                     title={config.label}
                     description={refundSettingDescription(s.key, s.description)}
                     hideOuterTitle

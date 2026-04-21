@@ -9,7 +9,12 @@ import {
   createUpiFundAccount,
   isRazorpayXConfigured,
 } from '@/lib/razorpay/x'
-import { parseRefundTiersJson, defaultHostRefundTiers, type RefundTier } from '@/lib/refund-tiers'
+import {
+  parseRefundTiersJson,
+  defaultHostRefundTiers,
+  currentRefundPercent,
+  type RefundTier,
+} from '@/lib/refund-tiers'
 
 type RefundSchedule = { tiers: RefundTier[] }
 
@@ -22,22 +27,6 @@ async function getHostRefundTiers(): Promise<RefundSchedule> {
     .maybeSingle()
   const tiers = parseRefundTiersJson((data?.value as string | null) ?? null, defaultHostRefundTiers())
   return { tiers }
-}
-
-function currentRefundPercent(travelDateIso: string, tiers: RefundTier[]): number {
-  const travel = new Date(travelDateIso).getTime()
-  if (!Number.isFinite(travel)) return 0
-  const daysBefore = Math.floor((travel - Date.now()) / (24 * 60 * 60 * 1000))
-  if (daysBefore < 0) return 0
-  // Find the tier matching current daysBefore; highest percent wins on ambiguity.
-  let pct = 0
-  for (const t of tiers) {
-    const min = t.minDaysBefore
-    const max = t.maxDaysBefore
-    const inBand = daysBefore >= min && (max == null || daysBefore <= max)
-    if (inBand) pct = Math.max(pct, t.percent)
-  }
-  return pct
 }
 
 export async function getReleasableHostEarning(earningId: string): Promise<{

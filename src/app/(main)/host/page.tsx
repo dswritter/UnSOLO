@@ -118,6 +118,15 @@ export default async function HostDashboardPage() {
           </div>
         )}
 
+        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
+          <p className="font-semibold text-foreground">Fair-split refunds — your share is protected</p>
+          <p className="text-muted-foreground mt-1 leading-relaxed">
+            On cancellations, UnSOLO and you absorb the refund proportionally to our earnings. You only ever lose
+            your fair portion — never the platform fee, promo codes, or referral credits.{' '}
+            <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
+          </p>
+        </div>
+
         <HostTripDraftsPanel />
 
         {/* Compact Stats Row */}
