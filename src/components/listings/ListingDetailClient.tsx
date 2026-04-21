@@ -237,16 +237,16 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
         {listing.location && listing.type !== 'getting_around' && (
           <div>
             <h2 className="text-xl font-bold mb-3">Location</h2>
-            <div className="rounded-xl overflow-hidden border border-border">
+            <div className="rounded-xl overflow-hidden border border-border" style={{ height: 260 }}>
               <iframe
                 title="Listing location"
                 width="100%"
-                height="260"
+                height="290"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 src={`https://www.openstreetmap.org/export/embed.html?bbox=-0.1,0,0.1,0&layer=mapnik&marker=0,0&query=${encodeURIComponent(listing.location)}`}
                 className="w-full block"
-                style={{ border: 0 }}
+                style={{ border: 0, marginBottom: -30 }}
               />
             </div>
             <div className="flex gap-2 mt-2">

@@ -1446,16 +1446,16 @@ export function HostServiceListingTabs(props: Props) {
               </button>
             </div>
             <p className="text-xs text-muted-foreground line-clamp-2">{mapPreview.displayName}</p>
-            <div className="rounded-lg overflow-hidden border border-border">
+            <div className="rounded-lg overflow-hidden border border-border" style={{ height: 300 }}>
               <iframe
                 title="Map preview"
                 width="100%"
-                height="300"
+                height="330"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapPreview.lon - 0.01},${mapPreview.lat - 0.01},${mapPreview.lon + 0.01},${mapPreview.lat + 0.01}&layer=mapnik&marker=${mapPreview.lat},${mapPreview.lon}`}
                 className="w-full block"
-                style={{ border: 0 }}
+                style={{ border: 0, marginBottom: -30 }}
               />
             </div>
             <div className="flex justify-between items-center pt-1">
