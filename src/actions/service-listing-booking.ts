@@ -3,6 +3,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
+import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
+import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
+import type { ServiceListingType } from '@/types'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -308,6 +311,52 @@ export async function confirmServiceListingPayment(
         booking.service_listing_item_id,
         booking.quantity ?? 1,
       )
+    }
+
+    // Record host earnings ledger entry so admin can see and pay out the host.
+    if (booking.service_listing_id && booking.amount_paise > 0) {
+      try {
+        const { data: listing } = await supabase
+          .from('service_listings')
+          .select('host_id, type, title')
+          .eq('id', booking.service_listing_id)
+          .single()
+
+        if (listing?.host_id) {
+          const feePercent = await getPlatformFeePercentByCategory(listing.type as ServiceListingType)
+          const { platformFeePaise, hostPaise } = splitInclusiveCommunityPayment(
+            booking.amount_paise,
+            feePercent,
+          )
+
+          const { createClient: createSC } = await import('@supabase/supabase-js')
+          const svc = createSC(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          )
+
+          await svc.from('host_earnings').insert({
+            booking_id: booking.id,
+            host_id: listing.host_id,
+            total_paise: booking.amount_paise,
+            platform_fee_paise: platformFeePaise,
+            host_paise: hostPaise,
+            payout_status: 'pending',
+          })
+
+          const hostAmountFmt = '₹' + (hostPaise / 100).toLocaleString('en-IN')
+          await svc.from('notifications').insert({
+            user_id: listing.host_id,
+            type: 'split_payment',
+            title: 'New booking — payout recorded',
+            body: `A traveller booked "${listing.title}". Your earnings: ${hostAmountFmt} (list price includes a ${feePercent}% platform fee).`,
+            link: '/host',
+          })
+        }
+      } catch (err) {
+        console.error('Failed to record host earnings for service booking:', err)
+        /* non-critical — booking is already confirmed */
+      }
     }
 
     return { success: true, bookingId: booking.id }

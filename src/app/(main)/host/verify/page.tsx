@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { sendPhoneOTP, verifyPhoneOTP, checkVerificationStatus, resendEmailVerification } from '@/actions/verification'
+import { getPayoutDetails, type PayoutDetails } from '@/actions/payout'
+import { PayoutDetailsForm } from '@/components/hosting/PayoutDetailsForm'
 import { toast } from 'sonner'
-import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2 } from 'lucide-react'
+import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2, Wallet } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 function isLocalDevHostname(): boolean {
@@ -29,8 +31,8 @@ export default function HostVerifyPage() {
   const [otp, setOtp] = useState('')
   const [sending, setSending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
-  const [upiId, setUpiId] = useState('')
-  const [upiSaved, setUpiSaved] = useState(false)
+  const [payout, setPayout] = useState<PayoutDetails | null>(null)
+  const payoutSaved = !!(payout && ((payout.upi_id && payout.upi_id.includes('@')) || (payout.bank_account_number && payout.bank_ifsc)))
 
   const syncCooldownFromServer = useCallback((iso: string | undefined | null) => {
     if (!iso) return
@@ -63,10 +65,18 @@ export default function HostVerifyPage() {
           setStep('enter_phone')
         }
       }
+      const p = await getPayoutDetails()
+      if (p && !('error' in p)) setPayout(p)
+      else setPayout({ upi_id: null, bank_account_name: null, bank_account_number: null, bank_ifsc: null, payout_method: 'upi' })
       setLoading(false)
     }
     load()
   }, [])
+
+  async function refreshPayout() {
+    const p = await getPayoutDetails()
+    if (p && !('error' in p)) setPayout(p)
+  }
 
   // Web OTP (Chrome/Android): SMS must include app origin (configure your 2factor template accordingly).
   useEffect(() => {
@@ -162,14 +172,41 @@ export default function HostVerifyPage() {
   if (isHost) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
-          <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-10 w-10 text-green-500" />
+        <div className="mx-auto max-w-lg px-4 py-16">
+          <div className="text-center mb-8">
+            <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
+              <Shield className="h-10 w-10 text-green-500" />
+            </div>
+            <h1 className="text-3xl font-black mb-2">You&apos;re a Verified Host!</h1>
+            <p className="text-muted-foreground">
+              {payoutSaved
+                ? 'Phone and email verified. You can now create and host trips on UnSOLO.'
+                : 'One last step — add where we should send your earnings.'}
+            </p>
           </div>
-          <h1 className="text-3xl font-black mb-2">You&apos;re a Verified Host!</h1>
-          <p className="text-muted-foreground mb-8">Phone and email verified. You can now create and host trips on UnSOLO.</p>
-          <div className="flex gap-3 justify-center">
-            <Button onClick={() => router.push('/host/create')} className="bg-primary text-primary-foreground font-bold" size="lg">
+
+          {payout && (
+            <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35'}`}>
+              <div className="flex items-center gap-3 mb-4">
+                {payoutSaved ? <CheckCircle className="h-6 w-6 text-green-500" /> : <Wallet className="h-6 w-6 text-primary" />}
+                <div>
+                  <h3 className="font-bold">Payout Details</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {payoutSaved ? 'Saved — update anytime from the host dashboard.' : 'Required before you can publish listings.'}
+                  </p>
+                </div>
+              </div>
+              <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Button
+              onClick={() => router.push('/host/create')}
+              className="bg-primary text-primary-foreground font-bold"
+              size="lg"
+              disabled={!payoutSaved}
+            >
               <ArrowRight className="mr-2 h-4 w-4" /> Create Your First Trip
             </Button>
             <Button onClick={() => router.push('/host')} variant="outline" size="lg">
@@ -339,63 +376,28 @@ export default function HostVerifyPage() {
           </div>
 
           {/* Payout Details — shown after both verifications */}
-          {emailVerified && phoneVerified && (
-            <div className={`p-5 rounded-xl border ${upiSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/30 bg-primary/5'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                {upiSaved ? (
+          {emailVerified && phoneVerified && payout && (
+            <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/30 bg-primary/5'}`}>
+              <div className="flex items-center gap-3 mb-4">
+                {payoutSaved ? (
                   <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
                 ) : (
-                  <Circle className="h-6 w-6 text-primary flex-shrink-0" />
+                  <Wallet className="h-6 w-6 text-primary flex-shrink-0" />
                 )}
                 <div>
                   <h3 className="font-bold">Payout Details</h3>
-                  <p className="text-xs text-muted-foreground">Where should we send your host earnings?</p>
+                  <p className="text-xs text-muted-foreground">
+                    {payoutSaved ? 'Saved — you can update these anytime.' : 'Where should we send your host earnings?'}
+                  </p>
                 </div>
               </div>
-              <div className="space-y-3 pl-9">
-                <Input
-                  placeholder="Your UPI ID (e.g. name@upi, name@paytm)"
-                  value={upiId}
-                  onChange={e => setUpiId(e.target.value.toLowerCase().trim())}
-                  className="bg-secondary border-border"
-                  disabled={upiSaved}
-                />
-                {!upiSaved && (
-                  <Button
-                    onClick={async () => {
-                      if (!upiId || !upiId.includes('@')) {
-                        toast.error('Enter a valid UPI ID (must contain @)')
-                        return
-                      }
-                      setSending(true)
-                      const { createClient } = await import('@/lib/supabase/client')
-                      const supabase = createClient()
-                      const { error } = await supabase.from('profiles').update({ upi_id: upiId, payout_method: 'upi' }).eq('id', (await supabase.auth.getUser()).data.user?.id || '')
-                      if (error) toast.error('Failed to save UPI ID')
-                      else { toast.success('UPI ID saved!'); setUpiSaved(true) }
-                      setSending(false)
-                    }}
-                    disabled={sending || !upiId.includes('@')}
-                    className="bg-primary text-primary-foreground font-bold w-full"
-                  >
-                    Save UPI ID
-                  </Button>
-                )}
-                {upiSaved && (
-                  <button onClick={() => setUpiSaved(false)} className="text-xs text-primary hover:underline">
-                    Change UPI ID
-                  </button>
-                )}
-                <p className="text-[10px] text-muted-foreground">
-                  Your share of each booking is the listed trip price minus UnSOLO&apos;s platform fee (shown when you set your price). That amount is recorded for payout to this UPI ID after successful bookings.
-                </p>
-              </div>
+              <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
             </div>
           )}
 
           {/* Status summary */}
           <div className="text-center text-sm text-muted-foreground pt-4">
-            {emailVerified && phoneVerified && upiSaved ? (
+            {emailVerified && phoneVerified && payoutSaved ? (
               <p className="text-green-400 font-medium">All set! You&apos;re ready to host.</p>
             ) : emailVerified && phoneVerified ? (
               <p className="text-primary font-medium">Almost there! Add your payout details above.</p>

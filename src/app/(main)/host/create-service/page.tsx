@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { checkIsHost } from '@/actions/hosting'
 import { getDestinations } from '@/actions/admin'
+import { hasPayoutConfigured } from '@/actions/payout'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { ServiceListingType } from '@/types'
@@ -33,6 +34,12 @@ export default async function CreateServiceListingPage({
   // Get type from params
   const params = await searchParams
   const type = params.type as ServiceListingType | undefined
+
+  // Require payout details before letting the host build a listing
+  if (!(await hasPayoutConfigured(user.id))) {
+    const returnTo = `/host/create-service${type ? `?type=${type}` : ''}`
+    redirect(`/host/payout?returnTo=${encodeURIComponent(returnTo)}`)
+  }
 
   // Validate type
   if (!type || !VALID_TYPES.includes(type)) {

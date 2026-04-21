@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/hosting'
+import { getPayoutDetails } from '@/actions/payout'
 import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +19,8 @@ import {
   IndianRupee,
   TrendingUp,
   Clock,
+  Wallet,
+  AlertTriangle,
 } from 'lucide-react'
 
 function ModerationBadge({ status }: { status: string }) {
@@ -39,10 +42,16 @@ export default async function HostDashboardPage() {
   if (!hostStatus.authenticated) redirect('/login')
   if (!hostStatus.isHost) redirect('/host/verify')
 
-  const [stats, trips] = await Promise.all([
+  const [stats, trips, payout] = await Promise.all([
     getHostDashboardStats(),
     getMyHostedTrips(),
+    getPayoutDetails(),
   ])
+
+  const payoutConfigured = !!(payout && !('error' in payout) && (
+    (payout.upi_id && payout.upi_id.includes('@')) ||
+    (payout.bank_account_number && payout.bank_ifsc)
+  ))
 
   // Fetch this host's service listings (stays/activities/rentals/getting_around).
   const supabase = await createClient()
@@ -83,8 +92,31 @@ export default async function HostDashboardPage() {
               Host your own trips or experiences and invite travelers to join
             </p>
           </div>
-          <HostCreateDropdown />
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/host/payout" className="gap-2">
+                <Wallet className="h-4 w-4" />
+                {payoutConfigured ? 'Payout Details' : 'Add Payout Details'}
+              </Link>
+            </Button>
+            <HostCreateDropdown />
+          </div>
         </div>
+
+        {!payoutConfigured && (
+          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">Add your payout details</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                You need a UPI ID or bank account on file before you can publish new listings and receive earnings.
+              </p>
+            </div>
+            <Button asChild size="sm" className="bg-primary text-primary-foreground font-bold flex-shrink-0">
+              <Link href="/host/payout">Set up</Link>
+            </Button>
+          </div>
+        )}
 
         <HostTripDraftsPanel />
 
