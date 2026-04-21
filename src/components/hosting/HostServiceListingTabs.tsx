@@ -24,6 +24,10 @@ import {
   updateServiceListingItem,
   deleteServiceListingItem,
 } from '@/actions/host-service-listing-items'
+import {
+  SERVICE_LISTING_PREVIEW_HANDOFF_KEY,
+  type HostServiceListingPreviewPayload,
+} from '@/lib/host-service-listing-preview-session'
 import type {
   Destination,
   ServiceListing,
@@ -64,6 +68,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
   titleLabel: string
   titleHint: string
   titlePlaceholder: string
+  itemNamePlaceholder: string
   defaultUnit: Unit
   suggestedAmenities: string[]
   unitOptions: { value: Unit; label: string }[]
@@ -73,12 +78,14 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     titleLabel: 'Business / property name',
     titleHint: 'The name of your stay or property — travelers see this first.',
     titlePlaceholder: 'e.g., Mountain View Homestay, Riverbank Cottages',
+    itemNamePlaceholder: 'e.g., Deluxe Room / 1BHK Suite / MudHouse / Penthouse',
     defaultUnit: 'per_night',
     suggestedAmenities: ['WiFi', 'Kitchen', 'Bathroom', 'AC', 'Parking'],
     unitOptions: [
       { value: 'per_night', label: 'Per night' },
       { value: 'per_day', label: 'Per day' },
       { value: 'per_week', label: 'Per week' },
+      { value: 'per_month', label: 'Per month' },
     ],
   },
   activities: {
@@ -86,6 +93,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     titleLabel: 'Business / experience name',
     titleHint: 'Your company or offering name. Individual activities go in as items below.',
     titlePlaceholder: 'e.g., Himalayan Adventures, Spiti Photography Tours',
+    itemNamePlaceholder: 'e.g., Sunset Trek / Paragliding / Photography Walk',
     defaultUnit: 'per_person',
     suggestedAmenities: ['Guide included', 'Equipment provided', 'Snacks', 'Photos included'],
     unitOptions: [
@@ -99,6 +107,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     titleLabel: 'Shop / business name',
     titleHint: 'Your rental business name — not a single vehicle. Individual cars/bikes go in as items below.',
     titlePlaceholder: 'e.g., Manali Car Rentals, Leh Bike Hub',
+    itemNamePlaceholder: 'e.g., Maruti Alto (white) / Royal Enfield Classic 350',
     defaultUnit: 'per_day',
     suggestedAmenities: ['Insurance', 'Fuel', 'Free mileage', 'GPS'],
     unitOptions: [
@@ -113,6 +122,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     titleLabel: 'Service / agency name',
     titleHint: 'Your transport agency name. Individual routes or vehicles go in as items below.',
     titlePlaceholder: 'e.g., Spiti Cab Service, Himachal Tempo Travellers',
+    itemNamePlaceholder: 'e.g., Airport pickup / Manali → Kasol drop',
     defaultUnit: 'per_day',
     suggestedAmenities: ['Airport service', 'On-time pickup', 'AC vehicle'],
     unitOptions: [
@@ -178,18 +188,38 @@ function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftIt
   return draft
 }
 
-async function uploadImage(file: File): Promise<string | null> {
-  const fd = new FormData()
-  fd.append('file', file)
-  fd.append('purpose', 'host_trip')
-  const res = await fetch('/api/upload', { method: 'POST', body: fd })
-  if (!res.ok) {
-    const { error } = await res.json().catch(() => ({ error: 'Upload failed' }))
-    toast.error(error || 'Upload failed')
-    return null
-  }
-  const { url } = await res.json()
-  return url as string
+// XHR-based upload so we can stream progress into the photo placeholder.
+function uploadImage(file: File, onProgress?: (percent: number) => void): Promise<string | null> {
+  return new Promise((resolve) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('purpose', 'host_trip')
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', '/api/upload')
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const { url } = JSON.parse(xhr.responseText)
+          resolve(url as string)
+        } catch {
+          toast.error('Upload failed')
+          resolve(null)
+        }
+      } else {
+        let msg = 'Upload failed'
+        try { msg = JSON.parse(xhr.responseText).error || msg } catch {}
+        toast.error(msg)
+        resolve(null)
+      }
+    }
+    xhr.onerror = () => { toast.error('Upload failed'); resolve(null) }
+    xhr.send(fd)
+  })
 }
 
 export function HostServiceListingTabs(props: Props) {
@@ -467,6 +497,8 @@ export function HostServiceListingTabs(props: Props) {
   )
   const isRental = type === 'rentals'
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
+  /** Per-file upload progress while `uploadingLocalKey` is set. Length = total files in the current batch. */
+  const [uploadProgress, setUploadProgress] = useState<number[]>([])
   const itemDescRefs = useRef<Record<string, HTMLTextAreaElement | null>>({})
   /** Per-item "add your own amenity" input buffer, keyed by draft.localKey. */
   const [customItemAmenity, setCustomItemAmenity] = useState<Record<string, string>>({})
@@ -687,14 +719,61 @@ export function HostServiceListingTabs(props: Props) {
       toast.error('Max 5 photos per item')
     }
     setUploadingLocalKey(draft.localKey)
+    setUploadProgress(toUpload.map(() => 0))
     const uploaded: string[] = []
-    for (const f of toUpload) {
-      const url = await uploadImage(f)
+    for (let i = 0; i < toUpload.length; i++) {
+      const url = await uploadImage(toUpload[i], (percent) => {
+        setUploadProgress(prev => {
+          const next = [...prev]
+          next[i] = percent
+          return next
+        })
+      })
       if (url) uploaded.push(url)
     }
     setUploadingLocalKey(null)
+    setUploadProgress([])
     if (uploaded.length === 0) return
     updateDraft(draft.localKey, { images: [...draft.images, ...uploaded] })
+  }
+
+  /** Open the public-style preview in a new tab using the current in-memory
+   *  form state — works in both create and edit mode, no persistence required. */
+  function openPreview() {
+    const primaryDest = destinations.find(d => d.id === (destinationIds[0] || ''))
+    const payload: HostServiceListingPreviewPayload = {
+      type,
+      title,
+      shortDescription,
+      description,
+      unit,
+      location,
+      pinLat: pinLatLon?.lat ?? null,
+      pinLon: pinLatLon?.lon ?? null,
+      destinationId: primaryDest?.id ?? null,
+      destinationName: primaryDest?.name ?? null,
+      destinationState: primaryDest?.state ?? null,
+      amenities,
+      tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+      hostImages: [],
+      items: items.map(it => ({
+        name: it.name,
+        description: it.description,
+        priceRupees: it.priceRupees ?? 0,
+        quantity: it.quantity,
+        maxPerBooking: it.maxPerBooking,
+        images: it.images,
+        unit: isRental ? (it.unit ?? config.defaultUnit) : null,
+        amenities: isRental ? (it.amenities ?? []) : null,
+      })),
+    }
+    try {
+      localStorage.setItem(SERVICE_LISTING_PREVIEW_HANDOFF_KEY, JSON.stringify(payload))
+    } catch {
+      toast.error('Could not open preview (storage blocked).')
+      return
+    }
+    window.open('/host/service-listing-preview', '_blank', 'noopener,noreferrer')
   }
 
   // ── Save handlers ─────────────────────────────────────────────────────
@@ -1028,7 +1107,6 @@ export function HostServiceListingTabs(props: Props) {
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">{config.titleLabel} *</label>
-            <p className="text-xs text-muted-foreground">{config.titleHint}</p>
             <input
               id="field-title"
               type="text"
@@ -1043,10 +1121,6 @@ export function HostServiceListingTabs(props: Props) {
             <label className="text-sm font-semibold">
               Address details <span className="text-xs font-normal text-muted-foreground">(optional)</span>
             </label>
-            <p className="text-xs text-muted-foreground">
-              Building name, floor, landmark — anything beyond what a map pin can show.
-              e.g., <em>2nd floor, above Cafe Coffee Day</em>.
-            </p>
             <div className="relative" ref={suggestionsRef}>
               <input
                 id="field-address"
@@ -1079,9 +1153,6 @@ export function HostServiceListingTabs(props: Props) {
               {/* Multi-result suggestions dropdown */}
               {showSuggestions && geoSuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                  <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide border-b border-border">
-                    Multiple results — pick the right one
-                  </p>
                   {geoSuggestions.map((r, i) => {
                     const parts = r.display_name.split(', ')
                     const primary = parts.slice(0, 2).join(', ')
@@ -1172,11 +1243,7 @@ export function HostServiceListingTabs(props: Props) {
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              ) : (
-                <p className={`mt-1.5 text-xs ${(type === 'stays' || type === 'rentals') ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                  No pin set yet — use the search icon, paste a Google Maps link, or tap the locate button above.
-                </p>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -1193,10 +1260,6 @@ export function HostServiceListingTabs(props: Props) {
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">About your business</label>
-            <p className="text-xs text-muted-foreground">
-              Use the toolbar for <strong>bold</strong>, headings, and bullet lists — or type Markdown
-              (<code>**bold**</code>, <code>## Heading</code>, <code>- item</code>).
-            </p>
             <TripDescriptionMarkdownToolbar
               textareaRef={descRef}
               value={description}
@@ -1284,7 +1347,6 @@ export function HostServiceListingTabs(props: Props) {
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">Tags</label>
-            <p className="text-xs text-muted-foreground">Comma-separated.</p>
             <input
               type="text"
               placeholder="e.g., family-friendly, budget, adventure"
@@ -1352,7 +1414,7 @@ export function HostServiceListingTabs(props: Props) {
                     type="text"
                     value={draft.name}
                     onChange={(e) => updateDraft(draft.localKey, { name: e.target.value })}
-                    placeholder="e.g., Maruti Alto (white) / Deluxe Room / Sunset Trek"
+                    placeholder={config.itemNamePlaceholder}
                     className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -1499,9 +1561,6 @@ export function HostServiceListingTabs(props: Props) {
 
                 <div id={`item-images-${draft.localKey}`}>
                   <label className="text-xs font-semibold">Photos ({draft.images.length} / 5)</label>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    The first photo is the cover — click the star on any other photo to make it the cover.
-                  </p>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {draft.images.map((url, i) => {
                       const isCover = i === 0
@@ -1543,16 +1602,30 @@ export function HostServiceListingTabs(props: Props) {
                         </div>
                       )
                     })}
-                    {draft.images.length < 5 && (
+                    {uploadingLocalKey === draft.localKey && uploadProgress.map((pct, i) => (
+                      <div
+                        key={`upload-${i}`}
+                        className="relative h-16 w-16 rounded-lg border-2 border-primary/40 bg-secondary/40 overflow-hidden flex items-center justify-center"
+                      >
+                        <div
+                          className="absolute inset-x-0 bottom-0 bg-primary/25 transition-[height] duration-200 ease-out"
+                          style={{ height: `${pct}%` }}
+                        />
+                        <div className="relative flex flex-col items-center gap-0.5 text-[10px] font-semibold text-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          <span>{pct}%</span>
+                        </div>
+                      </div>
+                    ))}
+                    {draft.images.length < 5 && uploadingLocalKey !== draft.localKey && (
                       <label className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:border-primary">
-                        {uploadingLocalKey === draft.localKey ? '…' : '+ Add'}
+                        + Add
                         <input
                           type="file"
                           accept="image/*"
                           multiple
                           className="hidden"
                           onChange={(e) => { handleItemImageAdd(draft, e.target.files); e.target.value = '' }}
-                          disabled={uploadingLocalKey === draft.localKey}
                         />
                       </label>
                     )}
@@ -1656,11 +1729,22 @@ export function HostServiceListingTabs(props: Props) {
           )}
 
           {mode === 'create' && (
-            <div className="pt-2">
-              <Button onClick={submitCreate} disabled={saving} className="w-full">
-                {saving ? 'Submitting…' : 'Submit for review'}
-              </Button>
-              <p className="text-xs text-muted-foreground text-center mt-2">
+            <div className="pt-2 space-y-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openPreview}
+                  className="gap-1.5 w-full sm:w-auto"
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </Button>
+                <Button onClick={submitCreate} disabled={saving} className="flex-1">
+                  {saving ? 'Submitting…' : 'Submit for review'}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
                 An admin will review your listing and notify you on approval.
               </p>
             </div>
@@ -1695,19 +1779,24 @@ export function HostServiceListingTabs(props: Props) {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  // Preview reflects last-saved state only — warn the host so
-                  // they don't wonder why their draft edits aren't showing.
-                  if (isDirty) {
-                    toast.message('Preview shows last-saved version — save changes first to preview edits.')
-                  }
-                  window.open(`/listings/${type}/${initialListing?.slug}`, '_blank', 'noopener,noreferrer')
-                }}
-                title="Open public listing page in a new tab"
+                onClick={openPreview}
+                title="Open a draft-accurate preview in a new tab"
               >
-                <ExternalLink className="h-4 w-4 mr-1.5" />
+                <Eye className="h-4 w-4 mr-1.5" />
                 Preview
               </Button>
+              {initialListing?.slug && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`/listings/${type}/${initialListing.slug}`, '_blank', 'noopener,noreferrer')}
+                  title="Open the public (last-saved) listing page"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1.5" />
+                  Public page
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -1801,7 +1890,6 @@ export function HostServiceListingTabs(props: Props) {
                     setPinLatLon({ lat: mapPreview.lat, lon: mapPreview.lon })
                     setPinDisplayName(mapPreview.displayName)
                     setMapPreview(null)
-                    toast.success('Map pin saved')
                   }}
                 >
                   Use this pin

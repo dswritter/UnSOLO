@@ -974,6 +974,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <span className="text-primary font-bold text-sm">
                 {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
               </span>
+              <Button
+                size="sm" variant="ghost"
+                className="text-muted-foreground hover:text-white"
+                onClick={() => window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')}
+                title="Preview public page"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
               <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-white" onClick={() => loadForEdit(pkg)}>
                 <Edit2 className="h-4 w-4" />
               </Button>
