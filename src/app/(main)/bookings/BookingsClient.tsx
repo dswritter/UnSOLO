@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus } from 'lucide-react'
 import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
 import {
   tripEndDateIsoForBooking,
@@ -934,6 +934,42 @@ function TokenBalancePay({ bookingId }: { bookingId: string }) {
   )
 }
 
+function addToCalendar(booking: Booking, tripEndIso: string | null) {
+  const pkg = booking.package
+  const title = pkg?.title || 'UnSOLO Trip'
+  const location = pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : ''
+  const start = booking.travel_date ? booking.travel_date.replace(/-/g, '') : ''
+  const end = tripEndIso ? tripEndIso.replace(/-/g, '') : start
+  const endPlusOne = end
+    ? (() => {
+        const d = new Date(tripEndIso + 'T00:00:00')
+        d.setDate(d.getDate() + 1)
+        return d.toISOString().split('T')[0].replace(/-/g, '')
+      })()
+    : start
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    `SUMMARY:${title}`,
+    `DTSTART;VALUE=DATE:${start}`,
+    `DTEND;VALUE=DATE:${endPlusOne}`,
+    `LOCATION:${location}`,
+    `DESCRIPTION:UnSOLO trip #${booking.confirmation_code || booking.id.slice(0, 8)}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+
+  const blob = new Blob([ics], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${title.replace(/\s+/g, '-')}.ics`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function BookingItem({
   booking,
   expanded,
@@ -989,7 +1025,20 @@ function BookingItem({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
               <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Trip'}</h3>
-              <SoloBookingStatusBadge booking={booking} />
+              <div className="flex flex-wrap gap-1.5 justify-end">
+                <SoloBookingStatusBadge booking={booking} />
+                {booking.cancellation_status === 'approved' && booking.refund_status && (
+                  <Badge className={`text-xs border ${
+                    booking.refund_status === 'completed'
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                      : booking.refund_status === 'processing'
+                      ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                      : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                  }`}>
+                    {booking.refund_status === 'completed' ? '✅ Refunded' : booking.refund_status === 'processing' ? '⏳ Refund in process' : '⏸ Refund pending'}
+                  </Badge>
+                )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
               <span className="flex items-center gap-1">
@@ -1041,6 +1090,16 @@ function BookingItem({
               </div>
               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                 {showTokenBalance && <TokenBalancePay bookingId={booking.id} />}
+                {booking.status === 'confirmed' && booking.travel_date && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-border text-xs"
+                    onClick={() => addToCalendar(booking, tripEndIso)}
+                  >
+                    <CalendarPlus className="mr-1 h-3 w-3" /> Add to Calendar
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="border-border text-xs" asChild>
                   <Link href="/community">
                     <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
