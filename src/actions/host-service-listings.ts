@@ -378,3 +378,31 @@ export async function updateHostServiceListing(
     return { error: 'An unexpected error occurred' }
   }
 }
+
+export async function toggleHostServiceListingActive(listingId: string) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Not authenticated' }
+
+    const { data: listing, error: fetchError } = await supabase
+      .from('service_listings')
+      .select('id, host_id, is_active')
+      .eq('id', listingId)
+      .single()
+
+    if (fetchError || !listing) return { error: 'Listing not found' }
+    if (listing.host_id !== user.id) return { error: 'Unauthorized' }
+
+    const { error: updateError } = await supabase
+      .from('service_listings')
+      .update({ is_active: !listing.is_active })
+      .eq('id', listingId)
+
+    if (updateError) return { error: 'Failed to update listing' }
+    return { success: true, isActive: !listing.is_active }
+  } catch (error) {
+    console.error('toggleHostServiceListingActive:', error)
+    return { error: 'An unexpected error occurred' }
+  }
+}

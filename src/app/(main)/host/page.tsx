@@ -9,6 +9,7 @@ import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
 import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
+import { ToggleServiceListingButton } from './ToggleServiceListingButton'
 import {
   Plus,
   MapPin,
@@ -49,7 +50,7 @@ export default async function HostDashboardPage() {
   const { data: serviceListings } = user
     ? await supabase
         .from('service_listings')
-        .select('id, title, type, status, images')
+        .select('id, title, type, status, is_active, images')
         .eq('host_id', user.id)
         .order('created_at', { ascending: false })
     : { data: null }
@@ -98,15 +99,35 @@ export default async function HostDashboardPage() {
             <h2 className="text-lg font-bold mb-3">Your Services</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {serviceListings.map(listing => (
-                <div key={listing.id} className="rounded-xl border border-border bg-card p-4">
+                <div
+                  key={listing.id}
+                  className={`rounded-xl border bg-card p-4 transition-opacity ${
+                    listing.is_active === false
+                      ? 'border-red-900/30 opacity-70'
+                      : 'border-border'
+                  }`}
+                >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold truncate">{listing.title}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-semibold truncate">{listing.title}</h3>
+                        {listing.is_active === false && (
+                          <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5 capitalize">
                         {String(listing.type).replace('_', ' ')} · {countByListing[listing.id] || 0} item{countByListing[listing.id] === 1 ? '' : 's'}
                       </p>
                     </div>
-                    <ModerationBadge status={listing.status} />
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <ToggleServiceListingButton
+                        listingId={listing.id}
+                        isActive={listing.is_active !== false}
+                      />
+                      <ModerationBadge status={listing.status} />
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
                     <Link
