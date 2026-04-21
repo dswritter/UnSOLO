@@ -147,7 +147,7 @@ export function HeroCarousel({
                 <span className="text-white/60">{packageDurationShortLabel(pkg)}</span>
               </div>
               <Button size="lg" className="bg-primary text-black font-bold hover:bg-primary/90" asChild>
-                <Link href={`/packages/${pkg.slug}`}>View Trip <ArrowRight className="ml-2 h-5 w-5" /></Link>
+                <Link href={`/packages/${pkg.slug}`} target="_blank" rel="noopener noreferrer">View Trip <ArrowRight className="ml-2 h-5 w-5" /></Link>
               </Button>
             </div>
           ) : null}

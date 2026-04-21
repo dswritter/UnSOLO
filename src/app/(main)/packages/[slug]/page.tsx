@@ -398,7 +398,7 @@ export default async function PackageDetailPage({
                 <h2 className="text-lg font-bold mb-4">More trips like this</h2>
                 <div className="flex flex-col gap-3">
                   {similarPackages.map(sp => (
-                    <a key={sp.id} href={`/packages/${sp.slug}`} className="flex items-center gap-3 hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors">
+                    <a key={sp.id} href={`/packages/${sp.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors">
                       {sp.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={sp.images[0]} alt={sp.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />

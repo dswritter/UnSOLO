@@ -173,7 +173,7 @@ function renderMessageContent(content: string, isOwn: boolean = false, chatLinkT
         const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
         if (pkgMatch) {
           return (
-            <Link key={key} href={`/packages/${pkgMatch[1]}`} className={pkgBtnClass} onClick={e => e.stopPropagation()}>
+            <Link key={key} href={`/packages/${pkgMatch[1]}`} target="_blank" rel="noopener noreferrer" className={pkgBtnClass} onClick={e => e.stopPropagation()}>
               <Package className="h-3 w-3" />
               View Trip Package
             </Link>

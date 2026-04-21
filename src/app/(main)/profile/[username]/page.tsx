@@ -483,7 +483,7 @@ export default async function ProfilePage({
                       {completedBookings.map((booking) => {
                         const pkg = booking.package as { title: string; slug: string; destination?: { name: string; state: string } } | null
                         return (
-                          <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} className="block">
+                          <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
                             <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 transition-colors">
                               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
                                 🏔️
@@ -515,7 +515,7 @@ export default async function ProfilePage({
                     {reviews.map((review) => {
                       const pkg = review.package as { title: string; slug: string } | null
                       return (
-                        <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} className="block">
+                        <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
                           <div className="border-b border-border pb-4 last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 py-2 transition-colors">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-sm font-medium">{pkg?.title}</span>

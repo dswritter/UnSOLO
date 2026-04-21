@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import type { ServiceListing } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -52,7 +51,7 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
   }
 
   return (
-    <Link href={`/listings/${listing.type}/${listing.slug}`}>
+    <Link href={`/listings/${listing.type}/${listing.slug}`} target="_blank" rel="noopener noreferrer">
       <div className={cn(
         'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
         'hover:shadow-xl hover:scale-[1.02]',
@@ -115,9 +114,9 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
 // NOTE: This card intentionally does NOT use <Link> as a wrapper.
 // Nesting <button> elements inside <a> is invalid HTML — browsers collapse
 // the structure and the inner buttons end up triggering navigation regardless
-// of stopPropagation. We use router.push() on the card body instead.
+// of stopPropagation. We use window.open() on the card body instead so the
+// detail page opens in a new tab.
 function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items: CardItem[] }) {
-  const router = useRouter()
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ratingDisplay =
@@ -156,13 +155,14 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
   const heroImage = activeItem.images[0] || listing.images?.[0] || '/placeholder-listing.svg'
 
   const href = `/listings/${listing.type}/${listing.slug}`
+  const openInNewTab = () => window.open(href, '_blank', 'noopener,noreferrer')
 
   return (
     <div
       role="link"
       tabIndex={0}
-      onClick={() => router.push(href)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push(href) }}
+      onClick={openInNewTab}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openInNewTab() }}
       className={cn(
         'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
         'hover:shadow-xl hover:scale-[1.02]',
@@ -291,7 +291,7 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
           )}
 
           <button
-            onClick={(e) => { e.stopPropagation(); router.push(href) }}
+            onClick={(e) => { e.stopPropagation(); openInNewTab() }}
             className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
           >
             View Details
