@@ -27,6 +27,84 @@ export async function POST(request: Request) {
   const event = JSON.parse(body)
   const supabase = await createServiceClient()
 
+  // Idempotency: skip if we've already processed this webhook.
+  const eventId = (event.id as string) || `${event.event}:${event.created_at}:${JSON.stringify(event.payload).slice(0, 64)}`
+  const { error: dupErr } = await supabase
+    .from('razorpay_webhook_events')
+    .insert({ id: eventId, event_type: event.event, payload: event })
+  if (dupErr && dupErr.code === '23505') {
+    return NextResponse.json({ received: true, deduped: true })
+  }
+
+  // RazorpayX payout events — update host_earnings rows we released.
+  if (
+    event.event === 'payout.processed' ||
+    event.event === 'payout.failed' ||
+    event.event === 'payout.reversed'
+  ) {
+    const payout = event.payload.payout.entity as {
+      id: string
+      status: string
+      utr?: string | null
+      failure_reason?: string | null
+      amount: number
+    }
+
+    const { data: earning } = await supabase
+      .from('host_earnings')
+      .select('id, host_id, host_paise, released_paise')
+      .eq('razorpay_payout_id', payout.id)
+      .maybeSingle()
+
+    if (earning) {
+      const releasedPaise = (earning.released_paise as number) || 0
+      const hostPaise = earning.host_paise as number
+
+      const patch: Record<string, unknown> = { payout_reference: payout.id }
+
+      if (event.event === 'payout.processed') {
+        patch.payout_status = releasedPaise >= hostPaise ? 'completed' : 'processed'
+        patch.payout_date = new Date().toISOString()
+        if (payout.utr) patch.payout_reference = payout.utr
+      } else if (event.event === 'payout.failed') {
+        patch.payout_status = 'failed'
+        patch.failure_reason = payout.failure_reason || 'Payout failed'
+        // Reverse the optimistic released counter so admin can retry.
+        patch.released_paise = Math.max(0, releasedPaise - payout.amount)
+      } else if (event.event === 'payout.reversed') {
+        patch.payout_status = 'reversed'
+        patch.failure_reason = payout.failure_reason || 'Payout reversed'
+        patch.released_paise = Math.max(0, releasedPaise - payout.amount)
+      }
+
+      await supabase.from('host_earnings').update(patch).eq('id', earning.id)
+
+      const amountLabel = '₹' + (payout.amount / 100).toLocaleString('en-IN')
+      if (event.event === 'payout.processed') {
+        await supabase.from('notifications').insert({
+          user_id: earning.host_id,
+          type: 'split_payment',
+          title: 'Payout Received!',
+          body: `Your payout of ${amountLabel} has been processed.${payout.utr ? ` UTR: ${payout.utr}` : ''}`,
+          link: '/host',
+        })
+      } else {
+        const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin'])
+        for (const admin of admins || []) {
+          await supabase.from('notifications').insert({
+            user_id: admin.id,
+            type: 'booking',
+            title: event.event === 'payout.failed' ? 'Host Payout Failed' : 'Host Payout Reversed',
+            body: `RazorpayX ${event.event.replace('payout.', '')} for ${amountLabel}. ${payout.failure_reason || ''}`.trim(),
+            link: '/admin/community-trips',
+          })
+        }
+      }
+    }
+
+    return NextResponse.json({ received: true })
+  }
+
   if (event.event === 'payment.captured') {
     const payment = event.payload.payment.entity
     const orderId = payment.order_id

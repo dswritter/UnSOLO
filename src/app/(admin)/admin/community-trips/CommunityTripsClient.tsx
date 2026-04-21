@@ -4,12 +4,13 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { moderateCommunityTrip, markHostPayout, updatePackage } from '@/actions/admin'
+import { moderateCommunityTrip, updatePackage } from '@/actions/admin'
+import { releaseHostPayout } from '@/actions/host-payout'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { toast } from 'sonner'
-import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info } from 'lucide-react'
+import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info, AlertTriangle, Zap } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
@@ -19,6 +20,8 @@ interface Props {
   pendingPayouts: any[]
   /** Current platform fee % (inclusive in list price); from Admin → Settings */
   platformFeePercent: number
+  /** True when RAZORPAYX_ACCOUNT_NUMBER is set — admin can trigger real payouts. */
+  razorpayxEnabled: boolean
 }
 
 const MOD_COLORS: Record<string, string> = {
@@ -31,6 +34,7 @@ export default function CommunityTripsClient({
   trips: initialTrips,
   pendingPayouts: initialPayouts,
   platformFeePercent,
+  razorpayxEnabled,
 }: Props) {
   const router = useRouter()
   const [trips, setTrips] = useState(initialTrips)
@@ -47,6 +51,9 @@ export default function CommunityTripsClient({
   }, [initialPayouts])
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
   const [payoutRef, setPayoutRef] = useState<Record<string, string>>({})
+  const [payoutAmount, setPayoutAmount] = useState<Record<string, string>>({})
+  const [payoutOverride, setPayoutOverride] = useState<Record<string, { on: boolean; reason: string }>>({})
+  const [payoutManual, setPayoutManual] = useState<Record<string, boolean>>({})
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
 
   const filtered = filter === 'all'
@@ -79,25 +86,46 @@ export default function CommunityTripsClient({
     })
   }
 
-  function handlePayout(earningId: string) {
-    const ref = payoutRef[earningId]
-    if (!ref?.trim()) {
-      toast.error('Enter a payout reference (e.g. UPI transaction ID)')
+  function handlePayout(earning: any) {
+    const earningId = earning.id as string
+    const rupees = parseFloat(payoutAmount[earningId] || '0')
+    if (!Number.isFinite(rupees) || rupees <= 0) {
+      toast.error('Enter a valid payout amount')
+      return
+    }
+    const amountPaise = Math.round(rupees * 100)
+    const override = payoutOverride[earningId]
+    const manual = payoutManual[earningId] || !razorpayxEnabled
+    if (manual && !payoutRef[earningId]?.trim()) {
+      toast.error('Enter a payout reference (UPI / bank txn ID)')
+      return
+    }
+    if (override?.on && !override.reason?.trim()) {
+      toast.error('Override requires a reason for the audit log')
       return
     }
     startTransition(async () => {
-      const res = await markHostPayout(earningId, ref.trim())
-      if (res.error) toast.error(res.error)
-      else {
-        toast.success('Payout marked completed. Host was notified.')
-        setPendingPayouts((prev) => prev.filter((e: { id: string }) => e.id !== earningId))
-        setPayoutRef((prev) => {
-          const next = { ...prev }
-          delete next[earningId]
-          return next
-        })
-        router.refresh()
+      const res = await releaseHostPayout({
+        earningId,
+        amountPaise,
+        override: !!override?.on,
+        overrideReason: override?.reason,
+        manual,
+        manualReference: manual ? payoutRef[earningId]?.trim() : undefined,
+      })
+      if ('error' in res && res.error) {
+        toast.error(res.error)
+        return
       }
+      toast.success(
+        res.mode === 'razorpayx'
+          ? `RazorpayX payout queued (${res.status}).`
+          : 'Manual payout recorded. Host was notified.',
+      )
+      setPayoutRef((p) => { const n = { ...p }; delete n[earningId]; return n })
+      setPayoutAmount((p) => { const n = { ...p }; delete n[earningId]; return n })
+      setPayoutOverride((p) => { const n = { ...p }; delete n[earningId]; return n })
+      router.refresh()
     })
   }
 
@@ -112,13 +140,26 @@ export default function CommunityTripsClient({
               Host payouts &amp; settlements
             </h2>
             <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-              After a traveler pays for a <strong>community</strong> trip, Razorpay settles to UnSOLO. Record each host
-              transfer here once you&apos;ve paid them manually (UPI/bank). List price includes a{' '}
-              <strong>{platformFeePercent}%</strong> platform fee — configure in{' '}
+              {razorpayxEnabled ? (
+                <>
+                  <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
+                    <Zap className="h-3 w-3" /> RazorpayX live
+                  </span>{' '}
+                  — payouts run through the RazorpayX API. Advances are gated until the 0%-refund window closes; override with a reason if needed.
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                    <AlertTriangle className="h-3 w-3" /> Manual mode
+                  </span>{' '}
+                  — set <code className="text-[10px] bg-secondary px-1 rounded">RAZORPAYX_ACCOUNT_NUMBER</code> to enable automated payouts. Until then, pay hosts outside the app and record the reference here.
+                </>
+              )}
+              {' '}Platform fee: <strong>{platformFeePercent}%</strong> ({' '}
               <Link href="/admin/settings" className="text-primary font-medium hover:underline inline-flex items-center gap-0.5">
                 <Settings className="h-3 w-3" /> Settings
               </Link>
-              .
+              ).
             </p>
           </div>
           <Link href="/admin/bookings">
@@ -134,86 +175,171 @@ export default function CommunityTripsClient({
             <div>
               <p className="font-medium text-foreground">No pending host payouts</p>
               <p className="text-xs mt-1 leading-relaxed">
-                Rows appear when a booking is confirmed and <code className="text-[10px] bg-secondary px-1 rounded">host_earnings</code> is
-                created (traveler paid, host share pending). Use <strong>Mark paid</strong> after you send the host their
-                share; enter your UPI/bank reference for the audit trail.
+                Rows appear when a booking is confirmed and host earnings remain unpaid.
+                Advances become releasable once the 0%-refund window closes — the row will show the safe amount then.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-3">
             <p className="text-xs font-medium text-foreground">
-              {pendingPayouts.length} pending — pay the host outside the app, then mark complete.
+              {pendingPayouts.length} pending — release advances once the refund window closes, or override with a reason.
             </p>
             <div className="space-y-2">
               {pendingPayouts.map((earning: any) => {
                 const host = earning.host as any
                 const booking = earning.booking as any
                 const pkg = booking?.package as any
+                const rel = earning.releasable as {
+                  hostPaise: number
+                  releasedPaise: number
+                  unpaidPaise: number
+                  safePaise: number
+                  currentRefundPct: number
+                  inZeroRefundWindow: boolean
+                  travelDateIso: string | null
+                } | null
+                const unpaid = rel?.unpaidPaise ?? earning.host_paise
+                const safe = rel?.safePaise ?? 0
+                const gated = rel ? !rel.inZeroRefundWindow && safe < unpaid : false
+                const override = payoutOverride[earning.id] || { on: false, reason: '' }
+                const manual = payoutManual[earning.id] ?? !razorpayxEnabled
+                const hasPayoutDetails = host?.payout_method === 'upi'
+                  ? !!host?.upi_id
+                  : !!(host?.bank_account_number && host?.bank_ifsc)
                 return (
                   <div
                     key={earning.id}
-                    className="border border-border rounded-lg p-3 sm:p-4 bg-card flex flex-col lg:flex-row lg:items-end gap-4"
+                    className="border border-border rounded-lg p-3 sm:p-4 bg-card space-y-3"
                   >
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <div className="text-sm font-semibold">{host?.full_name || host?.username || 'Host'}</div>
-                      <div className="text-xs text-muted-foreground">
-                        <span className="text-foreground font-medium">{pkg?.title || 'Trip'}</span>
-                        {booking?.travel_date && (
-                          <>
-                            {' '}
-                            · Travel {formatDate(booking.travel_date)}
-                          </>
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-3">
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="text-sm font-semibold">{host?.full_name || host?.username || 'Host'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          <span className="text-foreground font-medium">{pkg?.title || 'Trip'}</span>
+                          {booking?.travel_date && <> · Travel {formatDate(booking.travel_date)}</>}
+                          {booking?.confirmation_code && (
+                            <> · Code <span className="font-mono text-foreground">{booking.confirmation_code}</span></>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
+                            <div className="text-muted-foreground">Host share</div>
+                            <div className="font-semibold tabular-nums">{formatPrice(earning.host_paise)}</div>
+                          </div>
+                          <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
+                            <div className="text-muted-foreground">Released</div>
+                            <div className="font-semibold tabular-nums">{formatPrice(rel?.releasedPaise ?? 0)}</div>
+                          </div>
+                          <div className="rounded-md bg-primary/10 px-2 py-1.5 border border-primary/25">
+                            <div className="text-muted-foreground">Unpaid</div>
+                            <div className="font-bold text-primary tabular-nums">{formatPrice(unpaid)}</div>
+                          </div>
+                          <div className={`rounded-md px-2 py-1.5 border ${gated ? 'bg-amber-500/10 border-amber-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                            <div className="text-muted-foreground">Safe now</div>
+                            <div className={`font-bold tabular-nums ${gated ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400'}`}>
+                              {formatPrice(safe)}
+                            </div>
+                          </div>
+                        </div>
+                        {rel && gated && (
+                          <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-start gap-1.5">
+                            <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                            Refund window still allows {rel.currentRefundPct}% cancellation — only the safe portion is advance-releasable without override.
+                          </p>
                         )}
-                        {booking?.confirmation_code && (
-                          <>
-                            {' '}
-                            · Code <span className="font-mono text-foreground">{booking.confirmation_code}</span>
-                          </>
+                        <div className="text-[11px] text-muted-foreground">
+                          {host?.payout_method === 'upi' ? (
+                            host?.upi_id
+                              ? <>Pays to UPI <span className="font-mono text-primary">{host.upi_id}</span></>
+                              : <span className="text-amber-600 dark:text-amber-400">Host has not saved a UPI ID yet.</span>
+                          ) : host?.bank_account_number && host?.bank_ifsc ? (
+                            <>Pays to bank <span className="font-mono text-primary">{host.bank_ifsc}</span> · a/c ending <span className="font-mono">{String(host.bank_account_number).slice(-4)}</span></>
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400">Host has not saved bank details yet.</span>
+                          )}
+                        </div>
+                        {earning.payout_status === 'failed' && earning.failure_reason && (
+                          <p className="text-[11px] text-red-400">Last attempt failed: {earning.failure_reason}</p>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                        <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
-                          <div className="text-muted-foreground">Traveler paid</div>
-                          <div className="font-semibold tabular-nums">{formatPrice(earning.total_paise)}</div>
+                      <div className="flex flex-col gap-2 w-full lg:w-72">
+                        <label className="text-[11px] font-medium text-muted-foreground">Amount to release (₹)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            placeholder={(safe / 100).toFixed(2)}
+                            value={payoutAmount[earning.id] ?? ''}
+                            onChange={(e) => setPayoutAmount((p) => ({ ...p, [earning.id]: e.target.value }))}
+                            className="text-xs bg-secondary border border-border rounded-lg px-3 py-2 flex-1 min-w-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-[11px] shrink-0"
+                            onClick={() => setPayoutAmount((p) => ({ ...p, [earning.id]: ((gated ? safe : unpaid) / 100).toFixed(2) }))}
+                          >
+                            {gated ? 'Safe' : 'All'}
+                          </Button>
                         </div>
-                        <div className="rounded-md bg-secondary/50 px-2 py-1.5 border border-border">
-                          <div className="text-muted-foreground">Platform ({platformFeePercent}%)</div>
-                          <div className="font-semibold tabular-nums">{formatPrice(earning.platform_fee_paise)}</div>
-                        </div>
-                        <div className="rounded-md bg-primary/10 px-2 py-1.5 border border-primary/25">
-                          <div className="text-muted-foreground">Pay host</div>
-                          <div className="font-bold text-primary tabular-nums">{formatPrice(earning.host_paise)}</div>
-                        </div>
+                        {razorpayxEnabled && (
+                          <label className="flex items-center gap-2 text-[11px] text-muted-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={manual}
+                              onChange={(e) => setPayoutManual((p) => ({ ...p, [earning.id]: e.target.checked }))}
+                              className="accent-primary"
+                            />
+                            <span>Record manually instead of RazorpayX</span>
+                          </label>
+                        )}
+                        {manual && (
+                          <input
+                            type="text"
+                            placeholder="UPI / bank txn ref (required)"
+                            value={payoutRef[earning.id] || ''}
+                            onChange={(e) => setPayoutRef((prev) => ({ ...prev, [earning.id]: e.target.value }))}
+                            className="text-xs bg-secondary border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        )}
+                        {gated && (
+                          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2 space-y-1.5">
+                            <label className="flex items-center gap-2 text-[11px] font-medium text-amber-700 dark:text-amber-400 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={override.on}
+                                onChange={(e) => setPayoutOverride((p) => ({ ...p, [earning.id]: { ...override, on: e.target.checked } }))}
+                                className="accent-amber-500"
+                              />
+                              Override refund-window gate
+                            </label>
+                            {override.on && (
+                              <input
+                                type="text"
+                                placeholder="Reason (logged)"
+                                value={override.reason}
+                                onChange={(e) => setPayoutOverride((p) => ({ ...p, [earning.id]: { ...override, reason: e.target.value } }))}
+                                className="w-full text-[11px] bg-secondary border border-border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                              />
+                            )}
+                          </div>
+                        )}
+                        <Button
+                          size="sm"
+                          onClick={() => handlePayout(earning)}
+                          disabled={isPending || !hasPayoutDetails}
+                          className="bg-green-600 hover:bg-green-700 text-white text-xs"
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                          {manual ? 'Record payout' : 'Release via RazorpayX'}
+                        </Button>
+                        {!hasPayoutDetails && (
+                          <p className="text-[11px] text-red-400">Host needs to save UPI or bank details first.</p>
+                        )}
                       </div>
-                      {host?.upi_id ? (
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">Host UPI: </span>
-                          <span className="font-mono text-primary break-all">{host.upi_id}</span>
-                        </div>
-                      ) : (
-                        <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                          Host has not saved a UPI ID — check their profile or contact them for bank details.
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto lg:min-w-[280px]">
-                      <input
-                        type="text"
-                        placeholder="UPI / bank ref (required)"
-                        value={payoutRef[earning.id] || ''}
-                        onChange={(e) => setPayoutRef((prev) => ({ ...prev, [earning.id]: e.target.value }))}
-                        className="text-xs bg-secondary border border-border rounded-lg px-3 py-2 flex-1 min-w-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => handlePayout(earning.id)}
-                        disabled={isPending}
-                        className="bg-green-600 hover:bg-green-700 text-white text-xs shrink-0"
-                      >
-                        <Check className="h-3.5 w-3.5 mr-1" />
-                        Mark paid
-                      </Button>
                     </div>
                   </div>
                 )

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { CheckCircle2, Landmark, Smartphone } from 'lucide-react'
+import { CheckCircle2, Landmark, Smartphone, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { updatePayoutDetails, type PayoutDetails } from '@/actions/payout'
 
@@ -22,7 +22,32 @@ export function PayoutDetailsForm({ initial, onSaved, compact }: Props) {
   const [bankAcc, setBankAcc] = useState(initial.bank_account_number || '')
   const [confirmAcc, setConfirmAcc] = useState(initial.bank_account_number || '')
   const [ifsc, setIfsc] = useState(initial.bank_ifsc || '')
+  const [ifscInfo, setIfscInfo] = useState<{ bank: string; branch: string } | null>(null)
+  const [ifscLoading, setIfscLoading] = useState(false)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (method !== 'bank') return
+    const code = ifsc.trim().toUpperCase()
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(code)) {
+      setIfscInfo(null)
+      return
+    }
+    let cancelled = false
+    setIfscLoading(true)
+    fetch(`/api/payout/ifsc?code=${code}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (cancelled) return
+        if (d && d.bank) setIfscInfo({ bank: d.bank, branch: d.branch || '' })
+        else setIfscInfo(null)
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setIfscLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [ifsc, method])
 
   function handleSave() {
     if (method === 'bank' && bankAcc !== confirmAcc) {
@@ -150,6 +175,20 @@ export function PayoutDetailsForm({ initial, onSaved, compact }: Props) {
               className="bg-secondary border-border font-mono tracking-wider"
               autoComplete="off"
             />
+            {ifscLoading && (
+              <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" /> Looking up bank…
+              </p>
+            )}
+            {!ifscLoading && ifscInfo && (
+              <p className="text-[11px] text-green-400 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3" /> {ifscInfo.bank}
+                {ifscInfo.branch ? ` · ${ifscInfo.branch}` : ''}
+              </p>
+            )}
+            {!ifscLoading && !ifscInfo && ifsc.length >= 11 && (
+              <p className="text-[11px] text-red-400">IFSC not recognised. Double-check it.</p>
+            )}
           </div>
         </div>
       )}

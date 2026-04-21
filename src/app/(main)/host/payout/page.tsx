@@ -42,15 +42,10 @@ export default async function PayoutDetailsPage({
           <PayoutDetailsForm initial={payout} compact />
         </div>
 
-        <div className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-xs text-muted-foreground space-y-2">
-          <p className="font-semibold text-foreground">How payouts work today</p>
+        <div className="mt-6 rounded-lg border border-border bg-secondary/40 p-4 text-xs text-muted-foreground">
           <p>
-            When a traveller pays for your listing, the full amount is collected into UnSOLO&apos;s Razorpay account.
-            Your share (list price minus the platform fee shown on each listing) is recorded in our ledger.
-          </p>
-          <p>
-            UnSOLO pays out your balance to the details above on a regular cycle. You&apos;ll see each payout&apos;s status
-            under your host earnings.
+            Earnings are paid out on a regular cycle to the details above. Each payout&apos;s status shows up under
+            your host earnings.
           </p>
         </div>
 

@@ -1,5 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getReleasableHostEarning } from '@/actions/host-payout'
+import { isRazorpayXConfigured } from '@/lib/razorpay/x'
 import CommunityTripsClient from './CommunityTripsClient'
 
 export default async function AdminCommunityTripsPage() {
@@ -18,13 +20,23 @@ export default async function AdminCommunityTripsPage() {
     .order('created_at', { ascending: false })
 
   // Get pending payouts (booking details for admin transfer)
-  const { data: pendingPayouts } = await supabase
+  const { data: pendingPayoutsRaw } = await supabase
     .from('host_earnings')
     .select(
-      '*, host:profiles(username, full_name, upi_id), booking:bookings(travel_date, confirmation_code, package:packages(title))',
+      '*, host:profiles(username, full_name, upi_id, bank_account_number, bank_ifsc, payout_method), booking:bookings(travel_date, check_in_date, confirmation_code, package:packages(title))',
     )
-    .eq('payout_status', 'pending')
+    .in('payout_status', ['pending', 'processing', 'failed'])
     .order('created_at', { ascending: false })
+
+  // Attach releasable-now info so the client can prefill safe amount + show the refund gate.
+  const pendingPayouts = await Promise.all(
+    (pendingPayoutsRaw || []).map(async (row: any) => {
+      const info = await getReleasableHostEarning(row.id)
+      return { ...row, releasable: 'error' in info ? null : info }
+    }),
+  )
+
+  const razorpayxEnabled = isRazorpayXConfigured()
 
   const { data: feeRow } = await supabase
     .from('platform_settings')
@@ -43,6 +55,7 @@ export default async function AdminCommunityTripsPage() {
         trips={trips || []}
         pendingPayouts={pendingPayouts || []}
         platformFeePercent={platformFeePercent}
+        razorpayxEnabled={razorpayxEnabled}
       />
     </div>
   )

@@ -886,49 +886,6 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
   return { success: true }
 }
 
-export async function markHostPayout(earningId: string, reference: string) {
-  const { supabase, user } = await requireAdmin()
-
-  const { error } = await supabase
-    .from('host_earnings')
-    .update({
-      payout_status: 'completed',
-      payout_date: new Date().toISOString(),
-      payout_reference: reference,
-    })
-    .eq('id', earningId)
-
-  if (error) return { error: error.message }
-
-  // Get earning details to notify host
-  const svcSupabase = await createServiceClient()
-  const { data: earning } = await svcSupabase
-    .from('host_earnings')
-    .select('host_id, host_paise')
-    .eq('id', earningId)
-    .single()
-
-  if (earning) {
-    await svcSupabase.from('notifications').insert({
-      user_id: earning.host_id,
-      type: 'split_payment',
-      title: 'Payout Received!',
-      body: `Your payout of ${formatPriceServer(earning.host_paise)} has been processed. Ref: ${reference}`,
-      link: '/host',
-    })
-  }
-
-  await logAuditEvent(user.id, 'mark_host_payout', 'host_earning', earningId, { reference })
-
-  const { revalidatePath } = await import('next/cache')
-  revalidatePath('/admin/community-trips')
-  return { success: true }
-}
-
-function formatPriceServer(paise: number): string {
-  return '₹' + (paise / 100).toLocaleString('en-IN')
-}
-
 // ── Community chat rooms (general) — admin + social_media_manager ─────────
 
 async function requireCommunityChatStaff() {
