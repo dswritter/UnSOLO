@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
@@ -73,7 +73,10 @@ export function ExploreClient({
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  // isNavigating covers external navigations (sidebar/filter changes) that we
+  // don't initiate via startTransition. Cleared only when fresh props arrive.
+  const [isNavigating, setIsNavigating] = useState(false)
   const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
     const saved = localStorage.getItem('wishlisted_packages')
@@ -98,30 +101,34 @@ export function ExploreClient({
     })
   }
 
+  // Detect navigations triggered externally (sidebar filters, search drawer).
+  // URL changes via useSearchParams happen before the server finishes
+  // re-rendering, so we set isNavigating here and only clear it once new
+  // props actually arrive (see the packages/serviceListings effect below).
   useEffect(() => {
     const currentParams = searchParams.toString()
-    if (prevParamsRef.current && prevParamsRef.current !== currentParams) {
-      setIsLoading(true)
-      const timer = setTimeout(() => {
-        setIsLoading(false)
-      }, 100)
-      return () => clearTimeout(timer)
+    if (prevParamsRef.current !== '' && prevParamsRef.current !== currentParams) {
+      setIsNavigating(true)
     }
     prevParamsRef.current = currentParams
   }, [searchParams])
 
+  // New props = navigation complete. Safe to hide the skeleton.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setIsNavigating(false) }, [packages, serviceListings])
+
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
-    setIsLoading(true)
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', tab)
-    newParams.delete('q') // Clear search on tab change (will re-run in new tab)
-    router.push(`/explore?${newParams.toString()}`)
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 100)
-    return () => clearTimeout(timer)
+    newParams.delete('q')
+    startTransition(() => {
+      router.push(`/explore?${newParams.toString()}`)
+    })
   }
+
+  // Show skeleton while any navigation is in-flight.
+  const isLoading = isPending || isNavigating
 
   const isTripsTab = activeTab === 'trips'
   const isServiceTab = !isTripsTab
