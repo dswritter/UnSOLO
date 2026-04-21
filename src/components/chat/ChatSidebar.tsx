@@ -35,6 +35,8 @@ export interface SidebarRoom {
   isMember?: boolean
   /** DM partner has at least one non-expired status story */
   dmHasActiveStatus?: boolean
+  /** Current user has already seen all of the DM partner's active stories */
+  dmStatusSeen?: boolean
 }
 
 interface ChatSidebarProps {
@@ -339,6 +341,7 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
                     username={p.username}
                     userId={p.id}
                     hasStatus={room.dmHasActiveStatus === true}
+                    statusSeen={room.dmStatusSeen === true}
                     online={dmOnline}
                     currentUserId={viewerUserId}
                   />

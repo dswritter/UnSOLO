@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Image as ImageIcon, Sparkles, X } from 'lucide-react'
+import { Image as ImageIcon, Sparkles, User, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -22,6 +22,7 @@ export function DmSidebarAvatarMenu({
   username,
   userId,
   hasStatus,
+  statusSeen,
   online,
   currentUserId,
 }: {
@@ -30,6 +31,8 @@ export function DmSidebarAvatarMenu({
   username: string
   userId: string
   hasStatus: boolean
+  /** All of this user's active stories have already been viewed by the current user */
+  statusSeen?: boolean
   online: boolean
   currentUserId: string
 }) {
@@ -59,14 +62,32 @@ export function DmSidebarAvatarMenu({
     }
   }, [userId])
 
+  // Ring wrapper: golden gradient when unseen status, greyed when seen, none otherwise.
   const avatarButton = (
     <span className="relative shrink-0 inline-flex rounded-full">
-      <Avatar className="h-11 w-11">
-        <AvatarImage src={avatarUrl || ''} />
-        <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
-          {getInitials(fallbackName)}
-        </AvatarFallback>
-      </Avatar>
+      {hasStatus ? (
+        <span
+          className={`rounded-full p-[2.5px] ${
+            statusSeen
+              ? 'bg-gradient-to-tr from-zinc-600 to-zinc-800'
+              : 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
+          }`}
+        >
+          <Avatar className="h-10 w-10 border-2 border-background">
+            <AvatarImage src={avatarUrl || ''} />
+            <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
+              {getInitials(fallbackName)}
+            </AvatarFallback>
+          </Avatar>
+        </span>
+      ) : (
+        <Avatar className="h-11 w-11">
+          <AvatarImage src={avatarUrl || ''} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
+            {getInitials(fallbackName)}
+          </AvatarFallback>
+        </Avatar>
+      )}
       {online && (
         <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
       )}
@@ -76,17 +97,35 @@ export function DmSidebarAvatarMenu({
   if (!hasStatus) {
     return (
       <>
-        <button
-          type="button"
-          className="relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          onClick={e => {
-            e.stopPropagation()
-            if (avatarUrl) setPicOpen(true)
-            else router.push(`/profile/${username}`)
-          }}
-        >
-          {avatarButton}
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                onClick={e => e.stopPropagation()}
+              >
+                {avatarButton}
+              </button>
+            }
+          />
+          <DropdownMenuContent align="start" className="min-w-[12rem] bg-card border-border z-[200]">
+            {avatarUrl && (
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={e => { e.preventDefault(); setPicOpen(true) }}
+              >
+                <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={e => { e.preventDefault(); router.push(`/profile/${username}`) }}
+            >
+              <User className="h-4 w-4 mr-2" /> View profile
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {picOpen && avatarUrl ? (
           <div className="fixed inset-0 z-[640] bg-black/85 flex items-center justify-center p-4" onClick={() => setPicOpen(false)}>
@@ -123,23 +162,25 @@ export function DmSidebarAvatarMenu({
         <DropdownMenuContent align="start" className="min-w-[12rem] bg-card border-border z-[200]">
           <DropdownMenuItem
             className="cursor-pointer"
-            onClick={e => {
-              e.preventDefault()
-              if (avatarUrl) setPicOpen(true)
-              else router.push(`/profile/${username}`)
-            }}
+            disabled={loadingStatus}
+            onClick={e => { e.preventDefault(); void loadAndOpenStatus() }}
           >
-            <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
+            <Sparkles className="h-4 w-4 mr-2" />
+            {statusSeen ? 'View status (seen)' : 'View status'}
           </DropdownMenuItem>
+          {avatarUrl && (
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={e => { e.preventDefault(); setPicOpen(true) }}
+            >
+              <ImageIcon className="h-4 w-4 mr-2" /> See profile picture
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="cursor-pointer"
-            disabled={loadingStatus}
-            onClick={e => {
-              e.preventDefault()
-              void loadAndOpenStatus()
-            }}
+            onClick={e => { e.preventDefault(); router.push(`/profile/${username}`) }}
           >
-            <Sparkles className="h-4 w-4 mr-2" /> View status
+            <User className="h-4 w-4 mr-2" /> View profile
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

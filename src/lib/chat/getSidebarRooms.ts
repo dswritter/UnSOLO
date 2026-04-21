@@ -68,17 +68,43 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
   const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
   let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
   const dmPartnerHasStatus = new Set<string>()
+  const dmPartnerStatusSeen = new Set<string>() // true = current user has seen ALL their active stories
   if (dmPartnerIds.length > 0) {
+    const now = new Date().toISOString()
     const [{ data: profiles }, { data: statusRows }] = await Promise.all([
       supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', dmPartnerIds),
       supabase
         .from('status_stories')
-        .select('author_id')
+        .select('id, author_id')
         .in('author_id', dmPartnerIds)
-        .gt('expires_at', new Date().toISOString()),
+        .gt('expires_at', now),
     ])
     for (const p of profiles || []) profileMap.set(p.id, p)
-    for (const r of statusRows || []) dmPartnerHasStatus.add(r.author_id)
+
+    const activeStories = statusRows || []
+    const activeStoryIds = activeStories.map(s => s.id)
+
+    // Group active stories by author
+    const storiesByAuthor = new Map<string, string[]>()
+    for (const s of activeStories) {
+      dmPartnerHasStatus.add(s.author_id)
+      const list = storiesByAuthor.get(s.author_id) || []
+      list.push(s.id)
+      storiesByAuthor.set(s.author_id, list)
+    }
+
+    // Check which stories the current user has already viewed
+    if (activeStoryIds.length > 0) {
+      const { data: views } = await supabase
+        .from('status_story_views')
+        .select('story_id')
+        .eq('viewer_id', userId)
+        .in('story_id', activeStoryIds)
+      const viewedIds = new Set((views || []).map(v => v.story_id))
+      for (const [authorId, ids] of storiesByAuthor) {
+        if (ids.every(id => viewedIds.has(id))) dmPartnerStatusSeen.add(authorId)
+      }
+    }
   }
 
   // Build DM room → partner map
@@ -117,6 +143,7 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     }
 
     const dmHasActiveStatus = type === 'direct' && dmPartnerId ? dmPartnerHasStatus.has(dmPartnerId) : false
+    const dmStatusSeen = type === 'direct' && dmPartnerId ? dmPartnerStatusSeen.has(dmPartnerId) : false
 
     if (type === 'trip') {
       const pkg = room['package'] as { title?: string; images?: string[]; destination?: { name?: string; state?: string } } | null
@@ -133,6 +160,7 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
       lastMessageAt: msg?.created_at,
       dmProfile,
       dmHasActiveStatus,
+      dmStatusSeen,
       tripImage,
       tripLocation,
       communityImage,
