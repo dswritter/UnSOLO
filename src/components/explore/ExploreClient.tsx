@@ -162,34 +162,6 @@ export function ExploreClient({
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
-        {/* Recently Viewed Strip */}
-        {recentlyViewed.length > 0 && isTripsTab && (
-          <div className="mb-5">
-            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recently Viewed</h2>
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-              {recentlyViewed.map(rv => (
-                <button
-                  key={rv.id}
-                  onClick={() => router.push(`/packages/${rv.slug}`)}
-                  className="flex-shrink-0 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 hover:border-primary/40 transition-colors text-left"
-                >
-                  {rv.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                      <Mountain className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-xs font-semibold truncate max-w-[120px]">{rv.title}</p>
-                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{rv.destName}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         {/* Tabs */}
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
           {TABS.map((tab) => {
@@ -210,6 +182,39 @@ export function ExploreClient({
             )
           })}
         </div>
+
+        {/* Recently Viewed strip — second row under tabs */}
+        {recentlyViewed.length > 0 && isTripsTab && (
+          <div className="mb-5 rounded-xl border border-border bg-card/40 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded-full">
+                Recently Viewed
+              </span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {recentlyViewed.map(rv => (
+                <button
+                  key={rv.id}
+                  onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
+                  className="flex-shrink-0 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 hover:border-primary/40 transition-colors text-left"
+                >
+                  {rv.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                      <Mountain className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold truncate max-w-[120px]">{rv.title}</p>
+                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{rv.destName}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Sidebar + Results Layout */}
         <div className="flex gap-6 flex-1">
@@ -252,7 +257,7 @@ export function ExploreClient({
                     image: pkg.images?.[0] || null,
                     destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
                   })
-                  router.push(`/packages/${pkg.slug}`)
+                  window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
                 }}
                 className="cursor-pointer"
               >
