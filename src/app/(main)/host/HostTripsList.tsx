@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { toggleHostTripActive, toggleHostTripDateClosed } from '@/actions/hosting'
+import { toggleHostTripActive, toggleHostTripDateClosed, getJoinRequestsForTrip, approveJoinRequest, rejectJoinRequest } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,10 @@ import {
   Clock,
   Eye,
   EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
 } from 'lucide-react'
 
 interface Trip {
@@ -72,10 +76,89 @@ function ModerationBadge({ status }: { status: string }) {
   }
 }
 
+type JoinRequest = Awaited<ReturnType<typeof getJoinRequestsForTrip>>[number]
+
+function InlinePendingRequests({ tripId }: { tripId: string }) {
+  const [requests, setRequests] = useState<JoinRequest[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  async function load() {
+    if (requests !== null) return
+    setLoading(true)
+    const data = await getJoinRequestsForTrip(tripId)
+    setRequests(data.filter(r => r.status === 'pending'))
+    setLoading(false)
+  }
+
+  async function onApprove(requestId: string) {
+    setActionLoading(requestId)
+    const res = await approveJoinRequest(requestId)
+    if ('error' in res) toast.error(res.error)
+    else {
+      toast.success('Request approved!')
+      setRequests(prev => (prev || []).filter(r => r.id !== requestId))
+    }
+    setActionLoading(null)
+  }
+
+  async function onReject(requestId: string) {
+    setActionLoading(requestId)
+    const res = await rejectJoinRequest(requestId)
+    if ('error' in res) toast.error(res.error)
+    else {
+      toast.success('Request rejected')
+      setRequests(prev => (prev || []).filter(r => r.id !== requestId))
+    }
+    setActionLoading(null)
+  }
+
+  // Auto-load on first render
+  if (requests === null && !loading) {
+    load()
+  }
+
+  if (loading) {
+    return <p className="text-xs text-muted-foreground py-2">Loading…</p>
+  }
+
+  if (!requests?.length) {
+    return <p className="text-xs text-muted-foreground py-2">No pending requests.</p>
+  }
+
+  return (
+    <div className="space-y-2 mt-2">
+      {requests.map(req => {
+        const profile = req.user as { username?: string; full_name?: string | null } | null
+        const name = profile?.full_name || profile?.username || 'Unknown'
+        const busy = actionLoading === req.id
+        return (
+          <div key={req.id} className="flex items-center justify-between gap-2 bg-secondary/40 rounded-lg px-3 py-2 text-xs">
+            <div>
+              <span className="font-medium">{name}</span>
+              {profile?.username && <span className="text-muted-foreground ml-1">@{profile.username}</span>}
+              {req.message && <p className="text-muted-foreground mt-0.5 line-clamp-1">{req.message}</p>}
+            </div>
+            <div className="flex gap-1.5 shrink-0">
+              <Button size="sm" className="h-7 px-2 bg-green-600 hover:bg-green-500 text-white text-[11px]" disabled={busy} onClick={() => onApprove(req.id)}>
+                <Check className="h-3 w-3 mr-1" />Approve
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/40 text-red-400 hover:bg-red-500/10 text-[11px]" disabled={busy} onClick={() => onReject(req.id)}>
+                <X className="h-3 w-3 mr-1" />Reject
+              </Button>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps) {
   const [filter, setFilter] = useState<'all' | 'active' | 'pending' | 'earned'>('all')
   const [trips, setTrips] = useState(initialTrips)
   const [isPending, startTransition] = useTransition()
+  const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set())
 
   const filtered = trips.filter(t => {
     if (filter === 'active') return t.is_active
@@ -262,7 +345,18 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
 
                 <div className="flex items-center gap-2 shrink-0">
                   {trip.pending_requests > 0 && (
-                    <span className="text-xs text-yellow-400 flex items-center gap-1"><Clock className="h-3 w-3" />{trip.pending_requests}</span>
+                    <button
+                      onClick={() => setExpandedRequests(prev => {
+                        const next = new Set(prev)
+                        if (next.has(trip.id)) next.delete(trip.id); else next.add(trip.id)
+                        return next
+                      })}
+                      className="text-xs text-yellow-400 flex items-center gap-1 hover:text-yellow-300 transition-colors"
+                      title="View pending join requests"
+                    >
+                      <Clock className="h-3 w-3" />{trip.pending_requests}
+                      {expandedRequests.has(trip.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </button>
                   )}
                   <span className="text-xs text-green-400 flex items-center gap-1"><Users className="h-3 w-3" />{trip.approved_requests}</span>
                   <Button
@@ -279,6 +373,12 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                   </Button>
                 </div>
               </div>
+              {expandedRequests.has(trip.id) && (
+                <div className="mt-3 pt-3 border-t border-border/60">
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Pending Join Requests</p>
+                  <InlinePendingRequests tripId={trip.id} />
+                </div>
+              )}
             </div>
           ))}
         </div>

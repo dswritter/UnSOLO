@@ -27,6 +27,7 @@ interface NavbarProps {
 export function Navbar({ user }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
+  const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
   const mobileMenuRef = useRef<HTMLDivElement>(null)
@@ -133,11 +134,43 @@ export function Navbar({ user }: NavbarProps) {
     }
   }, [pathname])
 
+  // Fetch pending join request count for hosts
+  useEffect(() => {
+    if (!user?.is_host) return
+    const supabase = createClient()
+
+    async function fetchPending() {
+      // Get all trip IDs hosted by this user
+      const { data: trips } = await supabase
+        .from('packages')
+        .select('id')
+        .eq('host_id', user!.id)
+      if (!trips?.length) return
+      const { count } = await supabase
+        .from('join_requests')
+        .select('id', { count: 'exact', head: true })
+        .in('trip_id', trips.map(t => t.id))
+        .eq('status', 'pending')
+      setPendingJoinCount(count ?? 0)
+    }
+
+    fetchPending()
+
+    const ch = supabase
+      .channel('navbar-join-requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'join_requests' }, () => {
+        fetchPending()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(ch) }
+  }, [user])
+
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
     { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent },
+    { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
 
   return (
@@ -154,7 +187,7 @@ export function Navbar({ user }: NavbarProps) {
 
           {/* Desktop Nav - Centered */}
           <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
-            {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
+            {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
               const isActive = pathname === href
               return (
               <Link
@@ -172,6 +205,11 @@ export function Navbar({ user }: NavbarProps) {
                 {showBadge && unreadChatCount > 0 && (
                   <span className="absolute -top-2 -right-3 h-4 min-w-[16px] px-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
                     {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                  </span>
+                )}
+                {showHostBadge && pendingJoinCount > 0 && (
+                  <span className="absolute -top-2 -right-3 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {pendingJoinCount > 99 ? '99+' : pendingJoinCount}
                   </span>
                 )}
               </Link>
@@ -269,7 +307,7 @@ export function Navbar({ user }: NavbarProps) {
           onTouchEnd={onMenuTouchEnd}
           className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2"
         >
-          {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
+          {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
             const isActive = pathname === href
             return (
             <Link
@@ -288,6 +326,11 @@ export function Navbar({ user }: NavbarProps) {
               {showBadge && unreadChatCount > 0 && (
                 <span className="ml-auto h-5 min-w-[20px] px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
                   {unreadChatCount > 99 ? '99+' : unreadChatCount}
+                </span>
+              )}
+              {showHostBadge && pendingJoinCount > 0 && (
+                <span className="ml-auto h-5 min-w-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {pendingJoinCount > 99 ? '99+' : pendingJoinCount}
                 </span>
               )}
             </Link>
