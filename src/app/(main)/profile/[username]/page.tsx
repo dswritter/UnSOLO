@@ -89,6 +89,39 @@ export default async function ProfilePage({
   // Get follow data
   const followData = await getFollowData(profile.id)
 
+  // Check if this profile follows the current user (for "follows you" prompt)
+  let followsYou = false
+  if (user && !isOwnProfile) {
+    const { data: reverseFollow } = await supabase
+      .from('follows')
+      .select('id')
+      .eq('follower_id', profile.id)
+      .eq('following_id', user.id)
+      .single()
+    followsYou = !!reverseFollow
+  }
+
+  // Mutual destinations
+  let mutualDestinations: string[] = []
+  if (user && !isOwnProfile) {
+    const { data: myBookings } = await supabase
+      .from('bookings')
+      .select('package:packages(destination:destinations(name, state))')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+    const myDestKeys = new Set(
+      (myBookings || []).map(b => {
+        const dest = (b.package as { destination?: { name: string; state: string } } | null)?.destination
+        return dest ? `${dest.name}, ${dest.state}` : null
+      }).filter(Boolean) as string[],
+    )
+    const theirDestKeys = (confirmedBookings || []).map(b => {
+      const dest = (b.package as { destination?: { name: string; state: string } } | null)?.destination
+      return dest ? `${dest.name}, ${dest.state}` : null
+    }).filter(Boolean) as string[]
+    mutualDestinations = [...new Set(theirDestKeys.filter(d => myDestKeys.has(d)))]
+  }
+
   // Get phone visibility for other profiles
   let phoneVisible = false
   let phoneNumber: string | null = profile.phone_number || null
@@ -352,6 +385,23 @@ export default async function ProfilePage({
                   {statusVisibility === 'followers' && !isOwnProfile && (
                     <span className="text-[10px] text-zinc-500">(visible to followers)</span>
                   )}
+                </div>
+              )}
+
+              {/* Follow-back prompt */}
+              {!isOwnProfile && followsYou && !followData.isFollowing && (
+                <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium">
+                  <span>Follows you</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">Follow back?</span>
+                </div>
+              )}
+
+              {/* Mutual trips badge */}
+              {mutualDestinations.length > 0 && (
+                <div className="mb-3 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/60 border border-border text-xs text-muted-foreground">
+                  <span>🌏</span>
+                  <span>You both traveled to <span className="text-foreground font-medium">{mutualDestinations.slice(0, 2).join(' & ')}{mutualDestinations.length > 2 ? ` +${mutualDestinations.length - 2} more` : ''}</span></span>
                 </div>
               )}
 
