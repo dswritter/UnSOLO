@@ -1075,16 +1075,9 @@ export function HostTripForm({
               </>
             )}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            {isEdit
-              ? 'Update any part of your listing. Operational changes (dates, capacity, trip length, times) go live without admin review on approved trips.'
-              : 'Fill in the details for your community trip. It will be reviewed before going live.'}
-          </p>
-          {!isEdit && (
-            <p className="text-xs text-muted-foreground/90 mt-2">
-              Your progress is saved automatically as a draft on this browser. Open it from Host → Trip drafts, or use
-              Continue on a draft. Starting &quot;Create New Trip&quot; always opens a blank form. Drafts are removed
-              automatically after {DRAFT_RETENTION_DAYS} days without being updated.
+          {isEdit && (
+            <p className="text-muted-foreground mt-1">
+              Update any part of your listing. Operational changes (dates, capacity, trip length, times) go live without admin review on approved trips.
             </p>
           )}
           {isEdit && editModerationStatus === 'approved' && (
@@ -1182,13 +1175,6 @@ export function HostTripForm({
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Full Description *</label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Use the toolbar for <strong className="text-foreground/90">bold</strong>,{' '}
-                  <span className="font-medium text-foreground/90">headings</span>, and bullet lists — or type Markdown (
-                  <code className="text-[11px] bg-muted/60 px-1 rounded">**bold**</code>,{' '}
-                  <code className="text-[11px] bg-muted/60 px-1 rounded">## Heading</code>,{' '}
-                  <code className="text-[11px] bg-muted/60 px-1 rounded">- item</code>).
-                </p>
                 <TripDescriptionMarkdownToolbar
                   textareaRef={descriptionTextareaRef}
                   value={description}
@@ -1228,9 +1214,6 @@ export function HostTripForm({
                     Add price option
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  One price by default. Use &quot;Add price option&quot; for multiple tiers (dorm, private room, etc.). Each tier needs a short facilities description.
-                </p>
                 <div className="space-y-3">
                   {priceRows.map((row, i) => (
                     <div
@@ -1446,7 +1429,7 @@ export function HostTripForm({
               {/* Departure + return (no auto end date) */}
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">
-                  Offered departures — set departure and return / arrival for each *
+                  Offered departures *
                 </label>
                 <div className="space-y-3 mb-3">
                   {scheduleRows.map((row, i) => (
@@ -1650,8 +1633,7 @@ export function HostTripForm({
                 </Button>
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Max {formatFileSize(UPLOAD_MAX_IMAGE_BYTES)} per file (JPEG, PNG, or WebP). Oversize files are rejected
-                before upload; after choosing a file you can crop to a 16∶9 banner or use the original.
+                Max {formatFileSize(UPLOAD_MAX_IMAGE_BYTES)} per file (JPEG, PNG, or WebP).
               </p>
 
               {coverMenu && (
@@ -1689,24 +1671,14 @@ export function HostTripForm({
           {step === 3 && (
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Join Preferences</h2>
-              <p className="text-sm text-muted-foreground">
-                Optional filters for who can join your trip.
-              </p>
 
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-foreground">Booking &amp; payment</label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Choose how travelers start: join request or immediate checkout. Token deposit is optional and works
-                    with either option.
-                  </p>
                 </div>
 
                 {/* Standard: join-request flow OR immediate full payment (choose one) */}
                 <div className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4 space-y-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Standard — pick one
-                  </p>
                   <p className="text-xs text-muted-foreground">
                     Either gate the trip with join requests, or let travelers book and pay from the trip page right away.
                   </p>

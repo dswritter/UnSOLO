@@ -32,7 +32,6 @@ export function TripDescriptionMarkdownToolbar({ textareaRef, value, onChange, c
 
   return (
     <div className={cn('flex flex-wrap items-center gap-1', className)}>
-      <span className="text-[10px] text-muted-foreground mr-1 shrink-0">Format:</span>
       <Button
         type="button"
         variant="outline"
