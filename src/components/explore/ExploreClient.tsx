@@ -8,7 +8,7 @@ import type { ServiceListingWithItems } from '@/app/(main)/explore/page'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock } from 'lucide-react'
+import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X } from 'lucide-react'
 import { formatPrice, cn, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -65,6 +65,14 @@ function writeRecentlyViewed(pkg: RecentlyViewedPkg) {
     const list = readRecentlyViewed().filter(p => p.id !== pkg.id)
     list.unshift(pkg)
     localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list.slice(0, RECENTLY_VIEWED_MAX)))
+  } catch {}
+}
+
+function removeRecentlyViewed(id: string) {
+  if (typeof window === 'undefined') return
+  try {
+    const list = readRecentlyViewed().filter(p => p.id !== id)
+    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list))
   } catch {}
 }
 
@@ -183,8 +191,8 @@ export function ExploreClient({
           })}
         </div>
 
-        {/* Recently Viewed strip — second row under tabs */}
-        {recentlyViewed.length > 0 && isTripsTab && (
+        {/* Recently Viewed strip — hidden when any filter is active */}
+        {recentlyViewed.length > 0 && isTripsTab && !Object.entries(params).some(([k, v]) => k !== 'tab' && k !== 'q' && !!v) && (
           <div className="mb-5 rounded-xl border border-border bg-card/40 p-3">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded-full">
@@ -193,24 +201,36 @@ export function ExploreClient({
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               {recentlyViewed.map(rv => (
-                <button
-                  key={rv.id}
-                  onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
-                  className="flex-shrink-0 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 hover:border-primary/40 transition-colors text-left"
-                >
-                  {rv.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
-                      <Mountain className="h-4 w-4 text-muted-foreground" />
+                <div key={rv.id} className="relative group/rv flex-shrink-0">
+                  <button
+                    onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
+                    className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 pr-7 hover:border-primary/40 transition-colors text-left"
+                  >
+                    {rv.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                        <Mountain className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold truncate max-w-[120px]">{rv.title}</p>
+                      <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{rv.destName}</p>
                     </div>
-                  )}
-                  <div>
-                    <p className="text-xs font-semibold truncate max-w-[120px]">{rv.title}</p>
-                    <p className="text-[10px] text-muted-foreground truncate max-w-[120px]">{rv.destName}</p>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeRecentlyViewed(rv.id)
+                      setRecentlyViewed(prev => prev.filter(p => p.id !== rv.id))
+                    }}
+                    className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-background/80 border border-border flex items-center justify-center opacity-0 group-hover/rv:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
+                    aria-label="Remove from recently viewed"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
               ))}
             </div>
           </div>

@@ -68,8 +68,6 @@ function FilterSection({ label, children }: { label: string; children: React.Rea
 export function ExploreSidebar({ params, activeTab, resultCount, isLoading = false, maxPackagePrice = 2000000 }: ExploreSidebarProps) {
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
-  const tripSource: 'all' | 'unsolo' | 'community' =
-    params.tripSource === 'community' ? 'community' : params.tripSource === 'unsolo' ? 'unsolo' : 'all'
 
   // Track optimistic state for instant UI feedback
   const [optimisticParams, setOptimisticParams] = useState<Record<string, string | null>>({})
@@ -170,7 +168,7 @@ export function ExploreSidebar({ params, activeTab, resultCount, isLoading = fal
                   onClick={() => setTripSource(source as 'all' | 'unsolo' | 'community')}
                   className={cn(
                     'px-3 py-2 rounded-lg text-sm font-medium text-left transition-all',
-                    tripSource === source
+                    (source === 'all' ? !getCurrentValue('tripSource') : getCurrentValue('tripSource') === source)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
                     isLoading && 'opacity-50 cursor-not-allowed'

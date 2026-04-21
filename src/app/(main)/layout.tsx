@@ -3,6 +3,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { MobileChatButton } from '@/components/layout/MobileChatButton'
+import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import type { Profile } from '@/types'
 
 export default async function MainLayout({
@@ -33,6 +34,7 @@ export default async function MainLayout({
       </main>
       {user && <PresenceTracker userId={user.id} />}
       <MobileChatButton isAuthenticated={!!user} />
+      <SignInPrompt isAuthenticated={!!user} />
       <FooterWrapper />
     </div>
   )
