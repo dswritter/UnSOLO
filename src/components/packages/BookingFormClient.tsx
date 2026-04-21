@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createRazorpayOrder, confirmPayment, submitCustomDateRequest } from '@/actions/booking'
 import { createGroupBooking } from '@/actions/group-booking'
-import { formatPrice, formatDate, validateIndianPhone, getMaxDate } from '@/lib/utils'
+import { formatPrice, formatDate, validateIndianPhone, getMaxDate, getTripCountdown } from '@/lib/utils'
 import {
   formatDateRangeFromEdges,
   tripEndDateIsoForBooking,
@@ -574,6 +574,15 @@ export function BookingFormClient({
                 No upcoming dates scheduled. Try requesting a custom date.
               </p>
             )}
+            {selectedDate && (() => {
+              const cd = getTripCountdown(selectedDate, durationDays ?? 1)
+              return cd ? (
+                <div className="flex items-center gap-1.5 text-xs font-medium text-primary bg-primary/10 rounded-lg px-3 py-2 mt-1">
+                  <span>{cd.emoji}</span>
+                  <span>{cd.text}</span>
+                </div>
+              ) : null
+            })()}
           </div>
 
           {/* Guests */}

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { MapPin, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award } from 'lucide-react'
+import { MapPin, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award, Mountain } from 'lucide-react'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard'
@@ -157,6 +157,30 @@ export default async function PackageDetailPage({
 
   // Get interest data
   const interestData = await getInterestData(pkg.id)
+
+  // "Who's going?" — first 5 interested user avatars
+  const { data: interestedRows } = await supabase
+    .from('package_interests')
+    .select('user:profiles(id, username, full_name, avatar_url)')
+    .eq('package_id', pkg.id)
+    .limit(5)
+  const interestedUsers = (interestedRows || [])
+    .map(r => r.user as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null)
+    .filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
+  const interestTotalCount = interestData.count ?? 0
+
+  // Similar trips (same destination, excluding current)
+  const similarPackages: { id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }[] = []
+  if (package_.destination_id) {
+    const { data: similar } = await supabase
+      .from('packages')
+      .select('id, title, slug, price_paise, images, duration_days, difficulty')
+      .eq('destination_id', package_.destination_id)
+      .eq('is_active', true)
+      .neq('id', package_.id)
+      .limit(3)
+    similarPackages.push(...(similar || []) as typeof similarPackages)
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -336,6 +360,58 @@ export default async function PackageDetailPage({
                       <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                       <span className="text-muted-foreground">{item}</span>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Who's Going */}
+            {interestedUsers.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+                <div className="flex -space-x-2.5">
+                  {interestedUsers.map(u => (
+                    <div key={u.id} className="relative h-9 w-9 rounded-full ring-2 ring-background overflow-hidden bg-secondary flex items-center justify-center">
+                      {u.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u.avatar_url} alt={u.full_name || u.username} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-bold text-primary">{(u.full_name || u.username)[0].toUpperCase()}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">
+                    {interestTotalCount > interestedUsers.length
+                      ? `${interestedUsers.length}+ more interested`
+                      : interestTotalCount === 1 ? '1 person interested'
+                      : `${interestTotalCount} people interested`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Join them on this adventure</p>
+                </div>
+              </div>
+            )}
+
+            {/* Similar Trips */}
+            {similarPackages.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-6">
+                <h2 className="text-lg font-bold mb-4">More trips like this</h2>
+                <div className="flex flex-col gap-3">
+                  {similarPackages.map(sp => (
+                    <a key={sp.id} href={`/packages/${sp.slug}`} className="flex items-center gap-3 hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors">
+                      {sp.images?.[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={sp.images[0]} alt={sp.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                          <Mountain className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate">{sp.title}</p>
+                        <p className="text-xs text-muted-foreground">{sp.duration_days}D · {sp.difficulty} · {formatPrice(sp.price_paise)}/person</p>
+                      </div>
+                    </a>
                   ))}
                 </div>
               </div>
