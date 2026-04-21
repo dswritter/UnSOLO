@@ -9,7 +9,7 @@ const DraggablePinMap = dynamic(
 )
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -239,6 +239,52 @@ export function HostServiceListingTabs(props: Props) {
     setMapPreview({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), displayName: r.display_name })
   }
 
+  /** Build a readable address string from Photon's structured fields */
+  function buildDisplayName(p: Record<string, string | undefined>): string {
+    const parts: string[] = []
+    if (p.name) parts.push(p.name)
+    if (p.housenumber && p.street) parts.push(`${p.housenumber} ${p.street}`)
+    else if (p.street) parts.push(p.street)
+    const city = p.city || p.district || p.locality || p.town || p.village
+    if (city && city !== p.name) parts.push(city)
+    if (p.state && p.state !== city) parts.push(p.state)
+    if (p.country) parts.push(p.country)
+    return parts.join(', ')
+  }
+
+  /** Photon (Komoot) search — better fuzzy matching than Nominatim */
+  async function photonSearch(q: string): Promise<GeoResult[]> {
+    try {
+      const res = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=en`,
+      )
+      if (!res.ok) return []
+      const data = await res.json() as {
+        features?: Array<{
+          geometry: { coordinates: [number, number] }
+          properties: Record<string, string | undefined>
+        }>
+      }
+      return (data.features || []).map(f => ({
+        lat: String(f.geometry.coordinates[1]),
+        lon: String(f.geometry.coordinates[0]),
+        display_name: buildDisplayName(f.properties),
+      })).filter(r => r.display_name)
+    } catch { return [] }
+  }
+
+  /** Nominatim fallback search */
+  async function nominatimSearch(q: string, indiaBias = false): Promise<GeoResult[]> {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1${indiaBias ? '&countrycodes=in' : ''}`,
+        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
+      )
+      if (!res.ok) return []
+      return res.json() as Promise<GeoResult[]>
+    } catch { return [] }
+  }
+
   async function previewLocationOnMap() {
     const addr = location.trim()
     if (!addr) { toast.error('Enter an address first'); return }
@@ -246,18 +292,24 @@ export function HostServiceListingTabs(props: Props) {
     setGeoSuggestions([])
     setShowSuggestions(false)
     try {
-      // Try with India bias first, then global fallback
-      const trySearch = async (extra = '') => {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=5&addressdetails=1${extra}`,
-          { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
-        )
-        return res.json() as Promise<GeoResult[]>
-      }
-      let data = await trySearch('&countrycodes=in')
-      if (!data || data.length === 0) data = await trySearch()
+      // 1. Photon with full query (best fuzzy matcher)
+      let data = await photonSearch(addr)
 
-      if (!data || data.length === 0) {
+      // 2. Photon with progressive simplification — drops the most specific
+      //    token (often a POI name that isn't in OSM) and retries
+      if (data.length === 0) {
+        const tokens = addr.split(/[,\s]+/).filter(Boolean)
+        for (let keep = tokens.length - 1; keep >= 2 && data.length === 0; keep--) {
+          const simplified = tokens.slice(-keep).join(' ')
+          data = await photonSearch(simplified)
+        }
+      }
+
+      // 3. Nominatim fallbacks
+      if (data.length === 0) data = await nominatimSearch(addr, true)
+      if (data.length === 0) data = await nominatimSearch(addr, false)
+
+      if (data.length === 0) {
         toast.error('Address not found — try pasting a Google Maps link below')
         setShowMapsUrl(true)
         return
@@ -275,13 +327,31 @@ export function HostServiceListingTabs(props: Props) {
     }
   }
 
-  /** Extract @lat,lon from a Google Maps long URL */
+  /** Extract coords from a Google Maps long URL (client-side, no fetch needed) */
   function parseGoogleMapsCoords(url: string): { lat: number; lon: number } | null {
-    const m = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-    if (m) return { lat: parseFloat(m[1]), lon: parseFloat(m[2]) }
-    const q = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+    // Precise POI pin: !3d{lat}!4d{lon}
+    const d = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/)
+    if (d) return { lat: parseFloat(d[1]), lon: parseFloat(d[2]) }
+    // Viewport center: @lat,lon
+    const at = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+    if (at) return { lat: parseFloat(at[1]), lon: parseFloat(at[2]) }
+    // ?q=lat,lon
+    const q = url.match(/[?&](?:q|query|ll)=(-?\d+\.?\d*),(-?\d+\.?\d*)/)
     if (q) return { lat: parseFloat(q[1]), lon: parseFloat(q[2]) }
     return null
+  }
+
+  async function reverseGeocode(lat: number, lon: number): Promise<string> {
+    try {
+      const rev = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
+      )
+      const data: { display_name?: string } = await rev.json()
+      return data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`
+    } catch {
+      return `${lat.toFixed(5)}, ${lon.toFixed(5)}`
+    }
   }
 
   async function handleMapsUrl() {
@@ -289,27 +359,28 @@ export function HostServiceListingTabs(props: Props) {
     if (!raw) return
     setMapsUrlLoading(true)
     try {
-      let finalUrl = raw
-      // Short URLs need server-side redirect resolution
-      if (/maps\.app\.goo\.gl|goo\.gl\/maps/.test(raw)) {
-        const res = await fetch(`/api/resolve-maps-url?url=${encodeURIComponent(raw)}`)
-        const json = await res.json()
-        if (!json.url) throw new Error('Could not resolve short link')
-        finalUrl = json.url
+      let coords: { lat: number; lon: number } | null = null
+
+      // For long URLs, parse client-side first (fast, no server call)
+      if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(raw)) {
+        coords = parseGoogleMapsCoords(raw)
       }
-      const coords = parseGoogleMapsCoords(finalUrl)
-      if (!coords) throw new Error('No coordinates found in this link — try copying the full Google Maps URL')
-      // Reverse-geocode to get a human-readable address
-      const rev = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${coords.lat}&lon=${coords.lon}&format=json`,
-        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
-      )
-      const revData: { display_name?: string } = await rev.json()
-      setMapPreview({
-        lat: coords.lat,
-        lon: coords.lon,
-        displayName: revData.display_name || `${coords.lat.toFixed(5)}, ${coords.lon.toFixed(5)}`,
-      })
+
+      // For short URLs — or if the long URL had no inline coords — hit the
+      // server resolver which uses a mobile UA to get the real canonical URL
+      if (!coords) {
+        const res = await fetch(`/api/resolve-maps-url?url=${encodeURIComponent(raw)}`)
+        const json = await res.json() as { url?: string; lat?: number; lon?: number; error?: string }
+        if (typeof json.lat === 'number' && typeof json.lon === 'number') {
+          coords = { lat: json.lat, lon: json.lon }
+        } else if (json.url) {
+          coords = parseGoogleMapsCoords(json.url)
+        }
+        if (!coords) throw new Error(json.error || 'No coordinates found in this link')
+      }
+
+      const displayName = await reverseGeocode(coords.lat, coords.lon)
+      setMapPreview({ lat: coords.lat, lon: coords.lon, displayName })
       setMapsUrlInput('')
       setShowMapsUrl(false)
     } catch (e) {
@@ -317,6 +388,37 @@ export function HostServiceListingTabs(props: Props) {
     } finally {
       setMapsUrlLoading(false)
     }
+  }
+
+  /** Use device geolocation + reverse-geocode to populate the address */
+  function useCurrentLocation() {
+    if (!('geolocation' in navigator)) {
+      toast.error('Geolocation is not supported by your browser')
+      return
+    }
+    setGeocoding(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        try {
+          const displayName = await reverseGeocode(latitude, longitude)
+          setMapPreview({ lat: latitude, lon: longitude, displayName })
+        } finally {
+          setGeocoding(false)
+        }
+      },
+      (err) => {
+        setGeocoding(false)
+        if (err.code === err.PERMISSION_DENIED) {
+          toast.error('Location permission denied — enable it in your browser settings')
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          toast.error('Location unavailable — try again in an open area')
+        } else {
+          toast.error('Could not get your current location')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    )
   }
 
   // ── Business tab state ────────────────────────────────────────────────
@@ -940,8 +1042,17 @@ export function HostServiceListingTabs(props: Props) {
                 value={location}
                 onChange={(e) => { setLocation(e.target.value); setShowSuggestions(false) }}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); previewLocationOnMap() } }}
-                className="w-full px-3 py-2 pr-10 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
+                className="w-full px-3 py-2 pr-20 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
               />
+              <button
+                type="button"
+                onClick={useCurrentLocation}
+                disabled={geocoding}
+                className="absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
+                title="Use my current location"
+              >
+                <LocateFixed className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 onClick={previewLocationOnMap}
