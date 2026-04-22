@@ -12,6 +12,7 @@ import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard
 import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
 import { ImageGallery } from '@/components/packages/ImageGallery'
+import { HeroBackdrop } from '@/components/packages/HeroBackdrop'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
 // InterestButton pulls in framer-motion (~41 KB gz). Lazy-load it via a
@@ -205,8 +206,9 @@ export default async function PackageDetailPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
+    <div className="relative min-h-screen bg-background">
+      <HeroBackdrop imageUrl={package_.images?.[0]} />
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         {/* Back */}
         <Link href={isCommunityTrip ? '/explore?tab=community' : '/explore'} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Explore

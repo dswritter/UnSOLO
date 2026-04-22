@@ -12,6 +12,7 @@ interface ImageGalleryProps {
 export function ImageGallery({ images, title }: ImageGalleryProps) {
   const [current, setCurrent] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
+  const [loaded, setLoaded] = useState<Record<number, boolean>>({})
 
   if (!images || images.length === 0) {
     return (
@@ -37,10 +38,14 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
           src={images[current]}
           alt={`${title} - ${current + 1}`}
           fill
-          className="object-cover transition-transform duration-300 group-hover:scale-105"
+          className={`object-cover transition-all duration-500 group-hover:scale-105 ${loaded[current] ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-105'}`}
           sizes="(max-width: 768px) 100vw, 66vw"
           priority={current === 0}
+          onLoad={() => setLoaded(prev => ({ ...prev, [current]: true }))}
         />
+        {!loaded[current] && (
+          <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-secondary via-muted/50 to-secondary" />
+        )}
 
         {/* Nav arrows */}
         {images.length > 1 && (
