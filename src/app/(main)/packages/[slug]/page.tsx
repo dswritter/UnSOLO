@@ -82,70 +82,98 @@ export default async function PackageDetailPage({
   const hostData = (pkg.host as unknown as HostProfile) || null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
 
-  // Fetch existing join request if community trip and user is logged in
-  let existingRequest = null
-  if (isCommunityTrip && user && !isHost) {
-    const { data: jr } = await supabase
-      .from('join_requests')
-      .select('id, status, message, host_response, payment_deadline')
-      .eq('trip_id', package_.id)
-      .eq('user_id', user.id)
-      .single()
-    if (jr) {
-      existingRequest = jr as { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
-    }
-  }
+  // Existing join request + group invite are independent — fetch in parallel.
+  const shouldLoadJoinRequest = isCommunityTrip && !!user && !isHost
+  const shouldLoadGroupInvite = !!groupId && !isCommunityTrip
 
-  // Fetch group invite data if arriving via group invite link (only for UnSOLO trips)
+  const [joinRequestRes, groupInviteRes] = await Promise.all([
+    shouldLoadJoinRequest
+      ? supabase
+          .from('join_requests')
+          .select('id, status, message, host_response, payment_deadline')
+          .eq('trip_id', package_.id)
+          .eq('user_id', user!.id)
+          .single()
+      : Promise.resolve({ data: null }),
+    shouldLoadGroupInvite
+      ? supabase
+          .from('group_bookings')
+          .select('id, travel_date, per_person_paise, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+          .eq('id', groupId!)
+          .eq('status', 'open')
+          .single()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const existingRequest = (joinRequestRes.data || null) as
+    | { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
+    | null
+
   let groupInvite: { id: string; travel_date: string; organizer_name: string; per_person_paise: number } | null = null
-  if (groupId && !isCommunityTrip) {
-    const { data: gData } = await supabase
-      .from('group_bookings')
-      .select('id, travel_date, per_person_paise, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
-      .eq('id', groupId)
-      .eq('status', 'open')
-      .single()
-    if (gData) {
-      const org = gData.organizer as unknown as { full_name: string | null; username: string }
-      groupInvite = {
-        id: gData.id,
-        travel_date: gData.travel_date,
-        per_person_paise: gData.per_person_paise,
-        organizer_name: org?.full_name || org?.username || 'Someone',
-      }
+  if (groupInviteRes.data) {
+    const gData = groupInviteRes.data
+    const org = gData.organizer as unknown as { full_name: string | null; username: string }
+    groupInvite = {
+      id: gData.id,
+      travel_date: gData.travel_date,
+      per_person_paise: gData.per_person_paise,
+      organizer_name: org?.full_name || org?.username || 'Someone',
     }
   }
 
-  // Calculate available slots (UnSOLO trips, or community trips with immediate checkout)
-  const availableSlotsMap: Record<string, number> = {}
-  if (!isCommunityTrip || communityDirectCheckout) {
-    if (package_.departure_dates && package_.max_group_size) {
-      const closedDates = new Set(
-        (package_.departure_dates_closed || []).map(tripDepartureDateKey),
-      )
-      for (const date of package_.departure_dates) {
-        const { data: dateBookings } = await supabase
-          .from('bookings')
-          .select('guests')
-          .eq('package_id', pkg.id)
-          .eq('travel_date', date)
-          .in('status', ['pending', 'confirmed', 'completed'])
-        const totalBooked = (dateBookings || []).reduce((sum, b) => sum + (b.guests || 1), 0)
-        let slots = Math.max(0, package_.max_group_size - totalBooked)
-        if (closedDates.has(tripDepartureDateKey(date))) slots = 0
-        availableSlotsMap[date] = slots
-      }
-    }
-  }
+  // Fan out all remaining independent reads in parallel so the waterfall
+  // collapses to a single round-trip. Per-departure-date booking counts are
+  // also fetched concurrently rather than one date at a time.
+  const computeSlots = !isCommunityTrip || communityDirectCheckout
+  const shouldLoadSlots =
+    computeSlots && !!package_.departure_dates && !!package_.max_group_size
 
-  // Get reviews
-  const { data: reviews } = await supabase
-    .from('reviews')
-    .select('*, user:profiles(username, full_name, avatar_url)')
-    .eq('package_id', pkg.id)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const [
+    reviewsRes,
+    interestData,
+    supportWhatsappNumber,
+    interestedRowsRes,
+    similarRes,
+    dateBookingResults,
+  ] = await Promise.all([
+    supabase
+      .from('reviews')
+      .select('*, user:profiles(username, full_name, avatar_url)')
+      .eq('package_id', pkg.id)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    getInterestData(pkg.id),
+    getSupportWhatsappNumber(),
+    supabase
+      .from('package_interests')
+      .select('user:profiles(id, username, full_name, avatar_url)')
+      .eq('package_id', pkg.id)
+      .limit(5),
+    package_.destination_id
+      ? supabase
+          .from('packages')
+          .select('id, title, slug, price_paise, images, duration_days, difficulty')
+          .eq('destination_id', package_.destination_id)
+          .eq('is_active', true)
+          .neq('id', package_.id)
+          .limit(3)
+      : Promise.resolve({ data: [] as Array<{ id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }> }),
+    shouldLoadSlots
+      ? Promise.all(
+          (package_.departure_dates || []).map(async date => {
+            const { data } = await supabase
+              .from('bookings')
+              .select('guests')
+              .eq('package_id', pkg.id)
+              .eq('travel_date', date)
+              .in('status', ['pending', 'confirmed', 'completed'])
+            return { date, rows: data || [] }
+          }),
+        )
+      : Promise.resolve([] as { date: string; rows: { guests: number | null }[] }[]),
+  ])
 
+  const reviews = reviewsRes.data
   const avgRating = reviews?.length
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : 0
@@ -156,32 +184,24 @@ export default async function PackageDetailPage({
     ? reviews.reduce((sum, r) => sum + (r.rating_experience || r.rating), 0) / reviews.length
     : 0
 
-  // Get interest data + first five interested user avatars for the social-proof strip
-  const [interestData, supportWhatsappNumber] = await Promise.all([
-    getInterestData(pkg.id),
-    getSupportWhatsappNumber(),
-  ])
   const whatsappNumber = resolveWhatsappNumber(package_.whatsapp_number, supportWhatsappNumber)
-  const { data: interestedRows } = await supabase
-    .from('package_interests')
-    .select('user:profiles(id, username, full_name, avatar_url)')
-    .eq('package_id', pkg.id)
-    .limit(5)
-  const interestedUsers = (interestedRows || [])
+  const interestedUsers = (interestedRowsRes.data || [])
     .map(r => r.user as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null)
     .filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
 
-  // Similar trips (same destination, excluding current)
-  const similarPackages: { id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }[] = []
-  if (package_.destination_id) {
-    const { data: similar } = await supabase
-      .from('packages')
-      .select('id, title, slug, price_paise, images, duration_days, difficulty')
-      .eq('destination_id', package_.destination_id)
-      .eq('is_active', true)
-      .neq('id', package_.id)
-      .limit(3)
-    similarPackages.push(...(similar || []) as typeof similarPackages)
+  const similarPackages = (similarRes.data || []) as Array<{ id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }>
+
+  const availableSlotsMap: Record<string, number> = {}
+  if (shouldLoadSlots) {
+    const closedDates = new Set(
+      (package_.departure_dates_closed || []).map(tripDepartureDateKey),
+    )
+    for (const { date, rows } of dateBookingResults) {
+      const totalBooked = rows.reduce((sum, b) => sum + (b.guests || 1), 0)
+      let slots = Math.max(0, package_.max_group_size - totalBooked)
+      if (closedDates.has(tripDepartureDateKey(date))) slots = 0
+      availableSlotsMap[date] = slots
+    }
   }
 
   return (
