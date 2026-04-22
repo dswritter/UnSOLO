@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, X, Mountain } from 'lucide-react'
 
@@ -29,6 +29,22 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   function prev() {
     setCurrent(c => (c - 1 + images.length) % images.length)
   }
+
+  useEffect(() => {
+    if (!fullscreen) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFullscreen(false)
+      else if (e.key === 'ArrowRight' && images.length > 1) next()
+      else if (e.key === 'ArrowLeft' && images.length > 1) prev()
+    }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [fullscreen, images.length])
 
   return (
     <>

@@ -20,6 +20,7 @@ import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
 // and this page is a Server Component.
 import { LazyInterestButton as InterestButton } from '@/components/packages/LazyInterestButton'
 import { ShareButton } from '@/components/packages/ShareButton'
+import { InterestedAvatars } from '@/components/packages/InterestedAvatars'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-settings'
@@ -272,26 +273,11 @@ export default async function PackageDetailPage({
                     Only {scarceSlotsLeft} left
                   </span>
                 )}
-                {interestedUsers.length > 0 && (
-                  <div className="flex -space-x-2" aria-label={`${interestedUsers.length} interested`}>
-                    {interestedUsers.map(u => (
-                      <div
-                        key={u.id}
-                        title={u.full_name || u.username}
-                        className="relative h-7 w-7 rounded-full ring-2 ring-background overflow-hidden bg-secondary flex items-center justify-center"
-                      >
-                        {u.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-[11px] font-bold text-primary">
-                            {(u.full_name || u.username)[0].toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <InterestedAvatars
+                  packageId={package_.id}
+                  totalCount={interestData.count}
+                  preview={interestedUsers}
+                />
               </div>
               <ShareButton
                 slug={package_.slug}

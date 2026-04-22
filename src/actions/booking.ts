@@ -1211,6 +1211,27 @@ export async function getInterestData(packageId: string) {
   return { count: count || 0, isInterested }
 }
 
+export type InterestedUser = {
+  id: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+}
+
+/** Full list of users interested in a package — for the "+N more" drawer. */
+export async function getInterestedUsers(packageId: string): Promise<InterestedUser[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('package_interests')
+    .select('user:profiles(id, username, full_name, avatar_url), created_at')
+    .eq('package_id', packageId)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  return ((data || [])
+    .map(r => r.user as unknown as InterestedUser | null)
+    .filter(Boolean) as InterestedUser[])
+}
+
 // ── Date Change (only for pending bookings) ─────────────────
 export async function changeBookingDate(bookingId: string, newDate: string) {
   const supabase = await createClient()
