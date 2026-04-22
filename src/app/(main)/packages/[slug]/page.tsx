@@ -155,8 +155,16 @@ export default async function PackageDetailPage({
     ? reviews.reduce((sum, r) => sum + (r.rating_experience || r.rating), 0) / reviews.length
     : 0
 
-  // Get interest data
+  // Get interest data + first five interested user avatars for the social-proof strip
   const interestData = await getInterestData(pkg.id)
+  const { data: interestedRows } = await supabase
+    .from('package_interests')
+    .select('user:profiles(id, username, full_name, avatar_url)')
+    .eq('package_id', pkg.id)
+    .limit(5)
+  const interestedUsers = (interestedRows || [])
+    .map(r => r.user as unknown as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null)
+    .filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
 
   // Similar trips (same destination, excluding current)
   const similarPackages: { id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }[] = []
@@ -219,12 +227,34 @@ export default async function PackageDetailPage({
 
             {/* Interested + Share */}
             <div className="flex items-center justify-between flex-wrap gap-3">
-              <InterestButton
-                packageId={package_.id}
-                initialCount={interestData.count}
-                initialInterested={interestData.isInterested}
-                isLoggedIn={!!user}
-              />
+              <div className="flex items-center gap-3">
+                <InterestButton
+                  packageId={package_.id}
+                  initialCount={interestData.count}
+                  initialInterested={interestData.isInterested}
+                  isLoggedIn={!!user}
+                />
+                {interestedUsers.length > 0 && (
+                  <div className="flex -space-x-2" aria-label={`${interestedUsers.length} interested`}>
+                    {interestedUsers.map(u => (
+                      <div
+                        key={u.id}
+                        title={u.full_name || u.username}
+                        className="relative h-7 w-7 rounded-full ring-2 ring-background overflow-hidden bg-secondary flex items-center justify-center"
+                      >
+                        {u.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-[11px] font-bold text-primary">
+                            {(u.full_name || u.username)[0].toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <ShareButton
                 slug={package_.slug}
                 title={package_.title}
