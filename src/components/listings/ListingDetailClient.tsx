@@ -129,6 +129,44 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
           {listing.short_description && (
             <p className="text-lg text-muted-foreground">{listing.short_description}</p>
           )}
+          {listing.type === 'activities' && listing.event_schedule && listing.event_schedule.length > 0 && (() => {
+            const today = new Date().toISOString().slice(0, 10)
+            const upcoming = listing.event_schedule.filter(e => e.date >= today)
+            const source = upcoming.length > 0 ? upcoming : listing.event_schedule
+            return (
+              <div className="mt-4 space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {upcoming.length > 0 ? 'Upcoming dates' : 'Event dates'}
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {source.map(entry => (
+                    <div
+                      key={entry.date}
+                      className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs"
+                    >
+                      <span className="font-medium">
+                        {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      {entry.slots && entry.slots.length > 0 ? (
+                        entry.slots.map(s => (
+                          <span key={`${s.start}-${s.end}`} className="text-muted-foreground">
+                            {s.start}–{s.end}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground">All day</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {upcoming.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    All dates for this activity have passed.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Rating & reviews */}

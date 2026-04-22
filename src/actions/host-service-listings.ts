@@ -2,7 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import type { ServiceListingType, ServiceListingMetadata } from '@/types'
+import type {
+  ServiceEventScheduleEntry,
+  ServiceListingType,
+  ServiceListingMetadata,
+} from '@/types'
 
 /**
  * Fan out a notification to every admin. Uses the service-role client so the
@@ -60,7 +64,82 @@ const HOST_SERVICE_OPERATIONAL_FIELDS = new Set<string>([
   'amenities',
   'tags',
   'location', // street address / specific location text
+  // Activities: adding/removing event dates / slots is operational — reopening
+  // a lapsed schedule shouldn't drag the listing back through admin review.
+  'event_schedule',
 ])
+
+const TIME_RE = /^\d{2}:\d{2}$/
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Validate + normalise an `event_schedule` payload. Returns null for empty,
+ * which the column treats as "ongoing / non-date-specific". Drops malformed
+ * entries silently rather than throwing, so a single bad row from the UI
+ * doesn't block a save.
+ */
+function sanitizeEventSchedule(raw: unknown): ServiceEventScheduleEntry[] | null {
+  if (!Array.isArray(raw)) return null
+  const seenDates = new Set<string>()
+  const entries: ServiceEventScheduleEntry[] = []
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const date = (item as { date?: unknown }).date
+    if (typeof date !== 'string' || !DATE_RE.test(date)) continue
+    if (seenDates.has(date)) continue
+    seenDates.add(date)
+
+    const rawSlots = (item as { slots?: unknown }).slots
+    if (rawSlots == null) {
+      entries.push({ date, slots: null })
+      continue
+    }
+    if (!Array.isArray(rawSlots)) {
+      entries.push({ date, slots: null })
+      continue
+    }
+    const slots: { start: string; end: string }[] = []
+    for (const s of rawSlots) {
+      if (!s || typeof s !== 'object') continue
+      const start = (s as { start?: unknown }).start
+      const end = (s as { end?: unknown }).end
+      if (typeof start !== 'string' || !TIME_RE.test(start)) continue
+      if (typeof end !== 'string' || !TIME_RE.test(end)) continue
+      if (start >= end) continue // end must be strictly after start
+      slots.push({ start, end })
+    }
+    slots.sort((a, b) => a.start.localeCompare(b.start))
+    entries.push({ date, slots: slots.length > 0 ? slots : null })
+  }
+
+  entries.sort((a, b) => a.date.localeCompare(b.date))
+  return entries.length > 0 ? entries : null
+}
+
+/** True when the user is primary host or an accepted co-host on this listing. */
+async function userCanEditServiceListing(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  listingId: string,
+  userId: string,
+): Promise<{ allowed: boolean; isPrimary: boolean } | null> {
+  const { data: listing } = await supabase
+    .from('service_listings')
+    .select('host_id')
+    .eq('id', listingId)
+    .single()
+  if (!listing) return null
+  if (listing.host_id === userId) return { allowed: true, isPrimary: true }
+
+  const { data: collab } = await supabase
+    .from('service_listing_collaborators')
+    .select('id')
+    .eq('listing_id', listingId)
+    .eq('user_id', userId)
+    .eq('status', 'accepted')
+    .maybeSingle()
+  return { allowed: !!collab, isPrimary: false }
+}
 
 export type HostServiceItemDraft = {
   name: string
@@ -90,6 +169,8 @@ export async function createHostServiceListing(input: {
   metadata: ServiceListingMetadata | null
   host_id: string
   items: HostServiceItemDraft[]
+  /** Activities only — scheduled dates + optional slots. */
+  event_schedule?: ServiceEventScheduleEntry[] | null
 }) {
   try {
     const supabase = await createClient()
@@ -197,6 +278,9 @@ export async function createHostServiceListing(input: {
         is_active: true,
         is_featured: false,
         status: 'pending',
+        event_schedule: input.type === 'activities'
+          ? sanitizeEventSchedule(input.event_schedule)
+          : null,
       })
       .select('id, slug')
       .single()
@@ -306,6 +390,8 @@ export async function updateHostServiceListing(
     amenities?: string[]
     tags?: string[]
     metadata?: ServiceListingMetadata | null
+    /** Activities only — replaces the full event schedule (dates + slots). */
+    event_schedule?: ServiceEventScheduleEntry[] | null
   },
 ) {
   try {
@@ -315,12 +401,14 @@ export async function updateHostServiceListing(
 
     const { data: existing, error: fetchError } = await supabase
       .from('service_listings')
-      .select('id, host_id, title, status')
+      .select('id, host_id, title, status, type')
       .eq('id', listingId)
       .single()
 
     if (fetchError || !existing) return { error: 'Listing not found' }
-    if (existing.host_id !== user.id) return { error: 'Unauthorized' }
+
+    const access = await userCanEditServiceListing(supabase, listingId, user.id)
+    if (!access?.allowed) return { error: 'Unauthorized' }
 
     const update: Record<string, unknown> = {}
     if (patch.title !== undefined) update.title = patch.title.trim()
@@ -333,6 +421,9 @@ export async function updateHostServiceListing(
     if (patch.amenities !== undefined) update.amenities = patch.amenities.length > 0 ? patch.amenities : null
     if (patch.tags !== undefined) update.tags = patch.tags.length > 0 ? patch.tags : null
     if (patch.metadata !== undefined) update.metadata = patch.metadata
+    if (patch.event_schedule !== undefined && existing.type === 'activities') {
+      update.event_schedule = sanitizeEventSchedule(patch.event_schedule)
+    }
 
     if (patch.destination_ids !== undefined) {
       const ids = Array.from(new Set(patch.destination_ids.filter(Boolean)))

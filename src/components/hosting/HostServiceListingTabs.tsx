@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
+import { CoHostSection } from '@/components/hosting/CoHostSection'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import {
@@ -487,6 +488,20 @@ export function HostServiceListingTabs(props: Props) {
   )
   const [tagsInput, setTagsInput] = useState((initialListing?.tags || []).join(', '))
   const [customAmenity, setCustomAmenity] = useState('')
+  // Activities only: host-scheduled event schedule. Null = ongoing.
+  const initialSchedule = initialListing?.event_schedule || null
+  const [isDateSpecific, setIsDateSpecific] = useState<boolean>(
+    Array.isArray(initialSchedule) && initialSchedule.length > 0,
+  )
+  const [hasSlots, setHasSlots] = useState<boolean>(
+    Array.isArray(initialSchedule) && initialSchedule.some(e => e.slots && e.slots.length > 0),
+  )
+  const [eventSchedule, setEventSchedule] = useState<Array<{ date: string; slots: { start: string; end: string }[] }>>(
+    Array.isArray(initialSchedule)
+      ? initialSchedule.map(e => ({ date: e.date, slots: e.slots ? e.slots.slice() : [] }))
+      : [],
+  )
+  const [newEventDate, setNewEventDate] = useState('')
   const descRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Items tab state ───────────────────────────────────────────────────
@@ -517,6 +532,9 @@ export function HostServiceListingTabs(props: Props) {
     unit,
     amenities,
     tagsInput: tagsInput.trim(),
+    isDateSpecific,
+    hasSlots,
+    eventSchedule,
     items: items.map(i => ({
       dbId: i.dbId ?? null,
       name: i.name.trim(),
@@ -542,10 +560,24 @@ export function HostServiceListingTabs(props: Props) {
   const currentSnapshot = useMemo(
     () => serializeFormState(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, destinationIds, location, pinLatLon, shortDescription, description, unit, amenities, tagsInput, items],
+    [title, destinationIds, location, pinLatLon, shortDescription, description, unit, amenities, tagsInput, isDateSpecific, hasSlots, eventSchedule, items],
   )
 
   const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot
+
+  // Build the event_schedule payload for the server. null = ongoing; otherwise
+  // entries carry { date, slots? }. When "Multiple time slots" is off we drop
+  // any slots the host previously entered so the API sees a clean all-day array.
+  function buildEventSchedulePayload(): { date: string; slots: { start: string; end: string }[] | null }[] | null {
+    if (type !== 'activities') return null
+    if (!isDateSpecific) return null
+    return eventSchedule
+      .filter(e => /^\d{4}-\d{2}-\d{2}$/.test(e.date))
+      .map(e => ({
+        date: e.date,
+        slots: hasSlots && e.slots.length > 0 ? e.slots : null,
+      }))
+  }
 
   // Modal state: path the host clicked on (internal), or 'external' when the
   // browser is firing beforeunload (which can't show our custom UI).
@@ -811,6 +843,7 @@ export function HostServiceListingTabs(props: Props) {
       metadata: null,
       host_id: userId,
       items: payload,
+      ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
     })
     setSaving(false)
 
@@ -838,6 +871,7 @@ export function HostServiceListingTabs(props: Props) {
       latitude: pinLatLon?.lat ?? null,
       longitude: pinLatLon?.lon ?? null,
       tags,
+      ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
     })
     setSaving(false)
     if ('error' in res && res.error) {
@@ -929,6 +963,7 @@ export function HostServiceListingTabs(props: Props) {
         latitude: pinLatLon?.lat ?? null,
         longitude: pinLatLon?.lon ?? null,
         tags,
+        ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
       })
       if ('error' in businessRes && businessRes.error) {
         toast.error(businessRes.error)
@@ -1356,6 +1391,182 @@ export function HostServiceListingTabs(props: Props) {
             />
           </div>
 
+          {type === 'activities' && (() => {
+            const todayStr = new Date().toISOString().slice(0, 10)
+            const allPast = isDateSpecific && eventSchedule.length > 0 &&
+              eventSchedule.every(e => e.date < todayStr)
+            return (
+              <div className="space-y-3 pt-2 border-t border-border/60">
+                <div>
+                  <label className="text-sm font-semibold">Is this a date-specific activity?</label>
+                  <p className="text-xs text-muted-foreground">
+                    Date-specific activities auto-hide from Explore once every date passes. Leave off for ongoing offerings.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    {[{v: false, l: 'No, ongoing'}, {v: true, l: 'Yes, specific dates'}].map(opt => (
+                      <button
+                        key={opt.l}
+                        type="button"
+                        onClick={() => {
+                          setIsDateSpecific(opt.v)
+                          if (!opt.v) { setHasSlots(false); setEventSchedule([]); setNewEventDate('') }
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          isDateSpecific === opt.v
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary border border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {opt.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {isDateSpecific && (
+                  <div>
+                    <label className="text-sm font-semibold">Multiple time slots per date?</label>
+                    <p className="text-xs text-muted-foreground">
+                      Off = one all-day session per date. On = add specific start/end times travelers can book.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      {[{v: false, l: 'No'}, {v: true, l: 'Yes'}].map(opt => (
+                        <button
+                          key={opt.l}
+                          type="button"
+                          onClick={() => {
+                            setHasSlots(opt.v)
+                            if (!opt.v) setEventSchedule(prev => prev.map(e => ({ ...e, slots: [] })))
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            hasSlots === opt.v
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary border border-border text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {isDateSpecific && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold">Dates {hasSlots ? '& time slots' : ''}</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="date"
+                        value={newEventDate}
+                        min={todayStr}
+                        onChange={(e) => setNewEventDate(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = newEventDate
+                          if (!v) return
+                          if (eventSchedule.some(e => e.date === v)) { toast.error('That date is already added'); return }
+                          setEventSchedule(prev => [...prev, { date: v, slots: [] }].sort((a, b) => a.date.localeCompare(b.date)))
+                          setNewEventDate('')
+                        }}
+                        disabled={!newEventDate}
+                        className="px-3 py-2 rounded-lg text-xs font-semibold bg-secondary border border-border text-foreground hover:bg-secondary/80 disabled:opacity-50"
+                      >
+                        + Add date
+                      </button>
+                    </div>
+
+                    {eventSchedule.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        {eventSchedule.map((entry, idx) => {
+                          const isPast = entry.date < todayStr
+                          return (
+                            <div
+                              key={entry.date}
+                              className={`rounded-lg border p-3 ${
+                                isPast ? 'bg-muted/30 border-border' : 'bg-secondary/40 border-border'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`text-sm font-semibold ${isPast ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                                  {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEventSchedule(prev => prev.filter((_, i) => i !== idx))}
+                                  className="text-xs text-red-500 hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+
+                              {hasSlots && (
+                                <div className="mt-2 space-y-1.5">
+                                  {entry.slots.map((slot, si) => (
+                                    <div key={si} className="flex items-center gap-2">
+                                      <input
+                                        type="time"
+                                        value={slot.start}
+                                        onChange={(e) => setEventSchedule(prev => prev.map((x, i) =>
+                                          i === idx
+                                            ? { ...x, slots: x.slots.map((s, j) => j === si ? { ...s, start: e.target.value } : s) }
+                                            : x
+                                        ))}
+                                        className="flex-1 px-2 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:border-primary"
+                                      />
+                                      <span className="text-xs text-muted-foreground">to</span>
+                                      <input
+                                        type="time"
+                                        value={slot.end}
+                                        onChange={(e) => setEventSchedule(prev => prev.map((x, i) =>
+                                          i === idx
+                                            ? { ...x, slots: x.slots.map((s, j) => j === si ? { ...s, end: e.target.value } : s) }
+                                            : x
+                                        ))}
+                                        className="flex-1 px-2 py-1.5 rounded-md border border-border bg-background text-xs focus:outline-none focus:border-primary"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setEventSchedule(prev => prev.map((x, i) =>
+                                          i === idx ? { ...x, slots: x.slots.filter((_, j) => j !== si) } : x
+                                        ))}
+                                        className="text-muted-foreground hover:text-red-500"
+                                        aria-label="Remove slot"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => setEventSchedule(prev => prev.map((x, i) =>
+                                      i === idx ? { ...x, slots: [...x.slots, { start: '09:00', end: '11:00' }] } : x
+                                    ))}
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    + Add time slot
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {allPast && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 pt-1">
+                        All dates have passed — this listing is hidden from Explore. Add a future date to relist.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
           {mode === 'edit' && (
             <div className="pt-4 border-t border-border">
               <Button onClick={saveBusinessEdit} disabled={saving || !isDirty}>
@@ -1365,6 +1576,13 @@ export function HostServiceListingTabs(props: Props) {
                 <p className="text-xs text-muted-foreground mt-1.5">No unsaved changes.</p>
               )}
             </div>
+          )}
+
+          {mode === 'edit' && (
+            <CoHostSection
+              listingId={props.listing.id}
+              isPrimaryHost={props.listing.host_id === userId}
+            />
           )}
         </div>
       )}

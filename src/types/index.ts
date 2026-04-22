@@ -189,6 +189,9 @@ export type Booking = {
   admin_cancellation_note?: string | null
   quantity?: number
   amount_paise?: number
+  /** Activities only: chosen slot start time (HH:MM). Null when no slots defined. */
+  booking_slot_start?: string | null
+  booking_slot_end?: string | null
   /** Host contact info - exposed to booker */
   host_phone?: string | null
   host_email?: string | null
@@ -203,6 +206,32 @@ export type Booking = {
 }
 
 export type ServiceListingType = 'stays' | 'activities' | 'rentals' | 'getting_around'
+
+export type ServiceEventSlot = {
+  /** Start time as HH:MM (24h). */
+  start: string
+  /** End time as HH:MM (24h). Must be > start on the same date. */
+  end: string
+}
+
+export type ServiceEventScheduleEntry = {
+  /** YYYY-MM-DD. */
+  date: string
+  /** Null = all-day event on this date. Non-empty list = exhaustive bookable slots. */
+  slots: ServiceEventSlot[] | null
+}
+
+export type ServiceListingCollaborator = {
+  id: string
+  listing_id: string
+  user_id: string
+  added_by: string
+  status: 'pending' | 'accepted' | 'declined'
+  notify_on_booking: boolean
+  responded_at: string | null
+  created_at: string
+  profile?: Pick<Profile, 'id' | 'username' | 'full_name' | 'avatar_url'>
+}
 
 export type ServiceListingMetadata = {
   // Stays
@@ -258,6 +287,11 @@ export type ServiceListing = {
   status: 'pending' | 'approved' | 'rejected' | 'archived'
   /** Set once, on first admin approval; never cleared on later pending resets. */
   first_approved_at?: string | null
+  /**
+   * Activities only. Array of scheduled events. `null` = ongoing (non-date-specific).
+   * `slots: null` on an entry means "all day"; otherwise the slots list is exhaustive.
+   */
+  event_schedule?: ServiceEventScheduleEntry[] | null
   average_rating: number
   review_count: number
   created_at: string

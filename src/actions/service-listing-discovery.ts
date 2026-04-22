@@ -3,6 +3,26 @@
 import { createClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
 
+/**
+ * Activities with an `event_schedule` are date-specific events. Once every
+ * scheduled date is in the past, the listing is treated as expired and hidden
+ * from public discovery until the host adds a new future date. Other
+ * listings (or activities without a schedule) are always visible.
+ */
+function isListingVisibleToPublic(
+  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
+  todayIso: string,
+): boolean {
+  if (listing.type !== 'activities') return true
+  const schedule = listing.event_schedule
+  if (!schedule || schedule.length === 0) return true
+  return schedule.some(entry => entry.date >= todayIso)
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export async function getServiceListingsByType(
   type: ServiceListingType,
   filters: {
@@ -77,12 +97,22 @@ export async function getServiceListingsByType(
 
   if (error) throw error
 
+  const today = todayIso()
+  const listings = ((data || []) as ServiceListing[])
+    .filter(l => isListingVisibleToPublic(l, today))
+
+  // `count` from the SQL query ignores the in-app event-dates filter. For
+  // activities, adjust the total so pagination reflects what's actually visible.
+  const adjustedTotal = type === 'activities'
+    ? Math.max(0, (count || 0) - (((data || []).length) - listings.length))
+    : (count || 0)
+
   return {
-    listings: (data || []) as ServiceListing[],
-    total: count || 0,
+    listings,
+    total: adjustedTotal,
     page,
     limit,
-    totalPages: Math.ceil((count || 0) / limit),
+    totalPages: Math.ceil(adjustedTotal / limit),
   }
 }
 
@@ -115,6 +145,13 @@ export async function getServiceListingDetail(slug: string) {
   }
 }
 
+/** Public visibility check for a single fetched listing (use in detail pages). */
+export async function isServiceListingVisibleToPublic(
+  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
+): Promise<boolean> {
+  return isListingVisibleToPublic(listing, todayIso())
+}
+
 export async function searchServiceListings(
   query: string,
   type: ServiceListingType,
@@ -124,7 +161,7 @@ export async function searchServiceListings(
 
   const { data, error } = await supabase
     .from('service_listings')
-    .select('id, title, slug, location, images, price_paise, type')
+    .select('id, title, slug, location, images, price_paise, type, event_schedule')
     .eq('type', type)
     .eq('is_active', true)
     .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
@@ -132,7 +169,9 @@ export async function searchServiceListings(
     .limit(limit)
 
   if (error) throw error
-  return data || []
+  const today = todayIso()
+  return ((data || []) as Array<Pick<ServiceListing, 'id' | 'title' | 'slug' | 'location' | 'images' | 'price_paise' | 'type' | 'event_schedule'>>)
+    .filter(l => isListingVisibleToPublic({ type: l.type, event_schedule: l.event_schedule ?? null }, today))
 }
 
 // ── Related Services for Trip Details ──────────────────────────────────────
@@ -184,9 +223,10 @@ export async function getRelatedServicesForPackage(
 
   const { data: nearby } = await nearbyQuery
 
+  const today = todayIso()
   return {
-    curated: curated as ServiceListing[],
-    nearbyAuto: (nearby || []) as ServiceListing[],
+    curated: (curated as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)),
+    nearbyAuto: ((nearby || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)),
     hasCuratedLinks: curatedLinks.length > 0,
   }
 }
@@ -217,5 +257,6 @@ export async function getServiceListingsByDestination(
   const { data, error } = await query
 
   if (error) throw error
-  return data || []
+  const today = todayIso()
+  return ((data || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today))
 }

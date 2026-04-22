@@ -5,7 +5,7 @@ import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
-import type { ServiceListingType } from '@/types'
+import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -56,6 +56,9 @@ export async function createServiceListingOrder(
     applyCredits: boolean
     promoCode?: string
     service_listing_item_id?: string
+    /** Activities only: required when the listing has slots on the chosen date. */
+    booking_slot_start?: string
+    booking_slot_end?: string
   },
 ) {
   try {
@@ -75,6 +78,35 @@ export async function createServiceListingOrder(
 
     if (listingError || !listing) {
       return { error: 'Listing not found or inactive' }
+    }
+
+    // Activities with a schedule: the traveler must pick a listed date, and
+    // a listed slot on that date when the host defined slots. Reject out-of-band
+    // combos so the stored booking is guaranteed to line up with what the host
+    // published.
+    let slotStart: string | null = null
+    let slotEnd: string | null = null
+    if (listing.type === 'activities') {
+      const schedule = (listing.event_schedule as ServiceEventScheduleEntry[] | null) ?? null
+      if (schedule && schedule.length > 0) {
+        const entry = schedule.find(e => e.date === bookingData.check_in_date)
+        if (!entry) {
+          return { error: 'Selected date is not part of this activity\'s schedule' }
+        }
+        if (entry.slots && entry.slots.length > 0) {
+          if (!bookingData.booking_slot_start || !bookingData.booking_slot_end) {
+            return { error: 'Please pick a time slot' }
+          }
+          const matched = entry.slots.find(
+            s => s.start === bookingData.booking_slot_start && s.end === bookingData.booking_slot_end,
+          )
+          if (!matched) {
+            return { error: 'Selected time slot is not available' }
+          }
+          slotStart = matched.start
+          slotEnd = matched.end
+        }
+      }
     }
 
     // If an item is specified, it drives price and inventory checks.
@@ -155,6 +187,8 @@ export async function createServiceListingOrder(
           gross_paise: totalPaise,
           discount_paise: discountPaise,
           wallet_deducted_paise: creditsUsed,
+          booking_slot_start: slotStart,
+          booking_slot_end: slotEnd,
           status: 'confirmed',
           payment_status: 'paid',
           razorpay_payment_id: null,
@@ -211,6 +245,8 @@ export async function createServiceListingOrder(
         gross_paise: totalPaise,
         discount_paise: discountPaise,
         wallet_deducted_paise: creditsUsed,
+        booking_slot_start: slotStart,
+        booking_slot_end: slotEnd,
         status: 'pending',
         payment_status: 'pending',
         razorpay_order_id: order.id,

@@ -45,9 +45,32 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   // Date/booking inputs
   const [checkInDate, setCheckInDate] = useState('')
   const [checkOutDate, setCheckOutDate] = useState('')
-  const [activityDate, setActivityDate] = useState('')
+  // For activities: auto-prefill to the single upcoming date when the host
+  // scheduled exactly one; otherwise stay blank until the user picks.
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const upcomingSchedule = (listing.type === 'activities' && listing.event_schedule)
+    ? listing.event_schedule.filter(e => e.date >= todayStr)
+    : null
+  const singleScheduledDate = upcomingSchedule && upcomingSchedule.length === 1
+    ? upcomingSchedule[0].date
+    : ''
+  const [activityDate, setActivityDate] = useState<string>(singleScheduledDate)
+  const [slotKey, setSlotKey] = useState<string>('') // "start|end"
   const [rentalStartDate, setRentalStartDate] = useState('')
   const [rentalDays, setRentalDays] = useState(1)
+
+  const selectedScheduleEntry = upcomingSchedule?.find(e => e.date === activityDate) ?? null
+  // Auto-pick the only slot if there's exactly one for the selected date.
+  useEffect(() => {
+    if (!selectedScheduleEntry?.slots) { if (slotKey) setSlotKey(''); return }
+    if (selectedScheduleEntry.slots.length === 1) {
+      const s = selectedScheduleEntry.slots[0]
+      setSlotKey(`${s.start}|${s.end}`)
+    } else {
+      setSlotKey('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityDate])
 
   // Quantities
   const [quantity, setQuantity] = useState(1)
@@ -126,10 +149,20 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const isValidBooking = (): boolean => {
     const selectedDate = getSelectedDate()
     if (!selectedDate) return false
-    if (new Date(selectedDate) < new Date(minDate)) return false
+    // Date-specific activities: the generic future-date rule doesn't apply —
+    // the schedule itself defines valid dates (the earliest may even be today).
+    if (listing.type !== 'activities' || !upcomingSchedule) {
+      if (new Date(selectedDate) < new Date(minDate)) return false
+    }
 
     if (listing.type === 'stays' && !checkOutDate) return false
     if (listing.type === 'stays' && new Date(checkOutDate) <= new Date(checkInDate)) return false
+
+    if (listing.type === 'activities' && upcomingSchedule) {
+      const entry = upcomingSchedule.find(e => e.date === selectedDate)
+      if (!entry) return false
+      if (entry.slots && entry.slots.length > 0 && !slotKey) return false
+    }
 
     if (quantity < 1) return false
     if (quantity > maxPerBooking) return false
@@ -172,11 +205,19 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         applyCredits: boolean
         service_listing_item_id?: string
         promoCode?: string
+        booking_slot_start?: string
+        booking_slot_end?: string
       } = {
         check_in_date: listing.type === 'stays' ? checkInDate : selectedDate,
         check_out_date: listing.type === 'stays' ? checkOutDate : undefined,
         quantity,
         applyCredits,
+      }
+
+      if (listing.type === 'activities' && slotKey) {
+        const [start, end] = slotKey.split('|')
+        bookingData.booking_slot_start = start
+        bookingData.booking_slot_end = end
       }
 
       if (selectedItem) {
@@ -298,7 +339,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         </>
       )}
 
-      {listing.type === 'activities' && (
+      {listing.type === 'activities' && !upcomingSchedule && (
         <div className="space-y-1">
           <label className="text-sm font-medium flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
@@ -311,6 +352,69 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
             onChange={(e) => setActivityDate(e.target.value)}
             className="bg-secondary border-border"
           />
+        </div>
+      )}
+
+      {listing.type === 'activities' && upcomingSchedule && upcomingSchedule.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
+          </label>
+          {upcomingSchedule.length === 1 ? (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+              {new Date(upcomingSchedule[0].date).toLocaleDateString('en-IN', {
+                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+              })}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {upcomingSchedule.map(entry => {
+                const selected = activityDate === entry.date
+                return (
+                  <button
+                    key={entry.date}
+                    type="button"
+                    onClick={() => setActivityDate(entry.date)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium text-left border transition-colors ${
+                      selected
+                        ? 'bg-primary/15 border-primary text-foreground'
+                        : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {new Date(entry.date).toLocaleDateString('en-IN', {
+                      weekday: 'short', day: 'numeric', month: 'short',
+                    })}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {selectedScheduleEntry?.slots && selectedScheduleEntry.slots.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Time slot</span>
+              <div className="grid grid-cols-2 gap-2">
+                {selectedScheduleEntry.slots.map(s => {
+                  const k = `${s.start}|${s.end}`
+                  const selected = slotKey === k
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setSlotKey(k)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                        selected
+                          ? 'bg-primary/15 border-primary text-foreground'
+                          : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {s.start} – {s.end}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
