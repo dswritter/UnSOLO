@@ -156,7 +156,7 @@ export function HostTripForm({
   const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
   const [platformFeePercent, setPlatformFeePercent] = useState(15)
   const [standardFlow, setStandardFlow] = useState<'after_host_approval' | 'pay_on_booking'>(
-    'after_host_approval',
+    'pay_on_booking',
   )
   const [tokenDepositEnabled, setTokenDepositEnabled] = useState(false)
   const [tokenAmountRupees, setTokenAmountRupees] = useState('')

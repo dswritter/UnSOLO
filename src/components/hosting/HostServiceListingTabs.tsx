@@ -36,6 +36,8 @@ import type {
   ServiceListingMetadata,
   ServiceListingType,
 } from '@/types'
+import { UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
+import { formatFileSize } from '@/lib/utils'
 
 type Unit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
 
@@ -745,9 +747,17 @@ export function HostServiceListingTabs(props: Props) {
 
   async function handleItemImageAdd(draft: DraftItem, files: FileList | null) {
     if (!files || files.length === 0) return
+
+    const oversized = Array.from(files).filter(f => f.size > UPLOAD_MAX_IMAGE_BYTES)
+    if (oversized.length > 0) {
+      const names = oversized.map(f => `"${f.name}" (${formatFileSize(f.size)})`).join(', ')
+      toast.error(`${oversized.length === 1 ? 'Photo' : 'Photos'} too large — max ${formatFileSize(UPLOAD_MAX_IMAGE_BYTES)} each: ${names}`)
+    }
+    const sizeOk = Array.from(files).filter(f => f.size <= UPLOAD_MAX_IMAGE_BYTES)
+
     const remainingSlots = 5 - draft.images.length
-    const toUpload = Array.from(files).slice(0, remainingSlots)
-    if (toUpload.length < files.length) {
+    const toUpload = sizeOk.slice(0, remainingSlots)
+    if (sizeOk.length > remainingSlots) {
       toast.error('Max 5 photos per item')
     }
     setUploadingLocalKey(draft.localKey)
