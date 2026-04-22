@@ -1754,8 +1754,7 @@ export function HostTripForm({
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Must be at least ₹1 and no more than your price per person. Charged once per guest at checkout
-                    (promos and credits apply to the trip total; the first charge is capped at this token slice).
+                    Charged once per guest at checkout. Wallet credits and promos apply to the full trip total.
                   </p>
                 </div>
               )}

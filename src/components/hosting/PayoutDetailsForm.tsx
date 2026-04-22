@@ -123,9 +123,6 @@ export function PayoutDetailsForm({ initial, onSaved, compact }: Props) {
             className="bg-secondary border-border"
             autoComplete="off"
           />
-          <p className="text-[11px] text-muted-foreground">
-            Must contain <code>@</code> (e.g. <code>ravi@okaxis</code>).
-          </p>
         </div>
       ) : (
         <div className="space-y-3">
