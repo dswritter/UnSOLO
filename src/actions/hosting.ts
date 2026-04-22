@@ -844,7 +844,7 @@ export async function createHostDestination(name: string, state: string) {
 
 export async function getDestinationsPublic() {
   const supabase = await createClient()
-  const { data } = await supabase.from('destinations').select('id, name, state').order('name')
+  const { data } = await supabase.from('destinations').select('*').order('name')
   return data || []
 }
 

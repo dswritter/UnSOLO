@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import { checkIsHost } from '@/actions/hosting'
-import { getDestinations } from '@/actions/admin'
+import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
 import { hasPayoutConfigured } from '@/actions/payout'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
@@ -47,7 +46,7 @@ export default async function CreateServiceListingPage({
   }
 
   // Fetch destinations
-  const destinations = await getDestinations()
+  const destinations = await getDestinationsPublic()
 
   const typeLabels: Record<ServiceListingType, string> = {
     stays: 'Stay',
