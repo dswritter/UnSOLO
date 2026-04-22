@@ -311,7 +311,8 @@ export async function createHostServiceListing(input: {
       console.error('Items insert error:', itemsError)
       // Roll back the parent so the host can retry cleanly.
       await supabase.from('service_listings').delete().eq('id', data.id)
-      return { error: 'Failed to save items. Please try again.' }
+      const detail = itemsError.message || itemsError.code || 'unknown'
+      return { error: `Failed to save items: ${detail}` }
     }
 
     await notifyAdminsOfServiceListing({
@@ -496,7 +497,11 @@ export async function toggleHostServiceListingActive(listingId: string) {
       .update({ is_active: !listing.is_active })
       .eq('id', listingId)
 
-    if (updateError) return { error: 'Failed to update listing' }
+    if (updateError) {
+      console.error('toggleHostServiceListingActive:', updateError)
+      const detail = updateError.message || updateError.code || 'unknown'
+      return { error: `Failed to update listing: ${detail}` }
+    }
     return { success: true, isActive: !listing.is_active }
   } catch (error) {
     console.error('toggleHostServiceListingActive:', error)
