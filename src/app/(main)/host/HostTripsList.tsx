@@ -7,9 +7,9 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from 'sonner'
 import {
-  Plus,
   MapPin,
   Calendar,
   Users,
@@ -264,18 +264,13 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
       </h2>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center">
-          <MapPin className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h3 className="font-bold mb-1">{filter === 'all' ? 'No trips yet' : 'No matching trips'}</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            {filter === 'all' ? 'Create your first trip and start hosting fellow travelers.' : 'Try a different filter.'}
-          </p>
-          {filter === 'all' && (
-            <Button asChild className="bg-primary text-primary-foreground font-bold gap-2" size="sm">
-              <Link href="/host/create"><Plus className="h-4 w-4" />Create Your First Trip</Link>
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          icon={MapPin}
+          title={filter === 'all' ? 'No trips yet' : 'No matching trips'}
+          description={filter === 'all' ? 'Create your first trip and start hosting fellow travelers.' : 'Try a different filter.'}
+          action={filter === 'all' ? { label: 'Create Your First Trip', href: '/host/create' } : undefined}
+          dashed
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map((trip) => (

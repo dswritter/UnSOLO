@@ -2,11 +2,10 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Button } from '@/components/ui/button'
 import { BookOpen } from 'lucide-react'
-import Link from 'next/link'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 /** Community-trip join requests not yet fully booked (deduped against active bookings). */
 export type IncompleteTripStatus = 'awaiting_unsolo' | 'awaiting_host' | 'payment_pending'
@@ -223,14 +222,13 @@ export default async function BookingsPage() {
         </div>
 
         {!hasContent ? (
-          <div className="text-center py-24">
-            <BookOpen className="h-16 w-16 text-primary/30 mx-auto mb-4" />
-            <h3 className="text-xl font-bold mb-2">No bookings yet</h3>
-            <p className="text-muted-foreground mb-6">Start your solo adventure across India</p>
-            <Button className="bg-primary text-black font-bold" asChild>
-              <Link href="/explore">Explore</Link>
-            </Button>
-          </div>
+          <EmptyState
+            icon={BookOpen}
+            title="No bookings yet"
+            description="Start your solo adventure across India."
+            action={{ label: 'Explore trips', href: '/explore' }}
+            size="lg"
+          />
         ) : (
           <BookingsClient
             bookings={tripBookings}
