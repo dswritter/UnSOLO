@@ -16,15 +16,18 @@ interface ShareButtonProps {
   /** e.g. "4 days · 3 nights" — shown in share copy */
   durationSummary: string
   variant?: 'full' | 'icon'
+  /** Digits-only WhatsApp number (country code first). Resolved server-side
+   *  in the order: per-listing override → platform default → hardcoded fallback. */
+  whatsappNumber: string
 }
 
-export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix = '', durationSummary, variant = 'full' }: ShareButtonProps) {
+export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix = '', durationSummary, variant = 'full', whatsappNumber }: ShareButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const url = `${APP_URL}/packages/${slug}`
   const priceLine = `${priceLinePrefix}${formatPrice(pricePaise)}/person`
   const message = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${priceLine} | ${durationSummary}\n${url}`
-  const whatsappUrl = `https://wa.me/919760778373?text=${encodeURIComponent(message)}`
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
 
   async function handleShare() {
     if (navigator.share) {

@@ -35,3 +35,27 @@ export async function getPlatformFeePercentByCategory(category: FeeCategory): Pr
 export async function getPlatformFeePercent(): Promise<number> {
   return getPlatformFeePercentByCategory('trips')
 }
+
+/** Fallback used if the setting row exists but is blank or missing. */
+export const DEFAULT_SUPPORT_WHATSAPP_NUMBER = '919760778373'
+
+function normaliseWhatsappDigits(raw: unknown): string | null {
+  const s = String(raw ?? '').replace(/\D/g, '')
+  return s.length >= 10 ? s : null
+}
+
+/** Platform-wide support WhatsApp number shown when a listing has no override. */
+export async function getSupportWhatsappNumber(): Promise<string> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('platform_settings')
+    .select('value')
+    .eq('key', 'support_whatsapp_number')
+    .maybeSingle()
+  return normaliseWhatsappDigits(data?.value) ?? DEFAULT_SUPPORT_WHATSAPP_NUMBER
+}
+
+/** Pick the override if present, otherwise the platform default. */
+export function resolveWhatsappNumber(listingOverride: string | null | undefined, platformDefault: string): string {
+  return normaliseWhatsappDigits(listingOverride) ?? platformDefault
+}

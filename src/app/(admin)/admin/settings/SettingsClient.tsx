@@ -62,6 +62,7 @@ const SETTING_LABELS: Record<
     label: 'Share poster footer tagline',
     type: 'textarea',
   },
+  support_whatsapp_number: { label: 'Default WhatsApp number', type: 'text' },
 }
 
 const SHARE_POSTER_ORDER = [

@@ -128,6 +128,8 @@ export type Package = {
   /** Departure start dates the host marked full (no new bookings). */
   departure_dates_closed?: string[] | null
   host_id: string | null
+  /** Per-listing WhatsApp number override (digits only, country code first). NULL = use platform default. */
+  whatsapp_number?: string | null
   moderation_status: 'pending' | 'approved' | 'rejected' | null
   /** Set once, on first admin approval; never cleared on later pending resets. */
   first_approved_at?: string | null

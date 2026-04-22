@@ -34,6 +34,7 @@ const navItems: { href: string; label: string; icon: typeof LayoutDashboard; rol
   { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
   { href: '/admin/promo-cards', label: 'Home promos', icon: Sparkles, roles: ['admin'] },
+  { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
   { href: '/admin/team', label: 'Team', icon: Users, roles: ['admin'] },
 ]

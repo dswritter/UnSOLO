@@ -21,6 +21,7 @@ import { LazyInterestButton as InterestButton } from '@/components/packages/Lazy
 import { ShareButton } from '@/components/packages/ShareButton'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
+import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-settings'
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
@@ -156,7 +157,11 @@ export default async function PackageDetailPage({
     : 0
 
   // Get interest data + first five interested user avatars for the social-proof strip
-  const interestData = await getInterestData(pkg.id)
+  const [interestData, supportWhatsappNumber] = await Promise.all([
+    getInterestData(pkg.id),
+    getSupportWhatsappNumber(),
+  ])
+  const whatsappNumber = resolveWhatsappNumber(package_.whatsapp_number, supportWhatsappNumber)
   const { data: interestedRows } = await supabase
     .from('package_interests')
     .select('user:profiles(id, username, full_name, avatar_url)')
@@ -262,6 +267,7 @@ export default async function PackageDetailPage({
                 pricePaise={package_.price_paise}
                 priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                 durationSummary={packageDurationShortLabel(package_)}
+                whatsappNumber={whatsappNumber}
               />
             </div>
 
