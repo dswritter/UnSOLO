@@ -247,10 +247,11 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
                     i === idx ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-90'
                   )}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={thumb}
                     alt={item.name}
+                    width={40}
+                    height={40}
                     className="h-10 w-10 object-cover"
                   />
                 </button>
