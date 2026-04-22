@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { APP_URL } from '@/lib/constants'
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
@@ -20,7 +21,7 @@ export default function ForgotPasswordPage() {
 
     const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      redirectTo: `${APP_URL}/auth/callback?next=/reset-password`,
     })
 
     if (error) {
