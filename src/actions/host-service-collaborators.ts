@@ -44,6 +44,69 @@ async function resolveInviteeId(
   return byEmail?.id ?? null
 }
 
+/**
+ * Autocomplete candidates for the co-host invite picker. Matches prefix-style
+ * on username / full_name / email, excludes the current user and anyone who
+ * already has a row on this listing (pending or accepted). Email search needs
+ * service-role because profiles.email is hidden from peer users by RLS.
+ */
+export async function searchCohostCandidates(
+  listingId: string,
+  query: string,
+): Promise<{
+  candidates: Array<{
+    id: string
+    username: string | null
+    full_name: string | null
+    avatar_url: string | null
+  }>
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { candidates: [] }
+
+  const q = query.trim().replace(/[%_]/g, '').slice(0, 60)
+  if (q.length < 2) return { candidates: [] }
+
+  const { data: existing } = await supabase
+    .from('service_listing_collaborators')
+    .select('user_id, status')
+    .eq('listing_id', listingId)
+    .in('status', ['pending', 'accepted'])
+  const excludeIds = new Set<string>([user.id, ...((existing || []).map(r => r.user_id))])
+
+  const pattern = `${q}%`
+  const svc = serviceClient()
+  const client = svc ?? supabase
+
+  const [{ data: byUser }, { data: byName }, { data: byEmail }] = await Promise.all([
+    client
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('username', pattern)
+      .limit(8),
+    client
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('full_name', pattern)
+      .limit(8),
+    client
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('email', pattern)
+      .limit(8),
+  ])
+
+  const map = new Map<string, {
+    id: string; username: string | null; full_name: string | null; avatar_url: string | null
+  }>()
+  for (const row of [...(byUser || []), ...(byName || []), ...(byEmail || [])]) {
+    if (excludeIds.has(row.id)) continue
+    map.set(row.id, row)
+  }
+  return { candidates: [...map.values()].slice(0, 8) }
+}
+
 /** List everyone on this listing (pending + accepted + declined), with profile info. */
 export async function listServiceListingCollaborators(
   listingId: string,

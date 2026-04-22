@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Users2, X, Check, Clock, Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -8,9 +8,17 @@ import {
   inviteServiceListingCollaborator,
   listServiceListingCollaborators,
   removeServiceListingCollaborator,
+  searchCohostCandidates,
   toggleCollaboratorNotifyOnBooking,
 } from '@/actions/host-service-collaborators'
 import type { ServiceListingCollaborator } from '@/types'
+
+type Candidate = {
+  id: string
+  username: string | null
+  full_name: string | null
+  avatar_url: string | null
+}
 
 interface Props {
   listingId: string
@@ -28,6 +36,11 @@ export function CoHostSection({ listingId, isPrimaryHost }: Props) {
   const [loading, setLoading] = useState(true)
   const [handle, setHandle] = useState('')
   const [inviting, setInviting] = useState(false)
+  const [candidates, setCandidates] = useState<Candidate[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const searchTokenRef = useRef(0)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   async function load() {
     const res = await listServiceListingCollaborators(listingId)
@@ -44,8 +57,29 @@ export function CoHostSection({ listingId, isPrimaryHost }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listingId])
 
-  async function handleInvite() {
-    const v = handle.trim()
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    const q = handle.trim()
+    if (q.length < 2) {
+      setCandidates([])
+      setShowDropdown(false)
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      const token = ++searchTokenRef.current
+      const res = await searchCohostCandidates(listingId, q)
+      if (token !== searchTokenRef.current) return
+      setCandidates(res.candidates)
+      setShowDropdown(res.candidates.length > 0)
+      setActiveIdx(-1)
+    }, 180)
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [handle, listingId])
+
+  async function submitInvite(value: string) {
+    const v = value.trim()
     if (!v) return
     setInviting(true)
     const res = await inviteServiceListingCollaborator(listingId, v)
@@ -56,7 +90,24 @@ export function CoHostSection({ listingId, isPrimaryHost }: Props) {
     }
     toast.success('Invite sent')
     setHandle('')
+    setCandidates([])
+    setShowDropdown(false)
+    setActiveIdx(-1)
     load()
+  }
+
+  function handleInvite() {
+    submitInvite(handle)
+  }
+
+  function pickCandidate(c: Candidate) {
+    if (c.username) {
+      submitInvite(c.username)
+    } else {
+      // No username set — let the server fall back to email resolution
+      // by name-pattern; very unlikely path, just keep UI responsive.
+      submitInvite(c.full_name ?? '')
+    }
   }
 
   async function handleRemove(id: string) {
@@ -95,18 +146,89 @@ export function CoHostSection({ listingId, isPrimaryHost }: Props) {
       </div>
 
       {isPrimaryHost && (
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Username or email"
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleInvite() }
-            }}
-            disabled={inviting || acceptedCount >= 10}
-            className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary disabled:opacity-50"
-          />
+        <div className="flex gap-2 relative">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Search by name, username or email"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              onFocus={() => {
+                if (candidates.length > 0) setShowDropdown(true)
+              }}
+              onBlur={() => {
+                // Let click handlers on dropdown items fire before it unmounts.
+                setTimeout(() => setShowDropdown(false), 150)
+              }}
+              onKeyDown={(e) => {
+                if (!showDropdown || candidates.length === 0) {
+                  if (e.key === 'Enter') { e.preventDefault(); handleInvite() }
+                  return
+                }
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setActiveIdx(i => (i + 1) % candidates.length)
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setActiveIdx(i => (i <= 0 ? candidates.length - 1 : i - 1))
+                } else if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (activeIdx >= 0 && activeIdx < candidates.length) {
+                    pickCandidate(candidates[activeIdx])
+                  } else {
+                    handleInvite()
+                  }
+                } else if (e.key === 'Escape') {
+                  setShowDropdown(false)
+                  setActiveIdx(-1)
+                }
+              }}
+              disabled={inviting || acceptedCount >= 10}
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary disabled:opacity-50"
+            />
+            {showDropdown && candidates.length > 0 && (
+              <div
+                role="listbox"
+                className="absolute left-0 right-0 top-full mt-1 z-20 rounded-lg border border-border bg-popover shadow-lg max-h-64 overflow-y-auto"
+              >
+                {candidates.map((c, idx) => (
+                  <button
+                    type="button"
+                    key={c.id}
+                    role="option"
+                    aria-selected={idx === activeIdx}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => pickCandidate(c)}
+                    onMouseEnter={() => setActiveIdx(idx)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                      idx === activeIdx ? 'bg-secondary' : 'hover:bg-secondary/60'
+                    }`}
+                  >
+                    {c.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={c.avatar_url}
+                        alt=""
+                        className="h-6 w-6 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="h-6 w-6 rounded-full bg-muted flex-shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">
+                        {c.full_name || c.username || 'User'}
+                      </div>
+                      {c.username && (
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          @{c.username}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <Button
             type="button"
             variant="outline"
