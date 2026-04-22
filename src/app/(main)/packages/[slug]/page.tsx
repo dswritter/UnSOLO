@@ -205,6 +205,12 @@ export default async function PackageDetailPage({
     }
   }
 
+  // Lowest non-zero spot count across open dates — useful as a "filling fast"
+  // nudge next to the interest heart. Only show if genuinely scarce (1–3).
+  const openSlotCounts = Object.values(availableSlotsMap).filter(n => n > 0)
+  const scarceSlotsLeft = openSlotCounts.length > 0 ? Math.min(...openSlotCounts) : null
+  const showScarcePill = scarceSlotsLeft !== null && scarceSlotsLeft <= 3
+
   return (
     <div className="relative min-h-screen bg-background">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
@@ -261,6 +267,11 @@ export default async function PackageDetailPage({
                   initialInterested={interestData.isInterested}
                   isLoggedIn={!!user}
                 />
+                {showScarcePill && (
+                  <span className="inline-flex items-center rounded-full bg-red-500/15 text-red-400 border border-red-500/30 px-2 py-0.5 text-[11px] font-semibold">
+                    Only {scarceSlotsLeft} left
+                  </span>
+                )}
                 {interestedUsers.length > 0 && (
                   <div className="flex -space-x-2" aria-label={`${interestedUsers.length} interested`}>
                     {interestedUsers.map(u => (
