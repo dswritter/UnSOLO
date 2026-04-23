@@ -33,6 +33,7 @@ interface ListingDetailClientProps {
   listing: ServiceListing
   items?: ServiceListingItem[]
   host?: ListingHost | null
+  relatedListings?: ServiceListing[]
 }
 
 export function ListingDetailClient({ listing, items = [], host }: ListingDetailClientProps) {
@@ -231,7 +232,7 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
         {host && (
           <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Hosted by</p>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               {host.avatar_url ? (
                 <Image
                   src={host.avatar_url}
@@ -259,10 +260,10 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <Link
                   href={`/profile/${host.username}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
                 >
                   View profile
                 </Link>
@@ -270,7 +271,7 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
                   type="button"
                   onClick={handleMessageHost}
                   disabled={openingChat}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   <MessageCircle className="h-4 w-4" />
                   {openingChat ? 'Opening…' : 'Message'}
@@ -404,11 +405,51 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
             </div>
           </div>
         )}
+
+        {/* Related Listings */}
+        {relatedListings && relatedListings.length > 0 && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">More {listing.type}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {relatedListings.map((related) => {
+                const relatedImage = related.images?.[0] || '/placeholder-listing.svg'
+                const relatedRating = related.average_rating > 0 ? `${related.average_rating.toFixed(1)}` : 'New'
+                return (
+                  <Link
+                    key={related.id}
+                    href={`/listings/${related.type}/${related.slug}`}
+                    className="group overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                  >
+                    <div className="relative aspect-video overflow-hidden bg-secondary">
+                      <Image
+                        src={relatedImage}
+                        alt={related.title}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-110"
+                      />
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <h3 className="font-semibold text-sm line-clamp-2">{related.title}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{related.location}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-primary">{formatPrice(related.price_paise)}</span>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-medium">{relatedRating}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sidebar - Booking form */}
       <div className="lg:col-span-1">
-        <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4">
+        <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4 max-h-[calc(100vh-24px)] overflow-y-auto">
           {/* Price — shows selected item's price if items exist, otherwise
               master listing price. Never shows a stale master price when
               individual items have their own pricing. */}

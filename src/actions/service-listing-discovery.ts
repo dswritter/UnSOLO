@@ -260,3 +260,75 @@ export async function getServiceListingsByDestination(
   const today = todayIso()
   return ((data || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today))
 }
+
+/** Find related listings for a given listing (same type, location, or tags). Excludes the current listing. */
+export async function getRelatedListings(
+  currentListingId: string,
+  currentListing: { type: ServiceListingType; destination_ids?: string[] | null; tags?: string[] | null },
+  limit: number = 8
+) {
+  const supabase = await createClient()
+
+  const destinationIds = currentListing.destination_ids?.filter(Boolean) || []
+
+  let query = supabase
+    .from('service_listings')
+    .select('*')
+    .eq('type', currentListing.type)
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .neq('id', currentListingId)
+    .limit(limit)
+
+  // Prioritize by: same destination > same tags > same type
+  let filterApplied = false
+
+  if (destinationIds.length > 0) {
+    // Get listings from same destination
+    const { data: byDest } = await query
+      .contains('destination_ids', destinationIds)
+      .order('is_featured', { ascending: false })
+      .order('average_rating', { ascending: false })
+
+    if (byDest && byDest.length >= limit) {
+      const today = todayIso()
+      return (byDest as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+    }
+    filterApplied = true
+  }
+
+  if (currentListing.tags && currentListing.tags.length > 0) {
+    // Get listings with matching tags
+    const { data: byTag } = await supabase
+      .from('service_listings')
+      .select('*')
+      .eq('type', currentListing.type)
+      .eq('is_active', true)
+      .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+      .neq('id', currentListingId)
+      .contains('tags', currentListing.tags.filter(Boolean))
+      .order('is_featured', { ascending: false })
+      .order('average_rating', { ascending: false })
+      .limit(limit)
+
+    if (byTag && byTag.length >= limit / 2) {
+      const today = todayIso()
+      return (byTag as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+    }
+  }
+
+  // Fallback: same type, same destination or top-rated
+  const { data } = await supabase
+    .from('service_listings')
+    .select('*')
+    .eq('type', currentListing.type)
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .neq('id', currentListingId)
+    .order('is_featured', { ascending: false })
+    .order('average_rating', { ascending: false })
+    .limit(limit)
+
+  const today = todayIso()
+  return ((data || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+}

@@ -2,7 +2,7 @@ export const revalidate = 300 // 5 minutes
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getServiceListingDetail } from '@/actions/service-listing-discovery'
+import { getServiceListingDetail, getRelatedListings } from '@/actions/service-listing-discovery'
 import { getPublicServiceListingItems } from '@/actions/host-service-listing-items'
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
@@ -31,7 +31,14 @@ export default async function ServiceListingDetailPage({
 
     // `service_listing_items` may not exist yet if migration 049 hasn't been
     // applied. The action swallows the error and returns [] in that case.
-    const items = await getPublicServiceListingItems(listing.id)
+    const [items, relatedListings] = await Promise.all([
+      getPublicServiceListingItems(listing.id),
+      getRelatedListings(listing.id, {
+        type: listing.type,
+        destination_ids: listing.destination_ids,
+        tags: listing.tags,
+      }, 6),
+    ])
 
     return (
       <div className="min-h-screen bg-background">
@@ -42,7 +49,7 @@ export default async function ServiceListingDetailPage({
             </div>
           )}
 
-          <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} />
+          <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} relatedListings={relatedListings} />
         </div>
       </div>
     )

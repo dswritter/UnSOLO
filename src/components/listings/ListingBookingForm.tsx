@@ -596,10 +596,6 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       >
         {loading ? 'Processing...' : 'Book Now'}
       </Button>
-
-      <p className="text-xs text-muted-foreground text-center">
-        Secure payment via Razorpay. UPI, Cards, Netbanking accepted.
-      </p>
     </div>
   )
 }
