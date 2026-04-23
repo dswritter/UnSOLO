@@ -357,37 +357,33 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
 
       {listing.type === 'activities' && upcomingSchedule && upcomingSchedule.length > 0 && (
         <div className="space-y-2">
-          <label className="text-sm font-medium flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
-          </label>
-          {upcomingSchedule.length === 1 ? (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
-              {new Date(upcomingSchedule[0].date).toLocaleDateString('en-IN', {
-                weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-              })}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {upcomingSchedule.map(entry => {
-                const selected = activityDate === entry.date
-                return (
-                  <button
-                    key={entry.date}
-                    type="button"
-                    onClick={() => setActivityDate(entry.date)}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium text-left border transition-colors ${
-                      selected
-                        ? 'bg-primary/15 border-primary text-foreground'
-                        : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {new Date(entry.date).toLocaleDateString('en-IN', {
-                      weekday: 'short', day: 'numeric', month: 'short',
-                    })}
-                  </button>
-                )
-              })}
-            </div>
+          {upcomingSchedule.length > 1 && (
+            <>
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {upcomingSchedule.map(entry => {
+                  const selected = activityDate === entry.date
+                  return (
+                    <button
+                      key={entry.date}
+                      type="button"
+                      onClick={() => setActivityDate(entry.date)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium text-left border transition-colors ${
+                        selected
+                          ? 'bg-primary/15 border-primary text-foreground'
+                          : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {new Date(entry.date).toLocaleDateString('en-IN', {
+                        weekday: 'short', day: 'numeric', month: 'short',
+                      })}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {selectedScheduleEntry?.slots && selectedScheduleEntry.slots.length > 0 && (

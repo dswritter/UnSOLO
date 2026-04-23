@@ -58,7 +58,7 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
         'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
         'border-border dark:border-border'
       )}>
-        <div className="relative aspect-square overflow-hidden bg-secondary">
+        <div className="relative aspect-video overflow-hidden bg-secondary">
           <Image
             src={imageUrl}
             alt={listing.title}
@@ -170,7 +170,7 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
       )}
     >
       {/* ── Hero image with overlay info ──────────────────────────────── */}
-      <div className="relative h-52 overflow-hidden bg-secondary">
+      <div className="relative aspect-video overflow-hidden bg-secondary">
           <Image
             src={heroImage}
             alt={activeItem.name}

@@ -36,14 +36,6 @@ export default async function ServiceListingDetailPage({
     return (
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-          {/* Back button */}
-          <Link
-            href="/explore"
-            className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-flex items-center gap-1"
-          >
-            ← Back to Explore
-          </Link>
-
           {listing.status === 'pending' && listing.first_approved_at && (
             <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
               Recent host edits are under review — booking stays open.

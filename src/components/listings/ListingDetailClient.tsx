@@ -80,12 +80,21 @@ export function ListingDetailClient({ listing, items = [], host }: ListingDetail
           `${m.num_bathrooms || '?'} bathrooms`,
           m.check_in_time && `Check-in: ${m.check_in_time}`,
         ].filter(Boolean)
-      case 'activities':
+      case 'activities': {
+        // For single-day activities with no time slots, don't show duration
+        const todayStr = new Date().toISOString().slice(0, 10)
+        const upcomingSchedule = listing.event_schedule
+          ? listing.event_schedule.filter(e => e.date >= todayStr)
+          : null
+        const isSingleDayNoSlots = upcomingSchedule && upcomingSchedule.length === 1 &&
+          (!upcomingSchedule[0].slots || upcomingSchedule[0].slots.length === 0)
+
         return [
-          `${m.duration_hours || '?'} hours`,
+          !isSingleDayNoSlots && m.duration_hours && `${m.duration_hours} hours`,
           m.difficulty && `Difficulty: ${m.difficulty}`,
           m.guide_included && 'Guide included',
         ].filter(Boolean)
+      }
       case 'rentals':
         return [
           m.vehicle_type && `Type: ${m.vehicle_type}`,
