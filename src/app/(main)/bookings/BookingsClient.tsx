@@ -792,6 +792,8 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
   const tripEndIso = firstDep ? tripEndDateIsoForBooking(firstDep, cal) : null
   const cancelLabel = row.status === 'payment_pending' ? 'Cancel trip' : 'Withdraw request'
 
+  const deadlinePassed = row.status === 'payment_pending' && row.paymentDeadline && new Date(row.paymentDeadline) < new Date()
+
   return (
     <Card className="bg-card border-border hover:border-primary/20 transition-colors">
       <CardContent className="p-5">
@@ -807,7 +809,12 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
               <h3 className="font-bold text-lg leading-tight">{pkg.title}</h3>
-              <Badge className={`text-xs border ${cfg.className}`}>{cfg.label}</Badge>
+              {!deadlinePassed && <Badge className={`text-xs border ${cfg.className}`}>{cfg.label}</Badge>}
+              {deadlinePassed && (
+                <Badge className="text-xs border bg-red-500/20 text-red-400 border-red-500/30">
+                  Request expired
+                </Badge>
+              )}
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
               {pkg.destination && (
@@ -823,7 +830,7 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
                     : formatDate(firstDep)}
                 </span>
               )}
-              {row.status === 'payment_pending' && row.paymentDeadline && (
+              {row.status === 'payment_pending' && row.paymentDeadline && !deadlinePassed && (
                 <span className="flex items-center gap-1 text-amber-400/90">
                   <Clock className="h-3 w-3" />
                   Pay by {formatDate(row.paymentDeadline.split('T')[0])}
@@ -831,24 +838,41 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {row.status === 'payment_pending' && (
-                <CompleteJoinRequestPayment joinRequestId={row.joinRequestId} packageTitle={pkg.title} />
+              {deadlinePassed ? (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-primary text-primary-foreground text-xs"
+                    asChild
+                  >
+                    <Link href={`/packages/${pkg.slug}?rejoin=true`}>
+                      <ArrowRight className="mr-1 h-3 w-3" /> Re-join Trip
+                    </Link>
+                  </Button>
+                  <IncompleteJoinCancelTrip joinRequestId={row.joinRequestId} label="Remove" />
+                </>
+              ) : (
+                <>
+                  {row.status === 'payment_pending' && (
+                    <CompleteJoinRequestPayment joinRequestId={row.joinRequestId} packageTitle={pkg.title} />
+                  )}
+                  <IncompleteJoinCancelTrip joinRequestId={row.joinRequestId} label={cancelLabel} />
+                  <Button
+                    size="sm"
+                    variant={row.status === 'payment_pending' ? 'outline' : 'default'}
+                    className={
+                      row.status === 'payment_pending'
+                        ? 'border-border text-xs'
+                        : 'bg-primary text-primary-foreground text-xs'
+                    }
+                    asChild
+                  >
+                    <Link href={`/packages/${pkg.slug}`}>
+                      <ArrowRight className="mr-1 h-3 w-3" /> Open trip
+                    </Link>
+                  </Button>
+                </>
               )}
-              <IncompleteJoinCancelTrip joinRequestId={row.joinRequestId} label={cancelLabel} />
-              <Button
-                size="sm"
-                variant={row.status === 'payment_pending' ? 'outline' : 'default'}
-                className={
-                  row.status === 'payment_pending'
-                    ? 'border-border text-xs'
-                    : 'bg-primary text-primary-foreground text-xs'
-                }
-                asChild
-              >
-                <Link href={`/packages/${pkg.slug}`}>
-                  <ArrowRight className="mr-1 h-3 w-3" /> Open trip
-                </Link>
-              </Button>
             </div>
           </div>
         </div>

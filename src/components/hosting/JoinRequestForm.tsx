@@ -168,8 +168,42 @@ export function JoinRequestForm({
     )
   }
 
-  // Existing approved request — show payment button
+  // Existing approved request — check if deadline has passed
   if (existingRequest?.status === 'approved') {
+    const deadlinePassed = existingRequest.payment_deadline && new Date(existingRequest.payment_deadline) < new Date()
+
+    if (deadlinePassed) {
+      // Deadline expired — show re-join option
+      return (
+        <div className="space-y-4">
+          <div>
+            <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
+            <span className="text-muted-foreground text-sm ml-2">per person</span>
+          </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+            <div>
+              <span className="text-sm font-medium text-red-400">Payment deadline has passed</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Please re-request to join this trip
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => {
+              setMessage('')
+              // Re-request to join by triggering the form state reset
+              window.location.reload()
+            }}
+            className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+          >
+            <Send className="mr-2 h-4 w-4" />
+            Re-request to Join
+          </Button>
+        </div>
+      )
+    }
+
     return (
       <ApprovedPaymentSection
         existingRequest={existingRequest}
