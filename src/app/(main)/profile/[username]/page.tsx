@@ -479,8 +479,7 @@ export default async function ProfilePage({
               </h2>
               <div className="space-y-2">
                 {serviceListings?.map((listing) => {
-                  const dest = listing.destination as { name: string; state: string } | null
-                  const displayName = listing.type.charAt(0).toUpperCase() + listing.type.slice(1)
+                  const dest = (listing.destination as unknown as { name: string; state: string } | null)
                   return (
                     <Link key={listing.id} href={`/listings/${listing.type}/${listing.slug}`} className="block">
                       <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
@@ -494,7 +493,7 @@ export default async function ProfilePage({
                   )
                 })}
                 {packages?.map((pkg) => {
-                  const dest = pkg.destination as { name: string; state: string } | null
+                  const dest = (pkg.destination as unknown as { name: string; state: string } | null)
                   return (
                     <Link key={pkg.id} href={`/packages/${pkg.slug}`} className="block">
                       <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
