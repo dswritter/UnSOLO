@@ -201,7 +201,12 @@ async function getServiceListings(searchParams: Record<string, string>): Promise
     getting_around: 'getting_around',
   }
 
-  const type = tabToType[searchParams.tab] || 'stays'
+  // When searching, fetch from all types; otherwise, fetch only the active tab's type
+  const hasSearch = !!searchParams.q
+  const types: ServiceListingType[] = hasSearch
+    ? ['stays', 'activities', 'rentals', 'getting_around']
+    : [tabToType[searchParams.tab] || 'stays']
+
   const filters: Record<string, unknown> = {}
 
   // Apply filters based on type
@@ -223,14 +228,28 @@ async function getServiceListings(searchParams: Record<string, string>): Promise
       : [searchParams.amenities]
   }
 
-  if (searchParams.difficulty && type === 'activities') {
+  if (searchParams.difficulty) {
     filters.difficulty = searchParams.difficulty
   }
 
   let listings: ServiceListing[] = []
   try {
-    const result = await getServiceListingsByType(type, filters as any, 1, 12)
-    listings = result.listings
+    // Fetch from all relevant types
+    const allListings: ServiceListing[] = []
+    for (const type of types) {
+      try {
+        const typeFilters = { ...filters }
+        // Only apply difficulty filter to activities
+        if (type !== 'activities' && typeFilters.difficulty) {
+          delete typeFilters.difficulty
+        }
+        const result = await getServiceListingsByType(type, typeFilters as any, 1, 12)
+        allListings.push(...result.listings)
+      } catch (error) {
+        console.error(`Error fetching ${type} listings:`, error)
+      }
+    }
+    listings = allListings
   } catch (error) {
     console.error('Error fetching service listings:', error)
     return []
