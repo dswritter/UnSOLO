@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signIn, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,8 @@ function LoginPageInner() {
   const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
   const [hasSessionAfterVerify, setHasSessionAfterVerify] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!verified) return
@@ -60,6 +62,11 @@ function LoginPageInner() {
     const result = await signIn(formData)
     if (result?.error) {
       toast.error(result.error)
+      // Clear only password field on error, keep email intact
+      if (passwordRef.current) {
+        passwordRef.current.value = ''
+        passwordRef.current.focus()
+      }
       setLoading(false)
     }
   }
@@ -155,7 +162,7 @@ function LoginPageInner() {
             <div className="relative flex justify-center text-xs"><span className="bg-card px-3 text-muted-foreground">or continue with email</span></div>
           </div>
 
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-4">
             <div className="space-y-1">
               <label className="text-sm font-medium">Email</label>
               <Input
@@ -173,6 +180,7 @@ function LoginPageInner() {
               </div>
               <div className="relative">
                 <Input
+                  ref={passwordRef}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Your password"

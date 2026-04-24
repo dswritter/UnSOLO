@@ -78,6 +78,9 @@ function SignupForm() {
   const submitLockRef = useRef(false)
   const searchParams = useSearchParams()
   const refCode = searchParams.get('ref') || ''
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmPasswordRef = useRef<HTMLInputElement>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -88,6 +91,10 @@ function SignupForm() {
       const formData = new FormData(e.currentTarget)
       if (formData.get('password') !== formData.get('confirmPassword')) {
         toast.error('Passwords do not match')
+        // Clear both password fields
+        if (passwordRef.current) passwordRef.current.value = ''
+        if (confirmPasswordRef.current) confirmPasswordRef.current.value = ''
+        if (passwordRef.current) passwordRef.current.focus()
         setLoading(false)
         submitLockRef.current = false
         return
@@ -102,6 +109,19 @@ function SignupForm() {
       }
       if (result && 'error' in result) {
         toast.error(result.error)
+        // Clear only problematic fields based on error message
+        const errorMsg = result.error.toLowerCase()
+        if (errorMsg.includes('email')) {
+          if (emailRef.current) {
+            emailRef.current.value = ''
+            emailRef.current.focus()
+          }
+        } else if (errorMsg.includes('password')) {
+          if (passwordRef.current) {
+            passwordRef.current.value = ''
+            passwordRef.current.focus()
+          }
+        }
         setLoading(false)
         submitLockRef.current = false
       }
@@ -248,6 +268,7 @@ function SignupForm() {
             <div className="space-y-1">
               <label className="text-sm font-medium">Email</label>
               <Input
+                ref={emailRef}
                 name="email"
                 type="email"
                 placeholder="you@example.com"
@@ -259,6 +280,7 @@ function SignupForm() {
               <label className="text-sm font-medium">Password</label>
               <div className="relative">
                 <Input
+                  ref={passwordRef}
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="At least 8 characters"
@@ -280,6 +302,7 @@ function SignupForm() {
               <label className="text-sm font-medium">Confirm Password</label>
               <div className="relative">
                 <Input
+                  ref={confirmPasswordRef}
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Repeat password"
