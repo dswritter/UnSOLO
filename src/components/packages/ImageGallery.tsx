@@ -13,6 +13,8 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   const [current, setCurrent] = useState(0)
   const [fullscreen, setFullscreen] = useState(false)
   const [loaded, setLoaded] = useState<Record<number, boolean>>({})
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
 
   if (!images || images.length === 0) {
     return (
@@ -28,6 +30,21 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
 
   function prev() {
     setCurrent(c => (c - 1 + images.length) % images.length)
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    setTouchEnd(e.changedTouches[0].clientX)
+    if (images.length > 1) {
+      const distance = touchStart - e.changedTouches[0].clientX
+      // Swipe left (distance > 50)
+      if (distance > 50) next()
+      // Swipe right (distance < -50)
+      else if (distance < -50) prev()
+    }
   }
 
   useEffect(() => {
@@ -49,7 +66,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   return (
     <>
       {/* Main image */}
-      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)}>
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <Image
           src={images[current]}
           alt={`${title} - ${current + 1}`}
@@ -128,7 +145,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
             <X className="h-5 w-5" />
           </button>
 
-          <div className="relative w-full h-full max-w-5xl max-h-[85vh] m-8" onClick={e => e.stopPropagation()}>
+          <div className="relative w-full h-full max-w-5xl max-h-[85vh] m-8" onClick={e => e.stopPropagation()} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
             <Image
               src={images[current]}
               alt={`${title} - ${current + 1}`}

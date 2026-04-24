@@ -237,26 +237,29 @@ export default async function PackageDetailPage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Hero image gallery */}
-            <ImageGallery images={package_.images || []} title={package_.title} />
+            {/* Hero image gallery with difficulty badge overlay */}
+            <div className="relative">
+              <ImageGallery images={package_.images || []} title={package_.title} />
+              {/* Difficulty badge overlay */}
+              <div className="absolute top-4 left-4 z-10">
+                <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
+                  {package_.difficulty}
+                </Badge>
+              </div>
+            </div>
 
-            {/* Title + Location + Badges */}
+            {/* Title + Location */}
             <div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <MapPin className="h-4 w-4 text-primary" />
                 {package_.destination?.name}, {package_.destination?.state}
               </div>
-              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight">{package_.title}</h1>
-                <div className="flex flex-wrap gap-2 md:flex-shrink-0 md:mt-1">
-                  <Badge className={DIFFICULTY_COLORS[package_.difficulty]}>
-                    {package_.difficulty}
-                  </Badge>
-                  {isCommunityTrip && (
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
-                  )}
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{package_.title}</h1>
+              {isCommunityTrip && (
+                <div className="mt-2">
+                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Interested + Share */}
