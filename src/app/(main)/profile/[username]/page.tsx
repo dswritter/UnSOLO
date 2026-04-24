@@ -74,6 +74,8 @@ export default async function ProfilePage({
     { data: reviews },
     { data: completedBookings },
     { data: confirmedBookings },
+    { data: serviceListings },
+    { data: packages },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('user_id', profile.id).in('status', ['confirmed', 'completed']),
@@ -82,6 +84,8 @@ export default async function ProfilePage({
     supabase.from('reviews').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(10),
     supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).eq('status', 'completed').order('travel_date', { ascending: false }).limit(10),
     supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).in('status', ['confirmed', 'completed']).order('travel_date', { ascending: false }).limit(20),
+    supabase.from('service_listings').select('id, title, type, slug, destination:destinations(name, state)').eq('host_id', profile.id).eq('is_active', true).or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)').limit(6),
+    supabase.from('packages').select('id, title, slug, destination:destinations(name, state)').eq('host_id', profile.id).eq('is_active', true).limit(6),
   ])
 
   const earnedKeys = new Set(achievements?.map((a) => a.achievement_key) || [])
@@ -465,6 +469,48 @@ export default async function ProfilePage({
         {user ? (
           <ProfileStatusRail isOwn={isOwnProfile} stories={statusStoriesVisible} viewerId={user.id} />
         ) : null}
+
+        {/* My Listings section - for hosts */}
+        {isOwnProfile && (serviceListings?.length || 0 > 0 || packages?.length || 0 > 0) && (
+          <Card className="bg-card border-border">
+            <CardContent className="p-5">
+              <h2 className="font-bold mb-3 flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" /> My Listings
+              </h2>
+              <div className="space-y-2">
+                {serviceListings?.map((listing) => {
+                  const dest = listing.destination as { name: string; state: string } | null
+                  const displayName = listing.type.charAt(0).toUpperCase() + listing.type.slice(1)
+                  return (
+                    <Link key={listing.id} href={`/listings/${listing.type}/${listing.slug}`} className="block">
+                      <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
+                        <div className="text-sm">{listing.type === 'activities' ? '🎯' : listing.type === 'stays' ? '🏠' : listing.type === 'rentals' ? '🚗' : '✈️'}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{listing.title}</div>
+                          <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+                {packages?.map((pkg) => {
+                  const dest = pkg.destination as { name: string; state: string } | null
+                  return (
+                    <Link key={pkg.id} href={`/packages/${pkg.slug}`} className="block">
+                      <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
+                        <div className="text-sm">🏔️</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{pkg.title}</div>
+                          <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Followers/following are now shown in Instagram-style modals via ProfileActions/OwnProfileFollowCounts */}
 
