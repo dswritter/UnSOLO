@@ -32,34 +32,36 @@ export async function RelatedServicesSection({
       : `Near ${destinationName}`
 
     return (
-      <div className="space-y-6">
-        {/* Header with section title */}
-        <div>
-          <h2 className="text-xl font-bold">{sectionTitle}</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {hasCuratedLinks
-              ? 'Hand-picked experiences to complement your trip'
-              : `Discover amazing ${destinationName} experiences`}
-          </p>
+      <div className="bg-card border border-border rounded-xl p-6">
+        <div className="space-y-6">
+          {/* Header with section title */}
+          <div>
+            <h2 className="text-xl font-bold">{sectionTitle}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {hasCuratedLinks
+                ? 'Hand-picked experiences to complement your trip'
+                : `Discover amazing ${destinationName} experiences`}
+            </p>
+          </div>
+
+          {/* Activities Carousel */}
+          {activities.length > 0 && (
+            <ServiceCarousel
+              title="Activities"
+              listings={activities as ServiceListing[]}
+              type="activities"
+            />
+          )}
+
+          {/* Stays Carousel */}
+          {stays.length > 0 && (
+            <ServiceCarousel
+              title="Stays"
+              listings={stays as ServiceListing[]}
+              type="stays"
+            />
+          )}
         </div>
-
-        {/* Activities Carousel */}
-        {activities.length > 0 && (
-          <ServiceCarousel
-            title="Activities"
-            listings={activities as ServiceListing[]}
-            type="activities"
-          />
-        )}
-
-        {/* Stays Carousel */}
-        {stays.length > 0 && (
-          <ServiceCarousel
-            title="Stays"
-            listings={stays as ServiceListing[]}
-            type="stays"
-          />
-        )}
       </div>
     )
   } catch (error) {

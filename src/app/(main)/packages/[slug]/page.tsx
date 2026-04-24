@@ -436,13 +436,11 @@ export default async function PackageDetailPage({
 
             {/* Related Services - Cross-Sell */}
             {package_.destination?.name && (
-              <div className="bg-card border border-border rounded-xl p-6">
-                <RelatedServicesSection
-                  packageId={package_.id}
-                  destinationId={package_.destination_id}
-                  destinationName={package_.destination.name}
-                />
-              </div>
+              <RelatedServicesSection
+                packageId={package_.id}
+                destinationId={package_.destination_id}
+                destinationName={package_.destination.name}
+              />
             )}
 
             {/* Reviews */}
