@@ -798,10 +798,6 @@ export function BookingFormClient({
                   ? 'Pay token & book'
                   : 'Pay and book'}
           </Button>
-
-          <p className="text-xs text-muted-foreground text-center">
-            Secure payment via Razorpay. UPI, Cards, Netbanking accepted.
-          </p>
         </>
       )}
 

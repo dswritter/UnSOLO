@@ -610,7 +610,7 @@ function ApprovedPaymentSection({
       </Button>
 
       <div className="text-xs text-muted-foreground text-center">
-        Secure payment via Razorpay when you pay. Referral credits apply instantly with no charge when they cover the full amount.
+        Referral credits apply instantly with no charge when they cover the full amount.
       </div>
     </div>
   )

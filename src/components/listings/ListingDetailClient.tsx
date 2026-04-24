@@ -34,9 +34,10 @@ interface ListingDetailClientProps {
   items?: ServiceListingItem[]
   host?: ListingHost | null
   relatedListings?: ServiceListing[]
+  hostListings?: ServiceListing[]
 }
 
-export function ListingDetailClient({ listing, items = [], host, relatedListings = [] }: ListingDetailClientProps) {
+export function ListingDetailClient({ listing, items = [], host, relatedListings = [], hostListings = [] }: ListingDetailClientProps) {
   const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
@@ -117,7 +118,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
       {/* Main content */}
-      <div className="lg:col-span-2 space-y-8">
+      <div className="lg:col-span-2 space-y-8 order-last lg:order-none">
         {/* Hero image — click to expand full image */}
         <ImageLightbox src={imageUrl} alt={listing.title} className="relative aspect-video rounded-xl overflow-hidden bg-zinc-100">
           <Image
@@ -445,10 +446,50 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
             </div>
           </div>
         )}
+
+        {/* More from this Host */}
+        {hostListings && hostListings.length > 0 && (
+          <div>
+            <h2 className="text-xl font-bold mb-4">More from {host?.full_name || host?.username || 'this host'}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {hostListings.map((hostListing) => {
+                const hostImage = hostListing.images?.[0] || '/placeholder-listing.svg'
+                const hostRating = hostListing.average_rating > 0 ? `${hostListing.average_rating.toFixed(1)}` : 'New'
+                return (
+                  <Link
+                    key={hostListing.id}
+                    href={`/listings/${hostListing.type}/${hostListing.slug}`}
+                    className="group overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+                  >
+                    <div className="relative aspect-video overflow-hidden bg-secondary">
+                      <Image
+                        src={hostImage}
+                        alt={hostListing.title}
+                        fill
+                        className="object-cover transition-transform group-hover:scale-110"
+                      />
+                    </div>
+                    <div className="p-3 space-y-2">
+                      <h3 className="font-semibold text-sm line-clamp-2">{hostListing.title}</h3>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{hostListing.location}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-primary">{formatPrice(hostListing.price_paise)}</span>
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          <span className="text-xs font-medium">{hostRating}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sidebar - Booking form */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 order-first lg:order-none">
         <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4 max-h-[calc(100vh-24px)] overflow-y-auto">
           {/* Price — shows selected item's price if items exist, otherwise
               master listing price. Never shows a stale master price when
