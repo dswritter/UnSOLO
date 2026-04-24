@@ -453,12 +453,20 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
             <h2 className="text-xl font-bold mb-4">More from {host?.full_name || host?.username || 'this host'}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {hostListings.map((hostListing) => {
+                // Detect if it's a package or service listing
+                const isPackage = 'duration_days' in hostListing
                 const hostImage = hostListing.images?.[0] || '/placeholder-listing.svg'
                 const hostRating = hostListing.average_rating > 0 ? `${hostListing.average_rating.toFixed(1)}` : 'New'
+                const href = isPackage
+                  ? `/packages/${hostListing.slug}`
+                  : `/listings/${hostListing.type}/${hostListing.slug}`
+                const location = isPackage ? hostListing.destination?.name : hostListing.location
+                const price = isPackage ? hostListing.price_paise : hostListing.price_paise
+
                 return (
                   <Link
                     key={hostListing.id}
-                    href={`/listings/${hostListing.type}/${hostListing.slug}`}
+                    href={href}
                     className="group overflow-hidden rounded-lg border border-border bg-card transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
                   >
                     <div className="relative aspect-video overflow-hidden bg-secondary">
@@ -471,9 +479,9 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                     </div>
                     <div className="p-3 space-y-2">
                       <h3 className="font-semibold text-sm line-clamp-2">{hostListing.title}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-1">{hostListing.location}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{location || 'N/A'}</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-primary">{formatPrice(hostListing.price_paise)}</span>
+                        <span className="text-sm font-bold text-primary">{formatPrice(price)}</span>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                           <span className="text-xs font-medium">{hostRating}</span>

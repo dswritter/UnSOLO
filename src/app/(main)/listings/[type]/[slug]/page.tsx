@@ -41,15 +41,25 @@ export default async function ServiceListingDetailPage({
       }, 6),
       listing.host_id ? (async () => {
         const supabase = await createClient()
-        const { data } = await supabase
-          .from('service_listings')
-          .select('*')
-          .eq('host_id', listing.host_id)
-          .eq('is_active', true)
-          .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
-          .neq('id', listing.id)
-          .limit(6)
-        return (data || []) as any[]
+        // Fetch both service listings and packages from the host
+        const [serviceListingsRes, packagesRes] = await Promise.all([
+          supabase
+            .from('service_listings')
+            .select('*')
+            .eq('host_id', listing.host_id)
+            .eq('is_active', true)
+            .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+            .neq('id', listing.id)
+            .limit(6),
+          supabase
+            .from('packages')
+            .select('*')
+            .eq('host_id', listing.host_id)
+            .eq('is_active', true),
+        ])
+        const serviceListings = (serviceListingsRes.data || []) as any[]
+        const packages = (packagesRes.data || []) as any[]
+        return [...serviceListings, ...packages].slice(0, 6)
       })() : Promise.resolve([]),
     ])
 
