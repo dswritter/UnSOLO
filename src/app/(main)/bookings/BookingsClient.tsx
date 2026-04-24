@@ -1100,11 +1100,13 @@ function BookingItem({
                     <CalendarPlus className="mr-1 h-3 w-3" /> Add to Calendar
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                  <Link href="/community">
-                    <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
-                  </Link>
-                </Button>
+                {booking.status !== 'pending' && (
+                  <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                    <Link href="/community">
+                      <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
+                    </Link>
+                  </Button>
+                )}
                 {showReview && onReview && (
                   <Button size="sm" className="bg-primary text-primary-foreground text-xs relative z-10" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReview(); }}>
                     <Star className="mr-1 h-3 w-3" /> Write Review
