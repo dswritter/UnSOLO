@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { requestToJoin } from '@/actions/hosting'
+import { requestToJoin, withdrawJoinRequest } from '@/actions/hosting'
 import { createCommunityTripOrder, confirmPayment } from '@/actions/booking'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -78,6 +78,9 @@ export function JoinRequestForm({
 }: JoinRequestFormProps) {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showRejoinForm, setShowRejoinForm] = useState(false)
+  const [withdrawing, setWithdrawing] = useState(false)
+  const router = useRouter()
 
   /** Traveler pays the listed per-person price (platform fee is included, not added at checkout). */
   const tripPriceDisplay = `${priceLinePrefix}${formatPrice(pricePerPersonPaise)}`
@@ -173,7 +176,108 @@ export function JoinRequestForm({
     const deadlinePassed = existingRequest.payment_deadline && new Date(existingRequest.payment_deadline) < new Date()
 
     if (deadlinePassed) {
-      // Deadline expired — show re-join option
+      // Deadline expired — show re-join form or button
+      if (showRejoinForm) {
+        // Show the form to request again
+        const prefs = joinPreferences || {}
+        const hasPrefs = !!(prefs.gender_preference || prefs.min_trips_completed)
+
+        return (
+          <form onSubmit={async (e) => {
+            e.preventDefault()
+            if (!message.trim()) {
+              toast.error('Please write an intro message for the host')
+              return
+            }
+            setLoading(true)
+            try {
+              const result = await requestToJoin(packageId, message.trim())
+              if (result.error) {
+                toast.error(result.error)
+              } else {
+                toast.success('Join request sent! The host will review your request.')
+                setMessage('')
+                router.refresh()
+              }
+            } catch {
+              toast.error('Something went wrong. Please try again.')
+            } finally {
+              setLoading(false)
+            }
+          }} className="space-y-4">
+            <div>
+              <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
+              <span className="text-muted-foreground text-sm ml-2">per person</span>
+            </div>
+
+            {hasPrefs && (
+              <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trip Preferences</h4>
+                {prefs.gender_preference && prefs.gender_preference !== 'all' && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Info className="h-4 w-4 flex-shrink-0" />
+                    <span>{prefs.gender_preference === 'women' ? 'Women only' : 'Men only'}</span>
+                  </div>
+                )}
+                {prefs.min_trips_completed && prefs.min_trips_completed > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Info className="h-4 w-4 flex-shrink-0" />
+                    <span>Minimum {prefs.min_trips_completed} completed trips</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1.5 block">
+                Tell {hostName} about yourself
+              </label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Introduce yourself, share your travel experience, and why you want to join..."
+                className="w-full min-h-[100px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 resize-none"
+                maxLength={500}
+              />
+              <div className="text-xs text-muted-foreground text-right mt-1">{message.length}/500</div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90"
+              disabled={loading || !message.trim()}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  Sending...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Send className="h-4 w-4" />
+                  Request to Join
+                </span>
+              )}
+            </Button>
+
+            <div className="flex items-center gap-1.5 justify-center text-xs text-muted-foreground">
+              <Shield className="h-3 w-3" />
+              <span>Payment only after host approves your request</span>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full text-xs"
+              onClick={() => setShowRejoinForm(false)}
+            >
+              Back
+            </Button>
+          </form>
+        )
+      }
+
+      // Show withdrawal prompt
       return (
         <div className="space-y-4">
           <div>
@@ -190,15 +294,36 @@ export function JoinRequestForm({
             </div>
           </div>
           <Button
-            onClick={() => {
-              setMessage('')
-              // Re-request to join by triggering the form state reset
-              window.location.reload()
+            onClick={async () => {
+              setWithdrawing(true)
+              try {
+                const result = await withdrawJoinRequest(existingRequest.id)
+                if (result.error) {
+                  toast.error(result.error)
+                } else {
+                  setShowRejoinForm(true)
+                  toast.success('Ready to re-request!')
+                }
+              } catch {
+                toast.error('Something went wrong. Please try again.')
+              } finally {
+                setWithdrawing(false)
+              }
             }}
+            disabled={withdrawing}
             className="w-full bg-primary text-black font-bold hover:bg-primary/90"
           >
-            <Send className="mr-2 h-4 w-4" />
-            Re-request to Join
+            {withdrawing ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                Processing...
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Send className="mr-1 h-4 w-4" />
+                Re-request to Join
+              </span>
+            )}
           </Button>
         </div>
       )
