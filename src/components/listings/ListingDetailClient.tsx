@@ -36,7 +36,7 @@ interface ListingDetailClientProps {
   relatedListings?: ServiceListing[]
 }
 
-export function ListingDetailClient({ listing, items = [], host }: ListingDetailClientProps) {
+export function ListingDetailClient({ listing, items = [], host, relatedListings = [] }: ListingDetailClientProps) {
   const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
