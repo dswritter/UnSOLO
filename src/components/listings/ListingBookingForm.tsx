@@ -274,19 +274,24 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
           razorpay_signature: string
         }) => {
           setVerifying(true)
-          const verification = await confirmServiceListingPayment(
-            response.razorpay_order_id,
-            response.razorpay_payment_id,
-            response.razorpay_signature,
-          )
-          if (verification.success) {
-            toast.success('Booking confirmed!')
-            router.push(`/booking/${listing.type}/success?booking_id=${verification.bookingId}`)
-          } else {
-            toast.error(verification.error || 'Payment verification failed')
+          try {
+            const verification = await confirmServiceListingPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
+            )
+            if (verification.success) {
+              toast.success('Booking confirmed!')
+              router.push(`/booking/${listing.type}/success?booking_id=${verification.bookingId}`)
+            } else {
+              toast.error(verification.error || 'Payment verification failed')
+            }
+          } catch {
+            toast.error('Verification failed. Please contact support.')
+          } finally {
+            setVerifying(false)
+            setLoading(false)
           }
-          setVerifying(false)
-          setLoading(false)
         },
         modal: { ondismiss: () => setLoading(false) },
       }

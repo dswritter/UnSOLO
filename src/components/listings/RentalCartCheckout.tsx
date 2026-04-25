@@ -122,15 +122,20 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
       theme: { color: '#FFC22E' },
       handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         setVerifying(true)
-        const confirm = await confirmRentalCartPayment(
-          response.razorpay_order_id,
-          response.razorpay_payment_id,
-          response.razorpay_signature,
-        )
-        setVerifying(false)
-        if ('error' in confirm && confirm.error) { toast.error(confirm.error); return }
-        toast.success('Booking confirmed!')
-        router.push('/bookings')
+        try {
+          const confirm = await confirmRentalCartPayment(
+            response.razorpay_order_id,
+            response.razorpay_payment_id,
+            response.razorpay_signature,
+          )
+          if ('error' in confirm && confirm.error) { toast.error(confirm.error); return }
+          toast.success('Booking confirmed!')
+          router.push('/bookings')
+        } catch {
+          toast.error('Verification failed. Please contact support.')
+        } finally {
+          setVerifying(false)
+        }
       },
     })
 

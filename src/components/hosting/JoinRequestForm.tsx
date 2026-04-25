@@ -584,19 +584,24 @@ function ApprovedPaymentSection({
           razorpay_signature: string
         }) => {
           setVerifying(true)
-          const verification = await confirmPayment(
-            response.razorpay_order_id,
-            response.razorpay_payment_id,
-            response.razorpay_signature,
-          )
-          if (verification.success) {
-            toast.success('Payment confirmed! You\'re in!')
-            router.push(`/book/success?booking_id=${verification.bookingId}`)
-          } else {
-            toast.error(verification.error || 'Payment verification failed')
+          try {
+            const verification = await confirmPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
+            )
+            if (verification.success) {
+              toast.success('Payment confirmed! You\'re in!')
+              router.push(`/book/success?booking_id=${verification.bookingId}`)
+            } else {
+              toast.error(verification.error || 'Payment verification failed')
+            }
+          } catch {
+            toast.error('Verification failed. Please contact support.')
+          } finally {
+            setVerifying(false)
+            setLoading(false)
           }
-          setVerifying(false)
-          setLoading(false)
         },
         modal: { ondismiss: () => setLoading(false) },
       }

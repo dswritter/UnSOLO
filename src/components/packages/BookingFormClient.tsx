@@ -290,27 +290,32 @@ export function BookingFormClient({
           razorpay_signature: string
         }) => {
           setVerifying(true)
-          const verification = await confirmPayment(
-            response.razorpay_order_id,
-            response.razorpay_payment_id,
-            response.razorpay_signature,
-          )
-          if (verification.success) {
-            const due =
-              'balanceDuePaise' in verification && typeof verification.balanceDuePaise === 'number'
-                ? verification.balanceDuePaise
-                : 0
-            toast.success(
-              due > 0
-                ? 'Spot secured! Pay the remaining balance anytime from My Trips.'
-                : 'Booking confirmed!',
+          try {
+            const verification = await confirmPayment(
+              response.razorpay_order_id,
+              response.razorpay_payment_id,
+              response.razorpay_signature,
             )
-            router.push(`/book/success?booking_id=${verification.bookingId}`)
-          } else {
-            toast.error(verification.error || 'Payment verification failed')
+            if (verification.success) {
+              const due =
+                'balanceDuePaise' in verification && typeof verification.balanceDuePaise === 'number'
+                  ? verification.balanceDuePaise
+                  : 0
+              toast.success(
+                due > 0
+                  ? 'Spot secured! Pay the remaining balance anytime from My Trips.'
+                  : 'Booking confirmed!',
+              )
+              router.push(`/book/success?booking_id=${verification.bookingId}`)
+            } else {
+              toast.error(verification.error || 'Payment verification failed')
+            }
+          } catch {
+            toast.error('Verification failed. Please contact support.')
+          } finally {
+            setVerifying(false)
+            setLoading(false)
           }
-          setVerifying(false)
-          setLoading(false)
         },
         modal: { ondismiss: () => setLoading(false) },
       }
