@@ -122,8 +122,17 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
     }
   }, [showPromoInput])
 
-  // Calculate totals
-  const basePrice = unitPricePaise * quantity
+  // Compute rental return date
+  const rentalReturnDate = (() => {
+    if (listing.type !== 'rentals' || !rentalStartDate || rentalDays < 1) return ''
+    const d = new Date(rentalStartDate)
+    d.setDate(d.getDate() + rentalDays)
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  })()
+
+  // Calculate totals (rentals multiply by days)
+  const isRental = listing.type === 'rentals'
+  const basePrice = unitPricePaise * quantity * (isRental ? rentalDays : 1)
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
   const creditsToApply = applyCredits ? Math.min(userCredits, basePrice) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
@@ -207,11 +216,16 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         promoCode?: string
         booking_slot_start?: string
         booking_slot_end?: string
+        rental_days?: number
       } = {
         check_in_date: listing.type === 'stays' ? checkInDate : selectedDate,
         check_out_date: listing.type === 'stays' ? checkOutDate : undefined,
         quantity,
         applyCredits,
+      }
+
+      if (listing.type === 'rentals') {
+        bookingData.rental_days = rentalDays
       }
 
       if (listing.type === 'activities' && slotKey) {
@@ -437,6 +451,11 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
               <span className="font-bold text-lg min-w-[2rem] text-center">{rentalDays}</span>
               <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setRentalDays(rentalDays + 1)}>+</Button>
             </div>
+            {rentalReturnDate && (
+              <p className="text-xs text-muted-foreground pt-1">
+                Return by: <span className="font-semibold text-foreground">{rentalReturnDate}</span>
+              </p>
+            )}
           </div>
         </>
       )}
@@ -573,7 +592,11 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       {/* Price breakdown */}
       <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
         <div className="flex justify-between text-muted-foreground">
-          <span>{formatPrice(unitPricePaise)} x {quantity} {listing.unit.replace('_', ' ')}</span>
+          <span>
+            {formatPrice(unitPricePaise)} × {quantity}
+            {isRental && rentalDays > 1 ? ` × ${rentalDays}d` : ''}{' '}
+            {listing.unit.replace('per_', '').replace('_', ' ')}
+          </span>
           <span>{formatPrice(basePrice)}</span>
         </div>
         {totalDiscount > 0 && (

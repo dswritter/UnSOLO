@@ -59,6 +59,8 @@ export async function createServiceListingOrder(
     /** Activities only: required when the listing has slots on the chosen date. */
     booking_slot_start?: string
     booking_slot_end?: string
+    /** Rentals only: number of days/nights. Used to multiply price and compute check_out_date. */
+    rental_days?: number
   },
 ) {
   try {
@@ -133,8 +135,16 @@ export async function createServiceListingOrder(
       return { error: 'Not enough availability' }
     }
 
-    // Calculate price
-    let totalPaise = unitPricePaise * bookingData.quantity
+    // Calculate price (rentals multiply by duration)
+    const rentalDays = listing.type === 'rentals' ? Math.max(1, bookingData.rental_days ?? 1) : 1
+    let totalPaise = unitPricePaise * bookingData.quantity * rentalDays
+
+    // Compute checkout date for rentals when not explicitly provided
+    if (listing.type === 'rentals' && !bookingData.check_out_date && rentalDays > 0) {
+      const d = new Date(bookingData.check_in_date)
+      d.setDate(d.getDate() + rentalDays)
+      bookingData = { ...bookingData, check_out_date: d.toISOString().slice(0, 10) }
+    }
     let discountPaise = 0
     let appliedPromoCode = ''
 
@@ -222,7 +232,7 @@ export async function createServiceListingOrder(
     const order = await razorpay.orders.create({
       amount: finalAmount,
       currency: 'INR',
-      receipt: `service-${listingId}-${Date.now()}`,
+      receipt: `sl-${Date.now()}`,
       notes: {
         listing_id: listingId,
         user_id: user.id,

@@ -163,7 +163,7 @@ function emptyDraft(type: ServiceListingType): DraftItem {
     description: '',
     priceRupees: null,
     quantity: 1,
-    maxPerBooking: 1,
+    maxPerBooking: 10,
     images: [],
   }
   if (type === 'rentals') {
