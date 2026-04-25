@@ -169,6 +169,8 @@ function emptyDraft(type: ServiceListingType): DraftItem {
   if (type === 'rentals') {
     base.unit = TYPE_CONFIG.rentals.defaultUnit
     base.amenities = []
+  } else if (type === 'activities') {
+    base.unit = TYPE_CONFIG.activities.defaultUnit
   }
   return base
 }
@@ -187,6 +189,8 @@ function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftIt
   if (type === 'rentals') {
     draft.unit = (row.unit as Unit) || TYPE_CONFIG.rentals.defaultUnit
     draft.amenities = row.amenities || []
+  } else if (type === 'activities') {
+    draft.unit = (row.unit as Unit) || TYPE_CONFIG.activities.defaultUnit
   }
   return draft
 }
@@ -513,6 +517,7 @@ export function HostServiceListingTabs(props: Props) {
       : [emptyDraft(type)],
   )
   const isRental = type === 'rentals'
+  const isActivity = type === 'activities'
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
   /** Per-file upload progress while `uploadingLocalKey` is set. Length = total files in the current batch. */
   const [uploadProgress, setUploadProgress] = useState<number[]>([])
@@ -648,7 +653,7 @@ export function HostServiceListingTabs(props: Props) {
       if (i.maxPerBooking < 1) return `"${i.name || 'Item'}" max-per-booking must be at least 1`
       if (needsImages && i.images.length === 0) return `"${i.name || 'Item'}" needs at least one photo`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
-      if (isRental && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
+      if ((isRental || isActivity) && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
     }
     return null
   }
@@ -673,7 +678,7 @@ export function HostServiceListingTabs(props: Props) {
         errs.push({ label: `Price for "${label}"`, fieldId: `item-price-${item.localKey}` })
       if (needsImages && item.images.length === 0)
         errs.push({ label: `At least one photo for "${label}"`, fieldId: `item-images-${item.localKey}` })
-      if (isRental && !item.unit)
+      if ((isRental || isActivity) && !item.unit)
         errs.push({ label: `Pricing unit for "${label}"`, fieldId: `item-price-${item.localKey}` })
     }
     return errs
@@ -805,7 +810,7 @@ export function HostServiceListingTabs(props: Props) {
         quantity: it.quantity,
         maxPerBooking: it.maxPerBooking,
         images: it.images,
-        unit: isRental ? (it.unit ?? config.defaultUnit) : null,
+        unit: (isRental || isActivity) ? (it.unit ?? config.defaultUnit) : null,
         amenities: isRental ? (it.amenities ?? []) : null,
       })),
     }
@@ -833,7 +838,7 @@ export function HostServiceListingTabs(props: Props) {
       quantity_available: i.maxPerBooking,
       max_per_booking: i.quantity,
       images: i.images,
-      unit: isRental ? (i.unit || config.defaultUnit) : null,
+      unit: (isRental || isActivity) ? (i.unit || config.defaultUnit) : null,
       amenities: isRental ? (i.amenities || []) : null,
     }))
 
@@ -875,7 +880,7 @@ export function HostServiceListingTabs(props: Props) {
       title: title.trim(),
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
-      ...(isRental ? {} : { unit, amenities }),
+      ...((isRental || isActivity) ? {} : { unit, amenities }),
       destination_ids: destinationIds,
       location: location.trim() || null,
       latitude: pinLatLon?.lat ?? null,
@@ -914,7 +919,7 @@ export function HostServiceListingTabs(props: Props) {
           quantity_available: draft.maxPerBooking,
           max_per_booking: draft.quantity,
           images: draft.images,
-          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -931,7 +936,7 @@ export function HostServiceListingTabs(props: Props) {
           max_per_booking: draft.quantity,
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
-          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -967,7 +972,7 @@ export function HostServiceListingTabs(props: Props) {
         title: title.trim(),
         description: description.trim() || null,
         short_description: shortDescription.trim() || null,
-        ...(isRental ? {} : { unit, amenities }),
+        ...((isRental || isActivity) ? {} : { unit, amenities }),
         destination_ids: destinationIds,
         location: location.trim() || null,
         latitude: pinLatLon?.lat ?? null,
@@ -994,7 +999,7 @@ export function HostServiceListingTabs(props: Props) {
             quantity_available: draft.quantity,
             max_per_booking: draft.maxPerBooking,
             images: draft.images,
-            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
           })
           if ('error' in res && res.error) {
             toast.error(`"${draft.name}": ${res.error}`)
@@ -1013,7 +1018,7 @@ export function HostServiceListingTabs(props: Props) {
             max_per_booking: draft.maxPerBooking,
             images: draft.images,
             position_order: items.findIndex(i => i.localKey === draft.localKey),
-            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
+            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
           })
           if ('error' in res && res.error) {
             toast.error(`"${draft.name}": ${res.error}`)
@@ -1320,7 +1325,7 @@ export function HostServiceListingTabs(props: Props) {
             />
           </div>
 
-          {!isRental && (
+          {!isRental && !isActivity && (
             <div className="space-y-2">
               <label className="text-sm font-semibold">Pricing unit *</label>
               <p className="text-xs text-muted-foreground">Applied to every item under this listing.</p>
@@ -1711,8 +1716,8 @@ export function HostServiceListingTabs(props: Props) {
                   </p>
                 )}
 
-                {isRental && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(isRental || isActivity) && (
+                  <div className={isRental ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
                     <div>
                       <label className="text-xs font-semibold">Pricing unit *</label>
                       <select
@@ -1725,7 +1730,7 @@ export function HostServiceListingTabs(props: Props) {
                         ))}
                       </select>
                     </div>
-                    <div>
+                    {isRental && <div>
                       <label className="text-xs font-semibold">Amenities / features</label>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {Array.from(new Set([...config.suggestedAmenities, ...(draft.amenities || [])])).map(a => {
@@ -1789,7 +1794,7 @@ export function HostServiceListingTabs(props: Props) {
                           + Add
                         </button>
                       </div>
-                    </div>
+                    </div>}
                   </div>
                 )}
 
@@ -1929,7 +1934,7 @@ export function HostServiceListingTabs(props: Props) {
                       <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
                       <div className="text-xs text-muted-foreground">
                         ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
-                        {isRental && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                        {(isRental || isActivity) && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
                         {' · '}{i.maxPerBooking} available · max {i.quantity}/order · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                       </div>
                     </div>

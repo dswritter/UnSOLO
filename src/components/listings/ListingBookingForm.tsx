@@ -609,7 +609,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
           <span>
             {formatPrice(unitPricePaise)} × {quantity}
             {isRental && rentalDays > 1 ? ` × ${rentalDays}d` : ''}{' '}
-            {listing.unit.replace('per_', '').replace('_', ' ')}
+            {(selectedItem?.unit ?? listing.unit).replace('per_', '').replace('_', ' ')}
           </span>
           <span>{formatPrice(basePrice)}</span>
         </div>
