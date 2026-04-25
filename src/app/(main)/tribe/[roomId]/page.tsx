@@ -271,6 +271,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
         pinnedMessage={(pinnedMsg as Message | null) ?? null}
         initialPollsByMessageId={pollsByMessageId}
         chatListPath={LIST_PATH}
+        tribeShell
       />
     </div>
   )

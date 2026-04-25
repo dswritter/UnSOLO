@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2 } from 'lucide-react'
-import { getInitials, timeAgo } from '@/lib/utils'
+import { getInitials, timeAgo, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
@@ -74,6 +74,8 @@ interface ChatWindowProps {
   initialPollsByMessageId?: Record<string, ChatPollState>
   /** Hash #room links and “back” navigation (default `/community`; `/tribe` on tribe shell) */
   chatListPath?: string
+  /** /tribe: textured transcript + inherited tribe-messaging-ui contrast */
+  tribeShell?: boolean
 }
 
 export interface ChatMemberProfile {
@@ -98,10 +100,10 @@ function renderTextWithMentionsAndTags(
   chatListPath: string,
 ) {
   const mentionClass = isOwn
-    ? 'font-bold text-foreground/80 hover:underline'
+    ? 'font-bold text-zinc-900 hover:underline'
     : 'font-bold text-primary hover:underline'
   const hashClass = isOwn
-    ? 'font-semibold text-foreground/90 bg-foreground/10 px-0.5 rounded hover:underline'
+    ? 'font-semibold text-zinc-900 bg-black/12 px-0.5 rounded hover:underline'
     : 'font-semibold text-primary bg-primary/15 px-0.5 rounded hover:underline'
 
   const nodes: React.ReactNode[] = []
@@ -172,10 +174,10 @@ function renderMessageContent(
   const lines = content.split('\n')
 
   const linkClass = isOwn
-    ? 'text-foreground underline font-semibold hover:text-foreground/70 break-all'
+    ? 'text-zinc-900 underline font-semibold hover:text-zinc-800 break-all'
     : 'text-primary underline hover:text-primary/80 break-all'
   const pkgBtnClass = isOwn
-    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-foreground/15 text-foreground text-xs font-semibold hover:bg-foreground/25 transition-colors'
+    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/12 text-zinc-900 text-xs font-semibold hover:bg-black/18 transition-colors'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
   const urlRegex = /(https?:\/\/[^\s<]+)/g
@@ -227,6 +229,7 @@ export function ChatWindow({
   pinnedMessage = null,
   initialPollsByMessageId = {},
   chatListPath = '/community',
+  tribeShell = false,
 }: ChatWindowProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -1144,9 +1147,19 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border-l border-border relative">
+    <div
+      className={cn(
+        'flex flex-col h-full border-l relative',
+        tribeShell ? 'border-white/10 bg-transparent' : 'border-border bg-background',
+      )}
+    >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+      <div
+        className={cn(
+          'px-4 py-3 flex items-center justify-between',
+          tribeShell ? 'border-b border-white/10' : 'border-b border-border',
+        )}
+      >
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -1420,7 +1433,10 @@ export function ChatWindow({
         onScroll={() => {
           if (isNearBottom()) setShowJumpButton(false)
         }}
-        className="h-full overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4"
+        className={cn(
+          'h-full overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
+          tribeShell && 'tribe-chat-scroll-pattern',
+        )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
       >
         <div className="space-y-4">
@@ -1485,6 +1501,7 @@ export function ChatWindow({
                   setEmojiPickerForMessageId(null)
                 }}
                 chatListPath={chatListPath}
+                tribeShell={tribeShell}
               />
             </div>
           ))}
@@ -1868,7 +1885,12 @@ export function ChatWindow({
 
       {/* Input — fixed; bottom tracks visualViewport so it sits above the mobile keyboard */}
       <div
-        className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto"
+        className={cn(
+          'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto',
+          tribeShell
+            ? 'border-white/10 bg-[oklch(0.12_0.04_152/0.92)] backdrop-blur-md'
+            : 'border-border bg-background',
+        )}
         style={{ bottom: visualViewportBottomInset }}
       >
         <form onSubmit={handleSend} className="flex gap-2 items-end">
@@ -2014,6 +2036,7 @@ function MessageBubble({
   onPickEmojiStrip,
   tripBadge,
   chatListPath = '/community',
+  tribeShell = false,
 }: {
   message: Message
   roomId: string
@@ -2045,6 +2068,7 @@ function MessageBubble({
   onPickEmojiStrip: (emoji: string) => void
   tripBadge?: TripChatBookingPhase | null
   chatListPath?: string
+  tribeShell?: boolean
 }): React.ReactNode {
   const memberFallback =
     message.user_id && !message.user
@@ -2231,8 +2255,10 @@ function MessageBubble({
         <div
           className={`px-3.5 py-2 rounded-[1.25rem] text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation shadow-sm ${
             isOwn
-              ? 'bg-gradient-to-br from-primary to-amber-500 text-black dark:text-white rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30'
-              : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
+              ? 'bg-gradient-to-br from-primary to-amber-500 text-zinc-950 rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30 [&_a]:text-zinc-900'
+              : tribeShell
+                ? 'bg-white/[0.09] backdrop-blur-md border border-white/15 rounded-tl-md text-white shadow-sm [&_a]:text-white [&_a]:underline'
+                : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
           }`}
           {...(canReact ? bubbleLongPress : {})}
           onTouchEnd={canReact ? onBubbleTouchEnd : undefined}
@@ -2241,7 +2267,7 @@ function MessageBubble({
           {renderWithMentions(message.content, isOwn)}
           {message.is_edited ? (
             <span
-              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-black/50 dark:text-white/50' : 'text-muted-foreground'}`}
+              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-zinc-800/75' : 'text-muted-foreground'}`}
             >
               Edited
             </span>

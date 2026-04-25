@@ -264,6 +264,28 @@
   color: #fcba03;
 }
 
+/* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
+.tribe-messaging-ui {
+  --muted-foreground: oklch(0.99 0.004 90);
+}
+.tribe-chat-scroll-pattern {
+  position: relative;
+  background-color: oklch(0.1 0.038 152);
+  background-image:
+    radial-gradient(ellipse 90% 70% at 0% 0%, oklch(0.48 0.11 150 / 0.2) 0%, transparent 58%),
+    radial-gradient(ellipse 75% 60% at 100% 100%, oklch(0.4 0.1 155 / 0.16) 0%, transparent 55%),
+    radial-gradient(ellipse 45% 35% at 50% 45%, white / 0.06) 0%, transparent 65%),
+    linear-gradient(168deg, oklch(0.13 0.042 152 / 0.96) 0%, oklch(0.09 0.034 150 / 0.98) 100%),
+    repeating-linear-gradient(
+      122deg,
+      transparent 0,
+      transparent 10px,
+      oklch(0.55 0.08 150 / 0.05) 10px,
+      oklch(0.55 0.08 150 / 0.05) 11px
+    );
+  background-blend-mode: screen, screen, soft-light, normal, normal;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

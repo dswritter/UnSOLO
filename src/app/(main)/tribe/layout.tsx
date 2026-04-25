@@ -53,7 +53,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
       )}
     >
       <TribeMessageCacheBootstrap />
-      <div className="h-[calc(100dvh-4rem)] flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full">
+      <div className="tribe-messaging-ui h-[calc(100dvh-4rem)] flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full">
         <Suspense fallback={<TribeSidebarSkeleton />}>
           <CommunitySidebarSection
             userId={user.id}
