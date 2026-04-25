@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { reverseGeocodeToSearchLabel } from '@/lib/wander/reverseGeocodeClient'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
+import { WanderNominatimLocationInput } from '@/components/wander/WanderNominatimLocationInput'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
 
@@ -356,13 +357,14 @@ export function WanderSearchBar({
         >
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="relative min-w-0">
+              <MapPin className="absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <WanderNominatimLocationInput
                 className="pl-9 bg-background/80"
                 placeholder="Where are you planning"
                 value={tripWhere}
-                onChange={e => setTripWhere(e.target.value)}
+                onValueChange={setTripWhere}
+                wander={isWander}
               />
             </div>
           </label>
@@ -412,15 +414,16 @@ export function WanderSearchBar({
         >
           <label className="block space-y-1.5 md:col-span-1">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="relative min-w-0">
+              <MapPin className="absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <WanderNominatimLocationInput
                 className="pl-9 bg-background/80"
                 placeholder="Where are you going?"
                 value={stayWhere}
-                onChange={e => setStayWhere(e.target.value)}
-                onFocus={() => onLocationFieldFocus('stay')}
-                onClick={() => onLocationFieldFocus('stay')}
+                onValueChange={setStayWhere}
+                wander={isWander}
+                onChainFocus={() => onLocationFieldFocus('stay')}
+                onChainClick={() => onLocationFieldFocus('stay')}
               />
             </div>
           </label>
@@ -483,15 +486,16 @@ export function WanderSearchBar({
         >
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Where?</span>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="relative min-w-0">
+              <MapPin className="absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <WanderNominatimLocationInput
                 className="pl-9 bg-background/80"
                 placeholder="City or area"
                 value={actWhere}
-                onChange={e => setActWhere(e.target.value)}
-                onFocus={() => onLocationFieldFocus('act')}
-                onClick={() => onLocationFieldFocus('act')}
+                onValueChange={setActWhere}
+                wander={isWander}
+                onChainFocus={() => onLocationFieldFocus('act')}
+                onChainClick={() => onLocationFieldFocus('act')}
               />
             </div>
           </label>
@@ -555,15 +559,16 @@ export function WanderSearchBar({
         >
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="relative min-w-0">
+              <MapPin className="absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <WanderNominatimLocationInput
                 className="pl-9 bg-background/80"
                 placeholder="City or area"
                 value={rentWhere}
-                onChange={e => setRentWhere(e.target.value)}
-                onFocus={() => onLocationFieldFocus('rent')}
-                onClick={() => onLocationFieldFocus('rent')}
+                onValueChange={setRentWhere}
+                wander={isWander}
+                onChainFocus={() => onLocationFieldFocus('rent')}
+                onChainClick={() => onLocationFieldFocus('rent')}
               />
             </div>
           </label>
