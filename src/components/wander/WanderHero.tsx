@@ -46,7 +46,7 @@ export function WanderHero({
               <span className="leading-tight">India&apos;s most trusted solo travel community</span>
             </p>
             <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]">
-              Travel solo.
+              Travelling solo?
               <br />
               Find your <span className="text-primary">people</span>.
             </h1>
