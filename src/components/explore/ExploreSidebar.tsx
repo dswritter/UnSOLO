@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 import type { ServiceListingType } from '@/types'
 import { PriceSlider } from './PriceSlider'
 
@@ -126,7 +127,7 @@ export function ExploreSidebar({
       ...prev,
       [filterKey]: filterValue,
     }))
-    router.push(buildUrl({ [filterKey]: filterValue }))
+    pushExploreUrl(router, basePath, buildUrl({ [filterKey]: filterValue }))
   }
 
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
@@ -134,14 +135,14 @@ export function ExploreSidebar({
       ...prev,
       tripSource: next === 'all' ? null : next,
     }))
-    if (next === 'all') router.push(buildUrl({ tripSource: null }))
-    else router.push(buildUrl({ tripSource: next }))
+    if (next === 'all') pushExploreUrl(router, basePath, buildUrl({ tripSource: null }))
+    else pushExploreUrl(router, basePath, buildUrl({ tripSource: next }))
   }
 
   function clearAllFilters() {
     setIsClearing(true)
     setOptimisticParams({})
-    router.push(basePath)
+    pushExploreUrl(router, basePath, basePath)
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
     clearTimerRef.current = setTimeout(() => setIsClearing(false), 1500)
   }
@@ -240,7 +241,7 @@ export function ExploreSidebar({
                   minBudget: minRupees ? String(minRupees) : null,
                   maxBudget: maxRupees ? String(maxRupees) : null,
                 }))
-                router.push(buildUrl({
+                pushExploreUrl(router, basePath, buildUrl({
                   minBudget: minRupees ? String(minRupees) : null,
                   maxBudget: maxRupees ? String(maxRupees) : null,
                 }))
@@ -267,14 +268,14 @@ export function ExploreSidebar({
                           minDays: null,
                           maxDays: null,
                         }))
-                        router.push(buildUrl({ minDays: null, maxDays: null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minDays: null, maxDays: null }))
                       } else {
                         setOptimisticParams((prev) => ({
                           ...prev,
                           minDays: opt.min || null,
                           maxDays: opt.max || null,
                         }))
-                        router.push(buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
                       }
                     }}
                     className={cn(
@@ -314,7 +315,7 @@ export function ExploreSidebar({
                             ...prev,
                             month: null,
                           }))
-                          router.push(buildUrl({ month: null }))
+                          pushExploreUrl(router, basePath, buildUrl({ month: null }))
                         }}
                         className={cn(
                           'px-2 py-2 rounded-lg text-xs text-center transition-all font-medium',
@@ -338,13 +339,13 @@ export function ExploreSidebar({
                                   ...prev,
                                   month: null,
                                 }))
-                                router.push(buildUrl({ month: null }))
+                                pushExploreUrl(router, basePath, buildUrl({ month: null }))
                               } else {
                                 setOptimisticParams((prev) => ({
                                   ...prev,
                                   month: monthStr,
                                 }))
-                                router.push(buildUrl({ month: monthStr }))
+                                pushExploreUrl(router, basePath, buildUrl({ month: monthStr }))
                               }
                             }}
                             className={cn(
@@ -379,13 +380,13 @@ export function ExploreSidebar({
                         ...prev,
                         interested: null,
                       }))
-                      router.push(buildUrl({ interested: null }))
+                      pushExploreUrl(router, basePath, buildUrl({ interested: null }))
                     } else {
                       setOptimisticParams((prev) => ({
                         ...prev,
                         interested: 'true',
                       }))
-                      router.push(buildUrl({ interested: 'true' }))
+                      pushExploreUrl(router, basePath, buildUrl({ interested: 'true' }))
                     }
                   }}
                   className={cn(
@@ -422,14 +423,14 @@ export function ExploreSidebar({
                           minPrice: null,
                           maxPrice: null,
                         }))
-                        router.push(buildUrl({ minPrice: null, maxPrice: null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minPrice: null, maxPrice: null }))
                       } else {
                         setOptimisticParams((prev) => ({
                           ...prev,
                           minPrice: opt.min || null,
                           maxPrice: opt.max || null,
                         }))
-                        router.push(buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
                       }
                     }}
                     className={cn(

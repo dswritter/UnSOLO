@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { reverseGeocodeToSearchLabel } from '@/lib/wander/reverseGeocodeClient'
+import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
 
@@ -299,7 +300,7 @@ export function WanderSearchBar({
     if (isWander) {
       params.set('search', '1')
       const qs = params.toString()
-      router.push(`/wander?${qs}#wander-explore`)
+      pushExploreUrl(router, '/wander', `/wander?${qs}#wander-explore`)
     } else {
       router.push(`/explore?${params.toString()}`)
     }

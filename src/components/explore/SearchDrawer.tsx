@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
+import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 
 interface SearchDrawerProps {
   isOpen: boolean
@@ -49,7 +50,7 @@ export function SearchDrawer({
           params.set('search', '1')
         }
 
-        router.push(`${basePath}?${params.toString()}`)
+        pushExploreUrl(router, basePath, `${basePath}?${params.toString()}`)
       }
     }, 300)
 

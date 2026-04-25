@@ -20,6 +20,7 @@ import { MobileExploreActionBar } from './MobileExploreActionBar'
 import { SearchDrawer } from './SearchDrawer'
 import { FilterDrawer } from './FilterDrawer'
 import { SkeletonCard } from './SkeletonCard'
+import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -171,7 +172,7 @@ export function ExploreClient({
       newParams.set('search', '1')
     }
     startTransition(() => {
-      router.push(`${basePath}?${newParams.toString()}`)
+      pushExploreUrl(router, basePath, `${basePath}?${newParams.toString()}`)
     })
   }
 

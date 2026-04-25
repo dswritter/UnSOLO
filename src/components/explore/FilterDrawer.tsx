@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { X, ChevronDown, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 import type { ServiceListingType } from '@/types'
 import { PriceSlider } from './PriceSlider'
 
@@ -109,13 +110,13 @@ export function FilterDrawer({
   }
 
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
-    if (next === 'all') router.push(buildUrl({ tripSource: null }))
-    else router.push(buildUrl({ tripSource: next }))
+    if (next === 'all') pushExploreUrl(router, basePath, buildUrl({ tripSource: null }))
+    else pushExploreUrl(router, basePath, buildUrl({ tripSource: next }))
   }
 
   function clearAllFilters() {
     setIsClearing(true)
-    router.push(basePath)
+    pushExploreUrl(router, basePath, basePath)
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
     clearTimerRef.current = setTimeout(() => {
       setIsClearing(false)
@@ -183,7 +184,7 @@ export function FilterDrawer({
                     <button
                       key={opt.value}
                       disabled={isLoading}
-                      onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
+                      onClick={() => pushExploreUrl(router, basePath, buildUrl({ difficulty: opt.value || null }))}
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                         (params.difficulty || '') === opt.value
@@ -208,7 +209,9 @@ export function FilterDrawer({
                   onChange={(minPaise, maxPaise) => {
                     const minRupees = minPaise > 0 ? Math.floor(minPaise / 100) : null
                     const maxRupees = maxPaise < maxPackagePrice ? Math.floor(maxPaise / 100) : null
-                    router.push(
+                    pushExploreUrl(
+                      router,
+                      basePath,
                       buildUrl({
                         minBudget: minRupees ? String(minRupees) : null,
                         maxBudget: maxRupees ? String(maxRupees) : null,
@@ -227,7 +230,7 @@ export function FilterDrawer({
                       key={opt.value}
                       disabled={isLoading}
                       onClick={() =>
-                        router.push(buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minDays: opt.min || null, maxDays: opt.max || null }))
                       }
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
@@ -268,7 +271,7 @@ export function FilterDrawer({
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       disabled={isLoading}
-                      onClick={() => router.push(buildUrl({ month: null }))}
+                      onClick={() => pushExploreUrl(router, basePath, buildUrl({ month: null }))}
                       className={cn(
                         'px-2 py-2 rounded-lg text-xs text-center transition-colors font-medium',
                         !params.month
@@ -283,7 +286,7 @@ export function FilterDrawer({
                       <button
                         key={m}
                         disabled={isLoading}
-                        onClick={() => router.push(buildUrl({ month: String(idx) }))}
+                        onClick={() => pushExploreUrl(router, basePath, buildUrl({ month: String(idx) }))}
                         className={cn(
                           'px-2 py-2 rounded-lg text-xs text-center transition-colors',
                           params.month === String(idx)
@@ -305,9 +308,9 @@ export function FilterDrawer({
                   disabled={isLoading}
                   onClick={() => {
                     if (params.interested) {
-                      router.push(buildUrl({ interested: null }))
+                      pushExploreUrl(router, basePath, buildUrl({ interested: null }))
                     } else {
-                      router.push(buildUrl({ interested: 'true' }))
+                      pushExploreUrl(router, basePath, buildUrl({ interested: 'true' }))
                     }
                   }}
                   className={cn(
@@ -332,7 +335,7 @@ export function FilterDrawer({
                       key={opt.value}
                       disabled={isLoading}
                       onClick={() =>
-                        router.push(buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
+                        pushExploreUrl(router, basePath, buildUrl({ minPrice: opt.min || null, maxPrice: opt.max || null }))
                       }
                       className={cn(
                         'px-3 py-2 rounded-lg text-sm text-left transition-colors',
@@ -356,7 +359,7 @@ export function FilterDrawer({
                       <button
                         key={opt.value}
                         disabled={isLoading}
-                        onClick={() => router.push(buildUrl({ difficulty: opt.value || null }))}
+                        onClick={() => pushExploreUrl(router, basePath, buildUrl({ difficulty: opt.value || null }))}
                         className={cn(
                           'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                           (params.difficulty || '') === opt.value
@@ -380,7 +383,7 @@ export function FilterDrawer({
                       <button
                         key={opt.value}
                         disabled={isLoading}
-                        onClick={() => router.push(buildUrl({ activityType: opt.value || null }))}
+                        onClick={() => pushExploreUrl(router, basePath, buildUrl({ activityType: opt.value || null }))}
                         className={cn(
                           'px-3 py-2 rounded-lg text-sm text-left transition-colors',
                           (params.activityType || '') === opt.value
