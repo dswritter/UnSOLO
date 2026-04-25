@@ -41,7 +41,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   const [checkInDate, setCheckInDate] = useState('')
   const [rentalDays, setRentalDays] = useState(1)
   const [applyCredits, setApplyCredits] = useState(false)
-  const [userCredits, setUserCredits] = useState(0)
+  const [userCredits, setUserCredits] = useState<number | null>(null)
   const [promoCode, setPromoCode] = useState('')
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [promoName, setPromoName] = useState('')
@@ -66,7 +66,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
     0,
   )
 
-  const creditsUsed = applyCredits && userCredits > 0
+  const creditsUsed = applyCredits && userCredits != null && userCredits > 0
     ? Math.min(userCredits, grossPaise - promoDiscount)
     : 0
 
@@ -203,8 +203,8 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
         )}
       </div>
 
-      {/* Credits */}
-      {userCredits > 0 && (
+      {/* Credits — null = still loading, suppress until resolved to avoid flash */}
+      {userCredits != null && userCredits > 0 && (
         <label className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 cursor-pointer">
           <input type="checkbox" checked={applyCredits} onChange={e => setApplyCredits(e.target.checked)} className="accent-primary" />
           <span className="text-xs">Apply ₹{(userCredits / 100).toLocaleString('en-IN')} referral credits</span>

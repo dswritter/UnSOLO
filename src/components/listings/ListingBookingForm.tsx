@@ -80,7 +80,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [promoName, setPromoName] = useState('')
   const [promoValidating, setPromoValidating] = useState(false)
-  const [userCredits, setUserCredits] = useState(0)
+  const [userCredits, setUserCredits] = useState<number | null>(null)
   const [applyCredits, setApplyCredits] = useState(false)
   const [isReferred, setIsReferred] = useState(false)
   const [isFirstBooking, setIsFirstBooking] = useState(false)
@@ -134,7 +134,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const isRental = listing.type === 'rentals'
   const basePrice = unitPricePaise * quantity * (isRental ? rentalDays : 1)
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
-  const creditsToApply = applyCredits ? Math.min(userCredits, basePrice) : 0
+  const creditsToApply = applyCredits && userCredits ? Math.min(userCredits, basePrice) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
   const finalAmount = Math.max(0, basePrice - totalDiscount)
 
@@ -522,8 +522,8 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
           </div>
         )}
 
-        {/* Credits */}
-        {userCredits > 0 && (
+        {/* Credits — null = still loading, suppress until resolved to avoid flash */}
+        {userCredits != null && userCredits > 0 && (
           <label className="flex items-center gap-2 bg-secondary/50 rounded-lg px-3 py-2 cursor-pointer">
             <input
               type="checkbox"
