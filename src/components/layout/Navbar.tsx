@@ -175,14 +175,19 @@ export function Navbar({ user }: NavbarProps) {
   ]
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
+    <nav
+      className={cn(
+        'sticky top-0 z-50 border-b',
+        isWander ? 'nav-wander-surface border-[#2f4d42]/55' : 'border-border bg-background/90 backdrop-blur-md',
+      )}
+    >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl font-black tracking-tight">
               <span className="text-primary">UN</span>
-              <span className="text-foreground">SOLO</span>
+              <span className={isWander ? 'text-white' : 'text-foreground'}>SOLO</span>
             </span>
           </Link>
 
@@ -195,11 +200,16 @@ export function Navbar({ user }: NavbarProps) {
                 key={href}
                 href={href}
                 prefetch
-                className={`relative flex items-center gap-1.5 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'text-primary border-b-2 border-primary pb-1'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                className={cn(
+                  'relative flex items-center gap-1.5 text-sm font-medium transition-colors',
+                  isWander
+                    ? isActive
+                      ? 'text-[#fcba03] border-b-2 border-[#fcba03] pb-1'
+                      : 'text-white/90 hover:text-white'
+                    : isActive
+                      ? 'text-primary border-b-2 border-primary pb-1'
+                      : 'text-muted-foreground hover:text-foreground',
+                )}
               >
                 <Icon className="h-4 w-4" />
                 {label}
@@ -235,7 +245,7 @@ export function Navbar({ user }: NavbarProps) {
             {user ? (
               <>
                 <NotificationBell userId={user.id} />
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     className={cn(
                       'outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary/80',
@@ -266,7 +276,10 @@ export function Navbar({ user }: NavbarProps) {
                       </Avatar>
                     )}
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-60 bg-card border-border">
+                  <DropdownMenuContent
+                    align="end"
+                    className="z-[200] w-60 min-w-[15rem] border-border bg-popover text-popover-foreground shadow-lg"
+                  >
                     <div className="px-4 py-3">
                       <p className="text-base font-semibold truncate">{user.full_name || user.username}</p>
                       <p className="text-sm text-muted-foreground">@{user.username}</p>
@@ -313,7 +326,7 @@ export function Navbar({ user }: NavbarProps) {
             {/* Mobile menu toggle */}
             <button
               ref={mobileToggleRef}
-              className="md:hidden text-muted-foreground hover:text-foreground"
+              className={cn('md:hidden', isWander ? 'text-white/80 hover:text-white' : 'text-muted-foreground hover:text-foreground')}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
@@ -330,7 +343,10 @@ export function Navbar({ user }: NavbarProps) {
           ref={mobileMenuRef}
           onTouchStart={onMenuTouchStart}
           onTouchEnd={onMenuTouchEnd}
-          className="md:hidden border-t border-border bg-background px-4 py-4 space-y-2"
+          className={cn(
+            'md:hidden border-t px-4 py-4 space-y-2',
+            isWander ? 'border-[#2f4d42]/55 bg-[oklch(0.14_0.038_155)]' : 'border-border bg-background',
+          )}
         >
           {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
             const isActive = pathname === href
@@ -340,11 +356,16 @@ export function Navbar({ user }: NavbarProps) {
               href={href}
               prefetch
               onClick={() => setMobileOpen(false)}
-              className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-              }`}
+              className={cn(
+                'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isWander
+                  ? isActive
+                    ? 'text-[#fcba03] bg-[#fcba03]/12'
+                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                  : isActive
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+              )}
             >
               <Icon className="h-4 w-4" />
               {label}

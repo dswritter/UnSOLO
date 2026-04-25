@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback, type Dispatch, type SetStateAction } from 'react'
+import { useState, useTransition, useCallback, useMemo, type Dispatch, type SetStateAction } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -63,7 +63,10 @@ const SETTING_LABELS: Record<
     type: 'textarea',
   },
   support_whatsapp_number: { label: 'Default WhatsApp number', type: 'text' },
-  wander_hero_image_url: { label: 'Wander page — hero image URL', type: 'text' },
+  wander_hero_image_url: {
+    label: 'Wander page — hero image URL',
+    type: 'text',
+  },
 }
 
 const SHARE_POSTER_ORDER = [
@@ -80,6 +83,10 @@ const REFUND_KEYS = new Set([
   'refund_tiers_activities',
   'refund_tiers_rentals',
 ])
+
+const GENERAL_SETTING_KEYS = Object.keys(SETTING_LABELS).filter(
+  (k) => !SHARE_POSTER_KEYS.has(k) && !REFUND_KEYS.has(k),
+)
 
 /** Defaults when rows are missing (e.g. before migration). */
 const SHARE_POSTER_DEFAULTS: Record<(typeof SHARE_POSTER_ORDER)[number], string> = {
@@ -137,7 +144,24 @@ function buildInitialSettingsMap(initialSettings: Setting[]): Record<string, str
       m[k] = SHARE_POSTER_DEFAULTS[k]
     }
   }
+  for (const k of GENERAL_SETTING_KEYS) {
+    if (m[k] === undefined) {
+      m[k] = ''
+    }
+  }
   return m
+}
+
+function syntheticGeneralRow(key: string): Setting {
+  if (key === 'wander_hero_image_url') {
+    return {
+      key,
+      value: '',
+      description:
+        'Full HTTPS URL for the image behind the public /wander hero (any host). Leave empty to use the built-in default.',
+    }
+  }
+  return { key, value: '', description: null }
 }
 
 const SHARE_PLACEHOLDERS = [
@@ -197,9 +221,12 @@ export default function SettingsClient({ settings: initialSettings }: { settings
     []
   )
 
-  const generalSettings = initialSettings.filter(
-    (s) => !SHARE_POSTER_KEYS.has(s.key) && !REFUND_KEYS.has(s.key)
-  )
+  const generalSettings = useMemo((): Setting[] => {
+    return GENERAL_SETTING_KEYS.map((key) => {
+      const row = initialSettings.find((s) => s.key === key)
+      return row ?? syntheticGeneralRow(key)
+    })
+  }, [initialSettings])
   const refundOrder = ['refund_tiers_unsolo', 'refund_tiers_host', 'refund_tiers_stays', 'refund_tiers_activities', 'refund_tiers_rentals']
   const refundSettings = initialSettings
     .filter((s) => REFUND_KEYS.has(s.key))
@@ -231,10 +258,10 @@ export default function SettingsClient({ settings: initialSettings }: { settings
       const supabase = createClient()
       let hasError = false
       for (const [key, value] of Object.entries(settings)) {
-        const { error } = await supabase
-          .from('platform_settings')
-          .update({ value, updated_at: new Date().toISOString() })
-          .eq('key', key)
+        const { error } = await supabase.from('platform_settings').upsert(
+          { key, value, updated_at: new Date().toISOString() },
+          { onConflict: 'key' },
+        )
         if (error) {
           toast.error(`Failed to save ${key}: ${error.message}`)
           hasError = true

@@ -48,12 +48,12 @@ export default async function WanderPage() {
       <WanderHero rating={rating} stats={stats} heroImageUrl={heroImageUrl} />
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 -mt-6 md:-mt-8 relative z-20 pb-4 md:pb-6 flex justify-start">
-        <WanderSearchBar listedActivities={listedActivities} />
+        <WanderSearchBar listedActivities={listedActivities} variant="wander" />
       </div>
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pb-8">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch lg:gap-4">
-          <div className="flex min-h-[5.25rem] items-center rounded-2xl border border-border/60 bg-card/30 px-2 py-2 sm:px-3 sm:py-2.5">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_min(0,clamp(16rem,28vw,21rem))] lg:items-stretch lg:gap-4">
+          <div className="flex min-h-[5.25rem] items-center rounded-2xl wander-frost px-2 py-2 sm:px-3 sm:py-2.5">
             {user ? (
               <WanderStatusRail avatarUrl={profileAvatar} />
             ) : (
@@ -68,13 +68,13 @@ export default async function WanderPage() {
               </div>
             )}
           </div>
-          <div className="flex min-h-[5.25rem] items-stretch">
+          <div className="flex min-h-[5.25rem] w-full min-w-0 items-stretch justify-end lg:max-w-[21rem] xl:max-w-[22rem]">
             <WanderStatsGrid stats={stats} />
           </div>
         </div>
       </div>
 
-      <div className="border-t border-border/60 bg-background/80">
+      <div className="border-t border-border/50 bg-background/50">
         <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-10 md:py-14">
           <WanderListingSections trips={tripPackages} activities={activities} rentals={rentals} />
         </div>

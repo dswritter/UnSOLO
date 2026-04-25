@@ -18,10 +18,18 @@ type CardItem = {
 interface ServiceListingCardProps {
   listing: ServiceListing
   items?: CardItem[]
+  /** When false, the card is tappable/clickable only (no bottom CTA). */
+  showViewDetailsButton?: boolean
 }
 
 // ── Single-image fallback card (no items or just one) ─────────────────────
-function PlainCard({ listing }: { listing: ServiceListing }) {
+function PlainCard({
+  listing,
+  showViewDetailsButton = true,
+}: {
+  listing: ServiceListing
+  showViewDetailsButton?: boolean
+}) {
   const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
@@ -101,9 +109,11 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
               )}
             </div>
           )}
-          <button className="w-full mt-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors">
-            View Details
-          </button>
+          {showViewDetailsButton ? (
+            <button className="w-full mt-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors">
+              View Details
+            </button>
+          ) : null}
         </div>
       </div>
     </Link>
@@ -116,7 +126,15 @@ function PlainCard({ listing }: { listing: ServiceListing }) {
 // the structure and the inner buttons end up triggering navigation regardless
 // of stopPropagation. We use window.open() on the card body instead so the
 // detail page opens in a new tab.
-function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items: CardItem[] }) {
+function ItemsCarouselCard({
+  listing,
+  items,
+  showViewDetailsButton = true,
+}: {
+  listing: ServiceListing
+  items: CardItem[]
+  showViewDetailsButton?: boolean
+}) {
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ratingDisplay =
@@ -291,23 +309,31 @@ function ItemsCarouselCard({ listing, items }: { listing: ServiceListing; items:
             </div>
           )}
 
-          <button
-            onClick={(e) => { e.stopPropagation(); openInNewTab() }}
-            className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
-          >
-            View Details
-          </button>
+          {showViewDetailsButton ? (
+            <button
+              onClick={(e) => { e.stopPropagation(); openInNewTab() }}
+              className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
+            >
+              View Details
+            </button>
+          ) : null}
         </div>
     </div>
   )
 }
 
 // ── Public export ──────────────────────────────────────────────────────────
-export function ServiceListingCard({ listing, items }: ServiceListingCardProps) {
+export function ServiceListingCard({ listing, items, showViewDetailsButton = true }: ServiceListingCardProps) {
   // Show carousel only when there are 2+ active items with at least one image
   const carouselItems = (items || []).filter((it) => it.images.length > 0)
   if (carouselItems.length >= 2) {
-    return <ItemsCarouselCard listing={listing} items={carouselItems} />
+    return (
+      <ItemsCarouselCard
+        listing={listing}
+        items={carouselItems}
+        showViewDetailsButton={showViewDetailsButton}
+      />
+    )
   }
-  return <PlainCard listing={listing} />
+  return <PlainCard listing={listing} showViewDetailsButton={showViewDetailsButton} />
 }

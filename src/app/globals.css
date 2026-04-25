@@ -125,40 +125,73 @@
   --sidebar-ring: oklch(0.828 0.168 82);
 }
 
-/* ── /wander — fixed forest green + gold (mockup) — not tied to .dark / :root ─ */
+/* ── /wander — fixed forest green + brand gold #fcba03 (mockup) — not .dark / :root ─ */
 .wander-theme {
-  --background: oklch(0.1 0.024 155);
-  --foreground: oklch(0.96 0.012 90);
-  --card: oklch(0.135 0.03 152);
-  --card-foreground: oklch(0.96 0.012 90);
-  --popover: oklch(0.13 0.028 152);
-  --popover-foreground: oklch(0.96 0.012 90);
-  --primary: oklch(0.86 0.165 90);
-  --primary-foreground: oklch(0.1 0.024 155);
-  --secondary: oklch(0.18 0.03 150);
-  --secondary-foreground: oklch(0.9 0.02 90);
-  --muted: oklch(0.14 0.025 150);
-  --muted-foreground: oklch(0.7 0.04 100);
-  --accent: oklch(0.86 0.165 90);
-  --accent-foreground: oklch(0.1 0.024 155);
+  --background: oklch(0.2 0.045 155);
+  --foreground: oklch(0.97 0.01 90);
+  --card: oklch(0.26 0.05 150);
+  --card-foreground: oklch(0.97 0.01 90);
+  --popover: oklch(0.24 0.048 152);
+  --popover-foreground: oklch(0.97 0.01 90);
+  /* Brand #fcba03 */
+  --primary: #fcba03;
+  --primary-foreground: oklch(0.18 0.04 155);
+  --secondary: oklch(0.32 0.055 150);
+  --secondary-foreground: oklch(0.92 0.02 90);
+  --muted: oklch(0.22 0.04 152);
+  --muted-foreground: oklch(0.78 0.04 100);
+  --accent: #fcba03;
+  --accent-foreground: oklch(0.18 0.04 155);
   --destructive: oklch(0.6 0.2 25);
-  --border: oklch(0.26 0.04 150);
-  --input: oklch(0.12 0.026 152);
-  --ring: oklch(0.86 0.165 90);
-  --chart-1: oklch(0.86 0.165 90);
+  --border: oklch(0.4 0.07 150);
+  --input: oklch(0.22 0.045 152);
+  --ring: #fcba03;
+  --chart-1: #fcba03;
   --chart-2: oklch(0.72 0.14 150);
   --chart-3: oklch(0.6 0.16 145);
   --chart-4: oklch(0.5 0.12 150);
   --chart-5: oklch(0.42 0.1 145);
-  --sidebar: oklch(0.11 0.024 155);
-  --sidebar-foreground: oklch(0.96 0.012 90);
-  --sidebar-primary: oklch(0.86 0.165 90);
-  --sidebar-primary-foreground: oklch(0.1 0.024 155);
-  --sidebar-accent: oklch(0.19 0.03 150);
-  --sidebar-accent-foreground: oklch(0.96 0.012 90);
-  --sidebar-border: oklch(0.24 0.04 150);
-  --sidebar-ring: oklch(0.86 0.165 90);
+  --sidebar: oklch(0.18 0.042 155);
+  --sidebar-foreground: oklch(0.97 0.01 90);
+  --sidebar-primary: #fcba03;
+  --sidebar-primary-foreground: oklch(0.18 0.04 155);
+  --sidebar-accent: oklch(0.3 0.05 150);
+  --sidebar-accent-foreground: oklch(0.97 0.01 90);
+  --sidebar-border: oklch(0.35 0.06 150);
+  --sidebar-ring: #fcba03;
   font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Frosted “glass” surface on top of .wander-theme page bg */
+.wander-frost {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  border: 1px solid color-mix(in oklab, white 12%, var(--border));
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Navbar + footer on /wander — match page (not inside .wander-theme wrapper) */
+.nav-wander-surface {
+  background: color-mix(in oklab, oklch(0.16 0.04 155) 92%, transparent);
+  border-color: color-mix(in oklab, oklch(0.45 0.08 150) 55%, transparent);
+  color: oklch(0.97 0.01 90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.footer-wander-surface {
+  background: color-mix(in oklab, oklch(0.14 0.038 155) 96%, transparent);
+  border-color: color-mix(in oklab, oklch(0.4 0.07 150) 45%, transparent);
+  color: oklch(0.97 0.01 90);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.footer-wander-surface .text-muted-foreground,
+.footer-wander-surface a {
+  color: color-mix(in oklab, white 72%, oklch(0.5 0.05 150));
+}
+.footer-wander-surface a:hover {
+  color: #fcba03;
 }
 
 @layer base {

@@ -123,7 +123,7 @@ export function WanderListingSections({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {activities.map(l => (
-              <ServiceListingCard key={l.id} listing={l} items={l.items} />
+              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
             ))}
           </div>
         )}
@@ -136,7 +136,7 @@ export function WanderListingSections({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {rentals.map(l => (
-              <ServiceListingCard key={l.id} listing={l} items={l.items} />
+              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
             ))}
           </div>
         )}

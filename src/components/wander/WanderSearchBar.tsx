@@ -30,11 +30,15 @@ function monthParamFromRange(start: string, end: string): string | undefined {
 export function WanderSearchBar({
   className = '',
   listedActivities = [],
+  variant = 'default',
 }: {
   className?: string
   /** From live activity listings (tags + categories); first option is always “all”. */
   listedActivities: string[]
+  /** High-contrast tabs on /wander (green page) */
+  variant?: 'default' | 'wander'
 }) {
+  const isWander = variant === 'wander'
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('trips')
 
@@ -85,11 +89,19 @@ export function WanderSearchBar({
   return (
     <div
       className={cn(
-        'w-full max-w-[min(100%,52.8rem)] rounded-2xl border border-border/80 bg-card/90 p-3 sm:p-4 shadow-xl backdrop-blur-md',
+        'w-full max-w-[min(100%,52.8rem)] rounded-2xl p-3 sm:p-4',
+        isWander
+          ? 'wander-frost [&_label_span]:text-white/70 [&_input]:border-white/20 [&_input]:bg-black/20 [&_input]:text-white [&_input]:placeholder:text-white/40 [&_select]:border-white/20 [&_select]:bg-black/20 [&_select]:text-white [&_svg.text-muted-foreground]:text-white/50'
+          : 'border border-border/80 bg-card/90 shadow-xl backdrop-blur-md',
         className,
       )}
     >
-      <div className="flex flex-wrap justify-start gap-2 border-b border-border/60 pb-3 mb-3">
+      <div
+        className={cn(
+          'flex flex-wrap justify-start gap-2 border-b pb-3 mb-3',
+          isWander ? 'border-white/15' : 'border-border/60',
+        )}
+      >
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -97,9 +109,13 @@ export function WanderSearchBar({
             onClick={() => setTab(id)}
             className={cn(
               'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-              tab === id
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary',
+              isWander
+                ? tab === id
+                  ? 'bg-[#fcba03] text-[oklch(0.18_0.04_155)] shadow-md'
+                  : 'bg-white/5 text-white/90 hover:bg-white/10 hover:text-white'
+                : tab === id
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary',
             )}
           >
             <Icon className="h-4 w-4" />
