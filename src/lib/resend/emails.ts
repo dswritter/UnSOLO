@@ -310,6 +310,124 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
   })
 }
 
+// ── Service listing booking confirmation ─────────────────────
+
+export interface ServiceBookingConfirmedEmailInput {
+  customerEmail: string
+  customerName?: string | null
+  listingTitle: string
+  listingType: string
+  location: string
+  checkInDate: string
+  checkOutDate?: string | null
+  quantity: number
+  amountPaise: number
+  bookingId: string
+  /** For rental cart: summary of all items booked */
+  cartSummary?: { name: string; qty: number; pricePaise: number }[]
+  rentalDays?: number
+}
+
+function fmtDate(iso: string): string {
+  try {
+    return new Date(iso + 'T12:00:00').toLocaleDateString('en-IN', {
+      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    })
+  } catch {
+    return iso
+  }
+}
+
+function fmtInr(paise: number): string {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100)
+}
+
+const TYPE_LABEL: Record<string, string> = {
+  stays: 'Stay',
+  activities: 'Activity',
+  rentals: 'Rental',
+  getting_around: 'Transport',
+}
+
+export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConfirmedEmailInput) {
+  const {
+    customerEmail, customerName, listingTitle, listingType,
+    location, checkInDate, checkOutDate, quantity, amountPaise,
+    bookingId, cartSummary, rentalDays,
+  } = input
+
+  const greeting = (customerName?.trim()) || 'there'
+  const typeLabel = TYPE_LABEL[listingType] ?? listingType
+  const shortRef = bookingId.slice(-8).toUpperCase()
+  const totalStr = fmtInr(amountPaise)
+
+  const dateRow = checkOutDate && checkOutDate !== checkInDate
+    ? `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Pick-up</td><td style="padding:10px 8px;">${fmtDate(checkInDate)}</td></tr>
+       <tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Return by</td><td style="padding:10px 8px;">${fmtDate(checkOutDate)}</td></tr>`
+    : `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Date</td><td style="padding:10px 8px;">${fmtDate(checkInDate)}</td></tr>`
+
+  const durationRow = rentalDays && rentalDays > 1
+    ? `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Duration</td><td style="padding:10px 8px;">${rentalDays} day${rentalDays !== 1 ? 's' : ''}</td></tr>`
+    : ''
+
+  const qtyLabel = listingType === 'activities' ? 'Guests' : listingType === 'stays' ? 'Rooms' : 'Qty'
+  const qtyRow = cartSummary
+    ? cartSummary.map(ci =>
+        `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">${escapeHtml(ci.name)}</td><td style="padding:10px 8px;">${ci.qty} × ${fmtInr(ci.pricePaise)}</td></tr>`
+      ).join('')
+    : `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">${qtyLabel}</td><td style="padding:10px 8px;">${quantity}</td></tr>`
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: customerEmail.trim(),
+    subject: `Booking confirmed — ${listingTitle} #${shortRef}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+
+        <h2 style="color:#FFC22E;text-align:center;margin-top:0;">You're all set! ✅</h2>
+        <p style="color:#ccc;text-align:center;">Hey ${escapeHtml(greeting)}, your ${typeLabel.toLowerCase()} booking is confirmed.</p>
+
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          <table style="width:100%;border-collapse:collapse;color:#ddd;">
+            <tr>
+              <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;">Booking Ref</td>
+              <td style="padding:10px 8px;font-size:16px;font-weight:bold;letter-spacing:2px;">#${shortRef}</td>
+            </tr>
+            <tr style="border-top:1px solid #333">
+              <td style="padding:10px 8px;font-weight:bold;">${typeLabel}</td>
+              <td style="padding:10px 8px;">${escapeHtml(listingTitle)}</td>
+            </tr>
+            <tr style="border-top:1px solid #333">
+              <td style="padding:10px 8px;font-weight:bold;">Location</td>
+              <td style="padding:10px 8px;">${escapeHtml(location)}</td>
+            </tr>
+            ${dateRow}
+            ${durationRow}
+            ${qtyRow}
+            <tr style="border-top:1px solid #333">
+              <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;">Total Paid</td>
+              <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;font-size:18px;">${totalStr}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://unsolo.in'}/bookings"
+             style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">
+            View My Bookings
+          </a>
+        </div>
+
+        <p style="color:#888;font-size:12px;text-align:center;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
 // ── POC Details Email ────────────────────────────────────────
 
 interface POCDetailsInput {

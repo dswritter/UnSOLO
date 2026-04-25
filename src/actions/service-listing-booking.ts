@@ -5,6 +5,7 @@ import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
+import { sendServiceBookingConfirmedEmail } from '@/lib/resend/emails'
 import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 
 const razorpay = new Razorpay({
@@ -316,7 +317,7 @@ export async function confirmServiceListingPayment(
     // Get booking by order ID
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, amount_paise, gross_paise, discount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise')
+      .select('id, amount_paise, gross_paise, discount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise, check_in_date, check_out_date')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
       .single()
@@ -421,6 +422,38 @@ export async function confirmServiceListingPayment(
         console.error('Failed to record host earnings for service booking:', err)
         /* non-critical — booking is already confirmed */
       }
+    }
+
+    // Send confirmation email (non-critical)
+    try {
+      const { data: listingForEmail } = await supabase
+        .from('service_listings')
+        .select('title, type, location')
+        .eq('id', booking.service_listing_id!)
+        .single()
+
+      if (user.email && listingForEmail) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+
+        await sendServiceBookingConfirmedEmail({
+          customerEmail: user.email,
+          customerName: profile?.full_name,
+          listingTitle: listingForEmail.title,
+          listingType: listingForEmail.type,
+          location: listingForEmail.location,
+          checkInDate: booking.check_in_date ?? '',
+          checkOutDate: booking.check_out_date,
+          quantity: booking.quantity ?? 1,
+          amountPaise: booking.amount_paise ?? 0,
+          bookingId: booking.id,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to send booking confirmation email:', err)
     }
 
     return { success: true, bookingId: booking.id }
@@ -614,7 +647,7 @@ export async function confirmRentalCartPayment(
     // Get all bookings for this order
     const { data: bookings } = await supabase
       .from('bookings')
-      .select('id, service_listing_id, service_listing_item_id, quantity, gross_paise, discount_paise, wallet_deducted_paise, amount_paise')
+      .select('id, service_listing_id, service_listing_item_id, quantity, gross_paise, discount_paise, wallet_deducted_paise, amount_paise, check_in_date, check_out_date')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
 
@@ -682,6 +715,61 @@ export async function confirmRentalCartPayment(
       }
     } catch (err) {
       console.error('Failed to record host earnings for rental cart:', err)
+    }
+
+    // Send confirmation email (non-critical)
+    try {
+      const firstBooking = bookings[0]
+      if (user.email && firstBooking.service_listing_id) {
+        const { data: listingForEmail } = await supabase
+          .from('service_listings')
+          .select('title, type, location')
+          .eq('id', firstBooking.service_listing_id)
+          .single()
+
+        if (listingForEmail) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+
+          // Build cart summary from all booking rows + their items
+          const cartSummary: { name: string; qty: number; pricePaise: number }[] = []
+          for (const b of bookings) {
+            if (b.service_listing_item_id) {
+              const { data: item } = await supabase
+                .from('service_listing_items')
+                .select('name, price_paise')
+                .eq('id', b.service_listing_item_id)
+                .single()
+              if (item) cartSummary.push({ name: item.name, qty: b.quantity ?? 1, pricePaise: item.price_paise })
+            }
+          }
+
+          const totalPaid = bookings.reduce((s, b) => s + (b.amount_paise ?? 0), 0)
+          const rentalDays = firstBooking.check_in_date && firstBooking.check_out_date
+            ? Math.max(1, Math.round((new Date(firstBooking.check_out_date).getTime() - new Date(firstBooking.check_in_date).getTime()) / 86400000))
+            : undefined
+
+          await sendServiceBookingConfirmedEmail({
+            customerEmail: user.email,
+            customerName: profile?.full_name,
+            listingTitle: listingForEmail.title,
+            listingType: listingForEmail.type,
+            location: listingForEmail.location,
+            checkInDate: firstBooking.check_in_date ?? '',
+            checkOutDate: firstBooking.check_out_date,
+            quantity: bookings.reduce((s, b) => s + (b.quantity ?? 1), 0),
+            amountPaise: totalPaid,
+            bookingId: firstBooking.id,
+            cartSummary: cartSummary.length > 0 ? cartSummary : undefined,
+            rentalDays,
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to send rental cart confirmation email:', err)
     }
 
     return { success: true, bookingIds: bookings.map(b => b.id) }
