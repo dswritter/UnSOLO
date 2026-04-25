@@ -171,6 +171,22 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Same frosted shell as the /wander search block (radius + padding + glass) */
+.wander-frost-panel {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  border: 1px solid color-mix(in oklab, white 12%, var(--border));
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-2xl);
+  padding: 0.75rem 1rem;
+}
+@media (min-width: 640px) {
+  .wander-frost-panel {
+    padding: 1rem;
+  }
+}
+
 /* Navbar + footer on /wander — match page (not inside .wander-theme wrapper) */
 .nav-wander-surface {
   background: color-mix(in oklab, oklch(0.16 0.04 155) 92%, transparent);

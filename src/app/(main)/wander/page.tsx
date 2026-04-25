@@ -58,7 +58,7 @@ export default async function WanderPage() {
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pt-2 pb-5 md:pt-3">
         <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)] md:items-stretch md:gap-3">
-          <div className="flex min-h-[5.25rem] min-w-0 items-center rounded-2xl wander-frost px-2 py-2 sm:px-3 sm:py-2.5">
+          <div className="flex min-h-[5.25rem] min-w-0 items-center wander-frost-panel">
             {user ? (
               <WanderStatusRail avatarUrl={profileAvatar} />
             ) : (

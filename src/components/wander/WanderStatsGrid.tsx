@@ -14,7 +14,7 @@ export function WanderStatsGrid({ stats }: { stats: WanderStats }) {
     { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy customers' },
   ] as const
   return (
-    <div className="wander-frost flex h-full min-h-[5.25rem] w-full min-w-0 flex-wrap overflow-hidden rounded-xl sm:min-h-0 sm:flex-nowrap sm:divide-x sm:divide-white/10">
+    <div className="wander-frost-panel flex h-full min-h-[5.25rem] w-full min-w-0 flex-wrap overflow-hidden sm:min-h-0 sm:flex-nowrap sm:divide-x sm:divide-white/10">
       {items.map(({ icon: Icon, value, label }) => (
         <div
           key={label}

@@ -91,10 +91,10 @@ export function WanderSearchBar({
   return (
     <div
       className={cn(
-        'w-full max-w-[min(100%,52.8rem)] rounded-2xl p-3 sm:p-4',
+        'w-full max-w-[min(100%,52.8rem)]',
         isWander
-          ? 'wander-frost [&_label_span]:text-white/70 [&_input]:border-white/20 [&_input]:bg-black/20 [&_input]:text-white [&_input]:placeholder:text-white/40 [&_select]:border-white/20 [&_select]:bg-black/20 [&_select]:text-white [&_svg.text-muted-foreground]:text-white/50'
-          : 'border border-border/80 bg-card/90 shadow-xl backdrop-blur-md',
+          ? 'wander-frost-panel [&_label_span]:text-white/70 [&_input]:border-white/20 [&_input]:bg-black/20 [&_input]:text-white [&_input]:placeholder:text-white/40 [&_select]:border-white/20 [&_select]:bg-black/20 [&_select]:text-white [&_svg.text-muted-foreground]:text-white/50'
+          : 'rounded-2xl border border-border/80 bg-card/90 p-3 shadow-xl backdrop-blur-md sm:p-4',
         className,
       )}
     >
