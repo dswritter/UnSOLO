@@ -163,46 +163,57 @@
 }
 
 /**
- * /wander page shell: bold, readable “living” forest backdrop — not a flat swatch.
- * Inset shadow = vignette; stacked SVGs = leaves + grunge; large gradients = depth.
- * (Listings block must not use opaque `bg-background/*` or it will hide this.)
+ * /wander page shell: crisp “light leak” film over forest (brand gold = #fcba03).
+ * Top layers: narrow beams + flares in screen/overlay, not all soft-light mush.
+ * (Listings must not use opaque `bg-background/*` or it will hide this.)
  */
 .wander-textured {
   position: relative;
-  background-color: oklch(0.12 0.038 152);
+  background-color: oklch(0.1 0.036 152);
   background-image:
-    /* scratch / film grunge (visible at scale) */
-    repeating-linear-gradient(105deg, oklch(0 0 0 / 0) 0 6px, oklch(0 0 0 / 0.07) 6px 7px, oklch(0 0 0 / 0) 7px 14px),
-    /* hi‑freq noise tile */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
-    /* larger grit */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E"),
-    /* leaf silhouettes — large tile */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cpath fill='oklch%280.42%200.11%20148%20%2F%200.2%29' d='M90%20120C180%2040%20340%2010%20480%2080c-100%20120-200%20180-340%20220%20100-100%20160-200%20180-300-80%2060-180%20100-230%20120'/%3E%3Cpath fill='oklch%280.34%200.09%20155%20%2F%200.18%29' d='M420%20280c80%2080%20140%20180%20140%20280-120-20-200-100-250-200%2050%2050%20110%20120%20110%20-80'/%3E%3Cpath fill='oklch%280.36%200.1%20152%20%2F%200.16%29' d='M-20%20280C80%20200%20220%20180%20340%20240%20180%20320%20100%20440%20120%20560%2040%20420-20%20340-20%20260'/%3E%3Cellipse cx='500' cy='80' rx='90' ry='50' fill='oklch%280.3%200.08%20150%20%2F%200.2%29' transform='rotate%2828%20500%2080%29'/%3E%3C/svg%3E"),
-    /* second leaf pass, offset */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cpath fill='oklch%280.38%200.09%20150%20%2F%200.16%29' d='M20%20160c120-80%20260-100%20400-40%2010%20150-60%20280-180%20380%20100-100%20160-200%20180-300'/%3E%3Cellipse cx='130' cy='400' rx='100' ry='60' fill='oklch%280.28%200.07%20155%20%2F%200.2%29' transform='rotate%28-18%20130%20400%29'/%3E%3C/svg%3E"),
-    /* corner light pools */
-    radial-gradient(ellipse 100% 85% at 0% 0%, oklch(0.38 0.1 150 / 0.38) 0%, transparent 58%),
-    radial-gradient(ellipse 90% 80% at 100% 15%, oklch(0.3 0.08 160 / 0.28) 0%, transparent 55%),
-    radial-gradient(ellipse 95% 70% at 80% 100%, oklch(0.25 0.07 152 / 0.3) 0%, transparent 50%),
-    /* edge vignette (darken sides & bottom) */
-    radial-gradient(ellipse 95% 90% at 50% 45%, oklch(0.02 0.02 150 / 0) 0%, oklch(0.04 0.02 150 / 0) 38%, oklch(0.11 0.04 152 / 0.72) 100%),
-    /* dramatic vertical sweep */
-    linear-gradient(168deg, oklch(0.26 0.055 155) 0%, oklch(0.16 0.045 152) 42%, oklch(0.1 0.035 150) 100%);
+    /* 1. Crisp 1px scratches (high contrast) */
+    repeating-linear-gradient(92deg, transparent 0 4px, oklch(0 0 0 / 0.22) 4px, oklch(0 0 0 / 0.22) 5px, transparent 5px, transparent 19px),
+    /* 2. Primary diagonal gold leak – narrow hard-edged band */
+    linear-gradient(
+      128deg,
+      oklch(0.08 0.03 150 / 0) 0%,
+      oklch(0.08 0.03 150 / 0) 41%,
+      #fcba0370 47.2%,
+      #fcba03a8 50%,
+      #fcba0360 52.3%,
+      oklch(0.08 0.03 150 / 0) 59%
+    ),
+    /* 3. Secondary leak – bottom-left cool rim (cross-leak) */
+    linear-gradient(52deg, oklch(0.5 0.1 180 / 0.14) 0%, oklch(0.2 0.04 170 / 0) 32%),
+    /* 4. Top-right hot corner (camera seal leak) */
+    radial-gradient(ellipse 65% 60% at 100% 0%, #fcba0352 0%, #fcba0318 40%, transparent 68%),
+    /* 5. Bottom edge amber lift (film gate – light from below) */
+    linear-gradient(0deg, #fcba0326 0%, #ff8c3a14 14%, transparent 36%),
+    /* 6. Fine grain (sharp) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    /* 7. Large grit blob (keeps texture organic, lower blend) */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.1' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E"),
+    /* 8. Leaf block – one tile, darker / crisp multiply */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cpath fill='oklch%280.22%200.06%20150%20%2F%200.5%29' d='M90%20120C180%2040%20340%2010%20480%2080c-100%20120-200%20180-340%20220%20100-100%20160-200%20180-300-80%2060-180%20100-230%20120'/%3E%3Cpath fill='oklch%280.2%200.055%20155%20%2F%200.45%29' d='M420%20280c80%2080%20140%20180%20140%20280-120-20-200-100-250-200%2050%2050%20110%20120%20110%20-80'/%3E%3Cpath fill='oklch%280.21%200.055%20152%20%2F%200.4%29' d='M-20%20280C80%20200%20220%20180%20340%20240%20180%20320%20100%20440%20120%20560%2040%20420-20%20340-20%20260'/%3E%3Cellipse cx='500' cy='80' rx='90' ry='50' fill='oklch%280.18%200.05%20150%20%2F%200.5%29' transform='rotate%2828%20500%2080%29'/%3E%3C/svg%3E"),
+    /* 9. Vignette – keeps centre readable, edges eat light */
+    radial-gradient(ellipse 110% 100% at 50% 40%, oklch(0.14 0.04 152 / 0) 0%, oklch(0.03 0.02 150 / 0) 32%, oklch(0.05 0.025 150 / 0.78) 100%),
+    /* 10. Body gradient */
+    linear-gradient(170deg, oklch(0.2 0.055 155) 0%, oklch(0.1 0.038 150) 100%);
   background-size:
     auto,
-    220px 220px,
+    200% 200%,
     100% 100%,
-    720px 720px,
-    560px 560px,
-    auto,
-    auto,
-    auto,
+    100% 100%,
+    100% 100%,
+    200px 200px,
+    100% 100%,
+    680px 680px,
     auto,
     auto;
-  background-position: 0 0, 0 0, 0 0, 12% 18%, 70% 60%, 0 0, 0 0, 0 0, 0 0, 0 0;
-  background-blend-mode: overlay, soft-light, overlay, multiply, multiply, screen, screen, screen, normal, normal;
-  box-shadow: inset 0 0 min(32vw, 22rem) oklch(0.04 0.03 150 / 0.65);
+  background-position: 0 0, 15% 0, 0 0, 0 0, 0 0, 0 0, 0 0, 18% 22%, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat, repeat, no-repeat, no-repeat;
+  background-blend-mode: overlay, screen, screen, screen, screen, overlay, soft-light, multiply, normal, normal;
+  box-shadow: inset 0 0 min(30vw, 22rem) oklch(0.04 0.03 150 / 0.62);
 }
 
 /* Frosted “glass” surface on top of .wander-theme page bg */
