@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Navbar } from '@/components/layout/Navbar'
+import { MainSidebar } from '@/components/layout/MainSidebar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { MobileChatButton } from '@/components/layout/MobileChatButton'
@@ -29,9 +30,12 @@ export default async function MainLayout({
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar user={profile} />
-      <main className="flex-1">
-        {children}
-      </main>
+      <div className="flex flex-1">
+        <MainSidebar user={profile} />
+        <main className="flex-1 min-w-0">
+          {children}
+        </main>
+      </div>
       {user && <PresenceTracker userId={user.id} />}
       <MobileChatButton isAuthenticated={!!user} />
       <SignInPrompt isAuthenticated={!!user} />
