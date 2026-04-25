@@ -78,7 +78,7 @@ export default async function WanderPage() {
         <WanderSearchBar listedActivities={listedActivities} variant="wander" />
       </WanderHero>
 
-      <div className="border-t border-border/50 bg-background/50">
+      <div className="border-t border-border/50">
         <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
           <WanderListingSections trips={tripPackages} activities={activities} rentals={rentals} />
         </div>

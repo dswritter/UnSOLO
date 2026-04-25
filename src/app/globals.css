@@ -163,26 +163,46 @@
 }
 
 /**
- * /wander page shell: keep tokens from `.wander-theme` but replace flat fill with
- * depth—gradient, fine grain, soft foliage shapes (green tint).
- * First = top layer. Works with `background-color: var(--background)` as fallthrough.
+ * /wander page shell: bold, readable “living” forest backdrop — not a flat swatch.
+ * Inset shadow = vignette; stacked SVGs = leaves + grunge; large gradients = depth.
+ * (Listings block must not use opaque `bg-background/*` or it will hide this.)
  */
 .wander-textured {
-  background-color: var(--background);
+  position: relative;
+  background-color: oklch(0.12 0.038 152);
   background-image:
-    repeating-linear-gradient(
-      125deg,
-      oklch(0.02 0.02 150 / 0.14) 0 1px,
-      transparent 1px 5px
-    ),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23a)' opacity='0.45'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cellipse cx='45' cy='55' rx='38' ry='24' fill='oklch%280.34%200.08%20150%20%2F%200.12%29' transform='rotate%28-22%2045%2055%29'/%3E%3Cellipse cx='155' cy='145' rx='42' ry='30' fill='oklch%280.28%200.07%20155%20%2F%200.1%29' transform='rotate%2818%20155%20145%29'/%3E%3Cellipse cx='100' cy='100' rx='52' ry='20' fill='oklch%280.3%200.07%20152%20%2F%200.08%29' transform='rotate%2848%20100%20100%29'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse 120% 90% at 0% 0%, oklch(0.32 0.08 148 / 0.28) 0%, transparent 55%),
-    radial-gradient(ellipse 85% 70% at 100% 100%, oklch(0.2 0.06 155 / 0.3) 0%, transparent 50%),
-    linear-gradient(172deg, oklch(0.22 0.05 155) 0%, oklch(0.17 0.043 152) 55%, oklch(0.14 0.04 150) 100%);
-  background-size: auto, 180px 180px, 400px 400px, auto, auto, auto;
-  background-position: 0 0, 0 0, 30% 55%, 0 0, 0 0, 0 0;
-  background-blend-mode: soft-light, soft-light, soft-light, normal, normal, normal;
+    /* scratch / film grunge (visible at scale) */
+    repeating-linear-gradient(105deg, oklch(0 0 0 / 0) 0 6px, oklch(0 0 0 / 0.07) 6px 7px, oklch(0 0 0 / 0) 7px 14px),
+    /* hi‑freq noise tile */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    /* larger grit */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.12' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)'/%3E%3C/svg%3E"),
+    /* leaf silhouettes — large tile */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'%3E%3Cpath fill='oklch%280.42%200.11%20148%20%2F%200.2%29' d='M90%20120C180%2040%20340%2010%20480%2080c-100%20120-200%20180-340%20220%20100-100%20160-200%20180-300-80%2060-180%20100-230%20120'/%3E%3Cpath fill='oklch%280.34%200.09%20155%20%2F%200.18%29' d='M420%20280c80%2080%20140%20180%20140%20280-120-20-200-100-250-200%2050%2050%20110%20120%20110%20-80'/%3E%3Cpath fill='oklch%280.36%200.1%20152%20%2F%200.16%29' d='M-20%20280C80%20200%20220%20180%20340%20240%20180%20320%20100%20440%20120%20560%2040%20420-20%20340-20%20260'/%3E%3Cellipse cx='500' cy='80' rx='90' ry='50' fill='oklch%280.3%200.08%20150%20%2F%200.2%29' transform='rotate%2828%20500%2080%29'/%3E%3C/svg%3E"),
+    /* second leaf pass, offset */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cpath fill='oklch%280.38%200.09%20150%20%2F%200.16%29' d='M20%20160c120-80%20260-100%20400-40%2010%20150-60%20280-180%20380%20100-100%20160-200%20180-300'/%3E%3Cellipse cx='130' cy='400' rx='100' ry='60' fill='oklch%280.28%200.07%20155%20%2F%200.2%29' transform='rotate%28-18%20130%20400%29'/%3E%3C/svg%3E"),
+    /* corner light pools */
+    radial-gradient(ellipse 100% 85% at 0% 0%, oklch(0.38 0.1 150 / 0.38) 0%, transparent 58%),
+    radial-gradient(ellipse 90% 80% at 100% 15%, oklch(0.3 0.08 160 / 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 95% 70% at 80% 100%, oklch(0.25 0.07 152 / 0.3) 0%, transparent 50%),
+    /* edge vignette (darken sides & bottom) */
+    radial-gradient(ellipse 95% 90% at 50% 45%, oklch(0.02 0.02 150 / 0) 0%, oklch(0.04 0.02 150 / 0) 38%, oklch(0.11 0.04 152 / 0.72) 100%),
+    /* dramatic vertical sweep */
+    linear-gradient(168deg, oklch(0.26 0.055 155) 0%, oklch(0.16 0.045 152) 42%, oklch(0.1 0.035 150) 100%);
+  background-size:
+    auto,
+    220px 220px,
+    100% 100%,
+    720px 720px,
+    560px 560px,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
+  background-position: 0 0, 0 0, 0 0, 12% 18%, 70% 60%, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-blend-mode: overlay, soft-light, overlay, multiply, multiply, screen, screen, screen, normal, normal;
+  box-shadow: inset 0 0 min(32vw, 22rem) oklch(0.04 0.03 150 / 0.65);
 }
 
 /* Frosted “glass” surface on top of .wander-theme page bg */
