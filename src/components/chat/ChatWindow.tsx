@@ -6,18 +6,21 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { chatKeys } from '@/lib/chat/chatQueryKeys'
 import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
-import { sendMessage, editMessage } from '@/actions/chat'
+import { sendMessage, editMessage, createChatPoll, setRoomPinnedMessage } from '@/actions/chat'
 import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
+import type { ChatPollState } from '@/lib/chat/getRoomPollsState'
+import { PinnedMessageBanner } from '@/components/chat/PinnedMessageBanner'
+import { ChatPollCard } from '@/components/chat/ChatPollCard'
 import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
 import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
 
@@ -64,6 +67,9 @@ interface ChatWindowProps {
   onBack?: () => void
   /** #slug → trip package slug or community room name slug */
   chatLinkTargets?: ChatLinkTarget[]
+  /** Staff-pinned message preview (community / trip) */
+  pinnedMessage?: Message | null
+  initialPollsByMessageId?: Record<string, ChatPollState>
 }
 
 export interface ChatMemberProfile {
@@ -208,6 +214,8 @@ export function ChatWindow({
   memberProfiles = [],
   onBack,
   chatLinkTargets = [],
+  pinnedMessage = null,
+  initialPollsByMessageId = {},
 }: ChatWindowProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -228,7 +236,8 @@ export function ChatWindow({
       if (!cached?.length) return initialMessages
       // Sidebar may have merged realtime rows without `user` — don't prefer that over RSC payload
       const cacheMissingSender = cached.some(
-        m => Boolean(m.user_id) && m.message_type === 'text' && !m.user,
+        m =>
+          Boolean(m.user_id) && (m.message_type === 'text' || m.message_type === 'poll') && !m.user,
       )
       return cacheMissingSender ? initialMessages : cached
     },
@@ -243,7 +252,8 @@ export function ChatWindow({
     const cached = queryClient.getQueryData<Message[]>(messagesKey)
     if (!cached?.length) return
     const cacheMissingSender = cached.some(
-      m => Boolean(m.user_id) && m.message_type === 'text' && !m.user,
+      m =>
+        Boolean(m.user_id) && (m.message_type === 'text' || m.message_type === 'poll') && !m.user,
     )
     if (cacheMissingSender) {
       queryClient.setQueryData(messagesKey, initialMessages)
@@ -317,7 +327,22 @@ export function ChatWindow({
   const [editTarget, setEditTarget] = useState<Message | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  const [pollByMessageId, setPollByMessageId] = useState<Record<string, ChatPollState>>(initialPollsByMessageId)
+  const [pollDialogOpen, setPollDialogOpen] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false)
+  const [pollEndsAt, setPollEndsAt] = useState('')
+  const [pollSubmitting, setPollSubmitting] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const canPinMessages =
+    (roomType === 'general' || roomType === 'trip') &&
+    (currentUser.role === 'admin' || currentUser.role === 'social_media_manager')
+
+  useEffect(() => {
+    setPollByMessageId(initialPollsByMessageId)
+  }, [initialPollsByMessageId])
   const lastTapRef = useRef<{ id: string; t: number } | null>(null)
 
   function isNearBottom() {
@@ -1117,6 +1142,14 @@ export function ChatWindow({
         )}
       </div>
 
+      {!isDM && pinnedMessage && (
+        <PinnedMessageBanner
+          roomId={roomId}
+          message={pinnedMessage}
+          canUnpin={canPinMessages}
+        />
+      )}
+
       {/* Online members strip (group chats only) */}
       {!isDM && onlineCount > 0 && (
         <div className="px-4 py-1.5 border-b border-border/50 bg-secondary/20 flex items-center gap-1 overflow-x-auto scrollbar-hide">
@@ -1282,9 +1315,26 @@ export function ChatWindow({
             </div>
           )}
           {messages.map((msg) => (
-            <div key={msg.id}>
+            <div key={msg.id} id={`chat-msg-${msg.id}`}>
               <MessageBubble
                 message={msg}
+                roomId={roomId}
+                pollData={msg.message_type === 'poll' ? (pollByMessageId[msg.id] ?? null) : null}
+                showPin={canPinMessages}
+                onPinRequest={
+                  canPinMessages
+                    ? () => {
+                        void (async () => {
+                          const r = await setRoomPinnedMessage(roomId, msg.id)
+                          if (r.error) toast.error(r.error)
+                          else {
+                            toast.success('Pinned for everyone')
+                            router.refresh()
+                          }
+                        })()
+                      }
+                    : undefined
+                }
                 isOwn={msg.user_id === currentUser.id}
                 isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
                 tripBadge={
@@ -1304,7 +1354,11 @@ export function ChatWindow({
                 bubbleLongPress={bubbleLongPressHandlers(msg)}
                 onBubbleTouchEnd={e => onBubbleTouchEnd(msg.id, e)}
                 onBubbleDoubleClick={() => {
-                  if (!msg.id.startsWith('optimistic-') && msg.message_type !== 'system') {
+                  if (
+                    !msg.id.startsWith('optimistic-') &&
+                    msg.message_type !== 'system' &&
+                    msg.message_type !== 'poll'
+                  ) {
                     void toggleReaction(msg.id, DOUBLE_TAP_EMOJI)
                   }
                 }}
@@ -1515,12 +1569,135 @@ export function ChatWindow({
         </div>
       ) : null}
 
+      {pollDialogOpen ? (
+        <div
+          className="fixed inset-0 z-[60] bg-black/70 flex items-end sm:items-center justify-center p-4"
+          onClick={() => !pollSubmitting && setPollDialogOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="bg-card rounded-xl p-4 max-w-md w-full border border-border shadow-xl max-h-[85vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Create poll"
+          >
+            <p className="text-sm font-bold mb-3">New poll</p>
+            <label className="text-xs text-muted-foreground">Question</label>
+            <Textarea
+              value={pollQuestion}
+              onChange={e => setPollQuestion(e.target.value)}
+              placeholder="What do you want to ask?"
+              className="min-h-[72px] text-sm bg-secondary border-border mt-1 mb-3"
+            />
+            <p className="text-xs text-muted-foreground mb-1">Options</p>
+            <div className="space-y-2 mb-3">
+              {pollOptions.map((line, i) => (
+                <input
+                  key={i}
+                  value={line}
+                  onChange={e => {
+                    const next = [...pollOptions]
+                    next[i] = e.target.value
+                    setPollOptions(next)
+                  }}
+                  className="w-full text-sm bg-secondary border border-border rounded-lg px-3 py-2"
+                  placeholder={`Option ${i + 1}`}
+                />
+              ))}
+            </div>
+            {pollOptions.length < 12 ? (
+              <button
+                type="button"
+                className="text-xs text-primary font-medium mb-3"
+                onClick={() => setPollOptions(p => [...p, ''])}
+              >
+                + Add option
+              </button>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm mb-3">
+              <input
+                type="checkbox"
+                checked={pollAllowMultiple}
+                onChange={e => setPollAllowMultiple(e.target.checked)}
+              />
+              Allow multiple answers
+            </label>
+            <div className="mb-3">
+              <label className="text-xs text-muted-foreground">End time (optional)</label>
+              <input
+                type="datetime-local"
+                value={pollEndsAt}
+                onChange={e => setPollEndsAt(e.target.value)}
+                className="w-full mt-1 text-sm bg-secondary border border-border rounded-lg px-3 py-2"
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pollSubmitting}
+                onClick={() => setPollDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary text-black"
+                disabled={pollSubmitting}
+                onClick={async () => {
+                  const opts = pollOptions.map(o => o.trim()).filter(Boolean)
+                  if (opts.length < 2) {
+                    toast.error('Add at least two options')
+                    return
+                  }
+                  if (!pollQuestion.trim()) {
+                    toast.error('Enter a question')
+                    return
+                  }
+                  setPollSubmitting(true)
+                  const ends = pollEndsAt
+                    ? new Date(pollEndsAt).toISOString()
+                    : null
+                  const r = await createChatPoll(roomId, pollQuestion, opts, pollAllowMultiple, ends)
+                  setPollSubmitting(false)
+                  if (r.error) {
+                    toast.error(r.error)
+                    return
+                  }
+                  toast.success('Poll posted')
+                  setPollDialogOpen(false)
+                  setPollQuestion('')
+                  setPollOptions(['', ''])
+                  setPollAllowMultiple(false)
+                  setPollEndsAt('')
+                  router.refresh()
+                }}
+              >
+                {pollSubmitting ? 'Posting…' : 'Create poll'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Input — fixed; bottom tracks visualViewport so it sits above the mobile keyboard */}
       <div
         className="shrink-0 border-t border-border bg-background px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto"
         style={{ bottom: visualViewportBottomInset }}
       >
         <form onSubmit={handleSend} className="flex gap-2 items-end">
+          {!isDM && (roomType === 'general' || roomType === 'trip') ? (
+            <button
+              type="button"
+              onClick={() => setPollDialogOpen(true)}
+              className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+              title="Create a poll"
+            >
+              <BarChart2 className="h-4 w-4 text-primary" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => { setShowPackagePicker(!showPackagePicker); if (packages.length === 0) loadPackages() }}
@@ -1620,6 +1797,10 @@ function ReactionPill({
 
 function MessageBubble({
   message,
+  roomId,
+  pollData,
+  showPin = false,
+  onPinRequest,
   isOwn,
   isOnline,
   onClickProfile: _onClickProfile,
@@ -1641,6 +1822,10 @@ function MessageBubble({
   tripBadge,
 }: {
   message: Message
+  roomId: string
+  pollData: ChatPollState | null
+  showPin?: boolean
+  onPinRequest?: () => void
   isOwn: boolean
   isOnline: boolean
   onClickProfile: () => void
@@ -1723,7 +1908,9 @@ function MessageBubble({
       .sort((a, b) => b.count - a.count)
   }, [reactionRows, currentUserId])
 
-  const canReact = message.message_type !== 'system' && !message.id.startsWith('optimistic-')
+  const canReact =
+    (message.message_type === 'text' || message.message_type === 'image') &&
+    !message.id.startsWith('optimistic-')
 
   if (message.message_type === 'system') {
     // Make usernames in system messages clickable
@@ -1756,6 +1943,47 @@ function MessageBubble({
         <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
           {message.content}
         </span>
+      </div>
+    )
+  }
+
+  if (message.message_type === 'poll') {
+    return (
+      <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''} group`}>
+        {!isOwn ? (
+          <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0">
+            <div className="relative">
+              <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all">
+                <AvatarImage src={user?.avatar_url || ''} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                  {getInitials(name)}
+                </AvatarFallback>
+              </Avatar>
+              {isOnline && (
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 bg-green-500 rounded-full border border-background" />
+              )}
+            </div>
+          </Link>
+        ) : (
+          <div className="flex-shrink-0 mt-0">
+            <Avatar className="h-7 w-7">
+              <AvatarImage src={user?.avatar_url || ''} />
+              <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
+                {getInitials(name)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+        )}
+        <div className={`max-w-[90%] sm:max-w-[75%] gap-1 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+          {!isOwn && (
+            <div className="flex items-center gap-1 flex-wrap max-w-full mb-0">
+              <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors">
+                {name}
+              </Link>
+            </div>
+          )}
+          <ChatPollCard roomId={roomId} messageId={message.id} initial={pollData} />
+        </div>
       </div>
     )
   }
@@ -1819,6 +2047,19 @@ function MessageBubble({
             </span>
           ) : null}
         </div>
+        {showPin && onPinRequest && (message.message_type === 'text' || message.message_type === 'image') ? (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              onPinRequest()
+            }}
+            className="flex items-center gap-0.5 text-[10px] text-primary font-medium hover:underline"
+          >
+            <Pin className="h-3 w-3" />
+            Pin for everyone
+          </button>
+        ) : null}
         {canReact && (
           <div
             data-emoji-strip-root={message.id}

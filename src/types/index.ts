@@ -318,7 +318,7 @@ export type Message = {
   room_id: string
   user_id: string | null
   content: string
-  message_type: 'text' | 'image' | 'system'
+  message_type: 'text' | 'image' | 'system' | 'poll'
   is_edited: boolean
   created_at: string
   user?: Profile

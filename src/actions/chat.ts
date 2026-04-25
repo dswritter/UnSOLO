@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { assertMessageSendRateLimit } from '@/lib/server-rate-limit'
 
@@ -169,4 +169,198 @@ export async function getMyRooms() {
     .eq('user_id', user.id)
 
   return data?.map((d) => d.room).filter(Boolean) || []
+}
+
+function isCommunityChatStaffRole(role: string | null | undefined) {
+  return role === 'admin' || role === 'social_media_manager'
+}
+
+export async function setRoomPinnedMessage(roomId: string, messageId: string | null) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !isCommunityChatStaffRole(profile.role)) {
+    return { error: 'Only staff can pin messages' }
+  }
+
+  const { data: room } = await supabase
+    .from('chat_rooms')
+    .select('type, id')
+    .eq('id', roomId)
+    .single()
+  if (!room) return { error: 'Room not found' }
+  if (room.type !== 'general' && room.type !== 'trip') {
+    return { error: 'Pins are only for community or trip chats' }
+  }
+
+  if (messageId) {
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('id, room_id, message_type')
+      .eq('id', messageId)
+      .single()
+    if (!msg || msg.room_id !== roomId) return { error: 'Invalid message' }
+    if (msg.message_type === 'system' || msg.message_type === 'poll') {
+      return { error: 'Pin text or image messages only' }
+    }
+  }
+
+  const svc = createServiceRoleClient()
+  const { error } = await svc.from('chat_rooms').update({ pinned_message_id: messageId }).eq('id', roomId)
+  if (error) return { error: error.message }
+
+  revalidatePath('/community', 'layout')
+  revalidatePath(`/community/${roomId}`)
+  return { success: true as const }
+}
+
+export async function createChatPoll(
+  roomId: string,
+  question: string,
+  options: string[],
+  allowMultiple: boolean,
+  endsAtIso: string | null,
+) {
+  const q = question.trim()
+  if (q.length < 2) return { error: 'Enter a question' }
+  if (q.length > 500) return { error: 'Question is too long' }
+
+  const cleaned = options.map(o => o.trim()).filter(Boolean)
+  if (cleaned.length < 2) return { error: 'Add at least 2 options' }
+  if (cleaned.length > 12) return { error: 'At most 12 options' }
+  for (const line of cleaned) {
+    if (line.length > 200) return { error: 'Each option must be 200 characters or less' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const rate = await assertMessageSendRateLimit(supabase, user.id)
+  if (rate.error) return { error: rate.error }
+
+  const { data: member } = await supabase
+    .from('chat_room_members')
+    .select('id')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+  if (!member) return { error: 'Join this chat to create a poll' }
+
+  const { data: room } = await supabase.from('chat_rooms').select('type').eq('id', roomId).single()
+  if (room && room.type === 'direct') return { error: 'Polls are for community and trip chats' }
+
+  const { data: msgRow, error: msgErr } = await supabase
+    .from('messages')
+    .insert({
+      room_id: roomId,
+      user_id: user.id,
+      content: q,
+      message_type: 'poll',
+    })
+    .select('id')
+    .single()
+  if (msgErr || !msgRow) return { error: msgErr?.message || 'Failed to create poll' }
+
+  const { data: pollRow, error: pollErr } = await supabase
+    .from('chat_polls')
+    .insert({
+      room_id: roomId,
+      message_id: msgRow.id,
+      created_by: user.id,
+      question: q,
+      allow_multiple: allowMultiple,
+      ends_at: endsAtIso,
+    })
+    .select('id')
+    .single()
+  if (pollErr || !pollRow) {
+    await supabase.from('messages').delete().eq('id', msgRow.id)
+    return { error: pollErr?.message || 'Failed to create poll' }
+  }
+
+  const optRows = cleaned.map((label, i) => ({
+    poll_id: pollRow.id,
+    position: i,
+    label,
+  }))
+  const { error: optErr } = await supabase.from('chat_poll_options').insert(optRows)
+  if (optErr) {
+    await supabase.from('chat_polls').delete().eq('id', pollRow.id)
+    await supabase.from('messages').delete().eq('id', msgRow.id)
+    return { error: optErr.message }
+  }
+
+  revalidatePath('/community', 'layout')
+  revalidatePath(`/community/${roomId}`)
+  return { success: true as const, messageId: msgRow.id, pollId: pollRow.id }
+}
+
+export async function castChatPollVote(roomId: string, pollId: string, optionIds: string[]) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: member } = await supabase
+    .from('chat_room_members')
+    .select('id')
+    .eq('room_id', roomId)
+    .eq('user_id', user.id)
+    .single()
+  if (!member) return { error: 'Join this chat to vote' }
+
+  const { data: poll } = await supabase
+    .from('chat_polls')
+    .select('id, room_id, allow_multiple, ends_at')
+    .eq('id', pollId)
+    .single()
+  if (!poll || poll.room_id !== roomId) return { error: 'Poll not found' }
+  if (poll.ends_at && new Date(poll.ends_at) < new Date()) return { error: 'This poll has ended' }
+
+  const { data: validOptions } = await supabase
+    .from('chat_poll_options')
+    .select('id')
+    .eq('poll_id', pollId)
+  const valid = new Set((validOptions || []).map(o => o.id))
+  const chosen = optionIds.filter(id => valid.has(id))
+  if (poll.allow_multiple) {
+    /* allow 0 to clear all votes */
+  } else {
+    if (chosen.length > 1) return { error: 'Select at most one option' }
+  }
+
+  await supabase.from('chat_poll_votes').delete().eq('poll_id', pollId).eq('user_id', user.id)
+  if (chosen.length) {
+    const { error: insErr } = await supabase.from('chat_poll_votes').insert(
+      chosen.map(option_id => ({
+        poll_id: pollId,
+        room_id: roomId,
+        user_id: user.id,
+        option_id,
+      })),
+    )
+    if (insErr) return { error: insErr.message }
+  }
+
+  revalidatePath(`/community/${roomId}`)
+  return { success: true as const }
+}
+
+export async function getPollStateForMessage(messageId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' as const, state: null as null }
+
+  const { data: poll, error: pollErr } = await supabase
+    .from('chat_polls')
+    .select('id, message_id, room_id')
+    .eq('message_id', messageId)
+    .maybeSingle()
+  if (pollErr || !poll) return { error: 'Poll not found' as const, state: null as null }
+
+  const { getRoomPollsState } = await import('@/lib/chat/getRoomPollsState')
+  const map = await getRoomPollsState(supabase, poll.room_id, [messageId], user.id)
+  return { state: map[messageId] ?? null, error: null as null }
 }

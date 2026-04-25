@@ -9,6 +9,7 @@ import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Message, Profile } from '@/types'
 import { hashtagSlugFromRoomName } from '@/lib/chat/chatHashTags'
+import { getRoomPollsState } from '@/lib/chat/getRoomPollsState'
 import {
   bestTripChatPhaseForUser,
   userHasTripChatAccess,
@@ -45,6 +46,9 @@ export default async function CommunityRoomPage({
     .select('*, package:packages(title, slug, duration_days, departure_dates, return_dates, images, destination:destinations(name, state))')
     .eq('id', roomId)
     .maybeSingle()
+
+  const roomRow = room as { pinned_message_id?: string | null } | null
+  const pinId = roomRow?.pinned_message_id
 
   if (!room) notFound()
 
@@ -159,7 +163,7 @@ export default async function CommunityRoomPage({
     )
   }
 
-  const [{ data: msgs }, { data: profile }, { data: members }, { data: linkRooms }] = await Promise.all([
+  const [{ data: msgs }, { data: profile }, { data: members }, { data: linkRooms }, { data: pinnedMsg }] = await Promise.all([
     supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('chat_room_members').select('user_id').eq('room_id', roomId),
@@ -168,9 +172,19 @@ export default async function CommunityRoomPage({
       .select('id, name, type, package:packages(slug)')
       .eq('is_active', true)
       .in('type', ['general', 'trip']),
+    pinId
+      ? supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('id', pinId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
   if (!profile) redirect('/login')
+
+  const messageList = (msgs || []) as Message[]
+  const pollMessageIds = messageList.filter(m => m.message_type === 'poll').map(m => m.id)
+  const pollsByMessageId =
+    pollMessageIds.length > 0
+      ? await getRoomPollsState(supabase, roomId, pollMessageIds, user.id)
+      : {}
 
   const memberIds = (members || []).map(m => m.user_id).filter(Boolean)
   let memberProfiles: ChatMemberProfile[] = []
@@ -250,10 +264,12 @@ export default async function CommunityRoomPage({
         roomName={displayName}
         roomType={room.type as 'trip' | 'general' | 'direct'}
         roomImageUrl={roomImageUrl}
-        initialMessages={((msgs || []) as Message[]).reverse()}
+        initialMessages={messageList.slice().reverse()}
         currentUser={profile as Profile}
         memberProfiles={memberProfiles}
         chatLinkTargets={chatLinkTargets}
+        pinnedMessage={(pinnedMsg as Message | null) ?? null}
+        initialPollsByMessageId={pollsByMessageId}
       />
     </div>
   )

@@ -1,11 +1,36 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
 
+const DEFAULT_PAGE = { limit: 8, offset: 0 }
+
+type LastRow = {
+  room_id: string
+  last_content: string
+  last_at: string
+  last_message_type: string
+  last_user_id: string | null
+}
+
+function previewFromLastMessage(msg: { content: string; message_type: string } | undefined): string | undefined {
+  if (!msg) return undefined
+  if (msg.message_type === 'poll') return `📊 ${msg.content}`.length > 120 ? `📊 ${msg.content.slice(0, 117)}…` : `📊 ${msg.content}`
+  return msg.content
+}
+
 /**
- * Fetch all sidebar rooms for a user — optimized with batch queries.
+ * Fetch sidebar rooms for Tribe — one RPC for last message per room, then paginate the sorted list.
  */
-export async function getSidebarRooms(supabase: SupabaseClient, userId: string): Promise<SidebarRoom[]> {
-  // Parallel: get member rooms + general rooms
+export type SidebarRoomPageResult = {
+  rooms: SidebarRoom[]
+  total: number
+  roomNameIndex: { id: string; name: string }[]
+}
+
+export async function getSidebarRooms(
+  supabase: SupabaseClient,
+  userId: string,
+  pagination: { limit: number; offset: number } = DEFAULT_PAGE,
+): Promise<SidebarRoomPageResult> {
   const [{ data: memberRooms }, { data: generalRooms }] = await Promise.all([
     supabase
       .from('chat_room_members')
@@ -28,47 +53,63 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
   const allRoomIds: string[] = []
   const dmRoomIds: string[] = []
 
-  // Collect room IDs
   for (const room of userRooms) {
     const id = String(room['id'])
     allRoomIds.push(id)
     if (String(room['type']) === 'direct') dmRoomIds.push(id)
   }
 
-  // Add general rooms not yet in member list
   const memberRoomIdSet = new Set(allRoomIds)
   const extraGeneralRooms = (generalRooms || []).filter(r => !memberRoomIdSet.has(r.id))
   for (const r of extraGeneralRooms) allRoomIds.push(r.id)
 
-  // Batch: get last message for ALL rooms in one query per room (use RPC or individual but parallel)
-  // Since Supabase doesn't support "distinct on" easily, fetch last messages in parallel
-  const msgPromises = allRoomIds.map(id =>
-    supabase.from('messages').select('content, created_at, user_id').eq('room_id', id).order('created_at', { ascending: false }).limit(1)
-  )
+  const msgMap = new Map<string, { content: string; created_at: string; message_type: string; user_id?: string }>()
 
-  // Batch: get DM partners - all members of DM rooms excluding current user
+  if (allRoomIds.length > 0) {
+    const { data: lastRows, error: rpcError } = await supabase.rpc('last_message_preview_for_rooms', {
+      p_room_ids: allRoomIds,
+    })
+    if (rpcError) {
+      console.error('last_message_preview_for_rooms', rpcError)
+      const msgPromises = allRoomIds.map(id =>
+        supabase.from('messages').select('content, created_at, user_id, message_type').eq('room_id', id).order('created_at', { ascending: false }).limit(1),
+      )
+      const msgResults = await Promise.all(msgPromises)
+      allRoomIds.forEach((id, i) => {
+        const row = msgResults[i]?.data?.[0] as
+          | { content: string; created_at: string; user_id?: string; message_type?: string }
+          | undefined
+        if (row) {
+          msgMap.set(id, {
+            content: row.content,
+            created_at: row.created_at,
+            message_type: row.message_type || 'text',
+            user_id: row.user_id,
+          })
+        }
+      })
+    } else {
+      for (const raw of (lastRows || []) as LastRow[]) {
+        msgMap.set(raw.room_id, {
+          content: raw.last_content,
+          created_at: raw.last_at,
+          message_type: raw.last_message_type,
+          user_id: raw.last_user_id || undefined,
+        })
+      }
+    }
+  }
+
   const dmMembersPromise = dmRoomIds.length > 0
     ? supabase.from('chat_room_members').select('room_id, user_id').in('room_id', dmRoomIds).neq('user_id', userId)
     : Promise.resolve({ data: [] as { room_id: string; user_id: string }[] })
 
-  // Execute all in parallel
-  const [msgResults, { data: dmMembers }] = await Promise.all([
-    Promise.all(msgPromises),
-    dmMembersPromise,
-  ])
+  const { data: dmMembers } = await dmMembersPromise
 
-  // Build message map
-  const msgMap = new Map<string, { content: string; created_at: string; user_id?: string }>()
-  allRoomIds.forEach((id, i) => {
-    const msgs = msgResults[i]?.data
-    if (msgs?.[0]) msgMap.set(id, msgs[0])
-  })
-
-  // Get DM partner profiles in one batch
   const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
   let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
   const dmPartnerHasStatus = new Set<string>()
-  const dmPartnerStatusSeen = new Set<string>() // true = current user has seen ALL their active stories
+  const dmPartnerStatusSeen = new Set<string>()
   if (dmPartnerIds.length > 0) {
     const now = new Date().toISOString()
     const [{ data: profiles }, { data: statusRows }] = await Promise.all([
@@ -83,8 +124,6 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
 
     const activeStories = statusRows || []
     const activeStoryIds = activeStories.map(s => s.id)
-
-    // Group active stories by author
     const storiesByAuthor = new Map<string, string[]>()
     for (const s of activeStories) {
       dmPartnerHasStatus.add(s.author_id)
@@ -93,7 +132,6 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
       storiesByAuthor.set(s.author_id, list)
     }
 
-    // Check which stories the current user has already viewed
     if (activeStoryIds.length > 0) {
       const { data: views } = await supabase
         .from('status_story_views')
@@ -107,13 +145,11 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     }
   }
 
-  // Build DM room → partner map
   const dmPartnerMap = new Map<string, string>()
   for (const m of dmMembers || []) {
     dmPartnerMap.set(m.room_id, m.user_id)
   }
 
-  // Build rooms
   const rooms: SidebarRoom[] = []
 
   for (const room of userRooms) {
@@ -151,13 +187,14 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
       if (pkg?.destination) tripLocation = `${pkg.destination.name}, ${pkg.destination.state}`
     }
 
-    const msg = msgMap.get(id)
+    const raw = msgMap.get(id)
+    const lastPreview = previewFromLastMessage(raw)
     rooms.push({
       id,
       name,
       type,
-      lastMessage: msg?.content,
-      lastMessageAt: msg?.created_at,
+      lastMessage: lastPreview,
+      lastMessageAt: raw?.created_at,
       dmProfile,
       dmHasActiveStatus,
       dmStatusSeen,
@@ -168,22 +205,26 @@ export async function getSidebarRooms(supabase: SupabaseClient, userId: string):
     })
   }
 
-  // Add general rooms user hasn't joined
   for (const room of extraGeneralRooms) {
-    const msg = msgMap.get(room.id)
+    const raw = msgMap.get(room.id)
+    const lastPreview = previewFromLastMessage(raw)
     rooms.push({
       id: room.id,
       name: room.name,
       type: 'general',
-      lastMessage: msg?.content,
-      lastMessageAt: msg?.created_at,
+      lastMessage: lastPreview,
+      lastMessageAt: raw?.created_at,
       communityImage: room.image_url || undefined,
       isMember: false,
     })
   }
 
-  // Sort by recent message
   rooms.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''))
 
-  return rooms
+  const total = rooms.length
+  const { limit, offset } = pagination
+  const paged = rooms.slice(offset, offset + limit)
+  const roomNameIndex = rooms.map(r => ({ id: r.id, name: r.name }))
+
+  return { rooms: paged, total, roomNameIndex }
 }

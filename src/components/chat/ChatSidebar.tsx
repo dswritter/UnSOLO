@@ -6,12 +6,13 @@ import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
-import { MessageCircle, Search, UserPlus } from 'lucide-react'
+import { MessageCircle, Search, UserPlus, ChevronDown, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { startDirectMessage } from '@/actions/profile'
+import { loadMoreSidebarRooms } from '@/actions/chat-sidebar'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
@@ -41,15 +42,27 @@ export interface SidebarRoom {
 
 interface ChatSidebarProps {
   rooms: SidebarRoom[]
+  /** Total conversations (for pagination). Defaults to `rooms.length` (no "load more"). */
+  totalRoomCount?: number
+  pageSize?: number
   activeRoomId?: string | null
   className?: string
   /** Current user id (for status viewer + menus) */
   viewerUserId: string
 }
 
-export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId }: ChatSidebarProps) {
+export function ChatSidebar({
+  rooms,
+  totalRoomCount: totalRoomCountProp,
+  pageSize: _pageSize = 8,
+  activeRoomId,
+  className = '',
+  viewerUserId,
+}: ChatSidebarProps) {
   const queryClient = useQueryClient()
+  const totalRoomCount = totalRoomCountProp ?? rooms.length
   const [localRooms, setLocalRooms] = useState(rooms)
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'direct' | 'trip' | 'general'>('all')
@@ -100,8 +113,12 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
         setLocalRooms(prev => {
           const idx = prev.findIndex(r => normalizeRoomId(r.id) === msgRoom)
           if (idx === -1) return prev
+          const lastPreview =
+            msg.message_type === 'poll'
+              ? `📊 ${msg.content.length > 100 ? msg.content.slice(0, 97) + '…' : msg.content}`
+              : msg.content
           const updated = [...prev]
-          updated[idx] = { ...updated[idx], lastMessage: msg.content, lastMessageAt: msg.created_at }
+          updated[idx] = { ...updated[idx], lastMessage: lastPreview, lastMessageAt: msg.created_at }
           const [moved] = updated.splice(idx, 1)
           return [moved, ...updated]
         })
@@ -241,6 +258,25 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
     return true
   })
 
+  const canLoadMore = totalRoomCount > localRooms.length && !search.trim()
+
+  async function onLoadMore() {
+    if (loadMoreLoading || !canLoadMore) return
+    setLoadMoreLoading(true)
+    try {
+      const res = await loadMoreSidebarRooms(localRooms.length)
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      const have = new Set(localRooms.map(r => r.id))
+      const more = (res.rooms || []).filter(r => !have.has(r.id))
+      if (more.length) setLocalRooms(prev => [...prev, ...more])
+    } finally {
+      setLoadMoreLoading(false)
+    }
+  }
+
   // Search platform users when no DM matches found
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
@@ -271,10 +307,15 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
     <div className={`flex flex-col ${className}`}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-black">
-            <span className="text-primary">Tribe</span> <span className="text-muted-foreground text-xs font-normal ml-1">Connect & Chat</span>
-          </h2>
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div>
+            <h2 className="text-lg font-black">
+              <span className="text-primary">Tribe</span>
+            </h2>
+            <p className="text-[11px] text-muted-foreground leading-snug mt-1 max-w-[260px]">
+              Connect, chat and plan your next adventure with Travellers
+            </p>
+          </div>
           <SoundSettingsButton />
         </div>
 
@@ -477,6 +518,23 @@ export function ChatSidebar({ rooms, activeRoomId, className = '', viewerUserId 
           {searchingUsers && (
             <div className="px-4 py-3 text-center">
               <span className="h-4 w-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block" />
+            </div>
+          )}
+          {canLoadMore && !searchingUsers && (
+            <div className="px-4 py-2 border-t border-border/40">
+              <button
+                type="button"
+                onClick={() => void onLoadMore()}
+                disabled={loadMoreLoading}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {loadMoreLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+                Load more conversations
+              </button>
             </div>
           )}
           </>

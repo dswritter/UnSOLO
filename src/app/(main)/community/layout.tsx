@@ -23,15 +23,15 @@ export default async function CommunityLayout({
     .single()
   if (!profile) redirect('/login')
 
-  const rooms = await getSidebarRooms(supabase, user.id)
-
-  const roomSummaries = rooms.map(r => ({ id: r.id, name: r.name }))
+  const { rooms, total: totalRoomCount, roomNameIndex } = await getSidebarRooms(supabase, user.id, { limit: 8, offset: 0 })
 
   return (
     <div className="h-[calc(100dvh-64px)] flex bg-background text-foreground min-h-0 relative">
-      <CommunityCrossRoomMessagePreview viewerUserId={user.id} rooms={roomSummaries} />
+      <CommunityCrossRoomMessagePreview viewerUserId={user.id} rooms={roomNameIndex} />
       <ChatSidebar
         rooms={rooms}
+        totalRoomCount={totalRoomCount}
+        pageSize={8}
         viewerUserId={user.id}
         className="hidden md:flex w-96 min-w-[384px] border-r border-border shrink-0"
       />
