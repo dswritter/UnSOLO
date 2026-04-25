@@ -83,7 +83,12 @@ export function WanderSearchBar({
   const activitySelectOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
 
   return (
-    <div className={cn('w-full max-w-3xl rounded-2xl border border-border/80 bg-card/90 p-3 sm:p-4 shadow-xl backdrop-blur-md', className)}>
+    <div
+      className={cn(
+        'w-full max-w-[min(100%,52.8rem)] rounded-2xl border border-border/80 bg-card/90 p-3 sm:p-4 shadow-xl backdrop-blur-md',
+        className,
+      )}
+    >
       <div className="flex flex-wrap justify-start gap-2 border-b border-border/60 pb-3 mb-3">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
