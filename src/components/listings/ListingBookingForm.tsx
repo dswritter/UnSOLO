@@ -154,31 +154,30 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
     }
   }
 
-  // Validate booking inputs
-  const isValidBooking = (): boolean => {
+  function getBookingError(): string {
     const selectedDate = getSelectedDate()
-    if (!selectedDate) return false
-    // Date-specific activities: the generic future-date rule doesn't apply —
-    // the schedule itself defines valid dates (the earliest may even be today).
-    if (listing.type !== 'activities' || !upcomingSchedule) {
-      if (new Date(selectedDate) < new Date(minDate)) return false
+    if (!selectedDate) {
+      if (listing.type === 'stays') return 'Select a check-in date'
+      if (listing.type === 'rentals') return 'Select a pick-up date'
+      return 'Select a date'
     }
-
-    if (listing.type === 'stays' && !checkOutDate) return false
-    if (listing.type === 'stays' && new Date(checkOutDate) <= new Date(checkInDate)) return false
-
+    if (listing.type !== 'activities' || !upcomingSchedule) {
+      if (new Date(selectedDate) < new Date(minDate)) return 'Date cannot be in the past'
+    }
+    if (listing.type === 'stays' && !checkOutDate) return 'Select a check-out date'
+    if (listing.type === 'stays' && new Date(checkOutDate) <= new Date(checkInDate)) return 'Check-out must be after check-in'
     if (listing.type === 'activities' && upcomingSchedule) {
       const entry = upcomingSchedule.find(e => e.date === selectedDate)
-      if (!entry) return false
-      if (entry.slots && entry.slots.length > 0 && !slotKey) return false
+      if (!entry) return 'Selected date is not on the schedule'
+      if (entry.slots && entry.slots.length > 0 && !slotKey) return 'Select a time slot'
     }
-
-    if (quantity < 1) return false
-    if (quantity > maxPerBooking) return false
-    if (availableQty != null && quantity > availableQty) return false
-
-    return true
+    if (quantity < 1) return 'Quantity must be at least 1'
+    if (quantity > maxPerBooking) return `Maximum ${maxPerBooking} per booking`
+    if (availableQty != null && quantity > availableQty) return `Only ${availableQty} available`
+    return ''
   }
+
+  const bookingError = getBookingError()
 
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
@@ -199,8 +198,9 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   async function handleBook() {
     const selectedDate = getSelectedDate()
 
-    if (!isValidBooking()) {
-      toast.error('Please fill in all required fields correctly')
+    const err = getBookingError()
+    if (err) {
+      toast.error(err)
       return
     }
 
@@ -625,9 +625,12 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         </div>
       </div>
 
+      {bookingError && !loading && (
+        <p className="text-xs text-destructive text-center -mt-1">{bookingError}</p>
+      )}
       <Button
         onClick={handleBook}
-        disabled={loading || !isValidBooking()}
+        disabled={loading || !!bookingError}
         className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
         size="lg"
       >
