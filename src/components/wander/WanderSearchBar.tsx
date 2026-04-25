@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag } from 'lucide-react'
+import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { reverseGeocodeToSearchLabel } from '@/lib/wander/reverseGeocodeClient'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
 
@@ -27,11 +29,27 @@ function monthParamFromRange(start: string, end: string): string | undefined {
   return undefined
 }
 
-/** Local calendar date (YYYY-MM-DD) for `min` on date inputs. */
+const WANDER_GEO_DONE = 'wander:geo-prompt-finished'
+const WANDER_GEO_CACHE = 'wander:geo-nearby-label'
+
+/** Local calendar YYYY-MM-DD (never UTC — avoids “yesterday” vs server TZ). */
 function todayLocalIsoDate() {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d.toLocaleDateString('en-CA')
+  const n = new Date()
+  const y = n.getFullYear()
+  const m = String(n.getMonth() + 1).padStart(2, '0')
+  const d = String(n.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+async function geolocationPermissionState(): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> {
+  if (typeof navigator === 'undefined' || !navigator.permissions?.query) return 'unknown'
+  try {
+    const p = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+    if (p.state === 'granted' || p.state === 'denied' || p.state === 'prompt') return p.state
+    return 'unknown'
+  } catch {
+    return 'unknown'
+  }
 }
 
 function maxIsoDate(a: string, b: string) {
@@ -53,6 +71,8 @@ export function WanderSearchBar({
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('trips')
 
+  const [calendarDay, setCalendarDay] = useState<string | null>(null)
+
   const [tripWhere, setTripWhere] = useState('')
   const [tripStart, setTripStart] = useState('')
   const [tripEnd, setTripEnd] = useState('')
@@ -70,7 +90,173 @@ export function WanderSearchBar({
   const [rentWhere, setRentWhere] = useState('')
   const [rentItem, setRentItem] = useState('')
 
-  const today = todayLocalIsoDate()
+  const [geoOpen, setGeoOpen] = useState(false)
+  const [geoTarget, setGeoTarget] = useState<'stay' | 'act' | 'rent' | null>(null)
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  const today = calendarDay
+
+  useLayoutEffect(() => {
+    const t = todayLocalIsoDate()
+    setCalendarDay(t)
+    setTripStart(s => s || t)
+    setStayIn(s => s || t)
+    setActStart(s => s || t)
+  }, [])
+
+  const markGeoDone = useCallback(() => {
+    if (typeof window === 'undefined') return
+    try {
+      localStorage.setItem(WANDER_GEO_DONE, '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const readSessionGeoLabel = useCallback((): string | null => {
+    if (typeof window === 'undefined') return null
+    try {
+      return sessionStorage.getItem(WANDER_GEO_CACHE) || null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const storeSessionGeoLabel = useCallback((label: string) => {
+    if (typeof window === 'undefined') return
+    try {
+      sessionStorage.setItem(WANDER_GEO_CACHE, label)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const applyGeoLabel = useCallback((key: 'stay' | 'act' | 'rent', label: string) => {
+    const t = label.trim()
+    if (!t) return
+    if (key === 'stay') setStayWhere(t)
+    else if (key === 'act') setActWhere(t)
+    else setRentWhere(t)
+  }, [])
+
+  const fillLocationFromDevice = useCallback(
+    async (key: 'stay' | 'act' | 'rent') => {
+      const cached = readSessionGeoLabel()
+      if (cached?.trim()) {
+        applyGeoLabel(key, cached)
+        return
+      }
+      if (typeof navigator === 'undefined' || !navigator.geolocation) {
+        toast.error('Location is not available in this browser')
+        throw new Error('no geolocation')
+      }
+      return new Promise<void>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          async pos => {
+            try {
+              const label = await reverseGeocodeToSearchLabel(pos.coords.latitude, pos.coords.longitude)
+              if (label) {
+                storeSessionGeoLabel(label)
+                applyGeoLabel(key, label)
+                resolve()
+              } else {
+                toast.error('Could not resolve a place name for your location')
+                reject(new Error('no label'))
+              }
+            } catch {
+              toast.error('Could not look up that location')
+              reject(new Error('reverse geocode failed'))
+            }
+          },
+          err => {
+            if (err.code === err.PERMISSION_DENIED) {
+              toast.error('Location permission denied')
+            } else {
+              toast.error('Could not get your current position')
+            }
+            reject(err)
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 60_000 },
+        )
+      })
+    },
+    [applyGeoLabel, readSessionGeoLabel, storeSessionGeoLabel],
+  )
+
+  const onLocationFieldFocus = useCallback(
+    (key: 'stay' | 'act' | 'rent') => {
+      void (async () => {
+        const current = key === 'stay' ? stayWhere : key === 'act' ? actWhere : rentWhere
+        if (current.trim()) return
+
+        const fromSession = readSessionGeoLabel()
+        if (fromSession?.trim()) {
+          applyGeoLabel(key, fromSession)
+          return
+        }
+
+        let done = false
+        try {
+          done = localStorage.getItem(WANDER_GEO_DONE) === '1'
+        } catch {
+          /* ignore */
+        }
+
+        const perm = await geolocationPermissionState()
+
+        if (done) {
+          if (perm === 'granted') void fillLocationFromDevice(key)
+          return
+        }
+
+        if (perm === 'granted') {
+          markGeoDone()
+          try {
+            await fillLocationFromDevice(key)
+          } catch {
+            /* toast already */
+          }
+          return
+        }
+        if (perm === 'denied') {
+          markGeoDone()
+          return
+        }
+
+        setGeoTarget(key)
+        setGeoOpen(true)
+      })()
+    },
+    [actWhere, applyGeoLabel, fillLocationFromDevice, markGeoDone, readSessionGeoLabel, rentWhere, stayWhere],
+  )
+
+  const closeGeo = useCallback(() => {
+    setGeoOpen(false)
+    setGeoTarget(null)
+    setGeoLoading(false)
+  }, [])
+
+  const onGeoNotNow = useCallback(() => {
+    markGeoDone()
+    closeGeo()
+  }, [closeGeo, markGeoDone])
+
+  const onGeoAllow = useCallback(() => {
+    if (!geoTarget) return
+    setGeoLoading(true)
+    const key = geoTarget
+    void (async () => {
+      try {
+        await fillLocationFromDevice(key)
+        markGeoDone()
+        closeGeo()
+      } catch {
+        /* toasts in fill */
+      } finally {
+        setGeoLoading(false)
+      }
+    })()
+  }, [closeGeo, fillLocationFromDevice, geoTarget, markGeoDone])
 
   function goExplore() {
     const params = new URLSearchParams()
@@ -167,9 +353,10 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={tripStart}
-                min={today}
+                min={today ?? undefined}
                 max={tripEnd || undefined}
                 onChange={e => setTripStart(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -181,8 +368,9 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={tripEnd}
-                min={maxIsoDate(tripStart, today)}
+                min={today ? (tripStart ? maxIsoDate(tripStart, today) : today) : tripStart || undefined}
                 onChange={e => setTripEnd(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -210,6 +398,7 @@ export function WanderSearchBar({
                 placeholder="Where are you going?"
                 value={stayWhere}
                 onChange={e => setStayWhere(e.target.value)}
+                onFocus={() => onLocationFieldFocus('stay')}
               />
             </div>
           </label>
@@ -221,9 +410,10 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={stayIn}
-                min={today}
+                min={today ?? undefined}
                 max={stayOut || undefined}
                 onChange={e => setStayIn(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -235,8 +425,9 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={stayOut}
-                min={maxIsoDate(stayIn, today)}
+                min={today ? (stayIn ? maxIsoDate(stayIn, today) : today) : stayIn || undefined}
                 onChange={e => setStayOut(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -277,6 +468,7 @@ export function WanderSearchBar({
                 placeholder="City or area"
                 value={actWhere}
                 onChange={e => setActWhere(e.target.value)}
+                onFocus={() => onLocationFieldFocus('act')}
               />
             </div>
           </label>
@@ -288,9 +480,10 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={actStart}
-                min={today}
+                min={today ?? undefined}
                 max={actEnd || undefined}
                 onChange={e => setActStart(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -302,8 +495,9 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={actEnd}
-                min={maxIsoDate(actStart, today)}
+                min={today ? (actStart ? maxIsoDate(actStart, today) : today) : actStart || undefined}
                 onChange={e => setActEnd(e.target.value)}
+                suppressHydrationWarning
               />
             </div>
           </label>
@@ -345,6 +539,7 @@ export function WanderSearchBar({
                 placeholder="City or area"
                 value={rentWhere}
                 onChange={e => setRentWhere(e.target.value)}
+                onFocus={() => onLocationFieldFocus('rent')}
               />
             </div>
           </label>
@@ -366,6 +561,67 @@ export function WanderSearchBar({
           </Button>
         </form>
       )}
+
+      {geoOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          onClick={() => {
+            if (!geoLoading) onGeoNotNow()
+          }}
+          role="presentation"
+        >
+          <div
+            className={cn(
+              'w-full max-w-md rounded-2xl border p-4 shadow-2xl',
+              isWander
+                ? 'border-white/20 bg-zinc-950/95 text-white [color-scheme:dark]'
+                : 'border-border bg-card text-foreground',
+            )}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-label="Search near your current location"
+          >
+            <p className="text-sm font-bold mb-1">Search near you?</p>
+            <p
+              className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-white/70' : 'text-muted-foreground')}
+            >
+              We can use your device location to fill this field with your area, like maps and food apps. Your browser
+              will ask for permission. Trips are left manual so you can plan ahead anywhere.
+            </p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={isWander ? 'text-white/80' : undefined}
+                disabled={geoLoading}
+                onClick={onGeoNotNow}
+              >
+                Not now
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="font-bold bg-primary text-primary-foreground"
+                disabled={geoLoading}
+                onClick={e => {
+                  e.preventDefault()
+                  onGeoAllow()
+                }}
+              >
+                {geoLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Locating
+                  </>
+                ) : (
+                  'Use my location'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
