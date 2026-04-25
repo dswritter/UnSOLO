@@ -8,9 +8,17 @@ interface SearchDrawerProps {
   isOpen: boolean
   onClose: () => void
   initialValue?: string
+  basePath?: string
+  preserveWanderSearch?: boolean
 }
 
-export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawerProps) {
+export function SearchDrawer({
+  isOpen,
+  onClose,
+  initialValue = '',
+  basePath = '/explore',
+  preserveWanderSearch = false,
+}: SearchDrawerProps) {
   const [searchInput, setSearchInput] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -37,8 +45,11 @@ export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawe
         } else {
           params.delete('q')
         }
+        if (preserveWanderSearch) {
+          params.set('search', '1')
+        }
 
-        router.push(`/explore?${params.toString()}`)
+        router.push(`${basePath}?${params.toString()}`)
       }
     }, 300)
 
@@ -47,7 +58,7 @@ export function SearchDrawer({ isOpen, onClose, initialValue = '' }: SearchDrawe
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [searchInput, router])
+  }, [searchInput, router, basePath, preserveWanderSearch])
 
   const handleClear = () => {
     setSearchInput('')

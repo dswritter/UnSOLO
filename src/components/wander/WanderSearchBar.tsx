@@ -296,7 +296,13 @@ export function WanderSearchBar({
       if (qParts.length) params.set('q', qParts.join(' '))
     }
 
-    router.push(`/explore?${params.toString()}`)
+    if (isWander) {
+      params.set('search', '1')
+      const qs = params.toString()
+      router.push(`/wander?${qs}#wander-explore`)
+    } else {
+      router.push(`/explore?${params.toString()}`)
+    }
   }
 
   const activitySelectOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]

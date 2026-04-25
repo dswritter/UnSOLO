@@ -1,7 +1,10 @@
 export const revalidate = 300
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { loadExploreListData } from '@/lib/explore/explorePageData'
+import { ExploreClient } from '@/components/explore/ExploreClient'
 import {
   getWanderStats,
   getWanderRatingHero,
@@ -18,20 +21,24 @@ import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
 import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
 import { WanderListingSections } from '@/components/wander/WanderListingSections'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
+import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
 
-export default async function WanderPage() {
-  const [stats, rating, tripPackages, actListings, rentListings, supabase, listedActivities, heroImageUrl, trustBadgeText] =
-    await Promise.all([
-      getWanderStats(),
-      getWanderRatingHero(),
-      getWanderTripRow(),
-      getWanderActivityRow(),
-      getWanderRentalRow(),
-      createClient(),
-      getListedActivityFilterOptions(),
-      getWanderHeroImageUrl(),
-      getWanderTrustBadgeText(),
-    ])
+export default async function WanderPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>
+}) {
+  const sp = await searchParams
+  const isSearchMode = sp.search === '1'
+
+  const [stats, rating, supabase, listedActivities, heroImageUrl, trustBadgeText] = await Promise.all([
+    getWanderStats(),
+    getWanderRatingHero(),
+    createClient(),
+    getListedActivityFilterOptions(),
+    getWanderHeroImageUrl(),
+    getWanderTrustBadgeText(),
+  ])
 
   const { data: { user } } = await supabase.auth.getUser()
   let profileAvatar: string | null = null
@@ -40,13 +47,32 @@ export default async function WanderPage() {
     profileAvatar = p?.avatar_url ?? null
   }
 
-  const [activities, rentals] = await Promise.all([
-    getWanderServiceItemsForListings(actListings),
-    getWanderServiceItemsForListings(rentListings),
-  ])
+  const exploreData = isSearchMode ? await loadExploreListData(sp) : null
+
+  let tripPackages: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
+  let activities: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
+  let rentals: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
+
+  if (!isSearchMode) {
+    const [tp, actListings, rentListings] = await Promise.all([
+      getWanderTripRow(),
+      getWanderActivityRow(),
+      getWanderRentalRow(),
+    ])
+    tripPackages = tp
+    const [a, r] = await Promise.all([
+      getWanderServiceItemsForListings(actListings),
+      getWanderServiceItemsForListings(rentListings),
+    ])
+    activities = a
+    rentals = r
+  }
 
   return (
     <div className="w-full">
+      <Suspense fallback={null}>
+        <WanderSearchScroll />
+      </Suspense>
       <WanderHero
         rating={rating}
         stats={stats}
@@ -78,11 +104,31 @@ export default async function WanderPage() {
         <WanderSearchBar listedActivities={listedActivities} variant="wander" />
       </WanderHero>
 
-      <div className="border-t border-border/50">
-        <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
-          <WanderListingSections trips={tripPackages} activities={activities} rentals={rentals} />
+      {isSearchMode && exploreData ? (
+        <div id="wander-explore" className="border-t border-border/50 scroll-mt-4">
+          <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
+            <ExploreClient
+              packages={exploreData.packages}
+              serviceListings={exploreData.serviceListings}
+              params={sp}
+              resultCount={exploreData.resultCount}
+              activeTab={exploreData.activeTab}
+              interestedPackageIds={exploreData.interestedPackageIds}
+              maxPackagePrice={exploreData.maxPackagePrice}
+              spotsBooked={exploreData.spotsBooked}
+              interestCounts={exploreData.interestCounts}
+              basePath="/wander"
+              pageVariant="wander"
+            />
+          </div>
         </div>
-      </div>
+      ) : tripPackages && activities && rentals ? (
+        <div className="border-t border-border/50">
+          <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
+            <WanderListingSections trips={tripPackages} activities={activities} rentals={rentals} />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

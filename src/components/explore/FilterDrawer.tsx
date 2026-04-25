@@ -49,6 +49,9 @@ interface FilterDrawerProps {
   resultCount: number
   isLoading?: boolean
   maxPackagePrice?: number
+  basePath?: string
+  /** Keep `search=1` on /wander URLs */
+  preserveWanderSearch?: boolean
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -68,6 +71,8 @@ export function FilterDrawer({
   resultCount,
   isLoading = false,
   maxPackagePrice = 2000000,
+  basePath = '/explore',
+  preserveWanderSearch = false,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -96,8 +101,11 @@ export function FilterDrawer({
     Object.entries(updates).forEach(([k, v]) => {
       if (v) p.set(k, v)
     })
+    if (preserveWanderSearch) {
+      p.set('search', '1')
+    }
     const qs = p.toString()
-    return `/explore${qs ? `?${qs}` : ''}`
+    return `${basePath}${qs ? `?${qs}` : ''}`
   }
 
   function setTripSource(next: 'all' | 'unsolo' | 'community') {
@@ -107,7 +115,7 @@ export function FilterDrawer({
 
   function clearAllFilters() {
     setIsClearing(true)
-    router.push('/explore')
+    router.push(basePath)
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
     clearTimerRef.current = setTimeout(() => {
       setIsClearing(false)

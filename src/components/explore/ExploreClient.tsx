@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
-import type { ServiceListingWithItems } from '@/app/(main)/explore/page'
+import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -87,6 +87,10 @@ interface ExploreClientProps {
   maxPackagePrice?: number
   spotsBooked?: Record<string, number>
   interestCounts?: Record<string, number>
+  /** URL path for tab/search/filter navigation (default `/explore`; use `/wander` on wander search) */
+  basePath?: string
+  /** Wander: gold tabs, transparent shell on green texture */
+  pageVariant?: 'default' | 'wander'
 }
 
 export function ExploreClient({
@@ -99,7 +103,10 @@ export function ExploreClient({
   maxPackagePrice = 2000000,
   spotsBooked = {},
   interestCounts = {},
+  basePath = '/explore',
+  pageVariant = 'default',
 }: ExploreClientProps) {
+  const isWanderShell = pageVariant === 'wander'
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
@@ -118,6 +125,10 @@ export function ExploreClient({
   const interestedSet = new Set(interestedPackageIds)
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPkg[]>([])
   useEffect(() => { setRecentlyViewed(readRecentlyViewed()) }, [])
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [initialTab])
 
   const toggleWishlist = (packageId: string) => {
     setWishlisted(prev => {
@@ -156,8 +167,11 @@ export function ExploreClient({
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', tab)
     newParams.delete('q')
+    if (isWanderShell) {
+      newParams.set('search', '1')
+    }
     startTransition(() => {
-      router.push(`/explore?${newParams.toString()}`)
+      router.push(`${basePath}?${newParams.toString()}`)
     })
   }
 
@@ -169,27 +183,46 @@ export function ExploreClient({
   const results = isTripsTab ? packages : serviceListings
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
+    <div
+      className={cn(
+        'min-h-0 pb-24 md:pb-0',
+        isWanderShell ? 'bg-transparent text-foreground' : 'min-h-screen bg-background',
+      )}
+    >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
-        {/* Tabs */}
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-          {TABS.map((tab) => {
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
+        {isWanderShell ? (
+          <div className="mb-4">
+            <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white">Explore</h2>
+            <p className="mt-1 text-sm text-white/70">Search and filter the full catalog while you stay in Wander.</p>
+          </div>
+        ) : null}
+        {/* Tabs — mockup: gold active on wander */}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2 overflow-x-auto pb-2 -mb-0">
+            {TABS.map((tab) => {
+              const Icon = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap',
+                    isWanderShell
+                      ? activeTab === tab.id
+                        ? 'bg-[#fcba03] text-[oklch(0.18_0.04_155)] shadow-md'
+                        : 'bg-white/5 text-white/90 hover:bg-white/10'
+                      : activeTab === tab.id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Recently Viewed strip — hidden when any filter is active */}
@@ -241,7 +274,14 @@ export function ExploreClient({
         <div className="flex gap-6 flex-1">
           {/* Desktop Sidebar - hidden on mobile */}
           <div className="hidden lg:block w-64 flex-shrink-0">
-            <ExploreSidebar params={params} resultCount={resultCount} activeTab={activeTab} isLoading={isLoading} maxPackagePrice={maxPackagePrice} />
+            <ExploreSidebar
+              params={params}
+              resultCount={resultCount}
+              activeTab={activeTab}
+              isLoading={isLoading}
+              maxPackagePrice={maxPackagePrice}
+              basePath={basePath}
+            />
           </div>
 
           {/* Results Grid */}
@@ -260,12 +300,17 @@ export function ExploreClient({
                 </h3>
                 <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
                 <Button asChild variant="outline">
-                  <Link href="/explore">Clear filters</Link>
+                  <Link href={basePath}>Clear filters</Link>
                 </Button>
               </div>
             ) : isTripsTab ? (
               /* Trips Grid */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div
+                className={cn(
+                  'grid grid-cols-1 sm:grid-cols-2 gap-6',
+                  isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+                )}
+              >
             {(packages as Package[]).map((pkg) => {
               const spotsLeft = pkg.max_group_size - (spotsBooked[pkg.id] || 0)
               const interestTotal = interestCounts[pkg.id] || 0
@@ -426,7 +471,12 @@ export function ExploreClient({
           </div>
             ) : (
               /* Service Listings Grid */
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div
+                className={cn(
+                  'grid grid-cols-1 md:grid-cols-2 gap-4',
+                  isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+                )}
+              >
                 {serviceListings.map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
                 ))}
@@ -448,6 +498,8 @@ export function ExploreClient({
         isOpen={searchDrawerOpen}
         onClose={() => setSearchDrawerOpen(false)}
         initialValue={params.q || ''}
+        basePath={basePath}
+        preserveWanderSearch={isWanderShell}
       />
 
       <FilterDrawer
@@ -458,6 +510,8 @@ export function ExploreClient({
         resultCount={resultCount}
         isLoading={isLoading}
         maxPackagePrice={maxPackagePrice}
+        basePath={basePath}
+        preserveWanderSearch={isWanderShell}
       />
     </div>
   )
