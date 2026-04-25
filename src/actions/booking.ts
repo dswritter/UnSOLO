@@ -544,6 +544,59 @@ async function runPostConfirmationPipeline(
   } catch {
     /* non-critical */
   }
+
+  // Send booking confirmation email to customer
+  try {
+    const pkg = booking.package as {
+      title?: string
+      duration_days?: number
+      duration_nights?: number
+      destination?: { name?: string; state?: string }
+    } | null
+
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const customerEmail = authUser?.email
+    if (customerEmail && pkg) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single()
+
+      const travelDate = booking.travel_date as string | undefined
+      const durationDays = pkg.duration_days ?? 1
+      const returnDateIso = travelDate
+        ? (() => {
+            const d = new Date(travelDate + 'T12:00:00')
+            d.setDate(d.getDate() + durationDays - 1)
+            return d.toISOString().slice(0, 10)
+          })()
+        : ''
+
+      const durationSummary = [
+        pkg.duration_days ? `${pkg.duration_days} day${pkg.duration_days !== 1 ? 's' : ''}` : null,
+        pkg.duration_nights ? `${pkg.duration_nights} night${pkg.duration_nights !== 1 ? 's' : ''}` : null,
+      ].filter(Boolean).join(' · ')
+
+      const destination = [pkg.destination?.name, pkg.destination?.state].filter(Boolean).join(', ')
+
+      const { sendBookingConfirmation } = await import('@/lib/resend/emails')
+      await sendBookingConfirmation({
+        customerEmail,
+        customerName: profile?.full_name || 'there',
+        packageTitle: pkg.title || 'your trip',
+        destination: destination || 'India',
+        travelDate: travelDate ?? '',
+        returnDateIso,
+        guests: (booking.guests as number | undefined) ?? 1,
+        totalAmount: booking.total_amount_paise,
+        confirmationCode,
+        durationSummary: durationSummary || `${durationDays} days`,
+      })
+    }
+  } catch {
+    /* non-critical — booking is already confirmed */
+  }
 }
 
 async function notifyTokenBalanceDue(
