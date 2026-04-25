@@ -27,6 +27,17 @@ function monthParamFromRange(start: string, end: string): string | undefined {
   return undefined
 }
 
+/** Local calendar date (YYYY-MM-DD) for `min` on date inputs. */
+function todayLocalIsoDate() {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  return d.toLocaleDateString('en-CA')
+}
+
+function maxIsoDate(a: string, b: string) {
+  return a >= b ? a : b
+}
+
 export function WanderSearchBar({
   className = '',
   listedActivities = [],
@@ -58,6 +69,8 @@ export function WanderSearchBar({
 
   const [rentWhere, setRentWhere] = useState('')
   const [rentItem, setRentItem] = useState('')
+
+  const today = todayLocalIsoDate()
 
   function goExplore() {
     const params = new URLSearchParams()
@@ -154,6 +167,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={tripStart}
+                min={today}
                 max={tripEnd || undefined}
                 onChange={e => setTripStart(e.target.value)}
               />
@@ -167,7 +181,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={tripEnd}
-                min={tripStart || undefined}
+                min={maxIsoDate(tripStart, today)}
                 onChange={e => setTripEnd(e.target.value)}
               />
             </div>
@@ -207,6 +221,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={stayIn}
+                min={today}
                 max={stayOut || undefined}
                 onChange={e => setStayIn(e.target.value)}
               />
@@ -220,7 +235,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={stayOut}
-                min={stayIn || undefined}
+                min={maxIsoDate(stayIn, today)}
                 onChange={e => setStayOut(e.target.value)}
               />
             </div>
@@ -273,6 +288,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={actStart}
+                min={today}
                 max={actEnd || undefined}
                 onChange={e => setActStart(e.target.value)}
               />
@@ -286,7 +302,7 @@ export function WanderSearchBar({
                 className="pl-9 bg-background/80"
                 type="date"
                 value={actEnd}
-                min={actStart || undefined}
+                min={maxIsoDate(actStart, today)}
                 onChange={e => setActEnd(e.target.value)}
               />
             </div>
