@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
@@ -94,8 +94,6 @@ export function WanderSearchBar({
   const [geoOpen, setGeoOpen] = useState(false)
   const [geoTarget, setGeoTarget] = useState<'stay' | 'act' | 'rent' | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
-  /** So we can portal to document.body (avoids hero z-stacking: belowHero paints above search) */
-  const [geoPortalReady, setGeoPortalReady] = useState(false)
 
   const today = calendarDay
 
@@ -105,10 +103,6 @@ export function WanderSearchBar({
     setTripStart(s => s || t)
     setStayIn(s => s || t)
     setActStart(s => s || t)
-  }, [])
-
-  useEffect(() => {
-    setGeoPortalReady(true)
   }, [])
 
   const markGeoDone = useCallback(() => {
@@ -569,10 +563,11 @@ export function WanderSearchBar({
         </form>
       )}
 
-      {geoPortalReady && geoOpen
+      {geoOpen && typeof window !== 'undefined'
         ? createPortal(
             <div
-              className="fixed inset-0 z-[500] flex items-end justify-center bg-black/70 p-4 sm:items-center"
+              className="fixed inset-0 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+              style={{ zIndex: 10050 }}
               onClick={() => {
                 if (!geoLoading) onGeoNotNow()
               }}
