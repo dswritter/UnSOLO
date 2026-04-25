@@ -52,32 +52,31 @@ export default async function WanderPage() {
         stats={stats}
         heroImageUrl={heroImageUrl}
         trustBadgeText={trustBadgeText}
+        belowHero={
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)] md:items-stretch md:gap-3">
+            <div className="flex min-h-[5.25rem] min-w-0 items-center wander-frost-panel">
+              {user ? (
+                <WanderStatusRail avatarUrl={profileAvatar} />
+              ) : (
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold">Traveler status</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Sign in to see recent stories from people you follow — unread first.
+                  </p>
+                  <Link href="/login" className="text-sm font-semibold text-primary hover:underline">
+                    Sign in
+                  </Link>
+                </div>
+              )}
+            </div>
+            <div className="flex min-h-[5.25rem] w-full min-w-0 items-stretch lg:min-w-0">
+              <WanderStatsGrid stats={stats} />
+            </div>
+          </div>
+        }
       >
         <WanderSearchBar listedActivities={listedActivities} variant="wander" />
       </WanderHero>
-
-      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pt-2 pb-5 md:pt-3">
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)] md:items-stretch md:gap-3">
-          <div className="flex min-h-[5.25rem] min-w-0 items-center wander-frost-panel">
-            {user ? (
-              <WanderStatusRail avatarUrl={profileAvatar} />
-            ) : (
-              <div className="space-y-1">
-                <h3 className="text-sm font-bold">Traveler status</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Sign in to see recent stories from people you follow — unread first.
-                </p>
-                <Link href="/login" className="text-sm font-semibold text-primary hover:underline">
-                  Sign in
-                </Link>
-              </div>
-            )}
-          </div>
-          <div className="flex min-h-[5.25rem] w-full min-w-0 items-stretch lg:min-w-0">
-            <WanderStatsGrid stats={stats} />
-          </div>
-        </div>
-      </div>
 
       <div className="border-t border-border/50 bg-background/50">
         <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">

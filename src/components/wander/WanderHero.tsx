@@ -12,6 +12,7 @@ export function WanderHero({
   heroImageUrl,
   trustBadgeText,
   children,
+  belowHero,
 }: {
   rating: WanderRatingHero
   stats: Pick<WanderStats, 'soloTravelers'>
@@ -21,6 +22,8 @@ export function WanderHero({
   trustBadgeText: string
   /** Search / filter bar — placed inside hero so its bottom aligns with the rating card */
   children?: ReactNode
+  /** Status rail + stats row — same hero image extends behind this block */
+  belowHero?: ReactNode
 }) {
   const trustLine =
     stats.soloTravelers >= 1000
@@ -56,7 +59,13 @@ export function WanderHero({
         />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10">
+      <div
+        className={
+          belowHero
+            ? 'relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 md:pb-2 lg:px-10'
+            : 'relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10'
+        }
+      >
         <div className="grid min-h-[min(100%,clamp(300px,48vh,560px))] grid-cols-1 gap-4 lg:min-h-[clamp(300px,44vh,520px)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
           <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3">
             <div className="min-w-0 self-start max-w-3xl">
@@ -125,6 +134,11 @@ export function WanderHero({
           </div>
         </div>
       </div>
+      {belowHero ? (
+        <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-0 sm:px-6 md:pb-5 lg:px-10">
+          {belowHero}
+        </div>
+      ) : null}
     </section>
   )
 }
