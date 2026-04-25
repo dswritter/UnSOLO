@@ -249,25 +249,25 @@ export function Navbar({ user }: NavbarProps) {
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     className={cn(
-                      'outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary/80',
+                      'outline-none focus-visible:ring-2',
                       isWander
-                        ? 'inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-secondary/60'
-                        : 'inline-flex cursor-pointer border-0 bg-transparent p-0',
+                        ? 'group inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-transparent data-[state=open]:bg-transparent data-[popup-open]:bg-transparent focus-visible:ring-[#fcba03]/45'
+                        : 'focus-visible:ring-ring data-[state=open]:bg-secondary/80 inline-flex cursor-pointer border-0 bg-transparent p-0',
                     )}
                   >
                     {isWander ? (
                       <span className="inline-flex min-w-0 max-w-full items-center gap-2">
-                        <Avatar className="h-8 w-8 shrink-0 border-2 border-border sm:h-9 sm:w-9">
+                        <Avatar className="h-8 w-8 shrink-0 border-2 border-white/20 sm:h-9 sm:w-9">
                           <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                             {getInitials(user.full_name || user.username)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold md:inline">
+                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold text-white transition-colors group-hover:text-[#fcba03] group-data-[popup-open]:text-[#fcba03] md:inline">
                           {user.full_name || user.username}
                         </span>
                         <ChevronDown
-                          className={cn('h-4 w-4 shrink-0', isWander ? 'text-white/70' : 'text-muted-foreground')}
+                          className="h-4 w-4 shrink-0 text-white transition-colors group-hover:text-[#fcba03] group-data-[popup-open]:text-[#fcba03]"
                           aria-hidden
                         />
                       </span>
