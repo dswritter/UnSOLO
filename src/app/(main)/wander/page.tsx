@@ -52,8 +52,8 @@ export default async function WanderPage() {
       </div>
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pb-8">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6 lg:items-center items-start">
-          <div className="rounded-2xl border border-border/60 bg-card/30 p-3 sm:p-4 min-h-[100px]">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:items-stretch lg:gap-4">
+          <div className="flex min-h-[5.25rem] items-center rounded-2xl border border-border/60 bg-card/30 px-2 py-2 sm:px-3 sm:py-2.5">
             {user ? (
               <WanderStatusRail avatarUrl={profileAvatar} />
             ) : (
@@ -68,7 +68,7 @@ export default async function WanderPage() {
               </div>
             )}
           </div>
-          <div>
+          <div className="flex min-h-[5.25rem] items-stretch">
             <WanderStatsGrid stats={stats} />
           </div>
         </div>

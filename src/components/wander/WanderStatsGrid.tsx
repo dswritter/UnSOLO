@@ -14,15 +14,19 @@ export function WanderStatsGrid({ stats }: { stats: WanderStats }) {
     { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy customers' },
   ] as const
   return (
-    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+    <div className="flex h-full min-h-[5.25rem] w-full flex-wrap divide-x divide-border/50 rounded-xl border border-border/80 bg-card/60 shadow-sm sm:min-h-0 sm:flex-nowrap">
       {items.map(({ icon: Icon, value, label }) => (
         <div
           key={label}
-          className="rounded-lg border border-border/80 bg-card/60 px-2 py-2.5 sm:px-3 sm:py-3.5 shadow-sm"
+          className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2.5 sm:gap-3 sm:px-3 sm:py-3 md:py-3.5"
         >
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary mb-1.5" />
-          <p className="text-lg sm:text-xl font-black text-foreground tabular-nums leading-none">{value}</p>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 leading-tight line-clamp-2">{label}</p>
+          <Icon className="h-5 w-5 shrink-0 text-primary sm:h-6 sm:w-6" strokeWidth={1.75} />
+          <div className="min-w-0">
+            <p className="text-xl font-black tabular-nums leading-none text-foreground sm:text-2xl md:text-[1.65rem]">
+              {value}
+            </p>
+            <p className="mt-1 text-xs font-semibold leading-tight text-muted-foreground sm:text-sm">{label}</p>
+          </div>
         </div>
       ))}
     </div>

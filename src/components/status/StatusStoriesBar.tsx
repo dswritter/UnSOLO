@@ -80,6 +80,8 @@ export function StatusStoriesBar({
   existingActiveCount,
   /** Cap how many *other* authors appear before "View all" (Wander home layout). */
   maxOtherAuthors,
+  /** Smaller rings and tighter spacing (e.g. /wander) */
+  compact = false,
 }: {
   initialStories: StatusStripStory[]
   currentUserId: string
@@ -89,7 +91,14 @@ export function StatusStoriesBar({
   addSlotAvatarUrl?: string | null
   existingActiveCount: number
   maxOtherAuthors?: number
+  compact?: boolean
 }) {
+  const ring = compact ? 'h-12 w-12' : 'h-16 w-16'
+  const labelCls = compact ? 'text-[9px]' : 'text-[10px]'
+  const fabCls = compact ? 'h-5 w-5' : 'h-7 w-7'
+  const plusIco = compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
+  const gap = compact ? 'gap-2' : 'gap-4'
+  const rowPad = compact ? 'py-0.5' : 'pt-2.5'
   const router = useRouter()
   const [viewer, setViewer] = useState<{ playlist: StatusStripStory[]; initialIndex: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -208,9 +217,9 @@ export function StatusStoriesBar({
 
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto overflow-y-visible pb-1 pt-2.5 scrollbar-hide items-center">
+      <div className={`flex ${gap} overflow-x-auto overflow-y-visible pb-0.5 ${rowPad} scrollbar-hide items-center`}>
         {/* Single "Your status" slot: golden ring when you have posts; + adds more */}
-        <div className="flex flex-col items-center gap-1.5 shrink-0">
+        <div className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0">
           <div className="relative">
             <button
               type="button"
@@ -227,7 +236,7 @@ export function StatusStoriesBar({
               }}
             >
               <div
-                className={`relative h-16 w-16 rounded-full p-[2px] transition-colors ${
+                className={`relative ${ring} rounded-full p-[2px] transition-colors ${
                   hasOwnStories
                     ? 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
                     : 'border-2 border-dashed border-primary/60 group-hover:border-primary group-disabled:border-zinc-600'
@@ -237,11 +246,15 @@ export function StatusStoriesBar({
                 <Avatar className="h-full w-full border-2 border-background dark:border-black">
                   <AvatarImage src={addSlotAvatarUrl || ''} />
                   <AvatarFallback className="bg-muted text-primary text-lg font-bold">
-                    <Plus className="h-6 w-6" />
+                    <Plus className={compact ? 'h-4 w-4' : 'h-6 w-6'} />
                   </AvatarFallback>
                 </Avatar>
                 {hasOwnStories && ownStoryCount > 1 ? (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-background text-foreground border-2 border-border dark:bg-zinc-900 dark:border-black dark:text-primary text-[10px] font-bold flex items-center justify-center z-[5]">
+                  <span
+                    className={`absolute -top-0.5 -right-0.5 min-w-[1.15rem] rounded-full bg-background text-foreground border-2 border-border dark:bg-zinc-900 dark:border-black dark:text-primary font-bold flex items-center justify-center z-[5] ${
+                      compact ? 'h-4 px-0.5 text-[9px]' : 'h-5 px-1 text-[10px]'
+                    }`}
+                  >
                     {ownStoryCount}
                   </span>
                 ) : null}
@@ -250,18 +263,18 @@ export function StatusStoriesBar({
             {!atStatusLimit ? (
               <button
                 type="button"
-                className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-black flex items-center justify-center border-2 border-border dark:border-black shadow-md z-10 hover:scale-105 active:scale-95 transition-transform"
+                className={`absolute bottom-0 right-0 rounded-full bg-primary text-black flex items-center justify-center border-2 border-border dark:border-black shadow-md z-10 hover:scale-105 active:scale-95 transition-transform ${fabCls}`}
                 aria-label="Add status photos"
                 onClick={e => {
                   e.stopPropagation()
                   setAddOpen(true)
                 }}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className={plusIco} />
               </button>
             ) : null}
           </div>
-          <span className="text-[10px] text-muted-foreground max-w-[4.5rem] truncate">Your status</span>
+          <span className={`${labelCls} text-muted-foreground max-w-[4.5rem] truncate`}>Your status</span>
         </div>
 
         {othersForStrip.map(({ authorId, group }) => {
@@ -279,11 +292,11 @@ export function StatusStoriesBar({
                 const start = flatIndexForGroup(grouped, groupIdx, 0)
                 setViewer({ playlist: playlistFlat, initialIndex: start })
               }}
-              className={`flex flex-col items-center gap-1.5 shrink-0 ${allViewed ? 'opacity-75' : ''}`}
+              className={`flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 ${allViewed ? 'opacity-75' : ''}`}
             >
               <div className="relative">
                 <div
-                  className={`h-16 w-16 rounded-full p-[2px] transition-all ${
+                  className={`${ring} rounded-full p-[2px] transition-all ${
                     allViewed
                       ? 'bg-gradient-to-tr from-zinc-700 to-zinc-900 ring-2 ring-zinc-600 grayscale-[0.25]'
                       : 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
@@ -298,7 +311,9 @@ export function StatusStoriesBar({
                 </div>
                 {count > 1 ? (
                   <span
-                    className={`absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full border-2 text-[10px] font-bold flex items-center justify-center z-[5] ${
+                    className={`absolute -top-0.5 -right-0.5 min-w-[1.1rem] rounded-full border-2 font-bold flex items-center justify-center z-[5] ${
+                      compact ? 'h-4 px-0.5 text-[9px]' : 'h-5 min-w-[1.25rem] px-1 text-[10px]'
+                    } ${
                       allViewed
                         ? 'bg-muted border-border text-muted-foreground dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-400'
                         : 'bg-background border-border text-foreground dark:bg-zinc-900 dark:border-black dark:text-primary'
@@ -308,7 +323,7 @@ export function StatusStoriesBar({
                   </span>
                 ) : null}
               </div>
-              <span className="text-[10px] text-foreground/90 max-w-[4.5rem] truncate">{label}</span>
+              <span className={`${labelCls} text-foreground/90 max-w-[4.5rem] truncate`}>{label}</span>
             </button>
           )
         })}
@@ -319,12 +334,16 @@ export function StatusStoriesBar({
           <button
             type="button"
             onClick={() => setShowAllOthers(true)}
-            className="flex flex-col items-center gap-1.5 shrink-0 self-start pt-0.5"
+            className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0 self-start pt-0.5"
           >
-            <div className="h-16 w-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center text-[11px] font-semibold text-primary px-1 text-center leading-tight bg-background/50 hover:bg-primary/10 transition-colors">
+            <div
+              className={`${ring} rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center font-semibold text-primary px-1 text-center leading-tight bg-background/50 hover:bg-primary/10 transition-colors ${
+                compact ? 'text-[9px]' : 'text-[11px]'
+              }`}
+            >
               View all
             </div>
-            <span className="text-[10px] text-muted-foreground">Stories</span>
+            <span className={`${labelCls} text-muted-foreground`}>Stories</span>
           </button>
         ) : null}
         {maxOtherAuthors != null && showAllOthers && othersGrouped.length > maxOtherAuthors ? (
