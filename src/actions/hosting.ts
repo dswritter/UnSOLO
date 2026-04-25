@@ -376,29 +376,29 @@ export async function getMyHostedTrips() {
     .eq('host_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Get request counts per trip
-  const result = []
-  for (const trip of trips || []) {
-    const { count: pendingCount } = await supabase
-      .from('join_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('trip_id', trip.id)
-      .eq('status', 'pending')
+  const tripIds = (trips || []).map(t => t.id)
 
-    const { count: approvedCount } = await supabase
-      .from('join_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('trip_id', trip.id)
-      .eq('status', 'approved')
+  // Single query for all join-request counts grouped by (trip_id, status)
+  const { data: requestRows } = tripIds.length
+    ? await supabase
+        .from('join_requests')
+        .select('trip_id, status')
+        .in('trip_id', tripIds)
+        .in('status', ['pending', 'approved'])
+    : { data: [] }
 
-    result.push({
-      ...trip,
-      pending_requests: pendingCount || 0,
-      approved_requests: approvedCount || 0,
-    })
+  const counts: Record<string, { pending: number; approved: number }> = {}
+  for (const row of requestRows || []) {
+    if (!counts[row.trip_id]) counts[row.trip_id] = { pending: 0, approved: 0 }
+    if (row.status === 'pending') counts[row.trip_id].pending++
+    else if (row.status === 'approved') counts[row.trip_id].approved++
   }
 
-  return result
+  return (trips || []).map(trip => ({
+    ...trip,
+    pending_requests: counts[trip.id]?.pending ?? 0,
+    approved_requests: counts[trip.id]?.approved ?? 0,
+  }))
 }
 
 export async function getHostDashboardStats() {
