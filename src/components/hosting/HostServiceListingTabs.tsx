@@ -180,8 +180,8 @@ function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftIt
     name: row.name,
     description: row.description || '',
     priceRupees: row.price_paise / 100,
-    quantity: row.quantity_available,
-    maxPerBooking: row.max_per_booking,
+    quantity: row.max_per_booking,
+    maxPerBooking: row.quantity_available,
     images: row.images,
   }
   if (type === 'rentals') {
@@ -830,8 +830,8 @@ export function HostServiceListingTabs(props: Props) {
       name: i.name.trim(),
       description: i.description.trim() || null,
       price_paise: Math.round((i.priceRupees ?? 0) * 100),
-      quantity_available: i.quantity,
-      max_per_booking: i.maxPerBooking,
+      quantity_available: i.maxPerBooking,
+      max_per_booking: i.quantity,
       images: i.images,
       unit: isRental ? (i.unit || config.defaultUnit) : null,
       amenities: isRental ? (i.amenities || []) : null,
@@ -911,8 +911,8 @@ export function HostServiceListingTabs(props: Props) {
           name: draft.name,
           description: draft.description || null,
           price_paise: Math.round(draft.priceRupees * 100),
-          quantity_available: draft.quantity,
-          max_per_booking: draft.maxPerBooking,
+          quantity_available: draft.maxPerBooking,
+          max_per_booking: draft.quantity,
           images: draft.images,
           ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
         })
@@ -927,8 +927,8 @@ export function HostServiceListingTabs(props: Props) {
           name: draft.name,
           description: draft.description,
           price_paise: Math.round((draft.priceRupees ?? 0) * 100),
-          quantity_available: draft.quantity,
-          max_per_booking: draft.maxPerBooking,
+          quantity_available: draft.maxPerBooking,
+          max_per_booking: draft.quantity,
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
           ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : {}),
@@ -1684,17 +1684,17 @@ export function HostServiceListingTabs(props: Props) {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold">Quantity</label>
+                    <label className="text-xs font-semibold">Max per order</label>
                     <input
                       type="number"
-                      min="0"
+                      min="1"
                       value={draft.quantity}
                       onChange={(e) => updateDraft(draft.localKey, { quantity: Number(e.target.value) })}
                       className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold">Max / booking</label>
+                    <label className="text-xs font-semibold">Total available</label>
                     <input
                       type="number"
                       min="1"
@@ -1924,7 +1924,7 @@ export function HostServiceListingTabs(props: Props) {
                       <div className="text-xs text-muted-foreground">
                         ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
                         {isRental && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
-                        {' · '}Qty {i.quantity} · Max {i.maxPerBooking}/booking · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
+                        {' · '}{i.maxPerBooking} available · max {i.quantity}/order · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                       </div>
                     </div>
                   </div>

@@ -209,6 +209,7 @@ export async function createServiceListingOrder(
         .single()
 
       if (bookingError) {
+        console.error('service booking insert error (instant):', bookingError)
         return { error: 'Failed to create booking' }
       }
 
