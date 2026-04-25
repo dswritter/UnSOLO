@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
@@ -30,7 +30,10 @@ function monthParamFromRange(start: string, end: string): string | undefined {
   return undefined
 }
 
-const WANDER_GEO_DONE = 'wander:geo-prompt-finished'
+/** Only set when user clicks “Not now” (don’t conflate with successful geolocation). */
+const WANDER_GEO_NUDGE_DISMISSED = 'wander:geo-nudge-dismissed'
+/** Legacy: old code used one key for “finished” and blocked the dialog for everyone. */
+const WANDER_GEO_DONE_LEGACY = 'wander:geo-prompt-finished'
 const WANDER_GEO_CACHE = 'wander:geo-nearby-label'
 
 /** Local calendar YYYY-MM-DD (never UTC — avoids “yesterday” vs server TZ). */
@@ -94,6 +97,7 @@ export function WanderSearchBar({
   const [geoOpen, setGeoOpen] = useState(false)
   const [geoTarget, setGeoTarget] = useState<'stay' | 'act' | 'rent' | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
+  const geoPromptLastAt = useRef(0)
 
   const today = calendarDay
 
@@ -103,12 +107,19 @@ export function WanderSearchBar({
     setTripStart(s => s || t)
     setStayIn(s => s || t)
     setActStart(s => s || t)
+    try {
+      if (localStorage.getItem(WANDER_GEO_DONE_LEGACY)) {
+        localStorage.removeItem(WANDER_GEO_DONE_LEGACY)
+      }
+    } catch {
+      /* ignore */
+    }
   }, [])
 
-  const markGeoDone = useCallback(() => {
+  const markNudgeDismissed = useCallback(() => {
     if (typeof window === 'undefined') return
     try {
-      localStorage.setItem(WANDER_GEO_DONE, '1')
+      localStorage.setItem(WANDER_GEO_NUDGE_DISMISSED, '1')
     } catch {
       /* ignore */
     }
@@ -187,6 +198,10 @@ export function WanderSearchBar({
   const onLocationFieldFocus = useCallback(
     (key: 'stay' | 'act' | 'rent') => {
       void (async () => {
+        const now = Date.now()
+        if (now - geoPromptLastAt.current < 450) return
+        geoPromptLastAt.current = now
+
         const current = key === 'stay' ? stayWhere : key === 'act' ? actWhere : rentWhere
         if (current.trim()) return
 
@@ -196,22 +211,16 @@ export function WanderSearchBar({
           return
         }
 
-        let done = false
+        let nudgeDismissed = false
         try {
-          done = localStorage.getItem(WANDER_GEO_DONE) === '1'
+          nudgeDismissed = localStorage.getItem(WANDER_GEO_NUDGE_DISMISSED) === '1'
         } catch {
           /* ignore */
         }
 
         const perm = await geolocationPermissionState()
 
-        if (done) {
-          if (perm === 'granted') void fillLocationFromDevice(key)
-          return
-        }
-
         if (perm === 'granted') {
-          markGeoDone()
           try {
             await fillLocationFromDevice(key)
           } catch {
@@ -219,8 +228,13 @@ export function WanderSearchBar({
           }
           return
         }
+
+        if (nudgeDismissed) {
+          return
+        }
+
         if (perm === 'denied') {
-          markGeoDone()
+          markNudgeDismissed()
           return
         }
 
@@ -228,7 +242,7 @@ export function WanderSearchBar({
         setGeoOpen(true)
       })()
     },
-    [actWhere, applyGeoLabel, fillLocationFromDevice, markGeoDone, readSessionGeoLabel, rentWhere, stayWhere],
+    [actWhere, applyGeoLabel, fillLocationFromDevice, markNudgeDismissed, readSessionGeoLabel, rentWhere, stayWhere],
   )
 
   const closeGeo = useCallback(() => {
@@ -238,9 +252,9 @@ export function WanderSearchBar({
   }, [])
 
   const onGeoNotNow = useCallback(() => {
-    markGeoDone()
+    markNudgeDismissed()
     closeGeo()
-  }, [closeGeo, markGeoDone])
+  }, [closeGeo, markNudgeDismissed])
 
   const onGeoAllow = useCallback(() => {
     if (!geoTarget) return
@@ -249,7 +263,6 @@ export function WanderSearchBar({
     void (async () => {
       try {
         await fillLocationFromDevice(key)
-        markGeoDone()
         closeGeo()
       } catch {
         /* toasts in fill */
@@ -257,7 +270,7 @@ export function WanderSearchBar({
         setGeoLoading(false)
       }
     })()
-  }, [closeGeo, fillLocationFromDevice, geoTarget, markGeoDone])
+  }, [closeGeo, fillLocationFromDevice, geoTarget])
 
   function goExplore() {
     const params = new URLSearchParams()
@@ -400,6 +413,7 @@ export function WanderSearchBar({
                 value={stayWhere}
                 onChange={e => setStayWhere(e.target.value)}
                 onFocus={() => onLocationFieldFocus('stay')}
+                onClick={() => onLocationFieldFocus('stay')}
               />
             </div>
           </label>
@@ -470,6 +484,7 @@ export function WanderSearchBar({
                 value={actWhere}
                 onChange={e => setActWhere(e.target.value)}
                 onFocus={() => onLocationFieldFocus('act')}
+                onClick={() => onLocationFieldFocus('act')}
               />
             </div>
           </label>
@@ -541,6 +556,7 @@ export function WanderSearchBar({
                 value={rentWhere}
                 onChange={e => setRentWhere(e.target.value)}
                 onFocus={() => onLocationFieldFocus('rent')}
+                onClick={() => onLocationFieldFocus('rent')}
               />
             </div>
           </label>
