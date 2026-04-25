@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { chatKeys } from '@/lib/chat/chatQueryKeys'
 import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
-import { sendMessage, editMessage, createChatPoll, setRoomPinnedMessage } from '@/actions/chat'
+import { sendMessage, editMessage, createChatPoll, setRoomPinnedMessage, getPollStateByPollId } from '@/actions/chat'
 import { fetchChatSharePage, type ChatShareItem, type ChatShareKind } from '@/actions/chat-share'
 import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -567,6 +567,51 @@ export function ChatWindow({
       sb.removeChannel(channel)
     }
   }, [messages, roomId])
+
+  // Poll votes: realtime refetch so counts / % / voter avatars stay in sync (same pattern as reactions).
+  useEffect(() => {
+    const sb = createBrowserClient()
+    const refreshPoll = (pollId: string) => {
+      void (async () => {
+        const r = await getPollStateByPollId(pollId)
+        if (r.state) {
+          setPollByMessageId(prev => ({ ...prev, [r.state!.messageId]: r.state! }))
+        }
+      })()
+    }
+    const channel = sb
+      .channel(`poll-votes-${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_poll_votes',
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload: { new: Record<string, unknown> }) => {
+          const n = payload.new as { poll_id?: string }
+          if (n.poll_id) refreshPoll(n.poll_id)
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_poll_votes',
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload: { old: Record<string, unknown> }) => {
+          const o = payload.old as { poll_id?: string }
+          if (o.poll_id) refreshPoll(o.poll_id)
+        },
+      )
+      .subscribe()
+    return () => {
+      void sb.removeChannel(channel)
+    }
+  }, [roomId])
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (messageId.startsWith('optimistic-')) return
@@ -2120,7 +2165,12 @@ function MessageBubble({
               </Link>
             </div>
           )}
-          <ChatPollCard roomId={roomId} messageId={message.id} initial={pollData} />
+          <ChatPollCard
+            roomId={roomId}
+            messageId={message.id}
+            initial={pollData}
+            memberProfiles={memberProfiles}
+          />
         </div>
       </div>
     )

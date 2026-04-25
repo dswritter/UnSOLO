@@ -6,8 +6,25 @@ export type ChatPollState = {
   question: string
   allowMultiple: boolean
   endsAt: string | null
-  options: { id: string; position: number; label: string; voteCount: number }[]
+  options: {
+    id: string
+    position: number
+    label: string
+    voteCount: number
+    /** Recent voters (up to 8) for avatars, newest first */
+    voterUserIds: string[]
+  }[]
   myOptionIds: string[]
+}
+
+/** Shown in poll bars; merge logic keeps the same cap */
+export const CHAT_POLL_MAX_VOTER_ICONS = 8
+
+function orderVoterUserIds(
+  byOption: Map<string, string[]>,
+  optionId: string,
+): string[] {
+  return (byOption.get(optionId) || []).slice(0, CHAT_POLL_MAX_VOTER_ICONS)
 }
 
 /**
@@ -34,8 +51,9 @@ export async function getRoomPollsState(
 
   const { data: allVotes } = await supabase
     .from('chat_poll_votes')
-    .select('poll_id, option_id, user_id')
+    .select('poll_id, option_id, user_id, created_at')
     .in('poll_id', pollIds)
+    .order('created_at', { ascending: false })
 
   const byMessage: Record<string, ChatPollState> = {}
   const votes = allVotes || []
@@ -56,9 +74,17 @@ export async function getRoomPollsState(
     const optionsRaw = (optionsByPoll.get(p.id) || []).slice().sort((a, b) => a.position - b.position)
     const counts = new Map<string, number>()
     for (const o of optionsRaw) counts.set(o.id, 0)
+    /** per option: unique user ids, newest vote first (for avatars) */
+    const byOptionVoters = new Map<string, string[]>()
+    for (const o of optionsRaw) {
+      byOptionVoters.set(o.id, [])
+    }
     for (const v of votes) {
       if (v.poll_id !== p.id) continue
       counts.set(v.option_id, (counts.get(v.option_id) || 0) + 1)
+      const list = byOptionVoters.get(v.option_id) || []
+      if (!list.includes(v.user_id)) list.push(v.user_id)
+      byOptionVoters.set(v.option_id, list)
     }
     const myOptionIds = votes.filter(v => v.poll_id === p.id && v.user_id === viewerUserId).map(v => v.option_id)
     byMessage[p.message_id] = {
@@ -72,6 +98,7 @@ export async function getRoomPollsState(
         position: o.position,
         label: o.label,
         voteCount: counts.get(o.id) || 0,
+        voterUserIds: orderVoterUserIds(byOptionVoters, o.id),
       })),
       myOptionIds,
     }

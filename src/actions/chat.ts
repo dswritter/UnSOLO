@@ -364,3 +364,21 @@ export async function getPollStateForMessage(messageId: string) {
   const map = await getRoomPollsState(supabase, poll.room_id, [messageId], user.id)
   return { state: map[messageId] ?? null, error: null as null }
 }
+
+/** Refetch a single poll by id (e.g. realtime vote events). */
+export async function getPollStateByPollId(pollId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' as const, state: null as null }
+
+  const { data: row, error } = await supabase
+    .from('chat_polls')
+    .select('message_id, room_id')
+    .eq('id', pollId)
+    .maybeSingle()
+  if (error || !row) return { error: null as null, state: null as null }
+
+  const { getRoomPollsState } = await import('@/lib/chat/getRoomPollsState')
+  const map = await getRoomPollsState(supabase, row.room_id, [row.message_id], user.id)
+  return { state: map[row.message_id] ?? null, error: null as null }
+}
