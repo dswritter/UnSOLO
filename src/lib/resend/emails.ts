@@ -474,3 +474,55 @@ export async function sendPOCDetails(details: POCDetailsInput) {
     `,
   })
 }
+
+// ── Host cancels trip ─────────────────────────────────────────
+
+export interface TripCancelledByHostEmailInput {
+  to: string
+  travelerName: string
+  tripTitle: string
+  travelDate?: string
+  bookingsUrl: string
+}
+
+export async function sendTripCancelledByHostEmail(input: TripCancelledByHostEmailInput) {
+  const { to, travelerName, tripTitle, travelDate, bookingsUrl } = input
+  const greeting = travelerName?.trim() || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+  const dateLine = travelDate
+    ? `<p style="color: #aaa; margin: 8px 0; font-size: 14px;">Travel date: <strong style="color: #fff;">${escapeHtml(formatTripDate(travelDate))}</strong></p>`
+    : ''
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Trip cancelled — ${tripTitle}`,
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h1 style="color: #FFC22E; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color: #f87171; text-align: center;">Trip Cancelled</h2>
+        <p style="color: #ccc; text-align: center;">Hey ${escapeHtml(greeting)},</p>
+        <p style="color: #ddd; text-align: center; line-height: 1.5;">
+          We're sorry to let you know that the host has cancelled
+          <strong style="color: #FFC22E;">${safeTitle}</strong>.
+        </p>
+
+        <div style="background: #1a1a1a; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #333;">
+          <p style="color: #ddd; margin: 8px 0;"><strong>Trip:</strong> ${safeTitle}</p>
+          ${dateLine}
+          <p style="color: #aaa; margin: 8px 0; font-size: 14px;">Any amount you paid will be refunded within 5–7 business days.</p>
+        </div>
+
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${safeUrl}" style="display: inline-block; background: #FFC22E; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">View my bookings</a>
+        </div>
+
+        <p style="color: #888; font-size: 12px; text-align: center; margin-top: 32px;">Questions? <a href="mailto:hello@unsolo.in" style="color: #FFC22E;">hello@unsolo.in</a></p>
+        <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}

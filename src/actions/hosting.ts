@@ -318,15 +318,23 @@ export async function cancelHostedTrip(tripId: string) {
   // Deactivate the trip
   await supabase.from('packages').update({ is_active: false }).eq('id', tripId)
 
+  // Cancel all active bookings for this trip
+  const { data: affectedBookings } = await supabase
+    .from('bookings')
+    .update({ status: 'cancelled' })
+    .eq('package_id', tripId)
+    .in('status', ['confirmed', 'pending', 'payment_pending'])
+    .select('id, travel_date, profiles(full_name, email)')
+
+  const { createClient: createSC } = await import('@supabase/supabase-js')
+  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
   // Notify all approved joiners
   const { data: requests } = await supabase
     .from('join_requests')
     .select('user_id')
     .eq('trip_id', tripId)
     .eq('status', 'approved')
-
-  const { createClient: createSC } = await import('@supabase/supabase-js')
-  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
   for (const req of requests || []) {
     await svcSupabase.from('notifications').insert({
@@ -336,6 +344,20 @@ export async function cancelHostedTrip(tripId: string) {
       body: `The host cancelled "${trip.title}". Any payments will be refunded.`,
       link: '/bookings',
     })
+  }
+
+  // Email each affected traveler
+  const { sendTripCancelledByHostEmail } = await import('@/lib/resend/emails')
+  for (const booking of affectedBookings || []) {
+    const profile = (Array.isArray(booking.profiles) ? booking.profiles[0] : booking.profiles) as { full_name: string | null; email: string | null } | null
+    if (!profile?.email) continue
+    await sendTripCancelledByHostEmail({
+      to: profile.email,
+      travelerName: profile.full_name ?? '',
+      tripTitle: trip.title,
+      travelDate: booking.travel_date ?? undefined,
+      bookingsUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/bookings`,
+    }).catch(() => null)
   }
 
   revalidatePath('/host')
