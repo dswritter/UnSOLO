@@ -896,9 +896,13 @@ export async function getHostEarnings() {
 
 // ── Resubmit rejected trip for review ────────────────────────
 export async function resubmitTrip(tripId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  let supabase: Awaited<ReturnType<typeof requireHost>>['supabase']
+  let user: Awaited<ReturnType<typeof requireHost>>['user']
+  try {
+    ;({ supabase, user } = await requireHost())
+  } catch (e) {
+    return { error: (e as Error).message }
+  }
 
   const { data: trip } = await supabase
     .from('packages')
