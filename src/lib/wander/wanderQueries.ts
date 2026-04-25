@@ -1,0 +1,276 @@
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import type { Package, ServiceListing } from '@/types'
+import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
+import type { ServiceEventScheduleEntry } from '@/types'
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function isActivityVisibleToPublic(
+  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
+): boolean {
+  if (listing.type !== 'activities') return true
+  const schedule = listing.event_schedule
+  if (!schedule || (schedule as ServiceEventScheduleEntry[]).length === 0) return true
+  const t = todayIso()
+  return (schedule as ServiceEventScheduleEntry[]).some(entry => entry.date >= t)
+}
+
+function svc() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createServiceClient(url, key)
+}
+
+export type WanderStats = {
+  soloTravelers: number
+  destinations: number
+  bookings: number
+  happyPercent: number
+}
+
+export async function getWanderStats(): Promise<WanderStats> {
+  const supabase = svc()
+
+  const [{ count: profileCount }, { count: bookingCount }, destPackages, destServices, reviews, hostReviews] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('bookings')
+      .select('*', { count: 'exact', head: true })
+      .not('status', 'eq', 'pending'),
+    supabase
+      .from('packages')
+      .select('destination_id')
+      .eq('is_active', true)
+      .not('host_id', 'is', null)
+      .not('destination_id', 'is', null),
+    supabase
+      .from('service_listings')
+      .select('destination_id')
+      .eq('is_active', true)
+      .not('host_id', 'is', null)
+      .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)'),
+    supabase.from('reviews').select('rating'),
+    supabase.from('host_reviews').select('rating'),
+  ])
+
+  const destSet = new Set<string>()
+  for (const r of destPackages.data || []) {
+    const d = (r as { destination_id: string | null }).destination_id
+    if (d) destSet.add(d)
+  }
+  for (const r of destServices.data || []) {
+    const d = (r as { destination_id: string | null }).destination_id
+    if (d) destSet.add(d)
+  }
+
+  const allRatings = [
+    ...((reviews.data || []) as { rating: number }[]).map(x => x.rating),
+    ...((hostReviews.data || []) as { rating: number }[]).map(x => x.rating),
+  ]
+  const totalR = allRatings.length
+  const goodR = allRatings.filter(x => x >= 3).length
+  const happyPercent = totalR === 0 ? 0 : Math.round((goodR / totalR) * 1000) / 10
+
+  return {
+    soloTravelers: profileCount ?? 0,
+    destinations: destSet.size,
+    bookings: bookingCount ?? 0,
+    happyPercent,
+  }
+}
+
+export type RaterPreview = { userId: string; avatar_url: string | null; username: string; full_name: string | null }
+
+export type WanderRatingHero = {
+  overall: number
+  reviewCount: number
+  /** Recent unique raters (for avatar strip) */
+  recentRaters: RaterPreview[]
+}
+
+export async function getWanderRatingHero(): Promise<WanderRatingHero> {
+  const supabase = svc()
+  const [reviews, hostRows] = await Promise.all([
+    supabase.from('reviews').select('user_id, rating, created_at'),
+    supabase.from('host_reviews').select('reviewer_id, rating, created_at'),
+  ])
+  const r1 = (reviews.data || []) as { user_id: string; rating: number; created_at: string }[]
+  const r2 = (hostRows.data || []) as { reviewer_id: string; rating: number; created_at: string }[]
+
+  const all = [
+    ...r1.map(x => ({ uid: x.user_id, rating: x.rating, t: x.created_at })),
+    ...r2.map(x => ({ uid: x.reviewer_id, rating: x.rating, t: x.created_at })),
+  ]
+  const sum = all.reduce((a, b) => a + b.rating, 0)
+  const n = all.length
+  const overall = n === 0 ? 4.8 : Math.round((sum / n) * 10) / 10
+
+  // Recent raters, unique users, most recent first
+  all.sort((a, b) => new Date(b.t).getTime() - new Date(a.t).getTime())
+  const seen = new Set<string>()
+  const orderedIds: string[] = []
+  for (const row of all) {
+    if (seen.has(row.uid)) continue
+    seen.add(row.uid)
+    orderedIds.push(row.uid)
+    if (orderedIds.length >= 12) break
+  }
+
+  let recentRaters: RaterPreview[] = []
+  if (orderedIds.length) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', orderedIds)
+    const byId = new Map((profs || []).map(p => [p.id, p as RaterPreview & { id: string }]))
+    recentRaters = orderedIds
+      .map(id => {
+        const p = byId.get(id)
+        if (!p) return null
+        return { userId: p.id, avatar_url: p.avatar_url, username: p.username, full_name: p.full_name }
+      })
+      .filter((x): x is RaterPreview => x != null)
+      .slice(0, 8)
+  }
+
+  return { overall, reviewCount: n, recentRaters }
+}
+
+function filterPackagesWithFutureDepartures(packages: Package[]): Package[] {
+  const todayStr = new Date().toISOString().split('T')[0]
+  return packages.filter(pkg => {
+    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
+    const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
+    return pkg.departure_dates.some(d => {
+      const k = tripDepartureDateKey(d)
+      return k >= todayStr && !closed.has(k)
+    })
+  })
+}
+
+/** Featured first, then by average review rating, then explore popularity sort. */
+export async function getWanderTripRow(): Promise<Package[]> {
+  const supabase = svc()
+  const { data: raw } = await supabase
+    .from('packages')
+    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
+    .eq('is_active', true)
+    .order('is_featured', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(120)
+  let packages = filterPackagesWithFutureDepartures((raw || []) as Package[])
+  if (packages.length === 0) return []
+
+  const ids = packages.map(p => p.id)
+  const { data: reviewRows } = await supabase.from('reviews').select('package_id, rating').in('package_id', ids)
+  const avgByPackage = new Map<string, { sum: number; n: number }>()
+  for (const r of reviewRows || []) {
+    const row = r as { package_id: string; rating: number }
+    const cur = avgByPackage.get(row.package_id) || { sum: 0, n: 0 }
+    cur.sum += row.rating
+    cur.n += 1
+    avgByPackage.set(row.package_id, cur)
+  }
+  const ratingAvg = (id: string) => {
+    const x = avgByPackage.get(id)
+    if (!x || x.n === 0) return 0
+    return x.sum / x.n
+  }
+
+  const { bookedGuests, interestCount } = await fetchPackagePopularityMaps(supabase, ids)
+  packages = sortExplorePackages(packages, bookedGuests, interestCount)
+  packages.sort((a, b) => {
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
+    const ra = ratingAvg(a.id)
+    const rb = ratingAvg(b.id)
+    if (rb !== ra) return rb - ra
+    return 0
+  })
+  return packages.slice(0, 4)
+}
+
+export async function getWanderActivityRow(): Promise<ServiceListing[]> {
+  const supabase = svc()
+  const { data, error } = await supabase
+    .from('service_listings')
+    .select('*, destination:destinations(id, name, slug)')
+    .eq('type', 'activities')
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .order('is_featured', { ascending: false })
+    .order('average_rating', { ascending: false })
+    .order('review_count', { ascending: false })
+    .limit(30)
+  if (error || !data) return []
+  const visible = ((data || []) as ServiceListing[]).filter(l => isActivityVisibleToPublic(l))
+  return visible.slice(0, 4)
+}
+
+export async function getWanderRentalRow(): Promise<ServiceListing[]> {
+  const supabase = svc()
+  const { data: listings, error: lerr } = await supabase
+    .from('service_listings')
+    .select('*, destination:destinations(id, name, slug)')
+    .eq('type', 'rentals')
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .limit(80)
+  if (lerr || !listings?.length) return []
+  const ids = listings.map(l => l.id)
+  const { data: bookRows } = await supabase
+    .from('bookings')
+    .select('service_listing_id, status')
+    .eq('booking_type', 'service')
+    .in('service_listing_id', ids)
+    .not('status', 'eq', 'pending')
+  const counts = new Map<string, number>()
+  for (const b of bookRows || []) {
+    const row = b as { service_listing_id: string | null }
+    if (!row.service_listing_id) continue
+    counts.set(row.service_listing_id, (counts.get(row.service_listing_id) || 0) + 1)
+  }
+  const sorted = [...(listings as ServiceListing[])].sort((a, b) => {
+    const ca = counts.get(a.id) || 0
+    const cb = counts.get(b.id) || 0
+    if (cb !== ca) return cb - ca
+    if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
+    return (b.average_rating || 0) - (a.average_rating || 0)
+  })
+  return sorted.slice(0, 4)
+}
+
+export async function getWanderServiceItemsForListings(
+  listings: ServiceListing[],
+): Promise<
+  Array<
+    ServiceListing & {
+      items: Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>
+    }
+  >
+> {
+  if (listings.length === 0) return []
+  const supabase = svc()
+  const ids = listings.map(l => l.id)
+  const { data: itemRows } = await supabase
+    .from('service_listing_items')
+    .select('id, name, price_paise, images, unit, service_listing_id')
+    .in('service_listing_id', ids)
+    .eq('is_active', true)
+    .order('position_order', { ascending: true })
+  const itemsBy = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>>()
+  for (const row of itemRows || []) {
+    const lid = (row as { service_listing_id: string }).service_listing_id
+    if (!itemsBy.has(lid)) itemsBy.set(lid, [])
+    itemsBy.get(lid)!.push({
+      id: (row as { id: string }).id,
+      name: (row as { name: string }).name,
+      price_paise: (row as { price_paise: number }).price_paise,
+      images: ((row as { images: string[] | null }).images) || [],
+      unit: (row as { unit: string | null }).unit,
+    })
+  }
+  return listings.map(l => ({ ...l, items: itemsBy.get(l.id) || [] }))
+}

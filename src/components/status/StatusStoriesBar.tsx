@@ -78,6 +78,8 @@ export function StatusStoriesBar({
   generalRooms,
   addSlotAvatarUrl,
   existingActiveCount,
+  /** Cap how many *other* authors appear before "View all" (Wander home layout). */
+  maxOtherAuthors,
 }: {
   initialStories: StatusStripStory[]
   currentUserId: string
@@ -86,11 +88,13 @@ export function StatusStoriesBar({
   generalRooms: { id: string; name: string }[]
   addSlotAvatarUrl?: string | null
   existingActiveCount: number
+  maxOtherAuthors?: number
 }) {
   const router = useRouter()
   const [viewer, setViewer] = useState<{ playlist: StatusStripStory[]; initialIndex: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [viewTick, setViewTick] = useState(0)
+  const [showAllOthers, setShowAllOthers] = useState(false)
   /** 0–100 while uploading in background; null when idle */
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
 
@@ -163,8 +167,10 @@ export function StatusStoriesBar({
       if (!ownA && ownB) return 1
       const va = isStoryGroupFullyViewed(currentUserId, a.group, seenStoryIds)
       const vb = isStoryGroupFullyViewed(currentUserId, b.group, seenStoryIds)
-      if (va === vb) return 0
-      return va ? 1 : -1
+      if (va !== vb) return va ? 1 : -1
+      const ta = new Date(a.group[0]!.created_at).getTime()
+      const tb = new Date(b.group[0]!.created_at).getTime()
+      return tb - ta
     })
     return arr
   }, [initialStories, currentUserId, viewTick, seenStoryIds])
@@ -179,6 +185,11 @@ export function StatusStoriesBar({
   const atStatusLimit = existingActiveCount >= 3
 
   const othersGrouped = useMemo(() => grouped.filter(g => g.authorId !== currentUserId), [grouped])
+
+  const othersForStrip = useMemo(() => {
+    if (maxOtherAuthors == null || showAllOthers) return othersGrouped
+    return othersGrouped.slice(0, maxOtherAuthors)
+  }, [othersGrouped, maxOtherAuthors, showAllOthers])
 
   useEffect(() => {
     const sb = createClient()
@@ -253,7 +264,7 @@ export function StatusStoriesBar({
           <span className="text-[10px] text-muted-foreground max-w-[4.5rem] truncate">Your status</span>
         </div>
 
-        {othersGrouped.map(({ authorId, group }) => {
+        {othersForStrip.map(({ authorId, group }) => {
           const story = group[0]!
           const author = unwrapAuthor(story)
           const label = author?.full_name || author?.username || 'Traveler'
@@ -301,6 +312,30 @@ export function StatusStoriesBar({
             </button>
           )
         })}
+
+        {maxOtherAuthors != null &&
+        !showAllOthers &&
+        othersGrouped.length > maxOtherAuthors ? (
+          <button
+            type="button"
+            onClick={() => setShowAllOthers(true)}
+            className="flex flex-col items-center gap-1.5 shrink-0 self-start pt-0.5"
+          >
+            <div className="h-16 w-16 rounded-full border-2 border-dashed border-primary/50 flex items-center justify-center text-[11px] font-semibold text-primary px-1 text-center leading-tight bg-background/50 hover:bg-primary/10 transition-colors">
+              View all
+            </div>
+            <span className="text-[10px] text-muted-foreground">Stories</span>
+          </button>
+        ) : null}
+        {maxOtherAuthors != null && showAllOthers && othersGrouped.length > maxOtherAuthors ? (
+          <button
+            type="button"
+            onClick={() => setShowAllOthers(false)}
+            className="text-[11px] font-medium text-primary hover:underline shrink-0 self-center"
+          >
+            Show less
+          </button>
+        ) : null}
       </div>
 
       <AddStatusStorySheet
