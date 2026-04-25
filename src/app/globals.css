@@ -162,6 +162,29 @@
   font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
 }
 
+/**
+ * /wander page shell: keep tokens from `.wander-theme` but replace flat fill with
+ * depth—gradient, fine grain, soft foliage shapes (green tint).
+ * First = top layer. Works with `background-color: var(--background)` as fallthrough.
+ */
+.wander-textured {
+  background-color: var(--background);
+  background-image:
+    repeating-linear-gradient(
+      125deg,
+      oklch(0.02 0.02 150 / 0.14) 0 1px,
+      transparent 1px 5px
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23a)' opacity='0.45'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cellipse cx='45' cy='55' rx='38' ry='24' fill='oklch%280.34%200.08%20150%20%2F%200.12%29' transform='rotate%28-22%2045%2055%29'/%3E%3Cellipse cx='155' cy='145' rx='42' ry='30' fill='oklch%280.28%200.07%20155%20%2F%200.1%29' transform='rotate%2818%20155%20145%29'/%3E%3Cellipse cx='100' cy='100' rx='52' ry='20' fill='oklch%280.3%200.07%20152%20%2F%200.08%29' transform='rotate%2848%20100%20100%29'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 120% 90% at 0% 0%, oklch(0.32 0.08 148 / 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 85% 70% at 100% 100%, oklch(0.2 0.06 155 / 0.3) 0%, transparent 50%),
+    linear-gradient(172deg, oklch(0.22 0.05 155) 0%, oklch(0.17 0.043 152) 55%, oklch(0.14 0.04 150) 100%);
+  background-size: auto, 180px 180px, 400px 400px, auto, auto, auto;
+  background-position: 0 0, 0 0, 30% 55%, 0 0, 0 0, 0 0;
+  background-blend-mode: soft-light, soft-light, soft-light, normal, normal, normal;
+}
+
 /* Frosted “glass” surface on top of .wander-theme page bg */
 .wander-frost {
   background: color-mix(in oklab, var(--card) 72%, transparent);

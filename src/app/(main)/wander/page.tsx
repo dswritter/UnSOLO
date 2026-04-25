@@ -46,7 +46,7 @@ export default async function WanderPage() {
   ])
 
   return (
-    <div className="w-full bg-background">
+    <div className="w-full">
       <WanderHero
         rating={rating}
         stats={stats}

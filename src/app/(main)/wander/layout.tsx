@@ -15,7 +15,7 @@ const wanderSans = Plus_Jakarta_Sans({
 export default function WanderLayout({ children }: { children: ReactNode }) {
   return (
     <div
-      className={`wander-theme ${wanderSans.variable} w-full min-h-full bg-background text-foreground [color-scheme:dark]`}
+      className={`wander-theme wander-textured ${wanderSans.variable} w-full min-h-full text-foreground [color-scheme:dark]`}
     >
       {children}
     </div>
