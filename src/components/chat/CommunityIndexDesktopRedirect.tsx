@@ -1,21 +1,25 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { getLastTribeRoomId } from '@/lib/tribe-browser-cache'
+
+type Props = { roomId: string | null }
 
 /**
- * On md+ viewports, open the most recent chat in the main pane instead of an empty state.
- * Mobile stays on the conversation list at /community so back navigation still works.
+ * On md+ viewports, open a chat in the main pane. Prefers the last-visited room
+ * from localStorage, then the server’s most-recent room (if any).
  */
-export function CommunityIndexDesktopRedirect({ roomId }: { roomId: string }) {
+export function CommunityIndexDesktopRedirect({ roomId }: Props) {
   const router = useRouter()
   const pathname = usePathname()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (pathname !== '/community') return
-    const mq = window.matchMedia('(min-width: 768px)')
-    if (!mq.matches) return
-    router.replace(`/community/${roomId}`)
+    if (!window.matchMedia('(min-width: 768px)').matches) return
+    const cached = getLastTribeRoomId()
+    const target = cached || roomId
+    if (target) router.replace(`/community/${target}`)
   }, [pathname, roomId, router])
 
   return null

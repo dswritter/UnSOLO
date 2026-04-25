@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
+import { setLastTribeRoomId, setCachedMessagesJson, buildMessagesCachePayload } from '@/lib/tribe-browser-cache'
 import type { ChatPollState } from '@/lib/chat/getRoomPollsState'
 import { PinnedMessageBanner } from '@/components/chat/PinnedMessageBanner'
 import { ChatPollCard } from '@/components/chat/ChatPollCard'
@@ -249,6 +250,8 @@ export function ChatWindow({
     refetchOnReconnect: false,
   })
 
+  const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
+
   useLayoutEffect(() => {
     const cached = queryClient.getQueryData<Message[]>(messagesKey)
     if (!cached?.length) return
@@ -260,6 +263,38 @@ export function ChatWindow({
       queryClient.setQueryData(messagesKey, initialMessages)
     }
   }, [roomId, initialMessages, messagesKey, queryClient])
+
+  useEffect(() => {
+    setLastTribeRoomId(roomId)
+  }, [roomId])
+
+  useEffect(() => {
+    if (messages.length === 0) return
+    if (typeof window === 'undefined') return
+    try {
+      setCachedMessagesJson(
+        roomId,
+        buildMessagesCachePayload(messages as unknown as Array<Record<string, unknown>>),
+      )
+    } catch {
+      /* storage full or serialization */
+    }
+  }, [roomId, messages])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const fresh = await fetchRoomMessagesClient(roomId)
+        if (!cancelled) queryClient.setQueryData(messagesKey, fresh)
+      } catch {
+        /* offline or error — keep cache */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [roomId, messagesKey, queryClient])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -305,8 +340,6 @@ export function ChatWindow({
   const shareSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  /** Pixels from layout viewport bottom to visual viewport bottom (mobile keyboard, browser chrome). */
-  const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
 
   // Read receipts state
   const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceipt[]>>(new Map())

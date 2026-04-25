@@ -1,5 +1,7 @@
+import { cache } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
+import { createClient } from '@/lib/supabase/server'
 
 const DEFAULT_PAGE = { limit: 8, offset: 0 }
 
@@ -228,3 +230,16 @@ export async function getSidebarRooms(
 
   return { rooms: paged, total, roomNameIndex }
 }
+
+/**
+ * Dedupes sidebar fetches within a single RSC request (layout + page both need the same list).
+ */
+export const getCachedSidebarRooms = cache(
+  async (
+    userId: string,
+    pagination: { limit: number; offset: number } = { limit: 8, offset: 0 },
+  ): Promise<SidebarRoomPageResult> => {
+    const supabase = await createClient()
+    return getSidebarRooms(supabase, userId, pagination)
+  },
+)

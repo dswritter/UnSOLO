@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
+import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { CommunityIndexDesktopRedirect } from '@/components/chat/CommunityIndexDesktopRedirect'
 import { MessageCircle } from 'lucide-react'
@@ -12,12 +12,12 @@ export default async function CommunityPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { rooms, total: totalRoomCount } = await getSidebarRooms(supabase, user.id, { limit: 8, offset: 0 })
+  const { rooms, total: totalRoomCount } = await getCachedSidebarRooms(user.id, { limit: 8, offset: 0 })
   const firstRoomId = rooms[0]?.id ?? null
 
   return (
     <div className="flex flex-col h-full min-h-0 flex-1">
-      {firstRoomId ? <CommunityIndexDesktopRedirect roomId={firstRoomId} /> : null}
+      <CommunityIndexDesktopRedirect roomId={firstRoomId} />
       {/* Mobile: sidebar (desktop list is in layout) */}
       <ChatSidebar
         rooms={rooms}
