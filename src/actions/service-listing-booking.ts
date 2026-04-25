@@ -71,6 +71,15 @@ export async function createServiceListingOrder(
       return { error: 'Please log in to book' }
     }
 
+    // Validate check-in date
+    if (!bookingData.check_in_date) {
+      return { error: 'Please select a date' }
+    }
+    const todayStr = new Date().toISOString().slice(0, 10)
+    if (bookingData.check_in_date < todayStr) {
+      return { error: 'Booking date cannot be in the past' }
+    }
+
     // Fetch listing
     const { data: listing, error: listingError } = await supabase
       .from('service_listings')
