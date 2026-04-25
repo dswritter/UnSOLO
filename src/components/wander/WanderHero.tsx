@@ -23,7 +23,7 @@ export function WanderHero({
         : '10K+'
 
   return (
-    <section className="relative w-full min-h-[clamp(220px,34vh,380px)] overflow-hidden bg-black">
+    <section className="relative w-full min-h-[clamp(220px,34vh,380px)] overflow-hidden bg-background">
       <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element -- URL from admin; any HTTPS host */}
         <img
@@ -31,8 +31,8 @@ export function WanderHero({
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-center opacity-88"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/25" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/20 to-black/35" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/30 to-background/50" />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pt-6 pb-5 md:pt-8 md:pb-6">
@@ -55,7 +55,7 @@ export function WanderHero({
             </p>
           </div>
 
-          <div className="w-full max-w-[200px] shrink-0 self-start rounded-xl border border-white/15 bg-black/50 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md md:max-w-[210px] md:p-3.5 flex flex-col justify-between gap-2 ring-1 ring-white/10 min-h-0">
+          <div className="w-full max-w-[200px] shrink-0 self-start rounded-xl border border-white/15 bg-background/60 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md md:max-w-[210px] md:p-3.5 flex flex-col justify-between gap-2 ring-1 ring-white/10 min-h-0">
             <div className="flex items-start gap-2">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/25">
                 <Star className="h-5 w-5 text-primary fill-primary" aria-hidden />
@@ -77,7 +77,7 @@ export function WanderHero({
                   <Link
                     key={r.userId}
                     href={`/profile/${r.username}`}
-                    className="relative inline-block ring-2 ring-black/80 rounded-full hover:z-10 hover:ring-primary/60 transition-all"
+                    className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all"
                     title={r.full_name || r.username}
                   >
                     <Avatar className="h-7 w-7 border-2 border-background">

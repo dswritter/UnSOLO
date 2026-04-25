@@ -44,7 +44,7 @@ export default async function WanderPage() {
   ])
 
   return (
-    <div className="w-full">
+    <div className="w-full bg-background">
       <WanderHero rating={rating} stats={stats} heroImageUrl={heroImageUrl} />
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 -mt-6 md:-mt-8 relative z-20 pb-4 md:pb-6 flex justify-start">

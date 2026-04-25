@@ -125,6 +125,42 @@
   --sidebar-ring: oklch(0.828 0.168 82);
 }
 
+/* ── /wander — fixed forest green + gold (mockup) — not tied to .dark / :root ─ */
+.wander-theme {
+  --background: oklch(0.1 0.024 155);
+  --foreground: oklch(0.96 0.012 90);
+  --card: oklch(0.135 0.03 152);
+  --card-foreground: oklch(0.96 0.012 90);
+  --popover: oklch(0.13 0.028 152);
+  --popover-foreground: oklch(0.96 0.012 90);
+  --primary: oklch(0.86 0.165 90);
+  --primary-foreground: oklch(0.1 0.024 155);
+  --secondary: oklch(0.18 0.03 150);
+  --secondary-foreground: oklch(0.9 0.02 90);
+  --muted: oklch(0.14 0.025 150);
+  --muted-foreground: oklch(0.7 0.04 100);
+  --accent: oklch(0.86 0.165 90);
+  --accent-foreground: oklch(0.1 0.024 155);
+  --destructive: oklch(0.6 0.2 25);
+  --border: oklch(0.26 0.04 150);
+  --input: oklch(0.12 0.026 152);
+  --ring: oklch(0.86 0.165 90);
+  --chart-1: oklch(0.86 0.165 90);
+  --chart-2: oklch(0.72 0.14 150);
+  --chart-3: oklch(0.6 0.16 145);
+  --chart-4: oklch(0.5 0.12 150);
+  --chart-5: oklch(0.42 0.1 145);
+  --sidebar: oklch(0.11 0.024 155);
+  --sidebar-foreground: oklch(0.96 0.012 90);
+  --sidebar-primary: oklch(0.86 0.165 90);
+  --sidebar-primary-foreground: oklch(0.1 0.024 155);
+  --sidebar-accent: oklch(0.19 0.03 150);
+  --sidebar-accent-foreground: oklch(0.96 0.012 90);
+  --sidebar-border: oklch(0.24 0.04 150);
+  --sidebar-ring: oklch(0.86 0.165 90);
+  font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
