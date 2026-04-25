@@ -42,9 +42,9 @@ export function WanderHero({
         <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/30 to-background/50" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-6 pt-6 sm:px-6 md:pb-7 md:pt-8 lg:px-10">
-        <div className="grid min-h-[min(100%,clamp(300px,48vh,560px))] grid-cols-1 gap-6 lg:min-h-[clamp(300px,44vh,520px)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
-          <div className="flex min-h-0 min-w-0 flex-col justify-between gap-5">
+      <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10">
+        <div className="grid min-h-[min(100%,clamp(300px,48vh,560px))] grid-cols-1 gap-4 lg:min-h-[clamp(300px,44vh,520px)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
+          <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3">
             <div className="min-w-0 self-start max-w-3xl">
               <p
                 className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-md ring-1 ring-white/5 sm:text-[13px]"
@@ -67,7 +67,7 @@ export function WanderHero({
               </p>
             </div>
             {children ? (
-              <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-1">{children}</div>
+              <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-0">{children}</div>
             ) : null}
           </div>
 

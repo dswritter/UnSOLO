@@ -102,7 +102,7 @@ export function WanderListingSections({
   rentals: RentalWithItems[]
 }) {
   return (
-    <div className="space-y-12 md:space-y-16">
+    <div className="space-y-8 md:space-y-10">
       <section>
         <SectionHeader title="Popular trips" actionHref="/explore?tab=trips" actionLabel="View all trips" />
         {trips.length === 0 ? (
