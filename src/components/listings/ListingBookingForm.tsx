@@ -371,7 +371,20 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
 
       {listing.type === 'activities' && upcomingSchedule && upcomingSchedule.length > 0 && (
         <div className="space-y-2">
-          {upcomingSchedule.length > 1 && (
+          {upcomingSchedule.length === 1 ? (
+            /* Single scheduled date — show as confirmed, non-editable */
+            <div className="space-y-1">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
+              </label>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-primary/10 border border-primary/30 text-sm font-medium text-foreground">
+                <span className="text-primary text-xs">✓</span>
+                {new Date(upcomingSchedule[0].date).toLocaleDateString('en-IN', {
+                  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+                })}
+              </div>
+            </div>
+          ) : (
             <>
               <label className="text-sm font-medium flex items-center gap-1.5">
                 <Calendar className="h-3.5 w-3.5 text-primary" /> Activity Date
