@@ -166,17 +166,17 @@ export async function createServiceListingOrder(
 
     // Apply credits if requested
     let creditsUsed = 0
-    let userProfile: any = null
+    let userProfile: { referral_credits_paise: number } | null = null
     if (bookingData.applyCredits) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('credits')
+        .select('referral_credits_paise')
         .eq('id', user.id)
         .single()
 
       userProfile = profile
-      if (profile && profile.credits > 0) {
-        creditsUsed = Math.min(profile.credits, totalPaise - discountPaise)
+      if (profile && profile.referral_credits_paise > 0) {
+        creditsUsed = Math.min(profile.referral_credits_paise, totalPaise - discountPaise)
       }
     }
 
@@ -218,7 +218,7 @@ export async function createServiceListingOrder(
       if (creditsUsed > 0 && userProfile) {
         await supabase
           .from('profiles')
-          .update({ credits: userProfile.credits - creditsUsed })
+          .update({ referral_credits_paise: userProfile.referral_credits_paise - creditsUsed })
           .eq('id', user.id)
       }
 
@@ -344,14 +344,14 @@ export async function confirmServiceListingPayment(
     if (booking.wallet_deducted_paise > 0) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('credits')
+        .select('referral_credits_paise')
         .eq('id', user.id)
         .single()
 
       if (profile) {
         await supabase
           .from('profiles')
-          .update({ credits: Math.max(0, profile.credits - booking.wallet_deducted_paise) })
+          .update({ referral_credits_paise: Math.max(0, profile.referral_credits_paise - booking.wallet_deducted_paise) })
           .eq('id', user.id)
       }
     }
@@ -546,16 +546,16 @@ export async function createRentalCartOrder(
 
     // Credits
     let creditsUsed = 0
-    let userProfile: { credits: number } | null = null
+    let userProfile: { referral_credits_paise: number } | null = null
     if (bookingData.applyCredits) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('credits')
+        .select('referral_credits_paise')
         .eq('id', user.id)
         .single()
       userProfile = profile
-      if (profile && profile.credits > 0) {
-        creditsUsed = Math.min(profile.credits, grossPaise - discountPaise)
+      if (profile && profile.referral_credits_paise > 0) {
+        creditsUsed = Math.min(profile.referral_credits_paise, grossPaise - discountPaise)
       }
     }
 
@@ -605,14 +605,6 @@ export async function createRentalCartOrder(
 
     if (!bookingIds.length) return { error: 'Failed to create bookings' }
 
-    // Deduct credits immediately (before payment, same as single-item flow)
-    if (creditsUsed > 0 && userProfile) {
-      await supabase
-        .from('profiles')
-        .update({ credits: userProfile.credits - creditsUsed })
-        .eq('id', user.id)
-    }
-
     return {
       orderId: order.id,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -661,6 +653,22 @@ export async function confirmRentalCartPayment(
       .eq('user_id', user.id)
 
     if (updateError) return { error: 'Failed to update bookings', success: false }
+
+    // Deduct wallet credits now that payment is confirmed
+    const totalWalletUsed = bookings.reduce((s, b) => s + (b.wallet_deducted_paise ?? 0), 0)
+    if (totalWalletUsed > 0) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('referral_credits_paise')
+        .eq('id', user.id)
+        .single()
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({ referral_credits_paise: Math.max(0, profile.referral_credits_paise - totalWalletUsed) })
+          .eq('id', user.id)
+      }
+    }
 
     // Deduct inventory for each item
     for (const booking of bookings) {
