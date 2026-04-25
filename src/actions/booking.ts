@@ -966,12 +966,28 @@ export async function confirmPayment(
 
   const { generateConfirmationCode } = await import('@/lib/utils')
 
-  const { data: bookingBefore } = await supabase
-    .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*))')
-    .eq('stripe_session_id', razorpayOrderId)
-    .eq('user_id', user.id)
-    .single()
+  // Look up the booking by its initial order ID or, for balance payments, by
+  // balance_razorpay_order_id (avoids UNIQUE conflict on stripe_session_id).
+  let bookingBefore = null
+  {
+    const { data: b1 } = await supabase
+      .from('bookings')
+      .select('*, package:packages(*, destination:destinations(*))')
+      .eq('stripe_session_id', razorpayOrderId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (b1) {
+      bookingBefore = b1
+    } else {
+      const { data: b2 } = await supabase
+        .from('bookings')
+        .select('*, package:packages(*, destination:destinations(*))')
+        .eq('balance_razorpay_order_id', razorpayOrderId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      bookingBefore = b2
+    }
+  }
 
   if (!bookingBefore) {
     return { error: 'Booking not found' }
@@ -1073,7 +1089,7 @@ export async function createBookingBalanceOrder(bookingId: string) {
     },
   })
 
-  await supabase.from('bookings').update({ stripe_session_id: order.id }).eq('id', bookingId)
+  await supabase.from('bookings').update({ balance_razorpay_order_id: order.id }).eq('id', bookingId)
 
   return {
     orderId: order.id,
