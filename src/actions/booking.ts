@@ -655,6 +655,10 @@ export async function createRazorpayOrder(
     payFullAmountForTokenTrip?: boolean
   },
 ) {
+  if (!Number.isInteger(guests) || guests < 1) {
+    return { error: 'Number of guests must be at least 1' }
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
