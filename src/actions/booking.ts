@@ -12,6 +12,9 @@ import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { JoinPreferences } from '@/types'
+import { z } from 'zod'
+
+const customDateRequestEmailSchema = z.string().trim().max(254).email()
 
 const RAZORPAY_MIN_PAISE = 100 // ₹1 — Razorpay minimum for INR
 
@@ -1141,13 +1144,19 @@ export async function submitCustomDateRequest(
     return { error: 'Invalid phone number. Must be 10 digits starting with 6-9.' }
   }
 
+  const emailResult = customDateRequestEmailSchema.safeParse(contactEmail)
+  if (!emailResult.success) {
+    return { error: 'Invalid email address' }
+  }
+  const contactEmailNorm = emailResult.data
+
   const { error } = await supabase.from('custom_date_requests').insert({
     user_id: user.id,
     package_id: packageId,
     requested_date: requestedDate,
     guests,
     contact_number: phone,
-    contact_email: contactEmail,
+    contact_email: contactEmailNorm,
   })
 
   if (error) return { error: error.message }
@@ -1166,7 +1175,7 @@ export async function submitCustomDateRequest(
       requestedDate,
       guests,
       contactNumber: phone,
-      contactEmail,
+      contactEmail: contactEmailNorm,
     }
     await Promise.all([
       sendAdminNotification(emailDetails),
