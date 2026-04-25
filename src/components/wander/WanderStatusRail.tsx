@@ -22,7 +22,7 @@ export async function WanderStatusRail({ avatarUrl }: { avatarUrl?: string | nul
           connections are up to.
         </p>
       </div>
-      <div className="min-h-[3.5rem] min-w-0 flex-1 flex items-center">
+      <div className="min-h-[3.5rem] min-w-0 flex-1 flex items-center pr-1 sm:pr-2">
         <StatusStoriesBar
           initialStories={stories}
           currentUserId={currentUserId}

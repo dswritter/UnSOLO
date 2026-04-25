@@ -99,6 +99,7 @@ export function StatusStoriesBar({
   const plusIco = compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
   const gap = compact ? 'gap-2' : 'gap-4'
   const rowPad = compact ? 'py-0.5' : 'pt-2.5'
+  const rowEndPad = compact ? 'pe-2' : ''
   const router = useRouter()
   const [viewer, setViewer] = useState<{ playlist: StatusStripStory[]; initialIndex: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -217,7 +218,9 @@ export function StatusStoriesBar({
 
   return (
     <>
-      <div className={`flex ${gap} overflow-x-auto overflow-y-visible pb-0.5 ${rowPad} scrollbar-hide items-center`}>
+      <div
+        className={`flex ${gap} overflow-x-auto overflow-y-visible pb-0.5 ${rowPad} scrollbar-hide items-center ${rowEndPad}`}
+      >
         {/* Single "Your status" slot: golden ring when you have posts; + adds more */}
         <div className="flex flex-col items-center gap-1 sm:gap-1.5 shrink-0">
           <div className="relative">
