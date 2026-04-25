@@ -8,7 +8,7 @@ import { requestToJoin, withdrawJoinRequest } from '@/actions/hosting'
 import { createCommunityTripOrder, confirmPayment } from '@/actions/booking'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
-import { CheckCircle, XCircle, Clock, Send, Shield, Info, CreditCard, Tag, Gift } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Send, Shield, Info, CreditCard, Tag, Gift, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
 import { validatePromoCode } from '@/actions/admin'
@@ -43,6 +43,8 @@ interface JoinRequestFormProps {
   pricePerPersonPaise: number
   /** e.g. "From " when the package has multiple price tiers */
   priceLinePrefix?: string
+  priceVariants?: { description: string; price_paise: number }[] | null
+  departureDates?: string[] | null
   hostName: string
   joinPreferences: JoinPreferences | null
   existingRequest: ExistingRequest | null
@@ -70,6 +72,8 @@ export function JoinRequestForm({
   packageSlug,
   pricePerPersonPaise,
   priceLinePrefix = '',
+  priceVariants,
+  departureDates,
   hostName,
   joinPreferences,
   existingRequest,
@@ -368,6 +372,8 @@ export function JoinRequestForm({
   // New request form
   const prefs = joinPreferences || {}
   const hasPrefs = !!(prefs.gender_preference || prefs.min_trips_completed)
+  const hasTiers = priceVariants && priceVariants.length > 1
+  const hasDates = departureDates && departureDates.length > 0
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -375,6 +381,36 @@ export function JoinRequestForm({
         <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
         <span className="text-muted-foreground text-sm ml-2">per person</span>
       </div>
+
+      {/* Price tiers */}
+      {hasTiers && (
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Price Tiers</h4>
+          {priceVariants!.map((v, i) => (
+            <div key={i} className="flex items-center justify-between text-sm">
+              <span className="text-foreground">{v.description}</span>
+              <span className="font-semibold text-primary">{formatPrice(v.price_paise)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Departure dates */}
+      {hasDates && (
+        <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            Available Dates
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {departureDates!.map((d, i) => (
+              <span key={i} className="text-xs px-2 py-1 rounded-md bg-primary/10 text-primary border border-primary/20">
+                {new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Eligibility preferences */}
       {hasPrefs && (

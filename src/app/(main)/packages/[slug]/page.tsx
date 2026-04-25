@@ -532,6 +532,8 @@ export default async function PackageDetailPage({
                         packageSlug={package_.slug}
                         pricePerPersonPaise={package_.price_paise}
                         priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                        priceVariants={package_.price_variants}
+                        departureDates={package_.departure_dates}
                         hostName={hostData?.full_name || hostData?.username || 'the host'}
                         joinPreferences={package_.join_preferences}
                         existingRequest={existingRequest}
