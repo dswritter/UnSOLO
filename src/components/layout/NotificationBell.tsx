@@ -28,9 +28,12 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
 export function NotificationBell({
   userId,
   placement = 'below',
+  wanderNav = false,
 }: {
   userId: string
   placement?: 'below' | 'above'
+  /** Forest-green bar on /wander: bright bell + light hit area */
+  wanderNav?: boolean
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
@@ -129,9 +132,17 @@ export function NotificationBell({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-2 rounded-lg hover:bg-secondary transition-colors"
+        className={cn(
+          'relative rounded-lg p-2 transition-colors',
+          wanderNav ? 'hover:bg-white/10' : 'hover:bg-secondary',
+        )}
+        type="button"
+        aria-expanded={open}
+        aria-label="Notifications"
       >
-        <Bell className="h-5 w-5 text-muted-foreground" />
+        <Bell
+          className={cn('h-5 w-5', wanderNav ? 'text-white' : 'text-muted-foreground')}
+        />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}

@@ -205,7 +205,8 @@ export function Navbar({ user }: NavbarProps) {
                   isWander
                     ? isActive
                       ? 'text-[#fcba03] border-b-2 border-[#fcba03] pb-1'
-                      : 'text-white/90 hover:text-white'
+                      : /* avoid hover:text-white — :root .hover\\:text-white:hover forces dark text in light mode */
+                        'text-white/90 hover:text-[#fcba03]'
                     : isActive
                       ? 'text-primary border-b-2 border-primary pb-1'
                       : 'text-muted-foreground hover:text-foreground',
@@ -244,7 +245,7 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-2 md:gap-3">
             {user ? (
               <>
-                <NotificationBell userId={user.id} />
+                <NotificationBell userId={user.id} wanderNav={isWander} />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     className={cn(
@@ -351,7 +352,7 @@ export function Navbar({ user }: NavbarProps) {
             {/* Mobile menu toggle */}
             <button
               ref={mobileToggleRef}
-              className={cn('md:hidden', isWander ? 'text-white/80 hover:text-white' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('md:hidden', isWander ? 'text-white/80 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-foreground')}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
@@ -386,7 +387,7 @@ export function Navbar({ user }: NavbarProps) {
                 isWander
                   ? isActive
                     ? 'text-[#fcba03] bg-[#fcba03]/12'
-                    : 'text-white/90 hover:text-white hover:bg-white/10'
+                    : 'text-white/90 hover:text-[#fcba03] hover:bg-white/10'
                   : isActive
                     ? 'text-primary bg-primary/10'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
