@@ -63,6 +63,7 @@ const SETTING_LABELS: Record<
     type: 'textarea',
   },
   support_whatsapp_number: { label: 'Default WhatsApp number', type: 'text' },
+  wander_hero_image_url: { label: 'Wander page — hero image URL', type: 'text' },
 }
 
 const SHARE_POSTER_ORDER = [

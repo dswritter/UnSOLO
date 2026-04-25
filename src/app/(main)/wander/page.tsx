@@ -10,6 +10,7 @@ import {
   getWanderRentalRow,
   getWanderServiceItemsForListings,
   getListedActivityFilterOptions,
+  getWanderHeroImageUrl,
 } from '@/lib/wander/wanderQueries'
 import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
@@ -18,15 +19,17 @@ import { WanderListingSections } from '@/components/wander/WanderListingSections
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 
 export default async function WanderPage() {
-  const [stats, rating, tripPackages, actListings, rentListings, supabase, listedActivities] = await Promise.all([
-    getWanderStats(),
-    getWanderRatingHero(),
-    getWanderTripRow(),
-    getWanderActivityRow(),
-    getWanderRentalRow(),
-    createClient(),
-    getListedActivityFilterOptions(),
-  ])
+  const [stats, rating, tripPackages, actListings, rentListings, supabase, listedActivities, heroImageUrl] =
+    await Promise.all([
+      getWanderStats(),
+      getWanderRatingHero(),
+      getWanderTripRow(),
+      getWanderActivityRow(),
+      getWanderRentalRow(),
+      createClient(),
+      getListedActivityFilterOptions(),
+      getWanderHeroImageUrl(),
+    ])
 
   const { data: { user } } = await supabase.auth.getUser()
   let profileAvatar: string | null = null
@@ -42,7 +45,7 @@ export default async function WanderPage() {
 
   return (
     <div className="w-full">
-      <WanderHero rating={rating} stats={stats} />
+      <WanderHero rating={rating} stats={stats} heroImageUrl={heroImageUrl} />
 
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 -mt-6 md:-mt-8 relative z-20 pb-4 md:pb-6 flex justify-start">
         <WanderSearchBar listedActivities={listedActivities} />

@@ -1,4 +1,5 @@
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
@@ -18,10 +19,26 @@ function isActivityVisibleToPublic(
   return (schedule as ServiceEventScheduleEntry[]).some(entry => entry.date >= t)
 }
 
+const DEFAULT_WANDER_HERO =
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=2400&q=85'
+
 function svc() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
   return createServiceClient(url, key)
+}
+
+/** Hero background for /wander — from Admin → platform_settings. */
+export async function getWanderHeroImageUrl(): Promise<string> {
+  try {
+    const supabase = await createServerClient()
+    const { data } = await supabase.from('platform_settings').select('value').eq('key', 'wander_hero_image_url').maybeSingle()
+    const v = data?.value?.trim()
+    if (v && (v.startsWith('http://') || v.startsWith('https://'))) return v
+  } catch {
+    /* Supabase down */
+  }
+  return DEFAULT_WANDER_HERO
 }
 
 /**

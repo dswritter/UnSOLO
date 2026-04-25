@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -6,15 +5,15 @@ import { getInitials } from '@/lib/utils'
 import type { WanderRatingHero } from '@/lib/wander/wanderQueries'
 import type { WanderStats } from '@/lib/wander/wanderQueries'
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=85&w=2400&auto=format&fit=crop'
-
 export function WanderHero({
   rating,
   stats,
+  heroImageUrl,
 }: {
   rating: WanderRatingHero
   stats: Pick<WanderStats, 'soloTravelers'>
+  /** From Admin platform_settings `wander_hero_image_url` */
+  heroImageUrl: string
 }) {
   const trustLine =
     stats.soloTravelers >= 1000
@@ -26,13 +25,11 @@ export function WanderHero({
   return (
     <section className="relative w-full min-h-[clamp(220px,34vh,380px)] overflow-hidden bg-black">
       <div className="absolute inset-0">
-        <Image
-          src={HERO_IMAGE}
+        {/* eslint-disable-next-line @next/next/no-img-element -- URL from admin; any HTTPS host */}
+        <img
+          src={heroImageUrl}
           alt=""
-          fill
-          priority
-          className="object-cover object-center opacity-88"
-          sizes="100vw"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-88"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/25" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/20 to-black/35" />
