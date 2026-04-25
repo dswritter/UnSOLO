@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search } from 'lucide-react'
+import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -57,6 +57,7 @@ export function WanderSearchBar({
   const [actType, setActType] = useState('')
 
   const [rentWhere, setRentWhere] = useState('')
+  const [rentItem, setRentItem] = useState('')
 
   function goExplore() {
     const params = new URLSearchParams()
@@ -78,7 +79,8 @@ export function WanderSearchBar({
       const m = monthParamFromRange(actStart, actEnd)
       if (m !== undefined) params.set('month', m)
     } else if (tab === 'rentals') {
-      if (rentWhere.trim()) params.set('q', rentWhere.trim())
+      const qParts = [rentWhere.trim(), rentItem.trim()].filter(Boolean)
+      if (qParts.length) params.set('q', qParts.join(' '))
     }
 
     router.push(`/explore?${params.toString()}`)
@@ -125,7 +127,13 @@ export function WanderSearchBar({
       </div>
 
       {tab === 'trips' && (
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end">
+        <form
+          className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
+          onSubmit={e => {
+            e.preventDefault()
+            goExplore()
+          }}
+        >
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
             <div className="relative">
@@ -139,25 +147,46 @@ export function WanderSearchBar({
             </div>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Date — Range</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">From</span>
             <div className="relative">
               <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input className="pl-9 bg-background/80" type="date" value={tripStart} onChange={e => setTripStart(e.target.value)} />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={tripStart}
+                max={tripEnd || undefined}
+                onChange={e => setTripStart(e.target.value)}
+              />
             </div>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide invisible max-md:hidden">To</span>
-            <Input className="bg-background/80" type="date" value={tripEnd} onChange={e => setTripEnd(e.target.value)} />
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">To</span>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={tripEnd}
+                min={tripStart || undefined}
+                onChange={e => setTripEnd(e.target.value)}
+              />
+            </div>
           </label>
-          <Button type="button" className="font-bold bg-primary text-primary-foreground hover:bg-primary/90" onClick={goExplore}>
+          <Button type="submit" className="font-bold bg-primary text-primary-foreground hover:bg-primary/90">
             <Search className="h-4 w-4 mr-2" />
             Explore
           </Button>
-        </div>
+        </form>
       )}
 
       {tab === 'stays' && (
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-end">
+        <form
+          className="grid gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-end"
+          onSubmit={e => {
+            e.preventDefault()
+            goExplore()
+          }}
+        >
           <label className="block space-y-1.5 md:col-span-1">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
             <div className="relative">
@@ -174,12 +203,27 @@ export function WanderSearchBar({
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Check-in</span>
             <div className="relative">
               <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              <Input className="pl-9 bg-background/80" type="date" value={stayIn} onChange={e => setStayIn(e.target.value)} />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={stayIn}
+                max={stayOut || undefined}
+                onChange={e => setStayIn(e.target.value)}
+              />
             </div>
           </label>
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Check-out</span>
-            <Input className="bg-background/80" type="date" value={stayOut} onChange={e => setStayOut(e.target.value)} />
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={stayOut}
+                min={stayIn || undefined}
+                onChange={e => setStayOut(e.target.value)}
+              />
+            </div>
           </label>
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Guests</span>
@@ -194,15 +238,21 @@ export function WanderSearchBar({
               />
             </div>
           </label>
-          <Button type="button" className="font-bold bg-primary text-primary-foreground" onClick={goExplore}>
+          <Button type="submit" className="font-bold bg-primary text-primary-foreground">
             <Search className="h-4 w-4 mr-2" />
             Explore
           </Button>
-        </div>
+        </form>
       )}
 
       {tab === 'activities' && (
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.1fr_auto] md:items-end">
+        <form
+          className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.1fr_auto] md:items-end"
+          onSubmit={e => {
+            e.preventDefault()
+            goExplore()
+          }}
+        >
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Where?</span>
             <div className="relative">
@@ -216,12 +266,30 @@ export function WanderSearchBar({
             </div>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Date — Range</span>
-            <Input className="bg-background/80" type="date" value={actStart} onChange={e => setActStart(e.target.value)} />
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">From</span>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={actStart}
+                max={actEnd || undefined}
+                onChange={e => setActStart(e.target.value)}
+              />
+            </div>
           </label>
           <label className="block space-y-1.5">
-            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide max-md:hidden">&nbsp;</span>
-            <Input className="bg-background/80" type="date" value={actEnd} onChange={e => setActEnd(e.target.value)} />
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">To</span>
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-9 bg-background/80"
+                type="date"
+                value={actEnd}
+                min={actStart || undefined}
+                onChange={e => setActEnd(e.target.value)}
+              />
+            </div>
           </label>
           <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Activity</span>
@@ -237,32 +305,50 @@ export function WanderSearchBar({
               ))}
             </select>
           </label>
-          <Button type="button" className="font-bold bg-primary text-primary-foreground" onClick={goExplore}>
+          <Button type="submit" className="font-bold bg-primary text-primary-foreground">
             <Search className="h-4 w-4 mr-2" />
             Explore
           </Button>
-        </div>
+        </form>
       )}
 
       {tab === 'rentals' && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="block flex-1 space-y-1.5">
+        <form
+          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          onSubmit={e => {
+            e.preventDefault()
+            goExplore()
+          }}
+        >
+          <label className="block space-y-1.5">
             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Location</span>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9 bg-background/80"
-                placeholder="Where are you going?"
+                placeholder="City or area"
                 value={rentWhere}
                 onChange={e => setRentWhere(e.target.value)}
               />
             </div>
           </label>
-          <Button type="button" className="font-bold bg-primary text-primary-foreground sm:shrink-0" onClick={goExplore}>
+          <label className="block space-y-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Item</span>
+            <div className="relative">
+              <Tag className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9 bg-background/80"
+                placeholder="e.g. car, bike, tent"
+                value={rentItem}
+                onChange={e => setRentItem(e.target.value)}
+              />
+            </div>
+          </label>
+          <Button type="submit" className="font-bold bg-primary text-primary-foreground sm:shrink-0">
             <Search className="h-4 w-4 mr-2" />
             Explore
           </Button>
-        </div>
+        </form>
       )}
     </div>
   )
