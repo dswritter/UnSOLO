@@ -37,8 +37,10 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const pathname = usePathname()
+  const chatListBase = pathname?.startsWith('/tribe') ? '/tribe' : '/community'
 
-  const isOnChatPage = pathname?.startsWith('/chat') || pathname?.startsWith('/community')
+  const isOnChatPage =
+    pathname?.startsWith('/chat') || pathname?.startsWith('/community') || pathname?.startsWith('/tribe')
 
   // Preload notification sound
   useEffect(() => { preloadSound() }, [])
@@ -195,7 +197,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     <div className="fixed bottom-6 right-6 z-50 pointer-events-none">
       {minimized || notifications.length === 0 ? (
         <button
-          onClick={() => notifications.length > 0 ? setMinimized(false) : window.location.href = '/community'}
+          onClick={() => notifications.length > 0 ? setMinimized(false) : (window.location.href = chatListBase)}
           className="pointer-events-auto relative bg-primary text-black rounded-full h-14 w-14 flex items-center justify-center shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
         >
           <MessageCircle className="h-6 w-6" />
@@ -219,7 +221,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   <ArrowLeft className="h-3.5 w-3.5" />
                 </button>
               )}
-              <Link href={activeRoom ? `/community/${activeRoom.id}` : '/community'} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
+              <Link href={activeRoom ? `${chatListBase}/${activeRoom.id}` : chatListBase} className="text-muted-foreground hover:text-foreground p-1" title="Open full chat">
                 <Maximize2 className="h-3.5 w-3.5" />
               </Link>
               <button onClick={() => { setMinimized(true); setUserInteracting(false) }} className="text-muted-foreground hover:text-foreground p-1" title="Minimize to icon">
@@ -317,7 +319,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             </form>
           ) : (
             <Link
-              href="/community"
+              href={chatListBase}
               className="block text-center py-2.5 text-xs text-primary font-medium hover:bg-secondary/30 transition-colors border-t border-border"
             >
               Open All Chats →

@@ -30,7 +30,8 @@ export function Navbar({ user }: NavbarProps) {
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
-  const isWander = pathname?.startsWith('/wander')
+  const isWanderShell = pathname?.startsWith('/wander') || pathname?.startsWith('/tribe')
+  const hideGlobalSearch = pathname?.startsWith('/wander')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileToggleRef = useRef<HTMLButtonElement>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -100,7 +101,7 @@ export function Navbar({ user }: NavbarProps) {
         if (!membership) return
 
         // Only show badge when NOT on community page
-        if (!pathname?.startsWith('/community')) {
+        if (!pathname?.startsWith('/community') && !pathname?.startsWith('/tribe')) {
           setUnreadChatCount(prev => prev + 1)
         }
       })
@@ -130,7 +131,7 @@ export function Navbar({ user }: NavbarProps) {
 
   // Clear unread count when navigating to community
   useEffect(() => {
-    if (pathname?.startsWith('/community')) {
+    if (pathname?.startsWith('/community') || pathname?.startsWith('/tribe')) {
       setUnreadChatCount(0)
     }
   }, [pathname])
@@ -169,7 +170,7 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
+    { href: '/tribe', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
@@ -178,7 +179,7 @@ export function Navbar({ user }: NavbarProps) {
     <nav
       className={cn(
         'sticky top-0 z-50 border-b',
-        isWander ? 'nav-wander-surface border-[#2f4d42]/55' : 'border-border bg-background/90 backdrop-blur-md',
+        isWanderShell ? 'nav-wander-surface border-[#2f4d42]/55' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
@@ -187,14 +188,17 @@ export function Navbar({ user }: NavbarProps) {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl font-black tracking-tight">
               <span className="text-primary">UN</span>
-              <span className={isWander ? 'text-white' : 'text-foreground'}>SOLO</span>
+              <span className={isWanderShell ? 'text-white' : 'text-foreground'}>SOLO</span>
             </span>
           </Link>
 
           {/* Desktop Nav - Centered */}
           <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
             {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
-              const isActive = pathname === href
+              const isActive =
+                href === '/tribe'
+                  ? pathname === '/tribe' || Boolean(pathname?.startsWith('/tribe/'))
+                  : pathname === href
               return (
               <Link
                 key={href}
@@ -202,7 +206,7 @@ export function Navbar({ user }: NavbarProps) {
                 prefetch
                 className={cn(
                   'relative flex items-center gap-1.5 text-sm font-medium transition-colors',
-                  isWander
+                  isWanderShell
                     ? isActive
                       ? 'text-[#fcba03] border-b-2 border-[#fcba03] pb-1'
                       : /* avoid hover:text-white — :root .hover\\:text-white:hover forces dark text in light mode */
@@ -230,7 +234,7 @@ export function Navbar({ user }: NavbarProps) {
           </div>
 
           {/* Search — hidden on /wander (local search lives in page) */}
-          {!isWander && (
+          {!hideGlobalSearch && (
             <>
               <div className="hidden md:block w-56 ml-4">
                 <SearchBar />
@@ -245,17 +249,17 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex items-center gap-2 md:gap-3">
             {user ? (
               <>
-                <NotificationBell userId={user.id} wanderNav={isWander} />
+                <NotificationBell userId={user.id} wanderNav={isWanderShell} />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger
                     className={cn(
                       'outline-none focus-visible:ring-2',
-                      isWander
+                      isWanderShell
                         ? 'group inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-transparent data-[state=open]:bg-transparent data-[popup-open]:bg-transparent focus-visible:ring-[#fcba03]/45'
                         : 'focus-visible:ring-ring data-[state=open]:bg-secondary/80 inline-flex cursor-pointer border-0 bg-transparent p-0',
                     )}
                   >
-                    {isWander ? (
+                    {isWanderShell ? (
                       <span className="inline-flex min-w-0 max-w-full items-center gap-2">
                         <Avatar className="h-8 w-8 shrink-0 border-2 border-white/20 sm:h-9 sm:w-9">
                           <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
@@ -284,53 +288,53 @@ export function Navbar({ user }: NavbarProps) {
                     align="end"
                     className={cn(
                       'z-[200] w-60 min-w-[15rem] shadow-lg',
-                      isWander
+                      isWanderShell
                         ? 'border border-white/10 bg-[oklch(0.2_0.045_155_/_0.94)] text-white backdrop-blur-xl'
                         : 'border-border bg-popover text-popover-foreground',
                     )}
                   >
                     <div className="px-4 py-3">
                       <p className="text-base font-semibold truncate text-inherit">{user.full_name || user.username}</p>
-                      <p className={cn('text-sm', isWander ? 'text-white/65' : 'text-muted-foreground')}>
+                      <p className={cn('text-sm', isWanderShell ? 'text-white/65' : 'text-muted-foreground')}>
                         @{user.username}
                       </p>
                     </div>
-                    <DropdownMenuSeparator className={isWander ? 'bg-white/15' : undefined} />
+                    <DropdownMenuSeparator className={isWanderShell ? 'bg-white/15' : undefined} />
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push(`/profile/${user.username}`)}
                     >
                       <User className="mr-3 h-4 w-4" /> My Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push('/profile')}
                     >
                       <Pencil className="mr-3 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push('/bookings')}
                     >
                       <BookOpen className="mr-3 h-4 w-4" /> My Trips
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push('/referrals')}
                     >
-                      <Gift className={cn('mr-3 h-4 w-4', isWander && 'text-[#fcba03]')} /> Refer & Earn
+                      <Gift className={cn('mr-3 h-4 w-4', isWanderShell && 'text-[#fcba03]')} /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
                       <DropdownMenuItem
-                        className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                        className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                         onClick={() => router.push('/admin')}
                       >
                         <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator className={isWander ? 'bg-white/15' : undefined} />
+                    <DropdownMenuSeparator className={isWanderShell ? 'bg-white/15' : undefined} />
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm text-destructive', isWander && 'focus:bg-red-500/15 focus:text-red-300')}
+                      className={cn('py-2.5 text-sm text-destructive', isWanderShell && 'focus:bg-red-500/15 focus:text-red-300')}
                       onClick={() => signOut()}
                     >
                       <LogOut className="mr-3 h-4 w-4" /> Sign Out
@@ -352,7 +356,7 @@ export function Navbar({ user }: NavbarProps) {
             {/* Mobile menu toggle */}
             <button
               ref={mobileToggleRef}
-              className={cn('md:hidden', isWander ? 'text-white/80 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('md:hidden', isWanderShell ? 'text-white/80 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-foreground')}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
@@ -371,11 +375,14 @@ export function Navbar({ user }: NavbarProps) {
           onTouchEnd={onMenuTouchEnd}
           className={cn(
             'md:hidden border-t px-4 py-4 space-y-2',
-            isWander ? 'border-[#2f4d42]/55 bg-[oklch(0.14_0.038_155)]' : 'border-border bg-background',
+            isWanderShell ? 'border-[#2f4d42]/55 bg-[oklch(0.14_0.038_155)]' : 'border-border bg-background',
           )}
         >
           {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
-            const isActive = pathname === href
+            const isActive =
+              href === '/tribe'
+                ? pathname === '/tribe' || Boolean(pathname?.startsWith('/tribe/'))
+                : pathname === href
             return (
             <Link
               key={href}
@@ -384,7 +391,7 @@ export function Navbar({ user }: NavbarProps) {
               onClick={() => setMobileOpen(false)}
               className={cn(
                 'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isWander
+                isWanderShell
                   ? isActive
                     ? 'text-[#fcba03] bg-[#fcba03]/12'
                     : 'text-white/90 hover:text-[#fcba03] hover:bg-white/10'

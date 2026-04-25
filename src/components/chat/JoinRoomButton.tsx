@@ -6,7 +6,17 @@ import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 
-export function JoinRoomButton({ roomId, label = 'Join Community', navigateAfterJoin = true }: { roomId: string; label?: string; navigateAfterJoin?: boolean }) {
+export function JoinRoomButton({
+  roomId,
+  label = 'Join Community',
+  navigateAfterJoin = true,
+  listBasePath = '/community',
+}: {
+  roomId: string
+  label?: string
+  navigateAfterJoin?: boolean
+  listBasePath?: string
+}) {
   const [joining, setJoining] = useState(false)
   const router = useRouter()
 
@@ -19,7 +29,7 @@ export function JoinRoomButton({ roomId, label = 'Join Community', navigateAfter
       return
     }
     if (navigateAfterJoin) {
-      router.push(`/community/${roomId}`)
+      router.push(`${listBasePath}/${roomId}`)
     }
     router.refresh()
   }

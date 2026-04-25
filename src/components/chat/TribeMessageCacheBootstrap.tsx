@@ -16,7 +16,7 @@ export function TribeMessageCacheBootstrap() {
   const queryClient = useQueryClient()
 
   useLayoutEffect(() => {
-    const m = pathname?.match(/\/community\/([0-9a-f-]{36})/i)
+    const m = pathname?.match(/\/(?:community|tribe)\/([0-9a-f-]{36})/i)
     if (!m) return
     const roomId = m[1]
     const raw = getCachedMessagesJson(roomId)

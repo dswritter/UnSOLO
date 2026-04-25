@@ -5,6 +5,13 @@ import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { assertMessageSendRateLimit } from '@/lib/server-rate-limit'
 
+function revalidateChatRoutes(roomId: string) {
+  revalidatePath('/community', 'layout')
+  revalidatePath('/tribe', 'layout')
+  revalidatePath(`/community/${roomId}`)
+  revalidatePath(`/tribe/${roomId}`)
+}
+
 export async function sendMessage(roomId: string, content: string) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -34,8 +41,7 @@ export async function sendMessage(roomId: string, content: string) {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/community', 'layout')
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true }
 }
 
@@ -81,8 +87,7 @@ export async function editMessage(messageId: string, roomId: string, content: st
 
   if (error) return { error: error.message }
 
-  revalidatePath('/community', 'layout')
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true }
 }
 
@@ -153,8 +158,7 @@ export async function joinRoom(roomId: string) {
     })
   }
 
-  revalidatePath('/community', 'layout')
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true }
 }
 
@@ -211,8 +215,7 @@ export async function setRoomPinnedMessage(roomId: string, messageId: string | n
   const { error } = await svc.from('chat_rooms').update({ pinned_message_id: messageId }).eq('id', roomId)
   if (error) return { error: error.message }
 
-  revalidatePath('/community', 'layout')
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true as const }
 }
 
@@ -293,8 +296,7 @@ export async function createChatPoll(
     return { error: optErr.message }
   }
 
-  revalidatePath('/community', 'layout')
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true as const, messageId: msgRow.id, pollId: pollRow.id }
 }
 
@@ -344,7 +346,7 @@ export async function castChatPollVote(roomId: string, pollId: string, optionIds
     if (insErr) return { error: insErr.message }
   }
 
-  revalidatePath(`/community/${roomId}`)
+  revalidateChatRoutes(roomId)
   return { success: true as const }
 }
 

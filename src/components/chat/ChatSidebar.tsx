@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useId } from 'react'
+import { useState, useEffect, useRef, useId, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
@@ -49,6 +49,8 @@ interface ChatSidebarProps {
   className?: string
   /** Current user id (for status viewer + menus) */
   viewerUserId: string
+  /** Chat list + room URLs (default `/community`; use `/tribe` on the tribe shell) */
+  basePath?: string
 }
 
 export function ChatSidebar({
@@ -58,6 +60,7 @@ export function ChatSidebar({
   activeRoomId,
   className = '',
   viewerUserId,
+  basePath = '/community',
 }: ChatSidebarProps) {
   const queryClient = useQueryClient()
   const totalRoomCount = totalRoomCountProp ?? rooms.length
@@ -77,8 +80,11 @@ export function ChatSidebar({
   const localRoomsRef = useRef(localRooms)
   const currentActiveRoomRef = useRef<string | null>(null)
 
-  const currentActiveRoom =
-    activeRoomId || pathname?.match(/\/community\/([a-f0-9-]+)/i)?.[1] || null
+  const roomPathRe = useMemo(() => {
+    const seg = basePath.replace(/^\//, '')
+    return new RegExp(`/${seg}/([a-f0-9-]+)`, 'i')
+  }, [basePath])
+  const currentActiveRoom = activeRoomId || pathname?.match(roomPathRe)?.[1] || null
 
   localRoomsRef.current = localRooms
   currentActiveRoomRef.current = currentActiveRoom
@@ -313,7 +319,7 @@ export function ChatSidebar({
               <span className="text-primary">Tribe</span>
             </h2>
             <p className="text-[11px] text-muted-foreground leading-snug mt-1 max-w-[260px]">
-              Connect, chat and plan your next adventure with Travellers
+              Connect, chat and plan your next adventure with solo travelers.
             </p>
           </div>
           <SoundSettingsButton />
@@ -387,7 +393,7 @@ export function ChatSidebar({
                     currentUserId={viewerUserId}
                   />
                   <Link
-                    href={`/community/${room.id}`}
+                    href={`${basePath}/${room.id}`}
                     prefetch
                     onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                     className="flex-1 min-w-0 text-left py-0"
@@ -420,7 +426,7 @@ export function ChatSidebar({
             return (
               <Link
                 key={room.id}
-                href={`/community/${room.id}`}
+                href={`${basePath}/${room.id}`}
                 prefetch
                 onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                 className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full text-left ${
@@ -486,7 +492,7 @@ export function ChatSidebar({
                     const result = await startDirectMessage(u.id)
                     if (result.error) { toast.error(result.error); setStartingDm(null); return }
                     if (result.roomId) {
-                      router.push(`/community/${result.roomId}`)
+                      router.push(`${basePath}/${result.roomId}`)
                       setSearch('')
                     }
                     setStartingDm(null)

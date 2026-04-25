@@ -72,6 +72,8 @@ interface ChatWindowProps {
   /** Staff-pinned message preview (community / trip) */
   pinnedMessage?: Message | null
   initialPollsByMessageId?: Record<string, ChatPollState>
+  /** Hash #room links and “back” navigation (default `/community`; `/tribe` on tribe shell) */
+  chatListPath?: string
 }
 
 export interface ChatMemberProfile {
@@ -93,6 +95,7 @@ function renderTextWithMentionsAndTags(
   lineKey: string,
   isOwn: boolean,
   chatLinkTargets: ChatLinkTarget[],
+  chatListPath: string,
 ) {
   const mentionClass = isOwn
     ? 'font-bold text-foreground/80 hover:underline'
@@ -132,7 +135,7 @@ function renderTextWithMentionsAndTags(
         nodes.push(
           <Link
             key={`${lineKey}#${k}`}
-            href={`/community/${hit.target.roomId}`}
+            href={`${chatListPath}/${hit.target.roomId}`}
             className={hashClass}
             onClick={e => e.stopPropagation()}
             title={hit.target.label}
@@ -160,7 +163,12 @@ function renderTextWithMentionsAndTags(
   return <span key={lineKey}>{nodes}</span>
 }
 
-function renderMessageContent(content: string, isOwn: boolean = false, chatLinkTargets: ChatLinkTarget[] = []) {
+function renderMessageContent(
+  content: string,
+  isOwn: boolean = false,
+  chatLinkTargets: ChatLinkTarget[] = [],
+  chatListPath: string = '/community',
+) {
   const lines = content.split('\n')
 
   const linkClass = isOwn
@@ -194,7 +202,7 @@ function renderMessageContent(content: string, isOwn: boolean = false, chatLinkT
         )
       }
       if (!part) return null
-      return renderTextWithMentionsAndTags(part, key, isOwn, chatLinkTargets)
+      return renderTextWithMentionsAndTags(part, key, isOwn, chatLinkTargets, chatListPath)
     })
 
     return (
@@ -218,6 +226,7 @@ export function ChatWindow({
   chatLinkTargets = [],
   pinnedMessage = null,
   initialPollsByMessageId = {},
+  chatListPath = '/community',
 }: ChatWindowProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -1141,7 +1150,7 @@ export function ChatWindow({
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            onClick={() => (onBack ? onBack() : router.push('/community'))}
+            onClick={() => (onBack ? onBack() : router.push(chatListPath))}
             className="text-muted-foreground hover:text-foreground transition-colors md:hidden shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -1234,7 +1243,7 @@ export function ChatWindow({
                       await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
                       toast.success('Left the chat room')
                       // Navigate back to community
-                      window.location.href = '/community'
+                      window.location.href = chatListPath
                     }}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
                   >
@@ -1475,6 +1484,7 @@ export function ChatWindow({
                   void toggleReaction(msg.id, emoji)
                   setEmojiPickerForMessageId(null)
                 }}
+                chatListPath={chatListPath}
               />
             </div>
           ))}
@@ -2003,6 +2013,7 @@ function MessageBubble({
   onToggleEmojiPicker,
   onPickEmojiStrip,
   tripBadge,
+  chatListPath = '/community',
 }: {
   message: Message
   roomId: string
@@ -2033,6 +2044,7 @@ function MessageBubble({
   onToggleEmojiPicker: () => void
   onPickEmojiStrip: (emoji: string) => void
   tripBadge?: TripChatBookingPhase | null
+  chatListPath?: string
 }): React.ReactNode {
   const memberFallback =
     message.user_id && !message.user
@@ -2177,7 +2189,7 @@ function MessageBubble({
   }
 
   function renderWithMentions(content: string, ownMsg: boolean) {
-    return renderMessageContent(content, ownMsg, chatLinkTargets)
+    return renderMessageContent(content, ownMsg, chatLinkTargets, chatListPath)
   }
 
   return (

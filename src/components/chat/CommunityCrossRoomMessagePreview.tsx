@@ -23,9 +23,11 @@ function normalizeRoomId(id: string) {
 export function CommunityCrossRoomMessagePreview({
   viewerUserId,
   rooms,
+  basePath = '/community',
 }: {
   viewerUserId: string
   rooms: RoomLite[]
+  basePath?: string
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -55,7 +57,8 @@ export function CommunityCrossRoomMessagePreview({
       if (!msg || msg.message_type === 'system') return
       if (msg.user_id === viewerUserId) return
 
-      const match = pathname?.match(/\/community\/([a-f0-9-]+)/i)
+      const seg = basePath.replace(/^\//, '')
+      const match = pathname?.match(new RegExp(`/${seg}/([a-f0-9-]+)`, 'i'))
       const activeRoomId = match?.[1] ?? null
       if (!activeRoomId) return
       if (normalizeRoomId(msg.room_id) === normalizeRoomId(activeRoomId)) return
@@ -74,7 +77,7 @@ export function CommunityCrossRoomMessagePreview({
 
     window.addEventListener('unsolo:new-message', onNewMessage)
     return () => window.removeEventListener('unsolo:new-message', onNewMessage)
-  }, [pathname, viewerUserId, rooms, roomNameById])
+  }, [pathname, viewerUserId, rooms, roomNameById, basePath])
 
   // Manage enter/exit lifecycle without framer-motion:
   // preview set  → mount (shown=true) then next-frame animate in (visible=true)
@@ -100,7 +103,7 @@ export function CommunityCrossRoomMessagePreview({
 
   function goToChat() {
     if (!preview) return
-    router.push(`/community/${preview.roomId}`)
+    router.push(`${basePath}/${preview.roomId}`)
     setPreview(null)
   }
 

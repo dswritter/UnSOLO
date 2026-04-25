@@ -13,14 +13,14 @@ export function MobileChatButton({ isAuthenticated = false }: MobileChatButtonPr
   const router = useRouter()
 
   // Hide on community/chat pages
-  if (pathname?.startsWith('/community') || pathname?.startsWith('/chat')) return null
+  if (pathname?.startsWith('/community') || pathname?.startsWith('/chat') || pathname?.startsWith('/tribe')) return null
 
   const handleClick = useCallback(() => {
     if (!isAuthenticated) {
       // Redirect to sign in like the Tribe button does
       router.push('/auth/signin')
     } else {
-      router.push('/community')
+      router.push('/tribe')
     }
   }, [isAuthenticated, router])
 
