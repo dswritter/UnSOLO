@@ -18,6 +18,8 @@ import {
   defaultRentalsRefundTiers,
 } from '@/lib/refund-tiers'
 import { cn } from '@/lib/utils'
+import { DEFAULT_WANDER_TRUST_BADGE_TEXT } from '@/lib/wander/wander-defaults'
+import { WanderHeroImageField } from './WanderHeroImageField'
 
 interface Setting {
   key: string
@@ -64,8 +66,12 @@ const SETTING_LABELS: Record<
   },
   support_whatsapp_number: { label: 'Default WhatsApp number', type: 'text' },
   wander_hero_image_url: {
-    label: 'Wander page — hero image URL',
+    label: 'Wander page — hero image (URL or upload)',
     type: 'text',
+  },
+  wander_trust_badge_text: {
+    label: 'Wander page — top badge (hero, left)',
+    type: 'textarea',
   },
 }
 
@@ -158,7 +164,14 @@ function syntheticGeneralRow(key: string): Setting {
       key,
       value: '',
       description:
-        'Full HTTPS URL for the image behind the public /wander hero (any host). Leave empty to use the built-in default.',
+        'Paste an HTTPS image URL, upload from your device (max 5MB), or clear to use the built-in default.',
+    }
+  }
+  if (key === 'wander_trust_badge_text') {
+    return {
+      key,
+      value: '',
+      description: `Text in the top-left /wander pill. Leave empty for the default: “${DEFAULT_WANDER_TRUST_BADGE_TEXT}”.`,
     }
   }
   return { key, value: '', description: null }
@@ -298,6 +311,47 @@ export default function SettingsClient({ settings: initialSettings }: { settings
           <div className="border-t border-border px-4 py-1 bg-card/20">
             {generalSettings.map((s) => {
               const config = SETTING_LABELS[s.key] || { label: s.key, type: 'text' as const }
+              if (s.key === 'wander_hero_image_url') {
+                return (
+                  <div key={s.key} className="space-y-2 border-b border-border/50 py-3 last:border-0">
+                    <div className="min-w-0 sm:max-w-[min(100%,32rem)]">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <Settings className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {config.label}
+                      </div>
+                      {s.description ? (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{s.description}</p>
+                      ) : null}
+                    </div>
+                    <WanderHeroImageField
+                      value={settings.wander_hero_image_url || ''}
+                      onChange={v => setSettings(prev => ({ ...prev, wander_hero_image_url: v }))}
+                    />
+                  </div>
+                )
+              }
+              if (s.key === 'wander_trust_badge_text') {
+                return (
+                  <div key={s.key} className="space-y-2 border-b border-border/50 py-3 last:border-0">
+                    <div className="min-w-0 sm:max-w-[min(100%,32rem)]">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <Settings className="h-3.5 w-3.5 text-primary shrink-0" />
+                        {config.label}
+                      </div>
+                      {s.description ? (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{s.description}</p>
+                      ) : null}
+                    </div>
+                    <Textarea
+                      value={settings.wander_trust_badge_text || ''}
+                      onChange={e => setSettings(prev => ({ ...prev, wander_trust_badge_text: e.target.value }))}
+                      placeholder={DEFAULT_WANDER_TRUST_BADGE_TEXT}
+                      className="max-w-xl min-h-[72px] text-sm bg-secondary border-border"
+                      spellCheck
+                    />
+                  </div>
+                )
+              }
               if (config.type === 'json') {
                 return (
                   <div key={s.key} className="py-3 space-y-2 border-b border-border/50 last:border-0">

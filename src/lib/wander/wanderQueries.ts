@@ -4,6 +4,8 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
 import type { ServiceEventScheduleEntry } from '@/types'
+import { DEFAULT_WANDER_TRUST_BADGE_TEXT } from '@/lib/wander/wander-defaults'
+export { DEFAULT_WANDER_TRUST_BADGE_TEXT }
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -39,6 +41,23 @@ export async function getWanderHeroImageUrl(): Promise<string> {
     /* Supabase down */
   }
   return DEFAULT_WANDER_HERO
+}
+
+/** Top-left pill on /wander — from platform_settings; empty = default copy. */
+export async function getWanderTrustBadgeText(): Promise<string> {
+  try {
+    const supabase = await createServerClient()
+    const { data } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'wander_trust_badge_text')
+      .maybeSingle()
+    const v = data?.value?.trim()
+    if (v) return v
+  } catch {
+    /* Supabase down */
+  }
+  return DEFAULT_WANDER_TRUST_BADGE_TEXT
 }
 
 /**

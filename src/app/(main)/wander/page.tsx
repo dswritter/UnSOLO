@@ -11,6 +11,7 @@ import {
   getWanderServiceItemsForListings,
   getListedActivityFilterOptions,
   getWanderHeroImageUrl,
+  getWanderTrustBadgeText,
 } from '@/lib/wander/wanderQueries'
 import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
@@ -19,7 +20,7 @@ import { WanderListingSections } from '@/components/wander/WanderListingSections
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 
 export default async function WanderPage() {
-  const [stats, rating, tripPackages, actListings, rentListings, supabase, listedActivities, heroImageUrl] =
+  const [stats, rating, tripPackages, actListings, rentListings, supabase, listedActivities, heroImageUrl, trustBadgeText] =
     await Promise.all([
       getWanderStats(),
       getWanderRatingHero(),
@@ -29,6 +30,7 @@ export default async function WanderPage() {
       createClient(),
       getListedActivityFilterOptions(),
       getWanderHeroImageUrl(),
+      getWanderTrustBadgeText(),
     ])
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -45,15 +47,18 @@ export default async function WanderPage() {
 
   return (
     <div className="w-full bg-background">
-      <WanderHero rating={rating} stats={stats} heroImageUrl={heroImageUrl} />
-
-      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 -mt-6 md:-mt-8 relative z-20 pb-4 md:pb-6 flex justify-start">
+      <WanderHero
+        rating={rating}
+        stats={stats}
+        heroImageUrl={heroImageUrl}
+        trustBadgeText={trustBadgeText}
+      >
         <WanderSearchBar listedActivities={listedActivities} variant="wander" />
-      </div>
+      </WanderHero>
 
-      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pb-8">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_min(0,clamp(16rem,28vw,21rem))] lg:items-stretch lg:gap-4">
-          <div className="flex min-h-[5.25rem] items-center rounded-2xl wander-frost px-2 py-2 sm:px-3 sm:py-2.5">
+      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 pt-4 pb-8 md:pt-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)] md:items-stretch md:gap-4">
+          <div className="flex min-h-[5.25rem] min-w-0 items-center rounded-2xl wander-frost px-2 py-2 sm:px-3 sm:py-2.5">
             {user ? (
               <WanderStatusRail avatarUrl={profileAvatar} />
             ) : (
@@ -68,7 +73,7 @@ export default async function WanderPage() {
               </div>
             )}
           </div>
-          <div className="flex min-h-[5.25rem] w-full min-w-0 items-stretch justify-end lg:max-w-[21rem] xl:max-w-[22rem]">
+          <div className="flex min-h-[5.25rem] w-full min-w-0 items-stretch lg:min-w-0">
             <WanderStatsGrid stats={stats} />
           </div>
         </div>

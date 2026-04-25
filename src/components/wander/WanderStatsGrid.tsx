@@ -14,21 +14,21 @@ export function WanderStatsGrid({ stats }: { stats: WanderStats }) {
     { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy customers' },
   ] as const
   return (
-    <div className="wander-frost flex h-full min-h-[5.25rem] w-full flex-wrap rounded-xl sm:min-h-0 sm:flex-nowrap sm:divide-x sm:divide-white/10">
+    <div className="wander-frost flex h-full min-h-[5.25rem] w-full min-w-0 flex-wrap overflow-hidden rounded-xl sm:min-h-0 sm:flex-nowrap sm:divide-x sm:divide-white/10">
       {items.map(({ icon: Icon, value, label }) => (
         <div
           key={label}
-          className="flex min-w-0 flex-1 items-center gap-1.5 px-1.5 py-2 sm:gap-2 sm:px-2.5 sm:py-2.5"
+          className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-2 sm:gap-2 sm:px-2.5 sm:py-2.5"
         >
           <Icon
-            className="h-7 w-7 shrink-0 text-primary sm:h-8 sm:w-8 md:h-9 md:w-9"
+            className="h-6 w-6 shrink-0 text-primary sm:h-8 sm:w-8 md:h-8 md:w-8"
             strokeWidth={1.85}
           />
-          <div className="min-w-0">
-            <p className="text-lg font-black tabular-nums leading-none text-foreground sm:text-xl md:text-2xl">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <p className="text-base font-black tabular-nums leading-none text-foreground sm:text-lg md:text-xl">
               {value}
             </p>
-            <p className="mt-0.5 text-[10px] font-bold leading-tight text-muted-foreground sm:text-xs md:text-sm">
+            <p className="mt-0.5 break-words text-[9px] font-bold leading-snug text-muted-foreground sm:text-xs md:text-sm">
               {label}
             </p>
           </div>

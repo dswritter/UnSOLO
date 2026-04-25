@@ -40,6 +40,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Admin only for package images' }, { status: 403 })
   }
 
+  if (purpose === 'wander_hero' && profile?.role !== 'admin') {
+    return NextResponse.json({ error: 'Admin only for wander hero' }, { status: 403 })
+  }
+
   if (purpose === 'host_trip') {
     const allowed = profile?.is_host === true || profile?.role === 'admin'
     if (!allowed) {
@@ -65,9 +69,11 @@ export async function POST(req: NextRequest) {
         ? 'community-rooms'
         : purpose === 'status_story'
           ? 'status-stories'
-          : purpose === 'host_trip'
-            ? 'host-trips'
-            : 'packages'
+          : purpose === 'wander_hero'
+            ? 'wander-hero'
+            : purpose === 'host_trip'
+              ? 'host-trips'
+              : 'packages'
   const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`
 
   const buffer = Buffer.from(await file.arrayBuffer())

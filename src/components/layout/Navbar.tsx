@@ -265,7 +265,10 @@ export function Navbar({ user }: NavbarProps) {
                         <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold md:inline">
                           {user.full_name || user.username}
                         </span>
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <ChevronDown
+                          className={cn('h-4 w-4 shrink-0', isWander ? 'text-white/70' : 'text-muted-foreground')}
+                          aria-hidden
+                        />
                       </span>
                     ) : (
                       <Avatar className="h-11 w-11 border-2 border-border transition-colors hover:border-primary/50">
@@ -278,33 +281,55 @@ export function Navbar({ user }: NavbarProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="z-[200] w-60 min-w-[15rem] border-border bg-popover text-popover-foreground shadow-lg"
+                    className={cn(
+                      'z-[200] w-60 min-w-[15rem] shadow-lg',
+                      isWander
+                        ? 'border border-white/10 bg-[oklch(0.2_0.045_155_/_0.94)] text-white backdrop-blur-xl'
+                        : 'border-border bg-popover text-popover-foreground',
+                    )}
                   >
                     <div className="px-4 py-3">
-                      <p className="text-base font-semibold truncate">{user.full_name || user.username}</p>
-                      <p className="text-sm text-muted-foreground">@{user.username}</p>
+                      <p className="text-base font-semibold truncate text-inherit">{user.full_name || user.username}</p>
+                      <p className={cn('text-sm', isWander ? 'text-white/65' : 'text-muted-foreground')}>
+                        @{user.username}
+                      </p>
                     </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push(`/profile/${user.username}`)}>
+                    <DropdownMenuSeparator className={isWander ? 'bg-white/15' : undefined} />
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      onClick={() => router.push(`/profile/${user.username}`)}
+                    >
                       <User className="mr-3 h-4 w-4" /> My Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/profile')}>
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      onClick={() => router.push('/profile')}
+                    >
                       <Pencil className="mr-3 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/bookings')}>
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      onClick={() => router.push('/bookings')}
+                    >
                       <BookOpen className="mr-3 h-4 w-4" /> My Trips
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/referrals')}>
-                      <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      onClick={() => router.push('/referrals')}
+                    >
+                      <Gift className={cn('mr-3 h-4 w-4', isWander && 'text-[#fcba03]')} /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
-                      <DropdownMenuItem className="py-2.5 text-sm" onClick={() => router.push('/admin')}>
+                      <DropdownMenuItem
+                        className={cn('py-2.5 text-sm', isWander && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                        onClick={() => router.push('/admin')}
+                      >
                         <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator className={isWander ? 'bg-white/15' : undefined} />
                     <DropdownMenuItem
-                      className="py-2.5 text-sm text-destructive"
+                      className={cn('py-2.5 text-sm text-destructive', isWander && 'focus:bg-red-500/15 focus:text-red-300')}
                       onClick={() => signOut()}
                     >
                       <LogOut className="mr-3 h-4 w-4" /> Sign Out
