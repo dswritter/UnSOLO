@@ -36,10 +36,24 @@ export function WanderHero({
         <img
           src={heroImageUrl}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-88"
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-95"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-background/20" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/30 to-background/50" />
+        {/*
+          Readability scrim on the left where copy + search live; right stays mostly the photo
+          (neutral vignette only, no heavy brand-green wash).
+        */}
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 w-[min(100%,60rem)] bg-gradient-to-r from-background/92 from-[8%] via-background/45 via-[48%] to-transparent to-[100%]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 h-[42%] w-[min(100%,70rem)] bg-gradient-to-t from-background/30 to-transparent [mask-image:linear-gradient(90deg,#000_0%,#000_50%,transparent_88%)]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 w-[min(100%,50%)] max-w-2xl bg-gradient-to-l from-black/10 from-[15%] to-transparent to-100%"
+          aria-hidden
+        />
       </div>
 
       <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10">
