@@ -429,3 +429,264 @@ export async function confirmServiceListingPayment(
     return { error: 'Payment verification failed', success: false }
   }
 }
+
+// ─── Rental cart: book multiple item types in one Razorpay order ─────────────
+
+export async function createRentalCartOrder(
+  listingId: string,
+  cartItems: { itemId: string; quantity: number }[],
+  bookingData: {
+    check_in_date: string
+    rental_days: number
+    applyCredits: boolean
+    promoCode?: string
+  },
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return { error: 'Please log in to book' }
+
+    if (!cartItems.length) return { error: 'Cart is empty' }
+
+    const rentalDays = Math.max(1, bookingData.rental_days)
+    const checkOutDate = (() => {
+      const d = new Date(bookingData.check_in_date)
+      d.setDate(d.getDate() + rentalDays)
+      return d.toISOString().slice(0, 10)
+    })()
+
+    // Validate listing
+    const { data: listing } = await supabase
+      .from('service_listings')
+      .select('id, type, price_paise, host_id, title')
+      .eq('id', listingId)
+      .eq('is_active', true)
+      .single()
+    if (!listing) return { error: 'Listing not found or inactive' }
+
+    // Validate each cart item & calculate gross total
+    let grossPaise = 0
+    type ValidatedItem = {
+      id: string
+      quantity: number
+      pricePaise: number
+      max_per_booking: number | null
+      quantity_available: number | null
+    }
+    const validated: ValidatedItem[] = []
+
+    for (const ci of cartItems) {
+      if (ci.quantity < 1) continue
+      const { data: item } = await supabase
+        .from('service_listing_items')
+        .select('id, price_paise, quantity_available, max_per_booking, is_active, service_listing_id')
+        .eq('id', ci.itemId)
+        .single()
+      if (!item || !item.is_active || item.service_listing_id !== listingId) {
+        return { error: `Item not available` }
+      }
+      if (item.max_per_booking != null && ci.quantity > item.max_per_booking) {
+        return { error: `Max ${item.max_per_booking} per booking for this item` }
+      }
+      if (item.quantity_available != null && ci.quantity > item.quantity_available) {
+        return { error: `Not enough stock for one of the items` }
+      }
+      grossPaise += item.price_paise * ci.quantity * rentalDays
+      validated.push({ id: ci.itemId, quantity: ci.quantity, pricePaise: item.price_paise, max_per_booking: item.max_per_booking, quantity_available: item.quantity_available })
+    }
+
+    if (!validated.length) return { error: 'Cart is empty' }
+
+    // Promo
+    let discountPaise = 0
+    let appliedPromoCode = ''
+    if (bookingData.promoCode) {
+      const { data: promo } = await supabase
+        .from('promo_codes')
+        .select('discount_paise')
+        .eq('code', bookingData.promoCode.toUpperCase())
+        .eq('is_active', true)
+        .single()
+      if (promo) { discountPaise = promo.discount_paise; appliedPromoCode = bookingData.promoCode }
+    }
+
+    // Credits
+    let creditsUsed = 0
+    let userProfile: { credits: number } | null = null
+    if (bookingData.applyCredits) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single()
+      userProfile = profile
+      if (profile && profile.credits > 0) {
+        creditsUsed = Math.min(profile.credits, grossPaise - discountPaise)
+      }
+    }
+
+    const finalAmount = Math.max(0, grossPaise - discountPaise - creditsUsed)
+
+    // Create Razorpay order
+    const order = await razorpay.orders.create({
+      amount: finalAmount,
+      currency: 'INR',
+      receipt: `rc-${Date.now()}`,
+      notes: { listing_id: listingId, user_id: user.id },
+    })
+
+    // Create one pending booking per cart item, all sharing the same razorpay_order_id
+    // Distribute discount/credits proportionally by item gross
+    const bookingIds: string[] = []
+    for (const v of validated) {
+      const itemGross = v.pricePaise * v.quantity * rentalDays
+      const ratio = grossPaise > 0 ? itemGross / grossPaise : 1 / validated.length
+      const itemDiscount = Math.round(discountPaise * ratio)
+      const itemCredits = Math.round(creditsUsed * ratio)
+      const itemFinal = Math.round(finalAmount * ratio)
+
+      const { data: booking } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: user.id,
+          service_listing_id: listingId,
+          service_listing_item_id: v.id,
+          booking_type: 'service',
+          check_in_date: bookingData.check_in_date,
+          check_out_date: checkOutDate,
+          quantity: v.quantity,
+          amount_paise: itemFinal,
+          gross_paise: itemGross,
+          discount_paise: itemDiscount,
+          wallet_deducted_paise: itemCredits,
+          status: 'pending',
+          payment_status: 'pending',
+          razorpay_order_id: order.id,
+          promo_code: appliedPromoCode || null,
+        })
+        .select('id')
+        .single()
+      if (booking) bookingIds.push(booking.id)
+    }
+
+    if (!bookingIds.length) return { error: 'Failed to create bookings' }
+
+    // Deduct credits immediately (before payment, same as single-item flow)
+    if (creditsUsed > 0 && userProfile) {
+      await supabase
+        .from('profiles')
+        .update({ credits: userProfile.credits - creditsUsed })
+        .eq('id', user.id)
+    }
+
+    return {
+      orderId: order.id,
+      keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+      amount: finalAmount,
+      currency: 'INR',
+      bookingIds,
+      prefill: { email: user.email },
+    }
+  } catch (error) {
+    console.error('Error creating rental cart order:', error)
+    return { error: 'Failed to create order. Please try again.' }
+  }
+}
+
+export async function confirmRentalCartPayment(
+  orderId: string,
+  paymentId: string,
+  signature: string,
+) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.id) return { error: 'Please log in', success: false }
+
+    const body = orderId + '|' + paymentId
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(body)
+      .digest('hex')
+    if (expectedSignature !== signature) return { error: 'Payment verification failed', success: false }
+
+    // Get all bookings for this order
+    const { data: bookings } = await supabase
+      .from('bookings')
+      .select('id, service_listing_id, service_listing_item_id, quantity, gross_paise, discount_paise, wallet_deducted_paise, amount_paise')
+      .eq('razorpay_order_id', orderId)
+      .eq('user_id', user.id)
+
+    if (!bookings?.length) return { error: 'Bookings not found', success: false }
+
+    // Confirm all bookings
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed', payment_status: 'paid', razorpay_payment_id: paymentId })
+      .eq('razorpay_order_id', orderId)
+      .eq('user_id', user.id)
+
+    if (updateError) return { error: 'Failed to update bookings', success: false }
+
+    // Deduct inventory for each item
+    for (const booking of bookings) {
+      if (booking.service_listing_id) {
+        await deductInventory(supabase, booking.service_listing_id, booking.service_listing_item_id, booking.quantity ?? 1)
+      }
+    }
+
+    // Record host earnings for the first booking's listing (shared host)
+    try {
+      const firstBooking = bookings[0]
+      if (firstBooking.service_listing_id) {
+        const { data: listing } = await supabase
+          .from('service_listings')
+          .select('host_id, type, title')
+          .eq('id', firstBooking.service_listing_id)
+          .single()
+
+        if (listing?.host_id) {
+          const feePercent = await getPlatformFeePercentByCategory(listing.type as ServiceListingType)
+          const totalGross = bookings.reduce((s, b) => s + (b.gross_paise || 0), 0)
+          const totalPromo = bookings.reduce((s, b) => s + (b.discount_paise || 0), 0)
+          const totalWallet = bookings.reduce((s, b) => s + (b.wallet_deducted_paise || 0), 0)
+          const { hostPaise, platformGrossPaise, platformNetPaise, promoPaise, walletPaise } = splitHostEarning({
+            grossPaise: totalGross,
+            feePercent,
+            promoPaise: totalPromo,
+            walletPaise: totalWallet,
+          })
+
+          const { createClient: createSC } = await import('@supabase/supabase-js')
+          const svc = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+          await svc.from('host_earnings').insert({
+            booking_id: firstBooking.id,
+            host_id: listing.host_id,
+            total_paise: totalGross,
+            platform_fee_paise: platformGrossPaise,
+            platform_net_paise: platformNetPaise,
+            promo_paise: promoPaise,
+            wallet_paise: walletPaise,
+            host_paise: hostPaise,
+            payout_status: 'pending',
+          })
+          await svc.from('notifications').insert({
+            user_id: listing.host_id,
+            type: 'split_payment',
+            title: 'New rental cart booking — payout recorded',
+            body: `A traveller booked multiple rentals from "${listing.title}". Your earnings: ₹${(hostPaise / 100).toLocaleString('en-IN')} (${feePercent}% platform fee).`,
+            link: '/host',
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to record host earnings for rental cart:', err)
+    }
+
+    return { success: true, bookingIds: bookings.map(b => b.id) }
+  } catch (error) {
+    console.error('Error confirming rental cart payment:', error)
+    return { error: 'Payment verification failed', success: false }
+  }
+}

@@ -1700,10 +1700,16 @@ export function HostServiceListingTabs(props: Props) {
                       min="1"
                       value={draft.maxPerBooking}
                       onChange={(e) => updateDraft(draft.localKey, { maxPerBooking: Number(e.target.value) })}
-                      className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+                      className={`mt-1 w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:border-primary ${draft.quantity > (draft.maxPerBooking || 0) ? 'border-red-500' : 'border-border'}`}
                     />
                   </div>
                 </div>
+
+                {draft.quantity > (draft.maxPerBooking || 0) && draft.maxPerBooking > 0 && (
+                  <p className="text-xs text-red-500 font-medium">
+                    "Max per order" ({draft.quantity}) cannot exceed "Total available" ({draft.maxPerBooking}). Reduce max per order.
+                  </p>
+                )}
 
                 {isRental && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

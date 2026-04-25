@@ -2,10 +2,11 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink } from 'lucide-react'
+import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink, Plus, Minus } from 'lucide-react'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
+import { RentalCartCheckout } from './RentalCartCheckout'
 import { Suspense, useState } from 'react'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { startDirectMessage } from '@/actions/profile'
@@ -49,6 +50,18 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
     items.length > 0 ? items[0].id : null,
   )
   const selectedItem = items.find(i => i.id === selectedItemId) || null
+
+  // Rental cart: map from item ID → quantity (only used for rentals with items)
+  const [rentalCart, setRentalCart] = useState<Record<string, number>>({})
+  const rentalCartTotal = Object.values(rentalCart).reduce((s, q) => s + q, 0)
+
+  function setCartQty(itemId: string, delta: number, max: number) {
+    setRentalCart(prev => {
+      const cur = prev[itemId] ?? 0
+      const next = Math.max(0, Math.min(max, cur + delta))
+      return { ...prev, [itemId]: next }
+    })
+  }
 
   // No carousel state needed — items are shown in a grid, each card is
   // individually clickable to select for booking.
@@ -320,14 +333,89 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
           )
         })()}
 
-        {/* Items picker — grid, 3 per row, each card clickable to select */}
+        {/* Items picker */}
         {items.length > 0 && (
           <div>
-            <h2 className="text-xl font-bold mb-3">Choose an option</h2>
+            <h2 className="text-xl font-bold mb-3">{isRental ? 'Choose vehicles' : 'Choose an option'}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {items.map((item) => {
-                const isSelected = item.id === selectedItemId
                 const soldOut = item.quantity_available === 0
+                const cartQty = rentalCart[item.id] ?? 0
+                const isSelected = item.id === selectedItemId
+                const maxQty = item.max_per_booking != null
+                  ? (item.quantity_available != null ? Math.min(item.max_per_booking, item.quantity_available) : item.max_per_booking)
+                  : (item.quantity_available ?? 10)
+
+                if (isRental) {
+                  // Cart-style card for rentals
+                  return (
+                    <div
+                      key={item.id}
+                      className={`rounded-xl border overflow-hidden transition-all ${
+                        cartQty > 0 ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+                      } ${soldOut ? 'opacity-50' : ''}`}
+                    >
+                      {/* Square image */}
+                      <div className="aspect-square bg-secondary overflow-hidden relative">
+                        {item.images[0] ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="h-8 w-8 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        {soldOut && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">Sold out</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div className="p-2.5 space-y-0.5">
+                        <p className="font-semibold text-sm leading-tight line-clamp-2">{item.name}</p>
+                        <p className="text-sm font-bold text-primary">
+                          {formatPrice(item.price_paise)}
+                          {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                        </p>
+                        {!soldOut && item.quantity_available != null && (
+                          <p className="text-xs text-green-600">{item.quantity_available} available</p>
+                        )}
+                        {item.amenities && item.amenities.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {item.amenities.slice(0, 3).map(a => (
+                              <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{a}</span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Quantity stepper */}
+                        {!soldOut && (
+                          <div className="flex items-center gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setCartQty(item.id, -1, maxQty)}
+                              disabled={cartQty === 0}
+                              className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-sm font-medium disabled:opacity-30 hover:border-primary/50 transition-colors"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="font-bold text-sm min-w-[1.5rem] text-center">{cartQty}</span>
+                            <button
+                              type="button"
+                              onClick={() => setCartQty(item.id, +1, maxQty)}
+                              disabled={cartQty >= maxQty}
+                              className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-sm font-medium disabled:opacity-30 hover:border-primary/50 transition-colors"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                }
+
+                // Non-rental: original click-to-select behaviour
                 return (
                   <button
                     key={item.id}
@@ -335,20 +423,13 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                     onClick={() => !soldOut && setSelectedItemId(item.id)}
                     disabled={soldOut}
                     className={`text-left rounded-xl border overflow-hidden transition-all ${
-                      isSelected
-                        ? 'border-primary ring-2 ring-primary/20'
-                        : 'border-border hover:border-primary/50'
+                      isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
                     } ${soldOut ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
-                    {/* Square image */}
                     <div className="aspect-square bg-secondary overflow-hidden relative">
                       {item.images[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.images[0]}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Package className="h-8 w-8 text-muted-foreground/30" />
@@ -360,28 +441,22 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                         </div>
                       )}
                     </div>
-
-                    {/* Info */}
                     <div className="p-2.5 space-y-0.5">
                       <p className="font-semibold text-sm leading-tight line-clamp-2">{item.name}</p>
                       <p className="text-sm font-bold text-primary">
                         {formatPrice(item.price_paise)}
                         {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
                       </p>
-                      {!soldOut && (
+                      {!soldOut && item.quantity_available != null && (
                         <p className="text-xs text-green-600">{item.quantity_available} available</p>
                       )}
                       {item.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 pt-0.5">
-                          {stripMarkdown(item.description)}
-                        </p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 pt-0.5">{stripMarkdown(item.description)}</p>
                       )}
                       {item.amenities && item.amenities.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {item.amenities.slice(0, 3).map(a => (
-                            <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                              {a}
-                            </span>
+                            <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{a}</span>
                           ))}
                         </div>
                       )}
@@ -499,57 +574,65 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
       {/* Sidebar - Booking form */}
       <div className="lg:col-span-1 order-first lg:order-none">
         <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4 max-h-[calc(100vh-24px)] overflow-y-auto">
-          {/* Price — shows selected item's price if items exist, otherwise
-              master listing price. Never shows a stale master price when
-              individual items have their own pricing. */}
-          <div>
-            {items.length > 0 ? (
-              selectedItem ? (
-                <>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
-                    {selectedItem.name}
-                  </div>
-                  <div className="text-3xl font-bold text-primary mb-1">
-                    {formatPrice(selectedItem.price_paise)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    per {displayUnit.replace('per_', '').replace('_', ' ')}
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Select an option to see pricing
+
+          {isRental && items.length > 0 ? (
+            /* ── Rental cart sidebar ── */
+            <>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{listing.title}</div>
+                <div className="text-sm text-muted-foreground">Add vehicles below, then book all at once</div>
+              </div>
+              {rentalCartTotal === 0 ? (
+                <p className="text-sm text-muted-foreground border border-dashed border-border rounded-lg p-4 text-center">
+                  Use the +/− buttons on the vehicle cards to add to your cart
                 </p>
-              )
-            ) : (
-              <>
-                <div className="text-3xl font-bold text-primary mb-1">
-                  {formatPrice(listing.price_paise)}
+              ) : (
+                <div className="border-t border-border pt-4">
+                  <Suspense fallback={<div className="h-64 bg-secondary/50 rounded-lg animate-pulse" />}>
+                    <RentalCartCheckout listing={listing} items={items} cart={rentalCart} />
+                  </Suspense>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  per {listing.unit.replace('per_', '').replace('_', ' ')}
-                </div>
-              </>
-            )}
-          </div>
+              )}
+            </>
+          ) : (
+            /* ── Standard single-item / listing booking ── */
+            <>
+              <div>
+                {items.length > 0 ? (
+                  selectedItem ? (
+                    <>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">{selectedItem.name}</div>
+                      <div className="text-3xl font-bold text-primary mb-1">{formatPrice(selectedItem.price_paise)}</div>
+                      <div className="text-sm text-muted-foreground">per {displayUnit.replace('per_', '').replace('_', ' ')}</div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Select an option to see pricing</p>
+                  )
+                ) : (
+                  <>
+                    <div className="text-3xl font-bold text-primary mb-1">{formatPrice(listing.price_paise)}</div>
+                    <div className="text-sm text-muted-foreground">per {listing.unit.replace('per_', '').replace('_', ' ')}</div>
+                  </>
+                )}
+              </div>
 
-          {/* Availability */}
-          {displayAvailable != null && (
-            <div className="text-sm">
-              <span className={displayAvailable > 0 ? 'text-green-600' : 'text-red-600'}>
-                {displayAvailable > 0
-                  ? `${displayAvailable} available`
-                  : 'Sold out'}
-              </span>
-            </div>
+              {displayAvailable != null && (
+                <div className="text-sm">
+                  <span className={displayAvailable > 0 ? 'text-green-600' : 'text-red-600'}>
+                    {displayAvailable > 0
+                      ? `${displayAvailable} ${listing.type === 'activities' ? 'spots left' : 'available'}`
+                      : 'Sold out'}
+                  </span>
+                </div>
+              )}
+
+              <div className="border-t border-border pt-4">
+                <Suspense fallback={<div className="h-64 bg-secondary/50 rounded-lg animate-pulse" />}>
+                  <ListingBookingForm listing={listing} selectedItem={selectedItem} />
+                </Suspense>
+              </div>
+            </>
           )}
-
-          {/* Booking form */}
-          <div className="border-t border-border pt-4">
-            <Suspense fallback={<div className="h-64 bg-secondary/50 rounded-lg animate-pulse" />}>
-              <ListingBookingForm listing={listing} selectedItem={selectedItem} />
-            </Suspense>
-          </div>
         </div>
       </div>
     </div>

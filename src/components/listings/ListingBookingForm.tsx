@@ -479,7 +479,8 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       {/* Quantity selector */}
       <div className="space-y-1">
         <label className="text-sm font-medium flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5 text-primary" /> {listing.type === 'stays' ? 'Rooms' : 'Quantity'}
+          <Users className="h-3.5 w-3.5 text-primary" />
+          {listing.type === 'stays' ? 'Rooms' : listing.type === 'activities' ? 'Guests' : 'Quantity'}
         </label>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" className="h-9 w-9 p-0 border-border" onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</Button>
