@@ -16,18 +16,6 @@ const TABS: { id: Tab; label: string; icon: typeof Plane }[] = [
   { id: 'rentals', label: 'Rentals', icon: Key },
 ]
 
-const ACTIVITY_OPTIONS = [
-  { label: 'All activities', value: '' },
-  { label: 'Paragliding', value: 'Paragliding' },
-  { label: 'River rafting', value: 'River rafting' },
-  { label: 'Bungee jumping', value: 'Bungee jumping' },
-  { label: 'Surfing', value: 'Surfing' },
-  { label: 'Trekking', value: 'Trekking' },
-  { label: 'Scuba diving', value: 'Scuba diving' },
-  { label: 'Kayaking', value: 'Kayaking' },
-  { label: 'Wildlife safari', value: 'Wildlife safari' },
-]
-
 function monthParamFromRange(start: string, end: string): string | undefined {
   if (!start?.trim() || !end?.trim()) return undefined
   const d1 = new Date(start)
@@ -39,7 +27,14 @@ function monthParamFromRange(start: string, end: string): string | undefined {
   return undefined
 }
 
-export function WanderSearchBar({ className = '' }: { className?: string }) {
+export function WanderSearchBar({
+  className = '',
+  listedActivities = [],
+}: {
+  className?: string
+  /** From live activity listings (tags + categories); first option is always “all”. */
+  listedActivities: string[]
+}) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('trips')
 
@@ -85,9 +80,11 @@ export function WanderSearchBar({ className = '' }: { className?: string }) {
     router.push(`/explore?${params.toString()}`)
   }
 
+  const activitySelectOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
+
   return (
-    <div className={cn('rounded-2xl border border-border/80 bg-card/90 p-4 shadow-xl backdrop-blur-md', className)}>
-      <div className="flex flex-wrap gap-2 border-b border-border/60 pb-3 mb-4">
+    <div className={cn('w-full max-w-3xl rounded-2xl border border-border/80 bg-card/90 p-3 sm:p-4 shadow-xl backdrop-blur-md', className)}>
+      <div className="flex flex-wrap justify-start gap-2 border-b border-border/60 pb-3 mb-3">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -212,8 +209,8 @@ export function WanderSearchBar({ className = '' }: { className?: string }) {
               value={actType}
               onChange={e => setActType(e.target.value)}
             >
-              {ACTIVITY_OPTIONS.map(o => (
-                <option key={o.label} value={o.value}>
+              {activitySelectOptions.map((o, i) => (
+                <option key={`${o.value}-${i}`} value={o.value}>
                   {o.label}
                 </option>
               ))}

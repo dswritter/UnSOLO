@@ -1,4 +1,4 @@
-import { Users, MapPin, CreditCard, Heart } from 'lucide-react'
+import { MapPin, CreditCard, Smile } from 'lucide-react'
 import type { WanderStats } from '@/lib/wander/wanderQueries'
 
 function fmt(n: number, suffix = '') {
@@ -9,21 +9,20 @@ function fmt(n: number, suffix = '') {
 
 export function WanderStatsGrid({ stats }: { stats: WanderStats }) {
   const items = [
-    { icon: Users, value: fmt(stats.soloTravelers, '+'), label: 'Solo travelers' },
     { icon: MapPin, value: fmt(stats.destinations, '+'), label: 'Destinations' },
     { icon: CreditCard, value: fmt(stats.bookings, '+'), label: 'Bookings' },
-    { icon: Heart, value: `${stats.happyPercent}%`, label: 'Happy customers' },
+    { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy customers' },
   ] as const
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
       {items.map(({ icon: Icon, value, label }) => (
         <div
           key={label}
-          className="rounded-xl border border-border/80 bg-card/60 px-3 py-3 sm:px-4 sm:py-4 shadow-sm"
+          className="rounded-lg border border-border/80 bg-card/60 px-2 py-2.5 sm:px-3 sm:py-3.5 shadow-sm"
         >
-          <Icon className="h-5 w-5 text-primary mb-2" />
-          <p className="text-xl sm:text-2xl font-black text-foreground tabular-nums leading-none">{value}</p>
-          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 leading-snug">{label}</p>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary mb-1.5" />
+          <p className="text-lg sm:text-xl font-black text-foreground tabular-nums leading-none">{value}</p>
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5 leading-tight line-clamp-2">{label}</p>
         </div>
       ))}
     </div>

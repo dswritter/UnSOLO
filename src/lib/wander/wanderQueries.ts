@@ -24,6 +24,31 @@ function svc() {
   return createServiceClient(url, key)
 }
 
+/**
+ * Distinct activity labels from live listings: tags + metadata.activity_category.
+ */
+export async function getListedActivityFilterOptions(): Promise<string[]> {
+  const supabase = svc()
+  const { data, error } = await supabase
+    .from('service_listings')
+    .select('tags, metadata, type, event_schedule')
+    .eq('type', 'activities')
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+  if (error || !data?.length) return []
+  const set = new Set<string>()
+  for (const row of data) {
+    if (!isActivityVisibleToPublic(row as ServiceListing)) continue
+    const r = row as { tags: string[] | null; metadata: { activity_category?: string } | null }
+    for (const t of r.tags || []) {
+      if (t?.trim()) set.add(t.trim())
+    }
+    const c = r.metadata?.activity_category
+    if (c?.trim()) set.add(c.trim())
+  }
+  return [...set].sort((a, b) => a.localeCompare(b))
+}
+
 export type WanderStats = {
   soloTravelers: number
   destinations: number

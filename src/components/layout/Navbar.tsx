@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent, MessageSquare } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent, MessageSquare, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
-import { getInitials } from '@/lib/utils'
+import { getInitials, cn } from '@/lib/utils'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
@@ -30,6 +30,7 @@ export function Navbar({ user }: NavbarProps) {
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
+  const isWander = pathname?.startsWith('/wander')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileToggleRef = useRef<HTMLButtonElement>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -217,15 +218,17 @@ export function Navbar({ user }: NavbarProps) {
             })}
           </div>
 
-          {/* Search Bar - Desktop only, shifted right */}
-          <div className="hidden md:block w-56 ml-4">
-            <SearchBar />
-          </div>
-
-          {/* Mobile Search - only on mobile */}
-          <div className="md:hidden">
-            <SearchBar isMobile={true} />
-          </div>
+          {/* Search — hidden on /wander (local search lives in page) */}
+          {!isWander && (
+            <>
+              <div className="hidden md:block w-56 ml-4">
+                <SearchBar />
+              </div>
+              <div className="md:hidden">
+                <SearchBar isMobile={true} />
+              </div>
+            </>
+          )}
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-3">
@@ -233,13 +236,35 @@ export function Navbar({ user }: NavbarProps) {
               <>
                 <NotificationBell userId={user.id} />
                 <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Avatar className="h-11 w-11 border-2 border-border cursor-pointer hover:border-primary/50 transition-colors">
-                      <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
-                        {getInitials(user.full_name || user.username)}
-                      </AvatarFallback>
-                    </Avatar>
+                  <DropdownMenuTrigger
+                    className={cn(
+                      'outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary/80',
+                      isWander
+                        ? 'inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-secondary/60'
+                        : 'inline-flex cursor-pointer border-0 bg-transparent p-0',
+                    )}
+                  >
+                    {isWander ? (
+                      <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+                        <Avatar className="h-8 w-8 shrink-0 border-2 border-border sm:h-9 sm:w-9">
+                          <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                            {getInitials(user.full_name || user.username)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold md:inline">
+                          {user.full_name || user.username}
+                        </span>
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </span>
+                    ) : (
+                      <Avatar className="h-11 w-11 border-2 border-border transition-colors hover:border-primary/50">
+                        <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+                          {getInitials(user.full_name || user.username)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-60 bg-card border-border">
                     <div className="px-4 py-3">
