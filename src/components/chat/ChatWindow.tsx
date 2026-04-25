@@ -7,12 +7,13 @@ import { useRealtimeChat } from '@/hooks/useRealtimeChat'
 import { chatKeys } from '@/lib/chat/chatQueryKeys'
 import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
 import { sendMessage, editMessage, createChatPoll, setRoomPinnedMessage } from '@/actions/chat'
+import { fetchChatSharePage, type ChatShareItem, type ChatShareKind } from '@/actions/chat-share'
 import { requestPhoneAccess } from '@/actions/profile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2 } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -295,8 +296,13 @@ export function ChatWindow({
   const [profilePopup, setProfilePopup] = useState<string | null>(null)
   const [showMembers, setShowMembers] = useState(false)
   const [showPackagePicker, setShowPackagePicker] = useState(false)
-  const [packages, setPackages] = useState<{ slug: string; title: string; destination_name: string }[]>([])
+  const [shareKind, setShareKind] = useState<ChatShareKind>('trips')
+  const [shareItems, setShareItems] = useState<ChatShareItem[]>([])
+  const [shareTotal, setShareTotal] = useState(0)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareMoreLoading, setShareMoreLoading] = useState(false)
   const [pkgSearch, setPkgSearch] = useState('')
+  const shareSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   /** Pixels from layout viewport bottom to visual viewport bottom (mobile keyboard, browser chrome). */
@@ -893,31 +899,53 @@ export function ChatWindow({
     return receipts.length > 0 ? 'read' : 'sent'
   }
 
-  async function loadPackages() {
-    const supabase = (await import('@/lib/supabase/client')).createClient()
-    const { data } = await supabase
-      .from('packages')
-      .select('slug, title, destination:destinations(name)')
-      .eq('is_active', true)
-      .order('title')
-    if (data) {
-      setPackages(data.map((p: Record<string, unknown>) => ({
-        slug: p.slug as string,
-        title: p.title as string,
-        destination_name: (p.destination as { name: string } | null)?.name || '',
-      })))
+  const refreshShareList = useCallback(async (kind: ChatShareKind, search: string) => {
+    setShareLoading(true)
+    const res = await fetchChatSharePage(kind, 0, 5, search.trim() || undefined)
+    setShareLoading(false)
+    if (res.error) {
+      toast.error(res.error)
+      return
     }
-  }
+    setShareItems(res.items)
+    setShareTotal(res.total)
+  }, [])
 
-  function sharePackage(slug: string, title: string) {
-    const url = `${window.location.origin}/packages/${slug}`
-    const shareText = `Check out this trip: ${title}\n${url}`
-    // Remove any previously shared package URL from input, then append new one
-    const existingText = input.replace(/\nCheck out this trip:.*\nhttps?:\/\/[^\s]+/g, '').replace(/^Check out this trip:.*\nhttps?:\/\/[^\s]+/g, '').trim()
+  const loadMoreShareItems = useCallback(async () => {
+    if (shareMoreLoading || shareItems.length >= shareTotal) return
+    setShareMoreLoading(true)
+    const res = await fetchChatSharePage(shareKind, shareItems.length, 5, pkgSearch.trim() || undefined)
+    setShareMoreLoading(false)
+    if (res.error) {
+      toast.error(res.error)
+      return
+    }
+    setShareItems(prev => [...prev, ...res.items])
+    setShareTotal(res.total)
+  }, [shareKind, shareItems.length, shareTotal, shareMoreLoading, pkgSearch])
+
+  function shareChatItem(item: ChatShareItem) {
+    const url = `${window.location.origin}${item.path}`
+    const lead =
+      item.kind === 'trips'
+        ? 'Check out this trip'
+        : 'Check out this listing'
+    const shareText = `${lead}: ${item.title}\n${url}`
+    const existingText = input
+      .replace(/\nCheck out this (trip|listing):.*\nhttps?:\/\/[^\s]+/g, '')
+      .replace(/^Check out this (trip|listing):.*\nhttps?:\/\/[^\s]+/g, '')
+      .trim()
     setInput(existingText ? `${existingText}\n${shareText}` : shareText)
     setShowPackagePicker(false)
     setPkgSearch('')
     setTimeout(autoResizeTextarea, 50)
+  }
+
+  function scheduleShareSearchDebounce(nextSearch: string, kind: ChatShareKind) {
+    if (shareSearchDebounceRef.current) clearTimeout(shareSearchDebounceRef.current)
+    shareSearchDebounceRef.current = setTimeout(() => {
+      void refreshShareList(kind, nextSearch)
+    }, 400)
   }
 
   async function handleRequestPhone(targetId: string) {
@@ -1382,43 +1410,111 @@ export function ChatWindow({
       </div>
       </div>
 
-      {/* Package Picker — in-flow, shrinks the scroll area above */}
+      {/* Share trips / listings — in-flow */}
       {showPackagePicker && (
         <div className="border-t border-border bg-card px-4 py-4 max-h-[60vh] min-h-[300px] overflow-y-auto shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold">Share a Trip Package</p>
-            <button onClick={() => { setShowPackagePicker(false); setPkgSearch('') }}><X className="h-4 w-4 text-zinc-500 hover:text-white" /></button>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-bold">Share trips &amp; listings</p>
+            <button
+              type="button"
+              onClick={() => {
+                if (shareSearchDebounceRef.current) clearTimeout(shareSearchDebounceRef.current)
+                setShowPackagePicker(false)
+                setPkgSearch('')
+              }}
+            >
+              <X className="h-4 w-4 text-zinc-500 hover:text-white" />
+            </button>
+          </div>
+          <p className="text-[10px] text-muted-foreground mb-2">Popular first · 5 at a time</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {(
+              [
+                { k: 'trips' as const, label: 'Trips' },
+                { k: 'stays' as const, label: 'Stays' },
+                { k: 'activities' as const, label: 'Activities' },
+                { k: 'rentals' as const, label: 'Rentals' },
+              ] as const
+            ).map(({ k, label }) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => {
+                  if (shareSearchDebounceRef.current) clearTimeout(shareSearchDebounceRef.current)
+                  setShareKind(k)
+                  void refreshShareList(k, pkgSearch)
+                }}
+                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  shareKind === k ? 'bg-primary text-black' : 'bg-secondary text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <input
             type="text"
             value={pkgSearch}
-            onChange={e => setPkgSearch(e.target.value)}
-            placeholder="Search packages..."
+            onChange={e => {
+              const v = e.target.value
+              setPkgSearch(v)
+              scheduleShareSearchDebounce(v, shareKind)
+            }}
+            placeholder="Search (updates after you pause typing)…"
             className="w-full text-sm bg-secondary border border-border rounded-lg px-3 py-2 mb-3 focus:outline-none focus:border-primary"
             autoFocus
           />
           <div className="space-y-1">
-            {packages
-              .filter(p => !pkgSearch || p.title.toLowerCase().includes(pkgSearch.toLowerCase()) || p.destination_name.toLowerCase().includes(pkgSearch.toLowerCase()))
-              .slice(0, 10)
-              .map(p => (
-                <button
-                  key={p.slug}
-                  onClick={() => sharePackage(p.slug, p.title)}
-                  className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-secondary/80 transition-colors border border-transparent hover:border-border"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+            {shareLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-6 flex items-center justify-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                Loading…
+              </p>
+            ) : shareItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No matches. Try another search or tab.</p>
+            ) : (
+              shareItems.map((item, idx) => {
+                const icon =
+                  item.kind === 'trips' ? (
                     <Package className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{p.title}</div>
-                    <div className="text-xs text-muted-foreground">{p.destination_name}</div>
-                  </div>
-                </button>
-              ))}
-            {packages.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">Loading packages...</p>
+                  ) : item.kind === 'stays' ? (
+                    <Home className="h-4 w-4 text-primary" />
+                  ) : item.kind === 'activities' ? (
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                  ) : (
+                    <Car className="h-4 w-4 text-primary" />
+                  )
+                return (
+                  <button
+                    key={`${item.kind}-${item.slug}-${idx}`}
+                    type="button"
+                    onClick={() => shareChatItem(item)}
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-secondary/80 transition-colors border border-transparent hover:border-border"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">{icon}</div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{item.title}</div>
+                      <div className="text-xs text-muted-foreground truncate">{item.subtitle || '—'}</div>
+                    </div>
+                  </button>
+                )
+              })
             )}
+            {!shareLoading && shareItems.length < shareTotal ? (
+              <div className="pt-1 border-t border-border/50 mt-2">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreShareItems()}
+                  disabled={shareMoreLoading}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {shareMoreLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  Load more
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       )}
@@ -1700,9 +1796,18 @@ export function ChatWindow({
           ) : null}
           <button
             type="button"
-            onClick={() => { setShowPackagePicker(!showPackagePicker); if (packages.length === 0) loadPackages() }}
+            onClick={() => {
+              if (showPackagePicker) {
+                if (shareSearchDebounceRef.current) clearTimeout(shareSearchDebounceRef.current)
+                setShowPackagePicker(false)
+                setPkgSearch('')
+                return
+              }
+              setShowPackagePicker(true)
+              void refreshShareList(shareKind, pkgSearch)
+            }}
             className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
-            title="Share a trip package"
+            title="Share trips, stays, activities, or rentals"
           >
             <Share2 className="h-4 w-4 text-primary" />
           </button>
