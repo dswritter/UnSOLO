@@ -1491,11 +1491,16 @@ export async function processCancellation(
   if (approve && refundAmountPaise !== undefined) {
     const { data: bookingCheck } = await supabase
       .from('bookings')
-      .select('total_amount_paise')
+      .select('total_amount_paise, deposit_paise')
       .eq('id', bookingId)
       .single()
-    if (bookingCheck && refundAmountPaise > bookingCheck.total_amount_paise) {
-      return { error: `Refund amount cannot exceed booking amount (₹${(bookingCheck.total_amount_paise / 100).toLocaleString('en-IN')})` }
+    if (bookingCheck) {
+      // Cap at what was actually paid. For token bookings deposit_paise < total_amount_paise;
+      // for full-payment bookings deposit_paise equals total_amount_paise.
+      const amountActuallyPaid = bookingCheck.deposit_paise ?? bookingCheck.total_amount_paise
+      if (refundAmountPaise > amountActuallyPaid) {
+        return { error: `Refund amount cannot exceed amount actually paid (₹${(amountActuallyPaid / 100).toLocaleString('en-IN')})` }
+      }
     }
     if (refundAmountPaise < 0) {
       return { error: 'Refund amount cannot be negative' }
