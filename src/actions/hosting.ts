@@ -706,7 +706,7 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
 
   const { data: request } = await supabase
     .from('join_requests')
-    .select('*, trip:packages(host_id, title)')
+    .select('*, trip:packages(host_id, title), profiles(full_name, email)')
     .eq('id', requestId)
     .single()
 
@@ -732,6 +732,19 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
       : `Your request to join "${trip.title}" was not approved.`,
     link: '/explore',
   })
+
+  // Email the traveler
+  const profile = (Array.isArray(request.profiles) ? request.profiles[0] : request.profiles) as { full_name: string | null; email: string | null } | null
+  if (profile?.email) {
+    const { sendJoinRequestRejectedEmail } = await import('@/lib/resend/emails')
+    await sendJoinRequestRejectedEmail({
+      to: profile.email,
+      travelerName: profile.full_name ?? '',
+      tripTitle: trip.title,
+      reason: reason || undefined,
+      exploreUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/explore`,
+    }).catch(() => null)
+  }
 
   revalidatePath(`/host/${request.trip_id}`)
   return { success: true }

@@ -1559,10 +1559,10 @@ export async function processCancellation(
     }
   }
 
-  // Get booking to notify user
+  // Get booking + traveler profile to notify
   const { data: booking } = await supabase
     .from('bookings')
-    .select('user_id, package_id, package:packages(title), total_amount_paise, stripe_payment_intent')
+    .select('user_id, package_id, package:packages(title), total_amount_paise, stripe_payment_intent, profiles(full_name, email)')
     .eq('id', bookingId)
     .single()
 
@@ -1579,6 +1579,21 @@ export async function processCancellation(
         : `Your cancellation for ${pkgTitle} was denied. ${adminNote || ''}`,
       link: '/bookings',
     })
+
+    // Email the traveler
+    const profile = (Array.isArray(booking.profiles) ? booking.profiles[0] : booking.profiles) as { full_name: string | null; email: string | null } | null
+    if (profile?.email) {
+      const { sendCancellationDecisionEmail } = await import('@/lib/resend/emails')
+      await sendCancellationDecisionEmail({
+        to: profile.email,
+        travelerName: profile.full_name ?? '',
+        tripTitle: pkgTitle,
+        approved: approve,
+        refundAmountPaise: refundAmountPaise ?? 0,
+        adminNote: adminNote || undefined,
+        bookingsUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/bookings`,
+      }).catch(() => null)
+    }
   }
 
   // Audit log

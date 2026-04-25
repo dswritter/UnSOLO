@@ -526,3 +526,102 @@ export async function sendTripCancelledByHostEmail(input: TripCancelledByHostEma
     `,
   })
 }
+
+// ── Admin cancellation decision ───────────────────────────────
+
+export interface CancellationDecisionEmailInput {
+  to: string
+  travelerName: string
+  tripTitle: string
+  approved: boolean
+  refundAmountPaise?: number
+  adminNote?: string
+  bookingsUrl: string
+}
+
+export async function sendCancellationDecisionEmail(input: CancellationDecisionEmailInput) {
+  const { to, travelerName, tripTitle, approved, refundAmountPaise, adminNote, bookingsUrl } = input
+  const greeting = travelerName?.trim() || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+  const refundLine = approved && refundAmountPaise && refundAmountPaise > 0
+    ? `<p style="color:#aaa;margin:8px 0;font-size:14px;">Refund of <strong style="color:#fff;">${formatInrPaise(refundAmountPaise)}</strong> will be processed within 5–7 business days.</p>`
+    : ''
+  const noteLine = adminNote
+    ? `<p style="color:#aaa;margin:8px 0;font-size:14px;"><em>${escapeHtml(adminNote)}</em></p>`
+    : ''
+  const headingColor = approved ? '#4ade80' : '#f87171'
+  const headingText = approved ? 'Cancellation Approved' : 'Cancellation Denied'
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Your cancellation request — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:${headingColor};text-align:center;">${headingText}</h2>
+        <p style="color:#ccc;text-align:center;">Hey ${escapeHtml(greeting)},</p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          <p style="color:#ddd;margin:8px 0;"><strong>Trip:</strong> ${safeTitle}</p>
+          ${refundLine}
+          ${noteLine}
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">View my bookings</a>
+        </div>
+        <p style="color:#888;font-size:12px;text-align:center;margin-top:32px;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
+// ── Host rejects join request ─────────────────────────────────
+
+export interface JoinRequestRejectedEmailInput {
+  to: string
+  travelerName: string
+  tripTitle: string
+  reason?: string
+  exploreUrl: string
+}
+
+export async function sendJoinRequestRejectedEmail(input: JoinRequestRejectedEmailInput) {
+  const { to, travelerName, tripTitle, reason, exploreUrl } = input
+  const greeting = travelerName?.trim() || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeUrl = exploreUrl.replace(/"/g, '&quot;')
+  const reasonLine = reason
+    ? `<p style="color:#aaa;margin:8px 0;font-size:14px;">Reason: <em>${escapeHtml(reason)}</em></p>`
+    : ''
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Your join request — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:#f87171;text-align:center;">Request Not Approved</h2>
+        <p style="color:#ccc;text-align:center;">Hey ${escapeHtml(greeting)},</p>
+        <p style="color:#ddd;text-align:center;line-height:1.5;">
+          Unfortunately your request to join <strong style="color:#FFC22E;">${safeTitle}</strong> was not approved by the host.
+        </p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          ${reasonLine}
+          <p style="color:#aaa;margin:8px 0;font-size:14px;">There are plenty of other great trips waiting for you.</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">Explore other trips</a>
+        </div>
+        <p style="color:#888;font-size:12px;text-align:center;margin-top:32px;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
