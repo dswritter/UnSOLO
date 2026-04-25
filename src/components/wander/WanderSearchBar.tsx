@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -93,6 +94,8 @@ export function WanderSearchBar({
   const [geoOpen, setGeoOpen] = useState(false)
   const [geoTarget, setGeoTarget] = useState<'stay' | 'act' | 'rent' | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
+  /** So we can portal to document.body (avoids hero z-stacking: belowHero paints above search) */
+  const [geoPortalReady, setGeoPortalReady] = useState(false)
 
   const today = calendarDay
 
@@ -102,6 +105,10 @@ export function WanderSearchBar({
     setTripStart(s => s || t)
     setStayIn(s => s || t)
     setActStart(s => s || t)
+  }, [])
+
+  useEffect(() => {
+    setGeoPortalReady(true)
   }, [])
 
   const markGeoDone = useCallback(() => {
@@ -562,66 +569,70 @@ export function WanderSearchBar({
         </form>
       )}
 
-      {geoOpen ? (
-        <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-4 sm:items-center"
-          onClick={() => {
-            if (!geoLoading) onGeoNotNow()
-          }}
-          role="presentation"
-        >
-          <div
-            className={cn(
-              'w-full max-w-md rounded-2xl border p-4 shadow-2xl',
-              isWander
-                ? 'border-white/20 bg-zinc-950/95 text-white [color-scheme:dark]'
-                : 'border-border bg-card text-foreground',
-            )}
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-label="Search near your current location"
-          >
-            <p className="text-sm font-bold mb-1">Search near you?</p>
-            <p
-              className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-white/70' : 'text-muted-foreground')}
+      {geoPortalReady && geoOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[500] flex items-end justify-center bg-black/70 p-4 sm:items-center"
+              onClick={() => {
+                if (!geoLoading) onGeoNotNow()
+              }}
+              role="presentation"
             >
-              We can use your device location to fill this field with your area, like maps and food apps. Your browser
-              will ask for permission. Trips are left manual so you can plan ahead anywhere.
-            </p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={isWander ? 'text-white/80' : undefined}
-                disabled={geoLoading}
-                onClick={onGeoNotNow}
-              >
-                Not now
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                className="font-bold bg-primary text-primary-foreground"
-                disabled={geoLoading}
-                onClick={e => {
-                  e.preventDefault()
-                  onGeoAllow()
-                }}
-              >
-                {geoLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Locating
-                  </>
-                ) : (
-                  'Use my location'
+              <div
+                className={cn(
+                  'w-full max-w-md rounded-2xl border p-4 shadow-2xl',
+                  isWander
+                    ? 'border-white/20 bg-zinc-950/95 text-white [color-scheme:dark]'
+                    : 'border-border bg-card text-foreground',
                 )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+                onClick={e => e.stopPropagation()}
+                role="dialog"
+                aria-label="Search near your current location"
+                aria-modal="true"
+              >
+                <p className="text-sm font-bold mb-1">Search near you?</p>
+                <p
+                  className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-white/70' : 'text-muted-foreground')}
+                >
+                  We can use your device location to fill this field with your area, like maps and food apps. Your
+                  browser will ask for permission. Trips are left manual so you can plan ahead anywhere.
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className={isWander ? 'text-white/80' : undefined}
+                    disabled={geoLoading}
+                    onClick={onGeoNotNow}
+                  >
+                    Not now
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="font-bold bg-primary text-primary-foreground"
+                    disabled={geoLoading}
+                    onClick={e => {
+                      e.preventDefault()
+                      onGeoAllow()
+                    }}
+                  >
+                    {geoLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Locating
+                      </>
+                    ) : (
+                      'Use my location'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
