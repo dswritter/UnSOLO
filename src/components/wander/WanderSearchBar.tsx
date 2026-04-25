@@ -611,8 +611,7 @@ export function WanderSearchBar({
                 <p
                   className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-white/70' : 'text-muted-foreground')}
                 >
-                  We can use your device location to fill this field with your area, like maps and food apps. Your
-                  browser will ask for permission. Trips are left manual so you can plan ahead anywhere.
+                  Allow location to find nearby Stays, Rentals, or Activities. Your browser will ask for permission.
                 </p>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
