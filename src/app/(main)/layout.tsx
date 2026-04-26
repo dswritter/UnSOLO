@@ -29,7 +29,7 @@ export default async function MainLayout({
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar user={profile} />
-      <main className="flex-1">
+      <main className="flex min-h-0 flex-1 flex-col">
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
