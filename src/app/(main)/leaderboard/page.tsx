@@ -1,67 +1,17 @@
 export const revalidate = 600 // 10 minutes
 
 import { createClient } from '@/lib/supabase/server'
-import { getLeaderboardRank } from '@/lib/leaderboard-rank'
+import { getLeaderboardSnapshot } from '@/lib/leaderboard/leaderboardSnapshot'
 import { Trophy } from 'lucide-react'
 import { LeaderboardList } from '@/components/leaderboard/LeaderboardList'
 
 export default async function LeaderboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  // Top 100 only (stable tie-break for display order)
-  const { data: leaderboard } = await supabase
-    .from('leaderboard_scores')
-    .select('*, profile:profiles(username, full_name, avatar_url, location)')
-    .order('total_score', { ascending: false })
-    .order('user_id', { ascending: true })
-    .limit(100)
-
-  const entries = (leaderboard || []) as {
-    user_id: string
-    trips_completed: number
-    reviews_written: number
-    destinations_count: number
-    total_score: number
-    profile: { username: string; full_name: string | null; avatar_url: string | null; location: string | null } | null
-  }[]
-
-  let myRank: number | null = null
-  let myEntry: (typeof entries)[0] | null = null
-  if (user) {
-    myRank = await getLeaderboardRank(supabase, user.id)
-    const inTop100 = entries.some((e) => e.user_id === user.id)
-    if (!inTop100) {
-      // Fetch the user's own score entry to show pinned at bottom
-      const { data: myScore } = await supabase
-        .from('leaderboard_scores')
-        .select('*, profile:profiles(username, full_name, avatar_url, location)')
-        .eq('user_id', user.id)
-        .single()
-      if (myScore) myEntry = myScore as (typeof entries)[0]
-    }
-  }
-
-  const inTop100 = user ? entries.some((e) => e.user_id === user.id) : false
-
-  // Monthly leaderboard: count trips completed this month per user
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  monthStart.setHours(0, 0, 0, 0)
-  const { data: monthlyBookings } = await supabase
-    .from('bookings')
-    .select('user_id')
-    .in('status', ['confirmed', 'completed'])
-    .gte('created_at', monthStart.toISOString())
-  const monthlyTripCount: Record<string, number> = {}
-  for (const b of monthlyBookings || []) {
-    monthlyTripCount[b.user_id] = (monthlyTripCount[b.user_id] || 0) + 1
-  }
-  const monthlyEntries = entries
-    .filter(e => monthlyTripCount[e.user_id])
-    .map(e => ({ ...e, monthly_trips: monthlyTripCount[e.user_id] }))
-    .sort((a, b) => b.monthly_trips - a.monthly_trips)
-    .slice(0, 20)
+  const { entries, myRank, myEntry, monthlyEntries, inTop100 } = await getLeaderboardSnapshot(
+    supabase,
+    user?.id ?? null,
+  )
 
   return (
     <div className="min-h-screen bg-background">
