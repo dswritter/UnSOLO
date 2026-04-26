@@ -126,6 +126,19 @@ export async function signInWithGoogle(referralCode?: string) {
   if (data.url) redirect(data.url)
 }
 
+export async function signInWithApple(referralCode?: string) {
+  const supabase = await createClient()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      queryParams: referralCode ? { referral_code: referralCode } : undefined,
+    },
+  })
+  if (error) return { error: error.message }
+  if (data.url) redirect(data.url)
+}
+
 // ── Link Referral ─────────────────────────────────────────────
 async function linkReferral(userId: string, referralCode: string) {
   try {
