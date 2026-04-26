@@ -15,7 +15,7 @@ type AuthV2StatsProps = {
 }
 
 /**
- * Real marketing stats (same data sources as Wander). Shown in the bottom strip on /login-v2 and /signup-v2.
+ * Real marketing stats (same data sources as Wander). Shown in the frosted card at the bottom of the hero on /login-v2 and /signup-v2.
  */
 export function AuthV2Stats({ stats, rating, className }: AuthV2StatsProps) {
   const trustLabel =
@@ -37,7 +37,7 @@ export function AuthV2Stats({ stats, rating, className }: AuthV2StatsProps) {
   return (
     <ul
       className={cn(
-        'grid w-full max-w-4xl grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:justify-center sm:gap-8 md:gap-10 lg:gap-12',
+        'grid w-full max-w-4xl grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:justify-center sm:gap-6 sm:gap-y-3 md:gap-8 md:gap-y-3',
         className,
       )}
     >

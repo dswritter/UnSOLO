@@ -47,9 +47,9 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
       )}
     >
       <div className={auroraLayerClass} aria-hidden />
-      <div className="relative z-[1] mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col md:flex-row">
-        {/* Visual column */}
-        <div className="relative min-h-[min(48vh,480px)] w-full flex-shrink-0 md:min-h-0 md:w-1/2 md:min-h-dvh lg:w-[52%]">
+      <div className="relative z-[1] mx-auto flex min-h-dvh w-full max-w-[1920px] flex-1 flex-col md:flex-row">
+        {/* Visual column — stats sit on frosted glass at bottom of photo only */}
+        <div className="relative min-h-[min(52vh,520px)] w-full flex-shrink-0 md:min-h-dvh md:w-1/2 lg:w-[52%]">
           <Image
             src={HERO_IMAGE}
             alt=""
@@ -62,10 +62,25 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
             className="absolute inset-0 bg-gradient-to-t from-[#010806] via-[#010806]/25 to-[#010806]/30 md:bg-gradient-to-r md:from-[#010806]/35 md:via-[#010806]/15 md:to-[#010806]/5"
             aria-hidden
           />
-          <div className="absolute inset-0 flex flex-col p-4 sm:p-5 md:p-8 lg:p-10">
+          <div className="absolute inset-0 flex min-h-0 flex-col p-4 sm:p-5 md:p-8 lg:p-10">
             <AuthV2TopBar />
             <div className="mt-6 min-w-0 sm:mt-8 md:mt-10 lg:mt-12">
               <h1 className="text-balance pr-1">{h.title}</h1>
+            </div>
+            <div className="mt-auto w-full min-w-0 pt-6 md:pt-8">
+              <div
+                className={cn(
+                  'w-full max-w-full rounded-2xl border border-white/20 bg-white/[0.08] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.35)]',
+                  'backdrop-blur-xl backdrop-saturate-150 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.12)]',
+                  'ring-1 ring-white/10 sm:p-4 md:rounded-3xl md:p-5',
+                )}
+              >
+                <AuthV2Stats
+                  stats={stats}
+                  rating={rating}
+                  className="!max-w-full gap-x-3 gap-y-3 sm:gap-4 md:gap-6 md:justify-center"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -88,13 +103,6 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
           </div>
         </div>
       </div>
-
-      {/* Real stats — bottom of screen */}
-      <footer className="relative z-[1] w-full border-t border-white/10 bg-black/25 px-4 py-5 backdrop-blur-sm sm:px-6 md:px-10 md:py-6">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center">
-          <AuthV2Stats stats={stats} rating={rating} className="justify-items-start sm:justify-center" />
-        </div>
-      </footer>
     </div>
   )
 }
