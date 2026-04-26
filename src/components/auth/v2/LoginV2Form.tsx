@@ -3,21 +3,16 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { signIn, signInWithGoogle, signInWithApple } from '@/actions/auth'
+import { signIn, signInWithGoogle } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import {
-  AppleMark,
-  AuthV2SecurityFooter,
-  AuthV2Tabs,
-  GoogleMark,
-} from '@/components/auth/v2/AuthV2FormChrome'
+import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
-  'h-11 border-white/10 bg-zinc-900/80 text-white placeholder:text-white/35 focus-visible:ring-[#fcba03]/40'
+  'h-11 min-h-11 !border !border-white/20 !bg-zinc-950 !text-white !placeholder:text-white/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-zinc-950 dark:!text-white dark:!placeholder:text-white/40'
 
 const TRAVEL_QUOTES = [
   'The world is a book, and those who do not travel read only one page.',
@@ -36,7 +31,7 @@ function LoginV2FormInner() {
   const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
   const [hasSessionAfterVerify, setHasSessionAfterVerify] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [oauth, setOauth] = useState<false | 'google' | 'apple'>(false)
+  const [oauth, setOauth] = useState<false | 'google'>(false)
   const formRef = useRef<HTMLFormElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
 
@@ -182,38 +177,19 @@ function LoginV2FormInner() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 sm:flex-row">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!!oauth}
-          className="h-11 flex-1 border-white/20 bg-transparent text-white hover:bg-white/5"
-          onClick={() => {
-            setOauth('google')
-            signInWithGoogle()
-          }}
-        >
-          <GoogleMark className="mr-2 h-4 w-4" />
-          {oauth === 'google' ? '…' : 'Google'}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!!oauth}
-          className="h-11 flex-1 border-white/20 bg-transparent text-white hover:bg-white/5"
-          onClick={async () => {
-            setOauth('apple')
-            const r = await signInWithApple()
-            if (r?.error) {
-              toast.error(r.error)
-              setOauth(false)
-            }
-          }}
-        >
-          <AppleMark className="mr-2 h-3.5 w-3" />
-          {oauth === 'apple' ? '…' : 'Apple'}
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!!oauth}
+        className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5"
+        onClick={() => {
+          setOauth('google')
+          signInWithGoogle()
+        }}
+      >
+        <GoogleMark className="mr-2 h-4 w-4" />
+        {oauth === 'google' ? '…' : 'Continue with Google'}
+      </Button>
 
       <p className="mt-4 text-center text-sm text-white/50">
         Don&apos;t have an account?{' '}

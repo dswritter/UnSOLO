@@ -3,25 +3,20 @@
 import Link from 'next/link'
 import { useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { signUp, signInWithGoogle, signInWithApple, resendSignupConfirmationEmail } from '@/actions/auth'
+import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Gift, Mail, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  AppleMark,
-  AuthV2SecurityFooter,
-  AuthV2Tabs,
-  GoogleMark,
-} from '@/components/auth/v2/AuthV2FormChrome'
+import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
-  'h-11 border-white/10 bg-zinc-900/80 text-white placeholder:text-white/35 focus-visible:ring-[#fcba03]/40'
+  'h-11 min-h-11 !border !border-white/20 !bg-zinc-950 !text-white !placeholder:text-white/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-zinc-950 dark:!text-white dark:!placeholder:text-white/40'
 const inputPlaceholderClass =
   'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
 
 function SignupV2FormInner() {
-  const [loading, setLoading] = useState<false | 'google' | 'apple' | 'email'>(false)
+  const [loading, setLoading] = useState<false | 'google' | 'email'>(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
@@ -260,38 +255,19 @@ function SignupV2FormInner() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2.5 sm:flex-row">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!!loading}
-          className="h-11 flex-1 border-white/20 bg-transparent text-white hover:bg-white/5"
-          onClick={() => {
-            setLoading('google')
-            signInWithGoogle(refCode || undefined)
-          }}
-        >
-          <GoogleMark className="mr-2 h-4 w-4" />
-          Google
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!!loading}
-          className="h-11 flex-1 border-white/20 bg-transparent text-white hover:bg-white/5"
-            onClick={async () => {
-            setLoading('apple')
-            const r = await signInWithApple(refCode || undefined)
-            if (r?.error) {
-              toast.error(r.error)
-              setLoading(false)
-            }
-          }}
-        >
-          <AppleMark className="mr-2 h-3.5 w-3" />
-          Apple
-        </Button>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!!loading}
+        className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5"
+        onClick={() => {
+          setLoading('google')
+          signInWithGoogle(refCode || undefined)
+        }}
+      >
+        <GoogleMark className="mr-2 h-4 w-4" />
+        {loading === 'google' ? '…' : 'Continue with Google'}
+      </Button>
 
       <p className="text-[11px] text-white/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
 

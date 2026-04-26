@@ -30,14 +30,6 @@ export function GoogleMark({ className }: { className?: string }) {
   )
 }
 
-export function AppleMark({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 384 512" fill="currentColor" aria-hidden>
-      <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 79.7 60.3 135.5c13.5 12.8 29.6 19.2 47.3 19.2 32.5 0 44.5-19.6 83-19.6 36.4 0 47.1 19.6 80.3 19.6 17.8 0 35.6-6.1 49.4-18.7-35-20.6-52.5-47.6-52.5-83.1 0-46.4 31.3-83.2 72.4-91.4zm-63-223.4c14.9-17.7 25-41.4 22.3-65.6-21.3 1.1-47.2 14.2-62.5 31.8-13.7 15.3-25.7 40-22.4 63.6 23.8 1.8 47.6-12.1 62.6-29.8z" />
-    </svg>
-  )
-}
-
 export function AuthV2Tabs({ active }: { active: Tab }) {
   const searchParams = useSearchParams()
   const ref = searchParams.get('ref')

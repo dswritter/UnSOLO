@@ -1,29 +1,54 @@
-import type { LucideIcon } from 'lucide-react'
 import { Users, Star, MapPin, Smile } from 'lucide-react'
+import type { WanderRatingHero, WanderStats } from '@/lib/wander/wanderQueries'
 import { cn } from '@/lib/utils'
 
-const ITEMS: {
-  value: string
-  valueSuffix?: string
-  label: string
-  icon: LucideIcon
-}[] = [
-  { value: '50K+', label: 'Solo travellers', icon: Users },
-  { value: '4.8', valueSuffix: '★', label: 'Trusted by users', icon: Star },
-  { value: '100+', label: 'Destinations', icon: MapPin },
-  { value: '92%', label: 'Happy users', icon: Smile },
-]
+function fmt(n: number, suffix = '') {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M${suffix}`
+  if (n >= 1_000) return `${Math.floor(n / 1_000)}K${suffix}`
+  return `${n.toLocaleString('en-IN')}${suffix}`
+}
 
-export function AuthV2Stats({ className }: { className?: string }) {
+type AuthV2StatsProps = {
+  stats: WanderStats
+  rating: Pick<WanderRatingHero, 'overall' | 'reviewCount'>
+  className?: string
+}
+
+/**
+ * Real marketing stats (same data sources as Wander). Shown in the bottom strip on /login-v2 and /signup-v2.
+ */
+export function AuthV2Stats({ stats, rating, className }: AuthV2StatsProps) {
+  const trustLabel =
+    rating.reviewCount > 0 ? `From ${rating.reviewCount.toLocaleString('en-IN')} reviews` : 'Average rating'
+
+  const items = [
+    { id: 'solo' as const, value: fmt(stats.soloTravelers, '+'), label: 'Solo travellers', icon: Users },
+    {
+      id: 'rating' as const,
+      value: rating.overall.toFixed(1),
+      valueSuffix: '★' as const,
+      label: trustLabel,
+      icon: Star,
+    },
+    { id: 'dest' as const, value: fmt(stats.destinations, '+'), label: 'Destinations', icon: MapPin },
+    { id: 'happy' as const, value: `${stats.happyPercent}%`, label: 'Happy customers', icon: Smile },
+  ] as const
+
   return (
     <ul
       className={cn(
-        'grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:gap-8',
+        'grid w-full max-w-4xl grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:justify-center sm:gap-8 md:gap-10 lg:gap-12',
         className,
       )}
     >
-      {ITEMS.map(({ value, valueSuffix, label, icon: Icon }) => (
-        <li key={label} className="flex min-w-0 items-start gap-2.5 text-white sm:items-center">
+      {items.map((row) => {
+        const { id, value, label, icon: Icon } = row
+        const valueSuffix = 'valueSuffix' in row ? row.valueSuffix : undefined
+        return (
+        <li
+          key={id}
+          className="flex min-w-0 items-start gap-2.5 text-white sm:max-w-[10rem] sm:items-center md:max-w-none"
+        >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-[#fcba03]">
             <Icon className="h-4 w-4" strokeWidth={2} />
           </div>
@@ -34,10 +59,11 @@ export function AuthV2Stats({ className }: { className?: string }) {
                 <span className="ml-0.5 text-base text-[#fcba03] sm:text-lg">{valueSuffix}</span>
               ) : null}
             </p>
-            <p className="text-[11px] font-medium text-white/55 sm:text-xs">{label}</p>
+            <p className="text-[10px] font-medium text-white/55 sm:text-xs leading-snug">{label}</p>
           </div>
         </li>
-      ))}
+        )
+      })}
     </ul>
   )
 }
