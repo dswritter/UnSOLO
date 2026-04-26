@@ -85,11 +85,11 @@ export function LeaderboardV2Client({
             'max-lg:min-h-0',
           )}
         >
-          {/* —— Left ~70%: title sticky in column; only table scrolls on desktop —— */}
+          {/* —— Left 50%: only table scrolls on desktop —— */}
           <div
             className={cn(
               'flex w-full min-w-0 min-h-0 flex-1 flex-col overflow-hidden',
-              'lg:h-full lg:min-w-0 lg:flex-[7] lg:max-h-full',
+              'lg:h-full lg:min-w-0 lg:max-h-full lg:flex-1',
             )}
           >
             <div className="shrink-0">
@@ -106,16 +106,16 @@ export function LeaderboardV2Client({
                     <span style={{ color: GOLD }}>Leaderboard</span>
                   </h1>
                   <p className="mt-1 text-sm text-white/60">Top solo travellers in India</p>
-                  <p className="mt-0.5 text-sm text-white/40">Compete, explore and earn your way to the top.</p>
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2">
+              {/* All time | This Month | search — one row */}
+              <div className="mt-5 flex min-w-0 flex-nowrap items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setView('alltime')}
                   className={cn(
-                    'rounded-full px-4 py-2 text-sm font-bold transition',
+                    'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                     view === 'alltime'
                       ? 'bg-[#fcba03] text-[#0a0a0a] shadow-md shadow-[#fcba03]/20'
                       : 'border border-white/15 bg-zinc-900/50 text-white/70 hover:border-white/25 hover:text-white',
@@ -127,7 +127,7 @@ export function LeaderboardV2Client({
                   type="button"
                   onClick={() => setView('monthly')}
                   className={cn(
-                    'rounded-full px-4 py-2 text-sm font-bold transition',
+                    'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                     view === 'monthly'
                       ? 'bg-[#fcba03] text-[#0a0a0a] shadow-md shadow-[#fcba03]/20'
                       : 'border border-white/15 bg-zinc-900/50 text-white/70 hover:border-white/25 hover:text-white',
@@ -135,25 +135,24 @@ export function LeaderboardV2Client({
                 >
                   This Month
                 </button>
-              </div>
-
-              <div className="relative mt-3">
-                <Search
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
-                  aria-hidden
-                />
-                <input
-                  type="search"
-                  name="leaderboard-search"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name, @username, or place…"
-                  className="h-11 w-full rounded-xl border border-white/10 bg-zinc-950/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/35 shadow-inner outline-none transition focus:border-[#fcba03]/40 focus:ring-2 focus:ring-[#fcba03]/20"
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-label="Search leaderboard"
-                />
+                <div className="relative min-h-11 min-w-0 flex-1">
+                  <Search
+                    className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40"
+                    aria-hidden
+                  />
+                  <input
+                    type="search"
+                    name="leaderboard-search"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by name, @username, or place…"
+                    className="h-11 w-full min-w-0 rounded-xl border border-white/10 bg-zinc-950/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/35 shadow-inner outline-none transition focus:border-[#fcba03]/40 focus:ring-2 focus:ring-[#fcba03]/20"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    aria-label="Search leaderboard"
+                  />
+                </div>
               </div>
               {isMonthly ? (
                 <p className="mt-2 text-[11px] text-white/40">
@@ -333,11 +332,11 @@ export function LeaderboardV2Client({
             </div>
           </div>
 
-          {/* —— Right ~30%: frosted explainer + tent (tent height = band below card, not list length) —— */}
+          {/* —— Right 50%: frosted explainer + tent —— */}
           <aside
             className={cn(
               'mt-2 flex w-full min-w-0 min-h-0 flex-col gap-0 lg:mt-0',
-              'lg:h-full lg:min-h-0 lg:flex-[3] lg:overflow-hidden',
+              'lg:h-full lg:min-h-0 lg:overflow-hidden lg:flex-1',
             )}
           >
             <div className="wander-theme w-full shrink-0 text-foreground">
@@ -349,24 +348,15 @@ export function LeaderboardV2Client({
                 <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/15 pt-4 sm:grid-cols-3 sm:gap-3 md:gap-4 sm:pt-4">
                   <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
                     <Luggage className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs leading-snug text-white/80">
-                      <span className="block font-semibold text-white">25 pts / successful booking</span>
-                      <span className="text-white/55"> — share your trips</span>
-                    </p>
+                    <p className="text-xs font-semibold leading-snug text-white">25 pts / successful booking</p>
                   </div>
                   <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
                     <MapPin className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs leading-snug text-white/80">
-                      <span className="block font-semibold text-white">15 pts / destination</span>
-                      <span className="text-white/55"> — add new destinations</span>
-                    </p>
+                    <p className="text-xs font-semibold leading-snug text-white">15 pts / new destination</p>
                   </div>
                   <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
                     <Star className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs leading-snug text-white/80">
-                      <span className="block font-semibold text-white">10 pts / review</span>
-                      <span className="text-white/55"> — write helpful reviews</span>
-                    </p>
+                    <p className="text-xs font-semibold leading-snug text-white">10 pts / review</p>
                   </div>
                 </div>
               </div>
