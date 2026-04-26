@@ -11,9 +11,12 @@ import type { LeaderboardEntryRow, MonthlyLeaderboardEntry } from '@/lib/leaderb
 
 const GOLD = '#fcba03'
 const SIDEBAR_IMAGE = '/auth/dark-glowing-tent.png'
-/** Desktop: h-0+flex-1 so height is viewport band; mobile: let main (overflow-y-auto) handle scroll. */
+/**
+ * Desktop: fill main below navbar (footer hidden on this route). No document-level stretch from long lists.
+ * Mobile: page content can scroll; rank list area still has its own scroll where noted.
+ */
 const LB_ROOT =
-  'flex w-full min-h-0 flex-1 flex-col max-lg:overflow-y-auto lg:h-0 lg:overflow-hidden'
+  'flex w-full min-h-0 flex-1 flex-col max-lg:overflow-y-auto lg:h-0 lg:min-h-0 lg:overflow-hidden'
 
 type Props = {
   entries: LeaderboardEntryRow[]
@@ -67,12 +70,12 @@ export function LeaderboardV2Client({
       />
       <div
         className={cn(
-          'relative z-[1] mx-auto grid h-0 w-full min-h-0 max-w-[1600px] flex-1 grid-cols-1 gap-6 px-4 pb-6 sm:px-6',
-          'lg:grid-cols-[minmax(0,1fr)_min(28rem,45%)] lg:items-stretch lg:gap-10 lg:px-10 lg:pb-4 lg:pt-1',
+          'relative z-[1] mx-auto flex h-0 w-full min-h-0 max-w-[1600px] flex-1 flex-col gap-6 px-4 pb-6 sm:px-6',
+          'lg:h-full lg:max-h-full lg:flex-row lg:items-stretch lg:gap-8 lg:overflow-hidden lg:px-10 lg:pb-4 lg:pt-1',
         )}
       >
-        {/* —— Left: title, filters, search; only the table area scrolls —— */}
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
+        {/* —— Left 70% (7/10): only the rank table body scrolls —— */}
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden lg:h-full lg:min-w-0 lg:flex-[7]">
           <div className="shrink-0">
             <div className="flex items-start gap-3 pt-4 lg:pt-2">
               <div
@@ -143,15 +146,17 @@ export function LeaderboardV2Client({
             ) : null}
           </div>
 
-          {/* Scrollable rank list only (desktop) */}
-          <div className="mt-3 flex min-h-0 flex-1 flex-col">
+          {/* Scrollable rank list only (~15 rows visible on first screen; rest scroll inside this box) */}
+          <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
             <div
               className={cn(
-                'min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain rounded-2xl border border-white/10 bg-zinc-950/40',
-                'max-h-[min(50vh,480px)] lg:max-h-full',
+                'min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain rounded-2xl border border-white/12',
+                'bg-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-[16px]',
+                // mobile: constrain list so it scrolls in its own band (image2)
+                'max-h-[min(65vh,520px)] lg:max-h-none',
               )}
             >
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full min-w-[520px] text-left text-sm">
                 <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] font-semibold uppercase tracking-wide text-white/45 backdrop-blur-sm">
                   <tr>
                     <th className="px-3 py-3 pl-4 sm:px-4">Rank</th>
@@ -308,60 +313,58 @@ export function LeaderboardV2Client({
           </div>
         </div>
 
-        {/* —— Right: how-it-works full column width; tent fills rest (grid row matches left height) —— */}
+        {/* —— Right ~30%: height = first-viewport band only; tent fills below card (not the 50-row list height) —— */}
         <aside
           className={cn(
             'mt-2 flex w-full min-w-0 flex-col gap-0 lg:mt-0',
-            'h-auto min-h-0 sm:min-h-[18rem] lg:min-h-0 lg:h-full',
+            'min-h-0 lg:h-full lg:min-h-0 lg:min-w-0 lg:flex-[3] lg:overflow-hidden',
           )}
         >
-          <div
-            className={cn(
-              'w-full max-w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-900/50 p-4 shadow-lg backdrop-blur-sm',
-              'lg:rounded-3xl lg:p-5 lg:px-6',
-            )}
-          >
-            <p className="text-sm font-bold text-white">How it works</p>
-            <p className="mt-1 text-xs leading-relaxed text-white/50">
-              Earn points by sharing your journeys and helping the community.
-            </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/10 pt-4 sm:grid-cols-3 sm:gap-3 md:gap-4 sm:pt-4">
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
-                <Luggage className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                <p className="text-xs leading-snug text-white/80">
-                  <span className="block font-semibold text-white">25 pts / successful booking</span>
-                  <span className="text-white/55"> — share your trips</span>
-                </p>
-              </div>
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
-                <MapPin className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                <p className="text-xs leading-snug text-white/80">
-                  <span className="block font-semibold text-white">15 pts / destination</span>
-                  <span className="text-white/55"> — add new destinations</span>
-                </p>
-              </div>
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
-                <Star className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                <p className="text-xs leading-snug text-white/80">
-                  <span className="block font-semibold text-white">10 pts / review</span>
-                  <span className="text-white/55"> — write helpful reviews</span>
-                </p>
+          <div className="wander-theme w-full shrink-0 text-foreground">
+            <div className="wander-frost-panel sm:p-5">
+              <p className="text-sm font-bold text-white">How it works</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/70">
+                Earn points by sharing your journeys and helping the community.
+              </p>
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/15 pt-4 sm:grid-cols-3 sm:gap-3 md:gap-4 sm:pt-4">
+                <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
+                  <Luggage className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
+                  <p className="text-xs leading-snug text-white/80">
+                    <span className="block font-semibold text-white">25 pts / successful booking</span>
+                    <span className="text-white/55"> — share your trips</span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
+                  <MapPin className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
+                  <p className="text-xs leading-snug text-white/80">
+                    <span className="block font-semibold text-white">15 pts / destination</span>
+                    <span className="text-white/55"> — add new destinations</span>
+                  </p>
+                </div>
+                <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
+                  <Star className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
+                  <p className="text-xs leading-snug text-white/80">
+                    <span className="block font-semibold text-white">10 pts / review</span>
+                    <span className="text-white/55"> — write helpful reviews</span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
           <div
             className={cn(
-              'relative mt-3 w-full min-h-0 flex-1 overflow-hidden rounded-3xl border border-emerald-900/30 bg-emerald-950/40 shadow-xl',
-              'min-h-[14rem] sm:min-h-[16rem] lg:mt-3 lg:min-h-[12rem]',
+              'relative mt-3 w-full min-h-0 flex-1 overflow-hidden rounded-3xl border border-white/12',
+              'min-h-[12rem] shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-[8px] sm:min-h-[14rem]',
+              'lg:mt-3 lg:min-h-0',
             )}
           >
             <Image
               src={SIDEBAR_IMAGE}
               alt="Camping at night"
               fill
-              className="object-cover object-center"
-              sizes="(min-width: 1024px) min(42vw, 480px), 100vw"
+              className="object-cover object-[center_65%]"
+              sizes="(min-width: 1024px) 30vw, 100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
             <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
