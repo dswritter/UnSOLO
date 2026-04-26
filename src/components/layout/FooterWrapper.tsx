@@ -7,8 +7,15 @@ export function FooterWrapper() {
   const pathname = usePathname()
   const isWander = pathname?.startsWith('/wander')
 
-  // Hide footer on chat pages
-  if (pathname?.startsWith('/chat') || pathname?.startsWith('/community') || pathname?.startsWith('/tribe')) return null
+  // Hide footer on full-viewport or chat pages
+  if (
+    pathname?.startsWith('/chat') ||
+    pathname?.startsWith('/community') ||
+    pathname?.startsWith('/tribe') ||
+    pathname?.startsWith('/leaderboard_v2')
+  ) {
+    return null
+  }
 
   return (
     <footer

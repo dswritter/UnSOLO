@@ -11,8 +11,9 @@ import type { LeaderboardEntryRow, MonthlyLeaderboardEntry } from '@/lib/leaderb
 
 const GOLD = '#fcba03'
 const SIDEBAR_IMAGE = '/auth/dark-glowing-tent.png'
-/** Fills (main) between navbar and footer; mobile keeps a minimum usable height. */
-const LB_ROOT = 'flex min-h-0 flex-1 flex-col overflow-hidden max-lg:min-h-[min(100dvh,880px)]'
+/** Desktop: h-0+flex-1 so height is viewport band; mobile: let main (overflow-y-auto) handle scroll. */
+const LB_ROOT =
+  'flex w-full min-h-0 flex-1 flex-col max-lg:overflow-y-auto lg:h-0 lg:overflow-hidden'
 
 type Props = {
   entries: LeaderboardEntryRow[]
@@ -51,20 +52,27 @@ export function LeaderboardV2Client({
   }, [search, rawList])
 
   return (
-    <div className={cn('bg-[#0A0A0A] text-white', LB_ROOT, 'max-lg:overflow-y-auto max-lg:overflow-x-hidden')}>
-      {/* Subtle green wash — Wander-adjacent */}
+    <div
+      className={cn(
+        'text-white',
+        // green-forward base, not flat black
+        'bg-gradient-to-b from-[#0c1814] via-[#08120f] to-[#040806]',
+        LB_ROOT,
+        'max-lg:overflow-x-hidden',
+      )}
+    >
       <div
-        className="pointer-events-none fixed inset-0 z-0 [background:radial-gradient(ellipse_80%_50%_at_10%_0%,rgba(22,101,52,0.2),transparent_50%)]"
+        className="pointer-events-none fixed inset-0 z-0 [background:radial-gradient(ellipse_90%_70%_at_12%_-10%,rgba(34,197,94,0.22)0%,transparent_52%),radial-gradient(ellipse_60%_50%_at_85%_40%,rgba(6,78,59,0.45)0%,transparent_50%),radial-gradient(ellipse_50%_40%_at_50%_100%,rgba(4,40,32,0.35)0%,transparent_45%)]"
         aria-hidden
       />
       <div
         className={cn(
-          'relative z-[1] mx-auto flex h-full min-h-0 w-full max-w-[1600px] flex-1 flex-col px-4 sm:px-6 lg:px-10 lg:py-1',
-          'lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-8',
+          'relative z-[1] mx-auto grid h-0 w-full min-h-0 max-w-[1600px] flex-1 grid-cols-1 gap-6 px-4 pb-6 sm:px-6',
+          'lg:grid-cols-[minmax(0,1fr)_min(28rem,45%)] lg:items-stretch lg:gap-10 lg:px-10 lg:pb-4 lg:pt-1',
         )}
       >
         {/* —— Left: title, filters, search; only the table area scrolls —— */}
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden lg:max-w-[min(100%,58rem)]">
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden">
           <div className="shrink-0">
             <div className="flex items-start gap-3 pt-4 lg:pt-2">
               <div
@@ -136,11 +144,11 @@ export function LeaderboardV2Client({
           </div>
 
           {/* Scrollable rank list only (desktop) */}
-          <div className="mt-3 flex min-h-0 flex-1 flex-col lg:min-h-0">
+          <div className="mt-3 flex min-h-0 flex-1 flex-col">
             <div
               className={cn(
-                'min-h-0 flex-1 overflow-y-auto overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/40',
-                'max-h-[min(50vh,480px)] lg:max-h-none',
+                'min-h-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain rounded-2xl border border-white/10 bg-zinc-950/40',
+                'max-h-[min(50vh,480px)] lg:max-h-full',
               )}
             >
               <table className="w-full min-w-[640px] text-left text-sm">
@@ -300,41 +308,39 @@ export function LeaderboardV2Client({
           </div>
         </div>
 
-        {/* —— Right: how-it-works (full width) + tent fills rest of column —— */}
+        {/* —— Right: how-it-works full column width; tent fills rest (grid row matches left height) —— */}
         <aside
           className={cn(
-            'mt-6 flex w-full min-w-0 flex-col gap-3 lg:mt-0',
-            'lg:min-h-0 lg:shrink-0 lg:gap-0 lg:pb-2 lg:pt-2',
-            'h-auto lg:h-full',
-            'lg:max-w-md lg:min-w-[16rem] lg:basis-80 lg:flex-[1_0_32%]',
+            'mt-2 flex w-full min-w-0 flex-col gap-0 lg:mt-0',
+            'h-auto min-h-0 sm:min-h-[18rem] lg:min-h-0 lg:h-full',
           )}
         >
           <div
             className={cn(
-              'w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-900/60 p-4 shadow-lg backdrop-blur-sm',
-              'lg:rounded-3xl lg:p-5',
+              'w-full max-w-full shrink-0 rounded-2xl border border-white/10 bg-zinc-900/50 p-4 shadow-lg backdrop-blur-sm',
+              'lg:rounded-3xl lg:p-5 lg:px-6',
             )}
           >
             <p className="text-sm font-bold text-white">How it works</p>
             <p className="mt-1 text-xs leading-relaxed text-white/50">
               Earn points by sharing your journeys and helping the community.
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/10 pt-4 sm:grid-cols-3 sm:gap-4 sm:pt-4">
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 sm:min-w-0">
+            <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/10 pt-4 sm:grid-cols-3 sm:gap-3 md:gap-4 sm:pt-4">
+              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
                 <Luggage className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
                 <p className="text-xs leading-snug text-white/80">
                   <span className="block font-semibold text-white">25 pts / successful booking</span>
                   <span className="text-white/55"> — share your trips</span>
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 sm:min-w-0">
+              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
                 <MapPin className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
                 <p className="text-xs leading-snug text-white/80">
                   <span className="block font-semibold text-white">15 pts / destination</span>
                   <span className="text-white/55"> — add new destinations</span>
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-black/20 px-3 py-2.5 sm:min-w-0">
+              <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/5 bg-emerald-950/25 px-3 py-2.5 sm:min-w-0">
                 <Star className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
                 <p className="text-xs leading-snug text-white/80">
                   <span className="block font-semibold text-white">10 pts / review</span>
@@ -346,16 +352,16 @@ export function LeaderboardV2Client({
 
           <div
             className={cn(
-              'relative min-h-[220px] w-full flex-1 overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 shadow-xl',
-              'lg:mt-3 lg:min-h-0',
+              'relative mt-3 w-full min-h-0 flex-1 overflow-hidden rounded-3xl border border-emerald-900/30 bg-emerald-950/40 shadow-xl',
+              'min-h-[14rem] sm:min-h-[16rem] lg:mt-3 lg:min-h-[12rem]',
             )}
           >
             <Image
               src={SIDEBAR_IMAGE}
-              alt=""
+              alt="Camping at night"
               fill
-              className="object-cover object-left"
-              sizes="(min-width: 1024px) 400px, 100vw"
+              className="object-cover object-center"
+              sizes="(min-width: 1024px) min(42vw, 480px), 100vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
             <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">

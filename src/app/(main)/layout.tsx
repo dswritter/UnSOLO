@@ -27,9 +27,13 @@ export default async function MainLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <Navbar user={profile} />
-      <main className="flex min-h-0 flex-1 flex-col">
+      {/*
+        h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
+        use min-h-0 and scroll only the inner list instead of growing the page.
+      */}
+      <main className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
