@@ -129,66 +129,10 @@ export async function getPackages(searchParams: Record<string, string>) {
   return packages
 }
 
-export async function getServiceListings(searchParams: Record<string, string>): Promise<ServiceListingWithItems[]> {
-  const tabToType: Record<string, ServiceListingType> = {
-    stays: 'stays',
-    activities: 'activities',
-    rentals: 'rentals',
-    getting_around: 'getting_around',
-  }
-
-  const hasSearch = !!searchParams.q
-  const types: ServiceListingType[] = hasSearch
-    ? ['stays', 'activities', 'rentals', 'getting_around']
-    : [tabToType[searchParams.tab] || 'stays']
-
-  const filters: Record<string, unknown> = {}
-
-  if (searchParams.q) {
-    filters.search = searchParams.q
-  }
-
-  if (searchParams.minPrice) {
-    filters.min_price = parseInt(searchParams.minPrice)
-  }
-
-  if (searchParams.maxPrice) {
-    filters.max_price = parseInt(searchParams.maxPrice)
-  }
-
-  if (searchParams.amenities) {
-    filters.amenities = Array.isArray(searchParams.amenities)
-      ? searchParams.amenities
-      : [searchParams.amenities]
-  }
-
-  if (searchParams.difficulty) {
-    filters.difficulty = searchParams.difficulty
-  }
-
-  let listings: ServiceListing[] = []
-  try {
-    const allListings: ServiceListing[] = []
-    for (const type of types) {
-      try {
-        const typeFilters = { ...filters }
-        if (type !== 'activities' && typeFilters.difficulty) {
-          delete typeFilters.difficulty
-        }
-        const result = await getServiceListingsByType(type, typeFilters as any, 1, 12)
-        allListings.push(...result.listings)
-      } catch (error) {
-        console.error(`Error fetching ${type} listings:`, error)
-      }
-    }
-    listings = allListings
-  } catch (error) {
-    console.error('Error fetching service listings:', error)
-    return []
-  }
-
+async function attachItemsToServiceListings(
+  listings: ServiceListing[],
+): Promise<ServiceListingWithItems[]> {
   if (listings.length === 0) return []
-
   const supabase = await createClient()
   const ids = listings.map(l => l.id)
   const { data: itemRows } = await supabase
@@ -218,10 +162,84 @@ export async function getServiceListings(searchParams: Record<string, string>): 
   }))
 }
 
+function buildServiceListingFilters(
+  searchParams: Record<string, string>,
+  includeTextSearch: boolean,
+): Record<string, unknown> {
+  const filters: Record<string, unknown> = {}
+  if (includeTextSearch && searchParams.q) {
+    filters.search = searchParams.q
+  }
+  if (searchParams.minPrice) {
+    filters.min_price = parseInt(searchParams.minPrice, 10)
+  }
+  if (searchParams.maxPrice) {
+    filters.max_price = parseInt(searchParams.maxPrice, 10)
+  }
+  if (searchParams.amenities) {
+    filters.amenities = Array.isArray(searchParams.amenities)
+      ? searchParams.amenities
+      : [searchParams.amenities]
+  }
+  if (searchParams.difficulty) {
+    filters.difficulty = searchParams.difficulty
+  }
+  return filters
+}
+
+export async function getServiceListings(
+  searchParams: Record<string, string>,
+): Promise<{ listings: ServiceListingWithItems[]; searchFallback: boolean }> {
+  const tabToType: Record<string, ServiceListingType> = {
+    stays: 'stays',
+    activities: 'activities',
+    rentals: 'rentals',
+    getting_around: 'getting_around',
+  }
+
+  const type = tabToType[searchParams.tab || 'stays'] || 'stays'
+  const hasSearch = !!searchParams.q
+
+  const runForType = async (includeTextSearch: boolean, limit: number) => {
+    const typeFilters = buildServiceListingFilters(searchParams, includeTextSearch) as Record<string, unknown>
+    if (type !== 'activities' && typeFilters.difficulty) {
+      delete typeFilters.difficulty
+    }
+    const result = await getServiceListingsByType(type, typeFilters as any, 1, limit)
+    return result.listings
+  }
+
+  let listings: ServiceListing[] = []
+  let searchFallback = false
+
+  try {
+    if (hasSearch) {
+      listings = await runForType(true, 12)
+      if (listings.length === 0) {
+        const broad = await runForType(false, 24)
+        if (broad.length > 0) {
+          listings = broad
+          searchFallback = true
+        }
+      }
+    } else {
+      listings = await runForType(true, 12)
+    }
+  } catch (error) {
+    console.error('Error fetching service listings:', error)
+    return { listings: [], searchFallback: false }
+  }
+
+  if (listings.length === 0) return { listings: [], searchFallback: false }
+  return { listings: await attachItemsToServiceListings(listings), searchFallback }
+}
+
 export type ExploreListPayload = {
   packages: Package[]
   serviceListings: ServiceListingWithItems[]
   resultCount: number
+  /** True when we showed listings without the location/text match because the strict search returned nothing */
+  searchFallback: boolean
   interestedPackageIds: string[]
   maxPackagePrice: number
   spotsBooked: Record<string, number>
@@ -241,6 +259,7 @@ export async function loadExploreListData(params: Record<string, string>): Promi
   let packages: Package[] = []
   let serviceListings: ServiceListingWithItems[] = []
   let resultCount = 0
+  let searchFallback = false
   let interestedPackageIds: string[] = []
   let maxPackagePrice = 2000000
   let spotsBooked: Record<string, number> = {}
@@ -248,6 +267,15 @@ export async function loadExploreListData(params: Record<string, string>): Promi
 
   if (activeTab === 'trips') {
     packages = await getPackages(params)
+    if (params.q && packages.length === 0) {
+      const rest = { ...params }
+      delete rest.q
+      const broad = await getPackages(rest)
+      if (broad.length > 0) {
+        packages = broad
+        searchFallback = true
+      }
+    }
     resultCount = packages.length
     maxPackagePrice = await getMaxPackagePrice(supabase)
 
@@ -267,7 +295,9 @@ export async function loadExploreListData(params: Record<string, string>): Promi
       interestedPackageIds = (interests || []).map(i => i.package_id)
     }
   } else {
-    serviceListings = await getServiceListings(params)
+    const svc = await getServiceListings(params)
+    serviceListings = svc.listings
+    searchFallback = svc.searchFallback
     resultCount = serviceListings.length
   }
 
@@ -275,6 +305,7 @@ export async function loadExploreListData(params: Record<string, string>): Promi
     packages,
     serviceListings,
     resultCount,
+    searchFallback,
     interestedPackageIds,
     maxPackagePrice,
     spotsBooked,

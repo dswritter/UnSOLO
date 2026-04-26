@@ -92,6 +92,8 @@ interface ExploreClientProps {
   basePath?: string
   /** Wander: gold tabs, transparent shell on green texture */
   pageVariant?: 'default' | 'wander'
+  /** Shown when results omit the location/text filter because the strict search had no hits */
+  searchFallback?: boolean
 }
 
 export function ExploreClient({
@@ -106,6 +108,7 @@ export function ExploreClient({
   interestCounts = {},
   basePath = '/explore',
   pageVariant = 'default',
+  searchFallback = false,
 }: ExploreClientProps) {
   const isWanderShell = pageVariant === 'wander'
   const router = useRouter()
@@ -225,6 +228,25 @@ export function ExploreClient({
             })}
           </div>
         </div>
+
+        {params.q && searchFallback ? (
+          <div
+            role="status"
+            className={cn(
+              'mb-5 rounded-xl border px-4 py-3 text-sm',
+              isWanderShell
+                ? 'border-white/20 bg-white/[0.06] text-white/90'
+                : 'border-border bg-muted/50 text-foreground',
+            )}
+          >
+            <p className="font-medium">
+              We couldn&rsquo;t find an exact match for &ldquo;{params.q}&rdquo;{isTripsTab ? ' for this trip list' : ` in ${typeLabels[activeTab as ServiceListingType]}`}.
+            </p>
+            <p className={cn('mt-1.5', isWanderShell ? 'text-white/70' : 'text-muted-foreground')}>
+              Here are more options you might like nearby or across the catalog — try refining your search to narrow them down.
+            </p>
+          </div>
+        ) : null}
 
         {/* Recently Viewed strip — hidden when any filter is active */}
         {recentlyViewed.length > 0 && isTripsTab && !Object.entries(params).some(([k, v]) => k !== 'tab' && k !== 'q' && !!v) && (

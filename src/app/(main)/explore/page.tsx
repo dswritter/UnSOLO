@@ -20,6 +20,7 @@ export default async function ExplorePage({
       params={params}
       resultCount={data.resultCount}
       activeTab={data.activeTab}
+      searchFallback={data.searchFallback}
       interestedPackageIds={data.interestedPackageIds}
       maxPackagePrice={data.maxPackagePrice}
       spotsBooked={data.spotsBooked}

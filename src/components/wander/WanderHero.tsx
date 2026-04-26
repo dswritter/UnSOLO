@@ -62,7 +62,7 @@ export function WanderHero({
       <div
         className={
           belowHero
-            ? 'relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 md:pb-2 lg:px-10'
+            ? 'relative z-20 mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 md:pb-2 lg:px-10'
             : 'relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10'
         }
       >
@@ -135,7 +135,7 @@ export function WanderHero({
         </div>
       </div>
       {belowHero ? (
-        <div className="relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-0 sm:px-6 md:pb-5 lg:px-10">
+        <div className="relative z-0 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-0 sm:px-6 md:pb-5 lg:px-10">
           {belowHero}
         </div>
       ) : null}

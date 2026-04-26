@@ -113,6 +113,7 @@ export default async function WanderPage({
               params={sp}
               resultCount={exploreData.resultCount}
               activeTab={exploreData.activeTab}
+              searchFallback={exploreData.searchFallback}
               interestedPackageIds={exploreData.interestedPackageIds}
               maxPackagePrice={exploreData.maxPackagePrice}
               spotsBooked={exploreData.spotsBooked}
