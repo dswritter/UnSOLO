@@ -2,11 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { X, Pin, ExternalLink } from 'lucide-react'
-import { setRoomPinnedMessage } from '@/actions/chat'
-import { toast } from 'sonner'
 import type { Message } from '@/types'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
 
 const DISMISS_PREFIX = 'unsolo:pin-dismiss:'
 
@@ -18,14 +15,15 @@ export function PinnedMessageBanner({
   roomId,
   message,
   canUnpin,
+  onRequestUnpin,
 }: {
   roomId: string
   message: Message
   canUnpin: boolean
+  /** Parent clears pinned UI immediately and runs the server unpin in the background. */
+  onRequestUnpin?: () => void
 }) {
-  const router = useRouter()
   const [hidden, setHidden] = useState(false)
-  const [unpinning, setUnpinning] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -65,25 +63,8 @@ export function PinnedMessageBanner({
             <ExternalLink className="h-3 w-3" />
             View in chat
           </Button>
-          {canUnpin ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-7 text-xs"
-              disabled={unpinning}
-              onClick={async () => {
-                setUnpinning(true)
-                const r = await setRoomPinnedMessage(roomId, null)
-                setUnpinning(false)
-                if (r.error) {
-                  toast.error(r.error)
-                  return
-                }
-                toast.success('Unpinned')
-                router.refresh()
-              }}
-            >
+          {canUnpin && onRequestUnpin ? (
+            <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={() => onRequestUnpin()}>
               Unpin
             </Button>
           ) : null}

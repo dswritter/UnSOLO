@@ -393,6 +393,33 @@ export function ChatWindow({
     (roomType === 'general' || roomType === 'trip') &&
     (currentUser.role === 'admin' || currentUser.role === 'social_media_manager')
 
+  const serverPinnedRef = useRef<Message | null>(pinnedMessage ?? null)
+  useEffect(() => {
+    serverPinnedRef.current = pinnedMessage ?? null
+  }, [pinnedMessage])
+
+  const [displayPinnedMessage, setDisplayPinnedMessage] = useState<Message | null>(pinnedMessage ?? null)
+  useEffect(() => {
+    setDisplayPinnedMessage(pinnedMessage ?? null)
+  }, [roomId, pinnedMessage])
+
+  const requestUnpinPinned = useCallback(() => {
+    setDisplayPinnedMessage(prev => {
+      const toRestore = prev
+      void (async () => {
+        const r = await setRoomPinnedMessage(roomId, null)
+        if (r.error) {
+          toast.error(r.error)
+          setDisplayPinnedMessage(toRestore)
+          return
+        }
+        toast.success('Unpinned')
+        router.refresh()
+      })()
+      return null
+    })
+  }, [roomId, router])
+
   useEffect(() => {
     setPollByMessageId(initialPollsByMessageId)
   }, [initialPollsByMessageId])
@@ -1312,11 +1339,12 @@ export function ChatWindow({
         )}
       </div>
 
-      {!isDM && pinnedMessage && (
+      {!isDM && displayPinnedMessage && (
         <PinnedMessageBanner
           roomId={roomId}
-          message={pinnedMessage}
+          message={displayPinnedMessage}
           canUnpin={canPinMessages}
+          onRequestUnpin={canPinMessages ? requestUnpinPinned : undefined}
         />
       )}
 
@@ -1493,17 +1521,20 @@ export function ChatWindow({
                 message={msg}
                 roomId={roomId}
                 pollData={msg.message_type === 'poll' ? (pollByMessageId[msg.id] ?? null) : null}
-                showPin={canPinMessages}
+                showPin={canPinMessages && displayPinnedMessage?.id !== msg.id}
                 onPinRequest={
                   canPinMessages
                     ? () => {
+                        setDisplayPinnedMessage(msg)
                         void (async () => {
                           const r = await setRoomPinnedMessage(roomId, msg.id)
-                          if (r.error) toast.error(r.error)
-                          else {
-                            toast.success('Pinned for everyone')
-                            router.refresh()
+                          if (r.error) {
+                            toast.error(r.error)
+                            setDisplayPinnedMessage(serverPinnedRef.current)
+                            return
                           }
+                          toast.success('Pinned for everyone')
+                          router.refresh()
                         })()
                       }
                     : undefined
