@@ -153,10 +153,10 @@ export function NotificationBell({
       {open && (
         <div
           className={cn(
-            'rounded-xl shadow-2xl overflow-hidden z-[200]',
+            'overflow-hidden z-[200]',
             wanderNav
-              ? 'bg-primary text-primary-foreground border-2 border-primary-foreground/25'
-              : 'bg-card border border-border text-card-foreground',
+              ? 'wander-frost rounded-2xl text-white'
+              : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
             placement === 'below'
               ? 'fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
               : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col',
@@ -165,10 +165,10 @@ export function NotificationBell({
           <div
             className={cn(
               'px-4 py-3 flex items-center justify-between border-b',
-              wanderNav ? 'border-primary-foreground/20' : 'border-border',
+              wanderNav ? 'border-white/15' : 'border-border',
             )}
           >
-            <span className="text-sm font-black tracking-tight">Notifications</span>
+            <span className={cn('text-sm font-black tracking-tight', wanderNav && 'text-white')}>Notifications</span>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
                 <button
@@ -176,17 +176,21 @@ export function NotificationBell({
                   onClick={markAllRead}
                   className={cn(
                     'text-[10px] font-semibold hover:underline',
-                    wanderNav ? 'text-primary-foreground/85 hover:text-primary-foreground' : 'text-primary',
+                    wanderNav ? 'text-[#fcba03] hover:text-[#fcba03]/90' : 'text-primary',
                   )}
                 >
                   Mark all read
                 </button>
               )}
-              <button type="button" onClick={() => setOpen(false)} className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-primary-foreground/10')}>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-white/10')}
+              >
                 <X
                   className={cn(
                     'h-3.5 w-3.5',
-                    wanderNav ? 'text-primary-foreground/75 hover:text-primary-foreground' : 'text-zinc-500',
+                    wanderNav ? 'text-white/65 hover:text-white' : 'text-zinc-500',
                   )}
                 />
               </button>
@@ -198,7 +202,7 @@ export function NotificationBell({
               <div
                 className={cn(
                   'px-4 py-8 text-center text-sm',
-                  wanderNav ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                  wanderNav ? 'text-white/55' : 'text-muted-foreground',
                 )}
               >
                 No notifications yet
@@ -215,8 +219,8 @@ export function NotificationBell({
                       'flex items-start gap-3 px-4 py-3 w-full text-left transition-colors border-b last:border-0',
                       wanderNav
                         ? cn(
-                            'border-primary-foreground/15 hover:bg-primary-foreground/10',
-                            !n.is_read && 'bg-primary-foreground/[0.12]',
+                            'border-white/10 hover:bg-white/[0.08]',
+                            !n.is_read && 'bg-white/[0.06]',
                           )
                         : cn(
                             'border-border/50 hover:bg-secondary/30',
@@ -229,8 +233,8 @@ export function NotificationBell({
                         'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
                         wanderNav
                           ? !n.is_read
-                            ? 'bg-primary-foreground/22'
-                            : 'bg-primary-foreground/12'
+                            ? 'bg-white/20'
+                            : 'bg-white/12'
                           : !n.is_read
                             ? 'bg-primary/20'
                             : 'bg-secondary',
@@ -240,7 +244,7 @@ export function NotificationBell({
                         className={cn(
                           'h-4 w-4',
                           wanderNav
-                            ? 'text-primary-foreground'
+                            ? 'text-white'
                             : !n.is_read
                               ? 'text-primary'
                               : 'text-muted-foreground',
@@ -254,8 +258,8 @@ export function NotificationBell({
                             'text-xs truncate',
                             wanderNav
                               ? !n.is_read
-                                ? 'font-bold text-primary-foreground'
-                                : 'text-primary-foreground/80'
+                                ? 'font-bold text-white'
+                                : 'text-white/85'
                               : !n.is_read
                                 ? 'font-semibold text-foreground'
                                 : 'text-muted-foreground',
@@ -266,7 +270,7 @@ export function NotificationBell({
                         <span
                           className={cn(
                             'text-[10px] shrink-0',
-                            wanderNav ? 'text-primary-foreground/60' : 'text-muted-foreground',
+                            wanderNav ? 'text-white/50' : 'text-muted-foreground',
                           )}
                         >
                           {timeAgo(n.created_at)}
@@ -276,7 +280,7 @@ export function NotificationBell({
                         <p
                           className={cn(
                             'text-xs mt-0.5 line-clamp-3 break-words',
-                            wanderNav ? 'text-primary-foreground/78' : 'text-muted-foreground',
+                            wanderNav ? 'text-white/65' : 'text-muted-foreground',
                           )}
                         >
                           {n.body}
@@ -287,7 +291,7 @@ export function NotificationBell({
                       <span
                         className={cn(
                           'h-2 w-2 rounded-full flex-shrink-0 mt-2',
-                          wanderNav ? 'bg-primary-foreground' : 'bg-primary',
+                          wanderNav ? 'bg-[#fcba03]' : 'bg-primary',
                         )}
                       />
                     )}
