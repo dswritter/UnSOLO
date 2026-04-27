@@ -32,17 +32,21 @@ export async function sendMessage(roomId: string, content: string) {
     return { error: 'Join this chat before sending messages' }
   }
 
-  const { error } = await supabase.from('messages').insert({
-    room_id: roomId,
-    user_id: user.id,
-    content,
-    message_type: 'text',
-  })
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({
+      room_id: roomId,
+      user_id: user.id,
+      content,
+      message_type: 'text',
+    })
+    .select('id')
+    .single()
 
   if (error) return { error: error.message }
 
   revalidateChatRoutes(roomId)
-  return { success: true }
+  return { success: true, messageId: data.id as string }
 }
 
 const EDIT_WINDOW_MS = 60 * 60 * 1000

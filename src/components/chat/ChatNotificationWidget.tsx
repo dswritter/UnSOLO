@@ -1,22 +1,28 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sendMessage } from '@/actions/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MessageCircle, X, Maximize2, Minus, Send, ArrowLeft } from 'lucide-react'
+import { MessageCircle, X, Maximize2, Minus, Send, ArrowLeft, Loader2, Check, CheckCheck } from 'lucide-react'
 import { getInitials, timeAgo } from '@/lib/utils'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
+import { normalizeRoomId } from '@/lib/chat/chatQueryKeys'
+
+type ChatRoomType = 'direct' | 'trip' | 'general'
 
 interface ChatNotification {
   id: string
   room_id: string
   room_name: string
+  room_type?: string | null
   content: string
   created_at: string
+  /** Outbound rows from this device (for read-receipt + layout). */
+  isOutbound?: boolean
   user?: {
     username: string
     full_name: string | null
@@ -24,18 +30,29 @@ interface ChatNotification {
   }
 }
 
+type ReadReceiptRow = { message_id: string; user_id: string; read_at?: string }
+
 export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<ChatNotification[]>([])
   const [minimized, setMinimized] = useState(true)
   const [dismissed, setDismissed] = useState(false)
-  const [activeRoom, setActiveRoom] = useState<{ id: string; name: string } | null>(null)
+  const [activeRoom, setActiveRoom] = useState<{ id: string; name: string; roomType?: ChatRoomType } | null>(null)
+  const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([])
+  const [readReceipts, setReadReceipts] = useState<Map<string, ReadReceiptRow[]>>(new Map())
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [sentMessages, setSentMessages] = useState<ChatNotification[]>([])
   const [userInteracting, setUserInteracting] = useState(false)
+  const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
+  const [viewerUsername, setViewerUsername] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const typingChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
+  const activeRoomRef = useRef<typeof activeRoom>(null)
+  activeRoomRef.current = activeRoom
   const pathname = usePathname()
   const chatListBase = pathname?.startsWith('/tribe') ? '/tribe' : '/community'
 
@@ -44,6 +61,77 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
   // Preload notification sound
   useEffect(() => { preloadSound() }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    const supabase = createClient()
+    void supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        if (data?.username) setViewerUsername(data.username)
+      })
+  }, [userId])
+
+  /** Same channel name / event as useRealtimeChat so full chat and mini widget see each other. */
+  useEffect(() => {
+    if (!activeRoom?.id || !userId) {
+      typingChannelRef.current = null
+      setTypingUsers([])
+      return
+    }
+
+    const supabase = createClient()
+    const roomKey = normalizeRoomId(activeRoom.id)
+    const typingChannel = supabase.channel(`typing:${roomKey}`)
+
+    typingChannel
+      .on('broadcast', { event: 'typing' }, (raw: { payload?: { user_id?: string; username?: string } }) => {
+        const payload = raw.payload ?? {}
+        const uid = payload.user_id
+        const username = payload.username
+        if (!uid || !username || uid === userId) return
+
+        setTypingUsers(prev => (prev.some(u => u.user_id === uid) ? prev : [...prev, { user_id: uid, username }]))
+
+        const existing = typingTimeoutsRef.current.get(uid)
+        if (existing) clearTimeout(existing)
+        typingTimeoutsRef.current.set(
+          uid,
+          setTimeout(() => {
+            setTypingUsers(prev => prev.filter(u => u.user_id !== uid))
+            typingTimeoutsRef.current.delete(uid)
+          }, 3000),
+        )
+      })
+      .subscribe()
+
+    typingChannelRef.current = typingChannel
+    typingChannel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') typingChannelRef.current = typingChannel
+    })
+
+    return () => {
+      supabase.removeChannel(typingChannel)
+      typingChannelRef.current = null
+      typingTimeoutsRef.current.forEach(t => clearTimeout(t))
+      typingTimeoutsRef.current.clear()
+      setTypingUsers([])
+    }
+  }, [activeRoom?.id, userId])
+
+  const broadcastTyping = useCallback(() => {
+    if (!viewerUsername || !activeRoom?.id) return
+    const ch = typingChannelRef.current
+    if (!ch) return
+    void ch.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { user_id: userId, username: viewerUsername },
+    })
+  }, [viewerUsername, activeRoom?.id, userId])
 
   useEffect(() => {
     if (!userId) return
@@ -64,31 +152,34 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           if (msg.user_id === userId || msg.message_type === 'system') return
 
-          const { data: membership } = await supabase
-            .from('chat_room_members')
-            .select('id')
-            .eq('room_id', msg.room_id)
-            .eq('user_id', userId)
-            .single()
+          const [{ data: membership }, { data: senderProfile }, { data: room }] = await Promise.all([
+            supabase
+              .from('chat_room_members')
+              .select('id')
+              .eq('room_id', msg.room_id)
+              .eq('user_id', userId)
+              .single(),
+            supabase
+              .from('profiles')
+              .select('username, full_name, avatar_url')
+              .eq('id', msg.user_id)
+              .single(),
+            supabase
+              .from('chat_rooms')
+              .select('name, type')
+              .eq('id', msg.room_id)
+              .single(),
+          ])
 
           if (!membership) return
 
-          const { data: senderProfile } = await supabase
-            .from('profiles')
-            .select('username, full_name, avatar_url')
-            .eq('id', msg.user_id)
-            .single()
-
-          const { data: room } = await supabase
-            .from('chat_rooms')
-            .select('name, type')
-            .eq('id', msg.room_id)
-            .single()
+          setTypingUsers(prev => prev.filter(u => u.user_id !== msg.user_id))
 
           const notification: ChatNotification = {
             id: msg.id,
             room_id: msg.room_id,
             room_name: room?.name || 'Chat',
+            room_type: room?.type ?? null,
             content: msg.content,
             created_at: msg.created_at,
             user: senderProfile || undefined,
@@ -97,34 +188,30 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           setNotifications(prev => [notification, ...prev].slice(0, 8))
           setDismissed(false)
           setMinimized(false)
-          // Auto-scroll to latest message
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
 
-          // Play notification sound
           playNotificationSound({
             messageRoomId: msg.room_id,
-            activeRoomId: activeRoom?.id || null,
+            activeRoomId: activeRoomRef.current?.id ?? null,
             roomType: (room?.type as 'direct' | 'trip' | 'general') || 'general',
-            unreadCount: 0, // Widget always plays on first new message
+            unreadCount: 0,
             isTyping: false,
           })
 
-          // System notification for inactive tabs
           sendSystemNotification(
             senderProfile?.full_name || senderProfile?.username || 'New message',
             msg.content.length > 80 ? msg.content.slice(0, 80) + '...' : msg.content,
           )
 
-          // Auto-set active room to the latest notification room
-          if (!activeRoom) {
-            setActiveRoom({ id: msg.room_id, name: room?.name || 'Chat' })
-          }
+          setActiveRoom(prev => prev ?? {
+            id: msg.room_id,
+            name: room?.name || 'Chat',
+            roomType: (room?.type as ChatRoomType) || 'general',
+          })
 
-          // Auto-minimize after 8s ONLY if user is not interacting
           if (autoMinimizeTimerRef.current) clearTimeout(autoMinimizeTimerRef.current)
           autoMinimizeTimerRef.current = setTimeout(() => {
             setMinimized(prev => {
-              // Only minimize if user hasn't started typing
               if (!userInteracting) return true
               return prev
             })
@@ -138,34 +225,168 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     }
   }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const unreadBadgeCount = useMemo(
+    () => notifications.filter(n => !seenNotificationIds.includes(n.id)).length,
+    [notifications, seenNotificationIds],
+  )
+
+  /** While the panel is open, treat all current notifications as seen so the FAB badge clears. */
+  useEffect(() => {
+    if (minimized) return
+    if (notifications.length === 0) return
+    setSeenNotificationIds(prev => {
+      const next = new Set(prev)
+      notifications.forEach(n => next.add(n.id))
+      const arr = Array.from(next)
+      if (arr.length === prev.length && prev.every(id => next.has(id))) return prev
+      return arr
+    })
+  }, [minimized, notifications])
+
+  /** Mark others' messages in this room as read (same RPC as full ChatWindow) while the mini chat is open. */
+  useEffect(() => {
+    if (minimized || !activeRoom?.id || !userId) return
+    const sb = createClient()
+    const roomId = activeRoom.id
+    const timer = setTimeout(async () => {
+      const { error: rpcError } = await sb.rpc('mark_room_messages_read', {
+        p_room_id: roomId,
+        p_user_id: userId,
+      })
+      if (rpcError) {
+        const inRoom = notifications.filter(n => n.room_id === roomId && !n.isOutbound)
+        for (const n of inRoom.slice(-30)) {
+          await sb.from('message_read_receipts').upsert(
+            { message_id: n.id, user_id: userId },
+            { onConflict: 'message_id,user_id' },
+          )
+        }
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [minimized, activeRoom?.id, userId, notifications])
+
+  /** Load + subscribe to read receipts for our outbound messages (real UUID ids only). */
+  useEffect(() => {
+    if (!userId || !activeRoom?.id) {
+      setReadReceipts(new Map())
+      return
+    }
+    const ids = sentMessages.filter(
+      m => m.room_id === activeRoom.id && m.isOutbound && !m.id.startsWith('optimistic-'),
+    ).map(m => m.id)
+    if (ids.length === 0) {
+      setReadReceipts(new Map())
+      return
+    }
+
+    const sb = createClient()
+
+    async function loadReceipts() {
+      const { data } = await sb
+        .from('message_read_receipts')
+        .select('message_id, user_id, read_at')
+        .in('message_id', ids)
+      const map = new Map<string, ReadReceiptRow[]>()
+      for (const r of data || []) {
+        const row = r as ReadReceiptRow
+        const arr = map.get(row.message_id) || []
+        arr.push(row)
+        map.set(row.message_id, arr)
+      }
+      setReadReceipts(map)
+    }
+
+    void loadReceipts()
+    const poll = setInterval(() => void loadReceipts(), 60000)
+
+    const ch = sb
+      .channel(`mini-read-receipts-${activeRoom.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+        (payload: { new: Record<string, unknown> }) => {
+          const r = payload.new as ReadReceiptRow
+          if (!ids.includes(r.message_id)) return
+          setReadReceipts(prev => {
+            const next = new Map(prev)
+            const arr = [...(next.get(r.message_id) || [])]
+            if (!arr.find(x => x.user_id === r.user_id)) arr.push(r)
+            next.set(r.message_id, arr)
+            return next
+          })
+        },
+      )
+      .subscribe()
+
+    return () => {
+      clearInterval(poll)
+      void sb.removeChannel(ch)
+    }
+  }, [activeRoom?.id, userId, sentMessages])
+
+  function onReplyInputChange(value: string) {
+    setReplyText(value)
+    setUserInteracting(true)
+    if (!value.trim() || !viewerUsername) return
+    if (!typingThrottleRef.current) {
+      broadcastTyping()
+      typingThrottleRef.current = setTimeout(() => {
+        typingThrottleRef.current = null
+      }, 1000)
+    }
+  }
+
   async function handleReply(e: React.FormEvent) {
     e.preventDefault()
     if (!replyText.trim() || !activeRoom || sending) return
     const msgText = replyText.trim()
+    const optimisticId = `optimistic-${Date.now()}`
+    setSentMessages(prev => [...prev, {
+      id: optimisticId,
+      room_id: activeRoom.id,
+      room_name: activeRoom.name,
+      content: msgText,
+      created_at: new Date().toISOString(),
+      isOutbound: true,
+      user: { username: 'You', full_name: 'You', avatar_url: null },
+    }])
+    setReplyText('')
     setSending(true)
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+
     const result = await sendMessage(activeRoom.id, msgText)
+    setSending(false)
+
     if (result.error) {
       toast.error(result.error)
-    } else {
-      setReplyText('')
-      // Add sent message to local state so it appears in the mini chat
-      setSentMessages(prev => [...prev, {
-        id: `sent-${Date.now()}`,
-        room_id: activeRoom.id,
-        room_name: activeRoom.name,
-        content: msgText,
-        created_at: new Date().toISOString(),
-        user: { username: 'You', full_name: 'You', avatar_url: null },
-      }])
-      // Scroll to bottom after sending
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      setSentMessages(prev => prev.filter(m => m.id !== optimisticId))
+      setReplyText(msgText)
+    } else if ('success' in result && result.success && result.messageId) {
+      setSentMessages(prev => prev.map(m =>
+        m.id === optimisticId
+          ? { ...m, id: result.messageId }
+          : m,
+      ))
     }
-    setSending(false)
     inputRef.current?.focus()
   }
 
+  function miniReadStatus(messageId: string): 'sending' | 'sent' | 'read' {
+    if (messageId.startsWith('optimistic-')) return 'sending'
+    const receipts = readReceipts.get(messageId) || []
+    const isDM = activeRoom?.roomType === 'direct'
+    if (isDM) {
+      const otherRead = receipts.find(r => r.user_id !== userId)
+      return otherRead ? 'read' : 'sent'
+    }
+    return receipts.length > 0 ? 'read' : 'sent'
+  }
+
   function openRoomChat(roomId: string, roomName: string) {
-    setActiveRoom({ id: roomId, name: roomName })
+    const hit = notifications.find(n => n.room_id === roomId)
+    const rt = (hit?.room_type as ChatRoomType) || 'general'
+    setActiveRoom({ id: roomId, name: roomName, roomType: rt })
     setUserInteracting(true)
     // Cancel auto-minimize when user explicitly opens a room
     if (autoMinimizeTimerRef.current) {
@@ -206,9 +427,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           aria-label={notifications.length > 0 ? 'Open chat notifications' : 'Open chats'}
         >
           <MessageCircle className="h-6 w-6" />
-          {notifications.length > 0 && (
+          {unreadBadgeCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-              {notifications.length}
+              {unreadBadgeCount}
             </span>
           )}
         </button>
@@ -258,7 +479,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                 <button type="button" onClick={() => { setMinimized(true); setUserInteracting(false) }} className={iconBtn} title="Minimize to icon">
                   <Minus className="h-3.5 w-3.5" />
                 </button>
-                <button type="button" onClick={() => { setDismissed(true); setNotifications([]); setMinimized(true) }} className={iconBtn} title="Dismiss until next message">
+                <button type="button" onClick={() => { setDismissed(true); setNotifications([]); setSeenNotificationIds([]); setMinimized(true) }} className={iconBtn} title="Dismiss until next message">
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -267,41 +488,70 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             {/* Messages */}
             <div className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.105_0.045_152/0.88)]">
               {activeRoom ? (
-                activeRoomNotifications.length > 0 ? (
-                  <>
-                    {activeRoomNotifications.map((n) => {
-                      const isSent = n.id.startsWith('sent-')
+                <>
+                  {activeRoomNotifications.length > 0 ? (
+                    activeRoomNotifications.map((n) => {
+                      const isOwn = Boolean(n.isOutbound) || n.id.startsWith('optimistic-')
+                      const isPending = n.id.startsWith('optimistic-')
                       return (
-                        <div key={n.id} className={`flex items-start gap-3 px-4 py-2.5 ${isSent ? 'flex-row-reverse' : ''}`}>
+                        <div key={n.id} className={`flex items-start gap-3 px-4 py-2.5 ${isOwn ? 'flex-row-reverse' : ''}`}>
                           <Avatar className="mt-0.5 h-7 w-7 shrink-0 border border-white/10">
                             <AvatarImage src={n.user?.avatar_url || ''} />
                             <AvatarFallback className="bg-white/15 text-[10px] font-bold text-[#fcba03]">
                               {getInitials(n.user?.full_name || n.user?.username || '?')}
                             </AvatarFallback>
                           </Avatar>
-                          <div className={`flex max-w-[75%] flex-col ${isSent ? 'items-end' : 'items-start'}`}>
-                            {!isSent && (
+                          <div className={`flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                            {!isOwn && (
                               <span className="mb-0.5 text-[10px] font-medium text-white/60">{n.user?.full_name || n.user?.username}</span>
                             )}
                             <div
                               className={`break-words rounded-2xl px-3 py-1.5 text-sm text-white shadow-inner backdrop-blur-md ${
-                                isSent
-                                  ? 'rounded-tr-sm border border-[#fcba03]/45 bg-[#fcba03]/18'
+                                isOwn
+                                  ? `rounded-tr-sm border border-[#fcba03]/45 bg-[#fcba03]/18 ${isPending ? 'opacity-90' : ''}`
                                   : 'rounded-tl-sm border border-white/15 bg-white/10'
                               }`}
                             >
                               {n.content}
                             </div>
-                            <span className="mt-0.5 text-[9px] text-white/45">{timeAgo(n.created_at)}</span>
+                            <span className="mt-0.5 flex items-center gap-1 text-[9px] text-white/45">
+                              {isPending ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[#fcba03]" aria-hidden />
+                                  <span>Sending…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>{timeAgo(n.created_at)}</span>
+                                  {isOwn && (miniReadStatus(n.id) === 'read' ? (
+                                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-[#fcba03]" aria-label="Read" />
+                                  ) : miniReadStatus(n.id) === 'sent' ? (
+                                    <Check className="h-3 w-3 shrink-0 text-white/40" aria-label="Sent" />
+                                  ) : null)}
+                                </>
+                              )}
+                            </span>
                           </div>
                         </div>
                       )
-                    })}
-                    <div ref={messagesEndRef} />
-                  </>
-                ) : (
-                  <div className="px-4 py-6 text-center text-xs text-white/55">No recent messages in this room</div>
-                )
+                    })
+                  ) : (
+                    <div className="px-4 py-6 text-center text-xs text-white/55">No recent messages in this room</div>
+                  )}
+                  {typingUsers.length > 0 ? (
+                    <div className="flex items-center gap-2 px-4 pb-2 pt-1">
+                      <span className="flex gap-0.5" aria-hidden>
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:0ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
+                      </span>
+                      <span className="text-[10px] italic text-white/55">
+                        {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
+                      </span>
+                    </div>
+                  ) : null}
+                  <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
+                </>
               ) : (
                 notifications.map((n) => (
                   <button
@@ -336,7 +586,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   ref={inputRef}
                   type="text"
                   value={replyText}
-                  onChange={e => { setReplyText(e.target.value); setUserInteracting(true) }}
+                  onChange={e => onReplyInputChange(e.target.value)}
                   onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                   placeholder={`Reply in ${activeRoom.name}...`}
                   className="flex-1 rounded-xl border border-white/20 bg-[oklch(0.08_0.038_152/0.85)] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
@@ -345,9 +595,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   type="submit"
                   disabled={!replyText.trim() || sending}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fcba03] text-[oklch(0.18_0.04_155)] transition-colors hover:bg-[#e5ab03] disabled:opacity-40"
-                  aria-label="Send reply"
+                  aria-label={sending ? 'Sending…' : 'Send reply'}
                 >
-                  <Send className="h-4 w-4" />
+                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </form>
             ) : (
