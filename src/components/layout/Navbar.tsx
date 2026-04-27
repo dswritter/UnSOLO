@@ -30,7 +30,11 @@ export function Navbar({ user }: NavbarProps) {
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
-  const isWanderShell = pathname?.startsWith('/wander') || pathname?.startsWith('/tribe')
+  const isWanderShell =
+    pathname?.startsWith('/wander') ||
+    pathname?.startsWith('/tribe') ||
+    pathname?.startsWith('/packages') ||
+    pathname?.startsWith('/listings')
   const hideGlobalSearch = pathname?.startsWith('/wander')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileToggleRef = useRef<HTMLButtonElement>(null)

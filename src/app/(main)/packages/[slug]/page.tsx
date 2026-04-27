@@ -212,13 +212,20 @@ export default async function PackageDetailPage({
   const scarceSlotsLeft = openSlotCounts.length > 0 ? Math.min(...openSlotCounts) : null
   const showScarcePill = scarceSlotsLeft !== null && scarceSlotsLeft <= 3
 
+  const wanderBackHref = isCommunityTrip
+    ? '/wander?search=1&tab=trips&tripSource=community'
+    : '/wander?search=1&tab=trips'
+
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
       <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         {/* Back */}
-        <Link href={isCommunityTrip ? '/explore?tab=community' : '/explore'} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back to Explore
+        <Link
+          href={wanderBackHref}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Wander
         </Link>
 
         {/* Edits-under-review banner: shown to the public when the host recently
@@ -254,7 +261,9 @@ export default async function PackageDetailPage({
                 <MapPin className="h-4 w-4 text-primary" />
                 {package_.destination?.name}, {package_.destination?.state}
               </div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight">{package_.title}</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight text-foreground">
+                {package_.title}
+              </h1>
               {isCommunityTrip && (
                 <div className="mt-2">
                   <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
@@ -298,7 +307,7 @@ export default async function PackageDetailPage({
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-bold mb-4">Your Host</h2>
                 <div className="flex items-start gap-4">
-                  <Link href={`/profile/${hostData.username}`}>
+                  <Link href={`/profile_v2/${hostData.username}`}>
                     {hostData.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={hostData.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all" />
@@ -310,7 +319,7 @@ export default async function PackageDetailPage({
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/profile/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
+                      <Link href={`/profile_v2/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
                         {hostData.full_name || hostData.username}
                       </Link>
                       {hostData.is_verified && (
@@ -595,7 +604,7 @@ export default async function PackageDetailPage({
                     {isCommunityTrip && hostData && (
                       <div className="flex justify-between">
                         <span>Hosted by</span>
-                        <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
+                        <Link href={`/profile_v2/${hostData.username}`} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
                         </Link>
                       </div>

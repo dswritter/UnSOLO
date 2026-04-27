@@ -5,7 +5,10 @@ import { cn } from '@/lib/utils'
 
 export function FooterWrapper() {
   const pathname = usePathname()
-  const isWander = pathname?.startsWith('/wander')
+  const isWander =
+    pathname?.startsWith('/wander') ||
+    pathname?.startsWith('/packages') ||
+    pathname?.startsWith('/listings')
 
   // Hide footer on full-viewport or chat pages
   if (

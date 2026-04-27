@@ -133,7 +133,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
       {/* Main content */}
       <div className="lg:col-span-2 space-y-8 order-last lg:order-none">
         {/* Hero image — click to expand full image */}
-        <ImageLightbox src={imageUrl} alt={listing.title} className="relative aspect-video rounded-xl overflow-hidden bg-zinc-100">
+        <ImageLightbox src={imageUrl} alt={listing.title} className="relative aspect-video rounded-xl overflow-hidden bg-black/30">
           <Image
             src={imageUrl}
             alt={listing.title}
@@ -145,7 +145,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
 
         {/* Title & location */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">{listing.title}</h1>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">{listing.title}</h1>
           <div className="flex items-center gap-2 text-muted-foreground mb-4">
             <MapPin className="h-4 w-4" />
             <span>{listing.location}</span>
@@ -184,7 +184,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                   ))}
                 </div>
                 {upcoming.length === 0 && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <p className="text-xs text-amber-400/90">
                     All dates for this activity have passed.
                   </p>
                 )}
@@ -262,7 +262,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               )}
               <div className="min-w-0 flex-1">
                 <Link
-                  href={`/profile/${host.username}`}
+                  href={`/profile_v2/${host.username}`}
                   className="font-bold text-foreground hover:text-primary transition-colors"
                 >
                   {host.full_name || host.username}
@@ -276,7 +276,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               </div>
               <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <Link
-                  href={`/profile/${host.username}`}
+                  href={`/profile_v2/${host.username}`}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
                 >
                   View profile
@@ -379,7 +379,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                           {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
                         </p>
                         {!soldOut && item.quantity_available != null && (
-                          <p className="text-xs text-green-600">{item.quantity_available} available</p>
+                          <p className="text-xs text-emerald-400">{item.quantity_available} available</p>
                         )}
                         {item.amenities && item.amenities.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-1">
@@ -448,7 +448,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                         {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
                       </p>
                       {!soldOut && item.quantity_available != null && (
-                        <p className="text-xs text-green-600">{item.quantity_available} available</p>
+                        <p className="text-xs text-emerald-400">{item.quantity_available} available</p>
                       )}
                       {item.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2 pt-0.5">{stripMarkdown(item.description)}</p>
@@ -618,7 +618,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
 
               {displayAvailable != null && (
                 <div className="text-sm">
-                  <span className={displayAvailable > 0 ? 'text-green-600' : 'text-red-600'}>
+                  <span className={displayAvailable > 0 ? 'text-emerald-400' : 'text-rose-400'}>
                     {displayAvailable > 0
                       ? `${displayAvailable} ${listing.type === 'activities' ? 'spots left' : 'available'}`
                       : 'Sold out'}

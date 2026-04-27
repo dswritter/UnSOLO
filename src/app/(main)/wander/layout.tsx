@@ -1,23 +1,11 @@
 import type { ReactNode } from 'react'
-import { Plus_Jakarta_Sans } from 'next/font/google'
-
-const wanderSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-wander',
-})
+import { WanderThemeShell } from '@/components/wander/WanderThemeShell'
 
 /**
  * /wander uses a fixed forest-green brand shell so it does not follow system
  * light/dark. Tokens are scoped in globals.css (`.wander-theme`).
- * Typography: Plus Jakarta Sans (clean geometric sans, similar to mockup).
+ * Typography: Plus Jakarta Sans (see `WanderThemeShell`).
  */
 export default function WanderLayout({ children }: { children: ReactNode }) {
-  return (
-    <div
-      className={`wander-theme wander-textured ${wanderSans.variable} w-full min-h-full text-foreground [color-scheme:dark]`}
-    >
-      {children}
-    </div>
-  )
+  return <WanderThemeShell>{children}</WanderThemeShell>
 }

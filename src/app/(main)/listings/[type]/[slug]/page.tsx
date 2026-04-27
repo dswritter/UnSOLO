@@ -2,6 +2,7 @@ export const revalidate = 300 // 5 minutes
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { getServiceListingDetail, getRelatedListings, getServiceListingsByType } from '@/actions/service-listing-discovery'
 import { getPublicServiceListingItems } from '@/actions/host-service-listing-items'
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
@@ -63,17 +64,25 @@ export default async function ServiceListingDetailPage({
       })() : Promise.resolve([]),
     ])
 
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-          {listing.status === 'pending' && listing.first_approved_at && (
-            <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-              Recent host edits are under review — booking stays open.
-            </div>
-          )}
+    const wanderBackHref = `/wander?search=1&tab=${type}`
 
-          <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} relatedListings={relatedListings} hostListings={hostListings} />
-        </div>
+    return (
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
+        <Link
+          href={wanderBackHref}
+          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Wander
+        </Link>
+
+        {listing.status === 'pending' && listing.first_approved_at && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            Recent host edits are under review — booking stays open.
+          </div>
+        )}
+
+        <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} relatedListings={relatedListings} hostListings={hostListings} />
       </div>
     )
   } catch (error) {
