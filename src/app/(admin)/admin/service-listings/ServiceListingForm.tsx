@@ -114,7 +114,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const typeAmenities = AMENITIES_BY_TYPE[type] || []
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-zinc-200 bg-white p-6">
+    <form onSubmit={handleSubmit} className="space-y-8 rounded-lg border border-border bg-card/95 p-6 shadow-sm shadow-black/10">
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {error}
@@ -127,34 +127,34 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Title</label>
+              <label className="block text-sm font-medium text-foreground">Title</label>
               <input
                 type="text"
                 required
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Slug</label>
+              <label className="block text-sm font-medium text-foreground">Slug</label>
               <input
                 type="text"
                 required
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 font-mono text-sm"
+                className="mt-1 block w-full rounded border border-border px-3 py-2 font-mono text-sm"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Type</label>
+            <label className="block text-sm font-medium text-foreground">Type</label>
             <select
               required
               value={type}
               onChange={(e) => setType(e.target.value as ServiceListingType)}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="stays">Stays</option>
               <option value="activities">Activities</option>
@@ -164,22 +164,22 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Short Description</label>
+            <label className="block text-sm font-medium text-foreground">Short Description</label>
             <input
               type="text"
               value={formData.short_description}
               onChange={(e) => setFormData({ ...formData, short_description: e.target.value })}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Description</label>
+            <label className="block text-sm font-medium text-foreground">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
         </div>
@@ -190,7 +190,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <h2 className="mb-4 text-lg font-semibold">Location</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Locations</label>
+            <label className="block text-sm font-medium text-foreground">Locations</label>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {formData.destination_ids.map(id => {
                 const d = destinations.find(x => x.id === id)
@@ -228,7 +228,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     setAddingLocation(false)
                   }}
                   onBlur={() => setAddingLocation(false)}
-                  className="rounded border border-zinc-300 px-2 py-1 text-sm"
+                  className="rounded border border-border px-2 py-1 text-sm"
                 >
                   <option value="">Pick a destination...</option>
                   {destinations
@@ -243,32 +243,32 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 <button
                   type="button"
                   onClick={() => setAddingLocation(true)}
-                  className="rounded border border-zinc-300 px-3 py-1 text-sm hover:bg-zinc-50"
+                  className="rounded border border-border px-3 py-1 text-sm hover:bg-secondary/60"
                 >
                   + Add location
                 </button>
               )}
             </div>
             {formData.destination_ids.length === 0 && (
-              <p className="mt-1 text-xs text-zinc-500">At least one location is required.</p>
+              <p className="mt-1 text-xs text-muted-foreground">At least one location is required.</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Location (Human-readable)</label>
+            <label className="block text-sm font-medium text-foreground">Location (Human-readable)</label>
             <input
               type="text"
               required
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="e.g., Manali, Himachal Pradesh"
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Latitude</label>
+              <label className="block text-sm font-medium text-foreground">Latitude</label>
               <input
                 type="number"
                 step="0.000001"
@@ -279,11 +279,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     latitude: e.target.value ? parseFloat(e.target.value) : null,
                   })
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Longitude</label>
+              <label className="block text-sm font-medium text-foreground">Longitude</label>
               <input
                 type="number"
                 step="0.000001"
@@ -294,7 +294,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     longitude: e.target.value ? parseFloat(e.target.value) : null,
                   })
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
           </div>
@@ -317,7 +317,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Base Price (₹)</label>
+              <label className="block text-sm font-medium text-foreground">Base Price (₹)</label>
               <input
                 type="number"
                 required
@@ -327,11 +327,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 onChange={(e) =>
                   setFormData({ ...formData, price_paise: Math.round(parseFloat(e.target.value) * 100) })
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Unit</label>
+              <label className="block text-sm font-medium text-foreground">Unit</label>
               <select
                 required
                 value={formData.unit}
@@ -341,7 +341,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     unit: e.target.value as ServiceListing['unit'],
                   })
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               >
                 <option value="per_night">Per Night</option>
                 <option value="per_person">Per Person</option>
@@ -354,10 +354,10 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           </div>
 
           <div>
-            <label className="text-sm font-medium text-zinc-700">
+            <label className="text-sm font-medium text-foreground">
               Price Variants (Optional - for multi-tier pricing)
             </label>
-            <p className="text-xs text-zinc-500">Add multiple tiers like "Basic ₹5000, Deluxe ₹7500"</p>
+            <p className="text-xs text-muted-foreground">Add multiple tiers like "Basic ₹5000, Deluxe ₹7500"</p>
             {formData.price_variants.map((variant, idx) => (
               <div key={idx} className="mt-2 flex gap-2">
                 <input
@@ -369,7 +369,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     newVariants[idx].description = e.target.value
                     setFormData({ ...formData, price_variants: newVariants })
                   }}
-                  className="flex-1 rounded border border-zinc-300 px-3 py-2"
+                  className="flex-1 rounded border border-border px-3 py-2"
                 />
                 <input
                   type="number"
@@ -382,7 +382,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     newVariants[idx].price_paise = Math.round(parseFloat(e.target.value) * 100)
                     setFormData({ ...formData, price_variants: newVariants })
                   }}
-                  className="w-32 rounded border border-zinc-300 px-3 py-2"
+                  className="w-32 rounded border border-border px-3 py-2"
                 />
                 <button
                   type="button"
@@ -420,7 +420,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <h2 className="mb-4 text-lg font-semibold">Capacity & Inventory</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Max Guests per Booking</label>
+            <label className="block text-sm font-medium text-foreground">Max Guests per Booking</label>
             <input
               type="number"
               min="0"
@@ -431,11 +431,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                   max_guests_per_booking: e.target.value ? parseInt(e.target.value) : null,
                 })
               }
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Quantity Available</label>
+            <label className="block text-sm font-medium text-foreground">Quantity Available</label>
             <input
               type="number"
               min="0"
@@ -446,7 +446,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                   quantity_available: e.target.value ? parseInt(e.target.value) : null,
                 })
               }
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
         </div>
@@ -474,7 +474,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                     })
                   }
                 }}
-                className="rounded border-zinc-300"
+                className="rounded border-border"
               />
               <span className="text-sm">{amenity}</span>
             </label>
@@ -518,7 +518,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 e.currentTarget.value = ''
               }
             }}
-            className="block w-full rounded border border-zinc-300 px-3 py-2"
+            className="block w-full rounded border border-border px-3 py-2"
           />
         </div>
       </section>
@@ -535,7 +535,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               type="checkbox"
               checked={formData.is_active}
               onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              className="rounded border-zinc-300"
+              className="rounded border-border"
             />
             <span className="text-sm font-medium">Active</span>
           </label>
@@ -544,13 +544,13 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               type="checkbox"
               checked={formData.is_featured}
               onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-              className="rounded border-zinc-300"
+              className="rounded border-border"
             />
             <span className="text-sm font-medium">Featured</span>
           </label>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Status</label>
+            <label className="block text-sm font-medium text-foreground">Status</label>
             <select
               value={formData.status}
               onChange={(e) =>
@@ -559,7 +559,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                   status: e.target.value as ServiceListing['status'],
                 })
               }
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
@@ -582,7 +582,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <button
           type="button"
           onClick={() => router.back()}
-          className="rounded-lg border border-zinc-300 px-6 py-2 font-medium hover:bg-zinc-50"
+          className="rounded-lg border border-border px-6 py-2 font-medium hover:bg-secondary/60"
         >
           Cancel
         </button>
@@ -605,7 +605,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Number of Rooms</label>
+              <label className="block text-sm font-medium text-foreground">Number of Rooms</label>
               <input
                 type="number"
                 min="0"
@@ -613,11 +613,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
                 onChange={(e) =>
                   onChange('num_rooms', e.target.value ? parseInt(e.target.value) : undefined)
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Number of Bathrooms</label>
+              <label className="block text-sm font-medium text-foreground">Number of Bathrooms</label>
               <input
                 type="number"
                 min="0"
@@ -625,38 +625,38 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
                 onChange={(e) =>
                   onChange('num_bathrooms', e.target.value ? parseInt(e.target.value) : undefined)
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Check-in Time</label>
+              <label className="block text-sm font-medium text-foreground">Check-in Time</label>
               <input
                 type="time"
                 value={metadata.check_in_time || ''}
                 onChange={(e) => onChange('check_in_time', e.target.value)}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Check-out Time</label>
+              <label className="block text-sm font-medium text-foreground">Check-out Time</label>
               <input
                 type="time"
                 value={metadata.check_out_time || ''}
                 onChange={(e) => onChange('check_out_time', e.target.value)}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Cancellation Policy</label>
+            <label className="block text-sm font-medium text-foreground">Cancellation Policy</label>
             <select
               value={metadata.cancellation_policy || ''}
               onChange={(e) => onChange('cancellation_policy', e.target.value)}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="">Select policy</option>
               <option value="free_until_7_days">Free until 7 days before</option>
@@ -677,7 +677,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Duration (Hours)</label>
+              <label className="block text-sm font-medium text-foreground">Duration (Hours)</label>
               <input
                 type="number"
                 min="0"
@@ -686,15 +686,15 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
                 onChange={(e) =>
                   onChange('duration_hours', e.target.value ? parseFloat(e.target.value) : undefined)
                 }
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Difficulty</label>
+              <label className="block text-sm font-medium text-foreground">Difficulty</label>
               <select
                 value={metadata.difficulty || ''}
                 onChange={(e) => onChange('difficulty', e.target.value)}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               >
                 <option value="">Select difficulty</option>
                 <option value="easy">Easy</option>
@@ -705,11 +705,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Activity Category</label>
+            <label className="block text-sm font-medium text-foreground">Activity Category</label>
             <select
               value={metadata.activity_category || ''}
               onChange={(e) => onChange('activity_category', e.target.value)}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="">Select category</option>
               <option value="adventure">Adventure</option>
@@ -725,7 +725,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
               type="checkbox"
               checked={metadata.guide_included || false}
               onChange={(e) => onChange('guide_included', e.target.checked)}
-              className="rounded border-zinc-300"
+              className="rounded border-border"
             />
             <span className="text-sm font-medium">Guide Included</span>
           </label>
@@ -740,11 +740,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
         <h2 className="mb-4 text-lg font-semibold">Rentals Details</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Vehicle Type</label>
+            <label className="block text-sm font-medium text-foreground">Vehicle Type</label>
             <select
               value={metadata.vehicle_type || ''}
               onChange={(e) => onChange('vehicle_type', e.target.value)}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="">Select type</option>
               <option value="car">Car</option>
@@ -756,11 +756,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
           {metadata.vehicle_type === 'car' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700">Fuel Type</label>
+                <label className="block text-sm font-medium text-foreground">Fuel Type</label>
                 <select
                   value={metadata.fuel_type || ''}
                   onChange={(e) => onChange('fuel_type', e.target.value)}
-                  className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                  className="mt-1 block w-full rounded border border-border px-3 py-2"
                 >
                   <option value="">Select fuel</option>
                   <option value="petrol">Petrol</option>
@@ -769,11 +769,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700">Transmission</label>
+                <label className="block text-sm font-medium text-foreground">Transmission</label>
                 <select
                   value={metadata.transmission || ''}
                   onChange={(e) => onChange('transmission', e.target.value)}
-                  className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                  className="mt-1 block w-full rounded border border-border px-3 py-2"
                 >
                   <option value="">Select transmission</option>
                   <option value="manual">Manual</option>
@@ -784,7 +784,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
           )}
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Mileage Limit (km)</label>
+            <label className="block text-sm font-medium text-foreground">Mileage Limit (km)</label>
             <input
               type="number"
               min="0"
@@ -792,7 +792,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
               onChange={(e) =>
                 onChange('mileage_limit_km', e.target.value ? parseInt(e.target.value) : undefined)
               }
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
         </div>
@@ -806,11 +806,11 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
         <h2 className="mb-4 text-lg font-semibold">Getting Around Details</h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Transport Type</label>
+            <label className="block text-sm font-medium text-foreground">Transport Type</label>
             <select
               value={metadata.transport_type || ''}
               onChange={(e) => onChange('transport_type', e.target.value)}
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="">Select type</option>
               <option value="taxi">Taxi</option>
@@ -821,7 +821,7 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700">Capacity (Persons)</label>
+            <label className="block text-sm font-medium text-foreground">Capacity (Persons)</label>
             <input
               type="number"
               min="0"
@@ -829,27 +829,27 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
               onChange={(e) =>
                 onChange('capacity_persons', e.target.value ? parseInt(e.target.value) : undefined)
               }
-              className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+              className="mt-1 block w-full rounded border border-border px-3 py-2"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Route Origin</label>
+              <label className="block text-sm font-medium text-foreground">Route Origin</label>
               <input
                 type="text"
                 value={metadata.route_origin || ''}
                 onChange={(e) => onChange('route_origin', e.target.value)}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700">Route Destination</label>
+              <label className="block text-sm font-medium text-foreground">Route Destination</label>
               <input
                 type="text"
                 value={metadata.route_destination || ''}
                 onChange={(e) => onChange('route_destination', e.target.value)}
-                className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2"
+                className="mt-1 block w-full rounded border border-border px-3 py-2"
               />
             </div>
           </div>

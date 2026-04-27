@@ -1,6 +1,6 @@
 import { getAdminDashboardStats } from '@/actions/admin'
 import Link from 'next/link'
-import { Users, CreditCard, Clock, UserCheck, IndianRupee, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, XCircle, AlertTriangle, MessageCircle } from 'lucide-react'
+import { Users, CreditCard, Clock, UserCheck, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, AlertTriangle, MessageCircle } from 'lucide-react'
 
 function fmtPrice(paise: number) {
   if (paise === 0) return '₹0'
@@ -12,7 +12,8 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-5">Dashboard</h1>
+      <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground mb-1">Dashboard</h1>
+      <p className="text-sm text-muted-foreground mb-6">Overview and shortcuts — Wander admin</p>
 
       {/* Stats grouped by category */}
       <div className="space-y-4 mb-8">
@@ -20,14 +21,14 @@ export default async function AdminDashboardPage() {
         <div>
           <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Platform</h3>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/users" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:border-blue-500/30 transition-colors">
-              <Users className="h-4 w-4 text-blue-400" />
-              <span className="text-lg font-bold text-blue-400">{stats.totalUsers}</span>
+            <Link href="/admin/users" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-sky-500/40 transition-colors shadow-sm shadow-black/10">
+              <Users className="h-4 w-4 text-sky-300" />
+              <span className="text-lg font-bold text-sky-200">{stats.totalUsers}</span>
               <span className="text-xs text-muted-foreground">Users</span>
             </Link>
-            <Link href="/admin/team" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:border-cyan-500/30 transition-colors">
-              <UserCheck className="h-4 w-4 text-cyan-400" />
-              <span className="text-lg font-bold text-cyan-400">{stats.teamCount}</span>
+            <Link href="/admin/team" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-emerald-500/35 transition-colors shadow-sm shadow-black/10">
+              <UserCheck className="h-4 w-4 text-emerald-300" />
+              <span className="text-lg font-bold text-emerald-200">{stats.teamCount}</span>
               <span className="text-xs text-muted-foreground">Team</span>
             </Link>
           </div>
@@ -37,25 +38,25 @@ export default async function AdminDashboardPage() {
         <div>
           <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bookings</h3>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:border-purple-500/30 transition-colors">
-              <BookOpen className="h-4 w-4 text-purple-400" />
-              <span className="text-lg font-bold text-purple-400">{stats.totalBookings}</span>
+            <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-violet-500/35 transition-colors shadow-sm shadow-black/10">
+              <BookOpen className="h-4 w-4 text-violet-300" />
+              <span className="text-lg font-bold text-violet-200">{stats.totalBookings}</span>
               <span className="text-xs text-muted-foreground">All Bookings</span>
             </Link>
-            <Link href="/admin/bookings?status=confirmed" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:border-green-500/30 transition-colors">
-              <CreditCard className="h-4 w-4 text-green-400" />
-              <span className="text-lg font-bold text-green-400">{stats.confirmedBookings}</span>
+            <Link href="/admin/bookings?status=confirmed" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-emerald-500/40 transition-colors shadow-sm shadow-black/10">
+              <CreditCard className="h-4 w-4 text-emerald-300" />
+              <span className="text-lg font-bold text-emerald-200">{stats.confirmedBookings}</span>
               <span className="text-xs text-muted-foreground">Confirmed</span>
             </Link>
-            <Link href="/admin/bookings?status=pending" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:border-orange-500/30 transition-colors">
-              <Clock className="h-4 w-4 text-orange-400" />
-              <span className="text-lg font-bold text-orange-400">{stats.pendingBookings}</span>
+            <Link href="/admin/bookings?status=pending" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-amber-500/40 transition-colors shadow-sm shadow-black/10">
+              <Clock className="h-4 w-4 text-amber-300" />
+              <span className="text-lg font-bold text-amber-200">{stats.pendingBookings}</span>
               <span className="text-xs text-muted-foreground">Pending Payment</span>
             </Link>
             {stats.cancellationRequested > 0 && (
-              <Link href="/admin/bookings?cancellation=requested" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-colors">
-                <AlertTriangle className="h-4 w-4 text-red-400" />
-                <span className="text-lg font-bold text-red-400">{stats.cancellationRequested}</span>
+              <Link href="/admin/bookings?cancellation=requested" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-rose-500/35 bg-rose-500/10 hover:bg-rose-500/15 transition-colors shadow-sm shadow-black/10">
+                <AlertTriangle className="h-4 w-4 text-rose-300" />
+                <span className="text-lg font-bold text-rose-200">{stats.cancellationRequested}</span>
                 <span className="text-xs text-muted-foreground">Cancel Requests</span>
               </Link>
             )}
@@ -66,12 +67,12 @@ export default async function AdminDashboardPage() {
         <div>
           <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Requests & Revenue</h3>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/requests" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 hover:bg-yellow-500/10 transition-colors">
-              <FileText className="h-4 w-4 text-yellow-400" />
-              <span className="text-lg font-bold text-yellow-400">{stats.pendingDateRequests}</span>
+            <Link href="/admin/requests" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15 transition-colors shadow-sm shadow-black/10">
+              <FileText className="h-4 w-4 text-amber-300" />
+              <span className="text-lg font-bold text-amber-200">{stats.pendingDateRequests}</span>
               <span className="text-xs text-muted-foreground">Custom Date Requests</span>
             </Link>
-            <Link href="/admin/revenue" className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors">
+            <Link href="/admin/revenue" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/15 transition-colors shadow-sm shadow-black/10">
               <span className="text-lg font-bold text-primary">{fmtPrice(stats.totalRevenue)}</span>
               <span className="text-xs text-muted-foreground">Net Revenue</span>
             </Link>
@@ -80,7 +81,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <h2 className="text-lg font-bold mb-3">Quick Actions</h2>
+      <h2 className="text-lg font-bold text-foreground mb-3">Quick actions</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {([
           { href: '/admin/users', icon: Users, title: 'Manage Users', desc: 'Search, filter, view user details', badge: 0 },
@@ -95,8 +96,8 @@ export default async function AdminDashboardPage() {
           <Link
             key={href}
             href={href}
-            className={`group rounded-xl border bg-card p-4 hover:border-primary/30 transition-colors ${
-              badge > 0 ? 'border-amber-500/40 bg-amber-500/5' : 'border-border'
+            className={`group rounded-xl border bg-card/90 p-4 shadow-sm shadow-black/10 hover:border-primary/40 transition-colors ${
+              badge > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-border'
             }`}
           >
             <div className="flex items-center justify-between">
@@ -104,7 +105,7 @@ export default async function AdminDashboardPage() {
                 <div className="relative">
                   <Icon className="h-4 w-4 text-primary" />
                   {badge > 0 && (
-                    <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white leading-none">
+                    <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white leading-none shadow-sm">
                       {badge > 99 ? '99+' : badge}
                     </span>
                   )}
@@ -113,7 +114,7 @@ export default async function AdminDashboardPage() {
                   <h3 className="font-semibold text-sm">{title}</h3>
                   <p className="text-xs text-muted-foreground">{desc}</p>
                   {badge > 0 && (
-                    <p className="text-[10px] text-amber-500 font-medium mt-0.5">
+                    <p className="text-[10px] text-amber-300/90 font-medium mt-0.5">
                       {badge} pending review
                     </p>
                   )}

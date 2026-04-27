@@ -66,9 +66,9 @@ const TYPE_LABELS: Record<string, string> = {
 function Field({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
   if (!value) return null
   return (
-    <div className={`rounded-lg p-3 ${highlight ? 'bg-amber-50 border border-amber-200' : 'bg-zinc-50'}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-0.5 text-sm text-zinc-900 whitespace-pre-wrap">{value}</p>
+    <div className={`rounded-lg p-3 ${highlight ? 'border border-amber-500/35 bg-amber-500/10' : 'bg-muted/40'}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-sm text-foreground whitespace-pre-wrap">{value}</p>
     </div>
   )
 }
@@ -116,7 +116,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
       {/* ── Status banner ─────────────────────────────────────────────── */}
       <div className={`flex flex-col sm:flex-row sm:items-start gap-4 rounded-xl border p-4 ${
         isReReview
-          ? 'border-amber-300 bg-amber-50'
+          ? 'border-amber-500/40 bg-amber-500/10'
           : 'border-yellow-300 bg-yellow-50'
       }`}>
         <div className="flex-1 min-w-0">
@@ -152,7 +152,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
             href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/60"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Preview
@@ -179,7 +179,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
       </div>
 
       {/* ── Core info ─────────────────────────────────────────────────── */}
-      <section className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+      <section className="rounded-xl border border-border bg-card/90 p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -190,14 +190,14 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                 <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Featured</span>
               )}
             </div>
-            <h2 className="mt-1 text-xl font-bold text-zinc-900">{listing.title}</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">slug: {listing.slug}</p>
+            <h2 className="mt-1 text-xl font-bold text-foreground">{listing.title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">slug: {listing.slug}</p>
           </div>
         </div>
 
         {/* Host */}
         {listing.host && (
-          <div className="flex items-center gap-2 text-sm text-zinc-600">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <User className="h-4 w-4" />
             <span>Listed by</span>
             <Link
@@ -207,15 +207,15 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
             >
               {listing.host.full_name || listing.host.username}
             </Link>
-            <span className="text-zinc-400">(@{listing.host.username})</span>
+            <span className="text-muted-foreground">(@{listing.host.username})</span>
           </div>
         )}
 
         {/* Location */}
         {listing.location && (
           <div className="flex items-start gap-2 text-sm">
-            <MapPin className="h-4 w-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-            <span className="text-zinc-700">{listing.location}</span>
+            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+            <span className="text-foreground">{listing.location}</span>
           </div>
         )}
 
@@ -228,9 +228,9 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
         {/* Tags */}
         {listing.tags && listing.tags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            <Tag className="h-4 w-4 text-zinc-400" />
+            <Tag className="h-4 w-4 text-muted-foreground" />
             {listing.tags.map(t => (
-              <span key={t} className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs text-zinc-600">{t}</span>
+              <span key={t} className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">{t}</span>
             ))}
           </div>
         )}
@@ -238,7 +238,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
         {/* Master amenities (non-rentals) */}
         {listing.amenities && listing.amenities.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Amenities</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Amenities</p>
             <div className="flex flex-wrap gap-1.5">
               {listing.amenities.map(a => (
                 <span key={a} className="rounded-md bg-blue-50 px-2 py-0.5 text-xs text-blue-700">{a}</span>
@@ -250,10 +250,10 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
 
       {/* ── Cover images ──────────────────────────────────────────────── */}
       {listing.images && listing.images.length > 0 && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="rounded-xl border border-border bg-card/90 p-5">
           <div className="flex items-center gap-2 mb-3">
-            <ImageIcon className="h-4 w-4 text-zinc-400" />
-            <h3 className="font-semibold text-zinc-800">Cover images ({listing.images.length})</h3>
+            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-foreground">Cover images ({listing.images.length})</h3>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {listing.images.map((url, idx) => (
@@ -263,7 +263,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                   alt={`Image ${idx + 1}`}
                   width={160}
                   height={120}
-                  className="h-28 w-40 rounded-lg object-cover border border-zinc-200 hover:opacity-90 transition-opacity"
+                  className="h-28 w-40 rounded-lg object-cover border border-border hover:opacity-90 transition-opacity"
                 />
               </a>
             ))}
@@ -273,10 +273,10 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
 
       {/* ── Items ─────────────────────────────────────────────────────── */}
       {listing.items.length > 0 && (
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 space-y-4">
+        <section className="rounded-xl border border-border bg-card/90 p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-zinc-400" />
-            <h3 className="font-semibold text-zinc-800">Items ({listing.items.length})</h3>
+            <Package className="h-4 w-4 text-muted-foreground" />
+            <h3 className="font-semibold text-foreground">Items ({listing.items.length})</h3>
             {isReReview && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 uppercase tracking-wide">
                 Changes may be here
@@ -289,7 +289,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
               <div
                 key={item.id}
                 className={`flex gap-3 rounded-xl border p-3 ${
-                  isReReview ? 'border-amber-200 bg-amber-50/50' : 'border-zinc-100 bg-zinc-50'
+                  isReReview ? 'border-amber-500/35 bg-amber-500/10' : 'border-border/60 bg-muted/40'
                 } ${!item.is_active ? 'opacity-50' : ''}`}
               >
                 {/* Item image */}
@@ -300,21 +300,21 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                       alt={item.name}
                       width={88}
                       height={88}
-                      className="h-22 w-22 rounded-lg object-cover border border-zinc-200"
+                      className="h-22 w-22 rounded-lg object-cover border border-border"
                     />
                   </a>
                 ) : (
-                  <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-zinc-200 flex items-center justify-center">
-                    <ImageIcon className="h-5 w-5 text-zinc-400" />
+                  <div className="h-16 w-16 flex-shrink-0 rounded-lg bg-muted flex items-center justify-center">
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}
 
                 {/* Item details */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-zinc-900 truncate">{item.name}</p>
+                    <p className="font-semibold text-foreground truncate">{item.name}</p>
                     {!item.is_active && (
-                      <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">Inactive</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Inactive</span>
                     )}
                   </div>
 
@@ -323,19 +323,19 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                       {formatPrice(item.price_paise)}
                       {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
                     </span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-muted-foreground">
                       {item.quantity_available} available · max {item.max_per_booking}/booking
                     </span>
                   </div>
 
                   {item.description && (
-                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{item.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.description}</p>
                   )}
 
                   {item.amenities && item.amenities.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5">
                       {item.amenities.map(a => (
-                        <span key={a} className="rounded bg-white border border-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-600">{a}</span>
+                        <span key={a} className="rounded bg-card border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">{a}</span>
                       ))}
                     </div>
                   )}
@@ -350,7 +350,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                             alt={`${item.name} image ${i + 2}`}
                             width={40}
                             height={40}
-                            className="h-10 w-10 rounded object-cover border border-zinc-200 hover:opacity-80"
+                            className="h-10 w-10 rounded object-cover border border-border hover:opacity-80"
                           />
                         </a>
                       ))}
@@ -364,10 +364,10 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
       )}
 
       {/* ── Bottom action row ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card/90 p-4">
         <Link
           href="/admin/service-listings"
-          className="text-sm text-zinc-500 hover:text-zinc-800"
+          className="text-sm text-muted-foreground hover:text-foreground"
         >
           ← Back to listings
         </Link>
@@ -376,7 +376,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
             href={previewUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary/60"
           >
             <ExternalLink className="h-4 w-4" />
             Preview public page

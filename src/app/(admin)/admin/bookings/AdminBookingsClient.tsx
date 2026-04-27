@@ -154,7 +154,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filter === s
                 ? 'bg-primary text-black border-primary'
-                : 'bg-card text-muted-foreground border-zinc-700 hover:border-zinc-500'
+                : 'bg-card text-muted-foreground border-border hover:border-primary/35'
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -241,7 +241,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-primary font-bold">{formatPrice(booking.total_amount_paise)}</span>
-                  <span className="text-xs text-zinc-600">{booking.confirmation_code || '—'}</span>
+                  <span className="text-xs text-muted-foreground">{booking.confirmation_code || '—'}</span>
                   {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </div>
               </div>
@@ -258,7 +258,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                   {/* Details grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                    <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-zinc-600">(@{usr?.username})</span></div>
+                    <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-muted-foreground">(@{usr?.username})</span></div>
                     {usr?.phone_number && (
                       <div className="flex items-center gap-1"><Phone className="h-3 w-3 text-muted-foreground" /><span className="text-muted-foreground">Phone:</span> <span className="font-medium">{usr.phone_number}</span></div>
                     )}
@@ -268,7 +268,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     <div><span className="text-muted-foreground">Destination:</span> {pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : 'N/A'}</div>
                     <div><span className="text-muted-foreground">Duration:</span> {pkg ? packageDurationShortLabel(pkg) : 'N/A'}</div>
                     <div><span className="text-muted-foreground">Booked on:</span> {formatDate(booking.created_at)}</div>
-                    <div><span className="text-muted-foreground">Payment ID:</span> <span className="text-xs text-zinc-600 font-mono">{booking.stripe_payment_intent || '—'}</span></div>
+                    <div><span className="text-muted-foreground">Payment ID:</span> <span className="text-xs text-muted-foreground font-mono">{booking.stripe_payment_intent || '—'}</span></div>
                     <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>
                   </div>
 
@@ -276,7 +276,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     {/* Change status */}
                     <select
-                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
+                      className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs"
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) handleStatusChange(booking.id, e.target.value) }}
                       disabled={isPending}
@@ -289,7 +289,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
                     {/* Assign POC */}
                     <select
-                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-1.5 text-xs"
+                      className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs"
                       defaultValue=""
                       onChange={(e) => { if (e.target.value) handleAssignPOC(booking.id, e.target.value) }}
                       disabled={isPending}
@@ -307,7 +307,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs gap-1 border-zinc-700"
+                        className="text-xs gap-1 border-border"
                         onClick={() => handleSendConfirmation(booking.id)}
                         disabled={isPending}
                       >
@@ -320,7 +320,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs gap-1 border-zinc-700"
+                        className="text-xs gap-1 border-border"
                         onClick={() => handleSharePOC(booking.id)}
                         disabled={isPending}
                       >
@@ -376,7 +376,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                           <input
                             type="checkbox"
                             id={`refund-done-${booking.id}`}
-                            className="rounded border-zinc-600"
+                            className="rounded border-border"
                             onChange={(e) => {
                               if (e.target.checked) {
                                 handleMarkRefundComplete(booking.id)
@@ -388,7 +388,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                             Mark refund as credited to customer
                           </label>
                           {booking.refund_razorpay_id && (
-                            <span className="text-[10px] text-zinc-600 font-mono ml-auto">{booking.refund_razorpay_id}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono ml-auto">{booking.refund_razorpay_id}</span>
                           )}
                         </div>
                       )}
@@ -407,7 +407,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     <div className="flex gap-2">
                       <textarea
                         defaultValue={booking.admin_notes || ''}
-                        className="flex-1 bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+                        className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-none"
                         rows={2}
                         placeholder="Internal notes about this booking..."
                         id={`notes-${booking.id}`}
@@ -415,7 +415,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       <Button
                         size="sm"
                         variant="outline"
-                        className="shrink-0 border-zinc-700 self-end"
+                        className="shrink-0 border-border self-end"
                         onClick={() => {
                           const el = document.getElementById(`notes-${booking.id}`) as HTMLTextAreaElement
                           if (el) handleSaveNotes(booking.id, el.value)

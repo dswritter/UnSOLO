@@ -55,7 +55,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               filter === s
                 ? 'bg-primary text-black border-primary'
-                : 'bg-card text-muted-foreground border-zinc-700 hover:border-zinc-500'
+                : 'bg-card text-muted-foreground border-border hover:border-primary/35'
             }`}
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -114,7 +114,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
                     </div>
                   </div>
 
-                  <p className="text-xs text-zinc-600">Submitted {formatDate(req.created_at)}</p>
+                  <p className="text-xs text-muted-foreground">Submitted {formatDate(req.created_at)}</p>
                 </div>
 
                 {/* Actions */}
@@ -123,7 +123,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
                     <textarea
                       id={`req-notes-${req.id}`}
                       placeholder="Admin notes (optional)"
-                      className="bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-xs resize-none w-full sm:w-48"
+                      className="bg-secondary border border-border rounded-lg px-3 py-2 text-xs resize-none w-full sm:w-48"
                       rows={2}
                     />
                     <div className="flex gap-2">

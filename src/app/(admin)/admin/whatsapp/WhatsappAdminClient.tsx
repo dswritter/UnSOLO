@@ -73,7 +73,7 @@ function Row({
           {listing.status && listing.status !== 'approved' && (
             <span className="ml-2 text-amber-400">· {listing.status}</span>
           )}
-          {listing.is_active === false && <span className="ml-2 text-zinc-500">· hidden</span>}
+          {listing.is_active === false && <span className="ml-2 text-muted-foreground">· hidden</span>}
         </div>
       </div>
       <div className="flex items-center gap-2 sm:w-[20rem]">

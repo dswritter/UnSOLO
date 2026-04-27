@@ -485,12 +485,12 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 value={form.title}
                 onChange={e => setForm(f => ({ ...f, title: e.target.value, slug: autoSlug(e.target.value) }))}
                 placeholder="e.g. Kasol Backpacking Trip"
-                className="bg-secondary border-zinc-700"
+                className="bg-secondary border-border"
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Slug</label>
-              <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className="bg-secondary border-zinc-700 text-muted-foreground" />
+              <Input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} className="bg-secondary border-border text-muted-foreground" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Destination *</label>
@@ -521,11 +521,11 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   <Plus className="h-3 w-3" /> Add option
                 </Button>
               </div>
-              <p className="text-[10px] text-zinc-500">
+              <p className="text-[10px] text-muted-foreground">
                 Multiple rows: dorm / private room / etc. Each tier needs a short facilities description.
               </p>
               {form.priceRows.map((row, i) => (
-                <div key={i} className="rounded-lg border border-zinc-700 bg-secondary/40 p-2 space-y-2">
+                <div key={i} className="rounded-lg border border-border bg-secondary/40 p-2 space-y-2">
                   <div className="flex flex-wrap items-end gap-2">
                     <Input
                       type="number"
@@ -539,7 +539,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                         }))
                       }
                       placeholder="8999"
-                      className="bg-secondary border-zinc-700 max-w-[140px]"
+                      className="bg-secondary border-border max-w-[140px]"
                       min={1}
                     />
                     {form.priceRows.length > 1 && (
@@ -570,18 +570,18 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                         }))
                       }
                       placeholder="e.g. Shared dorm · 4-bed"
-                      className="bg-secondary border-zinc-700 text-xs"
+                      className="bg-secondary border-border text-xs"
                     />
                   )}
                 </div>
               ))}
             </div>            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Trip days (on trip) *</label>
-              <Input type="number" value={form.trip_days} onChange={e => setForm(f => ({ ...f, trip_days: e.target.value }))} placeholder="4" className="bg-secondary border-zinc-700" min={1} />
+              <Input type="number" value={form.trip_days} onChange={e => setForm(f => ({ ...f, trip_days: e.target.value }))} placeholder="4" className="bg-secondary border-border" min={1} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Trip nights (on trip) *</label>
-              <Input type="number" value={form.trip_nights} onChange={e => setForm(f => ({ ...f, trip_nights: e.target.value }))} placeholder="3" className="bg-secondary border-zinc-700" min={0} />
+              <Input type="number" value={form.trip_nights} onChange={e => setForm(f => ({ ...f, trip_nights: e.target.value }))} placeholder="3" className="bg-secondary border-border" min={0} />
             </div>
             <div className="flex items-center gap-2 lg:col-span-2 self-end pb-1">
               <input type="checkbox" id="exclude_travel" checked={form.exclude_first_travel} onChange={e => setForm(f => ({ ...f, exclude_first_travel: e.target.checked }))} className="accent-primary" />
@@ -589,26 +589,26 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Departure time</label>
-              <select value={form.departure_time} onChange={e => setForm(f => ({ ...f, departure_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+              <select value={form.departure_time} onChange={e => setForm(f => ({ ...f, departure_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
                 <option value="morning">Morning</option>
                 <option value="evening">Evening</option>
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Return / arrival time</label>
-              <select value={form.return_time} onChange={e => setForm(f => ({ ...f, return_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+              <select value={form.return_time} onChange={e => setForm(f => ({ ...f, return_time: e.target.value as 'morning' | 'evening' }))} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
                 <option value="morning">Morning</option>
                 <option value="evening">Evening</option>
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Max Group Size</label>
-              <Input type="number" value={form.max_group_size} onChange={e => setForm(f => ({ ...f, max_group_size: e.target.value }))} placeholder="12" className="bg-secondary border-zinc-700" />
+              <Input type="number" value={form.max_group_size} onChange={e => setForm(f => ({ ...f, max_group_size: e.target.value }))} placeholder="12" className="bg-secondary border-border" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Difficulty</label>
               <select
-                className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm"
+                className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm"
                 value={form.difficulty}
                 onChange={e => setForm(f => ({ ...f, difficulty: e.target.value }))}
               >
@@ -625,7 +625,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Short Description</label>
-            <Input value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} placeholder="One-liner for cards" className="bg-secondary border-zinc-700" />
+            <Input value={form.short_description} onChange={e => setForm(f => ({ ...f, short_description: e.target.value }))} placeholder="One-liner for cards" className="bg-secondary border-border" />
           </div>
 
           <div>
@@ -642,7 +642,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               rows={5}
               placeholder="Detailed trip description (Markdown: **bold**, ## heading, - list)"
-              className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
+              className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
             />
           </div>
 
@@ -663,7 +663,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   className={`rounded-lg border p-3 text-left text-sm transition-colors ${
                     form.join_payment_timing === 'after_host_approval'
                       ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-zinc-700 bg-secondary/40 text-muted-foreground hover:text-foreground'
+                      : 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <span className="font-semibold block">Request first, pay after approval</span>
@@ -675,7 +675,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   className={`rounded-lg border p-3 text-left text-sm transition-colors ${
                     form.join_payment_timing === 'pay_on_booking'
                       ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-zinc-700 bg-secondary/40 text-muted-foreground hover:text-foreground'
+                      : 'border-border bg-secondary/40 text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <span className="font-semibold block">Book &amp; pay immediately</span>
@@ -696,7 +696,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   value={form.join_min_trips}
                   onChange={e => setForm(f => ({ ...f, join_min_trips: e.target.value }))}
                   placeholder="e.g. 1"
-                  className="bg-secondary border-zinc-700"
+                  className="bg-secondary border-border"
                   min={0}
                 />
               </div>
@@ -711,7 +711,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       className={`flex-1 px-3 py-2 rounded-lg text-xs border transition-colors capitalize ${
                         form.join_gender === g
                           ? 'bg-primary/10 border-primary text-primary'
-                          : 'bg-secondary border-zinc-700 text-muted-foreground'
+                          : 'bg-secondary border-border text-muted-foreground'
                       }`}
                     >
                       {g === 'all' ? 'Everyone' : g === 'men' ? 'Men only' : 'Women only'}
@@ -726,7 +726,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   value={form.join_min_age}
                   onChange={e => setForm(f => ({ ...f, join_min_age: e.target.value }))}
                   placeholder="Optional"
-                  className="bg-secondary border-zinc-700"
+                  className="bg-secondary border-border"
                   min={0}
                 />
               </div>
@@ -737,7 +737,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   value={form.join_max_age}
                   onChange={e => setForm(f => ({ ...f, join_max_age: e.target.value }))}
                   placeholder="Optional"
-                  className="bg-secondary border-zinc-700"
+                  className="bg-secondary border-border"
                   min={0}
                 />
               </div>
@@ -753,7 +753,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                     className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                       form.join_interest_tags.includes(tag)
                         ? 'bg-primary/10 border-primary text-primary'
-                        : 'bg-secondary border-zinc-700 text-muted-foreground hover:text-foreground'
+                        : 'bg-secondary border-border text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {form.join_interest_tags.includes(tag) && <Check className="h-3 w-3 inline mr-1" />}
@@ -764,7 +764,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <div className="flex gap-2 mt-2">
                 <Input
                   placeholder="Custom tag — Enter"
-                  className="bg-secondary border-zinc-700 text-sm max-w-xs"
+                  className="bg-secondary border-border text-sm max-w-xs"
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
@@ -808,10 +808,10 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 value={newInclude}
                 onChange={e => setNewInclude(e.target.value)}
                 placeholder="Add custom facility..."
-                className="bg-secondary border-zinc-700 text-sm max-w-xs"
+                className="bg-secondary border-border text-sm max-w-xs"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddInclude() } }}
               />
-              <Button size="sm" variant="outline" className="border-zinc-700 text-xs" onClick={handleAddInclude} disabled={isPending}>
+              <Button size="sm" variant="outline" className="border-border text-xs" onClick={handleAddInclude} disabled={isPending}>
                 <Plus className="h-3 w-3 mr-1" /> Add
               </Button>
             </div>
@@ -820,7 +820,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
           {/* Images — upload + URL (cover = first image; right-click / long-press to change) */}
           <div>
             <label className="text-xs text-muted-foreground mb-2 block">
-              Images <span className="text-zinc-600">(Recommended: 16:9, max 5MB each, JPEG/PNG/WebP)</span>
+              Images <span className="text-muted-foreground">(Recommended: 16:9, max 5MB each, JPEG/PNG/WebP)</span>
             </label>
             {form.images.length >= 2 && (
               <p className="text-xs text-muted-foreground mb-2">
@@ -833,14 +833,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 <TripImageGridWithCover
                   images={form.images}
                   onChange={next => setForm(f => ({ ...f, images: next }))}
-                  imgClassName="h-20 w-28 rounded-lg object-cover border border-zinc-700"
+                  imgClassName="h-20 w-28 rounded-lg object-cover border border-border"
                   removeButtonClassName="absolute -top-1.5 -right-1.5 z-10 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 />
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="flex h-20 w-28 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-zinc-600 bg-secondary/20 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
+                  className="flex h-20 w-28 shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-secondary/20 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-secondary/40 hover:text-primary disabled:pointer-events-none disabled:opacity-50"
                   aria-label="Add image from device"
                 >
                   <Plus className="h-6 w-6" />
@@ -861,26 +861,26 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <Button
                 size="sm"
                 variant="outline"
-                className="border-zinc-700 text-xs gap-1"
+                className="border-border text-xs gap-1"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
                 <Upload className="h-3 w-3" /> {uploading ? 'Uploading...' : 'Upload from Device'}
               </Button>
               <span className="text-[10px] text-muted-foreground">16:9 ratio recommended</span>
-              <span className="text-zinc-600 text-xs">or</span>
+              <span className="text-muted-foreground text-xs">or</span>
               <Input
                 value={imageUrlInput}
                 onChange={e => setImageUrlInput(e.target.value)}
                 placeholder="Paste image URL..."
-                className="bg-secondary border-zinc-700 text-sm max-w-sm"
+                className="bg-secondary border-border text-sm max-w-sm"
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addImageUrl() } }}
               />
-              <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" onClick={addImageUrl}>
+              <Button size="sm" variant="outline" className="border-border text-xs gap-1" onClick={addImageUrl}>
                 <ImageIcon className="h-3 w-3" /> Add URL
               </Button>
             </div>
-            <p className="text-xs text-zinc-600 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Tip: For Unsplash, use the image URL (images.unsplash.com/...), not the page URL.
             </p>
           </div>
@@ -915,7 +915,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       max={maxDateStr}
                       value={d.departure}
                       onChange={e => updateDepartureSlot(i, 'departure', e.target.value)}
-                      className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
+                      className="bg-secondary border-border text-sm max-w-[180px]"
                     />
                   </div>
                   <div>
@@ -926,14 +926,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       max={maxDateStr}
                       value={d.returnDate}
                       onChange={e => updateDepartureSlot(i, 'returnDate', e.target.value)}
-                      className="bg-secondary border-zinc-700 text-sm max-w-[180px]"
+                      className="bg-secondary border-border text-sm max-w-[180px]"
                     />
                   </div>
                   <button type="button" onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300 p-1"><X className="h-4 w-4" /></button>
                 </div>
               ))}
             </div>
-            <Button size="sm" variant="outline" className="border-zinc-700 text-xs gap-1" type="button" onClick={addDepartureDate}>
+            <Button size="sm" variant="outline" className="border-border text-xs gap-1" type="button" onClick={addDepartureDate}>
               <Plus className="h-3 w-3" /> Add row
             </Button>
           </div>
@@ -962,7 +962,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 <p className="text-xs text-muted-foreground">
                   {pkg.destination?.name}, {pkg.destination?.state} · {packageDurationShortLabel(pkg)} · Max {pkg.max_group_size} · {pkg.difficulty}
                 </p>
-                <p className="text-xs text-zinc-600">
+                <p className="text-xs text-muted-foreground">
                   {(pkg.departure_dates || []).length} departure dates ·{' '}
                   {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
                   /person

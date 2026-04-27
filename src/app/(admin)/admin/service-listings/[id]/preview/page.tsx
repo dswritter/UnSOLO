@@ -13,16 +13,16 @@ export default async function AdminListingPreviewPage({
   const items = listing.items as ServiceListingItem[]
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-full w-full">
       {/* Admin preview banner */}
-      <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
-        <span className="text-sm text-amber-700 font-medium">
+      <div className="bg-amber-500/15 border-b border-amber-500/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-amber-100 font-medium">
           Admin preview — status: <span className="font-bold capitalize">{listing.status}</span>
           {listing.status === 'pending' && !listing.first_approved_at && ' (never approved — not visible to public yet)'}
         </span>
         <Link
           href={`/admin/service-listings/${id}`}
-          className="text-sm text-amber-700 underline hover:text-amber-900"
+          className="text-sm text-primary underline hover:text-primary/90 font-medium"
         >
           ← Back to review
         </Link>

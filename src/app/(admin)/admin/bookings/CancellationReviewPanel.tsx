@@ -125,7 +125,7 @@ export function CancellationReviewPanel({
             max={100}
             value={tierPercent}
             onChange={(e) => handleTierChange(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
-            className="w-full bg-secondary border border-zinc-700 rounded px-2 py-1 text-sm"
+            className="w-full bg-secondary border border-border rounded px-2 py-1 text-sm"
           />
         </div>
         <div className="space-y-1">
@@ -136,7 +136,7 @@ export function CancellationReviewPanel({
             max={maxRupees}
             value={refundRupees}
             onChange={(e) => setRefundRupees(e.target.value)}
-            className="w-full bg-secondary border border-zinc-700 rounded px-2 py-1 text-sm"
+            className="w-full bg-secondary border border-border rounded px-2 py-1 text-sm"
           />
         </div>
       </div>
@@ -145,7 +145,7 @@ export function CancellationReviewPanel({
       <textarea
         value={note}
         onChange={(e) => setNote(e.target.value)}
-        className="w-full bg-secondary border border-zinc-700 rounded-lg px-3 py-2 text-sm resize-none"
+        className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-none"
         rows={2}
         placeholder="Note to customer (reason for refund amount, deductions etc.)..."
       />

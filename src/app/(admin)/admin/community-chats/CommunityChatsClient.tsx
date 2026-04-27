@@ -246,7 +246,7 @@ function RoomEditor({
 
   return (
     <>
-    <div className={`rounded-xl border p-4 ${room.is_active ? 'border-border bg-card' : 'border-zinc-700 bg-secondary/20 opacity-80'}`}>
+    <div className={`rounded-xl border p-4 ${room.is_active ? 'border-border bg-card' : 'border-border/80 bg-secondary/25 opacity-90'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex gap-3 min-w-0">
           <input

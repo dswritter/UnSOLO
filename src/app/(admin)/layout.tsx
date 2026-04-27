@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
 import { getAdminDashboardStats } from '@/actions/admin'
+import { WanderThemeShell } from '@/components/wander/WanderThemeShell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -33,21 +34,21 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   } catch { /* non-fatal */ }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
-      {/* Sidebar */}
-      <AdminSidebar
-        role={profile.role as UserRole}
-        name={profile.full_name || profile.username}
-        userId={user.id}
-        pendingCounts={pendingCounts}
-      />
+    <WanderThemeShell>
+      <div className="flex w-full min-h-dvh text-foreground">
+        <AdminSidebar
+          role={profile.role as UserRole}
+          name={profile.full_name || profile.username}
+          userId={user.id}
+          pendingCounts={pendingCounts}
+        />
 
-      {/* Main content */}
-      <main className="flex-1 min-w-0 overflow-y-auto h-screen">
-        <div className="px-6 lg:px-8 py-6">
-          {children}
-        </div>
-      </main>
-    </div>
+        <main className="flex-1 min-w-0 min-h-dvh overflow-y-auto pt-14 md:pt-0 [scrollbar-gutter:stable]">
+          <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </WanderThemeShell>
   )
 }
