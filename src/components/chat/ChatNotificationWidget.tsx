@@ -214,25 +214,34 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         </button>
       ) : (
         <div
-          className="pointer-events-auto relative mb-2 flex w-[400px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-2xl border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.45)] wander-theme text-white [color-scheme:dark]"
+          className="pointer-events-auto relative isolate mb-2 flex w-[400px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-2xl border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.45)] wander-theme text-white [color-scheme:dark]"
           style={{ height: '380px', maxHeight: 'calc(100vh - 8rem)' }}
         >
-          {/* Forest + northern-lights wash (scoped; matches /tribe wander-textured vibe) */}
+          {/* Solid forest base + northern-lights glow (opaque enough to read messages; no blend with page behind) */}
           <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-2xl" aria-hidden>
-            <div className="absolute inset-0 wander-textured" />
             <div
-              className="absolute -left-[20%] top-0 h-[72%] w-[140%] opacity-[0.85] mix-blend-screen blur-2xl"
+              className="absolute inset-0 rounded-2xl"
+              style={{ background: 'oklch(0.11 0.046 152)' }}
+            />
+            <div
+              className="absolute inset-0 rounded-2xl opacity-[0.92]"
               style={{
                 background:
-                  'radial-gradient(ellipse 75% 55% at 35% 0%, oklch(0.58 0.14 200 / 0.42) 0%, transparent 58%), radial-gradient(ellipse 55% 45% at 78% 15%, oklch(0.62 0.18 305 / 0.28) 0%, transparent 52%), radial-gradient(ellipse 90% 40% at 50% 100%, oklch(0.45 0.12 165 / 0.35) 0%, transparent 55%)',
+                  'radial-gradient(ellipse 88% 58% at 18% 6%, oklch(0.38 0.11 195 / 0.72) 0%, transparent 52%), radial-gradient(ellipse 72% 52% at 88% 10%, oklch(0.42 0.14 305 / 0.55) 0%, transparent 50%), radial-gradient(ellipse 110% 48% at 48% 96%, oklch(0.34 0.1 165 / 0.65) 0%, transparent 58%), radial-gradient(ellipse 55% 40% at 52% 38%, oklch(0.28 0.08 175 / 0.35) 0%, transparent 70%)',
               }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25" />
+            <div
+              className="absolute inset-0 rounded-2xl"
+              style={{
+                background:
+                  'linear-gradient(180deg, oklch(0.22 0.06 155 / 0.22) 0%, transparent 42%, oklch(0.06 0.03 152 / 0.55) 100%)',
+              }}
+            />
           </div>
 
           <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-black/30 px-4 py-3 backdrop-blur-md">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[oklch(0.1_0.044_152/0.97)] px-4 py-3 backdrop-blur-sm">
               <span className="flex items-center gap-2 text-sm font-bold text-white">
                 <MessageCircle className="h-4 w-4 text-[#fcba03]" aria-hidden />
                 {activeRoom ? activeRoom.name : 'New Messages'}
@@ -256,7 +265,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             </div>
 
             {/* Messages */}
-            <div className="min-h-0 flex-1 overflow-y-auto bg-black/15">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.105_0.045_152/0.88)]">
               {activeRoom ? (
                 activeRoomNotifications.length > 0 ? (
                   <>
@@ -322,7 +331,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
             {/* Reply bar */}
             {activeRoom ? (
-              <form onSubmit={handleReply} className="flex gap-2 border-t border-white/10 bg-black/35 px-3 py-2 backdrop-blur-md">
+              <form onSubmit={handleReply} className="flex gap-2 border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] px-3 py-2 backdrop-blur-sm">
                 <input
                   ref={inputRef}
                   type="text"
@@ -330,7 +339,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   onChange={e => { setReplyText(e.target.value); setUserInteracting(true) }}
                   onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                   placeholder={`Reply in ${activeRoom.name}...`}
-                  className="flex-1 rounded-xl border border-white/20 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
+                  className="flex-1 rounded-xl border border-white/20 bg-[oklch(0.08_0.038_152/0.85)] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
                 />
                 <button
                   type="submit"
@@ -344,7 +353,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             ) : (
               <Link
                 href={chatListBase}
-                className="block border-t border-white/10 bg-black/30 py-2.5 text-center text-xs font-medium text-[#fcba03] backdrop-blur-md transition-colors hover:bg-white/10"
+                className="block border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] py-2.5 text-center text-xs font-medium text-[#fcba03] backdrop-blur-sm transition-colors hover:bg-[oklch(0.14_0.05_152/0.9)]"
               >
                 Open All Chats →
               </Link>
