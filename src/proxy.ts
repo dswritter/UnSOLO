@@ -38,6 +38,18 @@ export async function proxy(request: NextRequest) {
 
     const { pathname } = request.nextUrl
 
+    // Retired preview URLs → canonical auth (query string preserved on cloned URL)
+    if (pathname === '/login-v2' || pathname.startsWith('/login-v2/')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url, 308)
+    }
+    if (pathname === '/signup-v2' || pathname.startsWith('/signup-v2/')) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/signup'
+      return NextResponse.redirect(url, 308)
+    }
+
     const isPublic = PUBLIC_ROUTES.some(r => pathname.startsWith(r)) ||
       pathname.startsWith('/_next') ||
       pathname.startsWith('/favicon') ||
