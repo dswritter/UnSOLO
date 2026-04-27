@@ -2294,6 +2294,7 @@ function MessageBubble({
             roomId={roomId}
             messageId={message.id}
             initial={pollData}
+            viewerUserId={currentUserId}
             memberProfiles={memberProfiles}
           />
         </div>

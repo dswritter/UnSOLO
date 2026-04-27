@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { BarChart2, Loader2 } from 'lucide-react'
 import { castChatPollVote, getPollStateForMessage } from '@/actions/chat'
-import type { ChatPollState } from '@/lib/chat/getRoomPollsState'
+import { CHAT_POLL_MAX_VOTER_ICONS, type ChatPollState } from '@/lib/chat/getRoomPollsState'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
 
@@ -22,6 +22,42 @@ type PollMemberLite = {
 }
 
 const MAX_BAR_AVATARS = 5
+
+/** Instant UI: adjust counts and avatar stacks from previous vs next selection for this viewer. */
+function applyOptimisticPollVote(
+  prev: ChatPollState,
+  nextMyOptionIds: string[],
+  viewerUserId: string,
+): ChatPollState {
+  const prevSet = new Set(prev.myOptionIds)
+  const added = nextMyOptionIds.filter(id => !prevSet.has(id))
+  const removed = prev.myOptionIds.filter(id => !nextMyOptionIds.includes(id))
+
+  const options = prev.options.map(o => {
+    let voteCount = o.voteCount
+    let voterUserIds = [...(o.voterUserIds ?? [])]
+
+    if (removed.includes(o.id)) {
+      voteCount = Math.max(0, voteCount - 1)
+      voterUserIds = voterUserIds.filter(uid => uid !== viewerUserId)
+    }
+
+    if (added.includes(o.id)) {
+      if (!voterUserIds.includes(viewerUserId)) {
+        voteCount += 1
+        voterUserIds = [viewerUserId, ...voterUserIds].slice(0, CHAT_POLL_MAX_VOTER_ICONS)
+      }
+    }
+
+    return { ...o, voteCount, voterUserIds }
+  })
+
+  return {
+    ...prev,
+    options,
+    myOptionIds: [...nextMyOptionIds],
+  }
+}
 
 function OptionVoterStack({ userIds, members, extraCount }: { userIds: string[]; members: PollMemberLite[]; extraCount: number }) {
   const shown = userIds.slice(0, MAX_BAR_AVATARS)
@@ -60,17 +96,19 @@ export function ChatPollCard({
   roomId,
   messageId,
   initial,
+  viewerUserId,
   memberProfiles = [],
 }: {
   roomId: string
   messageId: string
   initial: ChatPollState | null
+  viewerUserId: string
   memberProfiles?: PollMemberLite[]
 }) {
   const router = useRouter()
   const [state, setState] = useState<ChatPollState | null>(initial)
   const [loading, setLoading] = useState(false)
-  const [toggling, setToggling] = useState(false)
+  const voteRequestSeq = useRef(0)
 
   const load = useCallback(async () => {
     if (initial) {
@@ -109,34 +147,46 @@ export function ChatPollCard({
   const totalVotes = state.options.reduce((s, o) => s + o.voteCount, 0)
   const ended = state.endsAt ? new Date(state.endsAt) < new Date() : false
 
-  async function onPick(optionId: string) {
+  function onPick(optionId: string) {
     const s = state
     if (!s) return
     if (ended) {
       toast.error('This poll has ended')
       return
     }
-    if (toggling) return
-    setToggling(true)
-    try {
-      let next: string[]
-      if (s.allowMultiple) {
-        const has = s.myOptionIds.includes(optionId)
-        next = has ? s.myOptionIds.filter(id => id !== optionId) : [...s.myOptionIds, optionId]
-      } else {
-        next = s.myOptionIds[0] === optionId ? [] : [optionId]
-      }
-      const r = await castChatPollVote(roomId, s.pollId, next)
-      if (r.error) {
-        toast.error(r.error)
-        return
-      }
-      const r2 = await getPollStateForMessage(messageId)
-      if (r2.state) setState(r2.state)
-      router.refresh()
-    } finally {
-      setToggling(false)
+
+    let next: string[]
+    if (s.allowMultiple) {
+      const has = s.myOptionIds.includes(optionId)
+      next = has ? s.myOptionIds.filter(id => id !== optionId) : [...s.myOptionIds, optionId]
+    } else {
+      next = s.myOptionIds[0] === optionId ? [] : [optionId]
     }
+
+    const previous = s
+    const optimistic = applyOptimisticPollVote(s, next, viewerUserId)
+    setState(optimistic)
+
+    const seq = ++voteRequestSeq.current
+    void (async () => {
+      try {
+        const r = await castChatPollVote(roomId, s.pollId, next)
+        if (voteRequestSeq.current !== seq) return
+        if (r.error) {
+          setState(previous)
+          toast.error(r.error)
+          return
+        }
+        const r2 = await getPollStateForMessage(messageId)
+        if (voteRequestSeq.current !== seq) return
+        if (r2.state) setState(r2.state)
+        router.refresh()
+      } catch {
+        if (voteRequestSeq.current !== seq) return
+        setState(previous)
+        toast.error('Could not save your vote')
+      }
+    })()
   }
 
   return (
@@ -161,8 +211,8 @@ export function ChatPollCard({
             <button
               key={o.id}
               type="button"
-              disabled={toggling || ended}
-              onClick={() => void onPick(o.id)}
+              disabled={ended}
+              onClick={() => onPick(o.id)}
               className={`relative w-full text-left rounded-lg overflow-hidden border transition-colors ${
                 selected
                   ? 'border-primary bg-primary/10'
