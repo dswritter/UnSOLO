@@ -47,7 +47,7 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   const initialTab = tab ? TAB_INDEX[tab] : undefined
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-black mb-2">
             Edit <span className="text-primary">{listing.title}</span>

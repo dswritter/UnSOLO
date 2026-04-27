@@ -70,7 +70,7 @@ export function HostServiceListingPreviewClient() {
           Close preview
         </button>
       </div>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
+      <div className="mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6">
         <ListingDetailClient listing={listing} items={items} host={null} />
       </div>
     </div>

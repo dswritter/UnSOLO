@@ -25,6 +25,11 @@ export function FooterWrapper() {
     return null
   }
 
+  // Host dashboard, verify, create listing, payout, etc. — match immersive host shell
+  if (pathname?.startsWith('/host')) {
+    return null
+  }
+
   return (
     <footer
       className={cn(
