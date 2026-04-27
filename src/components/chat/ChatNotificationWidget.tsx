@@ -194,7 +194,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 pointer-events-none">
+    <div className="fixed bottom-20 right-6 z-50 pointer-events-none md:bottom-6">
       {minimized || notifications.length === 0 ? (
         <button
           onClick={() => notifications.length > 0 ? setMinimized(false) : (window.location.href = chatListBase)}
