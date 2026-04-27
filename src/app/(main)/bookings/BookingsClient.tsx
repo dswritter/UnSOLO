@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus, Loader2 } from 'lucide-react'
 import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
 import {
   tripEndDateIsoForBooking,
@@ -24,6 +24,7 @@ import {
   createBookingBalanceOrder,
   createCommunityTripOrder,
   confirmPayment,
+  dismissServiceBookingFromMyTrips,
 } from '@/actions/booking'
 import { withdrawJoinRequest } from '@/actions/hosting'
 import { isTokenDepositEnabled } from '@/lib/join-preferences'
@@ -113,6 +114,7 @@ export function BookingsClient({
   const [ratingBookingId, setRatingBookingId] = useState<string | null>(null)
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
+  const [dismissingServiceId, setDismissingServiceId] = useState<string | null>(null)
   const router = useRouter()
 
   // Filter state
@@ -175,6 +177,18 @@ export function BookingsClient({
     setRatingExp(0)
     setReviewTitle('')
     setReviewBody('')
+  }
+
+  async function handleDismissServiceBooking(bookingId: string) {
+    setDismissingServiceId(bookingId)
+    const res = await dismissServiceBookingFromMyTrips(bookingId)
+    setDismissingServiceId(null)
+    if (res && 'error' in res && res.error) {
+      toast.error(res.error)
+      return
+    }
+    toast.success('Removed from My Trips')
+    router.refresh()
   }
 
   async function handleSubmitReview(booking: Booking) {
@@ -501,9 +515,29 @@ export function BookingsClient({
                             <h3 className="font-bold text-lg leading-tight">{listing?.title}</h3>
                             <p className="text-sm text-muted-foreground">{listing?.location}</p>
                           </div>
-                          <Badge className={STATUS_COLORS[booking.status] || STATUS_COLORS.pending}>
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                          </Badge>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge className={STATUS_COLORS[booking.status] || STATUS_COLORS.pending}>
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </Badge>
+                            {(booking.status === 'pending' || booking.status === 'cancelled') && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground border border-transparent hover:border-border hover:bg-muted"
+                                disabled={dismissingServiceId === booking.id}
+                                title="Remove from My Trips"
+                                aria-label="Remove from My Trips"
+                                onClick={() => handleDismissServiceBooking(booking.id)}
+                              >
+                                {dismissingServiceId === booking.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <X className="h-3.5 w-3.5" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
                           <span className="flex items-center gap-1">

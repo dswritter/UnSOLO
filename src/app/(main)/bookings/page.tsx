@@ -62,6 +62,7 @@ export default async function BookingsPage() {
     .from('bookings')
     .select('*, package:packages(*, destination:destinations(*)), service_listings(*)')
     .eq('user_id', user.id)
+    .is('user_dismissed_at', null)
     .order('created_at', { ascending: false })
 
   // Check which bookings already have reviews

@@ -199,6 +199,8 @@ export type Booking = {
   confirmation_email_sent_at?: string | null
   created_at: string
   updated_at: string
+  /** Traveler hid this row on /bookings (service listings). */
+  user_dismissed_at?: string | null
   package?: Package
   service_listing?: ServiceListing
   user?: Profile

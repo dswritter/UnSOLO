@@ -1432,6 +1432,51 @@ export async function cancelPendingBooking(bookingId: string, reason?: string) {
   return { success: true as const }
 }
 
+/** Hide a service booking from My Trips after abandoning checkout, or clear a cancelled row. Cancels unpaid rows first. */
+export async function dismissServiceBookingFromMyTrips(bookingId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: row } = await supabase
+    .from('bookings')
+    .select('id, status, booking_type')
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!row) return { error: 'Booking not found' }
+  if (row.booking_type !== 'service') {
+    return { error: 'Only service bookings can be removed this way' }
+  }
+  if (row.status !== 'pending' && row.status !== 'cancelled') {
+    return { error: 'This booking can’t be removed from your list' }
+  }
+
+  if (row.status === 'pending') {
+    const cancel = await cancelPendingBooking(
+      bookingId,
+      'Removed from My Trips after payment was not completed',
+    )
+    if (cancel && 'error' in cancel && cancel.error) {
+      return cancel
+    }
+  }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      user_dismissed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/bookings')
+  return { success: true as const }
+}
+
 // ── Cancellation Request ────────────────────────────────────
 export async function requestCancellation(bookingId: string, reason: string) {
   const supabase = await createClient()
