@@ -377,48 +377,41 @@ export function ChatSidebar({
   }, [search, rooms])
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col ${className}`} role="region" aria-label="Your conversations">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div>
-            <h2 className="text-lg font-black">
-              <span className="text-primary">Tribe</span>
-            </h2>
-            <p className="text-[11px] text-muted-foreground leading-snug mt-1 max-w-[260px]">
-              Connect, chat and plan your next adventure with solo travelers.
-            </p>
-          </div>
-          <SoundSettingsButton />
-        </div>
-
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search people and chats"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:border-primary"
+            aria-label="Search people and chats"
           />
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1.5">
-          {(['all', 'direct', 'trip', 'general'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                filter === f
-                  ? 'bg-primary text-black'
-                  : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-              }`}
-            >
-              {f === 'all' ? 'All' : f === 'direct' ? 'DMs' : f === 'trip' ? 'Trips' : 'Community'}
-            </button>
-          ))}
+        {/* Filter tabs + sound */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5 min-w-0">
+            {(['all', 'direct', 'trip', 'general'] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  filter === f
+                    ? 'bg-primary text-black'
+                    : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'direct' ? 'DMs' : f === 'trip' ? 'Trips' : 'Community'}
+              </button>
+            ))}
+          </div>
+          <SoundSettingsButton />
         </div>
       </div>
 

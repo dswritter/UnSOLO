@@ -31,24 +31,25 @@ export default async function ProfilePage({
 }) {
   const { username } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('username', username)
-    .single()
+  const [authRes, profileRes, sharePosterRes] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('profiles').select('*').eq('username', username).single(),
+    supabase
+      .from('platform_settings')
+      .select('key, value')
+      .in('key', [
+        'share_poster_footer_tagline',
+        'share_poster_share_title',
+        'share_poster_share_text',
+      ]),
+  ])
 
-  if (!profile) notFound()
+  const user = authRes.data.user
+  const profile = profileRes.data
+  if (profileRes.error || !profile) notFound()
 
-  const { data: sharePosterRows } = await supabase
-    .from('platform_settings')
-    .select('key, value')
-    .in('key', [
-      'share_poster_footer_tagline',
-      'share_poster_share_title',
-      'share_poster_share_text',
-    ])
+  const sharePosterRows = sharePosterRes.data
   const sharePosterByKey = Object.fromEntries(
     (sharePosterRows ?? []).map((r) => [r.key, r.value ?? ''])
   )
@@ -64,20 +65,7 @@ export default async function ProfilePage({
 
   const isOwnProfile = user?.id === profile.id
 
-  const statusStoriesVisible = user ? await getStatusStoriesForProfile(profile.id) : []
-  const profileHasActiveStatus = statusStoriesVisible.length > 0
-
-  // Get stats
-  const [
-    { count: tripsCount },
-    { data: achievements },
-    { data: leaderboardScore },
-    { data: reviews },
-    { data: completedBookings },
-    { data: confirmedBookings },
-    { data: serviceListings },
-    { data: packages },
-  ] = await Promise.all([
+  const statsBundlePromise = Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true })
       .eq('user_id', profile.id).in('status', ['confirmed', 'completed']),
     supabase.from('user_achievements').select('*').eq('user_id', profile.id),
@@ -89,31 +77,63 @@ export default async function ProfilePage({
     supabase.from('packages').select('id, title, slug, destination:destinations(name, state)').eq('host_id', profile.id).eq('is_active', true).limit(6),
   ])
 
+  const [statusStoriesVisible, statsBundle, followData] = await Promise.all([
+    getStatusStoriesForProfile(profile.id),
+    statsBundlePromise,
+    getFollowData(profile.id),
+  ])
+
+  const profileHasActiveStatus = statusStoriesVisible.length > 0
+
+  const [
+    { count: tripsCount },
+    { data: achievements },
+    { data: leaderboardScore },
+    { data: reviews },
+    { data: completedBookings },
+    { data: confirmedBookings },
+    { data: serviceListings },
+    { data: packages },
+  ] = statsBundle
+
   const earnedKeys = new Set(achievements?.map((a) => a.achievement_key) || [])
 
-  // Get follow data
-  const followData = await getFollowData(profile.id)
+  const leaderboardScoreNum = leaderboardScore?.total_score
 
-  // Check if this profile follows the current user (for "follows you" prompt)
-  let followsYou = false
-  if (user && !isOwnProfile) {
-    const { data: reverseFollow } = await supabase
-      .from('follows')
-      .select('id')
-      .eq('follower_id', profile.id)
-      .eq('following_id', user.id)
-      .single()
-    followsYou = !!reverseFollow
-  }
+  const [reverseFollowRes, myBookingsRes, phoneReqRes, leaderboardRank] = await Promise.all([
+    user && !isOwnProfile
+      ? supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', profile.id)
+          .eq('following_id', user.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    user && !isOwnProfile
+      ? supabase
+          .from('bookings')
+          .select('package:packages(destination:destinations(name, state))')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+      : Promise.resolve({ data: null }),
+    !isOwnProfile && profile.phone_number && user && profile.phone_public !== true
+      ? supabase
+          .from('phone_requests')
+          .select('status')
+          .eq('requester_id', user.id)
+          .eq('target_id', profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    typeof leaderboardScoreNum === 'number'
+      ? getLeaderboardRankByScore(supabase, leaderboardScoreNum)
+      : Promise.resolve(null),
+  ])
 
-  // Mutual destinations
+  const followsYou = Boolean(reverseFollowRes.data)
+
   let mutualDestinations: string[] = []
   if (user && !isOwnProfile) {
-    const { data: myBookings } = await supabase
-      .from('bookings')
-      .select('package:packages(destination:destinations(name, state))')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
+    const myBookings = myBookingsRes.data
     const myDestKeys = new Set(
       (myBookings || []).map(b => {
         const dest = (b.package as { destination?: { name: string; state: string } } | null)?.destination
@@ -127,7 +147,6 @@ export default async function ProfilePage({
     mutualDestinations = [...new Set(theirDestKeys.filter(d => myDestKeys.has(d)))]
   }
 
-  // Get phone visibility for other profiles
   let phoneVisible = false
   let phoneNumber: string | null = profile.phone_number || null
   let phoneRequestStatus: string | null = null
@@ -135,13 +154,7 @@ export default async function ProfilePage({
     if (profile.phone_public === true) {
       phoneVisible = true
     } else if (user) {
-      // Check if there's an approved phone request
-      const { data: req } = await supabase
-        .from('phone_requests')
-        .select('status')
-        .eq('requester_id', user.id)
-        .eq('target_id', profile.id)
-        .single()
+      const req = phoneReqRes.data as { status?: string } | null
       phoneRequestStatus = req?.status || null
       phoneVisible = req?.status === 'approved'
     }
@@ -173,12 +186,6 @@ export default async function ProfilePage({
     const dest = (b.package as { destination?: { state: string } } | null)?.destination
     if (dest?.state) uniqueStates.add(dest.state)
   })
-
-  const leaderboardScoreNum = leaderboardScore?.total_score
-  const leaderboardRank =
-    typeof leaderboardScoreNum === 'number'
-      ? await getLeaderboardRankByScore(supabase, leaderboardScoreNum)
-      : null
 
   const statItems = [
     { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },

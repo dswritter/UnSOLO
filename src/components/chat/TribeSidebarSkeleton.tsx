@@ -23,21 +23,16 @@ export function TribeSidebarSkeleton({
         className,
       )}
     >
-      {/* Header — px-4 py-3 border-b like ChatSidebar */}
+      {/* Header — search + filters row + sound (matches ChatSidebar) */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <div className="space-y-2">
-            <div className="h-5 w-24 rounded bg-white/10 animate-pulse" />
-            <div className="h-3 w-[220px] max-w-full rounded bg-white/5 animate-pulse" />
-            <div className="h-3 w-[180px] max-w-full rounded bg-white/5 animate-pulse" />
+        <div className="relative mb-3 h-9 w-full rounded-lg bg-white/5 animate-pulse" />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-7 w-14 rounded-full bg-white/5 animate-pulse" />
+            ))}
           </div>
           <div className="h-8 w-8 rounded-md bg-white/5 animate-pulse shrink-0" />
-        </div>
-        <div className="relative mb-3 h-9 w-full rounded-lg bg-white/5 animate-pulse" />
-        <div className="flex gap-1.5">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-7 w-14 rounded-full bg-white/5 animate-pulse" />
-          ))}
         </div>
       </div>
 
