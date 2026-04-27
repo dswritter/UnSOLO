@@ -336,22 +336,81 @@
 .tribe-messaging-ui {
   --muted-foreground: oklch(0.99 0.004 90);
 }
+/* Tribe transcript — northern-lights style glow (greens / teals on deep night) */
 .tribe-chat-scroll-pattern {
   position: relative;
-  background-color: oklch(0.1 0.038 152);
+  isolation: isolate;
+  /* Polar night base */
+  background-color: oklch(0.065 0.045 210);
   background-image:
-    radial-gradient(ellipse 90% 70% at 0% 0%, oklch(0.48 0.11 150 / 0.2) 0%, transparent 58%),
-    radial-gradient(ellipse 75% 60% at 100% 100%, oklch(0.4 0.1 155 / 0.16) 0%, transparent 55%),
-    radial-gradient(ellipse 45% 35% at 50% 45%, white / 0.06) 0%, transparent 65%),
-    linear-gradient(168deg, oklch(0.13 0.042 152 / 0.96) 0%, oklch(0.09 0.034 150 / 0.98) 100%),
-    repeating-linear-gradient(
-      122deg,
-      transparent 0,
-      transparent 10px,
-      oklch(0.55 0.08 150 / 0.05) 10px,
-      oklch(0.55 0.08 150 / 0.05) 11px
-    );
-  background-blend-mode: screen, screen, soft-light, normal, normal;
+    /* Distant teal haze */
+    radial-gradient(ellipse 140% 80% at 50% 120%, oklch(0.22 0.08 195 / 0.55) 0%, transparent 55%),
+    /* Aurora curtain — left */
+    radial-gradient(ellipse 55% 120% at 5% 30%, oklch(0.58 0.19 155 / 0.35) 0%, oklch(0.42 0.14 165 / 0.12) 38%, transparent 62%),
+    /* Aurora curtain — center sweep */
+    radial-gradient(ellipse 70% 100% at 48% 25%, oklch(0.52 0.17 170 / 0.28) 0%, oklch(0.35 0.1 180 / 0.08) 45%, transparent 68%),
+    /* Aurora curtain — right */
+    radial-gradient(ellipse 50% 95% at 92% 45%, oklch(0.48 0.16 175 / 0.3) 0%, oklch(0.32 0.09 195 / 0.1) 40%, transparent 58%),
+    /* Soft horizon band */
+    linear-gradient(
+      175deg,
+      oklch(0.08 0.05 200 / 0.92) 0%,
+      oklch(0.07 0.048 195 / 0.88) 38%,
+      oklch(0.06 0.042 205 / 0.95) 100%
+    ),
+    /* Subtle star dust */
+    radial-gradient(circle 2px at 11% 16%, oklch(0.92 0.03 165 / 0.45) 50%, transparent 50%),
+    radial-gradient(circle 1.5px at 79% 14%, oklch(0.95 0.02 175 / 0.35) 50%, transparent 50%),
+    radial-gradient(circle 2px at 63% 74%, oklch(0.88 0.04 155 / 0.3) 50%, transparent 50%),
+    radial-gradient(circle 1.5px at 31% 52%, oklch(0.9 0.02 170 / 0.28) 50%, transparent 50%);
+  background-blend-mode: screen, screen, screen, screen, normal, screen, screen, screen, screen;
+}
+
+.tribe-chat-scroll-pattern::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 85% 45% at 25% 55%, oklch(0.65 0.2 158 / 0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 75% 50% at 75% 35%, oklch(0.55 0.16 175 / 0.16) 0%, transparent 48%),
+    linear-gradient(105deg, transparent 20%, oklch(0.45 0.12 168 / 0.12) 48%, transparent 78%);
+  background-blend-mode: screen, screen, screen;
+  animation: tribe-aurora-pulse 22s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+.tribe-chat-scroll-pattern > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes tribe-aurora-pulse {
+  0% {
+    opacity: 0.65;
+    transform: translate3d(-2%, 1%, 0) scale(1.02);
+  }
+  35% {
+    opacity: 0.95;
+    transform: translate3d(1.5%, -0.5%, 0) scale(1.04);
+  }
+  70% {
+    opacity: 0.78;
+    transform: translate3d(2.5%, 2%, 0) scale(1.01);
+  }
+  100% {
+    opacity: 0.88;
+    transform: translate3d(-1%, -1.5%, 0) scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tribe-chat-scroll-pattern::before {
+    animation: none;
+    opacity: 0.82;
+    transform: none;
+  }
 }
 
 @layer base {
