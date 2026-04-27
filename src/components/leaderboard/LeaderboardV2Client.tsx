@@ -146,7 +146,13 @@ export function LeaderboardV2Client({
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search by name, @username, or place…"
-                    className="h-11 w-full min-w-0 rounded-xl border border-white/10 bg-zinc-950/80 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/35 shadow-inner outline-none transition focus:border-[#fcba03]/40 focus:ring-2 focus:ring-[#fcba03]/20"
+                    className={cn(
+                      'h-11 w-full min-w-0 rounded-xl border border-white/10 bg-zinc-950/80 py-2.5 pl-10 pr-4 text-sm shadow-inner outline-none transition',
+                      'text-white !text-white placeholder:text-white/40 caret-white',
+                      // Safari / webkit: typed value must not use default dark on dark bg
+                      '[&:-webkit-autofill]:!text-white [&:-webkit-autofill]:!shadow-[0_0_0_1000px_rgb(9_9_11_/_0.85)_inset]',
+                      'focus:border-[#fcba03]/40 focus:ring-2 focus:ring-[#fcba03]/20',
+                    )}
                     autoComplete="off"
                     autoCapitalize="off"
                     spellCheck={false}
@@ -340,23 +346,23 @@ export function LeaderboardV2Client({
             )}
           >
             <div className="wander-theme w-full shrink-0 text-foreground">
-              <div className="wander-frost-panel sm:p-5">
-                <p className="text-sm font-bold text-white">How it works</p>
-                <p className="mt-1 text-xs leading-relaxed text-white/70">
+              <div className="wander-frost-panel !p-3 !sm:px-4 !sm:py-3">
+                <p className="text-sm font-bold leading-tight text-white">How it works</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-white/70 sm:text-xs">
                   Earn points by sharing your journeys and helping the community.
                 </p>
-                <div className="mt-4 grid grid-cols-1 gap-3 border-t border-white/15 pt-4 sm:grid-cols-3 sm:gap-3 md:gap-4 sm:pt-4">
-                  <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
-                    <Luggage className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs font-semibold leading-snug text-white">25 pts / successful booking</p>
+                <div className="mt-2 grid grid-cols-1 gap-2 border-t border-white/10 pt-2.5 sm:grid-cols-3 sm:gap-2 sm:pt-2.5">
+                  <div className="flex min-w-0 flex-col items-start gap-0.5">
+                    <Luggage className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <p className="text-[11px] font-semibold leading-tight text-white sm:text-xs">25 pts / successful booking</p>
                   </div>
-                  <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
-                    <MapPin className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs font-semibold leading-snug text-white">15 pts / new destination</p>
+                  <div className="flex min-w-0 flex-col items-start gap-0.5">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <p className="text-[11px] font-semibold leading-tight text-white sm:text-xs">15 pts / new destination</p>
                   </div>
-                  <div className="flex flex-col items-start gap-1.5 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5 sm:min-w-0">
-                    <Star className="h-4 w-4 shrink-0" style={{ color: GOLD }} />
-                    <p className="text-xs font-semibold leading-snug text-white">10 pts / review</p>
+                  <div className="flex min-w-0 flex-col items-start gap-0.5">
+                    <Star className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <p className="text-[11px] font-semibold leading-tight text-white sm:text-xs">10 pts / review</p>
                   </div>
                 </div>
               </div>
