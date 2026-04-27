@@ -1017,7 +1017,7 @@ export function HostTripForm({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[100dvh] w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -1026,7 +1026,7 @@ export function HostTripForm({
   const selectedDest = destinations.find(d => d.id === destinationId)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] w-full">
       <ImageUploadOverlay
         open={uploading}
         message="Uploading images…"

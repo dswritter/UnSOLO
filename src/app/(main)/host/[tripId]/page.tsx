@@ -4,6 +4,9 @@ import { checkIsHost, getHostTripDetail, getJoinRequestsForTrip } from '@/action
 import { formatPrice, formatDate } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { HostModerationBadge } from '@/components/host/HostModerationBadge'
+import { hostHiddenStatusClass } from '@/components/host/hostBadgeStyles'
+import { cn } from '@/lib/utils'
 import {
   ArrowLeft,
   MapPin,
@@ -47,22 +50,8 @@ export default async function ManageTripPage({
   const pendingRequests = (requests || []).filter((r: { status: string }) => r.status === 'pending')
   const otherRequests = (requests || []).filter((r: { status: string }) => r.status !== 'pending')
 
-  function ModerationBadge({ status }: { status: string }) {
-    switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-900/50 text-green-300 border border-green-700 text-xs">Approved</Badge>
-      case 'pending':
-        return <Badge className="bg-yellow-900/50 text-yellow-300 border border-yellow-700 text-xs">Pending Review</Badge>
-      case 'rejected':
-        return <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">Rejected</Badge>
-      default:
-        return <Badge className="bg-zinc-700 text-zinc-200 text-xs">{status}</Badge>
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10">
         {/* Back button */}
         <Button asChild variant="ghost" size="sm" className="text-muted-foreground mb-4 gap-1.5">
           <Link href="/host">
@@ -85,9 +74,9 @@ export default async function ManageTripPage({
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 <h1 className="text-2xl font-black">{trip.title}</h1>
-                <ModerationBadge status={trip.moderation_status || 'pending'} />
+                <HostModerationBadge status={trip.moderation_status || 'pending'} />
                 {!trip.is_active && (
-                  <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">
+                  <Badge className={cn('text-xs font-medium', hostHiddenStatusClass())}>
                     Inactive
                   </Badge>
                 )}
@@ -169,7 +158,6 @@ export default async function ManageTripPage({
           pendingRequests={pendingRequests}
           otherRequests={otherRequests}
         />
-      </div>
     </div>
   )
 }

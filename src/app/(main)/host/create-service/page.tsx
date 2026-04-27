@@ -56,8 +56,7 @@ export default async function CreateServiceListingPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-black mb-2">
@@ -78,7 +77,6 @@ export default async function CreateServiceListingPage({
           destinations={destinations}
           userId={user.id}
         />
-      </div>
     </div>
   )
 }

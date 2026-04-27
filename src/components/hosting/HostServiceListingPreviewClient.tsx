@@ -37,7 +37,7 @@ export function HostServiceListingPreviewClient() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] w-full flex items-center justify-center px-4">
         <div className="max-w-md text-center space-y-3">
           <p className="text-sm text-muted-foreground">{loadError}</p>
           <Link href="/host" className="text-sm text-primary underline">Back to Host dashboard</Link>
@@ -48,7 +48,7 @@ export function HostServiceListingPreviewClient() {
 
   if (!payload) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[100dvh] w-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -57,15 +57,15 @@ export function HostServiceListingPreviewClient() {
   const { listing, items } = buildPreviewShape(payload)
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-2 flex items-center justify-between">
-        <span className="text-sm text-amber-700 font-medium">
+    <div className="min-h-[100dvh] w-full">
+      <div className="bg-amber-500/12 border-b border-amber-500/35 px-4 py-2 flex items-center justify-between dark:bg-amber-500/10">
+        <span className="text-sm text-amber-900 dark:text-amber-100 font-medium">
           Host preview — unsaved changes shown. Travelers will not see this until admin approval.
         </span>
         <button
           type="button"
           onClick={() => window.close()}
-          className="text-sm text-amber-700 underline hover:text-amber-900"
+          className="text-sm text-amber-900 dark:text-amber-200 underline hover:text-foreground"
         >
           Close preview
         </button>

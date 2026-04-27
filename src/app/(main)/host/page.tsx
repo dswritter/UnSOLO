@@ -4,8 +4,10 @@ import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/
 import { getPayoutDetails } from '@/actions/payout'
 import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { HostModerationBadge } from '@/components/host/HostModerationBadge'
+import { hostHiddenStatusClass } from '@/components/host/hostBadgeStyles'
+import { cn } from '@/lib/utils'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
@@ -22,19 +24,6 @@ import {
   Wallet,
   AlertTriangle,
 } from 'lucide-react'
-
-function ModerationBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'approved':
-      return <Badge className="bg-green-900/50 text-green-300 border border-green-700 text-xs">Approved</Badge>
-    case 'pending':
-      return <Badge className="bg-yellow-900/50 text-yellow-300 border border-yellow-700 text-xs">Pending Review</Badge>
-    case 'rejected':
-      return <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">Rejected</Badge>
-    default:
-      return <Badge className="bg-zinc-700 text-zinc-200 text-xs">{status}</Badge>
-  }
-}
 
 export default async function HostDashboardPage() {
   const hostStatus = await checkIsHost()
@@ -80,8 +69,7 @@ export default async function HostDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
@@ -104,10 +92,10 @@ export default async function HostDashboardPage() {
         </div>
 
         {!payoutConfigured && (
-          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3 dark:bg-amber-500/10">
+            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Add your payout details</p>
+              <p className="font-semibold text-sm text-foreground">Add your payout details</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 You need a UPI ID or bank account on file before you can publish new listings and receive earnings.
               </p>
@@ -142,18 +130,23 @@ export default async function HostDashboardPage() {
               {serviceListings.map(listing => (
                 <div
                   key={listing.id}
-                  className={`rounded-xl border bg-card p-4 transition-opacity ${
-                    listing.is_active === false
-                      ? 'border-red-900/30 opacity-70'
-                      : 'border-border'
-                  }`}
+                  className={cn(
+                    'rounded-xl border bg-card p-4 transition-opacity',
+                    listing.is_active === false && 'border-destructive/30 opacity-80',
+                    listing.is_active !== false && 'border-border',
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <h3 className="font-semibold truncate">{listing.title}</h3>
                         {listing.is_active === false && (
-                          <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-300">
+                          <span
+                            className={cn(
+                              'flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border font-medium',
+                              hostHiddenStatusClass(),
+                            )}
+                          >
                             Hidden
                           </span>
                         )}
@@ -167,7 +160,7 @@ export default async function HostDashboardPage() {
                         listingId={listing.id}
                         isActive={listing.is_active !== false}
                       />
-                      <ModerationBadge status={listing.status} />
+                      <HostModerationBadge status={listing.status} />
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -193,6 +186,5 @@ export default async function HostDashboardPage() {
           </section>
         )}
       </div>
-    </div>
   )
 }

@@ -163,7 +163,7 @@ export default function HostVerifyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-[100dvh] flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -171,11 +171,10 @@ export default function HostVerifyPage() {
 
   if (isHost) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-lg px-4 py-16">
+      <div className="mx-auto max-w-lg px-4 py-16">
           <div className="text-center mb-8">
-            <div className="h-20 w-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
-              <Shield className="h-10 w-10 text-green-500" />
+            <div className="h-20 w-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-6">
+              <Shield className="h-10 w-10 text-emerald-700 dark:text-emerald-400" />
             </div>
             <h1 className="text-3xl font-black mb-2">You&apos;re a Verified Host!</h1>
             <p className="text-muted-foreground">
@@ -186,9 +185,9 @@ export default function HostVerifyPage() {
           </div>
 
           {payout && (
-            <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35'}`}>
+            <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35'}`}>
               <div className="flex items-center gap-3 mb-4">
-                {payoutSaved ? <CheckCircle className="h-6 w-6 text-green-500" /> : <Wallet className="h-6 w-6 text-primary" />}
+                {payoutSaved ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" /> : <Wallet className="h-6 w-6 text-primary" />}
                 <div>
                   <h3 className="font-bold">Payout Details</h3>
                   <p className="text-xs text-muted-foreground">
@@ -213,14 +212,12 @@ export default function HostVerifyPage() {
               Host Dashboard
             </Button>
           </div>
-        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-lg px-4 py-16">
+    <div className="mx-auto max-w-lg px-4 py-16">
         <div className="text-center mb-10">
           <h1 className="text-3xl font-black">Become a <span className="text-primary">Host</span></h1>
           <p className="text-muted-foreground mt-2">
@@ -230,10 +227,10 @@ export default function HostVerifyPage() {
 
         <div className="space-y-6">
           {/* Email Verification */}
-          <div className={`p-5 rounded-xl border ${emailVerified ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card'}`}>
+          <div className={`p-5 rounded-xl border ${emailVerified ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-border bg-card'}`}>
             <div className="flex items-center gap-3 mb-3">
               {emailVerified ? (
-                <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
+                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
               ) : (
                 <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
               )}
@@ -257,7 +254,7 @@ export default function HostVerifyPage() {
           <div
             className={cn(
               'p-5 rounded-xl border transition-all duration-300',
-              phoneVerified && 'border-green-500/30 bg-green-500/5',
+              phoneVerified && 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10',
               !phoneVerified &&
                 emailVerified &&
                 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
@@ -266,7 +263,7 @@ export default function HostVerifyPage() {
           >
             <div className="flex items-start gap-3 mb-3">
               {phoneVerified ? (
-                <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
               ) : (
                 <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />
               )}
@@ -377,10 +374,10 @@ export default function HostVerifyPage() {
 
           {/* Payout Details — shown after both verifications */}
           {emailVerified && phoneVerified && payout && (
-            <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-green-500/30 bg-green-500/5' : 'border-primary/30 bg-primary/5'}`}>
+            <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/30 bg-primary/5'}`}>
               <div className="flex items-center gap-3 mb-4">
                 {payoutSaved ? (
-                  <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
+                  <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                 ) : (
                   <Wallet className="h-6 w-6 text-primary flex-shrink-0" />
                 )}
@@ -398,7 +395,7 @@ export default function HostVerifyPage() {
           {/* Status summary */}
           <div className="text-center text-sm text-muted-foreground pt-4">
             {emailVerified && phoneVerified && payoutSaved ? (
-              <p className="text-green-400 font-medium">All set! You&apos;re ready to host.</p>
+              <p className="text-emerald-800 dark:text-emerald-300 font-medium">All set! You&apos;re ready to host.</p>
             ) : emailVerified && phoneVerified ? (
               <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
             ) : (
@@ -406,7 +403,6 @@ export default function HostVerifyPage() {
             )}
           </div>
         </div>
-      </div>
     </div>
   )
 }

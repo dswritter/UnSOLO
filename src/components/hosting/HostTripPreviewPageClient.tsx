@@ -126,10 +126,10 @@ export function HostTripPreviewPageClient() {
   const maxGroup = parseInt(data.maxGroupSize, 10) || 12
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-amber-500/25 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-100">
+    <div className="min-h-[100dvh] w-full">
+      <div className="border-b border-amber-500/30 bg-amber-500/12 px-4 py-3 text-center text-sm text-amber-950 dark:text-amber-50 dark:bg-amber-500/10">
         <span className="font-medium">Trip preview</span>
-        <span className="text-amber-200/90"> — how your listing can look to travelers (booking disabled).</span>
+        <span className="text-amber-900/90 dark:text-amber-200/95"> — how your listing can look to travelers (booking disabled).</span>
         {data.livePackageSlug ? (
           <span className="mt-1 block text-xs text-muted-foreground">
             <Link

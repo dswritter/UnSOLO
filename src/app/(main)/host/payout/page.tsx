@@ -22,8 +22,7 @@ export default async function PayoutDetailsPage({
   const backHref = returnTo && returnTo.startsWith('/') ? returnTo : '/host'
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-lg px-4 py-10">
+    <div className="mx-auto max-w-lg px-4 py-10">
         <Link href={backHref} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -63,7 +62,6 @@ export default async function PayoutDetailsPage({
             <Link href={backHref}>Done</Link>
           </Button>
         </div>
-      </div>
     </div>
   )
 }

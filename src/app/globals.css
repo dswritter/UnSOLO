@@ -472,3 +472,17 @@
   transform-origin: left center;
   will-change: transform;
 }
+
+/**
+ * /host/* layout shell: subtle primary wash on theme background (light + .dark).
+ */
+.host-app {
+  min-height: 100dvh;
+  background-color: var(--background);
+  background-image: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--primary) 7%, transparent) 0%,
+    transparent 45%,
+    color-mix(in srgb, var(--primary) 3%, transparent) 100%
+  );
+}

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { hostModerationBadgeClass } from '@/components/host/hostBadgeStyles'
 import {
   Check,
   X,
@@ -49,27 +51,28 @@ interface Props {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const base = 'text-xs gap-1 border font-medium'
   switch (status) {
     case 'approved':
       return (
-        <Badge className="bg-green-900/50 text-green-300 border border-green-700 text-xs gap-1">
+        <Badge className={cn(base, hostModerationBadgeClass('approved'))}>
           <UserCheck className="h-3 w-3" /> Approved
         </Badge>
       )
     case 'rejected':
       return (
-        <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs gap-1">
+        <Badge className={cn(base, hostModerationBadgeClass('rejected'))}>
           <UserX className="h-3 w-3" /> Rejected
         </Badge>
       )
     case 'pending':
       return (
-        <Badge className="bg-yellow-900/50 text-yellow-300 border border-yellow-700 text-xs gap-1">
+        <Badge className={cn(base, hostModerationBadgeClass('pending'))}>
           <Clock className="h-3 w-3" /> Pending
         </Badge>
       )
     default:
-      return <Badge className="bg-zinc-700 text-zinc-200 text-xs">{status}</Badge>
+      return <Badge className={cn(base, hostModerationBadgeClass(status))}>{status}</Badge>
   }
 }
 
@@ -222,9 +225,9 @@ function RequestCard({
         )}
 
         {request.host_response && request.status === 'rejected' && (
-          <div className="p-3 rounded-lg bg-red-900/10 border border-red-900/30">
-            <p className="text-xs text-red-300 mb-1">Your response:</p>
-            <p className="text-sm text-red-200">{request.host_response}</p>
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/25 dark:bg-destructive/15">
+            <p className="text-xs text-destructive font-medium mb-1">Your response:</p>
+            <p className="text-sm text-foreground">{request.host_response}</p>
           </div>
         )}
 
@@ -236,7 +239,7 @@ function RequestCard({
                   size="sm"
                   onClick={handleApprove}
                   disabled={isPending}
-                  className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                  className="bg-emerald-600 text-white hover:bg-emerald-500 dark:bg-emerald-600 gap-1.5"
                 >
                   <Check className="h-3.5 w-3.5" />
                   Approve
@@ -246,7 +249,7 @@ function RequestCard({
                   variant="outline"
                   onClick={() => setShowRejectInput(true)}
                   disabled={isPending}
-                  className="text-red-400 border-red-900/50 hover:bg-red-900/20 gap-1.5"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10 gap-1.5"
                 >
                   <X className="h-3.5 w-3.5" />
                   Reject
@@ -297,10 +300,10 @@ export function ManageRequestsClient({ tripId, pendingRequests, otherRequests }:
       {/* Pending Requests */}
       <div>
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Clock className="h-5 w-5 text-yellow-400" />
+          <Clock className="h-5 w-5 text-amber-700 dark:text-amber-400" />
           Pending Requests
           {pendingRequests.length > 0 && (
-            <Badge className="bg-yellow-900/50 text-yellow-300 border border-yellow-700 text-xs">
+            <Badge className={cn('text-xs font-medium border', hostModerationBadgeClass('pending'))}>
               {pendingRequests.length}
             </Badge>
           )}
@@ -324,7 +327,7 @@ export function ManageRequestsClient({ tripId, pendingRequests, otherRequests }:
       {otherRequests.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <UserCheck className="h-5 w-5 text-green-400" />
+            <UserCheck className="h-5 w-5 text-emerald-700 dark:text-emerald-400" />
             Processed Requests
             <Badge variant="secondary" className="text-xs">
               {otherRequests.length}

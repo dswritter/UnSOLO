@@ -7,6 +7,9 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { HostModerationBadge } from '@/components/host/HostModerationBadge'
+import { hostHiddenStatusClass, hostSeatDateBadgeClass } from '@/components/host/hostBadgeStyles'
+import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { toast } from 'sonner'
 import {
@@ -65,15 +68,6 @@ interface Stats {
 interface HostTripsListProps {
   stats: Stats
   trips: Trip[]
-}
-
-function ModerationBadge({ status }: { status: string }) {
-  switch (status) {
-    case 'approved': return <Badge className="bg-green-900/50 text-green-300 border border-green-700 text-[10px]">Approved</Badge>
-    case 'pending': return <Badge className="bg-yellow-900/50 text-yellow-300 border border-yellow-700 text-[10px]">Pending Review</Badge>
-    case 'rejected': return <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px]">Rejected</Badge>
-    default: return <Badge className="bg-zinc-700 text-zinc-200 text-[10px]">{status}</Badge>
-  }
 }
 
 type JoinRequest = Awaited<ReturnType<typeof getJoinRequestsForTrip>>[number]
@@ -140,10 +134,21 @@ function InlinePendingRequests({ tripId }: { tripId: string }) {
               {req.message && <p className="text-muted-foreground mt-0.5 line-clamp-1">{req.message}</p>}
             </div>
             <div className="flex gap-1.5 shrink-0">
-              <Button size="sm" className="h-7 px-2 bg-green-600 hover:bg-green-500 text-white text-[11px]" disabled={busy} onClick={() => onApprove(req.id)}>
+              <Button
+                size="sm"
+                className="h-7 px-2 bg-emerald-600 text-white hover:bg-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-[11px]"
+                disabled={busy}
+                onClick={() => onApprove(req.id)}
+              >
                 <Check className="h-3 w-3 mr-1" />Approve
               </Button>
-              <Button size="sm" variant="outline" className="h-7 px-2 border-red-500/40 text-red-400 hover:bg-red-500/10 text-[11px]" disabled={busy} onClick={() => onReject(req.id)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[11px] border-destructive/40 text-destructive hover:bg-destructive/10"
+                disabled={busy}
+                onClick={() => onReject(req.id)}
+              >
                 <X className="h-3 w-3 mr-1" />Reject
               </Button>
             </div>
@@ -205,9 +210,12 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
         </button>
         <button
           onClick={() => setFilter('active')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
-            filter === 'active' ? 'bg-green-500/10 border-green-500/40 text-green-400' : 'bg-card border-border hover:border-green-500/20'
-          }`}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
+            filter === 'active'
+              ? 'bg-emerald-500/12 border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
+              : 'bg-card border-border hover:border-emerald-500/25',
+          )}
         >
           <TrendingUp className="h-3.5 w-3.5" />
           <span className="font-bold">{stats.activeTrips}</span>
@@ -215,9 +223,12 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
         </button>
         <button
           onClick={() => setFilter('pending')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors ${
-            filter === 'pending' ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400' : 'bg-card border-border hover:border-yellow-500/20'
-          }`}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
+            filter === 'pending'
+              ? 'bg-amber-500/12 border-amber-500/45 text-amber-900 dark:text-amber-200'
+              : 'bg-card border-border hover:border-amber-500/25',
+          )}
         >
           <Clock className="h-3.5 w-3.5" />
           <span className="font-bold">{stats.pendingRequests}</span>
@@ -252,7 +263,7 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
           {stats.pendingPayout > 0 && (
             <div className="mt-3 pt-3 border-t border-primary/20 flex justify-between text-sm">
               <span className="text-muted-foreground">Pending Payout</span>
-              <span className="font-bold text-yellow-400">{formatPrice(stats.pendingPayout)}</span>
+              <span className="font-bold text-amber-800 dark:text-amber-300">{formatPrice(stats.pendingPayout)}</span>
             </div>
           )}
         </div>
@@ -276,9 +287,10 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
           {filtered.map((trip) => (
             <div
               key={trip.id}
-              className={`rounded-xl border bg-card p-4 ${
-                trip.is_active ? 'border-border' : 'border-red-900/30 opacity-70'
-              }`}
+              className={cn(
+                'rounded-xl border bg-card p-4',
+                trip.is_active ? 'border-border' : 'border-destructive/30 opacity-80',
+              )}
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
@@ -288,8 +300,12 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-bold truncate">{trip.title}</h3>
-                      <ModerationBadge status={trip.moderation_status || 'pending'} />
-                      {!trip.is_active && <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px]">Hidden</Badge>}
+                      <HostModerationBadge size="sm" status={trip.moderation_status || 'pending'} />
+                      {!trip.is_active && (
+                        <Badge className={cn('text-[10px] font-medium', hostHiddenStatusClass())}>
+                          Hidden
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
                       {trip.destination && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{trip.destination.name}, {trip.destination.state}</span>}
@@ -316,7 +332,12 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                             <div key={date} className="flex items-center justify-between gap-2 flex-wrap text-[11px]">
                               <span className="text-muted-foreground">{formatDate(date)}</span>
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <Badge className={isClosed ? 'bg-amber-900/50 text-amber-200 border border-amber-700 text-[9px]' : 'bg-emerald-900/40 text-emerald-200 border border-emerald-800 text-[9px]'}>
+                                <Badge
+                                  className={cn(
+                                    'text-[9px] font-medium border',
+                                    hostSeatDateBadgeClass(isClosed),
+                                  )}
+                                >
                                   {isClosed ? 'Full' : 'Open'}
                                 </Badge>
                                 <Button
@@ -346,17 +367,19 @@ export function HostTripsList({ stats, trips: initialTrips }: HostTripsListProps
                         if (next.has(trip.id)) next.delete(trip.id); else next.add(trip.id)
                         return next
                       })}
-                      className="text-xs text-yellow-400 flex items-center gap-1 hover:text-yellow-300 transition-colors"
+                      className="text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1 hover:underline transition-colors"
                       title="View pending join requests"
                     >
                       <Clock className="h-3 w-3" />{trip.pending_requests}
                       {expandedRequests.has(trip.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     </button>
                   )}
-                  <span className="text-xs text-green-400 flex items-center gap-1"><Users className="h-3 w-3" />{trip.approved_requests}</span>
+                  <span className="text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                    <Users className="h-3 w-3" />{trip.approved_requests}
+                  </span>
                   <Button
                     size="sm" variant="ghost"
-                    className={trip.is_active ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'}
+                    className={trip.is_active ? 'text-destructive hover:text-destructive/90' : 'text-emerald-800 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300'}
                     onClick={() => handleToggle(trip.id)}
                     disabled={isPending}
                     title={trip.is_active ? 'Hide trip' : 'Show trip'}
