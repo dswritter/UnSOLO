@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { CommunityIndexDesktopRedirect } from '@/components/chat/CommunityIndexDesktopRedirect'
@@ -11,8 +11,7 @@ import { TribeIndexPageFallback } from '@/components/chat/TribeIndexPageFallback
 import { MessageCircle } from 'lucide-react'
 
 async function TribeIndexContent() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()

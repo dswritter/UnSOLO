@@ -1,13 +1,12 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import type { UserRole } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
 import { getAdminDashboardStats } from '@/actions/admin'
 import { WanderThemeShell } from '@/components/wander/WanderThemeShell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
 
   if (!user) redirect('/login')
 

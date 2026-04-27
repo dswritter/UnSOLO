@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Suspense } from 'react'
 import { notFound, redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import type { ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { TribeRoomCoordinator } from '@/components/chat/TribeRoomCoordinator'
 import { TribeRoomHydrationLoader } from '@/components/chat/TribeRoomHydrationLoader'
@@ -32,8 +32,7 @@ function unwrapPackage(p: PackageJoin | PackageJoin[]): PackageJoin {
 export default async function TribeRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params
   const listPath = await getMessagingBasePath()
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const { data: room } = await supabase
@@ -160,8 +159,8 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     )
   }
 
-  const [{ data: profile }, { data: members }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', user.id).single(),
+  const [profile, { data: members }] = await Promise.all([
+    getRequestProfile(user.id),
     supabase.from('chat_room_members').select('user_id').eq('room_id', roomId),
   ])
 

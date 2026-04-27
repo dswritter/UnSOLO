@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { BookOpen } from 'lucide-react'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
@@ -54,8 +54,7 @@ export type GroupBookingInfo = {
 }
 
 export default async function BookingsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const { data } = await supabase

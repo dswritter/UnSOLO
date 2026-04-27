@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { Suspense } from 'react'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { CommunitySidebarSection } from '@/components/chat/CommunitySidebarSection'
 import { TribeMessageCacheBootstrap } from '@/components/chat/TribeMessageCacheBootstrap'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
@@ -21,8 +21,7 @@ const tribeSans = Plus_Jakarta_Sans({
  * /tribe — same chat behavior as /community, with Wander’s forest + gold theme (no extra mockup left rail).
  */
 export default async function TribeLayout({ children }: { children: ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()

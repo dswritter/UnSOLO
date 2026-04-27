@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { getLeaderboardSnapshot } from '@/lib/leaderboard/leaderboardSnapshot'
 import { LeaderboardV2Client } from '@/components/leaderboard/LeaderboardV2Client'
 
@@ -11,8 +11,7 @@ export const metadata: Metadata = {
 }
 
 export default async function LeaderboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   const { entries, myRank, myEntry, monthlyEntries, inTop100 } = await getLeaderboardSnapshot(
     supabase,
     user?.id ?? null,

@@ -1,9 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { MobileChatButton } from '@/components/layout/MobileChatButton'
-import { ChatNotificationWidget } from '@/components/chat/ChatNotificationWidget'
+import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import type { Profile } from '@/types'
 
@@ -16,13 +16,9 @@ export default async function MainLayout({
   let profile: Profile | null = null
 
   try {
-    const supabase = await createClient()
-    const { data } = await supabase.auth.getUser()
-    user = data.user
-    if (user) {
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      profile = p
-    }
+    const { user: u } = await getRequestAuth()
+    user = u
+    if (u) profile = await getRequestProfile(u.id)
   } catch {
     // If Supabase is down, render page without auth
   }
@@ -38,7 +34,7 @@ export default async function MainLayout({
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
-      {user ? <ChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
+      {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
       <SignInPrompt isAuthenticated={!!user} />
       <FooterWrapper />
     </div>
