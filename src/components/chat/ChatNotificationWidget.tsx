@@ -11,6 +11,8 @@ import { usePathname } from 'next/navigation'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { normalizeRoomId } from '@/lib/chat/chatQueryKeys'
+import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
+import type { Message } from '@/types'
 
 /** Supabase broadcast payloads may be `{ payload: { user_id, username } }` or doubly nested. */
 function parseTypingBroadcast(raw: unknown): { user_id: string; username: string } | null {
@@ -35,6 +37,20 @@ function parseTypingBroadcast(raw: unknown): { user_id: string; username: string
 
 type ChatRoomType = 'direct' | 'trip' | 'general'
 
+function miniMessagePreview(m: Message): string {
+  if (m.message_type === 'poll') {
+    try {
+      const p = JSON.parse(m.content) as { question?: string }
+      if (p?.question) return `📊 ${p.question}`
+    } catch {
+      /* ignore */
+    }
+    return '📊 Poll'
+  }
+  if (m.message_type === 'image') return '📷 Photo'
+  return m.content
+}
+
 interface ChatNotification {
   id: string
   room_id: string
@@ -51,6 +67,30 @@ interface ChatNotification {
   }
 }
 
+function mapFetchedMessageToMini(
+  m: Message,
+  roomName: string,
+  roomType: ChatRoomType | undefined,
+  viewerId: string,
+): ChatNotification {
+  return {
+    id: m.id,
+    room_id: m.room_id,
+    room_name: roomName,
+    room_type: roomType ?? null,
+    content: miniMessagePreview(m),
+    created_at: m.created_at,
+    isOutbound: Boolean(m.user_id && m.user_id === viewerId),
+    user: m.user
+      ? {
+          username: m.user.username,
+          full_name: m.user.full_name,
+          avatar_url: m.user.avatar_url,
+        }
+      : undefined,
+  }
+}
+
 type ReadReceiptRow = { message_id: string; user_id: string; read_at?: string }
 
 export function ChatNotificationWidget({ userId }: { userId: string }) {
@@ -63,6 +103,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const [sentMessages, setSentMessages] = useState<ChatNotification[]>([])
+  /** Full recent thread for the active room (global notification list only keeps 8 items). */
+  const [roomThreadMessages, setRoomThreadMessages] = useState<ChatNotification[]>([])
   const [userInteracting, setUserInteracting] = useState(false)
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [viewerUsername, setViewerUsername] = useState<string | null>(null)
@@ -78,6 +120,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const typingChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
   const activeRoomRef = useRef<typeof activeRoom>(null)
   activeRoomRef.current = activeRoom
+  const threadFetchGenRef = useRef(0)
   const pathname = usePathname()
   const chatListBase = pathname?.startsWith('/tribe') ? '/tribe' : '/community'
 
@@ -99,6 +142,40 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         if (data?.username) setViewerUsername(data.username)
       })
   }, [userId])
+
+  useEffect(() => {
+    if (!activeRoom?.id || !userId) {
+      setRoomThreadMessages([])
+      return
+    }
+    const gen = ++threadFetchGenRef.current
+    let cancelled = false
+    void (async () => {
+      try {
+        const msgs = await fetchRoomMessagesClient(activeRoom.id)
+        if (cancelled || gen !== threadFetchGenRef.current) return
+        const mapped = msgs
+          .filter(m => m.message_type !== 'system')
+          .map(m => mapFetchedMessageToMini(m, activeRoom.name, activeRoom.roomType, userId))
+        setRoomThreadMessages(prev => {
+          if (gen !== threadFetchGenRef.current) return prev
+          const byId = new Map<string, ChatNotification>()
+          for (const m of mapped) byId.set(m.id, m)
+          for (const m of prev) {
+            if (!byId.has(m.id)) byId.set(m.id, m)
+          }
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+          )
+        })
+      } catch {
+        if (!cancelled && gen === threadFetchGenRef.current) setRoomThreadMessages([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeRoom?.id, activeRoom?.name, activeRoom?.roomType, userId])
 
   /** Listen for typing in the open thread, or in the only room in the inbox list. */
   const typingRoomId = useMemo(() => {
@@ -204,17 +281,37 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           setTypingUsers(prev => prev.filter(u => u.user_id !== msg.user_id))
 
+          const mt = msg.message_type
+          const messageType: Message['message_type'] =
+            mt === 'poll' || mt === 'image' || mt === 'system' || mt === 'text' ? mt : 'text'
+
           const notification: ChatNotification = {
             id: msg.id,
             room_id: msg.room_id,
             room_name: room?.name || 'Chat',
             room_type: room?.type ?? null,
-            content: msg.content,
+            content: miniMessagePreview({
+              id: msg.id,
+              room_id: msg.room_id,
+              user_id: msg.user_id,
+              content: msg.content,
+              message_type: messageType,
+              is_edited: false,
+              created_at: msg.created_at,
+            }),
             created_at: msg.created_at,
             user: senderProfile || undefined,
           }
 
           setNotifications(prev => [notification, ...prev].slice(0, 8))
+          setRoomThreadMessages(prev => {
+            const ar = activeRoomRef.current
+            if (!ar || normalizeRoomId(msg.room_id) !== normalizeRoomId(ar.id)) return prev
+            if (prev.some(m => m.id === notification.id)) return prev
+            return [...prev, notification].sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+            )
+          })
           setDismissed(false)
           setMinimized(false)
 
@@ -267,10 +364,19 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const engageMiniMarkReadAndSeen = useCallback(async () => {
     if (!activeRoom?.id || !userId) return
     let latestInboundId: string | null = null
-    for (const n of notifications) {
-      if (n.room_id === activeRoom.id && !n.isOutbound) {
+    for (let i = roomThreadMessages.length - 1; i >= 0; i--) {
+      const n = roomThreadMessages[i]
+      if (!n.isOutbound) {
         latestInboundId = n.id
         break
+      }
+    }
+    if (!latestInboundId) {
+      for (const n of notifications) {
+        if (n.room_id === activeRoom.id && !n.isOutbound) {
+          latestInboundId = n.id
+          break
+        }
       }
     }
     const key = `${activeRoom.id}:${latestInboundId ?? '__none__'}`
@@ -294,7 +400,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
       p_user_id: userId,
     })
     if (rpcError) {
-      const inRoom = notifications.filter(n => n.room_id === roomId && !n.isOutbound)
+      const inRoom = roomThreadMessages.filter(n => n.room_id === roomId && !n.isOutbound)
       for (const n of inRoom.slice(-30)) {
         await sb.from('message_read_receipts').upsert(
           { message_id: n.id, user_id: userId },
@@ -302,7 +408,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         )
       }
     }
-  }, [activeRoom?.id, userId, notifications])
+  }, [activeRoom?.id, userId, notifications, roomThreadMessages])
 
   /** Load + subscribe to read receipts for our outbound messages (real UUID ids only). */
   useEffect(() => {
@@ -438,12 +544,19 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
   const activeRoomNotifications = useMemo(() => {
     if (!activeRoom) return []
-    const inRoom = notifications.filter(n => n.room_id === activeRoom.id)
-    const outbound = sentMessages.filter(m => m.room_id === activeRoom.id)
-    return [...inRoom, ...outbound].sort(
+    const rid = normalizeRoomId(activeRoom.id)
+    const byId = new Map<string, ChatNotification>()
+    for (const m of roomThreadMessages) {
+      if (normalizeRoomId(m.room_id) === rid) byId.set(m.id, m)
+    }
+    for (const m of sentMessages) {
+      if (normalizeRoomId(m.room_id) !== rid) continue
+      byId.set(m.id, m)
+    }
+    return Array.from(byId.values()).sort(
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     )
-  }, [activeRoom?.id, notifications, sentMessages])
+  }, [activeRoom?.id, roomThreadMessages, sentMessages])
 
   const miniThreadTailId =
     activeRoomNotifications.length > 0
