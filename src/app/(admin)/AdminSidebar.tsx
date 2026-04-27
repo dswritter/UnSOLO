@@ -56,7 +56,7 @@ export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebar
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-sidebar-border">
+      <div className="shrink-0 px-4 py-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-lg font-black">
             <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
@@ -67,8 +67,8 @@ export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebar
         </Link>
       </div>
 
-      {/* Nav links */}
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+      {/* Nav links — scrolls; header/footer stay fixed in column */}
+      <nav className="min-h-0 flex-1 px-3 py-3 space-y-0.5 overflow-y-auto [scrollbar-gutter:stable]">
         {visible.map(({ href, label, icon: Icon, badgeKey }) => {
           const isActive = pathname === href || (href !== '/admin' && pathname?.startsWith(href))
           const badgeCount = badgeKey ? counts[badgeKey as keyof typeof counts] : 0
@@ -95,8 +95,8 @@ export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebar
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
+      {/* Bottom — pinned to viewport bottom via parent h-dvh + flex column */}
+      <div className="shrink-0 px-3 py-3 border-t border-sidebar-border space-y-2">
         <div className="flex items-center justify-between px-3">
           <span className="text-xs text-sidebar-foreground/75 truncate">{name}</span>
           <AdminNotificationBell userId={userId} />
@@ -115,7 +115,7 @@ export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebar
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-[260px] min-w-[260px] border-r border-sidebar-border min-h-dvh sticky top-0 bg-sidebar/95 backdrop-blur-md shadow-[4px_0_24px_-12px_rgba(0,0,0,0.35)]">
+      <aside className="hidden h-dvh max-h-dvh w-[260px] min-w-[260px] shrink-0 flex-col overflow-hidden border-r border-sidebar-border md:flex md:flex-col md:self-start md:sticky md:top-0 bg-sidebar/95 backdrop-blur-md shadow-[4px_0_24px_-12px_rgba(0,0,0,0.35)]">
         {sidebarContent}
       </aside>
 
@@ -133,7 +133,7 @@ export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebar
       {mobileOpen && (
         <>
           <div className="md:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="md:hidden fixed left-0 top-0 bottom-0 z-50 flex w-[280px] max-w-[min(280px,92vw)] flex-col border-r border-sidebar-border bg-sidebar shadow-2xl">
+          <aside className="md:hidden fixed left-0 top-0 bottom-0 z-50 flex w-[280px] max-w-[min(280px,92vw)] flex-col overflow-hidden border-r border-sidebar-border bg-sidebar shadow-2xl">
             {sidebarContent}
           </aside>
         </>
