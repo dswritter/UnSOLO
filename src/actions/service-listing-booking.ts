@@ -203,6 +203,7 @@ export async function createServiceListingOrder(
           check_in_date: bookingData.check_in_date,
           check_out_date: bookingData.check_out_date,
           quantity: bookingData.quantity,
+          total_amount_paise: totalPaise,
           amount_paise: finalAmount,
           gross_paise: totalPaise,
           discount_paise: discountPaise,
@@ -262,6 +263,7 @@ export async function createServiceListingOrder(
         check_in_date: bookingData.check_in_date,
         check_out_date: bookingData.check_out_date,
         quantity: bookingData.quantity,
+        total_amount_paise: totalPaise,
         amount_paise: finalAmount,
         gross_paise: totalPaise,
         discount_paise: discountPaise,
@@ -277,6 +279,7 @@ export async function createServiceListingOrder(
       .single()
 
     if (bookingError) {
+      console.error('createServiceListingOrder insert:', bookingError)
       return { error: 'Failed to create booking' }
     }
 
@@ -588,7 +591,7 @@ export async function createRentalCartOrder(
       const itemCredits = Math.round(creditsUsed * ratio)
       const itemFinal = Math.round(finalAmount * ratio)
 
-      const { data: booking } = await supabase
+      const { data: booking, error: rowError } = await supabase
         .from('bookings')
         .insert({
           user_id: user.id,
@@ -598,6 +601,8 @@ export async function createRentalCartOrder(
           check_in_date: bookingData.check_in_date,
           check_out_date: checkOutDate,
           quantity: v.quantity,
+          // Required NOT NULL; line list total before split discounts (matches gross_paise).
+          total_amount_paise: itemGross,
           amount_paise: itemFinal,
           gross_paise: itemGross,
           discount_paise: itemDiscount,
@@ -609,10 +614,15 @@ export async function createRentalCartOrder(
         })
         .select('id')
         .single()
+      if (rowError) {
+        console.error('createRentalCartOrder booking row:', rowError)
+      }
       if (booking) bookingIds.push(booking.id)
     }
 
-    if (!bookingIds.length) return { error: 'Failed to create bookings' }
+    if (!bookingIds.length) {
+      return { error: 'Failed to create bookings' }
+    }
 
     return {
       orderId: order.id,
