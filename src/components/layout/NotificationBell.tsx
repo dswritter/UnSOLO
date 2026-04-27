@@ -153,29 +153,54 @@ export function NotificationBell({
       {open && (
         <div
           className={cn(
-            'bg-card border border-border rounded-xl shadow-2xl overflow-hidden z-[200]',
+            'rounded-xl shadow-2xl overflow-hidden z-[200]',
+            wanderNav
+              ? 'bg-primary text-primary-foreground border-2 border-primary-foreground/25'
+              : 'bg-card border border-border text-card-foreground',
             placement === 'below'
               ? 'fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
               : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col',
           )}
         >
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-            <span className="text-sm font-bold">Notifications</span>
+          <div
+            className={cn(
+              'px-4 py-3 flex items-center justify-between border-b',
+              wanderNav ? 'border-primary-foreground/20' : 'border-border',
+            )}
+          >
+            <span className="text-sm font-black tracking-tight">Notifications</span>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <button onClick={markAllRead} className="text-[10px] text-primary hover:underline">
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  className={cn(
+                    'text-[10px] font-semibold hover:underline',
+                    wanderNav ? 'text-primary-foreground/85 hover:text-primary-foreground' : 'text-primary',
+                  )}
+                >
                   Mark all read
                 </button>
               )}
-              <button onClick={() => setOpen(false)}>
-                <X className="h-3.5 w-3.5 text-zinc-500" />
+              <button type="button" onClick={() => setOpen(false)} className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-primary-foreground/10')}>
+                <X
+                  className={cn(
+                    'h-3.5 w-3.5',
+                    wanderNav ? 'text-primary-foreground/75 hover:text-primary-foreground' : 'text-zinc-500',
+                  )}
+                />
               </button>
             </div>
           </div>
 
           <div className={cn('min-h-0 overflow-y-auto', placement === 'above' ? 'max-h-72 sm:max-h-80' : 'max-h-80')}>
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <div
+                className={cn(
+                  'px-4 py-8 text-center text-sm',
+                  wanderNav ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                )}
+              >
                 No notifications yet
               </div>
             ) : (
@@ -184,28 +209,88 @@ export function NotificationBell({
                 return (
                   <button
                     key={n.id}
+                    type="button"
                     onClick={() => onNotificationClick(n)}
-                    className={`flex items-start gap-3 px-4 py-3 w-full text-left hover:bg-secondary/30 transition-colors border-b border-border/50 last:border-0 ${
-                      !n.is_read ? 'bg-primary/5' : ''
-                    }`}
+                    className={cn(
+                      'flex items-start gap-3 px-4 py-3 w-full text-left transition-colors border-b last:border-0',
+                      wanderNav
+                        ? cn(
+                            'border-primary-foreground/15 hover:bg-primary-foreground/10',
+                            !n.is_read && 'bg-primary-foreground/[0.12]',
+                          )
+                        : cn(
+                            'border-border/50 hover:bg-secondary/30',
+                            !n.is_read && 'bg-primary/5',
+                          ),
+                    )}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                      !n.is_read ? 'bg-primary/20' : 'bg-secondary'
-                    }`}>
-                      <Icon className={`h-4 w-4 ${!n.is_read ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <div
+                      className={cn(
+                        'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                        wanderNav
+                          ? !n.is_read
+                            ? 'bg-primary-foreground/22'
+                            : 'bg-primary-foreground/12'
+                          : !n.is_read
+                            ? 'bg-primary/20'
+                            : 'bg-secondary',
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          'h-4 w-4',
+                          wanderNav
+                            ? 'text-primary-foreground'
+                            : !n.is_read
+                              ? 'text-primary'
+                              : 'text-muted-foreground',
+                        )}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className={`text-xs font-medium truncate ${!n.is_read ? 'text-white' : 'text-muted-foreground'}`}>
+                        <span
+                          className={cn(
+                            'text-xs truncate',
+                            wanderNav
+                              ? !n.is_read
+                                ? 'font-bold text-primary-foreground'
+                                : 'text-primary-foreground/80'
+                              : !n.is_read
+                                ? 'font-semibold text-foreground'
+                                : 'text-muted-foreground',
+                          )}
+                        >
                           {n.title}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
+                        <span
+                          className={cn(
+                            'text-[10px] shrink-0',
+                            wanderNav ? 'text-primary-foreground/60' : 'text-muted-foreground',
+                          )}
+                        >
+                          {timeAgo(n.created_at)}
+                        </span>
                       </div>
                       {n.body && (
-                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3 break-words">{n.body}</p>
+                        <p
+                          className={cn(
+                            'text-xs mt-0.5 line-clamp-3 break-words',
+                            wanderNav ? 'text-primary-foreground/78' : 'text-muted-foreground',
+                          )}
+                        >
+                          {n.body}
+                        </p>
                       )}
                     </div>
-                    {!n.is_read && <span className="h-2 w-2 bg-primary rounded-full flex-shrink-0 mt-2" />}
+                    {!n.is_read && (
+                      <span
+                        className={cn(
+                          'h-2 w-2 rounded-full flex-shrink-0 mt-2',
+                          wanderNav ? 'bg-primary-foreground' : 'bg-primary',
+                        )}
+                      />
+                    )}
                   </button>
                 )
               })

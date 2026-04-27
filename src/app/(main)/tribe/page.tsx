@@ -14,7 +14,7 @@ export default async function TribePage() {
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()
-  const { rooms, total: totalRoomCount } = await getCachedSidebarRooms(user.id, { limit: 8, offset: 0 })
+  const { rooms, total: totalRoomCount, pinnedRoomIds } = await getCachedSidebarRooms(user.id, { limit: 8, offset: 0 })
   const firstRoomId = rooms[0]?.id ?? null
 
   return (
@@ -27,6 +27,7 @@ export default async function TribePage() {
       <ChatSidebar
         rooms={rooms}
         totalRoomCount={totalRoomCount}
+        pinnedRoomIds={pinnedRoomIds}
         pageSize={8}
         viewerUserId={user.id}
         basePath={messagingBasePath}

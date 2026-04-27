@@ -12,13 +12,14 @@ export async function CommunitySidebarSection({
   basePath?: string
   className?: string
 }) {
-  const { rooms, total: totalRoomCount, roomNameIndex } = await getCachedSidebarRooms(userId, { limit: 8, offset: 0 })
+  const { rooms, total: totalRoomCount, roomNameIndex, pinnedRoomIds } = await getCachedSidebarRooms(userId, { limit: 8, offset: 0 })
   return (
     <>
       <CommunityCrossRoomMessagePreview viewerUserId={userId} rooms={roomNameIndex} basePath={basePath} />
       <ChatSidebar
         rooms={rooms}
         totalRoomCount={totalRoomCount}
+        pinnedRoomIds={pinnedRoomIds}
         pageSize={8}
         viewerUserId={userId}
         basePath={basePath}

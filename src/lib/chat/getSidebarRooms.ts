@@ -26,6 +26,8 @@ export type SidebarRoomPageResult = {
   rooms: SidebarRoom[]
   total: number
   roomNameIndex: { id: string; name: string }[]
+  /** Room ids pinned by this user (most recently pinned first). */
+  pinnedRoomIds: string[]
 }
 
 export async function getSidebarRooms(
@@ -221,14 +223,36 @@ export async function getSidebarRooms(
     })
   }
 
-  rooms.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''))
+  const { data: pinRows } = await supabase
+    .from('chat_sidebar_room_pins')
+    .select('room_id, pinned_at')
+    .eq('user_id', userId)
+    .order('pinned_at', { ascending: false })
+
+  const pinOrder = new Map<string, number>()
+  let pinIdx = 0
+  for (const raw of pinRows || []) {
+    pinOrder.set(String((raw as { room_id: string }).room_id), pinIdx++)
+  }
+
+  const roomIdSet = new Set(rooms.map(r => r.id))
+  const pinnedRoomIds = (pinRows || [])
+    .map(r => String((r as { room_id: string }).room_id))
+    .filter(id => roomIdSet.has(id))
+
+  rooms.sort((a, b) => {
+    const pa = pinOrder.has(a.id) ? pinOrder.get(a.id)! : 1_000_000
+    const pb = pinOrder.has(b.id) ? pinOrder.get(b.id)! : 1_000_000
+    if (pa !== pb) return pa - pb
+    return (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')
+  })
 
   const total = rooms.length
   const { limit, offset } = pagination
   const paged = rooms.slice(offset, offset + limit)
   const roomNameIndex = rooms.map(r => ({ id: r.id, name: r.name }))
 
-  return { rooms: paged, total, roomNameIndex }
+  return { rooms: paged, total, roomNameIndex, pinnedRoomIds }
 }
 
 /**

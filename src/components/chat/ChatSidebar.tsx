@@ -1,18 +1,18 @@
 'use client'
 
-import { useState, useEffect, useRef, useId, useMemo } from 'react'
+import { useState, useEffect, useRef, useId, useMemo, type MouseEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials, timeAgo } from '@/lib/utils'
-import { MessageCircle, Search, UserPlus, ChevronDown, Loader2 } from 'lucide-react'
+import { MessageCircle, Search, UserPlus, ChevronDown, Loader2, Pin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { startDirectMessage } from '@/actions/profile'
-import { loadMoreSidebarRooms } from '@/actions/chat-sidebar'
+import { loadMoreSidebarRooms, toggleChatSidebarPin } from '@/actions/chat-sidebar'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
@@ -40,6 +40,21 @@ export interface SidebarRoom {
   dmStatusSeen?: boolean
 }
 
+function sortSidebarRooms(rooms: SidebarRoom[], pinnedIds: string[]): SidebarRoom[] {
+  const pinRank = new Map<string, number>()
+  pinnedIds.forEach((id, i) => pinRank.set(normalizeRoomId(id), i))
+  return [...rooms].sort((a, b) => {
+    const ra = pinRank.get(normalizeRoomId(a.id))
+    const rb = pinRank.get(normalizeRoomId(b.id))
+    const aPinned = ra !== undefined
+    const bPinned = rb !== undefined
+    if (aPinned && bPinned && ra !== rb) return ra - rb
+    if (aPinned && !bPinned) return -1
+    if (!aPinned && bPinned) return 1
+    return (b.lastMessageAt || '').localeCompare(a.lastMessageAt || '')
+  })
+}
+
 interface ChatSidebarProps {
   rooms: SidebarRoom[]
   /** Total conversations (for pagination). Defaults to `rooms.length` (no "load more"). */
@@ -51,6 +66,8 @@ interface ChatSidebarProps {
   viewerUserId: string
   /** Chat list + room URLs (default `/community`; use `/tribe` on the tribe shell) */
   basePath?: string
+  /** Pinned room ids (most recently pinned first). */
+  pinnedRoomIds?: string[]
 }
 
 export function ChatSidebar({
@@ -61,10 +78,13 @@ export function ChatSidebar({
   className = '',
   viewerUserId,
   basePath = '/community',
+  pinnedRoomIds: pinnedRoomIdsProp = [],
 }: ChatSidebarProps) {
   const queryClient = useQueryClient()
   const totalRoomCount = totalRoomCountProp ?? rooms.length
   const [localRooms, setLocalRooms] = useState(rooms)
+  const [localPinnedIds, setLocalPinnedIds] = useState(pinnedRoomIdsProp)
+  const [pinLoadingId, setPinLoadingId] = useState<string | null>(null)
   const [loadMoreLoading, setLoadMoreLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
@@ -78,6 +98,7 @@ export function ChatSidebar({
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
   const sidebarRealtimeId = useId().replace(/:/g, '')
   const localRoomsRef = useRef(localRooms)
+  const localPinnedIdsRef = useRef(localPinnedIds)
   const currentActiveRoomRef = useRef<string | null>(null)
 
   const roomPathRe = useMemo(() => {
@@ -87,10 +108,14 @@ export function ChatSidebar({
   const currentActiveRoom = activeRoomId || pathname?.match(roomPathRe)?.[1] || null
 
   localRoomsRef.current = localRooms
+  localPinnedIdsRef.current = localPinnedIds
   currentActiveRoomRef.current = currentActiveRoom
 
   // Sync with prop changes
-  useEffect(() => { setLocalRooms(rooms) }, [rooms])
+  useEffect(() => {
+    setLocalRooms(rooms)
+    setLocalPinnedIds(pinnedRoomIdsProp)
+  }, [rooms, pinnedRoomIdsProp])
 
   // Preload notification sound on first interaction
   useEffect(() => { preloadSound() }, [])
@@ -125,8 +150,7 @@ export function ChatSidebar({
               : msg.content
           const updated = [...prev]
           updated[idx] = { ...updated[idx], lastMessage: lastPreview, lastMessageAt: msg.created_at }
-          const [moved] = updated.splice(idx, 1)
-          return [moved, ...updated]
+          return sortSidebarRooms(updated, localPinnedIdsRef.current)
         })
 
         const active = currentActiveRoomRef.current
@@ -163,6 +187,13 @@ export function ChatSidebar({
 
     return () => { supabase.removeChannel(channel) }
   }, [sidebarRealtimeId, queryClient])
+
+  const propsRoomsRef = useRef(rooms)
+  const propsPinnedRef = useRef(pinnedRoomIdsProp)
+  useEffect(() => {
+    propsRoomsRef.current = rooms
+    propsPinnedRef.current = pinnedRoomIdsProp
+  }, [rooms, pinnedRoomIdsProp])
 
   // Live updates when admins rename / disable community rooms
   useEffect(() => {
@@ -255,14 +286,17 @@ export function ChatSidebar({
     return () => clearInterval(interval)
   }, [])
 
-  const filtered = localRooms.filter(r => {
-    if (filter !== 'all' && r.type !== filter) return false
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      return r.name.toLowerCase().includes(q) || r.dmProfile?.username.toLowerCase().includes(q) || r.dmProfile?.full_name?.toLowerCase().includes(q) || r.tripLocation?.toLowerCase().includes(q)
-    }
-    return true
-  })
+  const filtered = useMemo(() => {
+    const f = localRooms.filter(r => {
+      if (filter !== 'all' && r.type !== filter) return false
+      if (search.trim()) {
+        const q = search.toLowerCase()
+        return r.name.toLowerCase().includes(q) || r.dmProfile?.username.toLowerCase().includes(q) || r.dmProfile?.full_name?.toLowerCase().includes(q) || r.tripLocation?.toLowerCase().includes(q)
+      }
+      return true
+    })
+    return sortSidebarRooms(f, localPinnedIds)
+  }, [localRooms, filter, search, localPinnedIds])
 
   const canLoadMore = totalRoomCount > localRooms.length && !search.trim()
 
@@ -275,11 +309,42 @@ export function ChatSidebar({
         toast.error(res.error)
         return
       }
+      if (res.pinnedRoomIds) setLocalPinnedIds(res.pinnedRoomIds)
       const have = new Set(localRooms.map(r => r.id))
       const more = (res.rooms || []).filter(r => !have.has(r.id))
-      if (more.length) setLocalRooms(prev => [...prev, ...more])
+      if (more.length) {
+        setLocalRooms(prev =>
+          sortSidebarRooms([...prev, ...more], res.pinnedRoomIds ?? localPinnedIdsRef.current),
+        )
+      }
     } finally {
       setLoadMoreLoading(false)
+    }
+  }
+
+  async function handleTogglePin(e: MouseEvent<HTMLButtonElement>, roomId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (pinLoadingId) return
+    const norm = normalizeRoomId(roomId)
+    const wasPinned = localPinnedIds.some(id => normalizeRoomId(id) === norm)
+    const nextPins = wasPinned
+      ? localPinnedIds.filter(id => normalizeRoomId(id) !== norm)
+      : [roomId, ...localPinnedIds.filter(id => normalizeRoomId(id) !== norm)]
+    setLocalPinnedIds(nextPins)
+    setLocalRooms(prev => sortSidebarRooms(prev, nextPins))
+    setPinLoadingId(roomId)
+    try {
+      const res = await toggleChatSidebarPin(roomId)
+      if (res.error) {
+        toast.error(res.error)
+        setLocalPinnedIds(propsPinnedRef.current)
+        setLocalRooms(sortSidebarRooms(propsRoomsRef.current, propsPinnedRef.current))
+        return
+      }
+      router.refresh()
+    } finally {
+      setPinLoadingId(null)
     }
   }
 
@@ -372,13 +437,15 @@ export function ChatSidebar({
             const dmOnline = room.dmProfile ? onlineUsers.has(room.dmProfile.id) : false
             const isActive = !!currentActiveRoom && normalizeRoomId(currentActiveRoom) === normalizeRoomId(room.id)
             const unread = unreadCounts.get(room.id) || 0
+            const isPinned = localPinnedIds.some(id => normalizeRoomId(id) === normalizeRoomId(room.id))
+            const pinBusy = pinLoadingId === room.id
 
             if (room.type === 'direct' && room.dmProfile) {
               const p = room.dmProfile
               return (
                 <div
                   key={room.id}
-                  className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
+                  className={`flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
                     isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
                   }`}
                 >
@@ -414,6 +481,19 @@ export function ChatSidebar({
                       <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
                     )}
                   </Link>
+                  <button
+                    type="button"
+                    onClick={e => void handleTogglePin(e, room.id)}
+                    disabled={pinBusy}
+                    aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
+                    className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                  >
+                    {pinBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
+                    )}
+                  </button>
                   {unread > 0 ? (
                     <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
                       {unread > 99 ? '99+' : unread}
@@ -424,50 +504,68 @@ export function ChatSidebar({
             }
 
             return (
-              <Link
+              <div
                 key={room.id}
-                href={`${basePath}/${room.id}`}
-                prefetch
-                onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
-                className={`flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full text-left ${
+                className={`flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
                   isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
                 }`}
               >
-                {/* Avatar */}
-                <div className="relative shrink-0">
-                  {room.type === 'trip' && room.tripImage ? (
-                    <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
-                      <img src={room.tripImage} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  ) : room.type === 'general' && room.communityImage ? (
-                    <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
-                      <img src={room.communityImage} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">
-                      {room.type === 'trip' ? '🏔️' : '💬'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`font-medium text-sm truncate ${unread > 0 ? 'font-bold text-foreground' : ''}`}>{room.name}</span>
-                    {room.lastMessageAt && (
-                      <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{timeAgo(room.lastMessageAt)}</span>
+                <Link
+                  href={`${basePath}/${room.id}`}
+                  prefetch
+                  onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
+                  className="flex flex-1 min-w-0 items-center gap-3 text-left"
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    {room.type === 'trip' && room.tripImage ? (
+                      <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
+                        <img src={room.tripImage} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ) : room.type === 'general' && room.communityImage ? (
+                      <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
+                        <img src={room.communityImage} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">
+                        {room.type === 'trip' ? '🏔️' : '💬'}
+                      </div>
                     )}
                   </div>
-                  {room.type !== 'direct' && (
-                    <span className="text-[10px] text-primary/60 font-medium">
-                      {room.type === 'trip' ? 'Trip' : 'Community'}
-                      {room.tripLocation ? ` · ${room.tripLocation}` : ''}
-                    </span>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`font-medium text-sm truncate ${unread > 0 ? 'font-bold text-foreground' : ''}`}>{room.name}</span>
+                      {room.lastMessageAt && (
+                        <span className={`text-[10px] shrink-0 ${unread > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>{timeAgo(room.lastMessageAt)}</span>
+                      )}
+                    </div>
+                    {room.type !== 'direct' && (
+                      <span className="text-[10px] font-medium">
+                        <span className="text-[#fcba03]">{room.type === 'trip' ? 'Trip' : 'Community'}</span>
+                        {room.tripLocation ? <span className="text-muted-foreground"> · {room.tripLocation}</span> : null}
+                      </span>
+                    )}
+                    {room.lastMessage && (
+                      <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
+                    )}
+                  </div>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={e => void handleTogglePin(e, room.id)}
+                  disabled={pinBusy}
+                  aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
+                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                >
+                  {pinBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                   )}
-                  {room.lastMessage && (
-                    <p className={`text-xs truncate mt-0.5 ${unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{room.lastMessage}</p>
-                  )}
-                </div>
+                </button>
 
                 {unread > 0 ? (
                   <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
@@ -476,7 +574,7 @@ export function ChatSidebar({
                 ) : room.isMember === false ? (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">Join</span>
                 ) : null}
-              </Link>
+              </div>
             )
           })}
 
