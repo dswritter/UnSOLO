@@ -34,6 +34,7 @@ export function Navbar({ user }: NavbarProps) {
     pathname === '/' ||
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/tribe') ||
+    pathname?.startsWith('/community') ||
     pathname?.startsWith('/host') ||
     pathname?.startsWith('/leaderboard') ||
     pathname?.startsWith('/packages') ||
@@ -45,7 +46,9 @@ export function Navbar({ user }: NavbarProps) {
     pathname === '/' ||
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/leaderboard') ||
-    pathname?.startsWith('/host')
+    pathname?.startsWith('/host') ||
+    pathname?.startsWith('/community') ||
+    pathname?.startsWith('/tribe')
 
   function navLinkActive(href: string): boolean {
     if (href === '/community') {
