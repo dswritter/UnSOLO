@@ -9,28 +9,15 @@ import { Input } from '@/components/ui/input'
 import { Mountain, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { AuthLoadingCard } from '@/components/auth/AuthLoadingCard'
 
 const inputPlaceholderClass =
   'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
-
-const TRAVEL_QUOTES = [
-  "The world is a book, and those who do not travel read only one page.",
-  "Adventure is worthwhile in itself.",
-  "Not all those who wander are lost.",
-  "Travel makes one modest. You see what a tiny place you occupy in the world.",
-  "Life is either a daring adventure or nothing at all.",
-  "The journey of a thousand miles begins with a single step.",
-  "Travel far enough, you meet yourself.",
-  "To travel is to live.",
-  "Jobs fill your pocket, but adventures fill your soul.",
-  "Traveling tends to magnify all human emotions.",
-]
 
 function LoginPageInner() {
   const searchParams = useSearchParams()
   const verified = searchParams.get('verified') === '1'
   const [loading, setLoading] = useState(false)
-  const [quoteIndex, setQuoteIndex] = useState(0)
   const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
   const [hasSessionAfterVerify, setHasSessionAfterVerify] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -45,15 +32,6 @@ function LoginPageInner() {
       setVerifiedSessionChecked(true)
     })
   }, [verified])
-
-  useEffect(() => {
-    if (!loading) return
-    setQuoteIndex(Math.floor(Math.random() * TRAVEL_QUOTES.length))
-    const interval = setInterval(() => {
-      setQuoteIndex(prev => (prev + 1) % TRAVEL_QUOTES.length)
-    }, 6000)
-    return () => clearInterval(interval)
-  }, [loading])
 
   async function handleEmailSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -72,31 +50,7 @@ function LoginPageInner() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <span className="text-4xl font-black">
-            <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
-          </span>
-          <div className="mt-8 mb-4">
-            <div className="h-10 w-10 border-[3px] border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          </div>
-          <p className="text-sm text-muted-foreground mb-6">Preparing your journey, please hold on...</p>
-          <div className="min-h-[60px] flex items-center justify-center">
-            <p key={quoteIndex} className="text-primary italic text-sm font-medium" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-              &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
-            </p>
-          </div>
-          <div className="mt-6 mx-auto w-48 h-1 bg-secondary rounded-full overflow-hidden">
-            <div key={quoteIndex} className="h-full bg-primary rounded-full" style={{ animation: 'progress-fill 6s linear forwards' }} />
-          </div>
-          <style>{`
-            @keyframes progress-fill { from { width: 0%; } to { width: 100%; } }
-            @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-          `}</style>
-        </div>
-      </div>
-    )
+    return <AuthLoadingCard />
   }
 
   const showVerifiedBanner = verified && verifiedSessionChecked && hasSessionAfterVerify

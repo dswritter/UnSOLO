@@ -1,73 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useRef, useEffect, Suspense } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Mountain, Gift, Mail, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
-
-const TRAVEL_QUOTES = [
-  "The world is a book, and those who do not travel read only one page.",
-  "Adventure is worthwhile in itself.",
-  "Not all those who wander are lost.",
-  "Travel makes one modest. You see what a tiny place you occupy in the world.",
-  "Life is either a daring adventure or nothing at all.",
-  "The journey of a thousand miles begins with a single step.",
-  "Travel far enough, you meet yourself.",
-  "To travel is to live.",
-  "Jobs fill your pocket, but adventures fill your soul.",
-  "Traveling tends to magnify all human emotions.",
-]
+import { AuthLoadingCard } from '@/components/auth/AuthLoadingCard'
 
 const inputPlaceholderClass =
   'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
-
-function LoadingScreen({ showEmailHint }: { showEmailHint?: boolean }) {
-  const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Math.random() * TRAVEL_QUOTES.length))
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setQuoteIndex(prev => (prev + 1) % TRAVEL_QUOTES.length)
-    }, 6000)
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="text-center max-w-md">
-        <span className="text-4xl font-black">
-          <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
-        </span>
-        <div className="mt-8 mb-4">
-          <div className="h-10 w-10 border-[3px] border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-        </div>
-        <p className="text-sm text-muted-foreground">Setting up your adventure, please hold on...</p>
-        {showEmailHint ? (
-          <p className="text-xs text-muted-foreground mt-3 mb-6 max-w-sm mx-auto leading-relaxed">
-            We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
-          </p>
-        ) : (
-          <div className="mb-6 mt-3" />
-        )}
-        <div className="min-h-[60px] flex items-center justify-center">
-          <p key={quoteIndex} className="text-primary italic text-sm font-medium" style={{ animation: 'fadeIn 0.5s ease-out' }}>
-            &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
-          </p>
-        </div>
-        <div className="mt-6 mx-auto w-48 h-1 bg-secondary rounded-full overflow-hidden">
-          <div key={quoteIndex} className="h-full bg-primary rounded-full" style={{ animation: 'progress-fill 6s linear forwards' }} />
-        </div>
-        <style>{`
-          @keyframes progress-fill { from { width: 0%; } to { width: 100%; } }
-          @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        `}</style>
-      </div>
-    </div>
-  )
-}
 
 function SignupForm() {
   const [loading, setLoading] = useState<false | 'google' | 'email'>(false)
@@ -130,7 +74,18 @@ function SignupForm() {
     }
   }
 
-  if (loading) return <LoadingScreen showEmailHint={loading === 'email'} />
+  if (loading) {
+    return (
+      <AuthLoadingCard
+        message={
+          loading === 'email'
+            ? 'Setting up your adventure, please hold on…'
+            : 'Preparing your journey, please hold on…'
+        }
+        showEmailHint={loading === 'email'}
+      />
+    )
+  }
 
   if (pendingVerificationEmail) {
     return (

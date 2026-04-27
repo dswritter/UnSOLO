@@ -473,6 +473,29 @@
   will-change: transform;
 }
 
+/* Auth login/signup loading bar — duration set inline (ms) */
+@keyframes auth-loading-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+.auth-loading-progress-fill {
+  width: 0%;
+  animation-name: auth-loading-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-loading-progress-fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
 /**
  * /host/* layout shell: subtle primary wash on theme background (light + .dark).
  */
