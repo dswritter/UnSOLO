@@ -360,9 +360,8 @@ export async function unfollowUser(targetUserId: string) {
   return { success: true }
 }
 
-export async function getFollowData(profileId: string) {
+export async function getFollowData(profileId: string, viewerUserId: string | null) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
   const [
     { count: followersCount },
@@ -377,8 +376,8 @@ export async function getFollowData(profileId: string) {
   ])
 
   let isFollowing = false
-  if (user) {
-    const { data } = await supabase.from('follows').select('id').eq('follower_id', user.id).eq('following_id', profileId).single()
+  if (viewerUserId) {
+    const { data } = await supabase.from('follows').select('id').eq('follower_id', viewerUserId).eq('following_id', profileId).single()
     isFollowing = !!data
   }
 

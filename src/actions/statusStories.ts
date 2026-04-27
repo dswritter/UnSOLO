@@ -103,10 +103,10 @@ export async function getStatusStripForHome(): Promise<{
   return { stories, currentUserId: user.id, seenStoryIds }
 }
 
-export async function getStatusStoriesForProfile(authorId: string): Promise<StatusStripStory[]> {
+export async function getStatusStoriesForProfile(authorId: string, viewerUserId: string | null): Promise<StatusStripStory[]> {
+  if (!viewerUserId) return []
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
 
   const { data: rows } = await supabase
     .from('status_stories')
