@@ -6,7 +6,7 @@ import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
 import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/types'
 import { ProfileUsernameDetail } from './ProfileUsernameDetail'
-import ProfileLoading from '../loading'
+import { ProfileV2Skeleton } from '@/components/profile/ProfileV2Skeleton'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -58,7 +58,7 @@ export default async function ProfilePage({
 
   return (
     <ProfileV2Shell>
-      <Suspense fallback={<ProfileLoading />}>
+      <Suspense fallback={<ProfileV2Skeleton />}>
         <ProfileUsernameDetail
           profile={profile}
           viewerUserId={viewerUserId}

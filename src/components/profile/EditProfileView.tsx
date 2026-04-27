@@ -32,10 +32,16 @@ type EditProfileViewProps = {
   theme?: 'default' | 'v2'
   /** Base path for “View profile” and internal profile links (canonical: `/profile`). */
   profileBasePath?: string
+  /** When set (e.g. from the server page), avoids a blank “Loading…” flash on first paint. */
+  initialProfile?: Profile | null
 }
 
-export function EditProfileView({ theme = 'default', profileBasePath = '/profile' }: EditProfileViewProps) {
-  const [profile, setProfile] = useState<Profile | null>(null)
+export function EditProfileView({
+  theme = 'default',
+  profileBasePath = '/profile',
+  initialProfile = null,
+}: EditProfileViewProps) {
+  const [profile, setProfile] = useState<Profile | null>(() => initialProfile ?? null)
   const [loading, setLoading] = useState(false)
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -74,7 +80,7 @@ export function EditProfileView({ theme = 'default', profileBasePath = '/profile
         .then((res: { data: Profile | null }) => {
           const data = res.data
           const p = data as Profile & { phone_number?: string; phone_public?: boolean }
-          setProfile(p)
+          if (p) setProfile(p)
           if (p) {
             setNewUsername(p.username)
             setPhoneNumber((p as Record<string, unknown>).phone_number as string || '')

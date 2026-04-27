@@ -6,6 +6,7 @@ import { BookOpen } from 'lucide-react'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 /** Community-trip join requests not yet fully booked (deduped against active bookings). */
 export type IncompleteTripStatus = 'awaiting_unsolo' | 'awaiting_host' | 'payment_pending'
@@ -57,12 +58,19 @@ export default async function BookingsPage() {
   const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
-  const { data } = await supabase
+  const { data: bookingRows, error: bookingsError } = await supabase
     .from('bookings')
     .select('*, package:packages(*, destination:destinations(*)), service_listings(*)')
     .eq('user_id', user.id)
-    .is('user_dismissed_at', null)
     .order('created_at', { ascending: false })
+
+  if (bookingsError) {
+    console.error('[bookings page]', bookingsError.message)
+  }
+
+  const data = (bookingRows || []).filter(
+    row => !(row as Booking).user_dismissed_at,
+  ) as Booking[]
 
   // Check which bookings already have reviews
   const { data: reviews } = await supabase
@@ -79,7 +87,7 @@ export default async function BookingsPage() {
     .eq('user_id', user.id)
 
   const ratedHostBookingIds = new Set((hostRatings || []).map(r => r.booking_id))
-  const bookings = (data || []) as Booking[]
+  const bookings = data
 
   // Separate trip bookings from service bookings
   const tripBookings = bookings.filter(b => b.booking_type !== 'service')
@@ -228,7 +236,7 @@ export default async function BookingsPage() {
             icon={BookOpen}
             title="No bookings yet"
             description="Start your solo adventure across India."
-            action={{ label: 'Explore on Wander', href: '/wander' }}
+            action={{ label: 'Explore trips', href: WANDER_HOME_SEARCH_HREF }}
             size="lg"
             dashed
           />
