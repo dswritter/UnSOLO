@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
 import { getInitials, cn } from '@/lib/utils'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useTransition, useCallback, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
@@ -30,6 +30,21 @@ export function Navbar({ user }: NavbarProps) {
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
   const pathname = usePathname()
+  const [isTribeNavPending, startTribeNavTransition] = useTransition()
+  const prefetchTribeRoutes = useCallback(() => {
+    router.prefetch('/community')
+    router.prefetch('/tribe')
+  }, [router])
+
+  function onTribeNavClick(e: MouseEvent<HTMLAnchorElement>, href: string) {
+    if (href !== '/community') return
+    if (e.defaultPrevented) return
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    e.preventDefault()
+    startTribeNavTransition(() => {
+      router.push(href)
+    })
+  }
   const isWanderShell =
     pathname === '/' ||
     pathname?.startsWith('/wander') ||
@@ -228,13 +243,18 @@ export function Navbar({ user }: NavbarProps) {
           <div className="hidden md:flex items-end justify-center gap-8 flex-1 self-stretch min-h-16">
             {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
               const isActive = navLinkActive(href)
+              const isTribeLink = href === '/community'
               return (
               <Link
                 key={href}
                 href={href}
                 prefetch
+                onMouseEnter={isTribeLink ? prefetchTribeRoutes : undefined}
+                onFocusCapture={isTribeLink ? prefetchTribeRoutes : undefined}
+                onClick={e => onTribeNavClick(e, href)}
                 className={cn(
                   'relative flex items-center gap-1.5 text-sm font-medium transition-colors pb-3',
+                  isTribeLink && isTribeNavPending && 'opacity-80',
                   isWanderShell
                     ? isActive
                       ? 'text-[#fcba03] border-b-[3px] border-[#fcba03] border-solid -mb-px'
@@ -409,14 +429,21 @@ export function Navbar({ user }: NavbarProps) {
         >
           {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
             const isActive = navLinkActive(href)
+            const isTribeLink = href === '/community'
             return (
             <Link
               key={href}
               href={href}
               prefetch
-              onClick={() => setMobileOpen(false)}
+              onMouseEnter={isTribeLink ? prefetchTribeRoutes : undefined}
+              onFocusCapture={isTribeLink ? prefetchTribeRoutes : undefined}
+              onClick={e => {
+                setMobileOpen(false)
+                onTribeNavClick(e, href)
+              }}
               className={cn(
                 'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                isTribeLink && isTribeNavPending && 'opacity-80',
                 isWanderShell
                   ? isActive
                     ? 'text-[#fcba03] bg-[#fcba03]/12 underline decoration-[#fcba03] decoration-2 underline-offset-4'

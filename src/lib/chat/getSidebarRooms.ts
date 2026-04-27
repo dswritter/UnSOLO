@@ -35,7 +35,7 @@ export async function getSidebarRooms(
   userId: string,
   pagination: { limit: number; offset: number } = DEFAULT_PAGE,
 ): Promise<SidebarRoomPageResult> {
-  const [{ data: memberRooms }, { data: generalRooms }] = await Promise.all([
+  const [{ data: memberRooms }, { data: generalRooms }, { data: pinRows }] = await Promise.all([
     supabase
       .from('chat_room_members')
       .select('room:chat_rooms(id, name, type, is_active, package_id, image_url, package:packages(title, images, destination:destinations(name, state)))')
@@ -45,6 +45,11 @@ export async function getSidebarRooms(
       .select('id, name, type, is_active, image_url')
       .eq('type', 'general')
       .eq('is_active', true),
+    supabase
+      .from('chat_sidebar_room_pins')
+      .select('room_id, pinned_at')
+      .eq('user_id', userId)
+      .order('pinned_at', { ascending: false }),
   ])
 
   const userRooms = (memberRooms || [])
@@ -69,10 +74,19 @@ export async function getSidebarRooms(
 
   const msgMap = new Map<string, { content: string; created_at: string; message_type: string; user_id?: string }>()
 
+  const rpcPromise =
+    allRoomIds.length > 0
+      ? supabase.rpc('last_message_preview_for_rooms', { p_room_ids: allRoomIds })
+      : Promise.resolve({ data: null, error: null as null })
+
+  const dmMembersPromise =
+    dmRoomIds.length > 0
+      ? supabase.from('chat_room_members').select('room_id, user_id').in('room_id', dmRoomIds).neq('user_id', userId)
+      : Promise.resolve({ data: [] as { room_id: string; user_id: string }[] })
+
+  const [{ data: lastRows, error: rpcError }, { data: dmMembers }] = await Promise.all([rpcPromise, dmMembersPromise])
+
   if (allRoomIds.length > 0) {
-    const { data: lastRows, error: rpcError } = await supabase.rpc('last_message_preview_for_rooms', {
-      p_room_ids: allRoomIds,
-    })
     if (rpcError) {
       console.error('last_message_preview_for_rooms', rpcError)
       const msgPromises = allRoomIds.map(id =>
@@ -103,12 +117,6 @@ export async function getSidebarRooms(
       }
     }
   }
-
-  const dmMembersPromise = dmRoomIds.length > 0
-    ? supabase.from('chat_room_members').select('room_id, user_id').in('room_id', dmRoomIds).neq('user_id', userId)
-    : Promise.resolve({ data: [] as { room_id: string; user_id: string }[] })
-
-  const { data: dmMembers } = await dmMembersPromise
 
   const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
   let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
@@ -222,12 +230,6 @@ export async function getSidebarRooms(
       isMember: false,
     })
   }
-
-  const { data: pinRows } = await supabase
-    .from('chat_sidebar_room_pins')
-    .select('room_id, pinned_at')
-    .eq('user_id', userId)
-    .order('pinned_at', { ascending: false })
 
   const pinOrder = new Map<string, number>()
   let pinIdx = 0

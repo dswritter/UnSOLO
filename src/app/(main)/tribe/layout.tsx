@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { CommunitySidebarSection } from '@/components/chat/CommunitySidebarSection'
 import { TribeMessageCacheBootstrap } from '@/components/chat/TribeMessageCacheBootstrap'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
+import { TribeSidebarSkeleton } from '@/components/chat/TribeSidebarSkeleton'
 import { cn } from '@/lib/utils'
 
 const tribeSans = Plus_Jakarta_Sans({
@@ -15,28 +16,6 @@ const tribeSans = Plus_Jakarta_Sans({
   display: 'swap',
   variable: '--font-wander',
 })
-
-function TribeSidebarSkeleton() {
-  return (
-    <div
-      className={cn(
-        'hidden md:flex w-96 min-w-[384px] shrink-0 flex-col p-4 gap-3 rounded-2xl border',
-        'border-white/12 bg-[oklch(0.2_0.045_155/0.5)]',
-      )}
-    >
-      <div className="h-8 w-40 rounded-lg bg-white/5 animate-pulse mb-2" />
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-full bg-white/5 animate-pulse shrink-0" />
-          <div className="flex-1 space-y-2">
-            <div className="h-3.5 w-3/4 max-w-[200px] rounded bg-white/5 animate-pulse" />
-            <div className="h-3 w-1/2 max-w-[120px] rounded bg-white/5 animate-pulse" />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 /**
  * /tribe — same chat behavior as /community, with Wander’s forest + gold theme (no extra mockup left rail).
@@ -57,7 +36,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
     >
       <TribeMessageCacheBootstrap />
       <div className="tribe-messaging-ui h-[calc(100dvh-4rem)] flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full">
-        <Suspense fallback={<TribeSidebarSkeleton />}>
+        <Suspense fallback={<TribeSidebarSkeleton layout="desktop" />}>
           <CommunitySidebarSection
             userId={user.id}
             basePath={messagingBasePath}
