@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
+import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
 
 /**
  * Activities with an `event_schedule` are date-specific events. Once every
@@ -60,9 +61,17 @@ export async function getServiceListingsByType(
   }
 
   if (filters.search) {
-    query = query.or(
-      `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`
-    )
+    const terms = tokenizeLocationQuery(filters.search)
+    const orParts: string[] = []
+    for (const term of terms) {
+      const e = escapeIlikePattern(term)
+      orParts.push(
+        `title.ilike.%${e}%,description.ilike.%${e}%,location.ilike.%${e}%`,
+      )
+    }
+    if (orParts.length > 0) {
+      query = query.or(orParts.join(','))
+    }
   }
 
   // Apply amenities filter (uses array contains)
@@ -159,14 +168,29 @@ export async function searchServiceListings(
 ) {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
+  const terms = tokenizeLocationQuery(query)
+  const searchOr =
+    terms.length > 0
+      ? terms
+          .map((term) => {
+            const e = escapeIlikePattern(term)
+            return `title.ilike.%${e}%,location.ilike.%${e}%`
+          })
+          .join(',')
+      : ''
+
+  let searchQuery = supabase
     .from('service_listings')
     .select('id, title, slug, location, images, price_paise, type, event_schedule')
     .eq('type', type)
     .eq('is_active', true)
     .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
-    .or(`title.ilike.%${query}%,location.ilike.%${query}%`)
-    .limit(limit)
+
+  if (searchOr) {
+    searchQuery = searchQuery.or(searchOr)
+  }
+
+  const { data, error } = await searchQuery.limit(limit)
 
   if (error) throw error
   const today = todayIso()

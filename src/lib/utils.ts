@@ -150,3 +150,34 @@ export function fuzzyMatch(text: string, query: string, maxDistance: number = 2)
   const distance = levenshteinDistance(lowerText, lowerQuery)
   return distance <= maxDistance
 }
+
+/**
+ * Escape `%`, `_`, and `\` for PostgREST `ilike` filter values (wildcard safety).
+ */
+export function escapeIlikePattern(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+/**
+ * Split map / geocoder labels (e.g. "Rishikesh · Dehradun, Uttarakhand") into
+ * tokens so search can match listings that only store "Rishikesh" in `location`.
+ */
+export function tokenizeLocationQuery(raw: string): string[] {
+  const s = raw.trim()
+  if (!s) return []
+  const pieces = s
+    .split(/\s*·\s*|\s*,\s*|\s*\/\s*/g)
+    .flatMap((seg) => seg.split(/\s+/g))
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const t of pieces) {
+    const k = t.toLowerCase()
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(t)
+  }
+  if (out.length > 0) return out
+  return s.length >= 1 ? [s] : []
+}

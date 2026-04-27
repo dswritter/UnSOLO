@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
-import { fuzzyMatch } from '@/lib/utils'
+import { fuzzyMatch, tokenizeLocationQuery } from '@/lib/utils'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
 import { getServiceListingsByType } from '@/actions/service-listing-discovery'
 
@@ -86,15 +86,23 @@ export async function getPackages(searchParams: Record<string, string>) {
   })
 
   if (searchParams.q) {
-    const q = searchParams.q.toLowerCase()
+    const fullQ = searchParams.q.toLowerCase().trim()
+    const tokens = tokenizeLocationQuery(searchParams.q)
     packages = packages.filter(pkg => {
       const dest = pkg.destination as { name?: string; state?: string } | null
-      return (
-        pkg.title.toLowerCase().includes(q) ||
-        (pkg.short_description || '').toLowerCase().includes(q) ||
-        fuzzyMatch(dest?.name || '', searchParams.q) ||
-        fuzzyMatch(dest?.state || '', searchParams.q)
-      )
+      const title = pkg.title.toLowerCase()
+      const desc = (pkg.short_description || '').toLowerCase()
+      if (title.includes(fullQ) || desc.includes(fullQ)) return true
+      const dName = dest?.name || ''
+      const dState = dest?.state || ''
+      for (const t of tokens) {
+        if (t.length < 2) continue
+        const tl = t.toLowerCase()
+        if (title.includes(tl) || desc.includes(tl)) return true
+        if (dName.toLowerCase().includes(tl) || dState.toLowerCase().includes(tl)) return true
+        if (fuzzyMatch(dName, t) || fuzzyMatch(dState, t)) return true
+      }
+      return false
     })
   }
 
