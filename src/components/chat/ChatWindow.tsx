@@ -413,7 +413,6 @@ export function ChatWindow({
           setDisplayPinnedMessage(toRestore)
           return
         }
-        toast.success('Unpinned')
         router.refresh()
       })()
       return null
