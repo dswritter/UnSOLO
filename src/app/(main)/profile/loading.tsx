@@ -1,10 +1,11 @@
 import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
-import { ProfileV2Skeleton } from '@/components/profile/ProfileV2Skeleton'
+import { ProfileEditSkeleton } from '@/components/profile/ProfileEditSkeleton'
 
-export default function ProfileLoading() {
+/** `/profile` — edit profile layout */
+export default function ProfileEditLoading() {
   return (
     <ProfileV2Shell>
-      <ProfileV2Skeleton />
+      <ProfileEditSkeleton />
     </ProfileV2Shell>
   )
 }

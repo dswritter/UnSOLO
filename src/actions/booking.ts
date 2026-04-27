@@ -1432,6 +1432,19 @@ export async function cancelPendingBooking(bookingId: string, reason?: string) {
   return { success: true as const }
 }
 
+/** PostgREST when `user_dismissed_at` is missing from DB or API schema cache (migration 068 not applied / stale). */
+function isMissingUserDismissedColumnError(err: { message?: string; code?: string } | null): boolean {
+  if (!err?.message) return false
+  const m = err.message.toLowerCase()
+  if (!m.includes('user_dismissed_at')) return false
+  return (
+    m.includes('schema cache') ||
+    m.includes('does not exist') ||
+    m.includes('could not find') ||
+    err.code === 'PGRST204'
+  )
+}
+
 /** Hide a service booking from My Trips after abandoning checkout, or clear a cancelled row. Cancels unpaid rows first. */
 export async function dismissServiceBookingFromMyTrips(bookingId: string) {
   const supabase = await createClient()
@@ -1472,7 +1485,13 @@ export async function dismissServiceBookingFromMyTrips(bookingId: string) {
     .eq('id', bookingId)
     .eq('user_id', user.id)
 
-  if (error) return { error: error.message }
+  if (error) {
+    if (isMissingUserDismissedColumnError(error)) {
+      revalidatePath('/bookings')
+      return { success: true as const, dismissedWithoutColumn: true as const }
+    }
+    return { error: error.message }
+  }
   revalidatePath('/bookings')
   return { success: true as const }
 }
