@@ -302,13 +302,13 @@ export function Navbar({ user }: NavbarProps) {
                     <DropdownMenuSeparator className={isWanderShell ? 'bg-white/15' : undefined} />
                     <DropdownMenuItem
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
-                      onClick={() => router.push(`/profile/${user.username}`)}
+                      onClick={() => router.push(`/profile_v2/${user.username}`)}
                     >
                       <User className="mr-3 h-4 w-4" /> My Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
-                      onClick={() => router.push('/profile')}
+                      onClick={() => router.push('/profile_v2/edit')}
                     >
                       <Pencil className="mr-3 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>

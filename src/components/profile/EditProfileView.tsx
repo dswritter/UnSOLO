@@ -1,0 +1,699 @@
+'use client'
+
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
+import { updateProfile, updateUsername, updatePhoneSettings, updatePrivacySettings, updateStatus, getPhoneRequests, respondToPhoneRequest } from '@/actions/profile'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Card, CardContent } from '@/components/ui/card'
+import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
+import type { Profile } from '@/types'
+import type { User } from '@supabase/supabase-js'
+import Link from 'next/link'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getInitials } from '@/lib/utils'
+import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, Gift, Copy, MessageCircle, Users } from 'lucide-react'
+import { LocationSearch } from '@/components/profile/LocationSearch'
+import { getReferralDashboard } from '@/actions/profile'
+import { APP_URL, UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+
+const DEFAULT_AVATARS = [
+  { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=beach&backgroundColor=ffdfbf&skinColor=f2d3b1', label: '🏖️ Beach', theme: 'beach' },
+  { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=mountain&backgroundColor=b6e3f4&skinColor=f2d3b1', label: '🏔️ Mountain', theme: 'mountain' },
+  { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=desert&backgroundColor=ffd5dc&skinColor=d08b5b', label: '🏜️ Desert', theme: 'desert' },
+  { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=chill&backgroundColor=c0aede&skinColor=f2d3b1', label: '😎 Chill', theme: 'chill' },
+  { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=hardcore&backgroundColor=ff9999&skinColor=ae5d29', label: '🔥 Hardcore', theme: 'hardcore' },
+]
+
+type EditProfileViewProps = {
+  /** `v2` uses ProfileV2Shell + green/gold theme (see globals `.app-profile-v2`) */
+  theme?: 'default' | 'v2'
+  /** Base path for “View profile” and internal profile links, e.g. `/profile` or `/profile_v2` */
+  profileBasePath?: string
+}
+
+export function EditProfileView({ theme = 'default', profileBasePath = '/profile' }: EditProfileViewProps) {
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Username editing state
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [usernameLoading, setUsernameLoading] = useState(false)
+
+  // Phone settings
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [phonePublic, setPhonePublic] = useState(false)
+  const [phoneSaving, setPhoneSaving] = useState(false)
+
+  // Privacy settings
+  const [tripsPrivate, setTripsPrivate] = useState(false)
+  const [statesPrivate, setStatesPrivate] = useState(false)
+  const [privacySaving, setPrivacySaving] = useState(false)
+
+  // Phone requests
+  const [phoneRequests, setPhoneRequests] = useState<{ id: string; requester: { username: string; full_name: string | null; avatar_url: string | null } | null }[]>([])
+
+  // Status settings
+  const [statusText, setStatusText] = useState('Still deciding my next trip')
+  const [statusVisibility, setStatusVisibility] = useState<'public' | 'followers'>('public')
+  const [customStatus, setCustomStatus] = useState(false)
+  const [statusSaving, setStatusSaving] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    void supabase.auth.getUser().then((authRes: { data: { user: User | null } }) => {
+      const user = authRes.data.user
+      if (!user) return
+      void supabase.from('profiles').select('*').eq('id', user.id).single()
+        .then((res: { data: Profile | null }) => {
+          const data = res.data
+          const p = data as Profile & { phone_number?: string; phone_public?: boolean }
+          setProfile(p)
+          if (p) {
+            setNewUsername(p.username)
+            setPhoneNumber((p as Record<string, unknown>).phone_number as string || '')
+            setPhonePublic((p as Record<string, unknown>).phone_public as boolean || false)
+            setTripsPrivate((p as Record<string, unknown>).trips_private as boolean || false)
+            setStatesPrivate((p as Record<string, unknown>).states_private as boolean || false)
+            setStatusText((p as Record<string, unknown>).status_text as string || 'Still deciding my next trip')
+            setStatusVisibility(((p as Record<string, unknown>).status_visibility as string || 'public') as 'public' | 'followers')
+            setCustomStatus((p as Record<string, unknown>).custom_status as boolean || false)
+
+            // Fetch phone requests
+            getPhoneRequests().then(reqs => {
+              setPhoneRequests(reqs.map((r: Record<string, unknown>) => ({
+                id: r.id as string,
+                requester: r.requester as { username: string; full_name: string | null; avatar_url: string | null } | null,
+              })))
+            })
+          }
+        })
+    })
+  }, [])
+
+  if (!profile) {
+    const load = <div className="text-muted-foreground app-profile-v2:text-white/50">Loading...</div>
+    if (theme === 'v2') {
+      return <ProfileV2Shell><div className="flex min-h-dvh items-center justify-center">{load}</div></ProfileV2Shell>
+    }
+    return <div className="flex min-h-screen items-center justify-center bg-background">{load}</div>
+  }
+
+  const canChangeUsername = (() => {
+    if (!profile.username_changed_at) return { allowed: true, daysLeft: 0 }
+    const lastChanged = new Date(profile.username_changed_at)
+    const cooldownEnd = new Date(lastChanged.getTime() + 40 * 24 * 60 * 60 * 1000)
+    const now = new Date()
+    if (now >= cooldownEnd) return { allowed: true, daysLeft: 0 }
+    const daysLeft = Math.ceil((cooldownEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+    return { allowed: false, daysLeft }
+  })()
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    const formData = new FormData(e.currentTarget)
+    const result = await updateProfile(formData)
+    if (result?.error) toast.error(result.error)
+    else toast.success('Profile updated!')
+    setLoading(false)
+  }
+
+  async function handleUsernameChange() {
+    if (!newUsername.trim() || newUsername === profile!.username) {
+      setEditingUsername(false)
+      return
+    }
+    setUsernameLoading(true)
+    const result = await updateUsername(newUsername.trim().toLowerCase())
+    if (result?.error) toast.error(result.error)
+    else {
+      toast.success('Username updated!')
+      setProfile({ ...profile!, username: newUsername.trim().toLowerCase(), username_changed_at: new Date().toISOString() })
+      setEditingUsername(false)
+    }
+    setUsernameLoading(false)
+  }
+
+  async function handleAvatarSelect(url: string) {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id)
+    if (error) toast.error(error.message)
+    else {
+      setProfile({ ...profile!, avatar_url: url })
+      setShowAvatarPicker(false)
+      toast.success('Avatar updated!')
+    }
+  }
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
+      toast.error(UPLOAD_IMAGE_TOO_LARGE_MESSAGE)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+    setAvatarUploading(true)
+
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('purpose', 'avatar')
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (json.url) {
+        await handleAvatarSelect(json.url)
+      } else {
+        toast.error(json.error || 'Upload failed')
+      }
+    } catch {
+      toast.error('Upload failed')
+    }
+    setAvatarUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handlePhoneSave() {
+    setPhoneSaving(true)
+    const result = await updatePhoneSettings(phoneNumber, phonePublic)
+    if (result.error) toast.error(result.error)
+    else toast.success('Phone settings saved!')
+    setPhoneSaving(false)
+  }
+
+  const mainInner: ReactNode = (
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black">Edit <span className="text-primary">Profile</span></h1>
+            <p className="text-muted-foreground mt-1">Update your travel identity</p>
+          </div>
+          <Button variant="outline" className="border-border app-profile-v2:border-white/20 app-profile-v2:bg-white/5 app-profile-v2:text-white" asChild>
+            <Link href={`${profileBasePath}/${profile.username}`}>View Profile</Link>
+          </Button>
+        </div>
+
+        <Card className="bg-card border-border">
+          <CardContent className="p-6 space-y-6">
+            {/* Avatar + Username */}
+            <div className="flex items-center gap-4">
+              <div className="relative group">
+                <Avatar className="h-16 w-16 border border-border">
+                  <AvatarImage src={profile.avatar_url || ''} />
+                  <AvatarFallback className="bg-primary/20 text-primary font-black text-lg">
+                    {getInitials(profile.full_name || profile.username)}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <Camera className="h-5 w-5 text-white" />
+                </button>
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">{profile.full_name || profile.username}</p>
+
+                {editingUsername ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm text-muted-foreground">@</span>
+                    <Input
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                      className="h-7 bg-secondary border-border text-sm w-40"
+                      maxLength={30}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleUsernameChange()
+                        if (e.key === 'Escape') { setEditingUsername(false); setNewUsername(profile.username) }
+                      }}
+                    />
+                    <button onClick={handleUsernameChange} disabled={usernameLoading} className="text-green-400 hover:text-green-300">
+                      <Check className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => { setEditingUsername(false); setNewUsername(profile.username) }} className="text-muted-foreground hover:text-white">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-sm text-muted-foreground">@{profile.username}</p>
+                    {canChangeUsername.allowed ? (
+                      <button onClick={() => setEditingUsername(true)} className="text-muted-foreground hover:text-primary transition-colors" title="Edit username">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground" title="Username change on cooldown">
+                        <Clock className="h-3 w-3" /> {canChangeUsername.daysLeft}d left
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Avatar picker */}
+            {showAvatarPicker && (
+              <div className="bg-secondary/50 rounded-xl p-4 space-y-3">
+                <p className="text-sm font-medium">Choose an avatar</p>
+                <div className="grid grid-cols-5 gap-3">
+                  {DEFAULT_AVATARS.map(av => (
+                    <button
+                      key={av.theme}
+                      onClick={() => handleAvatarSelect(av.url)}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-lg border transition-colors hover:border-primary/60 ${profile.avatar_url === av.url ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={av.url} alt={av.label} className="h-12 w-12 rounded-full" />
+                      <span className="text-xs text-muted-foreground">{av.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-border">
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                  <Button size="sm" variant="outline" className="border-border text-xs gap-1" onClick={() => fileInputRef.current?.click()} disabled={avatarUploading}>
+                    <Upload className="h-3 w-3" /> {avatarUploading ? 'Uploading...' : 'Upload Custom Photo'}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Max 5MB, JPEG/PNG</span>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input name="fullName" defaultValue={profile.full_name || ''} placeholder="Your name" className="bg-secondary border-border" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Location</label>
+                  <LocationSearch
+                    defaultValue={profile.location || ''}
+                    name="location"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Date of Birth</label>
+                <Input
+                  name="date_of_birth"
+                  type="date"
+                  defaultValue={profile.date_of_birth || ''}
+                  max={new Date(Date.now() - 16 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  className="bg-secondary border-border"
+                />
+                <p className="text-[10px] text-muted-foreground">Required for joining trips with age preferences. Must be 16+.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Bio</label>
+                <Textarea name="bio" defaultValue={profile.bio || ''} placeholder="Tell fellow travelers about yourself..." rows={3} className="bg-secondary border-border resize-none" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Instagram Handle</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted-foreground bg-secondary border border-border border-r-0 rounded-l-md px-2 py-2">@</span>
+                    <Input
+                      name="instagram"
+                      defaultValue={(profile.instagram_url || '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')}
+                      placeholder="username"
+                      pattern="^[a-zA-Z0-9._]{1,30}$"
+                      title="Instagram username: letters, numbers, periods and underscores only"
+                      className="bg-secondary border-border rounded-l-none"
+                      onChange={e => {
+                        const val = e.target.value.trim().replace(/^@/, '')
+                        const valid = /^[a-zA-Z0-9._]{1,30}$/.test(val)
+                        const indicator = e.target.parentElement?.querySelector('[data-ig-status]') as HTMLElement
+                        if (indicator) {
+                          if (!val) { indicator.textContent = ''; indicator.className = '' }
+                          else if (!valid) { indicator.textContent = '✗'; indicator.className = 'text-red-400 text-xs font-bold' }
+                          else { indicator.textContent = '✓'; indicator.className = 'text-green-400 text-xs font-bold' }
+                        }
+                      }}
+                    />
+                    <span data-ig-status="" className="" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] text-muted-foreground">Just the username, no URL needed</p>
+                    {profile.instagram_url && (
+                      <a
+                        href={`https://instagram.com/${(profile.instagram_url || '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/\/$/, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Verify on Instagram ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Website</label>
+                  <Input name="website" defaultValue={profile.website_url || ''} placeholder="https://..." className="bg-secondary border-border" />
+                </div>
+              </div>
+
+              <Button type="submit" disabled={loading} className="w-full bg-primary text-black font-bold hover:bg-primary/90">
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </form>
+
+            {/* Phone Privacy Settings */}
+            <div className="border-t border-border pt-4 space-y-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Phone className="h-4 w-4 text-primary" /> Phone Number & Privacy
+              </h3>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-muted-foreground">Phone Number</label>
+                  <Input
+                    value={phoneNumber}
+                    onChange={e => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="9876543210"
+                    maxLength={10}
+                    inputMode="numeric"
+                    className="bg-secondary border-border"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Visibility</label>
+                  <button
+                    type="button"
+                    onClick={() => setPhonePublic(!phonePublic)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${phonePublic ? 'border-green-500/40 bg-green-500/10 text-green-400' : 'border-border bg-secondary text-muted-foreground'}`}
+                  >
+                    {phonePublic ? <Globe className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                    {phonePublic ? 'Public' : 'Private'}
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {phonePublic ? 'Everyone can see your phone number' : 'Others must request access to see your number'}
+                </p>
+                <Button size="sm" variant="outline" className="border-border text-xs" onClick={handlePhoneSave} disabled={phoneSaving}>
+                  {phoneSaving ? 'Saving...' : 'Save Phone Settings'}
+                </Button>
+              </div>
+
+              {/* Pending phone requests */}
+              {phoneRequests.length > 0 && (
+                <div className="border-t border-border pt-3 mt-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">📱 Phone Number Requests ({phoneRequests.length})</p>
+                  <div className="space-y-2">
+                    {phoneRequests.map(req => (
+                      <div key={req.id} className="flex items-center justify-between bg-secondary/50 rounded-lg px-3 py-2">
+                        <div className="text-sm">
+                          <a href={`${profileBasePath}/${req.requester?.username}`} className="font-medium text-primary hover:underline">{req.requester?.full_name || req.requester?.username || 'Someone'}</a>
+                          <span className="text-muted-foreground"> wants your number</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm" variant="outline"
+                            className="border-green-500/40 text-green-400 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await respondToPhoneRequest(req.id, true)
+                              setPhoneRequests(prev => prev.filter(r => r.id !== req.id))
+                              toast.success('Request approved!')
+                            }}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm" variant="outline"
+                            className="border-red-500/40 text-red-400 text-xs h-7 px-2"
+                            onClick={async () => {
+                              await respondToPhoneRequest(req.id, false)
+                              setPhoneRequests(prev => prev.filter(r => r.id !== req.id))
+                              toast.success('Request denied')
+                            }}
+                          >
+                            Deny
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Privacy Settings */}
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 space-y-4">
+            <h2 className="font-bold flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary" /> Profile Privacy
+            </h2>
+            <p className="text-xs text-muted-foreground">Control what others can see on your public profile. The count is always visible, but you can hide the details.</p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setTripsPrivate(!tripsPrivate)}
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg border text-sm transition-colors ${tripsPrivate ? 'border-red-500/40 bg-red-500/10' : 'border-green-500/40 bg-green-500/10'}`}
+              >
+                <span>Trip details (packages, dates)</span>
+                <span className={`text-xs font-medium ${tripsPrivate ? 'text-red-400' : 'text-green-400'}`}>
+                  {tripsPrivate ? '🔒 Private' : '🌐 Public'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatesPrivate(!statesPrivate)}
+                className={`flex items-center justify-between w-full px-3 py-2.5 rounded-lg border text-sm transition-colors ${statesPrivate ? 'border-red-500/40 bg-red-500/10' : 'border-green-500/40 bg-green-500/10'}`}
+              >
+                <span>States explored (list of states)</span>
+                <span className={`text-xs font-medium ${statesPrivate ? 'text-red-400' : 'text-green-400'}`}>
+                  {statesPrivate ? '🔒 Private' : '🌐 Public'}
+                </span>
+              </button>
+            </div>
+            <Button
+              size="sm" variant="outline" className="border-border text-xs"
+              onClick={async () => {
+                setPrivacySaving(true)
+                const result = await updatePrivacySettings(tripsPrivate, statesPrivate)
+                if (result.error) toast.error(result.error)
+                else toast.success('Privacy settings saved!')
+                setPrivacySaving(false)
+              }}
+              disabled={privacySaving}
+            >
+              {privacySaving ? 'Saving...' : 'Save Privacy Settings'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Status Settings */}
+        <Card className="bg-card border-border">
+          <CardContent className="p-5 space-y-4">
+            <h2 className="font-bold flex items-center gap-2">
+              <span className="text-primary">●</span> Your Status
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Set a custom status or let it auto-update based on your trips. Default: &quot;Still deciding my next trip&quot;
+            </p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Status Text</label>
+                <Input
+                  value={statusText}
+                  onChange={e => { setStatusText(e.target.value); setCustomStatus(true) }}
+                  placeholder="What's on your mind?"
+                  maxLength={100}
+                  className="bg-secondary border-border"
+                />
+                <p className="text-[10px] text-muted-foreground text-right">{statusText.length}/100</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStatusVisibility('public')}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${statusVisibility === 'public' ? 'border-green-500/40 bg-green-500/10 text-green-400' : 'border-border bg-secondary text-muted-foreground'}`}
+                >
+                  🌐 Public
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusVisibility('followers')}
+                  className={`flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors ${statusVisibility === 'followers' ? 'border-blue-500/40 bg-blue-500/10 text-blue-400' : 'border-border bg-secondary text-muted-foreground'}`}
+                >
+                  👥 Followers Only
+                </button>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  size="sm" variant="outline" className="border-border text-xs"
+                  onClick={() => { setStatusText('Still deciding my next trip'); setCustomStatus(false) }}
+                >
+                  Reset to Default
+                </Button>
+                <Button
+                  size="sm" variant="outline" className="border-border text-xs"
+                  onClick={async () => {
+                    setStatusSaving(true)
+                    const result = await updateStatus(statusText, statusVisibility, customStatus)
+                    if (result.error) toast.error(result.error)
+                    else toast.success('Status updated!')
+                    setStatusSaving(false)
+                  }}
+                  disabled={statusSaving}
+                >
+                  {statusSaving ? 'Saving...' : 'Save Status'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Refer & Earn moved to /referrals page */}
+      </div>
+  );
+
+  return theme === 'v2' ? <ProfileV2Shell>{mainInner}</ProfileV2Shell> : <div className="min-h-screen bg-background">{mainInner}</div>
+}
+
+function ReferralDashboard() {
+  const [data, setData] = useState<{
+    referralCode: string | null
+    creditsPaise: number
+    totalReferred: number
+    pendingReferred: number
+    creditedReferred: number
+    referrals: { status: string; username: string; fullName: string | null }[]
+  } | null>(null)
+  const [codeCopied, setCodeCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  useEffect(() => {
+    getReferralDashboard().then(setData)
+  }, [])
+
+  if (!data || !data.referralCode) return null
+
+  const referralLink = `${APP_URL}/signup?ref=${data.referralCode}`
+  const whatsappMsg = encodeURIComponent(
+    `Hey! Join me on UnSOLO — India's solo travel community. Sign up with my code and get ₹200 off your first trip!\n${referralLink}`
+  )
+
+  function copyCode() {
+    navigator.clipboard.writeText(data!.referralCode!)
+    setCodeCopied(true)
+    toast.success('Code copied!')
+    setTimeout(() => setCodeCopied(false), 2000)
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(referralLink)
+    setLinkCopied(true)
+    toast.success('Link copied!')
+    setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  return (
+    <Card className="border-border bg-card">
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <Gift className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-bold">Refer & Earn</h3>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          Share your code. When a friend signs up and books their first trip, you earn <span className="text-primary font-bold">₹500</span> and they get <span className="text-primary font-bold">₹200 off</span>!
+        </p>
+
+        {/* Referral code */}
+        <div className="bg-secondary/50 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground block">Your Referral Code</span>
+              <code className="text-xl font-mono font-black text-primary tracking-widest">{data.referralCode}</code>
+            </div>
+            <button onClick={copyCode} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Copy code">
+              {codeCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background rounded-lg px-3 py-2">
+            <span className="truncate flex-1">{referralLink}</span>
+            <button onClick={copyLink} className="text-primary hover:underline flex-shrink-0">
+              {linkCopied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+
+          {/* Share buttons */}
+          <div className="flex gap-2">
+            <a
+              href={`https://wa.me/?text=${whatsappMsg}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Share on WhatsApp
+            </a>
+            <button
+              onClick={copyLink}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-colors"
+            >
+              <Copy className="h-4 w-4" />
+              Copy Link
+            </button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-secondary/30 rounded-lg py-3">
+            <div className="text-xl font-black text-primary">{data.totalReferred}</div>
+            <div className="text-xs text-muted-foreground">Referred</div>
+          </div>
+          <div className="bg-secondary/30 rounded-lg py-3">
+            <div className="text-xl font-black text-primary">{data.pendingReferred}</div>
+            <div className="text-xs text-muted-foreground">Pending</div>
+          </div>
+          <div className="bg-secondary/30 rounded-lg py-3">
+            <div className="text-xl font-black text-primary">₹{((data.creditsPaise || 0) / 100).toLocaleString('en-IN')}</div>
+            <div className="text-xs text-muted-foreground">Credits</div>
+          </div>
+        </div>
+
+        {/* Referral list */}
+        {data.referrals.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Your Referrals</span>
+            {data.referrals.map((r, i) => (
+              <div key={i} className="flex items-center justify-between text-sm bg-secondary/20 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{r.fullName || r.username}</span>
+                  <span className="text-xs text-muted-foreground">@{r.username}</span>
+                </div>
+                <span className={`text-xs font-medium ${r.status === 'credited' ? 'text-green-500' : 'text-yellow-500'}`}>
+                  {r.status === 'credited' ? '₹500 earned' : 'Pending'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}

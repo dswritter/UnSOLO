@@ -264,6 +264,45 @@
   color: #fcba03;
 }
 
+/* /profile_v2* — shadcn surfaces on forest shell (align with /leaderboard_v2) */
+.app-profile-v2 [class~='bg-card'] {
+  background: color-mix(in oklab, oklch(0.2 0.04 155) 70%, transparent) !important;
+  border-color: color-mix(in oklab, white 14%, oklch(0.4 0.08 150)) !important;
+  color: oklch(0.98 0.01 90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.app-profile-v2 .border-border {
+  border-color: color-mix(in oklab, white 12%, oklch(0.4 0.08 150)) !important;
+}
+.app-profile-v2 .text-muted-foreground {
+  color: color-mix(in oklab, white 58%, oklch(0.2 0.04 152)) !important;
+}
+.app-profile-v2 .bg-secondary,
+.app-profile-v2 .bg-secondary\/20,
+.app-profile-v2 .bg-secondary\/30,
+.app-profile-v2 .bg-secondary\/50 {
+  background: color-mix(in oklab, black 50%, oklch(0.12 0.04 152)) !important;
+  border-color: color-mix(in oklab, white 10%, transparent) !important;
+}
+.app-profile-v2 input,
+.app-profile-v2 textarea,
+.app-profile-v2 [data-slot="input"] {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+  background: color-mix(in oklab, black 40%, oklch(0.1 0.03 152)) !important;
+  border-color: color-mix(in oklab, white 18%, oklch(0.4 0.08 150)) !important;
+}
+.app-profile-v2 [data-slot="input"]::placeholder,
+.app-profile-v2 input::placeholder,
+.app-profile-v2 textarea::placeholder {
+  color: color-mix(in oklab, white 40%, oklch(0.2 0.04 152)) !important;
+}
+.app-profile-v2 .text-foreground,
+.app-profile-v2 .text-card-foreground {
+  color: #fff !important;
+}
+
 /* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
 .tribe-messaging-ui {
   --muted-foreground: oklch(0.99 0.004 90);
