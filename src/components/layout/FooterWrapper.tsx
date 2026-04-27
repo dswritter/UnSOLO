@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 export function FooterWrapper() {
   const pathname = usePathname()
   const isWander =
+    pathname === '/' ||
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/packages') ||
     pathname?.startsWith('/listings') ||
@@ -43,7 +44,7 @@ export function FooterWrapper() {
             <ul className="space-y-1.5">
               <li>
                 <a
-                  href="/explore"
+                  href="/"
                   className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
                 >
                   All trips

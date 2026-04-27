@@ -20,7 +20,7 @@ export function MobileChatButton({ isAuthenticated = false }: MobileChatButtonPr
       // Redirect to sign in like the Tribe button does
       router.push('/auth/signin')
     } else {
-      router.push('/tribe')
+      router.push('/community')
     }
   }, [isAuthenticated, router])
 

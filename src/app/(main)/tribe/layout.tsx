@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { CommunitySidebarSection } from '@/components/chat/CommunitySidebarSection'
 import { TribeMessageCacheBootstrap } from '@/components/chat/TribeMessageCacheBootstrap'
+import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { cn } from '@/lib/utils'
 
 const tribeSans = Plus_Jakarta_Sans({
@@ -45,6 +46,8 @@ export default async function TribeLayout({ children }: { children: ReactNode })
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const messagingBasePath = await getMessagingBasePath()
+
   return (
     <div
       className={cn(
@@ -57,7 +60,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
         <Suspense fallback={<TribeSidebarSkeleton />}>
           <CommunitySidebarSection
             userId={user.id}
-            basePath="/tribe"
+            basePath={messagingBasePath}
             className="max-h-[min(100dvh-5.5rem,56rem)] border-white/10 rounded-2xl overflow-hidden wander-frost-panel"
           />
         </Suspense>

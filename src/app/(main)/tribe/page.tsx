@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { CommunityIndexDesktopRedirect } from '@/components/chat/CommunityIndexDesktopRedirect'
+import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { MessageCircle } from 'lucide-react'
 
 export default async function TribePage() {
@@ -12,6 +13,7 @@ export default async function TribePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const messagingBasePath = await getMessagingBasePath()
   const { rooms, total: totalRoomCount } = await getCachedSidebarRooms(user.id, { limit: 8, offset: 0 })
   const firstRoomId = rooms[0]?.id ?? null
 
@@ -19,15 +21,15 @@ export default async function TribePage() {
     <div className="flex flex-col h-full min-h-0 flex-1">
       <CommunityIndexDesktopRedirect
         roomId={firstRoomId}
-        listPath="/tribe"
-        roomPathPrefix="/tribe"
+        listPath={messagingBasePath}
+        roomPathPrefix={messagingBasePath}
       />
       <ChatSidebar
         rooms={rooms}
         totalRoomCount={totalRoomCount}
         pageSize={8}
         viewerUserId={user.id}
-        basePath="/tribe"
+        basePath={messagingBasePath}
         className="flex md:hidden w-full flex-1 min-h-0 max-h-full border-0"
       />
 

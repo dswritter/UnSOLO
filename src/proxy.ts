@@ -13,8 +13,15 @@ function isWanderAllowedHost(hostHeader: string | null): boolean {
   return false
 }
 
+function nextWithUnsoloPath(request: NextRequest, browserPathname: string): NextResponse {
+  const h = new Headers(request.headers)
+  h.set('x-unsolo-pathname', browserPathname)
+  return NextResponse.next({ request: { headers: h } })
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const browserPathname = pathname
   if (pathname === '/wander' || pathname.startsWith('/wander/')) {
     if (!isWanderAllowedHost(request.headers.get('host'))) {
       const url = request.nextUrl.clone()
@@ -26,7 +33,7 @@ export async function proxy(request: NextRequest) {
   // Build the base response first so the Supabase client can attach updated
   // session cookies to it. Must use this response object (not NextResponse.next())
   // for every return path so refreshed cookies always reach the browser.
-  let supabaseResponse = NextResponse.next({ request })
+  let supabaseResponse = nextWithUnsoloPath(request, browserPathname)
 
   try {
     const supabase = createServerClient(
@@ -37,7 +44,7 @@ export async function proxy(request: NextRequest) {
           getAll() { return request.cookies.getAll() },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-            supabaseResponse = NextResponse.next({ request })
+            supabaseResponse = nextWithUnsoloPath(request, browserPathname)
             cookiesToSet.forEach(({ name, value, options }) =>
               supabaseResponse.cookies.set(name, value, options)
             )
@@ -88,7 +95,7 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   } catch {
     // Fail-safe: never block a request if anything goes wrong.
-    return NextResponse.next()
+    return nextWithUnsoloPath(request, browserPathname)
   }
 }
 

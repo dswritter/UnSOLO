@@ -31,6 +31,7 @@ export function Navbar({ user }: NavbarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const isWanderShell =
+    pathname === '/' ||
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/tribe') ||
     pathname?.startsWith('/packages') ||
@@ -38,7 +39,22 @@ export function Navbar({ user }: NavbarProps) {
     pathname?.startsWith('/bookings') ||
     pathname?.startsWith('/booking/') ||
     pathname?.startsWith('/book/')
-  const hideGlobalSearch = pathname?.startsWith('/wander')
+  const hideGlobalSearch = pathname === '/' || pathname?.startsWith('/wander')
+
+  function navLinkActive(href: string): boolean {
+    if (href === '/community') {
+      return (
+        pathname === '/community' ||
+        Boolean(pathname?.startsWith('/community/')) ||
+        pathname === '/tribe' ||
+        Boolean(pathname?.startsWith('/tribe/'))
+      )
+    }
+    if (href === '/') {
+      return pathname === '/' || pathname === '/explore'
+    }
+    return pathname === href
+  }
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileToggleRef = useRef<HTMLButtonElement>(null)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -176,8 +192,8 @@ export function Navbar({ user }: NavbarProps) {
   }, [user])
 
   const navLinks = [
-    { href: '/explore', label: 'Explore', icon: Compass },
-    { href: '/tribe', label: 'Tribe', icon: MessageSquare, showBadge: true },
+    { href: '/', label: 'Explore', icon: Compass },
+    { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
@@ -202,10 +218,7 @@ export function Navbar({ user }: NavbarProps) {
           {/* Desktop Nav - Centered */}
           <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
             {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
-              const isActive =
-                href === '/tribe'
-                  ? pathname === '/tribe' || Boolean(pathname?.startsWith('/tribe/'))
-                  : pathname === href
+              const isActive = navLinkActive(href)
               return (
               <Link
                 key={href}
@@ -386,10 +399,7 @@ export function Navbar({ user }: NavbarProps) {
           )}
         >
           {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
-            const isActive =
-              href === '/tribe'
-                ? pathname === '/tribe' || Boolean(pathname?.startsWith('/tribe/'))
-                : pathname === href
+            const isActive = navLinkActive(href)
             return (
             <Link
               key={href}

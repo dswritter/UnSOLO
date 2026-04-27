@@ -6,5 +6,5 @@ export default async function ChatRoomPage({
   params: Promise<{ roomId: string }>
 }) {
   const { roomId } = await params
-  redirect(`/tribe/${roomId}`)
+  redirect(`/community/${roomId}`)
 }

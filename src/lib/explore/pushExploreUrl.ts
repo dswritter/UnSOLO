@@ -6,6 +6,6 @@ type AppRouterLike = { push: (href: string, options?: { scroll?: boolean }) => v
  * Bare `basePath` (e.g. clear-all → `/wander`) still uses default scroll.
  */
 export function pushExploreUrl(router: AppRouterLike, basePath: string, href: string) {
-  const stayPut = basePath === '/wander' && href.includes('?')
+  const stayPut = (basePath === '/wander' || basePath === '/') && href.includes('?')
   router.push(href, stayPut ? { scroll: false } : undefined)
 }

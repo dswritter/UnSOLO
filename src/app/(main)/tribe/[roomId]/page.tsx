@@ -15,8 +15,7 @@ import {
   userHasTripChatAccess,
   type TripChatBookingPhase,
 } from '@/lib/chat/tripChatAccess'
-
-const LIST_PATH = '/tribe' as const
+import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 
 type PackageJoin = {
   title?: string
@@ -35,6 +34,7 @@ function unwrapPackage(p: PackageJoin | PackageJoin[]): PackageJoin {
 
 export default async function TribeRoomPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params
+  const listPath = await getMessagingBasePath()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -112,7 +112,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <h2 className="text-xl font-bold">Private Conversation</h2>
           <p className="text-white/60 text-sm">You don&apos;t have access to this chat.</p>
           <Button asChild className="bg-[#fcba03] text-black font-bold">
-            <Link href={LIST_PATH}>Back</Link>
+            <Link href={listPath}>Back</Link>
           </Button>
         </div>
       </div>
@@ -127,7 +127,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
             <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
             <h2 className="text-xl font-bold">You left this chat</h2>
             <p className="text-white/60 text-sm">Rejoin to see new messages and participate.</p>
-            <JoinRoomButton roomId={roomId} label="Rejoin Chat" listBasePath={LIST_PATH} />
+            <JoinRoomButton roomId={roomId} label="Rejoin Chat" listBasePath={listPath} />
           </div>
         </div>
       )
@@ -157,7 +157,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
           <h2 className="text-xl font-bold">{room.name}</h2>
           <p className="text-white/60 text-sm">Join this community to see chats and participate.</p>
-          <JoinRoomButton roomId={roomId} label="Join Community" listBasePath={LIST_PATH} />
+          <JoinRoomButton roomId={roomId} label="Join Community" listBasePath={listPath} />
         </div>
       </div>
     )
@@ -270,7 +270,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
         chatLinkTargets={chatLinkTargets}
         pinnedMessage={(pinnedMsg as Message | null) ?? null}
         initialPollsByMessageId={pollsByMessageId}
-        chatListPath={LIST_PATH}
+        chatListPath={listPath}
         tribeShell
       />
     </div>

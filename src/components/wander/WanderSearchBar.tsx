@@ -66,12 +66,15 @@ export function WanderSearchBar({
   className = '',
   listedActivities = [],
   variant = 'default',
+  wanderSearchBasePath = '/wander',
 }: {
   className?: string
   /** From live activity listings (tags + categories); first option is always “all”. */
   listedActivities: string[]
   /** High-contrast tabs on /wander (green page) */
   variant?: 'default' | 'wander'
+  /** Query + hash target for wander-style search (`/` home or `/wander`) */
+  wanderSearchBasePath?: '/' | '/wander'
 }) {
   const isWander = variant === 'wander'
   const router = useRouter()
@@ -301,7 +304,7 @@ export function WanderSearchBar({
     if (isWander) {
       params.set('search', '1')
       const qs = params.toString()
-      pushExploreUrl(router, '/wander', `/wander?${qs}#wander-explore`)
+      pushExploreUrl(router, wanderSearchBasePath, `${wanderSearchBasePath}?${qs}#wander-explore`)
     } else {
       router.push(`/explore?${params.toString()}`)
     }

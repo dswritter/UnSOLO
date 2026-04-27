@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      { source: '/community', destination: '/tribe' },
+      { source: '/community/:path*', destination: '/tribe/:path*' },
+    ]
+  },
   images: {
     // Explicit allowlist — prevents the Next.js image optimizer from being
     // used as an open proxy for arbitrary external URLs.
