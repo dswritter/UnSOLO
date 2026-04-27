@@ -331,6 +331,8 @@ export function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showJumpButton, setShowJumpButton] = useState(false)
+  /** Per-room: first paint scrolls to bottom; then "New messages" only when others post while scrolled up. */
+  const jumpUiRef = useRef<{ initialized: boolean; prevLen: number }>({ initialized: false, prevLen: 0 })
   const [dbOnlineUsers, setDbOnlineUsers] = useState<Set<string>>(new Set())
   const { typingUsers, isConnected, broadcastTyping, onlineUsers, addOptimisticMessage } = useRealtimeChat(
     roomId,
@@ -403,14 +405,54 @@ export function ChatWindow({
   }
 
   useEffect(() => {
-    if (isNearBottom()) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    jumpUiRef.current = { initialized: false, prevLen: 0 }
+    setShowJumpButton(false)
+  }, [roomId])
+
+  useEffect(() => {
+    if (messages.length === 0) {
       setShowJumpButton(false)
-    } else {
-      setShowJumpButton(true)
+      return
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages])
+
+    const j = jumpUiRef.current
+    if (!j.initialized) {
+      j.initialized = true
+      j.prevLen = messages.length
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ block: 'end' })
+          setShowJumpButton(false)
+        })
+      })
+      return
+    }
+
+    const prevLen = j.prevLen
+    if (messages.length < prevLen) {
+      j.prevLen = messages.length
+      if (isNearBottom()) setShowJumpButton(false)
+      return
+    }
+
+    j.prevLen = messages.length
+    const appended = messages.length > prevLen
+
+    if (isNearBottom()) {
+      setShowJumpButton(false)
+      return
+    }
+
+    if (appended) {
+      const last = messages[messages.length - 1]
+      const fromOther =
+        last &&
+        last.user_id &&
+        last.user_id !== currentUser.id &&
+        last.message_type !== 'system'
+      if (fromOther) setShowJumpButton(true)
+    }
+  }, [messages, currentUser.id])
 
   useEffect(() => {
     if (!emojiPickerForMessageId) return
@@ -2280,7 +2322,7 @@ function MessageBubble({
               e.stopPropagation()
               onPinRequest()
             }}
-            className="flex items-center gap-0.5 text-[10px] text-primary font-medium hover:underline"
+            className="flex items-center gap-0.5 text-[10px] text-primary font-medium hover:underline max-md:opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
           >
             <Pin className="h-3 w-3" />
             Pin for everyone

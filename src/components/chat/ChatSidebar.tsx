@@ -84,7 +84,7 @@ export function ChatSidebar({
   const totalRoomCount = totalRoomCountProp ?? rooms.length
   const [localRooms, setLocalRooms] = useState(rooms)
   const [localPinnedIds, setLocalPinnedIds] = useState(pinnedRoomIdsProp)
-  const [pinLoadingId, setPinLoadingId] = useState<string | null>(null)
+  const pinInFlightRef = useRef<Set<string>>(new Set())
   const [loadMoreLoading, setLoadMoreLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
@@ -322,10 +322,10 @@ export function ChatSidebar({
     }
   }
 
-  async function handleTogglePin(e: MouseEvent<HTMLButtonElement>, roomId: string) {
+  function handleTogglePin(e: MouseEvent<HTMLButtonElement>, roomId: string) {
     e.preventDefault()
     e.stopPropagation()
-    if (pinLoadingId) return
+    if (pinInFlightRef.current.has(roomId)) return
     const norm = normalizeRoomId(roomId)
     const wasPinned = localPinnedIds.some(id => normalizeRoomId(id) === norm)
     const nextPins = wasPinned
@@ -333,19 +333,21 @@ export function ChatSidebar({
       : [roomId, ...localPinnedIds.filter(id => normalizeRoomId(id) !== norm)]
     setLocalPinnedIds(nextPins)
     setLocalRooms(prev => sortSidebarRooms(prev, nextPins))
-    setPinLoadingId(roomId)
-    try {
-      const res = await toggleChatSidebarPin(roomId)
-      if (res.error) {
-        toast.error(res.error)
-        setLocalPinnedIds(propsPinnedRef.current)
-        setLocalRooms(sortSidebarRooms(propsRoomsRef.current, propsPinnedRef.current))
-        return
+    pinInFlightRef.current.add(roomId)
+    void (async () => {
+      try {
+        const res = await toggleChatSidebarPin(roomId)
+        if (res.error) {
+          toast.error(res.error)
+          setLocalPinnedIds(propsPinnedRef.current)
+          setLocalRooms(sortSidebarRooms(propsRoomsRef.current, propsPinnedRef.current))
+          return
+        }
+        router.refresh()
+      } finally {
+        pinInFlightRef.current.delete(roomId)
       }
-      router.refresh()
-    } finally {
-      setPinLoadingId(null)
-    }
+    })()
   }
 
   // Search platform users when no DM matches found
@@ -438,7 +440,6 @@ export function ChatSidebar({
             const isActive = !!currentActiveRoom && normalizeRoomId(currentActiveRoom) === normalizeRoomId(room.id)
             const unread = unreadCounts.get(room.id) || 0
             const isPinned = localPinnedIds.some(id => normalizeRoomId(id) === normalizeRoomId(room.id))
-            const pinBusy = pinLoadingId === room.id
 
             if (room.type === 'direct' && room.dmProfile) {
               const p = room.dmProfile
@@ -483,16 +484,11 @@ export function ChatSidebar({
                   </Link>
                   <button
                     type="button"
-                    onClick={e => void handleTogglePin(e, room.id)}
-                    disabled={pinBusy}
+                    onClick={e => handleTogglePin(e, room.id)}
                     aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
-                    className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                    className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 transition-colors"
                   >
-                    {pinBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
-                    )}
+                    <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                   </button>
                   {unread > 0 ? (
                     <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
@@ -555,16 +551,11 @@ export function ChatSidebar({
 
                 <button
                   type="button"
-                  onClick={e => void handleTogglePin(e, room.id)}
-                  disabled={pinBusy}
+                  onClick={e => handleTogglePin(e, room.id)}
                   aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
-                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 transition-colors"
                 >
-                  {pinBusy ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
-                  )}
+                  <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                 </button>
 
                 {unread > 0 ? (
