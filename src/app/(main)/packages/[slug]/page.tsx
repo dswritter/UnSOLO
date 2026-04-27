@@ -307,7 +307,7 @@ export default async function PackageDetailPage({
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-bold mb-4">Your Host</h2>
                 <div className="flex items-start gap-4">
-                  <Link href={`/profile_v2/${hostData.username}`}>
+                  <Link href={`/profile/${hostData.username}`}>
                     {hostData.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={hostData.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all" />
@@ -319,7 +319,7 @@ export default async function PackageDetailPage({
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/profile_v2/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
+                      <Link href={`/profile/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
                         {hostData.full_name || hostData.username}
                       </Link>
                       {hostData.is_verified && (
@@ -604,7 +604,7 @@ export default async function PackageDetailPage({
                     {isCommunityTrip && hostData && (
                       <div className="flex justify-between">
                         <span>Hosted by</span>
-                        <Link href={`/profile_v2/${hostData.username}`} className="text-primary hover:underline">
+                        <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
                         </Link>
                       </div>

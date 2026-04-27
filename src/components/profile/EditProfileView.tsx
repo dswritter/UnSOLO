@@ -30,7 +30,7 @@ const DEFAULT_AVATARS = [
 type EditProfileViewProps = {
   /** `v2` uses ProfileV2Shell + green/gold theme (see globals `.app-profile-v2`) */
   theme?: 'default' | 'v2'
-  /** Base path for “View profile” and internal profile links, e.g. `/profile` or `/profile_v2` */
+  /** Base path for “View profile” and internal profile links (canonical: `/profile`). */
   profileBasePath?: string
 }
 

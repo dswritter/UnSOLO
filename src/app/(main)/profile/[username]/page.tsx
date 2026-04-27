@@ -1,6 +1,7 @@
 export const revalidate = 30 // 30 seconds
 
 import { notFound } from 'next/navigation'
+import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
 import { createClient } from '@/lib/supabase/server'
 import { TravelStats } from '@/components/profile/TravelStats'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -266,7 +267,7 @@ export default async function ProfilePage({
       : []
 
   const achievementsHeading = (
-    <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
+    <div className="achievements-stats-wrap rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
       <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground">
         Achievements & stats
       </p>
@@ -274,7 +275,7 @@ export default async function ProfilePage({
   )
 
   const atAGlanceCard = (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-card border-border shadow-sm at-a-glance-wrap">
       <CardContent className="p-5">
         <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
         {statsGrid}
@@ -284,7 +285,7 @@ export default async function ProfilePage({
   )
 
   return (
-    <div className="min-h-screen bg-background">
+    <ProfileV2Shell>
       <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:gap-8 xl:gap-10 lg:items-start">
           {/* Left ~70%: header, 24h, activity, tier & places */}
@@ -620,6 +621,6 @@ export default async function ProfilePage({
           </aside>
         </div>
       </div>
-    </div>
+    </ProfileV2Shell>
   )
 }

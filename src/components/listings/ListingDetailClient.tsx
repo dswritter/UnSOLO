@@ -263,7 +263,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               )}
               <div className="min-w-0 flex-1">
                 <Link
-                  href={`/profile_v2/${host.username}`}
+                  href={`/profile/${host.username}`}
                   className="font-bold text-foreground hover:text-primary transition-colors"
                 >
                   {host.full_name || host.username}
@@ -277,7 +277,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               </div>
               <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <Link
-                  href={`/profile_v2/${host.username}`}
+                  href={`/profile/${host.username}`}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
                 >
                   View profile

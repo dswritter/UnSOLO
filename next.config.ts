@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
     return [
       { source: '/leaderboard_v2', destination: '/leaderboard', permanent: true },
       { source: '/leaderboard_v2/:path*', destination: '/leaderboard', permanent: true },
+      { source: '/profile_v2', destination: '/profile', permanent: true },
+      { source: '/profile_v2/edit', destination: '/profile', permanent: true },
+      { source: '/profile_v2/:username', destination: '/profile/:username', permanent: true },
     ]
   },
   async rewrites() {
