@@ -21,6 +21,12 @@ import { SearchDrawer } from './SearchDrawer'
 import { FilterDrawer } from './FilterDrawer'
 import { SkeletonCard } from './SkeletonCard'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
+import {
+  readRecentlyViewedPackages,
+  writeRecentlyViewedPackage,
+  removeRecentlyViewedPackage,
+  type RecentlyViewedPackage,
+} from '@/lib/explore/recently-viewed-packages'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -49,33 +55,6 @@ const GENDER_LABELS: Record<string, string> = {
   women: 'Women only',
   men: 'Men only',
   all: 'All genders',
-}
-
-type RecentlyViewedPkg = { id: string; title: string; slug: string; image: string | null; destName: string }
-
-const RECENTLY_VIEWED_KEY = 'rv_packages'
-const RECENTLY_VIEWED_MAX = 8
-
-function readRecentlyViewed(): RecentlyViewedPkg[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem(RECENTLY_VIEWED_KEY) || '[]') } catch { return [] }
-}
-
-function writeRecentlyViewed(pkg: RecentlyViewedPkg) {
-  if (typeof window === 'undefined') return
-  try {
-    const list = readRecentlyViewed().filter(p => p.id !== pkg.id)
-    list.unshift(pkg)
-    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list.slice(0, RECENTLY_VIEWED_MAX)))
-  } catch {}
-}
-
-function removeRecentlyViewed(id: string) {
-  if (typeof window === 'undefined') return
-  try {
-    const list = readRecentlyViewed().filter(p => p.id !== id)
-    localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(list))
-  } catch {}
 }
 
 interface ExploreClientProps {
@@ -127,8 +106,8 @@ export function ExploreClient({
   })
   const prevParamsRef = useRef<string>('')
   const interestedSet = new Set(interestedPackageIds)
-  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPkg[]>([])
-  useEffect(() => { setRecentlyViewed(readRecentlyViewed()) }, [])
+  const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
+  useEffect(() => { setRecentlyViewed(readRecentlyViewedPackages()) }, [])
 
   useEffect(() => {
     setActiveTab(initialTab)
@@ -279,7 +258,7 @@ export function ExploreClient({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      removeRecentlyViewed(rv.id)
+                      removeRecentlyViewedPackage(rv.id)
                       setRecentlyViewed(prev => prev.filter(p => p.id !== rv.id))
                     }}
                     className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-background/80 border border-border flex items-center justify-center opacity-0 group-hover/rv:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
@@ -341,7 +320,7 @@ export function ExploreClient({
               <div
                 key={pkg.id}
                 onClick={() => {
-                  writeRecentlyViewed({
+                  writeRecentlyViewedPackage({
                     id: pkg.id, title: pkg.title, slug: pkg.slug,
                     image: pkg.images?.[0] || null,
                     destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',

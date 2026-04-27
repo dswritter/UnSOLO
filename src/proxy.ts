@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
-const PUBLIC_CONTENT = ['/explore', '/packages', '/leaderboard', '/contact']
+const PUBLIC_CONTENT = ['/explore', '/wander', '/packages', '/leaderboard', '/contact']
 
 /** Wander is only served on production host (and localhost for dev). Preview/staging → home. */
 function isWanderAllowedHost(hostHeader: string | null): boolean {
@@ -15,7 +15,6 @@ function isWanderAllowedHost(hostHeader: string | null): boolean {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-
   if (pathname === '/wander' || pathname.startsWith('/wander/')) {
     if (!isWanderAllowedHost(request.headers.get('host'))) {
       const url = request.nextUrl.clone()
