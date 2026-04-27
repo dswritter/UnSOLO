@@ -212,8 +212,14 @@ function filterPackagesWithFutureDepartures(packages: Package[]): Package[] {
   })
 }
 
+export type WanderTripRowResult = {
+  packages: Package[]
+  /** Counts for `package_interests` rows, keyed by package id (aligned with Explore). */
+  interestCounts: Record<string, number>
+}
+
 /** Featured first, then by average review rating, then explore popularity sort. */
-export async function getWanderTripRow(): Promise<Package[]> {
+export async function getWanderTripRow(): Promise<WanderTripRowResult> {
   const supabase = svc()
   const { data: raw } = await supabase
     .from('packages')
@@ -223,7 +229,7 @@ export async function getWanderTripRow(): Promise<Package[]> {
     .order('created_at', { ascending: false })
     .limit(120)
   let packages = filterPackagesWithFutureDepartures((raw || []) as Package[])
-  if (packages.length === 0) return []
+  if (packages.length === 0) return { packages: [], interestCounts: {} }
 
   const ids = packages.map(p => p.id)
   const { data: reviewRows } = await supabase.from('reviews').select('package_id, rating').in('package_id', ids)
@@ -250,7 +256,12 @@ export async function getWanderTripRow(): Promise<Package[]> {
     if (rb !== ra) return rb - ra
     return 0
   })
-  return packages.slice(0, 4)
+  const sliced = packages.slice(0, 4)
+  const interestCounts: Record<string, number> = {}
+  for (const p of sliced) {
+    interestCounts[p.id] = interestCount.get(p.id) || 0
+  }
+  return { packages: sliced, interestCounts }
 }
 
 export async function getWanderActivityRow(): Promise<ServiceListing[]> {

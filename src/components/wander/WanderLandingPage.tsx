@@ -52,9 +52,10 @@ export async function WanderLandingPage({
 
   const exploreData = isSearchMode ? await loadExploreListData(sp) : null
 
-  let tripPackages: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
+  let tripRow: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
   let activities: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
   let rentals: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
+  let landingInterestedPackageIds: string[] = []
 
   if (!isSearchMode) {
     const [tp, actListings, rentListings] = await Promise.all([
@@ -62,13 +63,25 @@ export async function WanderLandingPage({
       getWanderActivityRow(),
       getWanderRentalRow(),
     ])
-    tripPackages = tp
+    tripRow = tp
     const [a, r] = await Promise.all([
       getWanderServiceItemsForListings(actListings),
       getWanderServiceItemsForListings(rentListings),
     ])
     activities = a
     rentals = r
+
+    if (user && tripRow.packages.length > 0) {
+      const { data: interests } = await supabase
+        .from('package_interests')
+        .select('package_id')
+        .eq('user_id', user.id)
+        .in(
+          'package_id',
+          tripRow.packages.map(p => p.id),
+        )
+      landingInterestedPackageIds = (interests || []).map(row => (row as { package_id: string }).package_id)
+    }
   }
 
   return (
@@ -126,11 +139,17 @@ export async function WanderLandingPage({
             />
           </div>
         </div>
-      ) : tripPackages && activities && rentals ? (
+      ) : tripRow && activities && rentals ? (
         <div className="border-t border-border/50">
           <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
             <WanderRecentlyViewedStrip />
-            <WanderListingSections trips={tripPackages} activities={activities} rentals={rentals} />
+            <WanderListingSections
+              trips={tripRow.packages}
+              tripInterestCounts={tripRow.interestCounts}
+              interestedPackageIds={landingInterestedPackageIds}
+              activities={activities}
+              rentals={rentals}
+            />
           </div>
         </div>
       ) : null}
