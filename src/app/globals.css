@@ -225,6 +225,19 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
+/**
+ * Same green frosted recipe as `.wander-frost` when `--card` is the wander token,
+ * but for DOM **outside** `.wander-theme` (e.g. navbar notification popover), where
+ * `var(--card)` is still the global light/dark card and would read as greyish white.
+ */
+.wander-frost-chrome {
+  background: color-mix(in oklab, oklch(0.26 0.05 150) 72%, transparent);
+  border: 1px solid color-mix(in oklab, white 12%, oklch(0.4 0.08 150));
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
 /* Same frosted shell as the /wander search block (radius + padding + glass) */
 .wander-frost-panel {
   background: color-mix(in oklab, var(--card) 72%, transparent);

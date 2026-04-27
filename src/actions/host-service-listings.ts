@@ -227,12 +227,12 @@ export async function createHostServiceListing(input: {
     const firstItemWithImages = items.find(i => i.images.length > 0)
     const heroImages = firstItemWithImages?.images.slice(0, 5) ?? []
 
-    // Rentals: each item owns its unit. Master unit gets the cheapest
-    // item's unit so "from ₹X / unit" discovery cards stay coherent.
+    // Rentals & stays: each item owns its unit + amenities. Master unit gets
+    // the cheapest item's unit so "from ₹X / unit" discovery cards stay coherent.
     // Master amenities stays null — item cards render their own.
     let effectiveMasterUnit: ServiceUnit = input.unit
     let effectiveMasterAmenities: string[] = input.amenities
-    if (input.type === 'rentals') {
+    if (input.type === 'rentals' || input.type === 'stays') {
       const cheapest = items.reduce((a, b) => (a.price_paise <= b.price_paise ? a : b))
       if (cheapest.unit) effectiveMasterUnit = cheapest.unit
       effectiveMasterAmenities = []
@@ -302,9 +302,9 @@ export async function createHostServiceListing(input: {
         max_per_booking: item.max_per_booking,
         images: item.images,
         position_order: idx,
-        // Rentals carry per-item unit/amenities; other types leave these null.
-        unit: input.type === 'rentals' ? (item.unit ?? null) : null,
-        amenities: input.type === 'rentals' ? (item.amenities ?? []) : null,
+        // Rentals & stays carry per-item unit/amenities; other types leave these null.
+        unit: input.type === 'rentals' || input.type === 'stays' ? (item.unit ?? null) : null,
+        amenities: input.type === 'rentals' || input.type === 'stays' ? (item.amenities ?? []) : null,
       })))
 
     if (itemsError) {

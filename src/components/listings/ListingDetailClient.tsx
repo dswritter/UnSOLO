@@ -83,7 +83,8 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
     ? selectedItem.quantity_available
     : listing.quantity_available
   const isRental = listing.type === 'rentals'
-  const displayUnit = (isRental && selectedItem?.unit) || listing.unit
+  const isStay = listing.type === 'stays'
+  const displayUnit = ((isRental || isStay) && selectedItem?.unit) || listing.unit
 
   // Type-specific metadata display
   const getMetadataDisplay = () => {
@@ -217,8 +218,8 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
           </div>
         )}
 
-        {/* Amenities (master level — hidden for rentals since they live per-item) */}
-        {!isRental && listing.amenities && listing.amenities.length > 0 && (
+        {/* Amenities (master level — hidden for rentals/stays; those use per-item amenities) */}
+        {!isRental && !isStay && listing.amenities && listing.amenities.length > 0 && (
           <div>
             <h2 className="text-xl font-bold mb-4">Amenities</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

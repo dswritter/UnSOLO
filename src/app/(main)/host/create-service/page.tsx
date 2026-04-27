@@ -54,13 +54,15 @@ export default async function CreateServiceListingPage({
     rentals: 'Rental',
     getting_around: 'Transport Service',
   }
+  const label = typeLabels[type]
+  const article = /^[aeiou]/i.test(label) ? 'an' : 'a'
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-black mb-2">
-            Create a <span className="text-primary">{typeLabels[type]}</span>
+            Create {article} <span className="text-primary">{label}</span>
           </h1>
           <p className="text-sm text-muted-foreground">
             {type === 'stays' && 'List your property or room for travelers to book'}

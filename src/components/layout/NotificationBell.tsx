@@ -155,7 +155,7 @@ export function NotificationBell({
           className={cn(
             'overflow-hidden z-[200]',
             wanderNav
-              ? 'wander-frost rounded-2xl text-white'
+              ? 'wander-frost-chrome rounded-2xl text-white'
               : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
             placement === 'below'
               ? 'fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'

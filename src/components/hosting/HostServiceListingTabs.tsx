@@ -148,9 +148,9 @@ type DraftItem = {
   quantity: number
   maxPerBooking: number
   images: string[]
-  /** Rentals only. Other types inherit master unit. */
+  /** Rentals & stays: per-item. Other types inherit master unit (or activities: per-item unit only). */
   unit?: Unit
-  /** Rentals only. Other types inherit master amenities. */
+  /** Rentals & stays: per-item. */
   amenities?: string[]
 }
 
@@ -171,11 +171,19 @@ function emptyDraft(type: ServiceListingType): DraftItem {
     base.amenities = []
   } else if (type === 'activities') {
     base.unit = TYPE_CONFIG.activities.defaultUnit
+  } else if (type === 'stays') {
+    base.unit = TYPE_CONFIG.stays.defaultUnit
+    base.amenities = []
   }
   return base
 }
 
-function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftItem {
+function itemFromRow(
+  row: ServiceListingItem,
+  type: ServiceListingType,
+  /** Legacy stay listings: copy master unit/amenities into items when rows are empty. */
+  stayLegacy?: { unit: Unit; amenities: string[] },
+): DraftItem {
   const draft: DraftItem = {
     dbId: row.id,
     localKey: row.id,
@@ -191,6 +199,15 @@ function itemFromRow(row: ServiceListingItem, type: ServiceListingType): DraftIt
     draft.amenities = row.amenities || []
   } else if (type === 'activities') {
     draft.unit = (row.unit as Unit) || TYPE_CONFIG.activities.defaultUnit
+  } else if (type === 'stays') {
+    draft.unit = (row.unit as Unit) || stayLegacy?.unit || TYPE_CONFIG.stays.defaultUnit
+    const rowAm = row.amenities
+    draft.amenities =
+      rowAm && rowAm.length > 0
+        ? [...rowAm]
+        : stayLegacy?.amenities?.length
+          ? [...stayLegacy.amenities]
+          : []
   }
   return draft
 }
@@ -236,6 +253,13 @@ export function HostServiceListingTabs(props: Props) {
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
+  const stayLegacyForItems =
+    mode === 'edit' && type === 'stays' && initialListing
+      ? {
+          unit: (initialListing.unit as Unit) || TYPE_CONFIG.stays.defaultUnit,
+          amenities: [...(initialListing.amenities || [])],
+        }
+      : undefined
 
   const [step, setStep] = useState(() => {
     const t = props.initialTab
@@ -489,9 +513,13 @@ export function HostServiceListingTabs(props: Props) {
   const [shortDescription, setShortDescription] = useState(initialListing?.short_description || '')
   const [description, setDescription] = useState(initialListing?.description || '')
   const [unit, setUnit] = useState<Unit>((initialListing?.unit as Unit) || config.defaultUnit)
-  const [amenities, setAmenities] = useState<string[]>(
-    initialListing?.amenities || [...config.suggestedAmenities],
-  )
+  const [amenities, setAmenities] = useState<string[]>(() => {
+    if (type === 'stays') return []
+    if (initialListing?.amenities && initialListing.amenities.length > 0) {
+      return [...initialListing.amenities]
+    }
+    return [...config.suggestedAmenities]
+  })
   const [tagsInput, setTagsInput] = useState((initialListing?.tags || []).join(', '))
   const [customAmenity, setCustomAmenity] = useState('')
   // Activities only: host-scheduled event schedule. Null = ongoing.
@@ -513,11 +541,12 @@ export function HostServiceListingTabs(props: Props) {
   // ── Items tab state ───────────────────────────────────────────────────
   const [items, setItems] = useState<DraftItem[]>(
     initialItems.length > 0
-      ? initialItems.map(row => itemFromRow(row, type))
+      ? initialItems.map(row => itemFromRow(row, type, stayLegacyForItems))
       : [emptyDraft(type)],
   )
   const isRental = type === 'rentals'
   const isActivity = type === 'activities'
+  const isStay = type === 'stays'
   const [uploadingLocalKey, setUploadingLocalKey] = useState<string | null>(null)
   /** Per-file upload progress while `uploadingLocalKey` is set. Length = total files in the current batch. */
   const [uploadProgress, setUploadProgress] = useState<number[]>([])
@@ -653,7 +682,7 @@ export function HostServiceListingTabs(props: Props) {
       if (i.maxPerBooking < 1) return `"${i.name || 'Item'}" max-per-booking must be at least 1`
       if (needsImages && i.images.length === 0) return `"${i.name || 'Item'}" needs at least one photo`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
-      if ((isRental || isActivity) && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
+      if ((isRental || isActivity || isStay) && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
     }
     return null
   }
@@ -678,7 +707,7 @@ export function HostServiceListingTabs(props: Props) {
         errs.push({ label: `Price for "${label}"`, fieldId: `item-price-${item.localKey}` })
       if (needsImages && item.images.length === 0)
         errs.push({ label: `At least one photo for "${label}"`, fieldId: `item-images-${item.localKey}` })
-      if ((isRental || isActivity) && !item.unit)
+      if ((isRental || isActivity || isStay) && !item.unit)
         errs.push({ label: `Pricing unit for "${label}"`, fieldId: `item-price-${item.localKey}` })
     }
     return errs
@@ -788,19 +817,26 @@ export function HostServiceListingTabs(props: Props) {
    *  form state — works in both create and edit mode, no persistence required. */
   function openPreview() {
     const primaryDest = destinations.find(d => d.id === (destinationIds[0] || ''))
+    const pricedItems = items.filter(i => i.priceRupees != null && i.priceRupees > 0)
+    const cheapest =
+      (isRental || isStay) && pricedItems.length > 0
+        ? pricedItems.reduce((a, b) => (a.priceRupees! <= b.priceRupees! ? a : b))
+        : null
+    const previewUnit =
+      isRental || isStay ? (cheapest?.unit ?? config.defaultUnit) : unit
     const payload: HostServiceListingPreviewPayload = {
       type,
       title,
       shortDescription,
       description,
-      unit,
+      unit: previewUnit,
       location,
       pinLat: pinLatLon?.lat ?? null,
       pinLon: pinLatLon?.lon ?? null,
       destinationId: primaryDest?.id ?? null,
       destinationName: primaryDest?.name ?? null,
       destinationState: primaryDest?.state ?? null,
-      amenities,
+      amenities: isRental || isStay ? [] : amenities,
       tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
       hostImages: [],
       items: items.map(it => ({
@@ -810,8 +846,8 @@ export function HostServiceListingTabs(props: Props) {
         quantity: it.quantity,
         maxPerBooking: it.maxPerBooking,
         images: it.images,
-        unit: (isRental || isActivity) ? (it.unit ?? config.defaultUnit) : null,
-        amenities: isRental ? (it.amenities ?? []) : null,
+        unit: (isRental || isActivity || isStay) ? (it.unit ?? config.defaultUnit) : null,
+        amenities: (isRental || isStay) ? (it.amenities ?? []) : null,
       })),
     }
     try {
@@ -838,8 +874,8 @@ export function HostServiceListingTabs(props: Props) {
       quantity_available: i.maxPerBooking,
       max_per_booking: i.quantity,
       images: i.images,
-      unit: (isRental || isActivity) ? (i.unit || config.defaultUnit) : null,
-      amenities: isRental ? (i.amenities || []) : null,
+      unit: (isRental || isActivity || isStay) ? (i.unit || config.defaultUnit) : null,
+      amenities: (isRental || isStay) ? (i.amenities || []) : null,
     }))
 
     const result = await createHostServiceListing({
@@ -852,8 +888,8 @@ export function HostServiceListingTabs(props: Props) {
       location: location.trim() || null,
       latitude: pinLatLon?.lat ?? null,
       longitude: pinLatLon?.lon ?? null,
-      // Rentals keep master amenities empty — each item owns its own.
-      amenities: isRental ? [] : amenities,
+      // Rentals & stays: master amenities empty — each item owns its own.
+      amenities: isRental || isStay ? [] : amenities,
       tags,
       metadata: null,
       host_id: userId,
@@ -880,7 +916,8 @@ export function HostServiceListingTabs(props: Props) {
       title: title.trim(),
       description: description.trim() || null,
       short_description: shortDescription.trim() || null,
-      ...((isRental || isActivity) ? {} : { unit, amenities }),
+      ...((isRental || isActivity || isStay) ? {} : { unit, amenities }),
+      ...(isStay ? { amenities: [] } : {}),
       destination_ids: destinationIds,
       location: location.trim() || null,
       latitude: pinLatLon?.lat ?? null,
@@ -919,7 +956,11 @@ export function HostServiceListingTabs(props: Props) {
           quantity_available: draft.maxPerBooking,
           max_per_booking: draft.quantity,
           images: draft.images,
-          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
+          ...(isRental || isStay
+            ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
+            : isActivity
+              ? { unit: draft.unit || config.defaultUnit }
+              : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -936,7 +977,11 @@ export function HostServiceListingTabs(props: Props) {
           max_per_booking: draft.quantity,
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
-          ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
+          ...(isRental || isStay
+            ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
+            : isActivity
+              ? { unit: draft.unit || config.defaultUnit }
+              : {}),
         })
         if ('error' in res && res.error) {
           toast.error(res.error)
@@ -972,7 +1017,8 @@ export function HostServiceListingTabs(props: Props) {
         title: title.trim(),
         description: description.trim() || null,
         short_description: shortDescription.trim() || null,
-        ...((isRental || isActivity) ? {} : { unit, amenities }),
+        ...((isRental || isActivity || isStay) ? {} : { unit, amenities }),
+        ...(isStay ? { amenities: [] } : {}),
         destination_ids: destinationIds,
         location: location.trim() || null,
         latitude: pinLatLon?.lat ?? null,
@@ -996,10 +1042,14 @@ export function HostServiceListingTabs(props: Props) {
             name: draft.name,
             description: draft.description || null,
             price_paise: Math.round((draft.priceRupees ?? 0) * 100),
-            quantity_available: draft.quantity,
-            max_per_booking: draft.maxPerBooking,
+            quantity_available: draft.maxPerBooking,
+            max_per_booking: draft.quantity,
             images: draft.images,
-            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
+            ...(isRental || isStay
+              ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
+              : isActivity
+                ? { unit: draft.unit || config.defaultUnit }
+                : {}),
           })
           if ('error' in res && res.error) {
             toast.error(`"${draft.name}": ${res.error}`)
@@ -1014,11 +1064,15 @@ export function HostServiceListingTabs(props: Props) {
             name: draft.name,
             description: draft.description,
             price_paise: Math.round((draft.priceRupees ?? 0) * 100),
-            quantity_available: draft.quantity,
-            max_per_booking: draft.maxPerBooking,
+            quantity_available: draft.maxPerBooking,
+            max_per_booking: draft.quantity,
             images: draft.images,
             position_order: items.findIndex(i => i.localKey === draft.localKey),
-            ...(isRental ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] } : isActivity ? { unit: draft.unit || config.defaultUnit } : {}),
+            ...(isRental || isStay
+              ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
+              : isActivity
+                ? { unit: draft.unit || config.defaultUnit }
+                : {}),
           })
           if ('error' in res && res.error) {
             toast.error(`"${draft.name}": ${res.error}`)
@@ -1325,7 +1379,7 @@ export function HostServiceListingTabs(props: Props) {
             />
           </div>
 
-          {!isRental && !isActivity && (
+          {!isRental && !isActivity && !isStay && (
             <div className="space-y-2">
               <label className="text-sm font-semibold">Pricing unit *</label>
               <p className="text-xs text-muted-foreground">Applied to every item under this listing.</p>
@@ -1341,7 +1395,7 @@ export function HostServiceListingTabs(props: Props) {
             </div>
           )}
 
-          {!isRental && (
+          {!isRental && !isStay && (
           <div className="space-y-2">
             <label className="text-sm font-semibold">Amenities / features</label>
             <div className="flex flex-wrap gap-2">
@@ -1716,8 +1770,8 @@ export function HostServiceListingTabs(props: Props) {
                   </p>
                 )}
 
-                {(isRental || isActivity) && (
-                  <div className={isRental ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+                {(isRental || isActivity || isStay) && (
+                  <div className={isRental || isStay ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
                     <div>
                       <label className="text-xs font-semibold">Pricing unit *</label>
                       <select
@@ -1730,7 +1784,7 @@ export function HostServiceListingTabs(props: Props) {
                         ))}
                       </select>
                     </div>
-                    {isRental && <div>
+                    {(isRental || isStay) && <div>
                       <label className="text-xs font-semibold">Amenities / features</label>
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {Array.from(new Set([...config.suggestedAmenities, ...(draft.amenities || [])])).map(a => {
@@ -1760,7 +1814,7 @@ export function HostServiceListingTabs(props: Props) {
                       <div className="mt-2 flex gap-2">
                         <input
                           type="text"
-                          placeholder="Add your own (e.g., Helmet, Child seat)"
+                          placeholder={isStay ? 'Add your own (e.g., Heater, Balcony)' : 'Add your own (e.g., Helmet, Child seat)'}
                           value={customItemAmenity[draft.localKey] || ''}
                           onChange={(e) =>
                             setCustomItemAmenity(prev => ({ ...prev, [draft.localKey]: e.target.value }))
@@ -1890,7 +1944,7 @@ export function HostServiceListingTabs(props: Props) {
           <div>
             <h3 className="font-bold text-lg">{title || 'Untitled listing'}</h3>
             <p className="text-xs text-muted-foreground mt-1 capitalize">
-              {config.heading.toLowerCase()}{isRental ? '' : ` · ${unit.replace('_', ' ')}`}
+              {config.heading.toLowerCase()}{(isRental || isStay) ? '' : ` · ${unit.replace('_', ' ')}`}
             </p>
             {shortDescription && (
               <p className="text-sm text-muted-foreground mt-2">{shortDescription}</p>
@@ -1934,7 +1988,7 @@ export function HostServiceListingTabs(props: Props) {
                       <div className="text-sm font-medium truncate">{i.name || 'Unnamed item'}</div>
                       <div className="text-xs text-muted-foreground">
                         ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
-                        {(isRental || isActivity) && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                        {(isRental || isActivity || isStay) && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
                         {' · '}{i.maxPerBooking} available · max {i.quantity}/order · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                       </div>
                     </div>
@@ -1944,7 +1998,7 @@ export function HostServiceListingTabs(props: Props) {
                       {i.description}
                     </TripDescriptionDisplay>
                   )}
-                  {isRental && i.amenities && i.amenities.length > 0 && (
+                  {(isRental || isStay) && i.amenities && i.amenities.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {i.amenities.map(a => (
                         <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary">{a}</span>
@@ -1956,7 +2010,7 @@ export function HostServiceListingTabs(props: Props) {
             </ul>
           </div>
 
-          {!isRental && amenities.length > 0 && (
+          {!isRental && !isStay && amenities.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold mb-1">Amenities</h4>
               <div className="flex flex-wrap gap-1.5">
