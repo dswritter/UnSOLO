@@ -168,8 +168,41 @@ export function LeaderboardV2Client({
                 <p className="mt-1 text-sm text-white/60">Top solo travellers in India</p>
               </div>
             </div>
+          </div>
 
-            <div className="mt-5 flex min-w-0 flex-nowrap items-center gap-2 sm:gap-3">
+          {showPodium ? (
+            <div className="shrink-0">
+              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-white/45">
+                Top travellers
+              </p>
+              <div className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 sm:gap-5">
+                <PodiumSlot
+                  entry={rawList[1]!}
+                  rank={2}
+                  isMonthly={isMonthly}
+                  emphasis="short"
+                  currentUserId={currentUserId}
+                />
+                <PodiumSlot
+                  entry={rawList[0]!}
+                  rank={1}
+                  isMonthly={isMonthly}
+                  emphasis="tall"
+                  currentUserId={currentUserId}
+                />
+                <PodiumSlot
+                  entry={rawList[2]!}
+                  rank={3}
+                  isMonthly={isMonthly}
+                  emphasis="short"
+                  currentUserId={currentUserId}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-3">
+            <div className="flex min-w-0 flex-nowrap items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={() => setView('alltime')}
@@ -219,68 +252,12 @@ export function LeaderboardV2Client({
               </div>
             </div>
 
-            <div className="wander-theme mt-4 text-foreground">
-              <div className="wander-frost-panel !px-3 !py-2.5 sm:!px-4 sm:!py-3">
-                <p className="text-xs font-bold text-white sm:text-sm">How it works</p>
-                <p className="mt-0.5 text-[10px] text-white/65 sm:text-[11px]">
-                  Earn points by travelling and helping the community.
-                </p>
-                <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-white/10 pt-2.5 sm:gap-x-6">
-                  <div className="flex items-center gap-1.5">
-                    <Luggage className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
-                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">25 pts · booking</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
-                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">15 pts · new place</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Star className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
-                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">10 pts · review</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {isMonthly ? (
-              <p className="mt-2 text-[11px] text-white/40">
+              <p className="text-[11px] text-white/40 -mt-1">
                 Ranked by trips completed this calendar month (activity).
               </p>
             ) : null}
-          </div>
 
-          {showPodium ? (
-            <div className="shrink-0">
-              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-white/45">
-                Top travellers
-              </p>
-              <div className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 sm:gap-5">
-                <PodiumSlot
-                  entry={rawList[1]!}
-                  rank={2}
-                  isMonthly={isMonthly}
-                  emphasis="short"
-                  currentUserId={currentUserId}
-                />
-                <PodiumSlot
-                  entry={rawList[0]!}
-                  rank={1}
-                  isMonthly={isMonthly}
-                  emphasis="tall"
-                  currentUserId={currentUserId}
-                />
-                <PodiumSlot
-                  entry={rawList[2]!}
-                  rank={3}
-                  isMonthly={isMonthly}
-                  emphasis="short"
-                  currentUserId={currentUserId}
-                />
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex flex-col gap-3">
             {showPodium ? (
               <h2 className="text-sm font-bold text-white/80">Full rankings</h2>
             ) : null}
@@ -464,6 +441,29 @@ export function LeaderboardV2Client({
                 <p className="text-lg font-bold leading-snug text-white sm:text-xl">
                   Every journey earns you <span className="text-[#fcba03]">points</span>. Keep exploring. Keep climbing.
                 </p>
+              </div>
+            </div>
+
+            <div className="wander-theme text-foreground">
+              <div className="wander-frost-panel !px-3 !py-2.5 sm:!px-4 sm:!py-3">
+                <p className="text-xs font-bold text-white sm:text-sm">How it works</p>
+                <p className="mt-0.5 text-[10px] text-white/65 sm:text-[11px]">
+                  Earn points by travelling and helping the community.
+                </p>
+                <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2 border-t border-white/10 pt-2.5 sm:gap-x-6">
+                  <div className="flex items-center gap-1.5">
+                    <Luggage className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">25 pts · booking</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">15 pts · new place</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Star className="h-3.5 w-3.5 shrink-0" style={{ color: GOLD }} />
+                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">10 pts · review</span>
+                  </div>
+                </div>
               </div>
             </div>
 
