@@ -12,6 +12,27 @@ import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { normalizeRoomId } from '@/lib/chat/chatQueryKeys'
 
+/** Supabase broadcast payloads may be `{ payload: { user_id, username } }` or doubly nested. */
+function parseTypingBroadcast(raw: unknown): { user_id: string; username: string } | null {
+  if (!raw || typeof raw !== 'object') return null
+  const top = raw as Record<string, unknown>
+  const p = top.payload
+  if (p && typeof p === 'object') {
+    const o = p as Record<string, unknown>
+    if (typeof o.user_id === 'string' && typeof o.username === 'string') {
+      return { user_id: o.user_id, username: o.username }
+    }
+    const inner = o.payload
+    if (inner && typeof inner === 'object') {
+      const i = inner as Record<string, unknown>
+      if (typeof i.user_id === 'string' && typeof i.username === 'string') {
+        return { user_id: i.user_id, username: i.username }
+      }
+    }
+  }
+  return null
+}
+
 type ChatRoomType = 'direct' | 'trip' | 'general'
 
 interface ChatNotification {
@@ -75,43 +96,47 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
       })
   }, [userId])
 
+  /** Listen for typing in the open thread, or in the only room in the inbox list. */
+  const typingRoomId = useMemo(() => {
+    if (activeRoom?.id) return activeRoom.id
+    const ids = [...new Set(notifications.map(n => n.room_id))]
+    return ids.length === 1 ? ids[0] : null
+  }, [activeRoom?.id, notifications])
+
   /** Same channel name / event as useRealtimeChat so full chat and mini widget see each other. */
   useEffect(() => {
-    if (!activeRoom?.id || !userId) {
+    if (!typingRoomId || !userId) {
       typingChannelRef.current = null
       setTypingUsers([])
       return
     }
 
     const supabase = createClient()
-    const roomKey = normalizeRoomId(activeRoom.id)
+    const roomKey = normalizeRoomId(typingRoomId)
     const typingChannel = supabase.channel(`typing:${roomKey}`)
+    typingChannelRef.current = typingChannel
 
     typingChannel
-      .on('broadcast', { event: 'typing' }, (raw: { payload?: { user_id?: string; username?: string } }) => {
-        const payload = raw.payload ?? {}
-        const uid = payload.user_id
-        const username = payload.username
-        if (!uid || !username || uid === userId) return
+      .on('broadcast', { event: 'typing' }, (evt: unknown) => {
+        const parsed = parseTypingBroadcast(evt)
+        if (!parsed || parsed.user_id === userId) return
+        const { user_id, username } = parsed
 
-        setTypingUsers(prev => (prev.some(u => u.user_id === uid) ? prev : [...prev, { user_id: uid, username }]))
+        setTypingUsers(prev => (prev.some(u => u.user_id === user_id) ? prev : [...prev, { user_id, username }]))
 
-        const existing = typingTimeoutsRef.current.get(uid)
+        const existing = typingTimeoutsRef.current.get(user_id)
         if (existing) clearTimeout(existing)
         typingTimeoutsRef.current.set(
-          uid,
+          user_id,
           setTimeout(() => {
-            setTypingUsers(prev => prev.filter(u => u.user_id !== uid))
-            typingTimeoutsRef.current.delete(uid)
+            setTypingUsers(prev => prev.filter(u => u.user_id !== user_id))
+            typingTimeoutsRef.current.delete(user_id)
           }, 3000),
         )
       })
-      .subscribe()
-
-    typingChannelRef.current = typingChannel
-    typingChannel.subscribe((status: string) => {
-      if (status === 'SUBSCRIBED') typingChannelRef.current = typingChannel
-    })
+      .subscribe((status: string) => {
+        if (status === 'SUBSCRIBED') typingChannelRef.current = typingChannel
+      })
 
     return () => {
       supabase.removeChannel(typingChannel)
@@ -120,7 +145,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
       typingTimeoutsRef.current.clear()
       setTypingUsers([])
     }
-  }, [activeRoom?.id, userId])
+  }, [typingRoomId, userId])
 
   const broadcastTyping = useCallback(() => {
     if (!viewerUsername || !activeRoom?.id) return
@@ -418,7 +443,17 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     'rounded-lg p-1.5 text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/60'
 
   return (
-    <div className="fixed bottom-20 right-6 z-50 pointer-events-none md:bottom-6">
+    <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end gap-1.5 pointer-events-none md:bottom-6">
+      {minimized && typingRoomId && typingUsers.length > 0 && (
+        <div
+          className="pointer-events-none max-w-[min(16rem,calc(100vw-5rem))] rounded-xl border border-white/15 bg-[oklch(0.12_0.045_152/0.95)] px-3 py-1.5 text-right text-[10px] text-white/80 shadow-lg backdrop-blur-sm"
+          aria-live="polite"
+        >
+          <span className="italic">
+            {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
+          </span>
+        </div>
+      )}
       {minimized || notifications.length === 0 ? (
         <button
           type="button"
@@ -553,29 +588,43 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
                 </>
               ) : (
-                notifications.map((n) => (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => openRoomChat(n.room_id, n.room_name)}
-                    className="flex w-full items-start gap-3 border-b border-white/10 px-4 py-3 text-left transition-colors last:border-0 hover:bg-white/10"
-                  >
-                    <Avatar className="mt-0.5 h-8 w-8 shrink-0 border border-white/10">
-                      <AvatarImage src={n.user?.avatar_url || ''} />
-                      <AvatarFallback className="bg-white/15 text-xs font-bold text-[#fcba03]">
-                        {getInitials(n.user?.full_name || n.user?.username || '?')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="truncate text-xs font-medium text-white">{n.user?.full_name || n.user?.username || 'Someone'}</span>
-                        <span className="shrink-0 text-[10px] text-white/45">{timeAgo(n.created_at)}</span>
+                <>
+                  {notifications.map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => openRoomChat(n.room_id, n.room_name)}
+                      className="flex w-full items-start gap-3 border-b border-white/10 px-4 py-3 text-left transition-colors last:border-0 hover:bg-white/10"
+                    >
+                      <Avatar className="mt-0.5 h-8 w-8 shrink-0 border border-white/10">
+                        <AvatarImage src={n.user?.avatar_url || ''} />
+                        <AvatarFallback className="bg-white/15 text-xs font-bold text-[#fcba03]">
+                          {getInitials(n.user?.full_name || n.user?.username || '?')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="truncate text-xs font-medium text-white">{n.user?.full_name || n.user?.username || 'Someone'}</span>
+                          <span className="shrink-0 text-[10px] text-white/45">{timeAgo(n.created_at)}</span>
+                        </div>
+                        <p className="truncate text-[10px] text-[#fcba03]/90">{n.room_name}</p>
+                        <p className="mt-0.5 truncate text-xs text-white/65">{n.content}</p>
                       </div>
-                      <p className="truncate text-[10px] text-[#fcba03]/90">{n.room_name}</p>
-                      <p className="mt-0.5 truncate text-xs text-white/65">{n.content}</p>
+                    </button>
+                  ))}
+                  {typingUsers.length > 0 ? (
+                    <div className="flex items-center gap-2 border-t border-white/10 px-4 py-2.5">
+                      <span className="flex gap-0.5" aria-hidden>
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:0ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
+                      </span>
+                      <span className="text-[10px] italic text-white/55">
+                        {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
+                      </span>
                     </div>
-                  </button>
-                ))
+                  ) : null}
+                </>
               )}
             </div>
 
