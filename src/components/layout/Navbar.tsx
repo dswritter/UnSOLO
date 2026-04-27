@@ -345,7 +345,7 @@ export function Navbar({ user }: NavbarProps) {
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push('/bookings')}
                     >
-                      <BookOpen className="mr-3 h-4 w-4" /> My Trips
+                      <BookOpen className="mr-3 h-4 w-4" /> My Bookings
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
@@ -448,7 +448,7 @@ export function Navbar({ user }: NavbarProps) {
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
             >
               <BookOpen className="h-4 w-4" />
-              My Trips
+              My Bookings
             </Link>
           )}
         </div>

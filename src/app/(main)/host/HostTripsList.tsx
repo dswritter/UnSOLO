@@ -21,7 +21,6 @@ import {
   MapPin,
   Calendar,
   Users,
-  IndianRupee,
   TrendingUp,
   Clock,
   Eye,
@@ -281,7 +280,6 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                 : 'bg-card border-border hover:border-primary/20',
           )}
         >
-          <IndianRupee className="h-3.5 w-3.5" />
           <span className="font-bold">{formatPrice(stats.totalEarned)}</span>
           <span className={cn('text-xs', w ? 'text-white/75' : 'text-muted-foreground')}>Earned</span>
         </button>
@@ -399,8 +397,12 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                         <Calendar className={cn('h-3 w-3 shrink-0', w && 'text-[#fcba03]')} />
                         {packageDurationShortLabel(trip)}
                       </span>
-                      <span className="flex items-center gap-1">
-                        <IndianRupee className={cn('h-3 w-3 shrink-0', w && 'text-[#fcba03]')} />
+                      <span
+                        className={cn(
+                          'inline-flex items-center tabular-nums',
+                          w ? 'font-semibold text-[#fcba03]' : '',
+                        )}
+                      >
                         {formatPrice(trip.price_paise)}
                       </span>
                     </div>
