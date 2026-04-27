@@ -176,13 +176,6 @@ export function Navbar({ user }: NavbarProps) {
     return () => { supabase.removeChannel(ch) }
   }, [user])
 
-  // Clear unread count when navigating to community
-  useEffect(() => {
-    if (pathname?.startsWith('/community') || pathname?.startsWith('/tribe')) {
-      setUnreadChatCount(0)
-    }
-  }, [pathname])
-
   // Fetch pending join request count for hosts
   useEffect(() => {
     if (!user?.is_host) return

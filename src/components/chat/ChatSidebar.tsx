@@ -237,17 +237,6 @@ export function ChatSidebar({
     return () => { supabase.removeChannel(ch) }
   }, [sidebarRealtimeId])
 
-  // Clear unread when room becomes active
-  useEffect(() => {
-    if (currentActiveRoom) {
-      setUnreadCounts(prev => {
-        const next = new Map(prev)
-        next.delete(currentActiveRoom)
-        return next
-      })
-    }
-  }, [currentActiveRoom])
-
   // Another session (e.g. phone) read messages — lower unread for that room
   useEffect(() => {
     const supabase = createClient()

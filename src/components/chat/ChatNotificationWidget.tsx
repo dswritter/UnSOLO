@@ -255,41 +255,51 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     [notifications, seenNotificationIds],
   )
 
-  /** While the panel is open, treat all current notifications as seen so the FAB badge clears. */
+  /** One mark-read + "seen" pass per latest inbound notification in the active room (new messages need a new engagement). */
+  const miniReadEngagementKeyRef = useRef<string | null>(null)
   useEffect(() => {
-    if (minimized) return
-    if (notifications.length === 0) return
+    miniReadEngagementKeyRef.current = null
+  }, [activeRoom?.id])
+
+  const engageMiniMarkReadAndSeen = useCallback(async () => {
+    if (!activeRoom?.id || !userId) return
+    let latestInboundId: string | null = null
+    for (const n of notifications) {
+      if (n.room_id === activeRoom.id && !n.isOutbound) {
+        latestInboundId = n.id
+        break
+      }
+    }
+    const key = `${activeRoom.id}:${latestInboundId ?? '__none__'}`
+    if (miniReadEngagementKeyRef.current === key) return
+    miniReadEngagementKeyRef.current = key
+
+    const roomId = activeRoom.id
     setSeenNotificationIds(prev => {
       const next = new Set(prev)
-      notifications.forEach(n => next.add(n.id))
+      for (const n of notifications) {
+        if (n.room_id === roomId) next.add(n.id)
+      }
       const arr = Array.from(next)
       if (arr.length === prev.length && prev.every(id => next.has(id))) return prev
       return arr
     })
-  }, [minimized, notifications])
 
-  /** Mark others' messages in this room as read (same RPC as full ChatWindow) while the mini chat is open. */
-  useEffect(() => {
-    if (minimized || !activeRoom?.id || !userId) return
     const sb = createClient()
-    const roomId = activeRoom.id
-    const timer = setTimeout(async () => {
-      const { error: rpcError } = await sb.rpc('mark_room_messages_read', {
-        p_room_id: roomId,
-        p_user_id: userId,
-      })
-      if (rpcError) {
-        const inRoom = notifications.filter(n => n.room_id === roomId && !n.isOutbound)
-        for (const n of inRoom.slice(-30)) {
-          await sb.from('message_read_receipts').upsert(
-            { message_id: n.id, user_id: userId },
-            { onConflict: 'message_id,user_id' },
-          )
-        }
+    const { error: rpcError } = await sb.rpc('mark_room_messages_read', {
+      p_room_id: roomId,
+      p_user_id: userId,
+    })
+    if (rpcError) {
+      const inRoom = notifications.filter(n => n.room_id === roomId && !n.isOutbound)
+      for (const n of inRoom.slice(-30)) {
+        await sb.from('message_read_receipts').upsert(
+          { message_id: n.id, user_id: userId },
+          { onConflict: 'message_id,user_id' },
+        )
       }
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [minimized, activeRoom?.id, userId, notifications])
+    }
+  }, [activeRoom?.id, userId, notifications])
 
   /** Load + subscribe to read receipts for our outbound messages (real UUID ids only). */
   useEffect(() => {
@@ -353,6 +363,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   function onReplyInputChange(value: string) {
     setReplyText(value)
     setUserInteracting(true)
+    if (value.length > 0) void engageMiniMarkReadAndSeen()
     if (!value.trim() || !viewerUsername) return
     if (!typingThrottleRef.current) {
       broadcastTyping()
@@ -365,6 +376,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   async function handleReply(e: React.FormEvent) {
     e.preventDefault()
     if (!replyText.trim() || !activeRoom || sending) return
+    void engageMiniMarkReadAndSeen()
     const msgText = replyText.trim()
     const optimisticId = `optimistic-${Date.now()}`
     setSentMessages(prev => [...prev, {

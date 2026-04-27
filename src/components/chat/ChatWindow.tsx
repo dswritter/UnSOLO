@@ -797,47 +797,59 @@ export function ChatWindow({
     }
   }, [currentUser.id, messages])
 
-  // Mark messages as read when viewing
-  useEffect(() => {
-    const sb = createBrowserClient()
-    // Small delay so the page is actually visible before marking as read
-    const timer = setTimeout(async () => {
-      // Try RPC first (bulk mark), fall back to individual inserts
-      const { error: rpcError } = await sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
-      if (rpcError) {
-        console.warn('RPC mark_room_messages_read failed:', rpcError.message, '- falling back to direct inserts')
-        // Fallback: insert read receipts for other users' messages directly
-        const otherMsgs = messages
-          .filter(m => m.user_id !== currentUser.id && m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
-          .slice(-30) // last 30 only
-        for (const msg of otherMsgs) {
-          await sb.from('message_read_receipts')
-            .upsert({ message_id: msg.id, user_id: currentUser.id }, { onConflict: 'message_id,user_id' })
-        }
-      }
+  /** Latest non-system message from someone else; when it changes, user must engage composer again to mark read. */
+  const lastPeerMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]
+      if (m.message_type === 'system' || m.id.startsWith('optimistic-')) continue
+      if (m.user_id && m.user_id !== currentUser.id) return m.id
+    }
+    return null
+  }, [messages, currentUser.id])
 
-      // After marking as read, reload receipts so ticks update
-      const realMsgIds = messages
-        .filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
-        .map(m => m.id)
-      if (realMsgIds.length > 0) {
-        const { data } = await sb
-          .from('message_read_receipts')
-          .select('message_id, user_id, read_at')
-          .in('message_id', realMsgIds.slice(-50))
-        if (data) {
-          const map = new Map<string, ReadReceipt[]>()
-          for (const r of data) {
-            const existing = map.get(r.message_id) || []
-            existing.push(r)
-            map.set(r.message_id, existing)
-          }
-          setReadReceipts(map)
-        }
+  const markedReadThroughPeerIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    markedReadThroughPeerIdRef.current = null
+  }, [roomId])
+
+  const markRoomAsReadFromComposerEngagement = useCallback(async () => {
+    const peerId = lastPeerMessageId
+    if (!peerId) return
+    if (markedReadThroughPeerIdRef.current === peerId) return
+    markedReadThroughPeerIdRef.current = peerId
+
+    const sb = createBrowserClient()
+    const { error: rpcError } = await sb.rpc('mark_room_messages_read', { p_room_id: roomId, p_user_id: currentUser.id })
+    if (rpcError) {
+      console.warn('RPC mark_room_messages_read failed:', rpcError.message, '- falling back to direct inserts')
+      const otherMsgs = messages
+        .filter(m => m.user_id !== currentUser.id && m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+        .slice(-30)
+      for (const msg of otherMsgs) {
+        await sb.from('message_read_receipts')
+          .upsert({ message_id: msg.id, user_id: currentUser.id }, { onConflict: 'message_id,user_id' })
       }
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [messages, roomId, currentUser.id])
+    }
+
+    const realMsgIds = messages
+      .filter(m => m.message_type !== 'system' && !m.id.startsWith('optimistic-'))
+      .map(m => m.id)
+    if (realMsgIds.length > 0) {
+      const { data } = await sb
+        .from('message_read_receipts')
+        .select('message_id, user_id, read_at')
+        .in('message_id', realMsgIds.slice(-50))
+      if (data) {
+        const map = new Map<string, ReadReceipt[]>()
+        for (const r of data) {
+          const existing = map.get(r.message_id) || []
+          existing.push(r)
+          map.set(r.message_id, existing)
+        }
+        setReadReceipts(map)
+      }
+    }
+  }, [lastPeerMessageId, roomId, currentUser.id, messages])
 
   // Mobile keyboard handler — adjust scroll on virtual keyboard
   useEffect(() => {
@@ -893,6 +905,7 @@ export function ChatWindow({
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim() || sending) return
+    void markRoomAsReadFromComposerEngagement()
     const content = input.trim()
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
@@ -965,6 +978,7 @@ export function ChatWindow({
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value
     const pos = e.target.selectionStart || 0
+    if (val.length > 0) void markRoomAsReadFromComposerEngagement()
     setInput(val)
     setCursorPos(pos)
     autoResizeTextarea()
@@ -1016,6 +1030,7 @@ export function ChatWindow({
   }
 
   function insertMention(username: string) {
+    void markRoomAsReadFromComposerEngagement()
     const textBeforeCursor = input.slice(0, cursorPos)
     const mentionStart = textBeforeCursor.lastIndexOf('@')
     const before = input.slice(0, mentionStart)
@@ -1028,6 +1043,7 @@ export function ChatWindow({
   }
 
   function insertHashTag(t: ChatLinkTarget) {
+    void markRoomAsReadFromComposerEngagement()
     const textBeforeCursor = input.slice(0, cursorPos)
     const hashStart = textBeforeCursor.lastIndexOf('#')
     if (hashStart === -1) return
