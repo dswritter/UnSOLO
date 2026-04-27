@@ -214,10 +214,12 @@ export default async function BookingsPage() {
     tripBookings.length > 0 || serviceBookings.length > 0 || groupBookings.length > 0 || incompleteJoinTrips.length > 0
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-black">My <span className="text-primary">Bookings</span></h1>
+          <h1 className="text-3xl font-black text-foreground">
+            My <span className="text-primary">Bookings</span>
+          </h1>
           <p className="text-muted-foreground mt-1">Your travel history and upcoming adventures</p>
         </div>
 
@@ -226,8 +228,9 @@ export default async function BookingsPage() {
             icon={BookOpen}
             title="No bookings yet"
             description="Start your solo adventure across India."
-            action={{ label: 'Explore trips', href: '/explore' }}
+            action={{ label: 'Explore on Wander', href: '/wander' }}
             size="lg"
+            dashed
           />
         ) : (
           <BookingsClient

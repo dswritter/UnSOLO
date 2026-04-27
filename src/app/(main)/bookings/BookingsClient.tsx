@@ -212,7 +212,7 @@ export function BookingsClient({
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map(i => (
             <button key={i} onClick={() => onChange(i)} className="focus:outline-none">
-              <Star className={`h-6 w-6 transition-colors ${i <= value ? 'text-primary fill-primary' : 'text-zinc-600 hover:text-zinc-400'}`} />
+              <Star className={`h-6 w-6 transition-colors ${i <= value ? 'text-primary fill-primary' : 'text-white/35 hover:text-primary/60'}`} />
             </button>
           ))}
         </div>
@@ -397,7 +397,7 @@ export function BookingsClient({
                           <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
                           <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                             <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                              <Link href="/community">
+                              <Link href="/tribe">
                                 <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                               </Link>
                             </Button>
@@ -574,7 +574,7 @@ export function BookingsClient({
                     <CardContent className="p-5 space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-bold text-sm">Write a Review</h3>
-                        <button onClick={() => setReviewingId(null)}><X className="h-4 w-4 text-zinc-500" /></button>
+                        <button onClick={() => setReviewingId(null)}><X className="h-4 w-4 text-muted-foreground" /></button>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
@@ -1126,7 +1126,7 @@ function BookingItem({
                 )}
                 {booking.status !== 'pending' && (
                   <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                    <Link href="/community">
+                    <Link href="/tribe">
                       <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                     </Link>
                   </Button>

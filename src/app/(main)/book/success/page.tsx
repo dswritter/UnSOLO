@@ -39,15 +39,15 @@ export default async function BookingSuccessPage({
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="max-w-lg w-full text-center space-y-6">
         {/* Success icon */}
-        <div className="mx-auto w-20 h-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+        <div className="mx-auto w-20 h-20 rounded-full bg-primary/15 border-2 border-primary/60 flex items-center justify-center shadow-[0_0_24px_-4px_rgba(252,186,3,0.35)]">
           <CheckCircle className="h-10 w-10 text-primary" />
         </div>
 
         <div>
-          <h1 className="text-3xl font-black mb-2">Booking Confirmed!</h1>
+          <h1 className="text-3xl font-black mb-2 text-foreground">Booking Confirmed!</h1>
           <p className="text-muted-foreground">Your adventure is officially on the books.</p>
         </div>
 
@@ -108,13 +108,13 @@ export default async function BookingSuccessPage({
             </Link>
           </Button>
           <Button variant="outline" className="border-border" asChild>
-            <Link href="/community">
+            <Link href="/tribe">
               <MessageCircle className="mr-2 h-4 w-4" /> Trip Chat
             </Link>
           </Button>
-          <Button className="bg-primary text-black font-bold hover:bg-primary/90" asChild>
-            <Link href="/explore">
-              <Compass className="mr-2 h-4 w-4" /> Explore More
+          <Button className="bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
+            <Link href="/wander">
+              <Compass className="mr-2 h-4 w-4" /> Explore Wander
             </Link>
           </Button>
         </div>

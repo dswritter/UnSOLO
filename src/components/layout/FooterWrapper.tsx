@@ -8,7 +8,10 @@ export function FooterWrapper() {
   const isWander =
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/packages') ||
-    pathname?.startsWith('/listings')
+    pathname?.startsWith('/listings') ||
+    pathname?.startsWith('/bookings') ||
+    pathname?.startsWith('/booking/') ||
+    pathname?.startsWith('/book/')
 
   // Hide footer on full-viewport or chat pages
   if (

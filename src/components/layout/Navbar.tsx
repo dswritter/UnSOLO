@@ -34,7 +34,10 @@ export function Navbar({ user }: NavbarProps) {
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/tribe') ||
     pathname?.startsWith('/packages') ||
-    pathname?.startsWith('/listings')
+    pathname?.startsWith('/listings') ||
+    pathname?.startsWith('/bookings') ||
+    pathname?.startsWith('/booking/') ||
+    pathname?.startsWith('/book/')
   const hideGlobalSearch = pathname?.startsWith('/wander')
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const mobileToggleRef = useRef<HTMLButtonElement>(null)

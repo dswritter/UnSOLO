@@ -85,22 +85,26 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
   return (
     <div className="space-y-6">
       {/* Confirmation card */}
-      <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-8 text-center space-y-4">
+      <div className="wander-frost rounded-2xl p-8 text-center space-y-4 border border-primary/25">
         <div className="flex justify-center">
-          <CheckCircle2 className="h-16 w-16 text-green-500 drop-shadow-lg" />
+          <CheckCircle2 className="h-16 w-16 text-primary drop-shadow-[0_0_20px_rgba(252,186,3,0.35)]" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Booking Confirmed!</h1>
           <p className="text-muted-foreground text-sm mt-2">
-            Your confirmation code is <code className="bg-secondary/60 px-2 py-1 rounded font-mono font-bold text-primary">{booking.id}</code>
+            Your confirmation code is{' '}
+            <code className="bg-black/30 px-2 py-1 rounded font-mono font-bold text-primary border border-primary/20">
+              {booking.id}
+            </code>
           </p>
         </div>
       </div>
 
       {/* Booking details card */}
-      <div className="border border-border rounded-xl overflow-hidden">
+      <div className="border border-border rounded-xl overflow-hidden wander-frost">
         {/* Listing preview */}
-        <div className="relative h-48 bg-secondary/50 overflow-hidden">
+        <div className="relative h-48 bg-black/25 overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imageUrl} alt={listing?.title} className="w-full h-full object-cover" />
         </div>
 
@@ -140,7 +144,7 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
 
             <div>
               <p className="text-xs text-muted-foreground font-medium">Status</p>
-              <p className="font-semibold text-green-500">Confirmed</p>
+              <p className="font-semibold text-primary">Confirmed</p>
             </div>
           </div>
 
@@ -151,7 +155,7 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
               <span className="font-semibold">{formatPrice(booking.amount_paise)}</span>
             </div>
             {booking.wallet_deducted_paise > 0 && (
-              <div className="flex justify-between text-sm text-green-500">
+              <div className="flex justify-between text-sm text-emerald-400">
                 <span>Credits applied</span>
                 <span>-{formatPrice(booking.wallet_deducted_paise)}</span>
               </div>
@@ -165,8 +169,8 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
           </div>
 
           {/* Next steps */}
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-2">
-            <p className="text-sm font-semibold text-blue-400">What's next?</p>
+          <div className="bg-primary/8 border border-primary/25 rounded-lg p-4 space-y-2">
+            <p className="text-sm font-semibold text-primary">What&apos;s next?</p>
             <ul className="text-xs text-muted-foreground space-y-1.5">
               <li>✓ Check your email for confirmation details</li>
               <li>✓ Save your confirmation code for reference</li>
@@ -242,16 +246,16 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
         </Button>
 
         <Link href={`/listings/${listing?.type}/${listing?.slug}`} className="flex-1">
-          <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+          <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90">
             View Listing
           </Button>
         </Link>
       </div>
 
-      {/* Back to explore */}
+      {/* Back to Wander */}
       <div className="text-center">
-        <Link href="/explore" className="text-primary hover:underline text-sm font-medium">
-          ← Explore more services
+        <Link href="/wander?search=1" className="text-primary hover:underline text-sm font-medium">
+          ← Explore more on Wander
         </Link>
       </div>
     </div>
@@ -275,7 +279,7 @@ export default async function ServiceBookingSuccessPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-12">
         <Suspense
           fallback={
