@@ -34,7 +34,7 @@ export function ProfileStatusStories({
             <div className="h-14 w-14 rounded-lg border-2 border-dashed border-primary/50 flex items-center justify-center hover:border-primary transition-colors">
               <Plus className="h-6 w-6 text-primary" />
             </div>
-            <span className="text-[10px] text-muted-foreground">Add</span>
+            <span className="text-[10px] text-white/75">Add</span>
           </button>
         ) : null}
 
@@ -51,7 +51,7 @@ export function ProfileStatusStories({
               alt=""
               className="h-14 w-14 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/40 transition-all"
             />
-            <span className="text-[10px] text-muted-foreground">View</span>
+            <span className="text-[10px] text-white/70">View</span>
           </button>
         ))}
       </div>

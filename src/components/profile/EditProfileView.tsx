@@ -199,7 +199,7 @@ export function EditProfileView({ theme = 'default', profileBasePath = '/profile
             <h1 className="text-3xl font-black">Edit <span className="text-primary">Profile</span></h1>
             <p className="text-muted-foreground mt-1">Update your travel identity</p>
           </div>
-          <Button variant="outline" className="border-border app-profile-v2:border-white/20 app-profile-v2:bg-white/5 app-profile-v2:text-white" asChild>
+          <Button variant="outline" className="border-border" asChild>
             <Link href={`${profileBasePath}/${profile.username}`}>View Profile</Link>
           </Button>
         </div>

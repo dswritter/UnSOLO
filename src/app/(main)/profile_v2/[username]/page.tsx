@@ -267,7 +267,7 @@ export default async function ProfilePage({
       : []
 
   const achievementsHeading = (
-    <div className="rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
+    <div className="achievements-stats-wrap rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
       <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground">
         Achievements & stats
       </p>
@@ -275,7 +275,7 @@ export default async function ProfilePage({
   )
 
   const atAGlanceCard = (
-    <Card className="bg-card border-border shadow-sm">
+    <Card className="bg-card border-border shadow-sm at-a-glance-wrap">
       <CardContent className="p-5">
         <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
         {statsGrid}

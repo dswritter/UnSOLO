@@ -303,6 +303,35 @@
   color: #fff !important;
 }
 
+/* Shell sets text-white; outline buttons also use bg-background (cream in light) → white-on-cream, invisible. Gold + near-black, match Save Changes. */
+.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400),
+.app-profile-v2 a.inline-flex.border-input.bg-background {
+  background-color: #fcba03 !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a;
+  border-color: color-mix(in srgb, #0a0a0a 22%, #fcba03) !important;
+}
+.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400):hover,
+.app-profile-v2 a.inline-flex.border-input.bg-background:hover {
+  background-color: #e6ac00 !important;
+  color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a;
+}
+.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400) svg,
+.app-profile-v2 a.inline-flex.border-input.bg-background svg {
+  color: #0a0a0a;
+  stroke: #0a0a0a;
+}
+.app-profile-v2 .at-a-glance-wrap .text-muted-foreground,
+.app-profile-v2 .achievements-stats-wrap .text-muted-foreground {
+  color: color-mix(in oklab, white 82%, oklch(0.2 0.04 152)) !important;
+}
+.app-profile-v2 .profile-24h-status-surface {
+  background: color-mix(in oklab, oklch(0.2 0.04 155) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 /* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
 .tribe-messaging-ui {
   --muted-foreground: oklch(0.99 0.004 90);
