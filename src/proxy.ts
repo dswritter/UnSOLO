@@ -4,7 +4,26 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
 const PUBLIC_CONTENT = ['/explore', '/packages', '/leaderboard', '/contact']
 
+/** Wander is only served on production host (and localhost for dev). Preview/staging → home. */
+function isWanderAllowedHost(hostHeader: string | null): boolean {
+  const host = hostHeader?.split(':')[0]?.toLowerCase() ?? ''
+  if (host === 'unsolo.in' || host === 'www.unsolo.in') return true
+  if (host === 'localhost' || host === '127.0.0.1') return true
+  if (process.env.WANDER_ALLOW_NON_PRODUCTION === '1') return true
+  return false
+}
+
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  if (pathname === '/wander' || pathname.startsWith('/wander/')) {
+    if (!isWanderAllowedHost(request.headers.get('host'))) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url, 307)
+    }
+  }
+
   // Build the base response first so the Supabase client can attach updated
   // session cookies to it. Must use this response object (not NextResponse.next())
   // for every return path so refreshed cookies always reach the browser.
@@ -35,8 +54,6 @@ export async function proxy(request: NextRequest) {
     // Token validity and expiry are still enforced; refresh happens via the
     // Supabase client when the access token is near expiry.
     const { data: { session } } = await supabase.auth.getSession()
-
-    const { pathname } = request.nextUrl
 
     // Retired preview URLs → canonical auth (query string preserved on cloned URL)
     if (pathname === '/login-v2' || pathname.startsWith('/login-v2/')) {
