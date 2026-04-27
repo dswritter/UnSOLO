@@ -1533,7 +1533,6 @@ export function ChatWindow({
                             setDisplayPinnedMessage(serverPinnedRef.current)
                             return
                           }
-                          toast.success('Pinned for everyone')
                           router.refresh()
                         })()
                       }
