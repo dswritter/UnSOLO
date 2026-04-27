@@ -471,19 +471,34 @@ export function ChatWindow({
     j.prevLen = messages.length
     const appended = messages.length > prevLen
 
-    if (isNearBottom()) {
+    const last = messages.length > 0 ? messages[messages.length - 1] : null
+    const fromSelf =
+      !!last &&
+      last.user_id === currentUser.id &&
+      last.message_type !== 'system'
+    const fromOther =
+      !!last &&
+      !!last.user_id &&
+      last.user_id !== currentUser.id &&
+      last.message_type !== 'system'
+
+    /** Follow the thread: stay pinned to bottom when already there or when you just sent. */
+    const shouldStickToBottom = isNearBottom() || fromSelf
+
+    if (shouldStickToBottom) {
       setShowJumpButton(false)
+      if (appended) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            bottomRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+          })
+        })
+      }
       return
     }
 
-    if (appended) {
-      const last = messages[messages.length - 1]
-      const fromOther =
-        last &&
-        last.user_id &&
-        last.user_id !== currentUser.id &&
-        last.message_type !== 'system'
-      if (fromOther) setShowJumpButton(true)
+    if (appended && fromOther) {
+      setShowJumpButton(true)
     }
   }, [messages, currentUser.id])
 
