@@ -117,7 +117,7 @@ export function WanderHero({
                     <Link
                       key={r.userId}
                       href={`/profile/${r.username}`}
-                      className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all"
+                      className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all motion-reduce:transition-none"
                       title={r.full_name || r.username}
                     >
                       <Avatar className="h-6 w-6 border-2 border-background sm:h-7 sm:w-7">

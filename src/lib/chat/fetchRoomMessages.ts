@@ -9,7 +9,7 @@ export async function fetchRoomMessagesClient(roomId: string): Promise<Message[]
   const key = normalizeRoomId(roomId)
   const { data, error } = await supabase
     .from('messages')
-    .select('*, user:profiles(id, username, full_name, avatar_url)')
+    .select('*, user:profiles(id, username, full_name, avatar_url, role)')
     .eq('room_id', key)
     .order('created_at', { ascending: false })
     .limit(100)

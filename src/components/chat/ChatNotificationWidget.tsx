@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { createClient } from '@/lib/supabase/client'
 import { sendMessage } from '@/actions/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -120,6 +121,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const typingChannelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
   const activeRoomRef = useRef<typeof activeRoom>(null)
   activeRoomRef.current = activeRoom
+  const miniPanelTrapRef = useRef<HTMLDivElement>(null)
+  const miniPanelOpen = !minimized && notifications.length > 0
+  useFocusTrap(miniPanelOpen, miniPanelTrapRef)
   const threadFetchGenRef = useRef(0)
   const pathname = usePathname()
   const chatListBase = pathname?.startsWith('/tribe') ? '/tribe' : '/community'
@@ -634,8 +638,12 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         </button>
       ) : (
         <div
+          ref={miniPanelTrapRef}
           className="pointer-events-auto relative isolate mb-2 flex w-[400px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-2xl border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.45)] wander-theme text-white [color-scheme:dark]"
           style={{ height: '380px', maxHeight: 'calc(100vh - 8rem)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Messages"
         >
           {/* Solid forest base + northern-lights glow (opaque enough to read messages; no blend with page behind) */}
           <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-2xl" aria-hidden>

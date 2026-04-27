@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
@@ -18,7 +19,8 @@ import { getInitials, timeAgo, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
-import type { Message, Profile } from '@/types'
+import type { Message, Profile, UserRole } from '@/types'
+import { isCommunityStaffRole } from '@/lib/chat/communityStaffRoles'
 import {
   setLastTribeRoomId,
   setCachedMessagesJson,
@@ -32,6 +34,44 @@ import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHash
 import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
 
 export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
+
+function SenderTrustBadges({
+  officialHost,
+  communityMod,
+  tribeShell,
+}: {
+  officialHost: boolean
+  communityMod: boolean
+  tribeShell?: boolean
+}) {
+  if (officialHost) {
+    return (
+      <span
+        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
+          tribeShell
+            ? 'bg-amber-400/20 text-amber-100 border-amber-300/40'
+            : 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/35'
+        }`}
+      >
+        Official host
+      </span>
+    )
+  }
+  if (communityMod) {
+    return (
+      <span
+        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
+          tribeShell
+            ? 'bg-sky-400/20 text-sky-100 border-sky-300/40'
+            : 'bg-sky-500/15 text-sky-800 dark:text-sky-200 border-sky-500/35'
+        }`}
+      >
+        Community mod
+      </span>
+    )
+  }
+  return null
+}
 
 function TripStatusBadge({ phase, className = '' }: { phase: TripChatBookingPhase; className?: string }) {
   const label = phase === 'upcoming' ? 'Booked' : phase === 'ongoing' ? 'On trip' : 'Completed'
@@ -81,6 +121,8 @@ interface ChatWindowProps {
   chatListPath?: string
   /** /tribe: textured transcript + inherited tribe-messaging-ui contrast */
   tribeShell?: boolean
+  /** Trip room: package host user id — used for “Official host” badge */
+  tripHostUserId?: string | null
 }
 
 export interface ChatMemberProfile {
@@ -92,6 +134,7 @@ export interface ChatMemberProfile {
   phone_number: string | null
   phone_public: boolean
   phone_request_status?: string | null
+  role?: UserRole
   /** Set for trip chats: booking phase vs package dates */
   trip_chat_badge?: TripChatBookingPhase | null
 }
@@ -235,6 +278,7 @@ export function ChatWindow({
   initialPollsByMessageId = {},
   chatListPath = '/community',
   tribeShell = false,
+  tripHostUserId = null,
 }: ChatWindowProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -395,6 +439,18 @@ export function ChatWindow({
   const [pollEndsAt, setPollEndsAt] = useState('')
   const [pollSubmitting, setPollSubmitting] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const lightboxTrapRef = useRef<HTMLDivElement>(null)
+  const reactorTrapRef = useRef<HTMLDivElement>(null)
+  const editTrapRef = useRef<HTMLDivElement>(null)
+  const pollTrapRef = useRef<HTMLDivElement>(null)
+  const profileTrapRef = useRef<HTMLDivElement>(null)
+
+  useFocusTrap(Boolean(roomImageLightbox && roomImageUrl), lightboxTrapRef)
+  useFocusTrap(reactorModal !== null, reactorTrapRef)
+  useFocusTrap(editTarget !== null, editTrapRef)
+  useFocusTrap(pollDialogOpen, pollTrapRef)
+  useFocusTrap(profilePopup !== null, profileTrapRef)
 
   const canPinMessages =
     (roomType === 'general' || roomType === 'trip') &&
@@ -1432,7 +1488,14 @@ export function ChatWindow({
       {/* Profile popup overlay */}
       {popupMember && (
         <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setProfilePopup(null)}>
-          <div className="bg-card border border-border rounded-xl p-5 w-full max-w-xs space-y-3" onClick={e => e.stopPropagation()}>
+          <div
+            ref={profileTrapRef}
+            className="bg-card border border-border rounded-xl p-5 w-full max-w-xs space-y-3"
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Member profile"
+          >
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -1591,6 +1654,8 @@ export function ChatWindow({
                 }}
                 chatListPath={chatListPath}
                 tribeShell={tribeShell}
+                roomType={roomType}
+                tripHostUserId={tripHostUserId}
               />
             </div>
           ))}
@@ -1756,9 +1821,12 @@ export function ChatWindow({
 
       {roomImageLightbox && roomImageUrl ? (
         <div
+          ref={lightboxTrapRef}
           className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-6"
           onClick={() => setRoomImageLightbox(false)}
-          role="presentation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Room cover"
         >
           <button
             type="button"
@@ -1787,9 +1855,11 @@ export function ChatWindow({
           role="presentation"
         >
           <div
+            ref={reactorTrapRef}
             className="bg-card rounded-xl p-4 max-w-sm w-full border border-border shadow-xl"
             onClick={e => e.stopPropagation()}
             role="dialog"
+            aria-modal="true"
             aria-label="Who reacted"
           >
             <div className="text-center text-4xl mb-2 select-none">{reactorModal.emoji}</div>
@@ -1813,9 +1883,11 @@ export function ChatWindow({
           role="presentation"
         >
           <div
+            ref={editTrapRef}
             className="bg-card rounded-xl p-4 max-w-lg w-full border border-border shadow-xl"
             onClick={e => e.stopPropagation()}
             role="dialog"
+            aria-modal="true"
             aria-label="Edit message"
           >
             <p className="text-sm font-semibold mb-2">Edit message</p>
@@ -1866,9 +1938,11 @@ export function ChatWindow({
           role="presentation"
         >
           <div
+            ref={pollTrapRef}
             className="bg-card rounded-xl p-4 max-w-md w-full border border-border shadow-xl max-h-[85vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
             role="dialog"
+            aria-modal="true"
             aria-label="Create poll"
           >
             <p className="text-sm font-bold mb-3">New poll</p>
@@ -2126,6 +2200,8 @@ function MessageBubble({
   tripBadge,
   chatListPath = '/community',
   tribeShell = false,
+  roomType = 'general',
+  tripHostUserId = null,
 }: {
   message: Message
   roomId: string
@@ -2158,6 +2234,8 @@ function MessageBubble({
   tripBadge?: TripChatBookingPhase | null
   chatListPath?: string
   tribeShell?: boolean
+  roomType?: 'trip' | 'general' | 'direct'
+  tripHostUserId?: string | null
 }): React.ReactNode {
   const memberFallback =
     message.user_id && !message.user
@@ -2175,6 +2253,15 @@ function MessageBubble({
       : undefined)
   const name = user?.full_name || user?.username || 'Unknown'
   const profileUrl = user?.username ? `/profile/${user.username}` : '#'
+
+  const authorRole = (memberFallback?.role ?? message.user?.role ?? 'user') as UserRole
+  const showOfficialHost =
+    roomType === 'trip' &&
+    Boolean(tripHostUserId) &&
+    Boolean(message.user_id) &&
+    message.user_id === tripHostUserId
+  const showCommunityMod =
+    roomType === 'trip' && !showOfficialHost && message.user_id != null && isCommunityStaffRole(authorRole)
 
   const emojiStripScrollRef = useRef<HTMLDivElement>(null)
   const [touchLiftEmoji, setTouchLiftEmoji] = useState<string | null>(null)
@@ -2288,6 +2375,11 @@ function MessageBubble({
               <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors">
                 {name}
               </Link>
+              <SenderTrustBadges
+                officialHost={showOfficialHost}
+                communityMod={showCommunityMod}
+                tribeShell={tribeShell}
+              />
             </div>
           )}
           <ChatPollCard
@@ -2339,6 +2431,11 @@ function MessageBubble({
               <span className="truncate">{name}</span>
               {isOnline && <span className="h-1.5 w-1.5 bg-green-500 rounded-full inline-block shrink-0" />}
             </Link>
+            <SenderTrustBadges
+              officialHost={showOfficialHost}
+              communityMod={showCommunityMod}
+              tribeShell={tribeShell}
+            />
             {tripBadge ? <TripStatusBadge phase={tripBadge} /> : null}
           </div>
         )}

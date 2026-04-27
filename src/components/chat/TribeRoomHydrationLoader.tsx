@@ -52,7 +52,7 @@ export async function TribeRoomHydrationLoader({
     const [{ data: profiles }, { data: phoneRequests }] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
+        .select('id, username, full_name, avatar_url, bio, phone_number, phone_public, role')
         .in('id', memberIds),
       supabase.from('phone_requests').select('target_id, status').eq('requester_id', userId).in('target_id', memberIds),
     ])

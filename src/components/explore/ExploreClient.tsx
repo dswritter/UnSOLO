@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X } from 'lucide-react'
 import { formatPrice, cn, formatDate } from '@/lib/utils'
-import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { ExploreSidebar } from './ExploreSidebar'
@@ -316,6 +316,7 @@ export function ExploreClient({
             {(packages as Package[]).map((pkg) => {
               const spotsLeft = pkg.max_group_size - (spotsBooked[pkg.id] || 0)
               const interestTotal = interestCounts[pkg.id] || 0
+              const nextDeparture = packageNextDepartureLine(pkg)
               return (
               <div
                 key={pkg.id}
@@ -335,6 +336,7 @@ export function ExploreClient({
                   className={cn(
                     'bg-card border-border overflow-hidden cursor-pointer h-full group py-0 gap-0',
                     'transition-all duration-300 hover:shadow-xl hover:scale-[1.02]',
+                    'motion-reduce:transition-none motion-reduce:hover:scale-100',
                     'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
                     pkg.host_id
                       ? 'ring-2 ring-blue-500/50 bg-gradient-to-br from-card to-blue-500/5'
@@ -348,7 +350,7 @@ export function ExploreClient({
                         alt={pkg.title}
                         fill
                         sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary to-muted">
@@ -446,19 +448,33 @@ export function ExploreClient({
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
                         <span className="text-primary font-black text-xl">
                           {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
                           {formatPrice(pkg.price_paise)}
                         </span>
                         <span className="text-muted-foreground text-xs ml-1">/ person</span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xs text-muted-foreground">{packageDurationShortLabel(pkg)}</div>
-                        <div className="text-xs text-muted-foreground">Max {pkg.max_group_size} people</div>
+                      <div className="text-right shrink-0 space-y-0.5">
+                        <div className="text-xs font-semibold text-foreground tabular-nums">
+                          {packageDurationShortLabel(pkg)}
+                        </div>
+                        {nextDeparture ? (
+                          <div className="text-[11px] font-medium text-primary leading-tight">{nextDeparture}</div>
+                        ) : null}
+                        <div className="text-[11px] text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>
+                    <p className="mt-2 text-[11px]">
+                      <Link
+                        href="/refund-policy"
+                        onClick={e => e.stopPropagation()}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        Cancellations &amp; refunds
+                      </Link>
+                    </p>
                     {interestTotal > 0 && (
                       <div className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1">
                         <Heart className="h-3 w-3 text-red-400 fill-red-400" />

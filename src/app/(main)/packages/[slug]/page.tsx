@@ -589,6 +589,17 @@ export default async function PackageDetailPage({
                   )}
 
                   <div className="border-t border-border pt-4 space-y-2 text-xs text-muted-foreground">
+                    <p className="text-foreground pb-1 leading-snug">
+                      <Link href="/refund-policy" className="font-semibold text-primary hover:underline">
+                        Cancellations &amp; refunds
+                      </Link>
+                      <span className="text-muted-foreground mx-1.5" aria-hidden>
+                        ·
+                      </span>
+                      <Link href="/terms" className="font-medium text-primary/90 hover:underline">
+                        Terms
+                      </Link>
+                    </p>
                     <div className="flex justify-between">
                       <span>Duration</span>
                       <span className="text-foreground">{packageDurationShortLabel(package_)}</span>

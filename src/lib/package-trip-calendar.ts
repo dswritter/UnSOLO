@@ -86,3 +86,26 @@ export function packageDurationFullLabel(p: PackageDurationDisplay): string {
   const parts = [packageDurationShortLabel(p), ...packageDurationDetailLines(p)]
   return parts.join(' · ')
 }
+
+/** Scannable line for cards: next upcoming departure, or last departure if all past. */
+export function packageNextDepartureLine(input: { departure_dates?: string[] | null }): string | null {
+  const raw = input.departure_dates?.filter(Boolean)
+  if (!raw?.length) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const keys = [...raw].map(tripDepartureDateKey).sort()
+  for (const k of keys) {
+    const d = new Date(`${k}T12:00:00`)
+    if (Number.isNaN(d.getTime())) continue
+    if (d >= today) {
+      const fmt = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+      return `Next · ${fmt}`
+    }
+  }
+  const last = keys[keys.length - 1]
+  if (!last) return null
+  const end = new Date(`${last}T12:00:00`)
+  if (Number.isNaN(end.getTime())) return null
+  const fmt = end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `Last departure ${fmt}`
+}

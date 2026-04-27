@@ -21,6 +21,7 @@ type PackageJoin = {
   departure_dates?: string[] | null
   return_dates?: string[] | null
   images?: string[] | null
+  host_id?: string | null
   destination?: { name: string; state: string } | { name: string; state: string }[] | null
 } | null
 
@@ -37,7 +38,9 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
 
   const { data: room } = await supabase
     .from('chat_rooms')
-    .select('*, package:packages(title, slug, duration_days, departure_dates, return_dates, images, destination:destinations(name, state))')
+    .select(
+      '*, package:packages(title, slug, duration_days, departure_dates, return_dates, images, host_id, destination:destinations(name, state))',
+    )
     .eq('id', roomId)
     .maybeSingle()
 
@@ -171,7 +174,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
   if (memberIds.length > 0) {
     const { data: profilesBasic } = await supabase
       .from('profiles')
-      .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
+      .select('id, username, full_name, avatar_url, bio, phone_number, phone_public, role')
       .in('id', memberIds)
     bootstrapMemberProfiles = (profilesBasic || []).map(
       p =>
@@ -195,6 +198,8 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     (room.type === 'trip' && pkg?.images?.[0] ? pkg.images[0] : null)
 
   const packageId = room.package_id ? String(room.package_id) : null
+  const tripHostUserId =
+    room.type === 'trip' && pkg?.host_id ? String(pkg.host_id) : null
 
   return (
     <div className="flex flex-col h-full min-h-0 flex-1 bg-transparent">
@@ -206,6 +211,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
         currentUser={profile as Profile}
         bootstrapMemberProfiles={bootstrapMemberProfiles}
         chatListPath={listPath}
+        tripHostUserId={tripHostUserId}
         hydrator={
           <Suspense fallback={null}>
             <TribeRoomHydrationLoader

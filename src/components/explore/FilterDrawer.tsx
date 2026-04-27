@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { X, ChevronDown, Check } from 'lucide-react'
@@ -80,6 +81,8 @@ export function FilterDrawer({
   const [monthExpanded, setMonthExpanded] = useState(false)
   const router = useRouter()
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const drawerTrapRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(isOpen && mounted, drawerTrapRef)
   const isTripsTab = activeTab === 'trips'
   const tripSource: 'all' | 'unsolo' | 'community' =
     params.tripSource === 'community' ? 'community' : params.tripSource === 'unsolo' ? 'unsolo' : 'all'
@@ -135,7 +138,13 @@ export function FilterDrawer({
       />
 
       {/* Drawer from left */}
-      <div className="absolute inset-y-0 left-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300 flex flex-col overflow-hidden">
+      <div
+        ref={drawerTrapRef}
+        className="absolute inset-y-0 left-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300 flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Filters"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border flex-shrink-0">
           <div>

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
+import { isLikelyNextRedirectError } from '@/lib/navigation/nextRedirect'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Gift, Mail, Eye, EyeOff } from 'lucide-react'
@@ -16,7 +17,10 @@ const inputPlaceholderClass =
   'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
 
 function SignupV2FormInner() {
-  const [loading, setLoading] = useState<false | 'google' | 'email'>(false)
+  const [loading, setLoading] = useState<false | 'email'>(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
+  const [googleAttempts, setGoogleAttempts] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
@@ -24,9 +28,27 @@ function SignupV2FormInner() {
   const submitLockRef = useRef(false)
   const searchParams = useSearchParams()
   const refCode = searchParams.get('ref') || ''
-  const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmPasswordRef = useRef<HTMLInputElement>(null)
+
+  async function handleGoogleSignUp() {
+    if (googleBusy || googleAttempts >= 2) return
+    setGoogleError(null)
+    setGoogleBusy(true)
+    try {
+      const result = await signInWithGoogle(refCode || undefined)
+      if (result && typeof result === 'object' && 'error' in result && result.error) {
+        setGoogleError(result.error)
+        setGoogleAttempts(a => a + 1)
+      }
+    } catch (e) {
+      if (isLikelyNextRedirectError(e)) return
+      setGoogleError("We couldn't start Google sign-up. Try again or continue with email below.")
+      setGoogleAttempts(a => a + 1)
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
 
   if (loading === 'email') {
     return (
@@ -119,9 +141,10 @@ function SignupV2FormInner() {
         toast.error(result.error)
         const errorMsg = result.error.toLowerCase()
         if (errorMsg.includes('email')) {
-          if (emailRef.current) {
-            emailRef.current.value = ''
-            emailRef.current.focus()
+          const emailEl = document.getElementById('auth-v2-signup-email') as HTMLInputElement | null
+          if (emailEl) {
+            emailEl.value = ''
+            emailEl.focus()
           }
         } else if (errorMsg.includes('password')) {
           if (passwordRef.current) {
@@ -184,7 +207,7 @@ function SignupV2FormInner() {
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-white/80">Email</label>
           <Input
-            ref={emailRef}
+            id="auth-v2-signup-email"
             name="email"
             type="email"
             autoComplete="email"
@@ -239,7 +262,7 @@ function SignupV2FormInner() {
         </div>
         <Button
           type="submit"
-          disabled={!!loading}
+          disabled={!!loading || googleBusy}
           className="h-11 w-full bg-[#fcba03] text-base font-extrabold text-black shadow-lg shadow-[#fcba03]/20 hover:bg-[#fcba03]/90"
         >
           Create account
@@ -258,16 +281,46 @@ function SignupV2FormInner() {
       <Button
         type="button"
         variant="outline"
-        disabled={!!loading}
+        disabled={!!loading || googleBusy || googleAttempts >= 2}
         className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5"
-        onClick={() => {
-          setLoading('google')
-          signInWithGoogle(refCode || undefined)
-        }}
+        onClick={() => void handleGoogleSignUp()}
       >
         <GoogleMark className="mr-2 h-4 w-4" />
-        {loading === 'google' ? '…' : 'Continue with Google'}
+        {googleBusy ? '…' : 'Continue with Google'}
       </Button>
+
+      {googleError ? (
+        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-200/95 space-y-2">
+          <p>{googleError}</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {googleAttempts < 2 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 border-white/25 bg-transparent text-white hover:bg-white/10"
+                disabled={googleBusy}
+                onClick={() => void handleGoogleSignUp()}
+              >
+                Try Google again
+              </Button>
+            ) : (
+              <p className="text-[11px] text-white/55">Continue with email above to create your account.</p>
+            )}
+            <button
+              type="button"
+              className="text-left text-[11px] font-semibold text-[#fcba03] hover:underline sm:text-right"
+              onClick={() => {
+                const el = document.getElementById('auth-v2-signup-email')
+                el?.focus()
+                el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+              }}
+            >
+              Use email sign-up instead
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <p className="text-[11px] text-white/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
 

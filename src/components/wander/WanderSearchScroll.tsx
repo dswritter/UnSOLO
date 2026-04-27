@@ -14,7 +14,13 @@ export function WanderSearchScroll() {
   useLayoutEffect(() => {
     if (search !== '1') return
     const t = window.setTimeout(() => {
-      document.getElementById('wander-explore')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const reduce =
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      document.getElementById('wander-explore')?.scrollIntoView({
+        behavior: reduce ? 'auto' : 'smooth',
+        block: 'start',
+      })
     }, 120)
     return () => window.clearTimeout(t)
   }, [search])

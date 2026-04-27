@@ -2,12 +2,13 @@
 
 import { useState, useCallback } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Package } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, cn } from '@/lib/utils'
-import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { MapPin, Mountain, Heart } from 'lucide-react'
 
@@ -50,6 +51,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
   }, [pkg.slug])
 
   const heartActive = wishlisted.has(pkg.id) || interestedSet.has(pkg.id)
+  const nextDeparture = packageNextDepartureLine(pkg)
 
   return (
     <div
@@ -69,6 +71,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
       <Card
         className={cn(
           'h-full overflow-hidden border-border/80 bg-card/80 py-0 gap-0 transition-all hover:shadow-lg hover:scale-[1.01]',
+          'motion-reduce:transition-none motion-reduce:hover:scale-100',
           pkg.is_featured && 'ring-1 ring-primary/30',
         )}
       >
@@ -100,7 +103,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
           >
             <Heart
               className={cn(
-                'h-4 w-4 transition-all duration-300 sm:h-5 sm:w-5',
+                'h-4 w-4 transition-all duration-300 sm:h-5 sm:w-5 motion-reduce:transition-none motion-reduce:scale-100',
                 heartActive ? 'scale-110 fill-red-500 text-red-500' : 'text-white/80 hover:text-white',
               )}
             />
@@ -113,17 +116,29 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
             {pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '—'}
           </p>
           <div className="flex items-end justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <span className="text-base font-black text-primary sm:text-lg">
                 {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
                 {formatPrice(pkg.price_paise)}
               </span>
               <span className="text-[10px] text-muted-foreground"> / person</span>
             </div>
-            <div className="text-right text-[10px] text-muted-foreground">
-              <div>{packageDurationShortLabel(pkg)}</div>
+            <div className="text-right text-[10px] space-y-0.5 shrink-0">
+              <div className="font-semibold text-foreground tabular-nums">{packageDurationShortLabel(pkg)}</div>
+              {nextDeparture ? (
+                <div className="text-[10px] font-medium text-primary leading-tight">{nextDeparture}</div>
+              ) : null}
             </div>
           </div>
+          <p className="mt-2 text-[10px]">
+            <Link
+              href="/refund-policy"
+              onClick={e => e.stopPropagation()}
+              className="font-semibold text-primary hover:underline"
+            >
+              Cancellations &amp; refunds
+            </Link>
+          </p>
           {interestCount > 0 && (
             <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
               <Heart className="h-3 w-3 shrink-0 fill-red-400 text-red-400" />

@@ -29,6 +29,7 @@ type CoordinatorProps = {
   currentUser: Profile
   bootstrapMemberProfiles: ChatMemberProfile[]
   chatListPath: string
+  tripHostUserId?: string | null
   hydrator: ReactNode
 }
 
@@ -40,6 +41,7 @@ export function TribeRoomCoordinator({
   currentUser,
   bootstrapMemberProfiles,
   chatListPath,
+  tripHostUserId = null,
   hydrator,
 }: CoordinatorProps) {
   const [hydration, setHydration] = useState<TribeRoomHydrationPayload | null>(null)
@@ -59,6 +61,7 @@ export function TribeRoomCoordinator({
         initialPollsByMessageId={hydration?.initialPollsByMessageId ?? {}}
         chatListPath={chatListPath}
         tribeShell
+        tripHostUserId={tripHostUserId}
       />
       {hydrator}
     </HydrationDispatch.Provider>

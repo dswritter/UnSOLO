@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { useRouter } from 'next/navigation'
 import { Search, X } from 'lucide-react'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
@@ -23,7 +24,10 @@ export function SearchDrawer({
   const [searchInput, setSearchInput] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const trapRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  useFocusTrap(isOpen, trapRef)
 
   useEffect(() => {
     if (isOpen) {
@@ -78,7 +82,7 @@ export function SearchDrawer({
   if (!isOpen) return null
 
   return (
-    <>
+    <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Search">
       {/* Full-width search bar above keyboard */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-bottom">
         <div className="flex items-center gap-2 px-4 py-3">
@@ -113,6 +117,6 @@ export function SearchDrawer({
           </button>
         </div>
       </div>
-    </>
+    </div>
   )
 }
