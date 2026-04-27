@@ -65,7 +65,7 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/explore')
+  redirect('/')
 }
 
 export async function signIn(formData: FormData) {
@@ -88,7 +88,7 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/explore')
+  redirect('/')
 }
 
 export async function signOut() {
