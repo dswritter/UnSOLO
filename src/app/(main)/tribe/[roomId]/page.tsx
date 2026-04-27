@@ -1,20 +1,17 @@
 export const dynamic = 'force-dynamic'
 
+import { Suspense } from 'react'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { ChatWindow, type ChatMemberProfile } from '@/components/chat/ChatWindow'
+import type { ChatMemberProfile } from '@/components/chat/ChatWindow'
+import { TribeRoomCoordinator } from '@/components/chat/TribeRoomCoordinator'
+import { TribeRoomHydrationLoader } from '@/components/chat/TribeRoomHydrationLoader'
 import { JoinRoomButton } from '@/components/chat/JoinRoomButton'
 import { Button } from '@/components/ui/button'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
-import type { Message, Profile } from '@/types'
-import { hashtagSlugFromRoomName } from '@/lib/chat/chatHashTags'
-import { getRoomPollsState } from '@/lib/chat/getRoomPollsState'
-import {
-  bestTripChatPhaseForUser,
-  userHasTripChatAccess,
-  type TripChatBookingPhase,
-} from '@/lib/chat/tripChatAccess'
+import type { Profile } from '@/types'
+import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 
 type PackageJoin = {
@@ -45,8 +42,8 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     .eq('id', roomId)
     .maybeSingle()
 
-  const roomRow = room as { pinned_message_id?: string | null } | null
-  const pinId = roomRow?.pinned_message_id
+  const roomRow = room as { pinned_message_id?: string | null; package_id?: string | null } | null
+  const pinId = roomRow?.pinned_message_id ?? null
 
   if (!room) notFound()
 
@@ -163,93 +160,34 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     )
   }
 
-  const [{ data: msgs }, { data: profile }, { data: members }, { data: linkRooms }, { data: pinnedMsg }] = await Promise.all([
-    supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
+  const [{ data: profile }, { data: members }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', user.id).single(),
     supabase.from('chat_room_members').select('user_id').eq('room_id', roomId),
-    supabase
-      .from('chat_rooms')
-      .select('id, name, type, package:packages(slug)')
-      .eq('is_active', true)
-      .in('type', ['general', 'trip']),
-    pinId
-      ? supabase.from('messages').select('*, user:profiles(id, username, full_name, avatar_url)').eq('id', pinId).maybeSingle()
-      : Promise.resolve({ data: null }),
   ])
 
   if (!profile) redirect('/login')
 
-  const messageList = (msgs || []) as Message[]
-  const pollMessageIds = messageList.filter(m => m.message_type === 'poll').map(m => m.id)
-  const pollsByMessageId =
-    pollMessageIds.length > 0
-      ? await getRoomPollsState(supabase, roomId, pollMessageIds, user.id)
-      : {}
-
-  const memberIds = (members || []).map(m => m.user_id).filter(Boolean)
-  let memberProfiles: ChatMemberProfile[] = []
+  const memberIds = (members || []).map(m => m.user_id).filter(Boolean) as string[]
+  let bootstrapMemberProfiles: ChatMemberProfile[] = []
   if (memberIds.length > 0) {
-    const [{ data: profiles }, { data: phoneRequests }] = await Promise.all([
-      supabase.from('profiles').select('id, username, full_name, avatar_url, bio, phone_number, phone_public').in('id', memberIds),
-      supabase.from('phone_requests').select('target_id, status').eq('requester_id', user.id).in('target_id', memberIds),
-    ])
-    let memberBookings: { user_id: string; status: string; travel_date: string }[] = []
-    if (room.type === 'trip' && room.package_id) {
-      const { data: mb } = await supabase
-        .from('bookings')
-        .select('user_id, status, travel_date')
-        .eq('package_id', room.package_id)
-        .in('user_id', memberIds)
-      memberBookings = mb || []
-    }
-    const requestMap = new Map((phoneRequests || []).map(r => [r.target_id, r.status]))
-    const byUserBookings = new Map<string, { status: string; travel_date: string }[]>()
-    for (const row of memberBookings) {
-      const arr = byUserBookings.get(row.user_id) || []
-      arr.push({ status: row.status, travel_date: row.travel_date })
-      byUserBookings.set(row.user_id, arr)
-    }
-    memberProfiles = (profiles || []).map(p => {
-      const rows = byUserBookings.get(p.id) || []
-      const trip_chat_badge: TripChatBookingPhase | null | undefined =
-        room.type === 'trip' && room.package_id
-          ? bestTripChatPhaseForUser(rows, tripPkgCal)
-          : undefined
-      return { ...p, phone_request_status: requestMap.get(p.id) || null, trip_chat_badge } as ChatMemberProfile
-    })
+    const { data: profilesBasic } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, bio, phone_number, phone_public')
+      .in('id', memberIds)
+    bootstrapMemberProfiles = (profilesBasic || []).map(
+      p =>
+        ({
+          ...p,
+          phone_request_status: null,
+          trip_chat_badge: undefined,
+        }) as ChatMemberProfile,
+    )
   }
 
   let displayName = room.name
   if (room.type === 'direct') {
-    const other = memberProfiles.find(m => m.id !== user.id)
+    const other = bootstrapMemberProfiles.find(m => m.id !== user.id)
     if (other) displayName = other.full_name || other.username
-  }
-
-  const chatLinkTargets: { roomId: string; slug: string; label: string }[] = []
-  const seenSlugs = new Set<string>()
-  for (const r of linkRooms || []) {
-    const row = r as unknown as {
-      id: string
-      name: string
-      type: string
-      package: { slug: string } | { slug: string }[] | null
-    }
-    const pkgSlug =
-      row.package && !Array.isArray(row.package) ? row.package.slug : Array.isArray(row.package) ? row.package[0]?.slug : undefined
-    if (row.type === 'general' && row.name) {
-      const slug = hashtagSlugFromRoomName(row.name)
-      if (slug && !seenSlugs.has(slug)) {
-        seenSlugs.add(slug)
-        chatLinkTargets.push({ roomId: row.id, slug, label: row.name })
-      }
-    } else if (row.type === 'trip' && pkgSlug && !seenSlugs.has(pkgSlug)) {
-      seenSlugs.add(pkgSlug)
-      chatLinkTargets.push({
-        roomId: row.id,
-        slug: pkgSlug,
-        label: pkgSlug.replace(/-/g, ' '),
-      })
-    }
   }
 
   const rowImage = (room as { image_url?: string | null }).image_url
@@ -257,21 +195,30 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     (typeof rowImage === 'string' && rowImage.trim() !== '' ? rowImage : null) ||
     (room.type === 'trip' && pkg?.images?.[0] ? pkg.images[0] : null)
 
+  const packageId = room.package_id ? String(room.package_id) : null
+
   return (
     <div className="flex flex-col h-full min-h-0 flex-1 bg-transparent">
-      <ChatWindow
+      <TribeRoomCoordinator
         roomId={roomId}
         roomName={displayName}
         roomType={room.type as 'trip' | 'general' | 'direct'}
         roomImageUrl={roomImageUrl}
-        initialMessages={messageList.slice().reverse()}
         currentUser={profile as Profile}
-        memberProfiles={memberProfiles}
-        chatLinkTargets={chatLinkTargets}
-        pinnedMessage={(pinnedMsg as Message | null) ?? null}
-        initialPollsByMessageId={pollsByMessageId}
+        bootstrapMemberProfiles={bootstrapMemberProfiles}
         chatListPath={listPath}
-        tribeShell
+        hydrator={
+          <Suspense fallback={null}>
+            <TribeRoomHydrationLoader
+              roomId={roomId}
+              userId={user.id}
+              pinId={pinId}
+              roomType={String(room.type)}
+              packageId={packageId}
+              tripPkgCal={tripPkgCal}
+            />
+          </Suspense>
+        }
       />
     </div>
   )

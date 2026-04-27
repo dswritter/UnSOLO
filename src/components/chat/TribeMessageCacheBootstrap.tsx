@@ -4,7 +4,7 @@ import { useLayoutEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { chatKeys } from '@/lib/chat/chatQueryKeys'
-import { getCachedMessagesJson, parseCachedMessagesPayload } from '@/lib/tribe-browser-cache'
+import { readPrimedMessages } from '@/lib/tribe-browser-cache'
 import type { Message } from '@/types'
 
 /**
@@ -19,13 +19,12 @@ export function TribeMessageCacheBootstrap() {
     const m = pathname?.match(/\/(?:community|tribe)\/([0-9a-f-]{36})/i)
     if (!m) return
     const roomId = m[1]
-    const raw = getCachedMessagesJson(roomId)
-    const parsed = parseCachedMessagesPayload(raw)
-    if (!parsed?.messages?.length) return
+    const primed = readPrimedMessages(roomId)
+    if (!primed?.length) return
     const key = chatKeys.messages(roomId)
     const existing = queryClient.getQueryData<Message[]>(key)
     if (existing && existing.length > 0) return
-    queryClient.setQueryData(key, parsed.messages as Message[])
+    queryClient.setQueryData(key, primed)
   }, [pathname, queryClient])
 
   return null

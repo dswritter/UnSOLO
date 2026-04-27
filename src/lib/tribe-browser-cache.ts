@@ -1,12 +1,19 @@
 import { normalizeRoomId } from '@/lib/chat/chatQueryKeys'
+import type { Message } from '@/types'
 
 const LAST_ROOM_KEY = 'unsolo:last-tribe-room-id'
 const MESSAGES_PREFIX = 'unsolo:tribe-messages:'
+/** Survives refresh, new tabs, and session restarts (best-effort). */
+const MESSAGES_PERSIST_PREFIX = 'unsolo:tribe-messages-persist:'
 const CACHE_VERSION = 1
 const MAX_CACHED_MESSAGES = 100
 
 function isBrowser() {
-  return typeof window !== 'undefined' && typeof sessionStorage !== 'undefined'
+  return (
+    typeof window !== 'undefined' &&
+    typeof sessionStorage !== 'undefined' &&
+    typeof localStorage !== 'undefined'
+  )
 }
 
 export function getLastTribeRoomId(): string | null {
@@ -39,10 +46,36 @@ function msgKey(roomId: string) {
   return MESSAGES_PREFIX + normalizeRoomId(roomId)
 }
 
+function msgPersistKey(roomId: string) {
+  return MESSAGES_PERSIST_PREFIX + normalizeRoomId(roomId)
+}
+
 export function getCachedMessagesJson(roomId: string): string | null {
   if (!isBrowser()) return null
   try {
-    return sessionStorage.getItem(msgKey(roomId))
+    return sessionStorage.getItem(msgKey(roomId)) ?? localStorage.getItem(msgPersistKey(roomId))
+  } catch {
+    return null
+  }
+}
+
+/** Prefer sessionStorage, then localStorage — newest valid payload wins for priming the transcript. */
+export function readPrimedMessages(roomId: string): Message[] | null {
+  if (!isBrowser()) return null
+  try {
+    const k = msgKey(roomId)
+    const pk = msgPersistKey(roomId)
+    const sessionRaw = sessionStorage.getItem(k)
+    const localRaw = localStorage.getItem(pk)
+    const pick = (a: string | null, b: string | null) => {
+      const pa = parseCachedMessagesPayload(a)
+      const pb = parseCachedMessagesPayload(b)
+      if (pa && pb) return pa.savedAt >= pb.savedAt ? pa : pb
+      return pa ?? pb
+    }
+    const parsed = pick(sessionRaw, localRaw)
+    if (!parsed?.messages?.length) return null
+    return parsed.messages as Message[]
   } catch {
     return null
   }
@@ -57,6 +90,15 @@ export function setCachedMessagesJson(roomId: string, json: string) {
       sessionStorage.removeItem(msgKey(roomId))
     } catch {
       /* ignore */
+    }
+  }
+  try {
+    localStorage.setItem(msgPersistKey(roomId), json)
+  } catch {
+    try {
+      localStorage.removeItem(msgPersistKey(roomId))
+    } catch {
+      /* quota */
     }
   }
 }

@@ -19,7 +19,12 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { Message, Profile } from '@/types'
-import { setLastTribeRoomId, setCachedMessagesJson, buildMessagesCachePayload } from '@/lib/tribe-browser-cache'
+import {
+  setLastTribeRoomId,
+  setCachedMessagesJson,
+  buildMessagesCachePayload,
+  readPrimedMessages,
+} from '@/lib/tribe-browser-cache'
 import type { ChatPollState } from '@/lib/chat/getRoomPollsState'
 import { PinnedMessageBanner } from '@/components/chat/PinnedMessageBanner'
 import { ChatPollCard } from '@/components/chat/ChatPollCard'
@@ -247,13 +252,15 @@ export function ChatWindow({
     queryFn: () => fetchRoomMessagesClient(roomId),
     initialData: () => {
       const cached = queryClient.getQueryData<Message[]>(messagesKey)
-      if (!cached?.length) return initialMessages
-      // Sidebar may have merged realtime rows without `user` — don't prefer that over RSC payload
-      const cacheMissingSender = cached.some(
+      const primed = typeof window !== 'undefined' ? readPrimedMessages(roomId) : null
+      const base =
+        cached?.length ? cached : primed?.length ? primed : initialMessages
+      if (!base.length) return initialMessages
+      const cacheMissingSender = base.some(
         m =>
           Boolean(m.user_id) && (m.message_type === 'text' || m.message_type === 'poll') && !m.user,
       )
-      return cacheMissingSender ? initialMessages : cached
+      return cacheMissingSender ? initialMessages : base
     },
     staleTime: Infinity,
     gcTime: 1000 * 60 * 60 * 24 * 7,
