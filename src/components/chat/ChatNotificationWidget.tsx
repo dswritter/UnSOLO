@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { sendMessage } from '@/actions/chat'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -68,6 +68,10 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [viewerUsername, setViewerUsername] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesScrollRef = useRef<HTMLDivElement>(null)
+  /** Panel was collapsed to FAB — next expand should jump to latest message. */
+  const miniPanelWasMinimizedRef = useRef(true)
+  const miniThreadPrevTailRef = useRef<string | null>(null)
   const autoMinimizeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const typingThrottleRef = useRef<NodeJS.Timeout | null>(null)
   const typingTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
@@ -213,7 +217,6 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
           setNotifications(prev => [notification, ...prev].slice(0, 8))
           setDismissed(false)
           setMinimized(false)
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 80)
 
           playNotificationSound({
             messageRoomId: msg.room_id,
@@ -433,23 +436,59 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     setTimeout(() => inputRef.current?.focus(), 100)
   }
 
+  const activeRoomNotifications = useMemo(() => {
+    if (!activeRoom) return []
+    const inRoom = notifications.filter(n => n.room_id === activeRoom.id)
+    const outbound = sentMessages.filter(m => m.room_id === activeRoom.id)
+    return [...inRoom, ...outbound].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    )
+  }, [activeRoom?.id, notifications, sentMessages])
+
+  const miniThreadTailId =
+    activeRoomNotifications.length > 0
+      ? activeRoomNotifications[activeRoomNotifications.length - 1]!.id
+      : null
+
+  const scrollMiniThreadToBottom = useCallback(() => {
+    const wrap = messagesScrollRef.current
+    if (!wrap) return
+    wrap.scrollTo({ top: wrap.scrollHeight, behavior: 'auto' })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (isOnChatPage) return
+
+    if (minimized) {
+      miniPanelWasMinimizedRef.current = true
+      return
+    }
+
+    if (!activeRoom) {
+      miniThreadPrevTailRef.current = null
+      return
+    }
+
+    if (!miniThreadTailId) return
+
+    const openedFromIcon = miniPanelWasMinimizedRef.current
+    miniPanelWasMinimizedRef.current = false
+
+    const tailGrew = miniThreadPrevTailRef.current !== miniThreadTailId
+    miniThreadPrevTailRef.current = miniThreadTailId
+
+    if (openedFromIcon || tailGrew) {
+      scrollMiniThreadToBottom()
+      requestAnimationFrame(() => {
+        const w = messagesScrollRef.current
+        if (w) w.scrollTo({ top: w.scrollHeight, behavior: 'auto' })
+      })
+    }
+  }, [isOnChatPage, minimized, activeRoom?.id, miniThreadTailId, scrollMiniThreadToBottom])
+
   if (isOnChatPage) return null
   // Dismissed = hide button until next new message arrives
   if (dismissed && notifications.length === 0) return null
-
-  // Group notifications by room
-  const roomMap = new Map<string, ChatNotification[]>()
-  notifications.forEach(n => {
-    const existing = roomMap.get(n.room_id) || []
-    existing.push(n)
-    roomMap.set(n.room_id, existing)
-  })
-
-  // Combine received notifications + sent messages, reverse so newest at bottom
-  const activeRoomNotifications = activeRoom ? [
-    ...(roomMap.get(activeRoom.id) || []),
-    ...sentMessages.filter(m => m.room_id === activeRoom.id),
-  ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) : []
 
   const iconBtn =
     'rounded-lg p-1.5 text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/60'
@@ -533,7 +572,10 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             </div>
 
             {/* Messages */}
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.105_0.045_152/0.88)]">
+            <div
+              ref={messagesScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.105_0.045_152/0.88)]"
+            >
               {activeRoom ? (
                 <>
                   {activeRoomNotifications.length > 0 ? (
