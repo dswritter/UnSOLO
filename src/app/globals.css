@@ -264,7 +264,7 @@
   color: #fcba03;
 }
 
-/* /profile_v2* — shadcn surfaces on forest shell (align with /leaderboard_v2) */
+/* /profile_v2* — shadcn surfaces on forest shell (align with /leaderboard) */
 .app-profile-v2 [class~='bg-card'] {
   background: color-mix(in oklab, oklch(0.2 0.04 155) 70%, transparent) !important;
   border-color: color-mix(in oklab, white 14%, oklch(0.4 0.08 150)) !important;

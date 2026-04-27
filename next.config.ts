@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      { source: '/leaderboard_v2', destination: '/leaderboard', permanent: true },
+      { source: '/leaderboard_v2/:path*', destination: '/leaderboard', permanent: true },
+    ]
+  },
   async rewrites() {
     return [
       { source: '/community', destination: '/tribe' },

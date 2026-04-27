@@ -8,6 +8,7 @@ export function FooterWrapper() {
   const isWander =
     pathname === '/' ||
     pathname?.startsWith('/wander') ||
+    pathname?.startsWith('/host') ||
     pathname?.startsWith('/packages') ||
     pathname?.startsWith('/listings') ||
     pathname?.startsWith('/bookings') ||
@@ -19,7 +20,7 @@ export function FooterWrapper() {
     pathname?.startsWith('/chat') ||
     pathname?.startsWith('/community') ||
     pathname?.startsWith('/tribe') ||
-    pathname?.startsWith('/leaderboard_v2')
+    pathname?.startsWith('/leaderboard')
   ) {
     return null
   }

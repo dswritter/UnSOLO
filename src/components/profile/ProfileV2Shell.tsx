@@ -1,5 +1,5 @@
 /**
- * Green / gold themed shell aligned with /leaderboard_v2. Scrollable full page (not fixed layout).
+ * Green / gold themed shell aligned with /leaderboard. Scrollable full page (not fixed layout).
  * `dark` forces dark design tokens for this subtree so outline buttons, cards, and muted text stay
  * readable when the rest of the app (html) is in system light mode.
  */

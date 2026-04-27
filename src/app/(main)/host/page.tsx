@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
-import { hostHiddenStatusClass } from '@/components/host/hostBadgeStyles'
+import { hostHiddenStatusClassForest } from '@/components/host/hostBadgeStyles'
 import { cn } from '@/lib/utils'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
@@ -73,10 +73,10 @@ export default async function HostDashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-black">
+            <h1 className="text-2xl font-black text-white">
               Host <span className="text-primary">Dashboard</span>
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-white/75 mt-0.5">
               Host your own trips or experiences and invite travelers to join
             </p>
           </div>
@@ -92,11 +92,11 @@ export default async function HostDashboardPage() {
         </div>
 
         {!payoutConfigured && (
-          <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 flex items-start gap-3 dark:bg-amber-500/10">
-            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 rounded-xl border border-amber-300/50 bg-amber-500/15 p-4 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-200 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-foreground">Add your payout details</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="font-semibold text-sm text-white">Add your payout details</p>
+              <p className="text-xs text-white/70 mt-0.5">
                 You need a UPI ID or bank account on file before you can publish new listings and receive earnings.
               </p>
             </div>
@@ -106,9 +106,9 @@ export default async function HostDashboardPage() {
           </div>
         )}
 
-        <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
-          <p className="font-semibold text-foreground">Fair-split refunds — your share is protected</p>
-          <p className="text-muted-foreground mt-1 leading-relaxed">
+        <div className="mb-6 rounded-xl border border-white/25 bg-white/[0.06] p-4 text-xs">
+          <p className="font-semibold text-white">Fair-split refunds — your share is protected</p>
+          <p className="text-white/70 mt-1 leading-relaxed">
             On cancellations, UnSOLO and you absorb the refund proportionally to our earnings. You only ever lose
             your fair portion — never the platform fee, promo codes, or referral credits.{' '}
             <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
@@ -118,40 +118,37 @@ export default async function HostDashboardPage() {
         <HostTripDraftsPanel />
 
         {/* Compact Stats Row */}
-        <HostTripsList
-          stats={stats}
-          trips={trips as { id: string; title: string; slug: string; is_active: boolean; moderation_status: string | null; price_paise: number; duration_days: number; trip_days?: number | null; trip_nights?: number | null; departure_dates: string[] | null; departure_dates_closed?: string[] | null; images: string[] | null; max_group_size: number; pending_requests: number; approved_requests: number; destination: { name: string; state: string } | null }[]}
-        />
+        <HostTripsList wanderHost stats={stats} trips={trips as { id: string; title: string; slug: string; is_active: boolean; moderation_status: string | null; price_paise: number; duration_days: number; trip_days?: number | null; trip_nights?: number | null; departure_dates: string[] | null; departure_dates_closed?: string[] | null; images: string[] | null; max_group_size: number; pending_requests: number; approved_requests: number; destination: { name: string; state: string } | null }[]} />
 
         {serviceListings && serviceListings.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold mb-3">Your Services</h2>
+            <h2 className="text-lg font-bold mb-3 text-white">Your Services</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {serviceListings.map(listing => (
                 <div
                   key={listing.id}
                   className={cn(
-                    'rounded-xl border bg-card p-4 transition-opacity',
-                    listing.is_active === false && 'border-destructive/30 opacity-80',
-                    listing.is_active !== false && 'border-border',
+                    'rounded-xl border p-4 transition-opacity backdrop-blur-sm bg-[oklch(0.16_0.038_152/0.92)]',
+                    listing.is_active === false && 'border-red-400/40 opacity-90',
+                    listing.is_active !== false && 'border-white/25',
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold truncate">{listing.title}</h3>
+                        <h3 className="font-semibold truncate text-white">{listing.title}</h3>
                         {listing.is_active === false && (
                           <span
                             className={cn(
                               'flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-md border font-medium',
-                              hostHiddenStatusClass(),
+                              hostHiddenStatusClassForest(),
                             )}
                           >
                             Hidden
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                      <p className="text-xs text-white/75 mt-0.5 capitalize">
                         {String(listing.type).replace('_', ' ')} · {countByListing[listing.id] || 0} item{countByListing[listing.id] === 1 ? '' : 's'}
                       </p>
                     </div>
@@ -160,7 +157,7 @@ export default async function HostDashboardPage() {
                         listingId={listing.id}
                         isActive={listing.is_active !== false}
                       />
-                      <HostModerationBadge status={listing.status} />
+                      <HostModerationBadge forestContrast status={listing.status} />
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-3">

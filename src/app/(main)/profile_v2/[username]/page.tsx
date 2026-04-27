@@ -239,7 +239,7 @@ export default async function ProfilePage({
           Leaderboard rank
         </span>
         <Link
-          href="/leaderboard_v2"
+          href="/leaderboard"
           className="text-sm font-black text-primary hover:underline tabular-nums inline-flex items-center"
         >
           <LeaderboardRankLinkLabel rank={leaderboardRank} />

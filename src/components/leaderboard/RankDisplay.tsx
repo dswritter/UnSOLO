@@ -4,7 +4,7 @@ const MEDAL_1 = '\u{1F947}'
 const MEDAL_2 = '\u{1F948}'
 const MEDAL_3 = '\u{1F949}'
 
-/** Medal strings — matches `LeaderboardList` for ranks 1–3. */
+/** Medal strings — matches leaderboard table ranks 1–3. */
 export function leaderboardMedalEmoji(rank: number): string | null {
   if (rank === 1) return MEDAL_1
   if (rank === 2) return MEDAL_2

@@ -34,12 +34,18 @@ export function Navbar({ user }: NavbarProps) {
     pathname === '/' ||
     pathname?.startsWith('/wander') ||
     pathname?.startsWith('/tribe') ||
+    pathname?.startsWith('/host') ||
+    pathname?.startsWith('/leaderboard') ||
     pathname?.startsWith('/packages') ||
     pathname?.startsWith('/listings') ||
     pathname?.startsWith('/bookings') ||
     pathname?.startsWith('/booking/') ||
     pathname?.startsWith('/book/')
-  const hideGlobalSearch = pathname === '/' || pathname?.startsWith('/wander')
+  const hideGlobalSearch =
+    pathname === '/' ||
+    pathname?.startsWith('/wander') ||
+    pathname?.startsWith('/leaderboard') ||
+    pathname?.startsWith('/host')
 
   function navLinkActive(href: string): boolean {
     if (href === '/community') {
@@ -215,8 +221,8 @@ export function Navbar({ user }: NavbarProps) {
             </span>
           </Link>
 
-          {/* Desktop Nav - Centered */}
-          <div className="hidden md:flex items-center gap-8 flex-1 justify-center">
+          {/* Desktop Nav — bottom-aligned so the active underline reads like screenshot tabs */}
+          <div className="hidden md:flex items-end justify-center gap-8 flex-1 self-stretch min-h-16">
             {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
               const isActive = navLinkActive(href)
               return (
@@ -225,15 +231,15 @@ export function Navbar({ user }: NavbarProps) {
                 href={href}
                 prefetch
                 className={cn(
-                  'relative flex items-center gap-1.5 text-sm font-medium transition-colors',
+                  'relative flex items-center gap-1.5 text-sm font-medium transition-colors pb-3',
                   isWanderShell
                     ? isActive
-                      ? 'text-[#fcba03] border-b-2 border-[#fcba03] pb-1'
+                      ? 'text-[#fcba03] border-b-[3px] border-[#fcba03] border-solid -mb-px'
                       : /* avoid hover:text-white — :root .hover\\:text-white:hover forces dark text in light mode */
-                        'text-white/90 hover:text-[#fcba03]'
+                        'text-white/90 hover:text-[#fcba03] border-b-[3px] border-transparent border-solid -mb-px'
                     : isActive
-                      ? 'text-primary border-b-2 border-primary pb-1'
-                      : 'text-muted-foreground hover:text-foreground',
+                      ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
+                      : 'text-muted-foreground hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px',
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -410,10 +416,10 @@ export function Navbar({ user }: NavbarProps) {
                 'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                 isWanderShell
                   ? isActive
-                    ? 'text-[#fcba03] bg-[#fcba03]/12'
+                    ? 'text-[#fcba03] bg-[#fcba03]/12 underline decoration-[#fcba03] decoration-2 underline-offset-4'
                     : 'text-white/90 hover:text-[#fcba03] hover:bg-white/10'
                   : isActive
-                    ? 'text-primary bg-primary/10'
+                    ? 'text-primary bg-primary/10 underline decoration-primary decoration-2 underline-offset-4'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
               )}
             >
