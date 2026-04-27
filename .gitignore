@@ -42,5 +42,6 @@ next-env.d.ts
 
 # Local tooling and creatives (not versioned)
 .claude/
+.cursor/
 Creative/
 Docs and Creatives/
