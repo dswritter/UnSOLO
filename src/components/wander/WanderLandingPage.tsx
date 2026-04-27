@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { loadExploreListData } from '@/lib/explore/explorePageData'
-import { ExploreClient } from '@/components/explore/ExploreClient'
+import { WanderExploreSection } from '@/components/wander/WanderExploreSection'
+import { WanderExploreSkeleton } from '@/components/wander/WanderExploreSkeleton'
 import {
   getWanderStats,
   getWanderRatingHero,
@@ -49,8 +49,6 @@ export async function WanderLandingPage({
     const { data: p } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).single()
     profileAvatar = p?.avatar_url ?? null
   }
-
-  const exploreData = isSearchMode ? await loadExploreListData(sp) : null
 
   let tripRow: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
   let activities: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
@@ -120,24 +118,11 @@ export async function WanderLandingPage({
         <WanderSearchBar listedActivities={listedActivities} variant="wander" wanderSearchBasePath={searchBasePath} />
       </WanderHero>
 
-      {isSearchMode && exploreData ? (
+      {isSearchMode ? (
         <div id="wander-explore" className="border-t border-border/50 scroll-mt-4">
-          <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
-            <ExploreClient
-              packages={exploreData.packages}
-              serviceListings={exploreData.serviceListings}
-              params={sp}
-              resultCount={exploreData.resultCount}
-              activeTab={exploreData.activeTab}
-              searchFallback={exploreData.searchFallback}
-              interestedPackageIds={exploreData.interestedPackageIds}
-              maxPackagePrice={exploreData.maxPackagePrice}
-              spotsBooked={exploreData.spotsBooked}
-              interestCounts={exploreData.interestCounts}
-              basePath={searchBasePath}
-              pageVariant="wander"
-            />
-          </div>
+          <Suspense fallback={<WanderExploreSkeleton />}>
+            <WanderExploreSection sp={sp} searchBasePath={searchBasePath} />
+          </Suspense>
         </div>
       ) : tripRow && activities && rentals ? (
         <div className="border-t border-border/50">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
@@ -78,6 +78,7 @@ export function WanderSearchBar({
 }) {
   const isWander = variant === 'wander'
   const router = useRouter()
+  const [isExplorePending, startExploreTransition] = useTransition()
   const [tab, setTab] = useState<Tab>('trips')
 
   const [calendarDay, setCalendarDay] = useState<string | null>(null)
@@ -277,7 +278,7 @@ export function WanderSearchBar({
     })()
   }, [closeGeo, fillLocationFromDevice, geoTarget])
 
-  function goExplore() {
+  const buildExploreHref = useCallback((): string => {
     const params = new URLSearchParams()
     params.set('tab', tab)
 
@@ -287,7 +288,6 @@ export function WanderSearchBar({
       if (m !== undefined) params.set('month', m)
     } else if (tab === 'stays') {
       if (stayWhere.trim()) params.set('q', stayWhere.trim())
-      // Visual check-in/out/guests match the mockup; explore uses `q` for text search today.
       void stayIn
       void stayOut
       void stayGuests
@@ -304,11 +304,48 @@ export function WanderSearchBar({
     if (isWander) {
       params.set('search', '1')
       const qs = params.toString()
-      pushExploreUrl(router, wanderSearchBasePath, `${wanderSearchBasePath}?${qs}#wander-explore`)
-    } else {
-      router.push(`/explore?${params.toString()}`)
+      return `${wanderSearchBasePath}?${qs}#wander-explore`
     }
+    return `/explore?${params.toString()}`
+  }, [
+    tab,
+    tripWhere,
+    tripStart,
+    tripEnd,
+    stayWhere,
+    stayIn,
+    stayOut,
+    stayGuests,
+    actWhere,
+    actType,
+    actStart,
+    actEnd,
+    rentWhere,
+    rentItem,
+    isWander,
+    wanderSearchBasePath,
+  ])
+
+  function goExplore() {
+    const href = buildExploreHref()
+    startExploreTransition(() => {
+      if (isWander) {
+        pushExploreUrl(router, wanderSearchBasePath, href)
+      } else {
+        router.push(href)
+      }
+    })
   }
+
+  const prefetchExplore = useCallback(() => {
+    const href = buildExploreHref()
+    const pathOnly = href.split('#')[0]
+    try {
+      void router.prefetch(pathOnly)
+    } catch {
+      /* prefetch is best-effort */
+    }
+  }, [buildExploreHref, router])
 
   const activitySelectOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
 
@@ -321,6 +358,8 @@ export function WanderSearchBar({
           : 'rounded-2xl border border-border/80 bg-card/90 p-3 shadow-xl backdrop-blur-md sm:p-4',
         className,
       )}
+      onMouseEnter={prefetchExplore}
+      onFocusCapture={prefetchExplore}
     >
       <div
         className={cn(
@@ -400,9 +439,17 @@ export function WanderSearchBar({
               />
             </div>
           </label>
-          <Button type="submit" className="font-bold bg-primary text-primary-foreground hover:bg-primary/90">
-            <Search className="h-4 w-4 mr-2" />
-            Explore
+          <Button
+            type="submit"
+            disabled={isExplorePending}
+            className="font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+          >
+            {isExplorePending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
+            ) : (
+              <Search className="h-4 w-4 mr-2" aria-hidden />
+            )}
+            {isExplorePending ? 'Searching…' : 'Explore'}
           </Button>
         </form>
       )}
@@ -472,9 +519,17 @@ export function WanderSearchBar({
               />
             </div>
           </label>
-          <Button type="submit" className="font-bold bg-primary text-primary-foreground">
-            <Search className="h-4 w-4 mr-2" />
-            Explore
+          <Button
+            type="submit"
+            disabled={isExplorePending}
+            className="font-bold bg-primary text-primary-foreground disabled:opacity-70"
+          >
+            {isExplorePending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
+            ) : (
+              <Search className="h-4 w-4 mr-2" aria-hidden />
+            )}
+            {isExplorePending ? 'Searching…' : 'Explore'}
           </Button>
         </form>
       )}
@@ -545,9 +600,17 @@ export function WanderSearchBar({
               ))}
             </select>
           </label>
-          <Button type="submit" className="font-bold bg-primary text-primary-foreground">
-            <Search className="h-4 w-4 mr-2" />
-            Explore
+          <Button
+            type="submit"
+            disabled={isExplorePending}
+            className="font-bold bg-primary text-primary-foreground disabled:opacity-70"
+          >
+            {isExplorePending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
+            ) : (
+              <Search className="h-4 w-4 mr-2" aria-hidden />
+            )}
+            {isExplorePending ? 'Searching…' : 'Explore'}
           </Button>
         </form>
       )}
@@ -587,9 +650,17 @@ export function WanderSearchBar({
               />
             </div>
           </label>
-          <Button type="submit" className="font-bold bg-primary text-primary-foreground sm:shrink-0">
-            <Search className="h-4 w-4 mr-2" />
-            Explore
+          <Button
+            type="submit"
+            disabled={isExplorePending}
+            className="font-bold bg-primary text-primary-foreground sm:shrink-0 disabled:opacity-70"
+          >
+            {isExplorePending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
+            ) : (
+              <Search className="h-4 w-4 mr-2" aria-hidden />
+            )}
+            {isExplorePending ? 'Searching…' : 'Explore'}
           </Button>
         </form>
       )}
