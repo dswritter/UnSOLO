@@ -1,23 +1,26 @@
-import type { Metadata } from 'next'
-import { AuthV2Shell } from '@/components/auth/v2/AuthV2Shell'
-import { SignupV2Form } from '@/components/auth/v2/SignupV2Form'
-import { getWanderRatingHero, getWanderStats } from '@/lib/wander/wanderQueries'
+import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = {
-  title: 'Sign up (preview) — UnSOLO',
-  description: 'Preview of the upcoming sign-up experience. The current live page remains at /signup.',
-  robots: { index: false, follow: false },
+function searchParamsToQueryString(
+  sp: Record<string, string | string[] | undefined>,
+): string {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(sp)) {
+    if (value === undefined) continue
+    const arr = Array.isArray(value) ? value : [value]
+    for (const v of arr) {
+      params.append(key, v)
+    }
+  }
+  return params.toString()
 }
 
-export const revalidate = 120
-
-export default async function SignupV2Page() {
-  const [stats, ratingHero] = await Promise.all([getWanderStats(), getWanderRatingHero()])
-  const rating = { overall: ratingHero.overall, reviewCount: ratingHero.reviewCount }
-
-  return (
-    <AuthV2Shell mode="signup" stats={stats} rating={rating}>
-      <SignupV2Form />
-    </AuthV2Shell>
-  )
+/** Preview route retired — same auth as /signup. */
+export default async function SignupV2Page({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const sp = await searchParams
+  const qs = searchParamsToQueryString(sp)
+  redirect(qs ? `/signup?${qs}` : '/signup')
 }

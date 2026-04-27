@@ -73,7 +73,7 @@ function SignupV2FormInner() {
             {resendBusy ? 'Sending…' : 'Resend email'}
           </Button>
           <Button type="button" className="bg-[#fcba03] text-black font-bold" asChild>
-            <Link href="/login-v2">Go to sign in</Link>
+            <Link href="/login">Go to sign in</Link>
           </Button>
         </div>
         <button
@@ -273,7 +273,7 @@ function SignupV2FormInner() {
 
       <p className="mt-4 text-center text-sm text-white/50">
         Already have an account?{' '}
-        <Link href="/login-v2" className="font-semibold text-[#fcba03] hover:underline">
+        <Link href="/login" className="font-semibold text-[#fcba03] hover:underline">
           Log in
         </Link>
       </p>

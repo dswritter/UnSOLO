@@ -15,7 +15,7 @@ type AuthV2StatsProps = {
 }
 
 /**
- * Real marketing stats (same data sources as Wander). Shown in the frosted card at the bottom of the hero on /login-v2 and /signup-v2.
+ * Real marketing stats (same data sources as Wander). Used by AuthV2Shell previews if needed.
  */
 export function AuthV2Stats({ stats, rating, className }: AuthV2StatsProps) {
   const trustLabel =

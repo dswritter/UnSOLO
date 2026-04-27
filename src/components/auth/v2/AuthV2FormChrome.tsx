@@ -33,8 +33,8 @@ export function GoogleMark({ className }: { className?: string }) {
 export function AuthV2Tabs({ active }: { active: Tab }) {
   const searchParams = useSearchParams()
   const ref = searchParams.get('ref')
-  const signupHref = ref ? `/signup-v2?ref=${encodeURIComponent(ref)}` : '/signup-v2'
-  const loginHref = '/login-v2' + (ref ? `?ref=${encodeURIComponent(ref)}` : '')
+  const signupHref = ref ? `/signup?ref=${encodeURIComponent(ref)}` : '/signup'
+  const loginHref = '/login' + (ref ? `?ref=${encodeURIComponent(ref)}` : '')
 
   return (
     <div className="mb-5 flex w-full border-b border-white/10">

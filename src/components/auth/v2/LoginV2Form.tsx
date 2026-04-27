@@ -193,7 +193,7 @@ function LoginV2FormInner() {
 
       <p className="mt-4 text-center text-sm text-white/50">
         Don&apos;t have an account?{' '}
-        <Link href="/signup-v2" className="font-semibold text-[#fcba03] hover:underline">
+        <Link href="/signup" className="font-semibold text-[#fcba03] hover:underline">
           Sign up
         </Link>
       </p>
