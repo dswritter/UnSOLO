@@ -19,6 +19,55 @@ const customDateRequestEmailSchema = z.string().trim().max(254).email()
 const RAZORPAY_MIN_PAISE = 100 // ₹1 — Razorpay minimum for INR
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>
+type ServiceSupabase = Awaited<ReturnType<typeof createServiceClient>>
+
+async function notifyAdminsRazorpayRefundFailed(
+  svc: ServiceSupabase,
+  input: { bookingId: string; tripTitle: string; refundAmountPaise: number; errorDescription: string },
+) {
+  try {
+    const { data: admins } = await svc.from('profiles').select('id').eq('role', 'admin')
+    const amt = `₹${(input.refundAmountPaise / 100).toLocaleString('en-IN')}`
+    const shortErr = input.errorDescription.slice(0, 280)
+    const body = `Razorpay refund failed for "${input.tripTitle}" (${amt}). ${shortErr} — check merchant balance / Razorpay dashboard. Booking ${input.bookingId.slice(0, 8)}…`
+    for (const a of admins || []) {
+      await svc.from('notifications').insert({
+        user_id: a.id,
+        type: 'booking',
+        title: 'Razorpay refund failed',
+        body,
+        link: '/admin/bookings',
+      })
+    }
+  } catch {
+    /* non-critical */
+  }
+}
+
+async function tryEmailHostNewBooking(
+  svc: ServiceSupabase,
+  hostId: string,
+  input: { travelerDisplayName: string; tripTitle: string; hostAmountLabel: string; feePercent: number },
+) {
+  try {
+    const { data: hostProf } = await svc.from('profiles').select('email, full_name').eq('id', hostId).maybeSingle()
+    const to = hostProf?.email?.trim()
+    if (!to) return
+    const { sendHostNewBookingEmail } = await import('@/lib/resend/emails')
+    const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
+    await sendHostNewBookingEmail({
+      to,
+      hostName: hostProf.full_name,
+      travelerName: input.travelerDisplayName,
+      tripTitle: input.tripTitle,
+      hostEarningsFormatted: input.hostAmountLabel,
+      feePercent: input.feePercent,
+      hostDashboardUrl: `${site}/host`,
+    })
+  } catch {
+    /* non-critical */
+  }
+}
 
 async function validatePromoForCheckout(
   supabase: SupabaseServer,
@@ -279,6 +328,20 @@ async function runBalanceCompletionEffects(
         body: `A traveler completed payment for your trip. Your earnings: ${hostAmount_fmt} (list price includes a ${feePercent}% platform fee).`,
         link: '/host',
       })
+
+      const pkgTitle = (booking.package as { title?: string } | null)?.title || 'your trip'
+      const { data: joinerProf } = await supabase
+        .from('profiles')
+        .select('username, full_name')
+        .eq('id', userId)
+        .single()
+      const travelerDisplayName = joinerProf?.full_name || joinerProf?.username || 'A traveler'
+      await tryEmailHostNewBooking(svcSupa3, pkg.host_id, {
+        travelerDisplayName,
+        tripTitle: pkgTitle,
+        hostAmountLabel: hostAmount_fmt,
+        feePercent,
+      })
     }
   } catch {
     /* non-critical */
@@ -491,6 +554,20 @@ async function runPostConfirmationPipeline(
         title: 'New Booking on Your Trip!',
         body: `A traveler booked your trip. Your earnings: ${hostAmount_fmt} (list price includes a ${feePercent}% platform fee).`,
         link: '/host',
+      })
+
+      const pkgName = (booking.package as { title?: string })?.title || 'your trip'
+      const { data: joinerForHost } = await supabase
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', userId)
+        .single()
+      const travelerForHost = joinerForHost?.full_name || joinerForHost?.username || 'A traveler'
+      await tryEmailHostNewBooking(svcSupa3, pkg.host_id, {
+        travelerDisplayName: travelerForHost,
+        tripTitle: pkgName,
+        hostAmountLabel: hostAmount_fmt,
+        feePercent,
       })
     }
   } catch {
@@ -1610,7 +1687,15 @@ export async function initiateRazorpayRefundForBooking(
     const result = (await response.json()) as { id?: string; error?: { description?: string } }
 
     if (!response.ok) {
-      return { ok: false, error: result.error?.description || 'Razorpay refund failed' }
+      const errMsg = result.error?.description || 'Razorpay refund failed'
+      const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
+      await notifyAdminsRazorpayRefundFailed(svc, {
+        bookingId,
+        tripTitle: pkgTitle,
+        refundAmountPaise: booking.refund_amount_paise,
+        errorDescription: errMsg,
+      })
+      return { ok: false, error: errMsg }
     }
 
     await svc
@@ -1639,7 +1724,15 @@ export async function initiateRazorpayRefundForBooking(
     revalidatePath('/bookings')
     return { ok: true, refundId: result.id }
   } catch (err) {
-    return { ok: false, error: `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}` }
+    const msg = err instanceof Error ? err.message : 'Unknown error'
+    const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
+    await notifyAdminsRazorpayRefundFailed(svc, {
+      bookingId,
+      tripTitle: pkgTitle,
+      refundAmountPaise: booking.refund_amount_paise,
+      errorDescription: msg,
+    })
+    return { ok: false, error: `Refund failed: ${msg}` }
   }
 }
 
@@ -1673,7 +1766,7 @@ export async function confirmTravelerCancellation(
   const { data: booking } = await svc
     .from('bookings')
     .select(
-      'id, user_id, status, cancellation_status, total_amount_paise, deposit_paise, stripe_payment_intent, package_id, package:packages(title)',
+      'id, user_id, status, cancellation_status, total_amount_paise, deposit_paise, stripe_payment_intent, package_id, package:packages(title, host_id)',
     )
     .eq('id', bookingId)
     .eq('user_id', user.id)
@@ -1765,6 +1858,48 @@ export async function confirmTravelerCancellation(
         : `Your booking for ${pkgTitle} was cancelled. No refund applies under the current policy window.`,
     link: '/bookings',
   })
+
+  const pkgHostId = (booking.package as { host_id?: string | null } | null)?.host_id
+  if (pkgHostId) {
+    const refundLineHost =
+      refundPaise > 0
+        ? `Traveler refund (policy): ₹${(refundPaise / 100).toLocaleString('en-IN')}`
+        : 'No refund to traveler under the current policy window.'
+    const reasonSnippet =
+      trimmed.length > 160 ? `${trimmed.slice(0, 160)}…` : trimmed
+    await svc.from('notifications').insert({
+      user_id: pkgHostId,
+      type: 'booking',
+      title: 'Traveler cancelled booking',
+      body: `${customerName} cancelled a confirmed booking for "${pkgTitle}". ${refundLineHost}.${trimmed ? ` Reason: ${reasonSnippet}` : ''}`,
+      link: '/host',
+    })
+    try {
+      const { data: hostProf } = await svc
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', pkgHostId)
+        .maybeSingle()
+      if (hostProf?.email?.trim()) {
+        const { sendHostTravelerCancelledBookingEmail } = await import('@/lib/resend/emails')
+        const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
+        await sendHostTravelerCancelledBookingEmail({
+          to: hostProf.email,
+          hostName: hostProf.full_name,
+          travelerName: customerName,
+          tripTitle: pkgTitle,
+          refundSummaryLine:
+            refundPaise > 0
+              ? `₹${(refundPaise / 100).toLocaleString('en-IN')} (per policy)`
+              : 'No refund under the current policy window.',
+          reason: trimmed,
+          hostDashboardUrl: `${site}/host`,
+        }).catch(() => null)
+      }
+    } catch {
+      /* non-critical */
+    }
+  }
 
   const { data: staff } = await svc
     .from('profiles')

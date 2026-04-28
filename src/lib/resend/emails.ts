@@ -475,6 +475,110 @@ export async function sendPOCDetails(details: POCDetailsInput) {
   })
 }
 
+// ── Host: new booking on their trip ───────────────────────────
+
+export interface HostNewBookingEmailInput {
+  to: string
+  hostName?: string | null
+  travelerName: string
+  tripTitle: string
+  hostEarningsFormatted: string
+  feePercent: number
+  hostDashboardUrl: string
+}
+
+export async function sendHostNewBookingEmail(input: HostNewBookingEmailInput) {
+  const {
+    to,
+    hostName,
+    travelerName,
+    tripTitle,
+    hostEarningsFormatted,
+    feePercent,
+    hostDashboardUrl,
+  } = input
+  const greeting = (hostName && hostName.trim()) || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeTraveler = escapeHtml(travelerName)
+  const safeUrl = hostDashboardUrl.replace(/"/g, '&quot;')
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `New booking — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:#4ade80;text-align:center;">New booking on your trip</h2>
+        <p style="color:#ccc;text-align:center;">Hi ${escapeHtml(greeting)},</p>
+        <p style="color:#ddd;text-align:center;line-height:1.5;">
+          <strong style="color:#fff;">${safeTraveler}</strong> just booked <strong style="color:#FFC22E;">${safeTitle}</strong>.
+        </p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          <p style="color:#ddd;margin:8px 0;"><strong>Your share of this booking:</strong> ${escapeHtml(hostEarningsFormatted)}</p>
+          <p style="color:#aaa;margin:8px 0;font-size:14px;">List price includes a ${feePercent}% platform fee.</p>
+        </div>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">Open host dashboard</a>
+        </div>
+        <p style="color:#888;font-size:12px;text-align:center;margin-top:32px;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
+// ── Host: traveler cancelled a confirmed paid booking ─────────
+
+export interface HostTravelerCancelledBookingEmailInput {
+  to: string
+  hostName?: string | null
+  travelerName: string
+  tripTitle: string
+  refundSummaryLine: string
+  reason: string
+  hostDashboardUrl: string
+}
+
+export async function sendHostTravelerCancelledBookingEmail(input: HostTravelerCancelledBookingEmailInput) {
+  const { to, hostName, travelerName, tripTitle, refundSummaryLine, reason, hostDashboardUrl } = input
+  const greeting = (hostName && hostName.trim()) || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeTraveler = escapeHtml(travelerName)
+  const safeReason = escapeHtml(reason.slice(0, 500))
+  const safeUrl = hostDashboardUrl.replace(/"/g, '&quot;')
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Traveler cancelled — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:#fbbf24;text-align:center;">Booking cancelled by traveler</h2>
+        <p style="color:#ccc;text-align:center;">Hi ${escapeHtml(greeting)},</p>
+        <p style="color:#ddd;text-align:center;line-height:1.5;">
+          <strong style="color:#fff;">${safeTraveler}</strong> cancelled their confirmed booking for <strong style="color:#FFC22E;">${safeTitle}</strong>.
+        </p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          <p style="color:#ddd;margin:8px 0;"><strong>Refund (traveler):</strong> ${escapeHtml(refundSummaryLine)}</p>
+          <p style="color:#aaa;margin:8px 0;font-size:14px;"><strong>Reason:</strong> ${safeReason || '—'}</p>
+        </div>
+        <p style="color:#888;font-size:13px;line-height:1.5;">Earnings for this booking may have been adjusted per our cancellation policy. See your host dashboard for details.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">Open host dashboard</a>
+        </div>
+        <p style="color:#888;font-size:12px;text-align:center;margin-top:32px;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
 // ── Host cancels trip ─────────────────────────────────────────
 
 export interface TripCancelledByHostEmailInput {
