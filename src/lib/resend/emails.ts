@@ -579,6 +579,55 @@ export async function sendCancellationDecisionEmail(input: CancellationDecisionE
   })
 }
 
+export interface TravelerSelfCancellationEmailInput {
+  to: string
+  travelerName: string
+  tripTitle: string
+  refundPaise: number
+  bookingsUrl: string
+}
+
+const REFUND_POLICY_PATH = '/refund-policy'
+
+/** Sent immediately after traveler completes self-service cancellation (policy-based). */
+export async function sendTravelerSelfCancellationEmail(input: TravelerSelfCancellationEmailInput) {
+  const { to, travelerName, tripTitle, refundPaise, bookingsUrl } = input
+  const greeting = travelerName?.trim() || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in').replace(/\/$/, '')
+  const policyUrl = `${siteBase}${REFUND_POLICY_PATH}`.replace(/"/g, '&quot;')
+  const refundBlock =
+    refundPaise > 0
+      ? `<p style="color:#aaa;margin:8px 0;font-size:14px;">Estimated refund: <strong style="color:#fff;">${formatInrPaise(refundPaise)}</strong> per our <a href="${policyUrl}" style="color:#FFC22E;">refund policy</a>.</p>
+         <p style="color:#aaa;margin:8px 0;font-size:14px;line-height:1.5;">We initiate refunds to your <strong style="color:#fff;">original payment method</strong> as soon as possible. UPI typically reflects in 1–3 business days; cards and netbanking often take 5–7 business days (your bank&apos;s timelines may vary).</p>`
+      : `<p style="color:#aaa;margin:8px 0;font-size:14px;">Under the current policy window, <strong style="color:#fff;">no refund</strong> applies for this cancellation. See our <a href="${policyUrl}" style="color:#FFC22E;">refund policy</a> for details.</p>`
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Booking cancelled — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:#4ade80;text-align:center;">Your booking is cancelled</h2>
+        <p style="color:#ccc;text-align:center;">Hi ${escapeHtml(greeting)},</p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
+          <p style="color:#ddd;margin:8px 0;"><strong>Trip:</strong> ${safeTitle}</p>
+          ${refundBlock}
+        </div>
+        <p style="color:#888;font-size:13px;line-height:1.5;text-align:center;">If you don&apos;t see a refund in line with the timelines above, email <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a> with your booking details.</p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">View my bookings</a>
+        </div>
+        <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
 // ── Host rejects join request ─────────────────────────────────
 
 export interface JoinRequestRejectedEmailInput {

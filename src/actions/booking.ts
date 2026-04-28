@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
@@ -1564,6 +1564,282 @@ export async function requestCancellation(bookingId: string, reason: string) {
   return { success: true }
 }
 
+export type RazorpayRefundBookingResult =
+  | { ok: true; refundId?: string; skipped?: boolean; needsManualRefund?: boolean }
+  | { ok: false; error: string }
+
+/**
+ * Call Razorpay refund API and mark booking refund as processing. Uses service role (no user session required).
+ * Idempotent when refund_status is already processing or completed.
+ */
+export async function initiateRazorpayRefundForBooking(
+  bookingId: string,
+  options?: { skipCustomerNotification?: boolean },
+): Promise<RazorpayRefundBookingResult> {
+  const svc = await createServiceClient()
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('stripe_payment_intent, refund_amount_paise, refund_status, user_id, package:packages(title)')
+    .eq('id', bookingId)
+    .single()
+
+  if (!booking) return { ok: false, error: 'Booking not found' }
+  if (!booking.stripe_payment_intent || !booking.refund_amount_paise || booking.refund_amount_paise <= 0) {
+    return { ok: true, skipped: true, needsManualRefund: true }
+  }
+  if (booking.refund_status === 'processing' || booking.refund_status === 'completed') {
+    return { ok: true, skipped: true }
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.razorpay.com/v1/payments/${booking.stripe_payment_intent}/refund`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
+        },
+        body: JSON.stringify({
+          amount: booking.refund_amount_paise,
+          notes: { booking_id: bookingId, reason: 'Cancellation refund' },
+        }),
+      },
+    )
+
+    const result = (await response.json()) as { id?: string; error?: { description?: string } }
+
+    if (!response.ok) {
+      return { ok: false, error: result.error?.description || 'Razorpay refund failed' }
+    }
+
+    await svc
+      .from('bookings')
+      .update({
+        refund_status: 'processing',
+        refund_razorpay_id: result.id ?? null,
+        refund_initiated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', bookingId)
+
+    if (!options?.skipCustomerNotification) {
+      const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+      const refundFormatted = `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}`
+      await svc.from('notifications').insert({
+        user_id: booking.user_id,
+        type: 'booking',
+        title: 'Refund Initiated',
+        body: `Refund of ${refundFormatted} for ${pkgTitle} has been initiated. It will reach your account in 5-7 business days.`,
+        link: '/bookings',
+      })
+    }
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/bookings')
+    return { ok: true, refundId: result.id }
+  } catch (err) {
+    return { ok: false, error: `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}` }
+  }
+}
+
+export type ConfirmTravelerCancellationResult =
+  | {
+      success: true
+      refundPaise: number
+      autoRefundInitiated: boolean
+      needsManualRefund: boolean
+      refundError?: string
+    }
+  | { error: string }
+
+/**
+ * Confirmed paid booking: policy-based refund estimate, immediate cancel, host split, optional Razorpay refund.
+ */
+export async function confirmTravelerCancellation(
+  bookingId: string,
+  reason: string,
+): Promise<ConfirmTravelerCancellationResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const trimmed = reason.trim()
+  if (!trimmed) return { error: 'Please provide a reason for cancellation.' }
+
+  const svc = await createServiceClient()
+  const { data: booking } = await svc
+    .from('bookings')
+    .select(
+      'id, user_id, status, cancellation_status, total_amount_paise, deposit_paise, stripe_payment_intent, package_id, package:packages(title)',
+    )
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'This booking is already cancelled.' }
+  if (booking.status !== 'confirmed') {
+    return { error: 'Only confirmed bookings can be cancelled here.' }
+  }
+  if (booking.cancellation_status === 'requested') {
+    return {
+      error:
+        'You already have a cancellation request under review. We will notify you when it is processed.',
+    }
+  }
+  if (
+    booking.cancellation_status === 'approved' ||
+    booking.cancellation_status === 'self_service'
+  ) {
+    return { error: 'This booking cannot be cancelled again.' }
+  }
+
+  const { quoteCancellationRefund, applyRefundSplitToEarningSystem } = await import(
+    '@/actions/cancellation-refund'
+  )
+  const quote = await quoteCancellationRefund(bookingId)
+  if ('error' in quote) return { error: quote.error }
+
+  const amountPaid = booking.deposit_paise ?? booking.total_amount_paise ?? 0
+  const refundPaise = Math.min(quote.totalRefundPaise, Math.max(0, amountPaid))
+  const tierPercent = quote.tierPercent
+
+  const { data: updated, error: upError } = await svc
+    .from('bookings')
+    .update({
+      status: 'cancelled',
+      cancellation_status: 'self_service',
+      cancellation_reason: trimmed,
+      cancellation_requested_at: new Date().toISOString(),
+      refund_amount_paise: refundPaise,
+      refund_note: 'Traveler self-service cancellation per policy.',
+      refund_status: refundPaise > 0 ? 'pending' : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+    .eq('user_id', user.id)
+    .eq('status', 'confirmed')
+    .select('id')
+    .maybeSingle()
+
+  if (upError) return { error: upError.message }
+  if (!updated) {
+    return { error: 'Could not cancel — booking may have changed. Refresh and try again.' }
+  }
+
+  if (refundPaise > 0) {
+    const splitRes = await applyRefundSplitToEarningSystem(bookingId, tierPercent, refundPaise)
+    if (!splitRes.ok) {
+      console.error('applyRefundSplitToEarningSystem failed', splitRes.error)
+    }
+  }
+
+  const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+
+  if (booking.package_id) {
+    try {
+      const { removeUserFromPackageTripChat } = await import('@/lib/chat/tripChatMembership')
+      await removeUserFromPackageTripChat(svc, user.id, booking.package_id)
+    } catch {
+      /* non-critical */
+    }
+  }
+
+  const { data: customerProfile } = await svc
+    .from('profiles')
+    .select('full_name, username, email')
+    .eq('id', user.id)
+    .single()
+  const customerName = customerProfile?.full_name || customerProfile?.username || 'A traveler'
+
+  await svc.from('notifications').insert({
+    user_id: user.id,
+    type: 'booking',
+    title: 'Booking cancelled',
+    body:
+      refundPaise > 0
+        ? `Your booking for ${pkgTitle} was cancelled. Refund of ₹${(refundPaise / 100).toLocaleString('en-IN')} is being processed per our policy.`
+        : `Your booking for ${pkgTitle} was cancelled. No refund applies under the current policy window.`,
+    link: '/bookings',
+  })
+
+  const { data: staff } = await svc
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'social_media_manager', 'field_person', 'chat_responder'])
+
+  const refundRupee = (refundPaise / 100).toLocaleString('en-IN')
+  for (const row of staff || []) {
+    await svc.from('notifications').insert({
+      user_id: row.id,
+      type: 'booking',
+      title: 'Self-service cancellation',
+      body: `${customerName} cancelled ${pkgTitle}. Refund ₹${refundRupee} — check admin bookings for Razorpay status.`,
+      link: '/admin/bookings',
+    })
+  }
+
+  if (customerProfile?.email) {
+    const { sendTravelerSelfCancellationEmail } = await import('@/lib/resend/emails')
+    await sendTravelerSelfCancellationEmail({
+      to: customerProfile.email,
+      travelerName: customerProfile.full_name ?? '',
+      tripTitle: pkgTitle,
+      refundPaise,
+      bookingsUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/bookings`,
+    }).catch(() => null)
+  }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'cancellation_self_service', 'booking', bookingId, {
+      refundPaise,
+      tierPercent,
+    })
+  } catch {
+    /* non-critical */
+  }
+
+  let autoRefundInitiated = false
+  let needsManualRefund = refundPaise > 0 && !booking.stripe_payment_intent
+  let refundError: string | undefined
+
+  if (refundPaise > 0 && booking.stripe_payment_intent) {
+    const refundRes = await initiateRazorpayRefundForBooking(bookingId, {
+      skipCustomerNotification: true,
+    })
+    if (refundRes.ok && refundRes.refundId) {
+      autoRefundInitiated = true
+      const refundFormatted = `₹${(refundPaise / 100).toLocaleString('en-IN')}`
+      await svc.from('notifications').insert({
+        user_id: user.id,
+        type: 'booking',
+        title: 'Refund initiated',
+        body: `Refund of ${refundFormatted} for ${pkgTitle} has been started to your original payment method. Timelines depend on your bank (often 1–7 business days).`,
+        link: '/bookings',
+      })
+    } else if (refundRes.ok && refundRes.needsManualRefund) {
+      needsManualRefund = true
+    } else if (!refundRes.ok) {
+      refundError = refundRes.error
+      needsManualRefund = true
+    }
+  }
+
+  revalidatePath('/bookings')
+  revalidatePath('/admin/bookings')
+  return {
+    success: true,
+    refundPaise,
+    autoRefundInitiated,
+    needsManualRefund,
+    refundError,
+  }
+}
+
 // ── Admin: Process Cancellation ─────────────────────────────
 export async function processCancellation(
   bookingId: string,
@@ -1699,76 +1975,33 @@ export async function initiateRefund(bookingId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify admin
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
 
-  // Get booking with payment ID and refund amount
   const { data: booking } = await supabase
     .from('bookings')
-    .select('stripe_payment_intent, refund_amount_paise, refund_status, user_id, package:packages(title)')
+    .select('stripe_payment_intent, refund_amount_paise, refund_status')
     .eq('id', bookingId)
     .single()
 
   if (!booking) return { error: 'Booking not found' }
   if (!booking.stripe_payment_intent) return { error: 'No payment ID found — manual refund required' }
   if (!booking.refund_amount_paise || booking.refund_amount_paise <= 0) return { error: 'No refund amount set' }
-
-  // Double refund prevention
   if (booking.refund_status === 'processing') return { error: 'Refund already initiated and processing' }
   if (booking.refund_status === 'completed') return { error: 'Refund already completed' }
 
-  try {
-    // Call Razorpay Refund API
-    const response = await fetch(
-      `https://api.razorpay.com/v1/payments/${booking.stripe_payment_intent}/refund`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
-        },
-        body: JSON.stringify({
-          amount: booking.refund_amount_paise,
-          notes: { booking_id: bookingId, reason: 'Cancellation refund' },
-        }),
-      }
-    )
-
-    const result = await response.json()
-
-    if (!response.ok) {
-      return { error: result.error?.description || 'Razorpay refund failed' }
-    }
-
-    // Update booking with refund status
-    await supabase
-      .from('bookings')
-      .update({
-        refund_status: 'processing',
-        refund_razorpay_id: result.id,
-        refund_initiated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', bookingId)
-
-    // Notify customer
-    const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
-    const refundFormatted = `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}`
-    await supabase.from('notifications').insert({
-      user_id: booking.user_id,
-      type: 'booking',
-      title: 'Refund Initiated',
-      body: `Refund of ${refundFormatted} for ${pkgTitle} has been initiated. It will reach your account in 5-7 business days.`,
-      link: '/bookings',
-    })
-
-    revalidatePath('/admin/bookings')
-    revalidatePath('/bookings')
-    return { success: true, refundId: result.id }
-  } catch (err) {
-    return { error: `Refund failed: ${err instanceof Error ? err.message : 'Unknown error'}` }
+  const res = await initiateRazorpayRefundForBooking(bookingId)
+  if (!res.ok) return { error: res.error }
+  if (res.refundId) return { success: true, refundId: res.refundId }
+  const { data: again } = await supabase
+    .from('bookings')
+    .select('refund_status, refund_razorpay_id')
+    .eq('id', bookingId)
+    .single()
+  if (again?.refund_status === 'processing' && again.refund_razorpay_id) {
+    return { success: true, refundId: again.refund_razorpay_id }
   }
+  return { error: 'Refund did not return an ID — check Razorpay dashboard' }
 }
 
 // ── Admin: Mark Refund as Complete ──────────────────────────

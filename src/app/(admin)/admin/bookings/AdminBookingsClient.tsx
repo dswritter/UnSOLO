@@ -344,9 +344,17 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     />
                   )}
 
-                  {/* Refund Tracking — for approved cancellations */}
-                  {booking.cancellation_status === 'approved' && booking.refund_amount_paise && booking.refund_amount_paise > 0 && (
+                  {/* Refund Tracking — admin-approved or traveler self-service */}
+                  {(booking.cancellation_status === 'approved' ||
+                    booking.cancellation_status === 'self_service') &&
+                    booking.refund_amount_paise &&
+                    booking.refund_amount_paise > 0 && (
                     <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                      {booking.cancellation_status === 'self_service' && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Self-service cancellation — refund may already be initiated via Razorpay. Use the button below only if status is still pending.
+                        </p>
+                      )}
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold">Refund: {formatPrice(booking.refund_amount_paise)}</span>
                         <Badge className={

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,14 +18,15 @@ import {
 import { submitReview } from '@/actions/profile'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import {
-  requestCancellation,
   cancelPendingBooking,
   changeBookingDate,
+  confirmTravelerCancellation,
   createBookingBalanceOrder,
   createCommunityTripOrder,
   confirmPayment,
   dismissServiceBookingFromMyTrips,
 } from '@/actions/booking'
+import { getTravelerCancellationPreview, type TravelerCancellationPreview } from '@/actions/cancellation-refund'
 import { withdrawJoinRequest } from '@/actions/hosting'
 import { isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { GroupBookingInfo, IncompleteJoinTrip, IncompleteTripStatus } from './page'
@@ -1286,22 +1287,30 @@ function BookingItem({
               )}
 
               {/* Cancellation - for pending or confirmed bookings that haven't ended yet */}
-              {(booking.status === 'pending' || booking.status === 'confirmed') && !booking.cancellation_status && (() => {
-                const end = new Date(tripEndIso + 'T23:59:59')
-                const tripEnded = end < new Date()
-                return tripEnded ? null : (
-                  <CancelRequester bookingId={booking.id} bookingStatus={booking.status} />
-                )
-              })()}
+              {(booking.status === 'pending' || booking.status === 'confirmed') &&
+                (!booking.cancellation_status || booking.cancellation_status === 'denied') &&
+                (() => {
+                  const end = new Date(tripEndIso + 'T23:59:59')
+                  const tripEnded = end < new Date()
+                  return tripEnded ? null : (
+                    <CancelRequester bookingId={booking.id} bookingStatus={booking.status} />
+                  )
+                })()}
 
               {booking.cancellation_status === 'requested' && (
                 <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
                   <AlertTriangle className="mr-1 h-3 w-3" /> Cancellation Pending
                 </Badge>
               )}
-              {booking.cancellation_status === 'approved' && (
+              {(booking.cancellation_status === 'approved' ||
+                booking.cancellation_status === 'self_service') && (
                 <div className="text-xs space-y-0.5">
-                  <span className="text-red-400 font-medium">Cancelled</span>
+                  <span className="text-red-400 font-medium">
+                    Cancelled
+                    {booking.cancellation_status === 'self_service' && (
+                      <span className="text-muted-foreground font-normal ml-1">(self-service)</span>
+                    )}
+                  </span>
                   {booking.refund_amount_paise ? (
                     <span className="block">
                       Refund: {formatPrice(booking.refund_amount_paise)}
@@ -1374,7 +1383,7 @@ function DateChanger({ bookingId, currentDate }: { bookingId: string; currentDat
   )
 }
 
-// ── Cancellation: unpaid = instant cancel + notify host/staff; paid = request flow ──
+// ── Cancellation: unpaid = instant cancel; confirmed = policy quote + self-service cancel ──
 function CancelRequester({
   bookingId,
   bookingStatus,
@@ -1384,26 +1393,76 @@ function CancelRequester({
 }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [preview, setPreview] = useState<TravelerCancellationPreview | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const router = useRouter()
-  const isPending = bookingStatus === 'pending'
+  const isPendingBook = bookingStatus === 'pending'
 
-  async function submit() {
-    if (!isPending && !reason.trim()) {
+  useEffect(() => {
+    if (!open || isPendingBook) return
+    let cancelled = false
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreview(null)
+    void getTravelerCancellationPreview(bookingId).then(res => {
+      if (cancelled) return
+      setPreviewLoading(false)
+      if ('error' in res) setPreviewError(res.error)
+      else setPreview(res.preview)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open, bookingId, isPendingBook])
+
+  function closePanel() {
+    setOpen(false)
+    setReason('')
+    setAcknowledged(false)
+    setPreview(null)
+    setPreviewError(null)
+  }
+
+  async function submitPending() {
+    setSubmitting(true)
+    const result = await cancelPendingBooking(bookingId, reason.trim() || undefined)
+    if (result.error) toast.error(result.error)
+    else {
+      toast.success('Booking cancelled')
+      router.refresh()
+      closePanel()
+    }
+    setSubmitting(false)
+  }
+
+  async function submitConfirmed() {
+    if (!reason.trim()) {
       toast.error('Please provide a reason')
       return
     }
+    if (!acknowledged) {
+      toast.error('Please confirm you understand the refund estimate and policy')
+      return
+    }
     setSubmitting(true)
-    const result = isPending
-      ? await cancelPendingBooking(bookingId, reason.trim() || undefined)
-      : await requestCancellation(bookingId, reason)
-    if (result.error) toast.error(result.error)
+    const result = await confirmTravelerCancellation(bookingId, reason.trim())
+    if ('error' in result) toast.error(result.error)
     else {
-      toast.success(isPending ? 'Booking cancelled' : 'Cancellation request submitted')
+      let msg = 'Booking cancelled.'
+      if (result.refundPaise > 0) {
+        if (result.autoRefundInitiated) msg += ' Refund initiated to your original payment method.'
+        else if (result.needsManualRefund)
+          msg += ' Our team will process your refund — see the email we sent you.'
+        if (result.refundError) msg += ` Note: ${result.refundError}`
+      }
+      toast.success(msg)
       router.refresh()
+      closePanel()
     }
     setSubmitting(false)
-    setOpen(false)
   }
 
   if (!open) {
@@ -1414,13 +1473,13 @@ function CancelRequester({
         className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
         onClick={() => setOpen(true)}
       >
-        {isPending ? (
+        {isPendingBook ? (
           <>
             <Ban className="mr-1 h-3 w-3" /> Cancel booking
           </>
         ) : (
           <>
-            <AlertTriangle className="mr-1 h-3 w-3" /> Request Cancellation
+            <AlertTriangle className="mr-1 h-3 w-3" /> Cancel booking
           </>
         )}
       </Button>
@@ -1429,7 +1488,7 @@ function CancelRequester({
 
   return (
     <div className="w-full space-y-2 mt-2 p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
-      {isPending ? (
+      {isPendingBook ? (
         <>
           <p className="text-xs font-medium text-foreground">Cancel before payment?</p>
           <p className="text-[11px] text-muted-foreground leading-snug">
@@ -1443,27 +1502,102 @@ function CancelRequester({
             rows={2}
             className="bg-secondary border-border resize-none text-xs"
           />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              className="bg-red-500 text-white text-xs hover:bg-red-600"
+              onClick={() => void submitPending()}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting...' : 'Cancel booking'}
+            </Button>
+            <Button variant="outline" size="sm" className="border-border text-xs" onClick={closePanel}>
+              Back
+            </Button>
+          </div>
         </>
       ) : (
         <>
-          <p className="text-xs font-medium text-red-400">Why do you want to cancel?</p>
-          <Textarea
-            value={reason}
-            onChange={e => setReason(e.target.value)}
-            placeholder="Reason for cancellation..."
-            rows={2}
-            className="bg-secondary border-border resize-none text-xs"
-          />
+          {previewLoading && (
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Loading refund estimate…
+            </p>
+          )}
+          {previewError && (
+            <div className="space-y-2">
+              <p className="text-xs text-red-400">{previewError}</p>
+              <Button variant="outline" size="sm" className="border-border text-xs" onClick={closePanel}>
+                Back
+              </Button>
+            </div>
+          )}
+          {preview && !previewLoading && !previewError && (
+            <>
+              <p className="text-xs font-medium text-red-400">Cancel this booking</p>
+              <div className="text-[11px] text-muted-foreground leading-snug space-y-1 rounded-md bg-secondary/50 border border-border/60 p-2">
+                <p>
+                  <span className="text-foreground font-medium">Estimated refund: </span>
+                  {preview.estimatedRefundPaise > 0 ? (
+                    <span className="text-primary font-semibold tabular-nums">
+                      {formatPrice(preview.estimatedRefundPaise)}
+                    </span>
+                  ) : (
+                    <span className="text-foreground">No refund under the current policy window</span>
+                  )}
+                </p>
+                <p>
+                  Policy tier applied: <span className="text-foreground">{preview.tierPercent}%</span> of eligible
+                  amount (based on your trip dates).
+                </p>
+                {preview.canAutoRefund ? (
+                  <p>If you continue, we will cancel immediately and start a refund to your original payment method.</p>
+                ) : preview.estimatedRefundPaise > 0 ? (
+                  <p>
+                    We could not link an online payment for automatic refund. Our team will contact you or process a
+                    manual refund — you will still complete cancellation below.
+                  </p>
+                ) : null}
+                <p>
+                  <Link href="/refund-policy" className="text-primary hover:underline">
+                    Read the full refund & cancellation policy
+                  </Link>
+                  .
+                </p>
+              </div>
+              <label className="flex items-start gap-2 text-[11px] text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 rounded border-border"
+                  checked={acknowledged}
+                  onChange={e => setAcknowledged(e.target.checked)}
+                />
+                <span>I understand the refund estimate above and the policy.</span>
+              </label>
+              <p className="text-xs font-medium text-foreground">Why do you want to cancel?</p>
+              <Textarea
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                placeholder="Reason for cancellation..."
+                rows={2}
+                className="bg-secondary border-border resize-none text-xs"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-red-500 text-white text-xs hover:bg-red-600"
+                  onClick={() => void submitConfirmed()}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Cancelling…' : 'Confirm cancellation'}
+                </Button>
+                <Button variant="outline" size="sm" className="border-border text-xs" onClick={closePanel}>
+                  Back
+                </Button>
+              </div>
+            </>
+          )}
         </>
       )}
-      <div className="flex gap-2">
-        <Button size="sm" className="bg-red-500 text-white text-xs hover:bg-red-600" onClick={submit} disabled={submitting}>
-          {submitting ? 'Submitting...' : isPending ? 'Cancel booking' : 'Submit Request'}
-        </Button>
-        <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => setOpen(false)}>
-          Back
-        </Button>
-      </div>
     </div>
   )
 }
