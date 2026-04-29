@@ -875,6 +875,7 @@ export function HostServiceListingTabs(props: Props) {
   async function submitCreate() {
     if (submitCreateInFlightRef.current) return
     submitCreateInFlightRef.current = true
+    createSubmitCancelledRef.current = false
     try {
       const businessErr = validBusinessTab()
       if (businessErr) { toast.error(businessErr); setStep(0); return }
@@ -882,7 +883,6 @@ export function HostServiceListingTabs(props: Props) {
       if (itemsErr) { toast.error(itemsErr); setStep(1); return }
 
       setSaving(true)
-      createSubmitCancelledRef.current = false
       setCreateSubmitOverlayOpen(true)
       const payload: HostServiceItemDraft[] = items.map(i => ({
         name: i.name.trim(),
@@ -928,7 +928,8 @@ export function HostServiceListingTabs(props: Props) {
       if (createSubmitCancelledRef.current) {
         if (!('error' in result && result.error)) {
           toast.success('Your listing was submitted for review.')
-          window.location.assign('/host')
+          setSavedSnapshot(serializeFormState())
+          window.location.replace(`${window.location.origin}/host`)
         }
         return
       }
@@ -938,7 +939,8 @@ export function HostServiceListingTabs(props: Props) {
         return
       }
       toast.success('Listing submitted for review!')
-      window.location.assign('/host')
+      setSavedSnapshot(serializeFormState())
+      window.location.replace(`${window.location.origin}/host`)
     } finally {
       submitCreateInFlightRef.current = false
     }
@@ -1169,11 +1171,26 @@ export function HostServiceListingTabs(props: Props) {
       )
       return
     }
+    const target = pendingNav
+    setPendingNav(null)
     try {
       const ok = await saveAll()
-      if (ok) goToPendingNav()
+      if (ok && target) {
+        try {
+          const url =
+            target.startsWith('http://') || target.startsWith('https://')
+              ? target
+              : `${window.location.origin}${target.startsWith('/') ? target : `/${target}`}`
+          window.location.assign(url)
+        } catch {
+          window.location.assign(target)
+        }
+      } else if (!ok && target) {
+        setPendingNav(target)
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save')
+      if (target) setPendingNav(target)
     }
   }
 
@@ -2366,7 +2383,7 @@ export function HostServiceListingTabs(props: Props) {
                 </>
               )}
             </p>
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
