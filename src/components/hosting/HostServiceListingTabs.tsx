@@ -634,7 +634,8 @@ export function HostServiceListingTabs(props: Props) {
     if (!isDirty) return
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault()
-      e.returnValue = ''
+      // Required for the browser to show a leave confirmation (wording is mostly fixed by the browser).
+      e.returnValue = 'You have unsaved changes.'
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
@@ -1128,6 +1129,9 @@ export function HostServiceListingTabs(props: Props) {
       }
       router.refresh()
       return true
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save changes')
+      return false
     } finally {
       setSaving(false)
     }
@@ -1137,15 +1141,32 @@ export function HostServiceListingTabs(props: Props) {
     const target = pendingNav
     setPendingNav(null)
     if (!target) return
-    // Clear the saved snapshot so the click handler won't re-trap our own
-    // nav — we've already confirmed.
-    setSavedSnapshot(currentSnapshot)
-    router.push(target)
+    // Full navigation: reliable after async save + refresh, avoids client router edge cases.
+    try {
+      const url =
+        target.startsWith('http://') || target.startsWith('https://')
+          ? target
+          : `${window.location.origin}${target.startsWith('/') ? target : `/${target}`}`
+      window.location.assign(url)
+    } catch {
+      window.location.assign(target)
+    }
   }
 
   async function saveAndLeave() {
-    const ok = await saveAll()
-    if (ok) goToPendingNav()
+    if (mode !== 'edit') {
+      toast.message(
+        'New listings are only saved when you submit for review from the Review tab. Use Discard & leave to exit without submitting, or Cancel to keep editing.',
+        { duration: 7000 },
+      )
+      return
+    }
+    try {
+      const ok = await saveAll()
+      if (ok) goToPendingNav()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save')
+    }
   }
 
   function discardAndLeave() {
@@ -2328,7 +2349,14 @@ export function HostServiceListingTabs(props: Props) {
           >
             <h3 className="font-semibold text-base">Unsaved changes</h3>
             <p className="text-sm text-muted-foreground">
-              You have edits that haven&apos;t been saved yet. What would you like to do?
+              {mode === 'edit' ? (
+                <>You have edits that haven&apos;t been saved yet. What would you like to do?</>
+              ) : (
+                <>
+                  You have unsaved work on this new listing. Closing another browser tab may still prompt you to leave
+                  — submit from the Review tab to save, or discard and leave to lose in-progress edits.
+                </>
+              )}
             </p>
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
               <Button
@@ -2348,13 +2376,15 @@ export function HostServiceListingTabs(props: Props) {
               >
                 Discard &amp; leave
               </Button>
-              <Button
-                type="button"
-                onClick={saveAndLeave}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save & leave'}
-              </Button>
+              {mode === 'edit' && (
+                <Button
+                  type="button"
+                  onClick={() => void saveAndLeave()}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving…' : 'Save & leave'}
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -470,6 +470,27 @@ export function HostTripForm({
     interestTags,
   ])
 
+  const editFormSnapshot = useMemo(() => JSON.stringify(createDraftBody), [createDraftBody])
+  const [editBaselineSnapshot, setEditBaselineSnapshot] = useState<string | null>(null)
+
+  useEffect(() => {
+    setEditBaselineSnapshot(null)
+  }, [editTripId])
+
+  useEffect(() => {
+    if (!isEdit || loading || !editTripId) return
+    setEditBaselineSnapshot(JSON.stringify(createDraftBody))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stamp baseline once when edit load finishes
+  }, [isEdit, loading, editTripId])
+
+  const isEditDirty =
+    isEdit &&
+    editBaselineSnapshot !== null &&
+    editFormSnapshot !== editBaselineSnapshot
+
+  const editDirtyRef = useRef(false)
+  editDirtyRef.current = isEditDirty
+
   const createDraftRisky = useMemo(
     () => !isEdit && isHostTripCreateDraftNonEmpty(createDraftBody),
     [isEdit, createDraftBody],
@@ -499,20 +520,27 @@ export function HostTripForm({
   }, [isEdit, loading, draftSessionId, createDraftBody])
 
   useEffect(() => {
-    if (isEdit) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!createDraftRiskyRef.current) return
+      if (isEdit) {
+        if (!editDirtyRef.current) return
+      } else if (!createDraftRiskyRef.current) {
+        return
+      }
       e.preventDefault()
-      e.returnValue = ''
+      e.returnValue = 'You have unsaved changes.'
     }
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [isEdit])
 
   useEffect(() => {
-    if (isEdit || loading) return
+    if (loading) return
     const onClickCapture = (e: MouseEvent) => {
-      if (!createDraftRiskyRef.current) return
+      if (isEdit) {
+        if (!editDirtyRef.current) return
+      } else if (!createDraftRiskyRef.current) {
+        return
+      }
       const el = e.target as HTMLElement | null
       if (!el) return
       const a = el.closest('a[href]') as HTMLAnchorElement | null
@@ -538,8 +566,33 @@ export function HostTripForm({
     return () => document.removeEventListener('click', onClickCapture, true)
   }, [isEdit, loading])
 
+  function assignOrPush(href: string) {
+    try {
+      const url =
+        href.startsWith('http://') || href.startsWith('https://')
+          ? href
+          : `${window.location.origin}${href.startsWith('/') ? href : `/${href}`}`
+      window.location.assign(url)
+    } catch {
+      window.location.assign(href)
+    }
+  }
+
   function requestNavigateAway(href: string) {
-    if (isEdit || !createDraftRisky) {
+    if (loading) {
+      router.push(href)
+      return
+    }
+    if (isEdit) {
+      if (!isEditDirty) {
+        router.push(href)
+        return
+      }
+      setPendingNavigation(href)
+      setLeaveDialogOpen(true)
+      return
+    }
+    if (!createDraftRisky) {
       router.push(href)
       return
     }
@@ -564,6 +617,42 @@ export function HostTripForm({
     setLeaveDialogOpen(false)
     setPendingNavigation(null)
     if (href) router.push(href)
+  }
+
+  function confirmLeaveDiscardEdit() {
+    const href = pendingNavigation
+    setLeaveDialogOpen(false)
+    setPendingNavigation(null)
+    if (href) assignOrPush(href)
+  }
+
+  async function confirmLeaveSaveEdit() {
+    const href = pendingNavigation
+    const built = buildTripPersistPayload()
+    if ('error' in built) {
+      toast.error(built.error)
+      return
+    }
+    if (!editTripId) return
+    setIsSubmitting(true)
+    try {
+      const result = await updateHostedTrip(editTripId, built.payload)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+      if (result.needsReapproval) {
+        toast.success('Saved. This update requires admin review; your trip stays visible.')
+      } else {
+        toast.success('Trip updated.')
+      }
+      setEditBaselineSnapshot(JSON.stringify(createDraftBody))
+      setLeaveDialogOpen(false)
+      setPendingNavigation(null)
+      if (href) assignOrPush(href)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   function cancelLeaveDialog() {
@@ -868,7 +957,31 @@ export function HostTripForm({
     }
   }
 
-  function handleSubmit() {
+  function buildTripPersistPayload():
+    | { error: string }
+    | {
+        payload: {
+          title: string
+          destination_id: string
+          description: string
+          short_description: string | null
+          price_paise: number
+          price_variants: PriceVariant[] | null
+          duration_days: number
+          trip_days: number
+          trip_nights: number
+          exclude_first_day_travel: boolean
+          departure_time: 'morning' | 'evening'
+          return_time: 'morning' | 'evening'
+          departure_dates: string[]
+          return_dates: string[]
+          max_group_size: number
+          difficulty: string
+          includes: string[]
+          images: string[]
+          join_preferences: JoinPreferences
+        }
+      } {
     let pricePaise: number
     let price_variants: PriceVariant[] | null = null
     if (priceRows.length >= 2) {
@@ -882,14 +995,12 @@ export function HostTripForm({
         price_variants = tiersBuilt
         pricePaise = minPricePaiseFromVariants(tiersBuilt)
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Invalid price tiers')
-        return
+        return { error: err instanceof Error ? err.message : 'Invalid price tiers' }
       }
     } else {
       pricePaise = Math.round(parseFloat(priceRows[0]?.rupees || '') * 100)
       if (!Number.isFinite(pricePaise) || pricePaise < 100) {
-        toast.error('Enter a valid price per person (minimum ₹1)')
-        return
+        return { error: 'Enter a valid price per person (minimum ₹1)' }
       }
     }
 
@@ -897,20 +1008,17 @@ export function HostTripForm({
       .filter((r) => r.dep && r.ret)
       .map((r) => ({ dep: r.dep, ret: r.ret }))
     if (pairs.length === 0) {
-      toast.error('Add at least one departure date and return date')
-      return
+      return { error: 'Add at least one departure date and return date' }
     }
     for (const p of pairs) {
       if (p.ret < p.dep) {
-        toast.error('Return date must be on or after departure for every row')
-        return
+        return { error: 'Return date must be on or after departure for every row' }
       }
     }
     const td = parseInt(tripDays, 10)
     const tn = parseInt(tripNights, 10)
     if (!Number.isFinite(td) || td < 1 || !Number.isFinite(tn) || tn < 0) {
-      toast.error('Enter valid trip days (≥1) and nights (≥0)')
-      return
+      return { error: 'Enter valid trip days (≥1) and nights (≥0)' }
     }
     const duration_days = maxInclusiveSpanDays(pairs)
 
@@ -923,12 +1031,10 @@ export function HostTripForm({
     if (tokenDepositEnabled) {
       const tokenPaise = Math.round(parseFloat(tokenAmountRupees) * 100)
       if (!Number.isFinite(tokenPaise) || tokenPaise < 100) {
-        toast.error('Enter a valid token amount per person (minimum ₹1)')
-        return
+        return { error: 'Enter a valid token amount per person (minimum ₹1)' }
       }
       if (tokenPaise > pricePaise) {
-        toast.error('Token amount cannot exceed your listed price per person')
-        return
+        return { error: 'Token amount cannot exceed your listed price per person' }
       }
       join_preferences.token_deposit_enabled = true
       join_preferences.token_amount_paise = tokenPaise
@@ -942,31 +1048,43 @@ export function HostTripForm({
       if (Number.isFinite(a)) join_preferences.max_age = a
     }
 
+    return {
+      payload: {
+        title: title.trim(),
+        destination_id: destinationId,
+        description: description.trim(),
+        short_description: shortDescription.trim() || null,
+        price_paise: pricePaise,
+        price_variants,
+        duration_days,
+        trip_days: td,
+        trip_nights: tn,
+        exclude_first_day_travel: excludeFirstTravel,
+        departure_time: departureTime,
+        return_time: returnTime,
+        departure_dates: pairs.map((p) => p.dep),
+        return_dates: pairs.map((p) => p.ret),
+        max_group_size: parseInt(maxGroupSize, 10) || 12,
+        difficulty,
+        includes: selectedIncludes,
+        images,
+        join_preferences,
+      },
+    }
+  }
+
+  function handleSubmit() {
+    const built = buildTripPersistPayload()
+    if ('error' in built) {
+      toast.error(built.error)
+      return
+    }
+
     void (async () => {
       setIsSubmitting(true)
       try {
         if (isEdit && editTripId) {
-          const result = await updateHostedTrip(editTripId, {
-            title: title.trim(),
-            destination_id: destinationId,
-            description: description.trim(),
-            short_description: shortDescription.trim() || null,
-            price_paise: pricePaise,
-            price_variants,
-            duration_days,
-            trip_days: td,
-            trip_nights: tn,
-            exclude_first_day_travel: excludeFirstTravel,
-            departure_time: departureTime,
-            return_time: returnTime,
-            departure_dates: pairs.map((p) => p.dep),
-            return_dates: pairs.map((p) => p.ret),
-            max_group_size: parseInt(maxGroupSize, 10) || 12,
-            difficulty,
-            includes: selectedIncludes,
-            images,
-            join_preferences,
-          })
+          const result = await updateHostedTrip(editTripId, built.payload)
           if (result.error) {
             toast.error(result.error)
           } else {
@@ -975,31 +1093,32 @@ export function HostTripForm({
             } else {
               toast.success('Trip updated.')
             }
+            setEditBaselineSnapshot(JSON.stringify(createDraftBody))
             router.push(`/host/${editTripId}`)
           }
           return
         }
 
         const result = await createHostedTrip({
-          title: title.trim(),
-          destination_id: destinationId,
-          description: description.trim(),
-          short_description: shortDescription.trim() || undefined,
-          price_paise: pricePaise,
-          price_variants,
-          duration_days,
-          trip_days: td,
-          trip_nights: tn,
-          exclude_first_day_travel: excludeFirstTravel,
-          departure_time: departureTime,
-          return_time: returnTime,
-          departure_dates: pairs.map((p) => p.dep),
-          return_dates: pairs.map((p) => p.ret),
-          max_group_size: parseInt(maxGroupSize, 10) || 12,
-          difficulty,
-          includes: selectedIncludes,
-          images,
-          join_preferences,
+          title: built.payload.title,
+          destination_id: built.payload.destination_id,
+          description: built.payload.description,
+          short_description: built.payload.short_description || undefined,
+          price_paise: built.payload.price_paise,
+          price_variants: built.payload.price_variants,
+          duration_days: built.payload.duration_days,
+          trip_days: built.payload.trip_days,
+          trip_nights: built.payload.trip_nights,
+          exclude_first_day_travel: built.payload.exclude_first_day_travel,
+          departure_time: built.payload.departure_time,
+          return_time: built.payload.return_time,
+          departure_dates: built.payload.departure_dates,
+          return_dates: built.payload.return_dates,
+          max_group_size: built.payload.max_group_size,
+          difficulty: built.payload.difficulty,
+          includes: built.payload.includes,
+          images: built.payload.images,
+          join_preferences: built.payload.join_preferences,
         })
 
         if (result.error) {
@@ -2135,34 +2254,76 @@ export function HostTripForm({
             className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="leave-draft-title" className="text-lg font-bold">
-              Leave this page?
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              You have trip details in progress. Your draft is saved on this device (removed after {DRAFT_RETENTION_DAYS}{' '}
-              days without updates) — choose whether to keep it or delete it before leaving.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-              <Button type="button" variant="ghost" className="order-3 sm:order-1" onClick={cancelLeaveDialog}>
-                Continue editing
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="order-2 border-destructive/40 text-destructive hover:bg-destructive/10 sm:order-2"
-                onClick={confirmLeaveDiscardDraft}
-              >
-                Discard draft
-              </Button>
-              <Button
-                type="button"
-                className="order-1 bg-primary text-primary-foreground sm:order-3"
-                onClick={confirmLeaveKeepDraft}
-                autoFocus
-              >
-                Keep draft &amp; leave
-              </Button>
-            </div>
+            {isEdit ? (
+              <>
+                <h2 id="leave-draft-title" className="text-lg font-bold">
+                  Unsaved changes
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  You have edits that haven&apos;t been saved yet. Closing this browser tab may still show your
+                  browser&apos;s generic leave prompt. What would you like to do?
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={cancelLeaveDialog}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                    onClick={confirmLeaveDiscardEdit}
+                    disabled={isSubmitting}
+                  >
+                    Discard &amp; leave
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-primary text-primary-foreground"
+                    onClick={() => void confirmLeaveSaveEdit()}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Saving…' : 'Save & leave'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="leave-draft-title" className="text-lg font-bold">
+                  Leave this page?
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  You have trip details in progress. Your draft is saved on this device (removed after {DRAFT_RETENTION_DAYS}{' '}
+                  days without updates) — choose whether to keep it or delete it before leaving. Closing the tab may still
+                  prompt you in your browser.
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  <Button type="button" variant="ghost" className="order-3 sm:order-1" onClick={cancelLeaveDialog}>
+                    Continue editing
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="order-2 border-destructive/40 text-destructive hover:bg-destructive/10 sm:order-2"
+                    onClick={confirmLeaveDiscardDraft}
+                  >
+                    Discard draft
+                  </Button>
+                  <Button
+                    type="button"
+                    className="order-1 bg-primary text-primary-foreground sm:order-3"
+                    onClick={confirmLeaveKeepDraft}
+                    autoFocus
+                  >
+                    Keep draft &amp; leave
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
