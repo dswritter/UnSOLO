@@ -2,7 +2,12 @@ import { getDestinations } from '@/actions/admin'
 import { getAdminServiceListings } from '@/actions/admin-service-listings'
 import { ServiceListingsClient } from './ServiceListingsClient'
 
-export default async function AdminServiceListingsPage() {
+export default async function AdminServiceListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string; status?: string }>
+}) {
+  const sp = await searchParams
   const [serviceListings, destinations] = await Promise.all([
     getAdminServiceListings(),
     getDestinations(),
@@ -19,7 +24,12 @@ export default async function AdminServiceListingsPage() {
           + Create Listing
         </a>
       </div>
-      <ServiceListingsClient serviceListings={serviceListings} destinations={destinations} />
+      <ServiceListingsClient
+        serviceListings={serviceListings}
+        destinations={destinations}
+        initialStatusFilter={sp.status}
+        initialTypeFilter={sp.type}
+      />
     </div>
   )
 }

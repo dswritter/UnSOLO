@@ -6,9 +6,27 @@ import { ServiceListing, Destination, formatPrice } from '@/types'
 import { approveServiceListing, rejectServiceListing } from '@/actions/admin-service-listings'
 import { cn } from '@/lib/utils'
 
+type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'archived'
+
+const STATUS_FILTERS: StatusFilter[] = ['all', 'pending', 'approved', 'rejected', 'archived']
+const LISTING_TYPES = ['stays', 'activities', 'rentals', 'getting_around'] as const
+
+function parseStatusFilter(raw: string | undefined): StatusFilter {
+  if (raw && (STATUS_FILTERS as readonly string[]).includes(raw)) return raw as StatusFilter
+  return 'all'
+}
+
+function parseTypeFilter(raw: string | undefined): 'all' | string {
+  if (raw && (LISTING_TYPES as readonly string[]).includes(raw)) return raw
+  return 'all'
+}
+
 interface ServiceListingsClientProps {
   serviceListings: ServiceListing[]
   destinations: Destination[]
+  /** From URL (?status= / ?type=) after moderation redirect */
+  initialStatusFilter?: string
+  initialTypeFilter?: string
 }
 
 function statusClass(status: string) {
@@ -24,9 +42,14 @@ function statusClass(status: string) {
   }
 }
 
-export function ServiceListingsClient({ serviceListings, destinations }: ServiceListingsClientProps) {
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'archived'>('all')
-  const [typeFilter, setTypeFilter] = useState<'all' | string>('all')
+export function ServiceListingsClient({
+  serviceListings,
+  destinations,
+  initialStatusFilter,
+  initialTypeFilter,
+}: ServiceListingsClientProps) {
+  const [filter, setFilter] = useState<StatusFilter>(() => parseStatusFilter(initialStatusFilter))
+  const [typeFilter, setTypeFilter] = useState<'all' | string>(() => parseTypeFilter(initialTypeFilter))
   const [loading, setLoading] = useState<string | null>(null)
 
   const filtered = serviceListings.filter((l) => {
@@ -35,12 +58,20 @@ export function ServiceListingsClient({ serviceListings, destinations }: Service
     return true
   })
 
+  function listUrlForRow(listing: ServiceListing, outcome: 'approved' | 'rejected') {
+    const q = new URLSearchParams()
+    q.set('type', listing.type)
+    q.set('status', outcome)
+    return `/admin/service-listings?${q.toString()}`
+  }
+
   const handleApprove = async (id: string) => {
     if (!confirm('Approve this listing?')) return
+    const row = serviceListings.find((l) => l.id === id)
     setLoading(id)
     try {
       await approveServiceListing(id)
-      window.location.reload()
+      window.location.assign(row ? listUrlForRow(row, 'approved') : '/admin/service-listings')
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
       setLoading(null)
@@ -50,10 +81,11 @@ export function ServiceListingsClient({ serviceListings, destinations }: Service
   const handleReject = async (id: string) => {
     const reason = prompt('Reason for rejection:')
     if (!reason) return
+    const row = serviceListings.find((l) => l.id === id)
     setLoading(id)
     try {
       await rejectServiceListing(id, reason)
-      window.location.reload()
+      window.location.assign(row ? listUrlForRow(row, 'rejected') : '/admin/service-listings')
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
       setLoading(null)
@@ -67,7 +99,7 @@ export function ServiceListingsClient({ serviceListings, destinations }: Service
           <label className="text-xs font-semibold text-muted-foreground">Status</label>
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as typeof filter)}
+            onChange={(e) => setFilter(e.target.value as StatusFilter)}
             className="mt-1 w-full min-w-[140px] rounded-lg border border-border bg-secondary/80 px-3 py-2 text-sm text-foreground"
           >
             <option value="all">All</option>

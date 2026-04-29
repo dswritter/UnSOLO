@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
   CheckCircle2,
   XCircle,
@@ -63,6 +62,14 @@ const TYPE_LABELS: Record<string, string> = {
   getting_around: 'Getting Around',
 }
 
+/** List page with filters so admin lands in the right category after moderation. */
+function serviceListingsIndexUrl(listingType: string, outcome: 'approved' | 'rejected') {
+  const q = new URLSearchParams()
+  q.set('type', listingType)
+  q.set('status', outcome)
+  return `/admin/service-listings?${q.toString()}`
+}
+
 function Field({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
   if (!value) return null
   return (
@@ -74,7 +81,6 @@ function Field({ label, value, highlight }: { label: string; value?: string | nu
 }
 
 export function AdminListingReviewView({ listing }: { listing: Listing }) {
-  const router = useRouter()
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
 
   const isReReview = !!listing.first_approved_at
@@ -89,8 +95,8 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
     setLoading('approve')
     try {
       await approveServiceListing(listing.id)
-      router.push('/admin/service-listings')
-      router.refresh()
+      // Full navigation: avoids stuck "Approving…" when client router.refresh() kept the review segment active.
+      window.location.assign(serviceListingsIndexUrl(listing.type, 'approved'))
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown'}`)
       setLoading(null)
@@ -103,8 +109,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
     setLoading('reject')
     try {
       await rejectServiceListing(listing.id, reason.trim())
-      router.push('/admin/service-listings')
-      router.refresh()
+      window.location.assign(serviceListingsIndexUrl(listing.type, 'rejected'))
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown'}`)
       setLoading(null)
