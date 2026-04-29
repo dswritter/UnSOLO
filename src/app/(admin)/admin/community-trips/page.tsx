@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getReleasableHostEarning } from '@/actions/host-payout'
 import { isRazorpayXConfigured } from '@/lib/razorpay/x'
 import CommunityTripsClient from './CommunityTripsClient'
+import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
 
 export default async function AdminCommunityTripsPage() {
   const supabase = await createClient()
@@ -18,6 +19,15 @@ export default async function AdminCommunityTripsPage() {
     .select('*, destination:destinations(name, state), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
     .not('host_id', 'is', null)
     .order('created_at', { ascending: false })
+
+  const tripList = trips || []
+  const tripIds = tripList.map((t) => t.id as string)
+  const bookingCountByPackage =
+    tripIds.length > 0 ? await fetchCommunityTripBookingCountsForPackages(supabase, tripIds) : {}
+  const tripsWithBookings = tripList.map((t) => ({
+    ...t,
+    booking_count: bookingCountByPackage[t.id as string] ?? 0,
+  }))
 
   // Get pending payouts (booking details for admin transfer)
   const { data: pendingPayoutsRaw } = await supabase
@@ -52,7 +62,7 @@ export default async function AdminCommunityTripsPage() {
       <h1 className="text-2xl font-black mb-1">Community <span className="text-primary">Trips</span></h1>
       <p className="text-muted-foreground text-sm mb-6">Moderate user-hosted trips and manage host payouts</p>
       <CommunityTripsClient
-        trips={trips || []}
+        trips={tripsWithBookings}
         pendingPayouts={pendingPayouts || []}
         platformFeePercent={platformFeePercent}
         razorpayxEnabled={razorpayxEnabled}

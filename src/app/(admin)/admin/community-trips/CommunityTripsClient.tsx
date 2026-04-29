@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 
 interface Props {
+  /** Community packages; server merges `booking_count` for each row. */
   trips: any[]
   pendingPayouts: any[]
   /** Current platform fee % (inclusive in list price); from Admin → Settings */
@@ -379,9 +380,16 @@ export default function CommunityTripsClient({
           const host = trip.host as any
           const dest = trip.destination as any
           const expanded = expandedId === trip.id
+          const deemphasized = trip.moderation_status === 'rejected' || !trip.is_active
+          const bookingCount = typeof trip.booking_count === 'number' ? trip.booking_count : 0
 
           return (
-            <div key={trip.id} className="border border-border rounded-xl bg-card overflow-hidden">
+            <div
+              key={trip.id}
+              className={`border border-border rounded-xl bg-card overflow-hidden transition-all duration-200 group ${
+                deemphasized ? 'opacity-[0.55] grayscale-[0.35] hover:opacity-100 hover:grayscale-0' : ''
+              }`}
+            >
               {/* Header */}
               <button
                 onClick={() => setExpandedId(expanded ? null : trip.id)}
@@ -395,6 +403,19 @@ export default function CommunityTripsClient({
                     <div className="font-bold text-sm">{trip.title}</div>
                     <div className="text-xs text-muted-foreground">
                       {dest?.name}, {dest?.state} · {packageDurationShortLabel(trip)} · Max {trip.max_group_size}
+                      {' · '}
+                      <span className="tabular-nums text-foreground/90">
+                        {bookingCount} booking{bookingCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      First published:{' '}
+                      {trip.first_approved_at
+                        ? formatDate(String(trip.first_approved_at))
+                        : '—'}
+                      {' · '}
+                      Last edited:{' '}
+                      {trip.updated_at ? formatDate(String(trip.updated_at)) : '—'}
                     </div>
                   </div>
                 </div>
@@ -444,6 +465,18 @@ export default function CommunityTripsClient({
 
                   {/* Trip details */}
                   <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Bookings (non-cancelled):</span>{' '}
+                      <span className="font-semibold tabular-nums">{bookingCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">First published:</span>{' '}
+                      {trip.first_approved_at ? formatDate(String(trip.first_approved_at)) : '—'}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Last edited:</span>{' '}
+                      {trip.updated_at ? formatDate(String(trip.updated_at)) : '—'}
+                    </div>
                     <div><span className="text-muted-foreground">List price:</span> {formatPrice(trip.price_paise)}/person</div>
                     <div><span className="text-muted-foreground">Duration:</span> {packageDurationShortLabel(trip)}</div>
                     <div><span className="text-muted-foreground">Max Group:</span> {trip.max_group_size}</div>

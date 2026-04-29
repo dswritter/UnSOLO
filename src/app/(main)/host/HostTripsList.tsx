@@ -47,6 +47,10 @@ interface Trip {
   max_group_size: number
   pending_requests: number
   approved_requests: number
+  first_approved_at?: string | null
+  updated_at?: string | null
+  /** Non-cancelled trip bookings (package_id + booking_type trip). */
+  booking_count?: number
   destination: { name: string; state: string } | null
 }
 
@@ -340,17 +344,32 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((trip) => (
+          {filtered.map((trip) => {
+            const deemphasized =
+              trip.moderation_status === 'rejected' || trip.is_active === false
+            const bookingCount = trip.booking_count ?? 0
+            return (
             <div
               key={trip.id}
               className={cn(
-                'rounded-xl border p-4 backdrop-blur-sm',
+                'rounded-xl border p-4 backdrop-blur-sm transition-all duration-200 group',
                 w
                   ? cn(
                       'bg-[oklch(0.16_0.038_152/0.92)]',
-                      trip.is_active ? 'border-white/25' : 'border-red-400/40 opacity-95',
+                      deemphasized
+                        ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
+                        : trip.is_active
+                          ? 'border-white/25'
+                          : 'border-red-400/30',
                     )
-                  : cn('bg-card', trip.is_active ? 'border-border' : 'border-destructive/30 opacity-80'),
+                  : cn(
+                      'bg-card',
+                      deemphasized
+                        ? 'border-border/70 opacity-[0.55] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-border'
+                        : trip.is_active
+                          ? 'border-border'
+                          : 'border-destructive/30',
+                    ),
               )}
             >
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -405,7 +424,31 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                       >
                         {formatPrice(trip.price_paise)}
                       </span>
+                      <span
+                        className={cn(
+                          'inline-flex items-center tabular-nums',
+                          w ? 'text-white/85' : 'text-muted-foreground',
+                        )}
+                      >
+                        · {bookingCount} booking{bookingCount === 1 ? '' : 's'}
+                      </span>
                     </div>
+                    <p
+                      className={cn(
+                        'text-[11px] mt-1 space-x-2',
+                        w ? 'text-white/55' : 'text-muted-foreground',
+                      )}
+                    >
+                      <span>
+                        First published:{' '}
+                        {trip.first_approved_at ? formatDate(trip.first_approved_at) : 'Not yet'}
+                      </span>
+                      <span className={w ? 'text-white/35' : 'text-muted-foreground/50'}>·</span>
+                      <span>
+                        Last edited:{' '}
+                        {trip.updated_at ? formatDate(trip.updated_at) : '—'}
+                      </span>
+                    </p>
                     {(trip.departure_dates || []).length > 0 && (() => {
                       const next = nextOpenDeparture(trip.departure_dates, trip.departure_dates_closed ?? null)
                       return (
@@ -554,7 +597,8 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </>

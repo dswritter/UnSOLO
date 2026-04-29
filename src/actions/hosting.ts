@@ -10,6 +10,7 @@ import {
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import type { JoinPreferences } from '@/types'
 import { getEmailFromAuthUser } from '@/lib/auth-email'
+import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -27,7 +28,7 @@ export async function toggleHostTripActive(tripId: string) {
 
   const { error } = await supabase
     .from('packages')
-    .update({ is_active: !trip.is_active })
+    .update({ is_active: !trip.is_active, updated_at: new Date().toISOString() })
     .eq('id', tripId)
     .eq('host_id', user.id)
 
@@ -68,7 +69,7 @@ export async function toggleHostTripDateClosed(
 
   const { data: updated, error } = await svcSupabase
     .from('packages')
-    .update({ departure_dates_closed: next })
+    .update({ departure_dates_closed: next, updated_at: new Date().toISOString() })
     .eq('id', tripId)
     .eq('host_id', user.id)
     .select('departure_dates_closed')
@@ -271,6 +272,8 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
     payload.moderation_status = 'pending'
   }
 
+  payload.updated_at = new Date().toISOString()
+
   const { error } = await supabase
     .from('packages')
     .update(payload)
@@ -316,7 +319,10 @@ export async function cancelHostedTrip(tripId: string) {
   if (!trip || trip.host_id !== user.id) return { error: 'Not your trip' }
 
   // Deactivate the trip
-  await supabase.from('packages').update({ is_active: false }).eq('id', tripId)
+  await supabase
+    .from('packages')
+    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', tripId)
 
   // Cancel all active bookings for this trip
   const { data: affectedBookings } = await supabase
@@ -378,14 +384,18 @@ export async function getMyHostedTrips() {
 
   const tripIds = (trips || []).map(t => t.id)
 
-  // Single query for all join-request counts grouped by (trip_id, status)
-  const { data: requestRows } = tripIds.length
-    ? await supabase
-        .from('join_requests')
-        .select('trip_id, status')
-        .in('trip_id', tripIds)
-        .in('status', ['pending', 'approved'])
-    : { data: [] }
+  const [requestResult, bookingCounts] = await Promise.all([
+    tripIds.length
+      ? supabase
+          .from('join_requests')
+          .select('trip_id, status')
+          .in('trip_id', tripIds)
+          .in('status', ['pending', 'approved'])
+      : Promise.resolve({ data: [] as { trip_id: string; status: string }[] }),
+    fetchCommunityTripBookingCountsForPackages(supabase, tripIds),
+  ])
+
+  const requestRows = requestResult.data
 
   const counts: Record<string, { pending: number; approved: number }> = {}
   for (const row of requestRows || []) {
@@ -398,6 +408,7 @@ export async function getMyHostedTrips() {
     ...trip,
     pending_requests: counts[trip.id]?.pending ?? 0,
     approved_requests: counts[trip.id]?.approved ?? 0,
+    booking_count: bookingCounts[trip.id] ?? 0,
   }))
 }
 
