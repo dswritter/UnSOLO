@@ -269,18 +269,20 @@ export default function SettingsClient({ settings: initialSettings }: { settings
       }
 
       const supabase = createClient()
-      let hasError = false
-      for (const [key, value] of Object.entries(settings)) {
-        const { error } = await supabase.from('platform_settings').upsert(
-          { key, value, updated_at: new Date().toISOString() },
-          { onConflict: 'key' },
-        )
-        if (error) {
-          toast.error(`Failed to save ${key}: ${error.message}`)
-          hasError = true
-        }
+      const updatedAt = new Date().toISOString()
+      const rows = Object.entries(settings).map(([key, value]) => ({
+        key,
+        value: value ?? '',
+        updated_at: updatedAt,
+      }))
+      // Single round-trip: sequential per-key upserts can trip the browser client's
+      // Web Locks–based session layer ("Lock broken by another request with the 'steal' option").
+      const { error } = await supabase.from('platform_settings').upsert(rows, { onConflict: 'key' })
+      if (error) {
+        toast.error(`Failed to save settings: ${error.message}`)
+      } else {
+        toast.success('Settings saved!')
       }
-      if (!hasError) toast.success('Settings saved!')
     })
   }
 
