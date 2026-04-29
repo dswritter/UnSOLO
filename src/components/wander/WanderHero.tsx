@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { Star, ShieldCheck } from 'lucide-react'
+import { Instagram, Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
 import type { WanderRatingHero, WanderStats, WanderHeroCopy } from '@/lib/wander/wanderQueries'
@@ -75,6 +75,31 @@ export function WanderHero({
       )
   }
 
+  const instagramHref = heroCopy.instagramUrl
+  const instagramCta =
+    instagramHref != null ? (
+      instagramHref.startsWith('/') ? (
+        <Link
+          href={instagramHref}
+          className="mt-4 inline-flex w-fit max-w-full items-center gap-2.5 rounded-full border border-white/18 bg-white/[0.07] px-3.5 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/[0.06] backdrop-blur-md transition-colors hover:bg-white/[0.12] hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Instagram className="h-4 w-4 shrink-0 text-[#ec4899]" strokeWidth={2} aria-hidden />
+          <span className="min-w-0 truncate">{heroCopy.instagramLabel}</span>
+        </Link>
+      ) : (
+        <a
+          href={instagramHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex w-fit max-w-full items-center gap-2.5 rounded-full border border-white/18 bg-white/[0.07] px-3.5 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/[0.06] backdrop-blur-md transition-colors hover:bg-white/[0.12] hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Instagram className="h-4 w-4 shrink-0 text-[#ec4899]" strokeWidth={2} aria-hidden />
+          <span className="min-w-0 truncate">{heroCopy.instagramLabel}</span>
+          <span className="sr-only"> (opens in new tab)</span>
+        </a>
+      )
+    ) : null
+
   return (
     <section className="relative w-full min-h-0 overflow-hidden bg-background">
       <div className="absolute inset-0">
@@ -124,6 +149,7 @@ export function WanderHero({
               </p>
               {headlineBlock}
               {subtitleBlock}
+              {instagramCta}
             </div>
             {children ? (
               <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-0">{children}</div>

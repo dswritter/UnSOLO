@@ -26,6 +26,7 @@ import {
   DEFAULT_WANDER_LINE2_BEFORE,
   DEFAULT_WANDER_SUBTITLE,
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
+  DEFAULT_WANDER_INSTAGRAM_LABEL,
 } from '@/lib/wander/wander-defaults'
 import {
   isValidManualSeasonValue,
@@ -43,6 +44,8 @@ const WANDER_HERO_TAIL_KEYS = new Set([
   'wander_hero_subtitle',
   'wander_hero_headline_link_url',
   'wander_hero_subtitle_link_url',
+  'wander_hero_instagram_text',
+  'wander_hero_instagram_url',
 ])
 
 interface Setting {
@@ -104,6 +107,8 @@ const SETTING_LABELS: Record<
   wander_hero_subtitle: { label: 'Wander hero — subtitle paragraph', type: 'textarea' },
   wander_hero_headline_link_url: { label: 'Wander hero — optional link for headline (path or HTTPS)', type: 'text' },
   wander_hero_subtitle_link_url: { label: 'Wander hero — optional link for subtitle (path or HTTPS)', type: 'text' },
+  wander_hero_instagram_text: { label: 'Wander hero — Instagram label (next to icon)', type: 'text' },
+  wander_hero_instagram_url: { label: 'Wander hero — Instagram URL (https://)', type: 'text' },
   wander_theme_mode: {
     label: 'Wander shell — theme mode',
     type: 'text',
@@ -224,7 +229,7 @@ function syntheticGeneralRow(key: string): Setting {
       key,
       value: '',
       description:
-        'Headline, second line with accent word, and subtitle on /wander. Leave blank for built-in defaults. Optional headline/subtitle links: site path (/explore) or https URL.',
+        'Headline, second line with accent word, subtitle, and optional Instagram CTA on /wander. Leave blank for built-in defaults. Links: site path (/explore) or https URL.',
     }
   }
   if (WANDER_HERO_TAIL_KEYS.has(key)) {
@@ -625,6 +630,28 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                           setSettings((prev) => ({ ...prev, wander_hero_subtitle_link_url: e.target.value }))
                         }
                         placeholder="Leave empty when no link"
+                        className="bg-secondary border-border h-9"
+                      />
+                      <label className="text-xs font-medium text-muted-foreground mt-2">
+                        Instagram — label (shown next to icon)
+                      </label>
+                      <Input
+                        value={settings.wander_hero_instagram_text || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_instagram_text: e.target.value }))
+                        }
+                        placeholder={DEFAULT_WANDER_INSTAGRAM_LABEL}
+                        className="bg-secondary border-border h-9"
+                      />
+                      <label className="text-xs font-medium text-muted-foreground mt-2">
+                        Instagram — profile or post URL (empty hides CTA)
+                      </label>
+                      <Input
+                        value={settings.wander_hero_instagram_url || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_instagram_url: e.target.value }))
+                        }
+                        placeholder="https://www.instagram.com/yourhandle/"
                         className="bg-secondary border-border h-9"
                       />
                     </div>

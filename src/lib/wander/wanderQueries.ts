@@ -6,6 +6,7 @@ import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-p
 import type { ServiceEventScheduleEntry } from '@/types'
 import {
   DEFAULT_WANDER_HERO_LINE1,
+  DEFAULT_WANDER_INSTAGRAM_LABEL,
   DEFAULT_WANDER_LINE2_ACCENT,
   DEFAULT_WANDER_LINE2_AFTER,
   DEFAULT_WANDER_LINE2_BEFORE,
@@ -20,6 +21,7 @@ export {
   DEFAULT_WANDER_LINE2_ACCENT,
   DEFAULT_WANDER_LINE2_AFTER,
   DEFAULT_WANDER_SUBTITLE,
+  DEFAULT_WANDER_INSTAGRAM_LABEL,
 }
 
 export type WanderHeroCopy = {
@@ -30,6 +32,9 @@ export type WanderHeroCopy = {
   subtitle: string
   headlineLink: string | null
   subtitleLink: string | null
+  /** Shown below subtitle when `instagramUrl` is set. */
+  instagramLabel: string
+  instagramUrl: string | null
 }
 
 const HERO_KEYS = [
@@ -40,6 +45,8 @@ const HERO_KEYS = [
   'wander_hero_subtitle',
   'wander_hero_headline_link_url',
   'wander_hero_subtitle_link_url',
+  'wander_hero_instagram_text',
+  'wander_hero_instagram_url',
 ] as const
 
 /** Headline lines + subtitle from platform_settings; falsy fields fall back to product defaults. */
@@ -52,6 +59,8 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
     subtitle: DEFAULT_WANDER_SUBTITLE,
     headlineLink: null,
     subtitleLink: null,
+    instagramLabel: DEFAULT_WANDER_INSTAGRAM_LABEL,
+    instagramUrl: null,
   })
   try {
     const supabase = await createServerClient()
@@ -59,6 +68,9 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
     const m = Object.fromEntries((data || []).map((r: { key: string; value: string }) => [r.key, r.value ?? '']))
     const headlineLink = sanitizeAdminPublicHref(m.wander_hero_headline_link_url)
     const subtitleLink = sanitizeAdminPublicHref(m.wander_hero_subtitle_link_url)
+    const instagramUrl = sanitizeAdminPublicHref(m.wander_hero_instagram_url)
+    const instagramRaw = (m.wander_hero_instagram_text as string | undefined)?.trim()
+    const instagramLabel = instagramRaw || DEFAULT_WANDER_INSTAGRAM_LABEL
     const line1 = (m.wander_hero_line1 as string)?.trim()
     const line2Before = (m.wander_hero_line2_before as string) ?? ''
     const line2Accent = (m.wander_hero_line2_accent as string) ?? ''
@@ -72,6 +84,8 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
       subtitle: subtitle.trim() !== '' ? subtitle : DEFAULT_WANDER_SUBTITLE,
       headlineLink,
       subtitleLink,
+      instagramLabel,
+      instagramUrl: instagramUrl ?? null,
     }
   } catch {
     /* Supabase down */
