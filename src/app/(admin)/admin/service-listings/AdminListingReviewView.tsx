@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -84,6 +84,20 @@ function Field({ label, value, highlight }: { label: string; value?: string | nu
 
 export function AdminListingReviewView({ listing }: { listing: Listing }) {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [rejectReasonInput, setRejectReasonInput] = useState('')
+
+  useEffect(() => {
+    if (!rejectModalOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setRejectModalOpen(false)
+        setRejectReasonInput('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [rejectModalOpen])
 
   const isReReview = !!listing.first_approved_at
   // Use admin preview route for pending listings without first_approved_at —
@@ -105,12 +119,19 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
     }
   }
 
-  async function handleReject() {
-    const reason = prompt('Reason for rejection (shown to host):')
-    if (!reason?.trim()) return
+  function openRejectModal() {
+    setRejectReasonInput('')
+    setRejectModalOpen(true)
+  }
+
+  async function confirmRejectListing() {
+    const reason = rejectReasonInput.trim()
+    if (!reason) return
+    setRejectModalOpen(false)
+    setRejectReasonInput('')
     setLoading('reject')
     try {
-      await rejectServiceListing(listing.id, reason.trim())
+      await rejectServiceListing(listing.id, reason)
       window.location.assign(serviceListingsIndexUrl(listing.type, 'rejected'))
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown'}`)
@@ -166,7 +187,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           </a>
           <button
             type="button"
-            onClick={handleReject}
+            onClick={openRejectModal}
             disabled={!!loading}
             className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
           >
@@ -423,7 +444,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           </a>
           <button
             type="button"
-            onClick={handleReject}
+            onClick={openRejectModal}
             disabled={!!loading}
             className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
           >
@@ -441,6 +462,59 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           </button>
         </div>
       </div>
+
+      {rejectModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-listing-title"
+          onClick={() => {
+            setRejectModalOpen(false)
+            setRejectReasonInput('')
+          }}
+        >
+          <div
+            className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reject-listing-title" className="text-lg font-semibold text-foreground">
+              Reject listing
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              This reason is shown to the host so they can fix the listing and resubmit.
+            </p>
+            <textarea
+              value={rejectReasonInput}
+              onChange={(e) => setRejectReasonInput(e.target.value)}
+              placeholder="Enter a rejection reason…"
+              rows={4}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalOpen(false)
+                  setRejectReasonInput('')
+                }}
+                className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmRejectListing()}
+                disabled={!rejectReasonInput.trim()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:pointer-events-none disabled:opacity-40"
+              >
+                Reject listing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

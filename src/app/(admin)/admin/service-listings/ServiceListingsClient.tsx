@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ServiceListing, Destination, formatPrice } from '@/types'
 import { approveServiceListing, rejectServiceListing } from '@/actions/admin-service-listings'
@@ -51,6 +51,20 @@ export function ServiceListingsClient({
   const [filter, setFilter] = useState<StatusFilter>(() => parseStatusFilter(initialStatusFilter))
   const [typeFilter, setTypeFilter] = useState<'all' | string>(() => parseTypeFilter(initialTypeFilter))
   const [loading, setLoading] = useState<string | null>(null)
+  const [rejectListingId, setRejectListingId] = useState<string | null>(null)
+  const [rejectReasonInput, setRejectReasonInput] = useState('')
+
+  useEffect(() => {
+    if (!rejectListingId) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setRejectListingId(null)
+        setRejectReasonInput('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [rejectListingId])
 
   const filtered = serviceListings.filter((l) => {
     if (filter !== 'all' && l.status !== filter) return false
@@ -78,13 +92,22 @@ export function ServiceListingsClient({
     }
   }
 
-  const handleReject = async (id: string) => {
-    const reason = prompt('Reason for rejection:')
+  function openRejectDialog(id: string) {
+    setRejectListingId(id)
+    setRejectReasonInput('')
+  }
+
+  async function confirmRejectListing() {
+    const idToReject = rejectListingId
+    if (!idToReject) return
+    const reason = rejectReasonInput.trim()
     if (!reason) return
-    const row = serviceListings.find((l) => l.id === id)
-    setLoading(id)
+    const row = serviceListings.find((l) => l.id === idToReject)
+    setRejectListingId(null)
+    setRejectReasonInput('')
+    setLoading(idToReject)
     try {
-      await rejectServiceListing(id, reason)
+      await rejectServiceListing(idToReject, reason)
       window.location.assign(row ? listUrlForRow(row, 'rejected') : '/admin/service-listings')
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
@@ -209,7 +232,7 @@ export function ServiceListingsClient({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleReject(listing.id)}
+                          onClick={() => openRejectDialog(listing.id)}
                           disabled={loading === listing.id}
                           className="rounded-md px-2 py-1 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
                         >
@@ -232,6 +255,59 @@ export function ServiceListingsClient({
       <div className="text-xs text-muted-foreground">
         Showing {filtered.length} of {serviceListings.length} listings
       </div>
+
+      {rejectListingId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-row-title"
+          onClick={() => {
+            setRejectListingId(null)
+            setRejectReasonInput('')
+          }}
+        >
+          <div
+            className="w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reject-row-title" className="text-lg font-semibold text-foreground">
+              Reject listing
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              The host will see this reason. It cannot be empty.
+            </p>
+            <textarea
+              value={rejectReasonInput}
+              onChange={(e) => setRejectReasonInput(e.target.value)}
+              placeholder="Enter a rejection reason…"
+              rows={4}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectListingId(null)
+                  setRejectReasonInput('')
+                }}
+                className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmRejectListing()}
+                disabled={!rejectReasonInput.trim()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:pointer-events-none disabled:opacity-40"
+              >
+                Reject listing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
