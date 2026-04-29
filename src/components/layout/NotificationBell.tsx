@@ -179,7 +179,7 @@ export function NotificationBell({
       className={cn(
         'overflow-hidden shadow-2xl transform-gpu',
         wanderNav
-          ? 'wander-frost-chrome rounded-2xl text-white pointer-events-auto'
+          ? 'glass-modal rounded-2xl text-white pointer-events-auto'
           : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
         placement === 'below'
           ? belowPlacementClass

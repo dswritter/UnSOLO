@@ -217,7 +217,7 @@ export function Navbar({ user }: NavbarProps) {
     <nav
       className={cn(
         'sticky top-0 z-50 border-b',
-        isWanderShell ? 'nav-wander-surface border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
+        isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
@@ -327,9 +327,9 @@ export function Navbar({ user }: NavbarProps) {
                   <DropdownMenuContent
                     align="end"
                     className={cn(
-                      'z-[200] w-60 min-w-[15rem] shadow-lg',
+                      'z-[200] min-w-[15rem] shadow-lg',
                       isWanderShell
-                        ? 'border border-white/12 bg-[color-mix(in_oklab,var(--card)_82%,transparent)] text-white backdrop-blur-[44px] backdrop-saturate-150'
+                        ? 'glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0'
                         : 'border-border bg-popover text-popover-foreground',
                     )}
                   >

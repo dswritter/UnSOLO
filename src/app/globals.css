@@ -93,10 +93,12 @@
   --motion-duration-2: 220ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
-  /* Wander “liquid glass” — strong blur + saturation (see .wander-frost*) */
-  --wander-glass-blur: 48px;
-  /* Unitless factor for filter: saturate() — macOS frosting boosts chroma (~1.65–1.85) */
-  --wander-glass-saturate: 1.72;
+  /* Apple-style glass uses --glass-blur (16px). Legacy alias keeps older classnames aligned. */
+  --glass-blur: 16px;
+  --glass-radius: 1rem;
+  --glass-radius-lg: 1.25rem;
+  --wander-glass-blur: 16px;
+  --wander-glass-saturate: 1;
 }
 
 /* ── UnSOLO Dark Theme — Warm Charcoal + Yellow ──────────── */
@@ -143,83 +145,222 @@
   font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Frosted “glass” on .wander-theme — heavier blur + saturation (macOS-style frosted layer) */
-.wander-frost {
-  background: color-mix(in oklab, var(--card) 56%, transparent);
-  border: 1px solid color-mix(in oklab, white 16%, var(--border));
-  box-shadow:
-    0 10px 48px oklch(0 0 0 / 0.26),
-    inset 0 1px 0 0 color-mix(in oklab, white 12%, transparent);
-  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-}
+/*
+  Apple-style glass primitives — REAL backdrop-filter: blur(16px) only; translucent gradient fill,
+  1px border, shadow + inner highlight; soft ::before diagonal sheen. Classes: .glass-navbar,
+  .glass-card, .glass-modal. Legacy .wander-frost-* map to the same recipe (scoped to wander).
+  Prefer immersive backgrounds (.wander-textured, gradients) behind glass—not flat white.
+  Footer stays tonal mix only (not a third glass stack).
+*/
 
-/**
- * Same green frosted recipe as `.wander-frost` when `--card` is the wander token,
- * but for DOM **outside** `.wander-theme` (e.g. navbar notification popover), where
- * `var(--card)` is still the global light/dark card and would read as greyish white.
- */
-.wander-frost-chrome {
-  /* Slightly more transparent than frost panels — lets backdrop blur read through (popover / chrome UI). */
-  background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 34%, transparent);
-  border: 1px solid color-mix(in oklab, white 14%, var(--wander-frost-chrome-border, oklch(0.4 0.08 150)));
-  box-shadow:
-    0 10px 48px oklch(0 0 0 / 0.26),
-    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent));
+.glass-navbar,
+.glass-card,
+.glass-modal,
+.wander-frost,
+.wander-frost-chrome,
+.wander-theme .wander-frost-panel {
+  position: relative;
   isolation: isolate;
-  transform: translateZ(0);
-  backdrop-filter: blur(calc(var(--wander-glass-blur) + 24px)) saturate(1.85);
-  -webkit-backdrop-filter: blur(calc(var(--wander-glass-blur) + 24px)) saturate(1.85);
 }
 
-/* Same frosted shell as the /wander search block (radius + padding + glass) */
-.wander-frost-panel {
-  background: color-mix(in oklab, var(--card) 56%, transparent);
-  border: 1px solid color-mix(in oklab, white 14%, var(--border));
-  box-shadow:
-    0 10px 48px oklch(0 0 0 / 0.26),
-    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent);
-  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+.glass-navbar {
+  overflow: visible;
+}
+
+.glass-card,
+.glass-modal,
+.wander-frost,
+.wander-frost-chrome,
+.wander-theme .wander-frost-panel,
+.wander-theme .wander-frost-card {
+  overflow: hidden;
+}
+
+.glass-navbar::before,
+.glass-card::before,
+.glass-modal::before,
+.wander-frost::before,
+.wander-frost-chrome::before,
+.wander-theme .wander-frost-panel::before,
+.wander-theme .wander-frost-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    128deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0) 42%,
+    transparent 74%
+  );
+  opacity: 0.21;
+}
+
+.glass-navbar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-modal,
+.wander-frost-chrome {
+  border-radius: var(--glass-radius);
+}
+
+.wander-theme .wander-frost-panel {
   border-radius: var(--radius-2xl);
   padding: 0.75rem 1rem;
 }
 
-/* Trip / listing cards on wander — same glass recipe with card radius from child */
-.wander-theme .wander-frost-card {
-  background: color-mix(in oklab, var(--card) 54%, transparent) !important;
-  border-color: color-mix(in oklab, white 14%, var(--border)) !important;
-  box-shadow:
-    0 10px 44px oklch(0 0 0 / 0.24),
-    inset 0 1px 0 0 color-mix(in oklab, white 9%, transparent);
-  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-}
 @media (min-width: 640px) {
-  .wander-frost-panel {
+  .wander-theme .wander-frost-panel {
     padding: 1rem;
   }
 }
 
-/* Navbar + footer on /wander — match page (not inside .wander-theme wrapper) */
-.nav-wander-surface {
-  background: var(
-    --wander-nav-surface,
-    color-mix(in oklab, oklch(0.16 0.04 155) 88%, transparent)
-  );
-  border-color: var(
-    --wander-nav-border,
-    color-mix(in oklab, oklch(0.45 0.08 150) 55%, transparent)
-  );
-  color: oklch(0.97 0.01 90);
-  box-shadow: inset 0 -1px 0 0 color-mix(in oklab, white 6%, transparent);
-  backdrop-filter: blur(36px) saturate(160%);
-  -webkit-backdrop-filter: blur(36px) saturate(160%);
+@supports ((-webkit-backdrop-filter: blur(16px)) or (backdrop-filter: blur(16px))) {
+  /* !important beats merged Tailwind utilities (e.g. bg-popover) on menus/cards */
+  .glass-navbar {
+    border-radius: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+
+  .glass-card,
+  .glass-modal,
+  .wander-frost,
+  .wander-frost-chrome,
+  .wander-theme .wander-frost-panel {
+    border-radius: var(--glass-radius-lg) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+
+  .wander-theme .wander-frost-card[class*='rounded'] {
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.045)) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+
+  [data-wander-shell-season] .glass-navbar {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(30, 30, 30, 0.4) !important;
+    background-image: linear-gradient(to bottom right, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    color: oklch(0.97 0.01 90);
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+
+  [data-wander-shell-season] .glass-card,
+  [data-wander-shell-season] .glass-modal,
+  [data-wander-shell-season] .wander-frost,
+  [data-wander-shell-season] .wander-frost-chrome,
+  [data-wander-shell-season] .wander-theme .wander-frost-panel {
+    background: rgba(30, 30, 30, 0.4) !important;
+    background-image: linear-gradient(to bottom right, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03)) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
+
+  [data-wander-shell-season] .wander-theme .wander-frost-card[class*='rounded'] {
+    background: rgba(30, 30, 30, 0.4) !important;
+    background-image: linear-gradient(to bottom right, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.03)) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    box-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    backdrop-filter: blur(16px) !important;
+  }
 }
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass-navbar,
+  .glass-card,
+  .glass-modal,
+  .wander-frost,
+  .wander-frost-chrome,
+  .wander-theme .wander-frost-panel,
+  .wander-theme .wander-frost-card {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(210, 210, 210, 0.5) !important;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  [data-wander-shell-season] .glass-navbar,
+  [data-wander-shell-season] .glass-card,
+  [data-wander-shell-season] .glass-modal,
+  .wander-frost-chrome,
+  [data-wander-shell-season] .wander-theme .wander-frost-panel {
+    background: rgba(30, 30, 30, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: oklch(0.97 0.01 90);
+  }
+
+  .wander-theme .wander-frost-card[class*='rounded'] {
+    background: rgba(30, 30, 30, 0.92) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-navbar,
+  .glass-card,
+  .glass-modal,
+  .wander-frost,
+  .wander-frost-chrome,
+  .wander-theme .wander-frost-panel,
+  .wander-theme .wander-frost-card {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-color: rgba(220, 220, 220, 0.55) !important;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  [data-wander-shell-season] .glass-navbar,
+  [data-wander-shell-season] .glass-card,
+  [data-wander-shell-season] .glass-modal,
+  [data-wander-shell-season] .wander-frost-chrome,
+  [data-wander-shell-season] .wander-theme .wander-frost-panel {
+    background: rgba(30, 30, 30, 0.92) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: oklch(0.97 0.01 90);
+  }
+
+  .wander-theme .wander-frost-card[class*='rounded'] {
+    background: color-mix(in oklab, var(--card) 94%, transparent) !important;
+  }
+}
+
+/* Footer wander bar — tonal only (omit glass primitive to reduce stacked blurs site-wide). */
 .footer-wander-surface {
   background: var(
     --wander-footer-surface,
-    color-mix(in oklab, oklch(0.14 0.038 155) 90%, transparent)
+    color-mix(in oklab, oklch(0.14 0.038 155) 93%, transparent)
   );
   border-color: var(
     --wander-footer-border,
@@ -227,8 +368,6 @@
   );
   color: oklch(0.97 0.01 90);
   box-shadow: inset 0 1px 0 0 color-mix(in oklab, white 5%, transparent);
-  backdrop-filter: blur(32px) saturate(155%);
-  -webkit-backdrop-filter: blur(32px) saturate(155%);
 }
 .footer-wander-surface .text-muted-foreground,
 .footer-wander-surface a {
@@ -236,29 +375,6 @@
 }
 .footer-wander-surface a:hover {
   color: var(--primary);
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .wander-frost,
-  .wander-frost-chrome,
-  .wander-frost-panel {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: color-mix(in oklab, var(--card) 92%, transparent);
-  }
-  .wander-frost-chrome {
-    background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 92%, transparent);
-  }
-  .wander-theme .wander-frost-card {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: color-mix(in oklab, var(--card) 90%, transparent) !important;
-  }
-  .nav-wander-surface,
-  .footer-wander-surface {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
 }
 /* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
 .tribe-messaging-ui {
