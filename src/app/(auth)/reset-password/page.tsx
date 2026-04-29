@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Lock, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
@@ -49,7 +50,7 @@ export default function ResetPasswordPage() {
               Your password has been changed. You can now sign in with your new password.
             </p>
             <Button asChild className="w-full bg-primary text-black font-bold">
-              <Link href="/explore">Continue to UnSOLO</Link>
+              <Link href={WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
           </div>
         </div>

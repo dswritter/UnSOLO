@@ -10,7 +10,7 @@ export default function HomePage({
 }) {
   return (
     <WanderThemeShell>
-      <WanderLandingPage searchParams={searchParams} searchBasePath="/" />
+      <WanderLandingPage searchParams={searchParams} />
     </WanderThemeShell>
   )
 }

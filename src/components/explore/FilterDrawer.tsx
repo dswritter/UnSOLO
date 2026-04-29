@@ -73,7 +73,7 @@ export function FilterDrawer({
   resultCount,
   isLoading = false,
   maxPackagePrice = 2000000,
-  basePath = '/explore',
+  basePath = '/',
   preserveWanderSearch = false,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
@@ -140,7 +140,7 @@ export function FilterDrawer({
       {/* Drawer from left */}
       <div
         ref={drawerTrapRef}
-        className="absolute inset-y-0 left-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-300 flex flex-col overflow-hidden"
+        className="absolute inset-y-0 left-0 z-50 w-80 max-w-full bg-background shadow-lg animate-in slide-in-from-left-full duration-200 ease-out flex flex-col overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-label="Filters"

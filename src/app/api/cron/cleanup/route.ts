@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         type: 'booking',
         title: 'Booking Expired',
         body: `Your pending booking for ${pkgTitle} was cancelled because payment was not completed within ${PENDING_BOOKING_EXPIRY_HOURS} hours.`,
-        link: '/explore',
+        link: '/?search=1',
       })
       results.staleBookings++
     }

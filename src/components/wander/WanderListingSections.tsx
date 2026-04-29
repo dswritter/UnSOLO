@@ -3,6 +3,7 @@ import type { Package, ServiceListing } from '@/types'
 import { ServiceListingCard } from '@/components/explore/ServiceListingCard'
 import { WanderTripCard } from '@/components/wander/WanderTripCard'
 import { ChevronRight } from 'lucide-react'
+import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 
 type ActivityWithItems = ServiceListing & {
   items: Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>
@@ -47,7 +48,7 @@ export function WanderListingSections({
   return (
     <div className="space-y-8 md:space-y-10">
       <section>
-        <SectionHeader title="Popular trips" actionHref="/explore?tab=trips" actionLabel="View all trips" />
+        <SectionHeader title="Popular trips" actionHref={wanderSearchHref({ tab: 'trips' })} actionLabel="View all trips" />
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground">No trips to show yet.</p>
         ) : (
@@ -65,7 +66,7 @@ export function WanderListingSections({
       </section>
 
       <section>
-        <SectionHeader title="Popular activities" actionHref="/explore?tab=activities" />
+        <SectionHeader title="Popular activities" actionHref={wanderSearchHref({ tab: 'activities' })} />
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activities to show yet.</p>
         ) : (
@@ -78,7 +79,7 @@ export function WanderListingSections({
       </section>
 
       <section>
-        <SectionHeader title="Frequently booked rentals" actionHref="/explore?tab=rentals" />
+        <SectionHeader title="Frequently booked rentals" actionHref={wanderSearchHref({ tab: 'rentals' })} />
         {rentals.length === 0 ? (
           <p className="text-sm text-muted-foreground">No rentals to show yet.</p>
         ) : (

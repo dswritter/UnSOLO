@@ -73,7 +73,7 @@ export function ExploreSidebar({
   resultCount,
   isLoading = false,
   maxPackagePrice = 2000000,
-  basePath = '/explore',
+  basePath = '/',
 }: ExploreSidebarProps) {
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'

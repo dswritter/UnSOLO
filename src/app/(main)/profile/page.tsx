@@ -14,5 +14,5 @@ export default async function EditProfilePage() {
   const profile = await getRequestProfile(user.id)
   if (!profile) redirect('/login')
 
-  return <EditProfileView theme="v2" profileBasePath="/profile" initialProfile={profile} />
+  return <EditProfileView profileBasePath="/profile" initialProfile={profile} />
 }

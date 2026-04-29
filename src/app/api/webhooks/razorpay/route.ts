@@ -163,7 +163,7 @@ export async function POST(request: Request) {
         type: 'booking',
         title: 'Payment Failed',
         body: `Your payment for ${pkgTitle} failed. Please try booking again.`,
-        link: '/explore',
+        link: '/?search=1',
       })
     }
   }

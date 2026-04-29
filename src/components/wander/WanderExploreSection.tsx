@@ -1,14 +1,12 @@
 import { loadExploreListData } from '@/lib/explore/explorePageData'
 import { ExploreClient } from '@/components/explore/ExploreClient'
 
-type WanderSearchBasePath = '/' | '/wander'
-
 export async function WanderExploreSection({
   sp,
-  searchBasePath,
+  searchBasePath = '/',
 }: {
   sp: Record<string, string>
-  searchBasePath: WanderSearchBasePath
+  searchBasePath?: '/'
 }) {
   const exploreData = await loadExploreListData(sp)
 

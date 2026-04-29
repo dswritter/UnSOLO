@@ -13,6 +13,7 @@ import Link from 'next/link'
 import type { Profile } from '@/types'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 type PackageJoin = {
   title?: string
@@ -57,7 +58,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <h2 className="text-xl font-bold">Trip chat</h2>
           <p className="text-white/60 text-sm">Currently this trip is not live.</p>
           <Button asChild className="bg-[#fcba03] text-black font-bold">
-            <Link href="/explore">Browse trips</Link>
+            <Link href={WANDER_HOME_SEARCH_HREF}>Browse trips</Link>
           </Button>
         </div>
       </div>
@@ -132,7 +133,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
       )
     }
 
-    const bookHref = packageSlug ? `/packages/${packageSlug}` : '/explore'
+    const bookHref = packageSlug ? `/packages/${packageSlug}` : WANDER_HOME_SEARCH_HREF
     return (
       <div className="flex-1 flex items-center justify-center px-4 text-white/90">
         <div className="text-center space-y-4">

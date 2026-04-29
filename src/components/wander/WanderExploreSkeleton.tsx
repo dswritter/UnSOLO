@@ -1,6 +1,6 @@
 /**
- * Shown immediately while `loadExploreListData` streams (Wander home /wander search).
- * Matches ExploreClient wander layout roughly so the transition feels continuous.
+ * Shown while `loadExploreListData` streams on the homepage search section.
+ * Matches ExploreClient wander layout for a continuous transition.
  */
 export function WanderExploreSkeleton() {
   return (

@@ -35,6 +35,36 @@ import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
 
 export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
 
+function startOfLocalDayMs(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+}
+
+function formatChatDayDividerLabel(messageDate: Date, now: Date): string {
+  const tToday = startOfLocalDayMs(now)
+  const tMsg = startOfLocalDayMs(messageDate)
+  const dayMs = 86_400_000
+  if (tMsg === tToday) return 'Today'
+  if (tMsg === tToday - dayMs) return 'Yesterday'
+  return messageDate.toLocaleDateString('en-IN', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    ...(messageDate.getFullYear() !== now.getFullYear() ? { year: 'numeric' as const } : {}),
+  })
+}
+
+function ChatDateDivider({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 py-5 first:pt-2" role="separator" aria-label={label}>
+      <div className="h-px flex-1 bg-border/80" />
+      <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground shrink-0">
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-border/80" />
+    </div>
+  )
+}
+
 function SenderTrustBadges({
   officialHost,
   communityMod,
@@ -312,6 +342,29 @@ export function ChatWindow({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   })
+
+  const messageTimeline = useMemo(() => {
+    type Item =
+      | { kind: 'divider'; key: string; label: string }
+      | { kind: 'message'; key: string; message: Message }
+    const items: Item[] = []
+    let lastDay: number | null = null
+    const now = new Date()
+    for (const msg of messages) {
+      const created = new Date(msg.created_at)
+      const dayStart = startOfLocalDayMs(created)
+      if (lastDay !== dayStart) {
+        lastDay = dayStart
+        items.push({
+          kind: 'divider',
+          key: `day-${dayStart}`,
+          label: formatChatDayDividerLabel(created, now),
+        })
+      }
+      items.push({ kind: 'message', key: msg.id, message: msg })
+    }
+    return items
+  }, [messages])
 
   const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
 
@@ -1589,25 +1642,28 @@ export function ChatWindow({
         )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">No messages yet. Say hello! 👋</p>
             </div>
           )}
-          {messages.map((msg) => (
-            <div key={msg.id} id={`chat-msg-${msg.id}`}>
+          {messageTimeline.map((item) =>
+            item.kind === 'divider' ? (
+              <ChatDateDivider key={item.key} label={item.label} />
+            ) : (
+            <div key={item.key} id={`chat-msg-${item.message.id}`} className="scroll-mt-8">
               <MessageBubble
-                message={msg}
+                message={item.message}
                 roomId={roomId}
-                pollData={msg.message_type === 'poll' ? (pollByMessageId[msg.id] ?? null) : null}
-                showPin={canPinMessages && displayPinnedMessage?.id !== msg.id}
+                pollData={item.message.message_type === 'poll' ? (pollByMessageId[item.message.id] ?? null) : null}
+                showPin={canPinMessages && displayPinnedMessage?.id !== item.message.id}
                 onPinRequest={
                   canPinMessages
                     ? () => {
-                        setDisplayPinnedMessage(msg)
+                        setDisplayPinnedMessage(item.message)
                         void (async () => {
-                          const r = await setRoomPinnedMessage(roomId, msg.id)
+                          const r = await setRoomPinnedMessage(roomId, item.message.id)
                           if (r.error) {
                             toast.error(r.error)
                             setDisplayPinnedMessage(serverPinnedRef.current)
@@ -1618,38 +1674,38 @@ export function ChatWindow({
                       }
                     : undefined
                 }
-                isOwn={msg.user_id === currentUser.id}
-                isOnline={msg.user_id ? isUserOnline(msg.user_id) : false}
+                isOwn={item.message.user_id === currentUser.id}
+                isOnline={item.message.user_id ? isUserOnline(item.message.user_id) : false}
                 tripBadge={
-                  roomType === 'trip' && msg.user_id
-                    ? memberProfiles.find(m => m.id === msg.user_id)?.trip_chat_badge ?? null
+                  roomType === 'trip' && item.message.user_id
+                    ? memberProfiles.find(m => m.id === item.message.user_id)?.trip_chat_badge ?? null
                     : null
                 }
-                onClickProfile={() => msg.user_id && msg.user_id !== currentUser.id && setProfilePopup(msg.user_id)}
-                readStatus={msg.user_id === currentUser.id ? getReadStatus(msg.id, currentUser.id) : undefined}
+                onClickProfile={() => item.message.user_id && item.message.user_id !== currentUser.id && setProfilePopup(item.message.user_id)}
+                readStatus={item.message.user_id === currentUser.id ? getReadStatus(item.message.id, currentUser.id) : undefined}
                 isDM={isDM}
-                readByReaders={!isDM && msg.user_id === currentUser.id ? latestReadReadersByMessageId.get(msg.id) : undefined}
+                readByReaders={!isDM && item.message.user_id === currentUser.id ? latestReadReadersByMessageId.get(item.message.id) : undefined}
                 chatLinkTargets={chatLinkTargets}
-                reactionRows={reactionsByMessage.get(msg.id)}
+                reactionRows={reactionsByMessage.get(item.message.id)}
                 currentUserId={currentUser.id}
                 memberProfiles={memberProfiles}
-                onToggleReaction={emoji => { void toggleReaction(msg.id, emoji) }}
-                bubbleLongPress={bubbleLongPressHandlers(msg)}
-                onBubbleTouchEnd={e => onBubbleTouchEnd(msg.id, e)}
+                onToggleReaction={emoji => { void toggleReaction(item.message.id, emoji) }}
+                bubbleLongPress={bubbleLongPressHandlers(item.message)}
+                onBubbleTouchEnd={e => onBubbleTouchEnd(item.message.id, e)}
                 onBubbleDoubleClick={() => {
                   if (
-                    !msg.id.startsWith('optimistic-') &&
-                    msg.message_type !== 'system' &&
-                    msg.message_type !== 'poll'
+                    !item.message.id.startsWith('optimistic-') &&
+                    item.message.message_type !== 'system' &&
+                    item.message.message_type !== 'poll'
                   ) {
-                    void toggleReaction(msg.id, DOUBLE_TAP_EMOJI)
+                    void toggleReaction(item.message.id, DOUBLE_TAP_EMOJI)
                   }
                 }}
                 onShowReactors={(emoji, userIds) => setReactorModal({ emoji, names: reactionNames(userIds) })}
-                emojiPickerOpen={emojiPickerForMessageId === msg.id}
-                onToggleEmojiPicker={() => setEmojiPickerForMessageId(cur => (cur === msg.id ? null : msg.id))}
+                emojiPickerOpen={emojiPickerForMessageId === item.message.id}
+                onToggleEmojiPicker={() => setEmojiPickerForMessageId(cur => (cur === item.message.id ? null : item.message.id))}
                 onPickEmojiStrip={emoji => {
-                  void toggleReaction(msg.id, emoji)
+                  void toggleReaction(item.message.id, emoji)
                   setEmojiPickerForMessageId(null)
                 }}
                 chatListPath={chatListPath}
@@ -1658,7 +1714,8 @@ export function ChatWindow({
                 tripHostUserId={tripHostUserId}
               />
             </div>
-          ))}
+            ),
+          )}
           {typingUsers.length > 0 && (
             <div className="text-xs text-muted-foreground italic">
               {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...

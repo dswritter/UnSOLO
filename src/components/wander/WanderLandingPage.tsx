@@ -22,17 +22,16 @@ import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyVie
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
 
-type WanderSearchBasePath = '/' | '/wander'
-
 export async function WanderLandingPage({
   searchParams,
-  searchBasePath,
+  searchBasePath = '/',
 }: {
   searchParams: Promise<Record<string, string>>
-  searchBasePath: WanderSearchBasePath
+  /** Always `/` — kept for call-site clarity. */
+  searchBasePath?: '/'
 }) {
   const sp = await searchParams
-  const isSearchMode = sp.search === '1'
+  const isSearchMode = sp.search === '1' || Boolean(sp.tab?.length)
 
   const [stats, rating, supabase, listedActivities, heroImageUrl, trustBadgeText] = await Promise.all([
     getWanderStats(),

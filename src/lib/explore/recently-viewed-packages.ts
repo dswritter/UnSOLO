@@ -1,4 +1,4 @@
-/** localStorage key shared by /explore and /wander for trip package recents */
+/** localStorage key shared by homepage search / trip recents */
 export const RECENTLY_VIEWED_PACKAGES_KEY = 'rv_packages'
 export const RECENTLY_VIEWED_PACKAGES_MAX = 8
 

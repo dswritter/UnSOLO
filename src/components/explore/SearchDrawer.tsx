@@ -18,7 +18,7 @@ export function SearchDrawer({
   isOpen,
   onClose,
   initialValue = '',
-  basePath = '/explore',
+  basePath = '/',
   preserveWanderSearch = false,
 }: SearchDrawerProps) {
   const [searchInput, setSearchInput] = useState(initialValue)

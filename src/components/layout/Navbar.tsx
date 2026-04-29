@@ -47,7 +47,6 @@ export function Navbar({ user }: NavbarProps) {
   }
   const isWanderShell =
     pathname === '/' ||
-    pathname?.startsWith('/wander') ||
     pathname?.startsWith('/tribe') ||
     pathname?.startsWith('/community') ||
     pathname?.startsWith('/host') ||
@@ -59,7 +58,6 @@ export function Navbar({ user }: NavbarProps) {
     pathname?.startsWith('/book/')
   const hideGlobalSearch =
     pathname === '/' ||
-    pathname?.startsWith('/wander') ||
     pathname?.startsWith('/leaderboard') ||
     pathname?.startsWith('/host') ||
     pathname?.startsWith('/community') ||
@@ -75,7 +73,7 @@ export function Navbar({ user }: NavbarProps) {
       )
     }
     if (href === '/') {
-      return pathname === '/' || pathname === '/explore'
+      return pathname === '/'
     }
     return pathname === href
   }

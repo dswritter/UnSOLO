@@ -20,6 +20,7 @@ import { StatesExploredCard } from '@/components/profile/StatesExploredCard'
 import { LeaderboardRankLinkLabel, LeaderboardRankRowIcon } from '@/components/leaderboard/RankDisplay'
 import { ProfileSharePosterButton } from '@/components/profile/ProfileSharePoster'
 import { APP_URL } from '@/lib/constants'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -564,7 +565,7 @@ export async function ProfileUsernameDetail({
                 </p>
                 {isOwnProfile && (
                   <Button className="mt-4 bg-primary text-black font-bold" asChild>
-                    <Link href="/explore">Book Your Next Trip</Link>
+                    <Link href={WANDER_HOME_SEARCH_HREF}>Book Your Next Trip</Link>
                   </Button>
                 )}
               </CardContent>

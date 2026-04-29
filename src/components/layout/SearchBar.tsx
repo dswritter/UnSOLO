@@ -31,7 +31,7 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
 
   // Handle live search as user types (with debounce). Only fires after the user
   // actually edits the input — prevents an empty-input push on mount that would
-  // redirect users away from `/` (or any other page) to `/explore?`.
+  // redirect users away from `/` (or any other page) to homepage search with `q`.
   useEffect(() => {
     if (!userEditedRef.current) return
 
@@ -50,11 +50,13 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
           params.delete('q')
         }
 
-        // Only stay-navigate when already on /explore; otherwise a clear should
-        // not rip the user off their current page.
-        const onExplore = window.location.pathname.startsWith('/explore')
-        if (trimmedInput || onExplore) {
-          router.push(`/explore?${params.toString()}`)
+        // Stay on homepage search when refining or clearing query.
+        const onHomeSearch =
+          window.location.pathname === '/' &&
+          (window.location.search.includes('search=1') || window.location.search.includes('tab='))
+        if (trimmedInput || onHomeSearch) {
+          if (!params.has('search')) params.set('search', '1')
+          router.push(`/?${params.toString()}${trimmedInput ? '#wander-explore' : ''}`)
         }
       }
     }, 300)
@@ -128,7 +130,7 @@ export function SearchBar({ className = '', isMobile = false }: SearchBarProps) 
     setSearchInput(e.target.value)
   }
 
-  // Mobile: Hidden on mobile (search is now in explore page action bar)
+  // Mobile: Hidden on mobile (search lives in the homepage / mobile explore action bar)
   if (isMobile) {
     return null
   }

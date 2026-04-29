@@ -11,6 +11,7 @@ import { CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 const inputClass =
   'h-11 min-h-11 !border !border-white/20 !bg-zinc-950 !text-white !placeholder:text-white/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-zinc-950 dark:!text-white dark:!placeholder:text-white/40'
@@ -124,7 +125,7 @@ function LoginV2FormInner() {
             <p className="text-sm font-bold text-emerald-500">Email verified</p>
             <p className="text-xs text-white/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
             <Button className="w-full h-9 bg-[#fcba03] text-black text-sm font-bold hover:bg-[#fcba03]/90" asChild>
-              <Link href="/explore">Continue to UnSOLO</Link>
+              <Link href={WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
           </div>
         </div>

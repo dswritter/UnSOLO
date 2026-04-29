@@ -544,7 +544,7 @@ export async function updatePackage(
 
   if (error) return { error: error.message }
   const { revalidatePath } = await import('next/cache')
-  revalidatePath('/explore')
+  revalidatePath('/')
   revalidatePath('/admin/community-trips')
   return { success: true }
 }
@@ -881,7 +881,7 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
 
   const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/community-trips')
-  revalidatePath('/explore')
+  revalidatePath('/')
   revalidatePath('/host')
   return { success: true }
 }

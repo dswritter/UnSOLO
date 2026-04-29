@@ -17,6 +17,7 @@ import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout } from '@/lib/join-preferences'
 import Link from 'next/link'
+import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 import Script from 'next/script'
 
 declare global {
@@ -363,7 +364,7 @@ export function JoinRequestForm({
           </div>
         </div>
         <Button className="w-full" variant="outline" asChild>
-          <Link href="/explore?tab=community">Browse Other Trips</Link>
+          <Link href={wanderSearchHref({ tab: 'trips', tripSource: 'community' })}>Browse Other Trips</Link>
         </Button>
       </div>
     )

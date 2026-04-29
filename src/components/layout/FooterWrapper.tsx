@@ -2,12 +2,12 @@
 
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 
 export function FooterWrapper() {
   const pathname = usePathname()
   const isWander =
     pathname === '/' ||
-    pathname?.startsWith('/wander') ||
     pathname?.startsWith('/host') ||
     pathname?.startsWith('/packages') ||
     pathname?.startsWith('/listings') ||
@@ -58,7 +58,7 @@ export function FooterWrapper() {
               </li>
               <li>
                 <a
-                  href="/explore?tab=unsolo"
+                  href={wanderSearchHref({ tab: 'trips', tripSource: 'unsolo' })}
                   className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
                 >
                   UnSOLO Trips
@@ -66,7 +66,7 @@ export function FooterWrapper() {
               </li>
               <li>
                 <a
-                  href="/explore?tab=community"
+                  href={wanderSearchHref({ tab: 'trips', tripSource: 'community' })}
                   className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
                 >
                   Community Trips

@@ -9,8 +9,7 @@ import {
 } from '@/lib/explore/recently-viewed-packages'
 
 /**
- * Same localStorage-backed recents as /explore (`rv_packages`), styled for the
- * Wander landing (default /wander without search). Sits above curated rows.
+ * Homepage “recently viewed packages” strip (`rv_packages`), shown above curated rows when not in search mode.
  */
 export function WanderRecentlyViewedStrip() {
   const [items, setItems] = useState<RecentlyViewedPackage[]>([])

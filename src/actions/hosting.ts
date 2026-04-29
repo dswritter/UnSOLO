@@ -79,7 +79,7 @@ export async function toggleHostTripDateClosed(
   const out = (updated?.departure_dates_closed as string[] | null) ?? next
 
   revalidatePath('/host')
-  revalidatePath('/explore')
+  revalidatePath('/')
   revalidatePath(`/packages/${trip.slug}`)
   revalidatePath(`/host/${tripId}`)
 
@@ -192,7 +192,7 @@ export async function createHostedTrip(formData: {
   }
 
   revalidatePath('/host')
-  revalidatePath('/explore')
+  revalidatePath('/')
   return { success: true, slug: trip?.slug }
 }
 
@@ -298,7 +298,7 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
   }
 
   revalidatePath('/host')
-  revalidatePath('/explore')
+  revalidatePath('/')
   revalidatePath(`/host/${tripId}`)
   revalidatePath(`/packages/${current.slug}`)
   return { success: true, needsReapproval: needsModerationReset }
@@ -361,7 +361,7 @@ export async function cancelHostedTrip(tripId: string) {
   }
 
   revalidatePath('/host')
-  revalidatePath('/explore')
+  revalidatePath('/')
   return { success: true }
 }
 
@@ -730,7 +730,7 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
     body: reason
       ? `Your request to join "${trip.title}" was not approved. Reason: ${reason}`
       : `Your request to join "${trip.title}" was not approved.`,
-    link: '/explore',
+    link: '/?search=1',
   })
 
   // Email the traveler
@@ -742,7 +742,7 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
       travelerName: profile.full_name ?? '',
       tripTitle: trip.title,
       reason: reason || undefined,
-      exploreUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/explore`,
+      exploreUrl: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'}/?search=1`,
     }).catch(() => null)
   }
 

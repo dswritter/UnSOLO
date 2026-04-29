@@ -67,7 +67,7 @@ interface ExploreClientProps {
   maxPackagePrice?: number
   spotsBooked?: Record<string, number>
   interestCounts?: Record<string, number>
-  /** URL path for tab/search/filter navigation (default `/explore`; use `/wander` on wander search) */
+  /** URL path for tab/search/filter navigation (homepage search uses `/`) */
   basePath?: string
   /** Wander: gold tabs, transparent shell on green texture */
   pageVariant?: 'default' | 'wander'
@@ -85,7 +85,7 @@ export function ExploreClient({
   maxPackagePrice = 2000000,
   spotsBooked = {},
   interestCounts = {},
-  basePath = '/explore',
+  basePath = '/',
   pageVariant = 'default',
   searchFallback = false,
 }: ExploreClientProps) {

@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
-const PUBLIC_CONTENT = ['/explore', '/wander', '/packages', '/leaderboard', '/contact']
+const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact']
 
 /** Wander is only served on production host (and localhost for dev). Preview/staging → home. */
 function isWanderAllowedHost(hostHeader: string | null): boolean {
@@ -22,12 +22,31 @@ function nextWithUnsoloPath(request: NextRequest, browserPathname: string): Next
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const browserPathname = pathname
+
+  /** Legacy `/wander` and `/explore` merged into `/` (search mode via `?search=1`). */
   if (pathname === '/wander' || pathname.startsWith('/wander/')) {
     if (!isWanderAllowedHost(request.headers.get('host'))) {
       const url = request.nextUrl.clone()
       url.pathname = '/'
       return NextResponse.redirect(url, 307)
     }
+    const url = request.nextUrl.clone()
+    if (pathname === '/wander') {
+      url.pathname = '/'
+    } else {
+      const rest = pathname.slice('/wander'.length) || '/'
+      url.pathname = rest.startsWith('/') ? rest : `/${rest}`
+    }
+    return NextResponse.redirect(url, 308)
+  }
+
+  if (pathname === '/explore' || pathname.startsWith('/explore/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    if (!url.searchParams.has('search')) {
+      url.searchParams.set('search', '1')
+    }
+    return NextResponse.redirect(url, 308)
   }
 
   // Build the base response first so the Supabase client can attach updated

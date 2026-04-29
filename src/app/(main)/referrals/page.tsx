@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Gift, Copy, Check, MessageCircle, Users, ArrowLeft, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { APP_URL } from '@/lib/constants'
+import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
@@ -80,7 +81,7 @@ export default function ReferralsPage() {
 
       <div className="mx-auto max-w-2xl px-4 py-8 sm:py-10">
         <Link
-          href="/explore"
+          href={WANDER_HOME_SEARCH_HREF}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />

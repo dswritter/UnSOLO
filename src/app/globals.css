@@ -60,8 +60,8 @@
   /* Brand Yellow #FFC22E — dark text on top, ~7:1 contrast */
   --primary: oklch(0.828 0.168 82);
   --primary-foreground: oklch(0.13 0 0);
-  /* Warm light gray for inactive tabs, secondary buttons — not green */
-  --secondary: oklch(0.905 0.012 78);    /* #E8E2D9 warm gray — dark text ~10:1 */
+  /* Softer than primary so outline/ghost CTAs don’t compete on cream */
+  --secondary: oklch(0.935 0.01 82);
   --secondary-foreground: oklch(0.13 0 0);
   --muted: oklch(0.942 0.014 80);        /* #F0EBE1 very light warm — subtle bg */
   --muted-foreground: oklch(0.455 0.018 70); /* #6B6458 warm mid-gray — ~4.5:1 on muted ✓ */
@@ -70,7 +70,8 @@
   --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.836 0.012 78);       /* #D4CEC5 warm border */
   --input: oklch(0.955 0.013 80);        /* #F5F0E8 warm input bg */
-  --ring: oklch(0.828 0.168 82);
+  /* Slightly deeper amber than fill — focus rings on cream + glass */
+  --ring: oklch(0.68 0.17 78);
   --chart-1: oklch(0.828 0.168 82);      /* yellow */
   --chart-2: oklch(0.72 0.14 65);        /* warm amber */
   --chart-3: oklch(0.60 0.17 50);        /* warm orange */
@@ -85,6 +86,11 @@
   --sidebar-accent-foreground: oklch(0.15 0 0);
   --sidebar-border: oklch(0.836 0.012 78);
   --sidebar-ring: oklch(0.828 0.168 82);
+  /* Shared motion (buttons, sheets, rows) — honor prefers-reduced-motion in components */
+  --motion-duration-1: 150ms;
+  --motion-duration-2: 220ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 /* ── UnSOLO Dark Theme — Warm Charcoal + Yellow ──────────── */
@@ -145,7 +151,7 @@
   --destructive: oklch(0.6 0.2 25);
   --border: oklch(0.4 0.07 150);
   --input: oklch(0.22 0.045 152);
-  --ring: #fcba03;
+  --ring: #fef08a;
   --chart-1: #fcba03;
   --chart-2: oklch(0.72 0.14 150);
   --chart-3: oklch(0.6 0.16 145);
@@ -276,75 +282,6 @@
 .footer-wander-surface a:hover {
   color: #fcba03;
 }
-
-/* Profile v2 shell (`.app-profile-v2`) — shadcn surfaces on forest shell (align with /leaderboard) */
-.app-profile-v2 [class~='bg-card'] {
-  background: color-mix(in oklab, oklch(0.2 0.04 155) 70%, transparent) !important;
-  border-color: color-mix(in oklab, white 14%, oklch(0.4 0.08 150)) !important;
-  color: oklch(0.98 0.01 90);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.app-profile-v2 .border-border {
-  border-color: color-mix(in oklab, white 12%, oklch(0.4 0.08 150)) !important;
-}
-.app-profile-v2 .text-muted-foreground {
-  color: color-mix(in oklab, white 58%, oklch(0.2 0.04 152)) !important;
-}
-.app-profile-v2 .bg-secondary,
-.app-profile-v2 .bg-secondary\/20,
-.app-profile-v2 .bg-secondary\/30,
-.app-profile-v2 .bg-secondary\/50 {
-  background: color-mix(in oklab, black 50%, oklch(0.12 0.04 152)) !important;
-  border-color: color-mix(in oklab, white 10%, transparent) !important;
-}
-.app-profile-v2 input,
-.app-profile-v2 textarea,
-.app-profile-v2 [data-slot="input"] {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff;
-  background: color-mix(in oklab, black 40%, oklch(0.1 0.03 152)) !important;
-  border-color: color-mix(in oklab, white 18%, oklch(0.4 0.08 150)) !important;
-}
-.app-profile-v2 [data-slot="input"]::placeholder,
-.app-profile-v2 input::placeholder,
-.app-profile-v2 textarea::placeholder {
-  color: color-mix(in oklab, white 40%, oklch(0.2 0.04 152)) !important;
-}
-.app-profile-v2 .text-foreground,
-.app-profile-v2 .text-card-foreground {
-  color: #fff !important;
-}
-
-/* Shell sets text-white; outline buttons also use bg-background (cream in light) → white-on-cream, invisible. Gold + near-black, match Save Changes. */
-.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400),
-.app-profile-v2 a.inline-flex.border-input.bg-background {
-  background-color: #fcba03 !important;
-  color: #0a0a0a !important;
-  -webkit-text-fill-color: #0a0a0a;
-  border-color: color-mix(in srgb, #0a0a0a 22%, #fcba03) !important;
-}
-.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400):hover,
-.app-profile-v2 a.inline-flex.border-input.bg-background:hover {
-  background-color: #e6ac00 !important;
-  color: #0a0a0a !important;
-  -webkit-text-fill-color: #0a0a0a;
-}
-.app-profile-v2 button.inline-flex.border-input.bg-background:not(.text-green-400):not(.text-red-400) svg,
-.app-profile-v2 a.inline-flex.border-input.bg-background svg {
-  color: #0a0a0a;
-  stroke: #0a0a0a;
-}
-.app-profile-v2 .at-a-glance-wrap .text-muted-foreground,
-.app-profile-v2 .achievements-stats-wrap .text-muted-foreground {
-  color: color-mix(in oklab, white 82%, oklch(0.2 0.04 152)) !important;
-}
-.app-profile-v2 .profile-24h-status-surface {
-  background: color-mix(in oklab, oklch(0.2 0.04 155) 72%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
 /* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
 .tribe-messaging-ui {
   --muted-foreground: oklch(0.99 0.004 90);
@@ -510,7 +447,14 @@
 
 /* Card hover */
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform var(--motion-duration-2, 220ms) var(--motion-ease-out, cubic-bezier(0.33, 1, 0.68, 1)),
+    box-shadow var(--motion-duration-2, 220ms) var(--motion-ease-out, cubic-bezier(0.33, 1, 0.68, 1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-hover {
+    transition: none;
+  }
 }
 .card-hover:hover {
   transform: translateY(-2px);

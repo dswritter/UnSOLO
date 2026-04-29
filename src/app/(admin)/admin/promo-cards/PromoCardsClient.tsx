@@ -158,7 +158,7 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
         <h2 className="text-sm font-bold">New promo card</h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Shown on the marketing home page. Signed-in users see it <strong className="text-foreground/90">above</strong> the
-          chat button. Use an app path (<code className="text-[10px] bg-secondary px-1 rounded">/explore</code>) or a full
+          chat button. Use an app path (<code className="text-[10px] bg-secondary px-1 rounded">/?search=1</code>) or a full
           URL (<code className="text-[10px] bg-secondary px-1 rounded">https://…</code>) — external links open in a new
           tab.
         </p>
@@ -184,7 +184,7 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
           <div className="space-y-1">
             <label className="text-[10px] text-muted-foreground">Where the button goes</label>
             <Input
-              placeholder="e.g. /explore or https://example.com/offers"
+              placeholder="e.g. /?search=1 or https://example.com/offers"
               value={draft.href}
               onChange={(e) => setDraft((d) => ({ ...d, href: e.target.value }))}
               className="bg-secondary border-border"

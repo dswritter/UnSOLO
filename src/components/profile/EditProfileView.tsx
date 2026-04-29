@@ -28,8 +28,6 @@ const DEFAULT_AVATARS = [
 ]
 
 type EditProfileViewProps = {
-  /** `v2` uses ProfileV2Shell + green/gold theme (see globals `.app-profile-v2`) */
-  theme?: 'default' | 'v2'
   /** Base path for “View profile” and internal profile links (canonical: `/profile`). */
   profileBasePath?: string
   /** When set (e.g. from the server page), avoids a blank “Loading…” flash on first paint. */
@@ -37,7 +35,6 @@ type EditProfileViewProps = {
 }
 
 export function EditProfileView({
-  theme = 'default',
   profileBasePath = '/profile',
   initialProfile = null,
 }: EditProfileViewProps) {
@@ -104,11 +101,12 @@ export function EditProfileView({
   }, [])
 
   if (!profile) {
-    const load = <div className="text-muted-foreground app-profile-v2:text-white/50">Loading...</div>
-    if (theme === 'v2') {
-      return <ProfileV2Shell><div className="flex min-h-dvh items-center justify-center">{load}</div></ProfileV2Shell>
-    }
-    return <div className="flex min-h-screen items-center justify-center bg-background">{load}</div>
+    const load = <div className="text-muted-foreground">Loading...</div>
+    return (
+      <ProfileV2Shell>
+        <div className="flex min-h-dvh items-center justify-center">{load}</div>
+      </ProfileV2Shell>
+    )
   }
 
   const canChangeUsername = (() => {
@@ -573,7 +571,7 @@ export function EditProfileView({
       </div>
   );
 
-  return theme === 'v2' ? <ProfileV2Shell>{mainInner}</ProfileV2Shell> : <div className="min-h-screen bg-background">{mainInner}</div>
+  return <ProfileV2Shell>{mainInner}</ProfileV2Shell>
 }
 
 function ReferralDashboard() {
