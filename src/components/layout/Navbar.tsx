@@ -217,7 +217,7 @@ export function Navbar({ user }: NavbarProps) {
     <nav
       className={cn(
         'sticky top-0 z-50 border-b',
-        isWanderShell ? 'nav-wander-surface border-[#2f4d42]/55' : 'border-border bg-background/90 backdrop-blur-md',
+        isWanderShell ? 'nav-wander-surface border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
@@ -248,9 +248,9 @@ export function Navbar({ user }: NavbarProps) {
                   isTribeLink && isTribeNavPending && 'opacity-80',
                   isWanderShell
                     ? isActive
-                      ? 'text-[#fcba03] border-b-[3px] border-[#fcba03] border-solid -mb-px'
+                      ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
                       : /* avoid hover:text-white — :root .hover\\:text-white:hover forces dark text in light mode */
-                        'text-white/90 hover:text-[#fcba03] border-b-[3px] border-transparent border-solid -mb-px'
+                        'text-white/90 hover:text-primary border-b-[3px] border-transparent border-solid -mb-px'
                     : isActive
                       ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
                       : 'text-muted-foreground hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px',
@@ -295,7 +295,7 @@ export function Navbar({ user }: NavbarProps) {
                     className={cn(
                       'outline-none focus-visible:ring-2',
                       isWanderShell
-                        ? 'group inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-transparent data-[state=open]:bg-transparent data-[popup-open]:bg-transparent focus-visible:ring-[#fcba03]/45'
+                        ? 'group inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent py-1.5 pl-1 pr-2 hover:bg-transparent data-[state=open]:bg-transparent data-[popup-open]:bg-transparent focus-visible:ring-primary/45'
                         : 'focus-visible:ring-ring data-[state=open]:bg-secondary/80 inline-flex cursor-pointer border-0 bg-transparent p-0',
                     )}
                   >
@@ -307,11 +307,11 @@ export function Navbar({ user }: NavbarProps) {
                             {getInitials(user.full_name || user.username)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold text-white transition-colors group-hover:text-[#fcba03] group-data-[popup-open]:text-[#fcba03] md:inline">
+                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold text-white transition-colors group-hover:text-primary group-data-[popup-open]:text-primary md:inline">
                           {user.full_name || user.username}
                         </span>
                         <ChevronDown
-                          className="h-4 w-4 shrink-0 text-white transition-colors group-hover:text-[#fcba03] group-data-[popup-open]:text-[#fcba03]"
+                          className="h-4 w-4 shrink-0 text-white transition-colors group-hover:text-primary group-data-[popup-open]:text-primary"
                           aria-hidden
                         />
                       </span>
@@ -329,7 +329,7 @@ export function Navbar({ user }: NavbarProps) {
                     className={cn(
                       'z-[200] w-60 min-w-[15rem] shadow-lg',
                       isWanderShell
-                        ? 'border border-white/10 bg-[oklch(0.2_0.045_155_/_0.94)] text-white backdrop-blur-xl'
+                        ? 'border border-white/10 bg-card/94 text-white backdrop-blur-xl'
                         : 'border-border bg-popover text-popover-foreground',
                     )}
                   >
@@ -362,7 +362,7 @@ export function Navbar({ user }: NavbarProps) {
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
                       onClick={() => router.push('/referrals')}
                     >
-                      <Gift className={cn('mr-3 h-4 w-4', isWanderShell && 'text-[#fcba03]')} /> Refer & Earn
+                      <Gift className={cn('mr-3 h-4 w-4', isWanderShell && 'text-primary')} /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
                       <DropdownMenuItem
@@ -396,7 +396,7 @@ export function Navbar({ user }: NavbarProps) {
             {/* Mobile menu toggle */}
             <button
               ref={mobileToggleRef}
-              className={cn('md:hidden', isWanderShell ? 'text-white/80 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-foreground')}
+              className={cn('md:hidden', isWanderShell ? 'text-white/80 hover:text-primary' : 'text-muted-foreground hover:text-foreground')}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen}
@@ -415,7 +415,7 @@ export function Navbar({ user }: NavbarProps) {
           onTouchEnd={onMenuTouchEnd}
           className={cn(
             'md:hidden border-t px-4 py-4 space-y-2',
-            isWanderShell ? 'border-[#2f4d42]/55 bg-[oklch(0.14_0.038_155)]' : 'border-border bg-background',
+            isWanderShell ? 'border-[color:var(--wander-nav-outer-border)] bg-[color:var(--wander-inset-panel)]' : 'border-border bg-background',
           )}
         >
           {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
@@ -437,8 +437,8 @@ export function Navbar({ user }: NavbarProps) {
                 isTribeLink && isTribeNavPending && 'opacity-80',
                 isWanderShell
                   ? isActive
-                    ? 'text-[#fcba03] bg-[#fcba03]/12 underline decoration-[#fcba03] decoration-2 underline-offset-4'
-                    : 'text-white/90 hover:text-[#fcba03] hover:bg-white/10'
+                    ? 'text-primary bg-primary/12 underline decoration-primary decoration-2 underline-offset-4'
+                    : 'text-white/90 hover:text-primary hover:bg-white/10'
                   : isActive
                     ? 'text-primary bg-primary/10 underline decoration-primary decoration-2 underline-offset-4'
                     : 'text-muted-foreground hover:text-foreground hover:bg-secondary',

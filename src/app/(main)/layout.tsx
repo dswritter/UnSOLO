@@ -1,4 +1,5 @@
 import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
+import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
@@ -14,6 +15,7 @@ export default async function MainLayout({
 }) {
   let user: { id: string } | null = null
   let profile: Profile | null = null
+  let wanderShellSeason: Awaited<ReturnType<typeof getResolvedWanderShellSeason>> = 'default'
 
   try {
     const { user: u } = await getRequestAuth()
@@ -23,8 +25,17 @@ export default async function MainLayout({
     // If Supabase is down, render page without auth
   }
 
+  try {
+    wanderShellSeason = await getResolvedWanderShellSeason()
+  } catch {
+    wanderShellSeason = 'default'
+  }
+
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+    <div
+      data-wander-shell-season={wanderShellSeason}
+      className="flex min-h-dvh flex-col bg-background text-foreground"
+    >
       <Navbar user={profile} />
       {/*
         h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can

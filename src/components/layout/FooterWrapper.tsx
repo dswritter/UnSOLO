@@ -34,7 +34,7 @@ export function FooterWrapper() {
     <footer
       className={cn(
         'border-t mt-auto',
-        isWander ? 'footer-wander-surface border-[#2f4d42]/50' : 'border-border bg-card/50',
+        isWander ? 'footer-wander-surface border-[color:var(--wander-footer-outer-border)]' : 'border-border bg-card/50',
       )}
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
@@ -51,7 +51,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   All trips
                 </a>
@@ -59,7 +59,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href={wanderSearchHref({ tab: 'trips', tripSource: 'unsolo' })}
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   UnSOLO Trips
                 </a>
@@ -67,7 +67,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href={wanderSearchHref({ tab: 'trips', tripSource: 'community' })}
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Community Trips
                 </a>
@@ -75,7 +75,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/leaderboard"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Leaderboard
                 </a>
@@ -83,7 +83,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/community"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Community
                 </a>
@@ -96,7 +96,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/host"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Host Dashboard
                 </a>
@@ -104,7 +104,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/host/verify"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Become a Host
                 </a>
@@ -112,7 +112,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/contact"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Contact Us
                 </a>
@@ -125,7 +125,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/terms"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Terms of Service
                 </a>
@@ -133,7 +133,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/privacy"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Privacy Policy
                 </a>
@@ -141,7 +141,7 @@ export function FooterWrapper() {
               <li>
                 <a
                   href="/refund-policy"
-                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-[#fcba03]' : 'text-muted-foreground hover:text-primary')}
+                  className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
                   Refund Policy
                 </a>
@@ -149,7 +149,7 @@ export function FooterWrapper() {
             </ul>
           </div>
         </div>
-        <div className={cn('mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2', isWander ? 'border-[#2f4d42]/50' : 'border-border')}>
+        <div className={cn('mt-8 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2', isWander ? 'border-[color:var(--wander-footer-outer-border)]' : 'border-border')}>
           <p className={cn('text-xs', isWander ? 'text-white/65' : 'text-muted-foreground')}>&copy; {new Date().getFullYear()} UnSOLO. All rights reserved.</p>
           <p className={cn('text-xs', isWander ? 'text-white/65' : 'text-muted-foreground')}>Made with passion for solo travelers</p>
         </div>

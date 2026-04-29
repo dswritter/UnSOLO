@@ -19,6 +19,11 @@ import {
 } from '@/lib/refund-tiers'
 import { cn } from '@/lib/utils'
 import { DEFAULT_WANDER_TRUST_BADGE_TEXT } from '@/lib/wander/wander-defaults'
+import {
+  isValidManualSeasonValue,
+  isValidWanderThemeModeValue,
+  type WanderThemeMode,
+} from '@/lib/wander/wander-season-shared'
 import { WanderHeroImageField } from './WanderHeroImageField'
 
 interface Setting {
@@ -72,6 +77,14 @@ const SETTING_LABELS: Record<
   wander_trust_badge_text: {
     label: 'Wander page — top badge (hero, left)',
     type: 'textarea',
+  },
+  wander_theme_mode: {
+    label: 'Wander shell — theme mode',
+    type: 'text',
+  },
+  wander_theme_season_manual: {
+    label: 'Wander shell — manual season',
+    type: 'text',
   },
 }
 
@@ -152,7 +165,13 @@ function buildInitialSettingsMap(initialSettings: Setting[]): Record<string, str
   }
   for (const k of GENERAL_SETTING_KEYS) {
     if (m[k] === undefined) {
-      m[k] = ''
+      if (k === 'wander_theme_mode') {
+        m[k] = 'default'
+      } else if (k === 'wander_theme_season_manual') {
+        m[k] = 'spring'
+      } else {
+        m[k] = ''
+      }
     }
   }
   return m
@@ -172,6 +191,21 @@ function syntheticGeneralRow(key: string): Setting {
       key,
       value: '',
       description: `Text in the top-left /wander pill. Leave empty for the default: “${DEFAULT_WANDER_TRUST_BADGE_TEXT}”.`,
+    }
+  }
+  if (key === 'wander_theme_mode') {
+    return {
+      key,
+      value: 'default',
+      description:
+        'default: classic forest green. auto: six Indian seasons (Asia/Kolkata calendar). manual: fixed season until changed.',
+    }
+  }
+  if (key === 'wander_theme_season_manual') {
+    return {
+      key,
+      value: 'spring',
+      description: 'Used when mode is manual: spring, summer, monsoon, autumn, prewinter, winter.',
     }
   }
   return { key, value: '', description: null }
@@ -257,6 +291,19 @@ export default function SettingsClient({ settings: initialSettings }: { settings
 
   function handleSave() {
     startTransition(async () => {
+      const modeRaw = (settings.wander_theme_mode ?? 'default').trim().toLowerCase()
+      if (!isValidWanderThemeModeValue(modeRaw)) {
+        toast.error('Wander theme mode must be default, auto, or manual.')
+        return
+      }
+      if (modeRaw === 'manual') {
+        const ms = (settings.wander_theme_season_manual ?? '').trim().toLowerCase()
+        if (!isValidManualSeasonValue(ms)) {
+          toast.error('Pick a valid manual season: spring, summer, monsoon, autumn, prewinter, or winter.')
+          return
+        }
+      }
+
       for (const [key, value] of Object.entries(settings)) {
         if (REFUND_KEYS.has(key)) {
           const tiers = parseRefundTiersJson(value, defaultsForKey(key))
@@ -313,6 +360,70 @@ export default function SettingsClient({ settings: initialSettings }: { settings
           <div className="border-t border-border px-4 py-1 bg-card/20">
             {generalSettings.map((s) => {
               const config = SETTING_LABELS[s.key] || { label: s.key, type: 'text' as const }
+              if (s.key === 'wander_theme_season_manual') {
+                return null
+              }
+              if (s.key === 'wander_theme_mode') {
+                const mode = (settings.wander_theme_mode ?? 'default').trim().toLowerCase() as WanderThemeMode
+                const manualOpts = ['spring', 'summer', 'monsoon', 'autumn', 'prewinter', 'winter'] as const
+                return (
+                  <div key="wander-theme-pair" className="space-y-3 border-b border-border/50 py-3 last:border-0">
+                    <div className="min-w-0 sm:max-w-[min(100%,32rem)]">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <Settings className="h-3.5 w-3.5 text-primary shrink-0" />
+                        Wander shell — seasonal theme
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                        Controls immersive /wander surfaces (explore, packages, host shell, admin wrapper). Default keeps
+                        the current forest look; auto follows six Indian seasons (Asia/Kolkata); manual pins one palette for
+                        campaigns.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                      <label className="text-xs font-medium text-muted-foreground shrink-0 w-28">Mode</label>
+                      <select
+                        value={isValidWanderThemeModeValue(mode) ? mode : 'default'}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_theme_mode: e.target.value }))
+                        }
+                        className="h-9 max-w-xs rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
+                      >
+                        <option value="default">Default (classic forest)</option>
+                        <option value="auto">Auto (season by calendar)</option>
+                        <option value="manual">Manual (fixed season)</option>
+                      </select>
+                    </div>
+                    <div
+                      className={cn(
+                        'flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4',
+                        mode !== 'manual' && 'opacity-50 pointer-events-none',
+                      )}
+                    >
+                      <label className="text-xs font-medium text-muted-foreground shrink-0 w-28">Season</label>
+                      <select
+                        value={
+                          manualOpts.includes(
+                            (settings.wander_theme_season_manual ?? 'spring').trim().toLowerCase() as (typeof manualOpts)[number],
+                          )
+                            ? (settings.wander_theme_season_manual ?? 'spring').trim().toLowerCase()
+                            : 'spring'
+                        }
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_theme_season_manual: e.target.value }))
+                        }
+                        disabled={mode !== 'manual'}
+                        className="h-9 max-w-xs rounded-md border border-border bg-secondary px-2 text-sm text-foreground disabled:cursor-not-allowed"
+                      >
+                        {manualOpts.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )
+              }
               if (s.key === 'wander_hero_image_url') {
                 return (
                   <div key={s.key} className="space-y-2 border-b border-border/50 py-3 last:border-0">

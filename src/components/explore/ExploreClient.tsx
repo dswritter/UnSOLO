@@ -193,7 +193,7 @@ export function ExploreClient({
                     'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap',
                     isWanderShell
                       ? activeTab === tab.id
-                        ? 'bg-[#fcba03] text-[oklch(0.18_0.04_155)] shadow-md'
+                        ? 'bg-primary text-primary-foreground shadow-md'
                         : 'bg-white/5 text-white/90 hover:bg-white/10'
                       : activeTab === tab.id
                         ? 'bg-primary text-primary-foreground'

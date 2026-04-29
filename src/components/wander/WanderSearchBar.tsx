@@ -374,7 +374,7 @@ export function WanderSearchBar({
               'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
               isWander
                 ? tab === id
-                  ? 'bg-[#fcba03] text-[oklch(0.18_0.04_155)] shadow-md'
+                  ? 'bg-primary text-primary-foreground shadow-md'
                   : 'bg-white/5 text-white/90 hover:bg-white/10 hover:text-white'
                 : tab === id
                   ? 'bg-primary text-primary-foreground shadow-md'

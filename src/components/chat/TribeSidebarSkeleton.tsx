@@ -16,7 +16,7 @@ export function TribeSidebarSkeleton({
   return (
     <div
       className={cn(
-        'flex-col border-r border-border max-h-[min(100dvh-5.5rem,56rem)] overflow-hidden wander-frost-panel bg-[oklch(0.2_0.045_155/0.5)]',
+        'flex-col border-r border-border max-h-[min(100dvh-5.5rem,56rem)] overflow-hidden wander-frost-panel bg-card/50',
         layout === 'desktop' &&
           'hidden md:flex w-96 min-w-[384px] shrink-0 border-white/10 rounded-2xl',
         layout === 'mobile' && 'flex md:hidden w-full flex-1 min-h-0 max-h-full shrink-0 min-w-0 border-0 rounded-none',

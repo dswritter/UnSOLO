@@ -1,0 +1,462 @@
+/**
+ * Immersive /wander shell: theme tokens + textures by `data-wander-shell-season` on an ancestor
+ * (see `(main)/layout`, `WanderThemeShell`) + chrome vars for nav / footer / frost outside `.wander-theme`.
+ */
+
+/* ── Classic forest (current production defaults) ─────────────────────────── */
+[data-wander-shell-season='default'] {
+  --background: oklch(0.2 0.045 155);
+  --foreground: oklch(0.97 0.01 90);
+  --card: oklch(0.26 0.05 150);
+  --card-foreground: oklch(0.97 0.01 90);
+  --popover: oklch(0.24 0.048 152);
+  --popover-foreground: oklch(0.97 0.01 90);
+  --primary: #fcba03;
+  --primary-foreground: oklch(0.18 0.04 155);
+  --secondary: oklch(0.32 0.055 150);
+  --secondary-foreground: oklch(0.92 0.02 90);
+  --muted: oklch(0.22 0.04 152);
+  --muted-foreground: oklch(0.78 0.04 100);
+  --accent: #fcba03;
+  --accent-foreground: oklch(0.18 0.04 155);
+  --destructive: oklch(0.6 0.2 25);
+  --border: oklch(0.4 0.07 150);
+  --input: oklch(0.22 0.045 152);
+  --ring: #fef08a;
+  --chart-1: #fcba03;
+  --chart-2: oklch(0.72 0.14 150);
+  --chart-3: oklch(0.6 0.16 145);
+  --chart-4: oklch(0.5 0.12 150);
+  --chart-5: oklch(0.42 0.1 145);
+  --sidebar: oklch(0.18 0.042 155);
+  --sidebar-foreground: oklch(0.97 0.01 90);
+  --sidebar-primary: #fcba03;
+  --sidebar-primary-foreground: oklch(0.18 0.04 155);
+  --sidebar-accent: oklch(0.3 0.05 150);
+  --sidebar-accent-foreground: oklch(0.97 0.01 90);
+  --sidebar-border: oklch(0.35 0.06 150);
+  --sidebar-ring: #fcba03;
+  /* Chrome (navbar / footer / popovers) */
+  --wander-nav-surface: color-mix(in oklab, oklch(0.16 0.04 155) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.45 0.08 150) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.38 0.07 150 / 0.55);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.14 0.038 155) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.4 0.07 150) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.38 0.07 150 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 72%, oklch(0.5 0.05 150));
+  --wander-frost-chrome-card: oklch(0.26 0.05 150);
+  --wander-frost-chrome-border: oklch(0.4 0.08 150);
+  --wander-inset-panel: oklch(0.14 0.038 152 / 0.75);
+  --wander-textured-edge: oklch(0.52 0.055 150 / 0.18);
+  --wander-textured-vignette: oklch(0.04 0.03 152 / 0.55);
+}
+
+[data-wander-shell-season='default'] .wander-textured {
+  position: relative;
+  background-color: oklch(0.1 0.04 152);
+  background-image:
+    linear-gradient(180deg, oklch(0.5 0.06 150 / 0.16) 0%, oklch(0.32 0.04 152 / 0.06) 5%, transparent 14%),
+    radial-gradient(ellipse 120% 45% at 50% 0%, oklch(0.42 0.07 150 / 0.12) 0%, transparent 70%),
+    linear-gradient(
+      122deg,
+      oklch(0.1 0.035 152 / 0) 0%,
+      oklch(0.1 0.035 152 / 0) 38%,
+      oklch(0.44 0.1 150 / 0.38) 45.5%,
+      oklch(0.36 0.09 152 / 0.3) 50%,
+      oklch(0.1 0.035 152 / 0) 58%
+    ),
+    linear-gradient(158deg, oklch(0.12 0.04 152 / 0) 0% 52%, oklch(0.34 0.08 155 / 0.22) 58%, oklch(0.12 0.04 152 / 0) 68%),
+    radial-gradient(ellipse 85% 80% at 0% 0%, oklch(0.38 0.09 152 / 0.3) 0%, transparent 62%),
+    radial-gradient(ellipse 45% 95% at 100% 35%, oklch(0.3 0.08 155 / 0.32) 0%, oklch(0.2 0.06 150 / 0.08) 50%, transparent 72%),
+    linear-gradient(0deg, oklch(0.24 0.08 150 / 0.2) 0%, transparent 34%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 42%, oklch(0.15 0.04 152 / 0) 0%, oklch(0.12 0.04 150 / 0) 30%, oklch(0.04 0.025 152 / 0.72) 100%),
+    linear-gradient(172deg, oklch(0.2 0.05 155) 0%, oklch(0.1 0.038 150) 100%);
+  background-size: 100% 100%, 100% 100%, 200% 200%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 200px 200px, auto, auto;
+  background-position: 0 0, 0 0, 5% 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat, no-repeat;
+  background-blend-mode: soft-light, soft-light, screen, screen, screen, screen, screen, overlay, normal, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Spring — bloom dusk (coral / sky on deep green) ──────────────────────── */
+[data-wander-shell-season='spring'] {
+  --background: oklch(0.22 0.04 150);
+  --foreground: oklch(0.98 0.008 95);
+  --card: oklch(0.3 0.055 148);
+  --card-foreground: oklch(0.98 0.008 95);
+  --popover: oklch(0.27 0.052 148);
+  --popover-foreground: oklch(0.98 0.008 95);
+  --primary: #fde047;
+  --primary-foreground: oklch(0.16 0.08 200);
+  --secondary: oklch(0.34 0.06 150);
+  --secondary-foreground: oklch(0.94 0.02 95);
+  --muted: oklch(0.26 0.045 152);
+  --muted-foreground: oklch(0.8 0.035 100);
+  --accent: #fde047;
+  --accent-foreground: oklch(0.16 0.08 200);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.45 0.08 145);
+  --input: oklch(0.25 0.048 150);
+  --ring: oklch(0.88 0.12 145);
+  --chart-1: #fde047;
+  --chart-2: oklch(0.7 0.14 150);
+  --chart-3: oklch(0.62 0.14 160);
+  --chart-4: oklch(0.52 0.11 40);
+  --chart-5: oklch(0.45 0.1 330);
+  --sidebar: oklch(0.2 0.045 152);
+  --sidebar-foreground: oklch(0.98 0.008 95);
+  --sidebar-primary: #fde047;
+  --sidebar-primary-foreground: oklch(0.16 0.08 200);
+  --sidebar-accent: oklch(0.32 0.055 148);
+  --sidebar-accent-foreground: oklch(0.98 0.008 95);
+  --sidebar-border: oklch(0.4 0.07 145);
+  --sidebar-ring: #fde047;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.18 0.045 148) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.48 0.09 145) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.42 0.08 145 / 0.55);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.16 0.042 150) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.42 0.075 145) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.4 0.08 145 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 72%, oklch(0.52 0.06 150));
+  --wander-frost-chrome-card: oklch(0.3 0.055 148);
+  --wander-frost-chrome-border: oklch(0.45 0.09 145);
+  --wander-inset-panel: oklch(0.16 0.042 152 / 0.75);
+  --wander-textured-edge: oklch(0.5 0.08 145 / 0.2);
+  --wander-textured-vignette: oklch(0.06 0.04 150 / 0.55);
+}
+
+[data-wander-shell-season='spring'] .wander-textured {
+  position: relative;
+  background-color: #0f2418;
+  background-image:
+    radial-gradient(120% 80% at 10% 20%, rgba(255, 183, 197, 0.45) 0%, transparent 55%),
+    radial-gradient(90% 70% at 85% 15%, rgba(167, 216, 255, 0.35) 0%, transparent 50%),
+    linear-gradient(165deg, #0f2418 0%, #1a3d2e 35%, #234d3a 60%, #1e2f28 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 45%, transparent 0%, oklch(0.05 0.04 150 / 0.65) 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Summer — heat haze + deep sky teal ───────────────────────────────────── */
+[data-wander-shell-season='summer'] {
+  --background: oklch(0.24 0.05 165);
+  --foreground: oklch(0.98 0.01 95);
+  --card: oklch(0.32 0.06 160);
+  --card-foreground: oklch(0.98 0.01 95);
+  --popover: oklch(0.29 0.058 162);
+  --popover-foreground: oklch(0.98 0.01 95);
+  --primary: #fcba03;
+  --primary-foreground: oklch(0.14 0.07 230);
+  --secondary: oklch(0.36 0.065 158);
+  --secondary-foreground: oklch(0.94 0.02 95);
+  --muted: oklch(0.28 0.05 160);
+  --muted-foreground: oklch(0.79 0.04 100);
+  --accent: #fcba03;
+  --accent-foreground: oklch(0.14 0.07 230);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.46 0.08 155);
+  --input: oklch(0.26 0.05 162);
+  --ring: oklch(0.82 0.14 200);
+  --chart-1: #fcba03;
+  --chart-2: oklch(0.68 0.12 200);
+  --chart-3: oklch(0.58 0.14 180);
+  --chart-4: oklch(0.5 0.12 150);
+  --chart-5: oklch(0.42 0.1 40);
+  --sidebar: oklch(0.21 0.048 165);
+  --sidebar-foreground: oklch(0.98 0.01 95);
+  --sidebar-primary: #fcba03;
+  --sidebar-primary-foreground: oklch(0.14 0.07 230);
+  --sidebar-accent: oklch(0.34 0.06 158);
+  --sidebar-accent-foreground: oklch(0.98 0.01 95);
+  --sidebar-border: oklch(0.42 0.075 155);
+  --sidebar-ring: #fcba03;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.18 0.05 165) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.5 0.09 160) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.4 0.08 165 / 0.55);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.16 0.048 168) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.44 0.08 160) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.38 0.08 165 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 70%, oklch(0.45 0.06 200));
+  --wander-frost-chrome-card: oklch(0.32 0.06 160);
+  --wander-frost-chrome-border: oklch(0.48 0.09 158);
+  --wander-inset-panel: oklch(0.17 0.05 165 / 0.75);
+  --wander-textured-edge: oklch(0.55 0.09 160 / 0.18);
+  --wander-textured-vignette: oklch(0.05 0.05 200 / 0.5);
+}
+
+[data-wander-shell-season='summer'] .wander-textured {
+  position: relative;
+  background-color: #142828;
+  background-image:
+    radial-gradient(100% 90% at 50% -10%, rgba(255, 220, 120, 0.4) 0%, transparent 45%),
+    radial-gradient(80% 60% at 90% 70%, rgba(40, 100, 140, 0.35) 0%, transparent 55%),
+    linear-gradient(175deg, #142828 0%, #1e3830 40%, #2a4838 70%, #162820 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 45%, transparent 0%, oklch(0.04 0.05 220 / 0.68) 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Monsoon — slate teal + violet edge ───────────────────────────────────── */
+[data-wander-shell-season='monsoon'] {
+  --background: oklch(0.22 0.05 220);
+  --foreground: oklch(0.98 0.008 95);
+  --card: oklch(0.3 0.06 218);
+  --card-foreground: oklch(0.98 0.008 95);
+  --popover: oklch(0.27 0.058 218);
+  --popover-foreground: oklch(0.98 0.008 95);
+  --primary: #fef08a;
+  --primary-foreground: oklch(0.14 0.06 240);
+  --secondary: oklch(0.34 0.06 215);
+  --secondary-foreground: oklch(0.93 0.02 95);
+  --muted: oklch(0.26 0.045 220);
+  --muted-foreground: oklch(0.78 0.04 200);
+  --accent: #fef08a;
+  --accent-foreground: oklch(0.14 0.06 240);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.44 0.08 215);
+  --input: oklch(0.24 0.05 220);
+  --ring: oklch(0.85 0.12 210);
+  --chart-1: #fef08a;
+  --chart-2: oklch(0.68 0.12 210);
+  --chart-3: oklch(0.58 0.14 280);
+  --chart-4: oklch(0.5 0.12 200);
+  --chart-5: oklch(0.42 0.1 240);
+  --sidebar: oklch(0.19 0.048 220);
+  --sidebar-foreground: oklch(0.98 0.008 95);
+  --sidebar-primary: #fef08a;
+  --sidebar-primary-foreground: oklch(0.14 0.06 240);
+  --sidebar-accent: oklch(0.32 0.058 218);
+  --sidebar-accent-foreground: oklch(0.98 0.008 95);
+  --sidebar-border: oklch(0.4 0.075 215);
+  --sidebar-ring: #fef08a;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.17 0.052 222) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.48 0.09 215) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.4 0.08 220 / 0.55);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.15 0.05 225) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.42 0.08 215) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.36 0.08 225 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 70%, oklch(0.5 0.05 220));
+  --wander-frost-chrome-card: oklch(0.3 0.06 218);
+  --wander-frost-chrome-border: oklch(0.46 0.09 215);
+  --wander-inset-panel: oklch(0.16 0.05 222 / 0.75);
+  --wander-textured-edge: oklch(0.48 0.1 215 / 0.22);
+  --wander-textured-vignette: oklch(0.04 0.05 240 / 0.55);
+}
+
+[data-wander-shell-season='monsoon'] .wander-textured {
+  position: relative;
+  background-color: #0c1820;
+  background-image:
+    radial-gradient(110% 70% at 20% 30%, rgba(80, 140, 160, 0.45) 0%, transparent 55%),
+    linear-gradient(180deg, #0c1820 0%, #132a32 45%, #0f2228 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 50%, transparent 0%, oklch(0.04 0.06 250 / 0.62) 100%);
+  background-size: 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Autumn — rust / wine / amber ─────────────────────────────────────────── */
+[data-wander-shell-season='autumn'] {
+  --background: oklch(0.2 0.04 45);
+  --foreground: oklch(0.98 0.01 85);
+  --card: oklch(0.28 0.06 42);
+  --card-foreground: oklch(0.98 0.01 85);
+  --popover: oklch(0.25 0.058 44);
+  --popover-foreground: oklch(0.98 0.01 85);
+  --primary: #fbbf24;
+  --primary-foreground: oklch(0.18 0.06 25);
+  --secondary: oklch(0.32 0.065 40);
+  --secondary-foreground: oklch(0.94 0.025 85);
+  --muted: oklch(0.24 0.05 42);
+  --muted-foreground: oklch(0.8 0.04 70);
+  --accent: #fbbf24;
+  --accent-foreground: oklch(0.18 0.06 25);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.42 0.09 40);
+  --input: oklch(0.23 0.05 42);
+  --ring: oklch(0.86 0.14 70);
+  --chart-1: #fbbf24;
+  --chart-2: oklch(0.62 0.14 40);
+  --chart-3: oklch(0.52 0.14 350);
+  --chart-4: oklch(0.48 0.12 50);
+  --chart-5: oklch(0.4 0.1 30);
+  --sidebar: oklch(0.18 0.042 45);
+  --sidebar-foreground: oklch(0.98 0.01 85);
+  --sidebar-primary: #fbbf24;
+  --sidebar-primary-foreground: oklch(0.18 0.06 25);
+  --sidebar-accent: oklch(0.3 0.06 40);
+  --sidebar-accent-foreground: oklch(0.98 0.01 85);
+  --sidebar-border: oklch(0.38 0.08 38);
+  --sidebar-ring: #fbbf24;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.16 0.045 42) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.46 0.1 40) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.4 0.09 40 / 0.55);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.14 0.04 45) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.4 0.085 38) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.38 0.09 42 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 68%, oklch(0.52 0.06 40));
+  --wander-frost-chrome-card: oklch(0.28 0.06 42);
+  --wander-frost-chrome-border: oklch(0.44 0.1 40);
+  --wander-inset-panel: oklch(0.15 0.042 44 / 0.75);
+  --wander-textured-edge: oklch(0.52 0.1 40 / 0.2);
+  --wander-textured-vignette: oklch(0.06 0.04 25 / 0.58);
+}
+
+[data-wander-shell-season='autumn'] .wander-textured {
+  position: relative;
+  background-color: #1a1210;
+  background-image:
+    radial-gradient(90% 70% at 80% 20%, rgba(255, 160, 90, 0.25) 0%, transparent 50%),
+    linear-gradient(168deg, #1a1210 0%, #2d1812 35%, #1f1410 70%, #160e0c 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 45%, transparent 0%, oklch(0.06 0.04 25 / 0.72) 100%);
+  background-size: 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Pre-winter — mauve / sage transition ─────────────────────────────────── */
+[data-wander-shell-season='prewinter'] {
+  --background: oklch(0.21 0.03 265);
+  --foreground: oklch(0.98 0.008 95);
+  --card: oklch(0.29 0.04 265);
+  --card-foreground: oklch(0.98 0.008 95);
+  --popover: oklch(0.26 0.038 265);
+  --popover-foreground: oklch(0.98 0.008 95);
+  --primary: #fcd34d;
+  --primary-foreground: oklch(0.16 0.06 280);
+  --secondary: oklch(0.34 0.045 265);
+  --secondary-foreground: oklch(0.94 0.02 95);
+  --muted: oklch(0.26 0.035 265);
+  --muted-foreground: oklch(0.79 0.03 260);
+  --accent: #fcd34d;
+  --accent-foreground: oklch(0.16 0.06 280);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.43 0.06 265);
+  --input: oklch(0.24 0.035 268);
+  --ring: oklch(0.82 0.1 85);
+  --chart-1: #fcd34d;
+  --chart-2: oklch(0.65 0.1 150);
+  --chart-3: oklch(0.55 0.08 265);
+  --chart-4: oklch(0.48 0.1 40);
+  --chart-5: oklch(0.42 0.08 300);
+  --sidebar: oklch(0.18 0.032 265);
+  --sidebar-foreground: oklch(0.98 0.008 95);
+  --sidebar-primary: #fcd34d;
+  --sidebar-primary-foreground: oklch(0.16 0.06 280);
+  --sidebar-accent: oklch(0.32 0.04 265);
+  --sidebar-accent-foreground: oklch(0.98 0.008 95);
+  --sidebar-border: oklch(0.38 0.055 265);
+  --sidebar-ring: #fcd34d;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.17 0.038 268) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.46 0.07 265) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.4 0.07 270 / 0.52);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.15 0.035 268) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.4 0.065 265) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.36 0.07 268 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 70%, oklch(0.52 0.05 265));
+  --wander-frost-chrome-card: oklch(0.29 0.04 265);
+  --wander-frost-chrome-border: oklch(0.44 0.07 262);
+  --wander-inset-panel: oklch(0.16 0.035 268 / 0.75);
+  --wander-textured-edge: oklch(0.5 0.06 265 / 0.2);
+  --wander-textured-vignette: oklch(0.05 0.03 280 / 0.55);
+}
+
+[data-wander-shell-season='prewinter'] .wander-textured {
+  position: relative;
+  background-color: #141618;
+  background-image:
+    radial-gradient(100% 80% at 15% 40%, rgba(200, 180, 200, 0.2) 0%, transparent 55%),
+    linear-gradient(172deg, #141618 0%, #1f2228 50%, #181a1e 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, oklch(0.05 0.03 265 / 0.65) 100%);
+  background-size: 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}
+
+/* ── Winter — frost / ice silver ──────────────────────────────────────────── */
+[data-wander-shell-season='winter'] {
+  --background: oklch(0.2 0.045 245);
+  --foreground: oklch(0.99 0.006 95);
+  --card: oklch(0.28 0.05 242);
+  --card-foreground: oklch(0.99 0.006 95);
+  --popover: oklch(0.25 0.048 242);
+  --popover-foreground: oklch(0.99 0.006 95);
+  --primary: #fef9c3;
+  --primary-foreground: oklch(0.15 0.07 260);
+  --secondary: oklch(0.33 0.055 240);
+  --secondary-foreground: oklch(0.94 0.02 95);
+  --muted: oklch(0.25 0.045 245);
+  --muted-foreground: oklch(0.8 0.03 230);
+  --accent: #fef9c3;
+  --accent-foreground: oklch(0.15 0.07 260);
+  --destructive: oklch(0.58 0.2 25);
+  --border: oklch(0.42 0.07 240);
+  --input: oklch(0.23 0.048 245);
+  --ring: oklch(0.88 0.1 230);
+  --chart-1: #fef9c3;
+  --chart-2: oklch(0.68 0.1 230);
+  --chart-3: oklch(0.58 0.12 260);
+  --chart-4: oklch(0.5 0.1 220);
+  --chart-5: oklch(0.42 0.08 250);
+  --sidebar: oklch(0.18 0.042 245);
+  --sidebar-foreground: oklch(0.99 0.006 95);
+  --sidebar-primary: #fef9c3;
+  --sidebar-primary-foreground: oklch(0.15 0.07 260);
+  --sidebar-accent: oklch(0.31 0.05 242);
+  --sidebar-accent-foreground: oklch(0.99 0.006 95);
+  --sidebar-border: oklch(0.38 0.065 240);
+  --sidebar-ring: #fef9c3;
+  --wander-nav-surface: color-mix(in oklab, oklch(0.16 0.048 248) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.46 0.08 242) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.38 0.08 248 / 0.52);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.14 0.045 250) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.4 0.07 240) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.34 0.08 250 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 72%, oklch(0.52 0.05 245));
+  --wander-frost-chrome-card: oklch(0.28 0.05 242);
+  --wander-frost-chrome-border: oklch(0.44 0.08 240);
+  --wander-inset-panel: oklch(0.15 0.048 248 / 0.75);
+  --wander-textured-edge: oklch(0.55 0.08 230 / 0.2);
+  --wander-textured-vignette: oklch(0.04 0.05 260 / 0.58);
+}
+
+[data-wander-shell-season='winter'] .wander-textured {
+  position: relative;
+  background-color: #0e141c;
+  background-image:
+    radial-gradient(95% 75% at 50% 0%, rgba(200, 230, 255, 0.22) 0%, transparent 48%),
+    linear-gradient(180deg, #0e141c 0%, #151c28 55%, #101820 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, oklch(0.04 0.05 260 / 0.7) 100%);
+  background-size: 100% 100%, 100% 100%, 200px 200px, auto;
+  background-repeat: no-repeat, no-repeat, repeat, no-repeat;
+  background-blend-mode: screen, normal, overlay, normal;
+  box-shadow:
+    inset 0 1px 0 0 var(--wander-textured-edge),
+    inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
+}

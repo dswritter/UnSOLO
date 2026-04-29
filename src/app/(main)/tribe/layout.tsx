@@ -42,7 +42,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
             className="max-h-[min(100dvh-5.5rem,56rem)] border-white/10 rounded-2xl overflow-hidden wander-frost-panel"
           />
         </Suspense>
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[oklch(0.14_0.038_152/0.75)] backdrop-blur-md">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden rounded-2xl border border-white/10 bg-[color:var(--wander-inset-panel)] backdrop-blur-md">
           {children}
         </div>
       </div>

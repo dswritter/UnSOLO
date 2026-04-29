@@ -33,7 +33,7 @@ export function WanderRecentlyViewedStrip() {
             <button
               type="button"
               onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-[oklch(0.16_0.035_150)]/90 px-3 py-2 pr-7 text-left transition-colors hover:border-[#fcba03]/40"
+              className="flex items-center gap-2 rounded-xl border border-white/15 bg-card/90 px-3 py-2 pr-7 text-left transition-colors hover:border-primary/40"
             >
               {rv.image ? (
                 // eslint-disable-next-line @next/next/no-img-element

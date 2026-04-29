@@ -626,7 +626,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => notifications.length > 0 ? setMinimized(false) : (window.location.href = chatListBase)}
-          className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-[#fcba03] text-[oklch(0.18_0.04_155)] shadow-[0_8px_28px_rgba(0,0,0,0.35)] ring-2 ring-white/15 transition-all hover:scale-105 hover:bg-[#e5ab03]"
+          className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_28px_rgba(0,0,0,0.35)] ring-2 ring-white/15 transition-all hover:scale-105 hover:bg-primary/90"
           aria-label={notifications.length > 0 ? 'Open chat notifications' : 'Open chats'}
         >
           <MessageCircle className="h-6 w-6" />
@@ -818,7 +818,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                 <button
                   type="submit"
                   disabled={!replyText.trim() || sending}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fcba03] text-[oklch(0.18_0.04_155)] transition-colors hover:bg-[#e5ab03] disabled:opacity-40"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                   aria-label={sending ? 'Sending…' : 'Send reply'}
                 >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -827,7 +827,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             ) : (
               <Link
                 href={chatListBase}
-                className="block border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] py-2.5 text-center text-xs font-medium text-[#fcba03] backdrop-blur-sm transition-colors hover:bg-[oklch(0.14_0.05_152/0.9)]"
+                className="block border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] py-2.5 text-center text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-[oklch(0.14_0.05_152/0.9)]"
               >
                 Open All Chats →
               </Link>
