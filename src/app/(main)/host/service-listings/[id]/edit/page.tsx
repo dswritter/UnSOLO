@@ -1,6 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { checkIsHost } from '@/actions/hosting'
-import { getDestinations } from '@/actions/admin'
+import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { hostMayResubmitServiceListing } from '@/lib/service-listing-resubmit'
@@ -42,7 +41,7 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   if (listing.host_id !== user.id) redirect('/host')
 
   const [destinations, itemsResult, countsResult] = await Promise.all([
-    getDestinations(),
+    getDestinationsPublic(),
     listServiceListingItems(id),
     fetchServiceBookingCountsForListings(supabase, [id]),
   ])

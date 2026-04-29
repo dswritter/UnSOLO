@@ -276,6 +276,8 @@ export function HostServiceListingTabs(props: Props) {
   const [saving, setSaving] = useState(false)
   const [createSubmitOverlayOpen, setCreateSubmitOverlayOpen] = useState(false)
   const createSubmitCancelledRef = useRef(false)
+  /** Prevents double create from rapid Submit clicks before React re-renders `saving`. */
+  const submitCreateInFlightRef = useRef(false)
 
   // ── Validation popup ──────────────────────────────────────────────────
   type ValidationError = { label: string; fieldId: string }
@@ -871,69 +873,75 @@ export function HostServiceListingTabs(props: Props) {
 
   // ── Save handlers ─────────────────────────────────────────────────────
   async function submitCreate() {
-    const businessErr = validBusinessTab()
-    if (businessErr) { toast.error(businessErr); setStep(0); return }
-    const itemsErr = validItemsTab()
-    if (itemsErr) { toast.error(itemsErr); setStep(1); return }
-
-    setSaving(true)
-    createSubmitCancelledRef.current = false
-    setCreateSubmitOverlayOpen(true)
-    const payload: HostServiceItemDraft[] = items.map(i => ({
-      name: i.name.trim(),
-      description: i.description.trim() || null,
-      price_paise: Math.round((i.priceRupees ?? 0) * 100),
-      quantity_available: i.maxPerBooking,
-      max_per_booking: i.quantity,
-      images: i.images,
-      unit: (isRental || isActivity || isStay) ? (i.unit || config.defaultUnit) : null,
-      amenities: (isRental || isStay) ? (i.amenities || []) : null,
-    }))
-
-    let result: Awaited<ReturnType<typeof createHostServiceListing>> | undefined
+    if (submitCreateInFlightRef.current) return
+    submitCreateInFlightRef.current = true
     try {
-      result = await createHostServiceListing({
-        title: title.trim(),
-        description: description.trim() || null,
-        short_description: shortDescription.trim() || null,
-        type,
-        unit,
-        destination_ids: destinationIds,
-        location: location.trim() || null,
-        latitude: pinLatLon?.lat ?? null,
-        longitude: pinLatLon?.lon ?? null,
-        // Rentals & stays: master amenities empty — each item owns its own.
-        amenities: isRental || isStay ? [] : amenities,
-        tags,
-        metadata: null,
-        host_id: userId,
-        items: payload,
-        ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
-      })
-    } catch {
-      toast.error('Submission failed. Please try again.')
-      return
-    } finally {
-      setSaving(false)
-      setCreateSubmitOverlayOpen(false)
-    }
+      const businessErr = validBusinessTab()
+      if (businessErr) { toast.error(businessErr); setStep(0); return }
+      const itemsErr = validItemsTab()
+      if (itemsErr) { toast.error(itemsErr); setStep(1); return }
 
-    if (!result) return
+      setSaving(true)
+      createSubmitCancelledRef.current = false
+      setCreateSubmitOverlayOpen(true)
+      const payload: HostServiceItemDraft[] = items.map(i => ({
+        name: i.name.trim(),
+        description: i.description.trim() || null,
+        price_paise: Math.round((i.priceRupees ?? 0) * 100),
+        quantity_available: i.maxPerBooking,
+        max_per_booking: i.quantity,
+        images: i.images,
+        unit: (isRental || isActivity || isStay) ? (i.unit || config.defaultUnit) : null,
+        amenities: (isRental || isStay) ? (i.amenities || []) : null,
+      }))
 
-    if (createSubmitCancelledRef.current) {
-      if (!('error' in result && result.error)) {
-        toast.success('Your listing was submitted for review.')
-        window.location.assign('/host')
+      let result: Awaited<ReturnType<typeof createHostServiceListing>> | undefined
+      try {
+        result = await createHostServiceListing({
+          title: title.trim(),
+          description: description.trim() || null,
+          short_description: shortDescription.trim() || null,
+          type,
+          unit,
+          destination_ids: destinationIds,
+          location: location.trim() || null,
+          latitude: pinLatLon?.lat ?? null,
+          longitude: pinLatLon?.lon ?? null,
+          // Rentals & stays: master amenities empty — each item owns its own.
+          amenities: isRental || isStay ? [] : amenities,
+          tags,
+          metadata: null,
+          host_id: userId,
+          items: payload,
+          ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
+        })
+      } catch {
+        toast.error('Submission failed. Please try again.')
+        return
+      } finally {
+        setSaving(false)
+        setCreateSubmitOverlayOpen(false)
       }
-      return
-    }
 
-    if ('error' in result && result.error) {
-      toast.error(result.error)
-      return
+      if (!result) return
+
+      if (createSubmitCancelledRef.current) {
+        if (!('error' in result && result.error)) {
+          toast.success('Your listing was submitted for review.')
+          window.location.assign('/host')
+        }
+        return
+      }
+
+      if ('error' in result && result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success('Listing submitted for review!')
+      window.location.assign('/host')
+    } finally {
+      submitCreateInFlightRef.current = false
     }
-    toast.success('Listing submitted for review!')
-    window.location.assign('/host')
   }
 
   function cancelCreateSubmitOverlay() {
@@ -2123,7 +2131,7 @@ export function HostServiceListingTabs(props: Props) {
                   <Eye className="h-4 w-4" />
                   Preview
                 </Button>
-                <Button onClick={submitCreate} disabled={saving} className="flex-1">
+                <Button type="button" onClick={() => void submitCreate()} disabled={saving} className="flex-1">
                   {saving ? 'Submitting…' : 'Submit for review'}
                 </Button>
               </div>
