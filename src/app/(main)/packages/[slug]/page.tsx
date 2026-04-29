@@ -25,6 +25,7 @@ import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-settings'
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
+import { TripDetailSeasonDecor } from '@/components/packages/TripDetailSeasonDecor'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
@@ -465,9 +466,9 @@ export default async function PackageDetailPage({
             />
           </div>
 
-          {/* Sidebar - Booking / Join */}
+          {/* Sidebar - Booking / Join + seasonal décor (desktop) */}
           <div className="lg:col-span-1">
-            <div className="sticky top-20">
+            <div className="lg:sticky lg:top-20 space-y-6">
               <Card className="bg-card border-border">
                 <CardContent className="p-6 space-y-4">
                   {isCommunityTrip ? (
@@ -527,7 +528,7 @@ export default async function PackageDetailPage({
                             <span className="text-muted-foreground text-sm ml-2">per person</span>
                           </div>
                           <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
-                          <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
+                          <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
                             <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
                               Sign In to Book
                             </Link>
@@ -578,7 +579,7 @@ export default async function PackageDetailPage({
                       ) : (
                         <div className="space-y-3">
                           <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
-                          <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
+                          <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
                             <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
                               Sign In to Book
                             </Link>
@@ -623,6 +624,7 @@ export default async function PackageDetailPage({
                   </div>
                 </CardContent>
               </Card>
+              <TripDetailSeasonDecor />
             </div>
           </div>
         </div>

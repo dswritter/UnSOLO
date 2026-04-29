@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./wander-shell-season.css";
+@import "./trip-detail-season-decor.css";
 
 @custom-variant dark (&:is(.dark *));
 
