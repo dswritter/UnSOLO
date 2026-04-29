@@ -6,6 +6,38 @@ import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
 const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact']
 
+const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])
+
+/**
+ * Normalize apex vs www to match NEXT_PUBLIC_APP_URL so session + branding stay
+ * consistent. Pair with shared auth cookie domain (see auth-cookie-options).
+ */
+function canonicalHostRedirect(request: NextRequest): NextResponse | null {
+  const host = request.headers.get('host')?.split(':')[0]?.toLowerCase()
+  if (!host || host === 'localhost' || host === '127.0.0.1') {
+    return null
+  }
+
+  let canonicalHost: string
+  try {
+    canonicalHost = new URL(process.env.NEXT_PUBLIC_APP_URL || 'about:blank').hostname.toLowerCase()
+  } catch {
+    return null
+  }
+
+  if (!UNSOLO_HOSTS.has(host) || !UNSOLO_HOSTS.has(canonicalHost)) {
+    return null
+  }
+
+  if (host === canonicalHost) {
+    return null
+  }
+
+  const url = request.nextUrl.clone()
+  url.hostname = canonicalHost
+  return NextResponse.redirect(url, 308)
+}
+
 /** Wander is only served on production host (and localhost for dev). Preview/staging → home. */
 function isWanderAllowedHost(hostHeader: string | null): boolean {
   const host = hostHeader?.split(':')[0]?.toLowerCase() ?? ''
@@ -22,6 +54,9 @@ function nextWithUnsoloPath(request: NextRequest, browserPathname: string): Next
 }
 
 export async function proxy(request: NextRequest) {
+  const canonical = canonicalHostRedirect(request)
+  if (canonical) return canonical
+
   const { pathname } = request.nextUrl
   const browserPathname = pathname
 
