@@ -3,258 +3,122 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UnSOLO — Season theme backgrounds (CSS preview)</title>
+  <title>UnSOLO — Season theme gradients (preview)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: rgba(255, 255, 255, 0.92);
-      line-height: 1.4;
+      font-family: system-ui, sans-serif;
+      color: rgba(255, 255, 255, 0.9);
     }
-
-    /* Shared “aurora ribbon” technique: blurred ellipses + layered linear washes */
     .panel {
-      position: relative;
       min-height: 100vh;
-      overflow: hidden;
-      isolation: isolate;
+      padding: 1.25rem 1.25rem 2rem;
     }
-    .panel::before,
-    .panel::after {
-      content: "";
-      position: absolute;
-      inset: -20%;
-      z-index: 0;
-      pointer-events: none;
+    .panel h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
     }
-    .panel::before {
-      filter: blur(65px);
+    .panel p {
+      font-size: 0.8125rem;
       opacity: 0.85;
-      mix-blend-mode: screen;
-      transform: rotate(-8deg) scale(1.1);
-      animation: drift 22s ease-in-out infinite alternate;
-    }
-    .panel::after {
-      filter: blur(45px);
-      opacity: 0.55;
-      mix-blend-mode: soft-light;
-      transform: rotate(6deg) scale(1.05);
-      animation: drift2 28s ease-in-out infinite alternate;
+      max-width: 22rem;
     }
 
-    @keyframes drift {
-      from { transform: rotate(-8deg) scale(1.1) translate3d(-2%, 1%, 0); }
-      to   { transform: rotate(-6deg) scale(1.12) translate3d(2%, -2%, 0); }
-    }
-    @keyframes drift2 {
-      from { transform: rotate(6deg) scale(1.05) translate3d(2%, 2%, 0); }
-      to   { transform: rotate(8deg) scale(1.08) translate3d(-3%, -1%, 0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .panel::before, .panel::after { animation: none; }
-    }
-
-    .label {
-      position: relative;
-      z-index: 2;
-      padding: 1.25rem 1.5rem;
-      max-width: 28rem;
-    }
-    .label h2 {
-      font-size: 1.35rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      margin-bottom: 0.35rem;
-      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
-    }
-    .label p {
-      font-size: 0.8rem;
-      opacity: 0.88;
-      text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    .toc {
-      position: fixed;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 10px;
-    }
-    .toc a {
-      color: rgba(255, 255, 255, 0.85);
-      text-decoration: none;
-      padding: 4px 8px;
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.35);
-      backdrop-filter: blur(8px);
-    }
-    .toc a:hover { background: rgba(0, 0, 0, 0.55); }
-
-    /* ── Spring: bloom dusk — coral, magenta, fresh green, soft sky ── */
+    /* One stack per theme: vignette → accent radials → base linear (top to bottom paint order). */
     .spring {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 45%, transparent 0%, rgba(0, 0, 0, 0.55) 100%),
         radial-gradient(120% 80% at 10% 20%, rgba(255, 183, 197, 0.45) 0%, transparent 55%),
- radial-gradient(90% 70% at 85% 15%, rgba(167, 216, 255, 0.35) 0%, transparent 50%),
- linear-gradient(165deg, #0f2418 0%, #1a3d2e 35%, #234d3a 60%, #1e2f28 100%);
+        radial-gradient(90% 70% at 85% 15%, rgba(167, 216, 255, 0.35) 0%, transparent 50%),
+        linear-gradient(165deg, #0f2418 0%, #1a3d2e 35%, #234d3a 60%, #1e2f28 100%);
+      background-repeat: no-repeat;
     }
-    .spring::before {
-      background:
-        radial-gradient(ellipse 70% 45% at 30% 60%, rgba(255, 142, 180, 0.65) 0%, transparent 65%),
-        radial-gradient(ellipse 55% 50% at 70% 40%, rgba(110, 255, 180, 0.4) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 50% 85%, rgba(255, 236, 160, 0.35) 0%, transparent 55%);
-    }
-    .spring::after {
-      background:
-        radial-gradient(ellipse 80% 35% at 60% 25%, rgba(180, 120, 255, 0.25) 0%, transparent 55%),
-        radial-gradient(ellipse 60% 40% at 15% 70%, rgba(100, 220, 255, 0.2) 0%, transparent 50%);
-    }
-
-    /* ── Summer: heat haze — gold, deep cyan sky hint, warm shadow ── */
     .summer {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, rgba(0, 40, 60, 0.55) 100%),
         radial-gradient(100% 90% at 50% -10%, rgba(255, 220, 120, 0.4) 0%, transparent 45%),
         radial-gradient(80% 60% at 90% 70%, rgba(40, 100, 140, 0.35) 0%, transparent 55%),
         linear-gradient(175deg, #142828 0%, #1e3830 40%, #2a4838 70%, #162820 100%);
+      background-repeat: no-repeat;
     }
-    .summer::before {
-      background:
-        radial-gradient(ellipse 75% 50% at 25% 45%, rgba(255, 200, 80, 0.55) 0%, transparent 60%),
-        radial-gradient(ellipse 65% 45% at 75% 35%, rgba(255, 140, 90, 0.35) 0%, transparent 58%);
-    }
-    .summer::after {
-      background:
-        radial-gradient(ellipse 90% 40% at 55% 75%, rgba(60, 200, 255, 0.18) 0%, transparent 55%),
-        radial-gradient(ellipse 50% 30% at 10% 30%, rgba(255, 255, 200, 0.2) 0%, transparent 50%);
-    }
-
-    /* ── Monsoon: slate, teal, electric violet edge (rain mood) ── */
     .monsoon {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 50%, transparent 0%, rgba(0, 24, 40, 0.55) 100%),
         radial-gradient(110% 70% at 20% 30%, rgba(80, 140, 160, 0.45) 0%, transparent 55%),
         linear-gradient(180deg, #0c1820 0%, #132a32 45%, #0f2228 100%);
+      background-repeat: no-repeat;
     }
-    .monsoon::before {
-      background:
-        radial-gradient(ellipse 85% 50% at 40% 55%, rgba(70, 200, 190, 0.35) 0%, transparent 62%),
-        radial-gradient(ellipse 60% 45% at 80% 30%, rgba(120, 160, 255, 0.3) 0%, transparent 55%),
-        radial-gradient(ellipse 55% 40% at 15% 75%, rgba(40, 80, 90, 0.5) 0%, transparent 50%);
-    }
-    .monsoon::after {
-      background:
-        radial-gradient(ellipse 70% 35% at 65% 20%, rgba(180, 140, 255, 0.22) 0%, transparent 55%),
-        radial-gradient(ellipse 90% 45% at 50% 90%, rgba(50, 120, 100, 0.35) 0%, transparent 60%);
-    }
-
-    /* ── Autumn: ember ribbons — rust, wine, amber ── */
     .autumn {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 45%, transparent 0%, rgba(20, 8, 0, 0.6) 100%),
         radial-gradient(90% 70% at 80% 20%, rgba(255, 160, 90, 0.25) 0%, transparent 50%),
         linear-gradient(168deg, #1a1210 0%, #2d1812 35%, #1f1410 70%, #160e0c 100%);
+      background-repeat: no-repeat;
     }
-    .autumn::before {
-      background:
-        radial-gradient(ellipse 80% 45% at 35% 50%, rgba(255, 100, 60, 0.45) 0%, transparent 58%),
-        radial-gradient(ellipse 65% 50% at 70% 55%, rgba(180, 60, 90, 0.4) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 35% at 15% 35%, rgba(255, 200, 100, 0.3) 0%, transparent 55%);
-    }
-    .autumn::after {
-      background:
-        radial-gradient(ellipse 75% 40% at 55% 25%, rgba(140, 40, 60, 0.25) 0%, transparent 52%),
-        radial-gradient(ellipse 60% 50% at 90% 80%, rgba(90, 50, 30, 0.35) 0%, transparent 55%);
-    }
-
-    /* ── Pre-winter: muted transition — mauve, amber grey, cool sage ── */
     .prewinter {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, rgba(0, 0, 0, 0.55) 100%),
         radial-gradient(100% 80% at 15% 40%, rgba(200, 180, 200, 0.2) 0%, transparent 55%),
         linear-gradient(172deg, #141618 0%, #1f2228 50%, #181a1e 100%);
+      background-repeat: no-repeat;
     }
-    .prewinter::before {
-      background:
-        radial-gradient(ellipse 78% 48% at 45% 45%, rgba(200, 150, 120, 0.28) 0%, transparent 60%),
-        radial-gradient(ellipse 55% 40% at 75% 30%, rgba(140, 160, 200, 0.22) 0%, transparent 55%),
-        radial-gradient(ellipse 50% 45% at 20% 70%, rgba(170, 190, 160, 0.2) 0%, transparent 52%);
-    }
-    .prewinter::after {
-      background:
-        radial-gradient(ellipse 70% 38% at 60% 15%, rgba(255, 230, 200, 0.15) 0%, transparent 50%),
-        radial-gradient(ellipse 85% 50% at 30% 88%, rgba(100, 110, 130, 0.25) 0%, transparent 58%);
-    }
-
-    /* ── Winter: frost — ice blue, silver, faint violet ── */
     .winter {
-      background:
+      background-image:
+        radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, rgba(0, 16, 32, 0.6) 100%),
         radial-gradient(95% 75% at 50% 0%, rgba(200, 230, 255, 0.22) 0%, transparent 48%),
         linear-gradient(180deg, #0e141c 0%, #151c28 55%, #101820 100%);
+      background-repeat: no-repeat;
     }
-    .winter::before {
-      background:
-        radial-gradient(ellipse 82% 42% at 30% 40%, rgba(180, 220, 255, 0.4) 0%, transparent 58%),
-        radial-gradient(ellipse 60% 48% at 75% 60%, rgba(200, 210, 255, 0.25) 0%, transparent 55%),
-        radial-gradient(ellipse 45% 35% at 55% 25%, rgba(240, 250, 255, 0.35) 0%, transparent 50%);
+    .nav {
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      background: #111;
+      color: #eee;
     }
-    .winter::after {
-      background:
-        radial-gradient(ellipse 70% 40% at 15% 65%, rgba(160, 180, 220, 0.22) 0%, transparent 55%),
-        radial-gradient(ellipse 90% 45% at 85% 35%, rgba(220, 230, 255, 0.15) 0%, transparent 52%);
-    }
+    .nav span { opacity: 0.7; }
+    .nav a { color: #fff; margin-left: 0.5rem; }
   </style>
 </head>
 <body>
-  <nav class="toc" aria-label="Jump to season">
-    <a href="#spring">Spring</a>
-    <a href="#summer">Summer</a>
-    <a href="#monsoon">Monsoon</a>
-    <a href="#autumn">Autumn</a>
-    <a href="#prewinter">Pre-winter</a>
-    <a href="#winter">Winter</a>
+  <nav class="nav">
+    <span style="opacity:0.7">Jump:</span>
+    <a href="#spring" style="color:#fff;margin-left:0.5rem">Spring</a>
+    <a href="#summer" style="color:#fff;margin-left:0.5rem">Summer</a>
+    <a href="#monsoon" style="color:#fff;margin-left:0.5rem">Monsoon</a>
+    <a href="#autumn" style="color:#fff;margin-left:0.5rem">Autumn</a>
+    <a href="#prewinter" style="color:#fff;margin-left:0.5rem">Pre-winter</a>
+    <a href="#winter" style="color:#fff;margin-left:0.5rem">Winter</a>
   </nav>
 
-  <section id="spring" class="panel spring" aria-label="Spring theme">
-    <div class="label">
-      <h2>Spring</h2>
-      <p>Bloom dusk — soft coral &amp; magenta ribbons, fresh green, sky blue. Feels like longer days and new growth (CSS only, ~0 KB assets).</p>
-    </div>
+  <section id="spring" class="panel spring" aria-label="Spring">
+    <h2>Spring</h2>
+    <p>Coral, sky, deep green — CSS gradients only.</p>
   </section>
 
-  <section id="summer" class="panel summer" aria-label="Summer theme">
-    <div class="label">
-      <h2>Summer</h2>
-      <p>Heat haze — warm gold and saffron arcs, hint of deep sky teal. Bright but grounded in dark green base.</p>
-    </div>
+  <section id="summer" class="panel summer" aria-label="Summer">
+    <h2>Summer</h2>
+    <p>Warm highlights, teal depth, dark green base.</p>
   </section>
 
-  <section id="monsoon" class="panel monsoon" aria-label="Monsoon theme">
-    <div class="label">
-      <h2>Monsoon</h2>
-      <p>Heavy sky — slate, teal, cool violet edges. Same “aurora” structure as your current green gradients, cooler and more saturated blues.</p>
-    </div>
+  <section id="monsoon" class="panel monsoon" aria-label="Monsoon">
+    <h2>Monsoon</h2>
+    <p>Slate/teal rainscape.</p>
   </section>
 
-  <section id="autumn" class="panel autumn" aria-label="Autumn theme">
-    <div class="label">
-      <h2>Autumn</h2>
-      <p>Ember flow — rust, amber, wine. Warm ribbons on a dark earthy base (evokes your leaf reference without a bitmap).</p>
-    </div>
+  <section id="autumn" class="panel autumn" aria-label="Autumn">
+    <h2>Autumn</h2>
+    <p>Warm amber/rust on earthy base.</p>
   </section>
 
-  <section id="prewinter" class="panel prewinter" aria-label="Pre-winter theme">
-    <div class="label">
-      <h2>Pre-winter</h2>
-      <p>Transition — dusty mauve, grey-amber, muted sage. Softer contrast; reads as “shoulder season.”</p>
-    </div>
+  <section id="prewinter" class="panel prewinter" aria-label="Pre-winter">
+    <h2>Pre-winter</h2>
+    <p>Muted mauve and grey transition.</p>
   </section>
 
-  <section id="winter" class="panel winter" aria-label="Winter theme">
-    <div class="label">
-      <h2>Winter</h2>
-      <p>Frost — icy blue and silver ribbons, faint violet. Crisp and cool; pairs well with white UI chrome.</p>
-    </div>
+  <section id="winter" class="panel winter" aria-label="Winter">
+    <h2>Winter</h2>
+    <p>Icy sky tint, navy base.</p>
   </section>
 </body>
 </html>
