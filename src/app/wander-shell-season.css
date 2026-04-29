@@ -373,60 +373,60 @@
     inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
 }
 
-/* ── Winter — frost / ice silver ──────────────────────────────────────────── */
+/* ── Winter — soft silver / warm white frost (not icy blue chrome) ───────── */
 [data-wander-shell-season='winter'] {
-  --background: oklch(0.2 0.045 245);
+  --background: oklch(0.22 0.02 268);
   --foreground: oklch(0.99 0.006 95);
-  --card: oklch(0.28 0.05 242);
+  --card: oklch(0.31 0.022 272);
   --card-foreground: oklch(0.99 0.006 95);
-  --popover: oklch(0.25 0.048 242);
+  --popover: oklch(0.27 0.024 268);
   --popover-foreground: oklch(0.99 0.006 95);
   --primary: #fcba03;
   --primary-foreground: oklch(0.18 0.04 155);
-  --secondary: oklch(0.33 0.055 240);
+  --secondary: oklch(0.34 0.026 265);
   --secondary-foreground: oklch(0.94 0.02 95);
-  --muted: oklch(0.25 0.045 245);
-  --muted-foreground: oklch(0.8 0.03 230);
+  --muted: oklch(0.26 0.024 272);
+  --muted-foreground: oklch(0.82 0.022 95);
   --accent: #fcba03;
   --accent-foreground: oklch(0.18 0.04 155);
   --destructive: oklch(0.58 0.2 25);
-  --border: oklch(0.42 0.07 240);
-  --input: oklch(0.23 0.048 245);
+  --border: oklch(0.44 0.04 265);
+  --input: oklch(0.25 0.024 270);
   --ring: #fef08a;
   --chart-1: #fcba03;
-  --chart-2: oklch(0.68 0.1 230);
-  --chart-3: oklch(0.58 0.12 260);
-  --chart-4: oklch(0.5 0.1 220);
-  --chart-5: oklch(0.42 0.08 250);
-  --sidebar: oklch(0.18 0.042 245);
+  --chart-2: oklch(0.68 0.08 268);
+  --chart-3: oklch(0.58 0.06 275);
+  --chart-4: oklch(0.52 0.05 260);
+  --chart-5: oklch(0.44 0.04 275);
+  --sidebar: oklch(0.2 0.022 270);
   --sidebar-foreground: oklch(0.99 0.006 95);
   --sidebar-primary: #fcba03;
   --sidebar-primary-foreground: oklch(0.18 0.04 155);
-  --sidebar-accent: oklch(0.31 0.05 242);
+  --sidebar-accent: oklch(0.32 0.024 268);
   --sidebar-accent-foreground: oklch(0.99 0.006 95);
-  --sidebar-border: oklch(0.38 0.065 240);
+  --sidebar-border: oklch(0.4 0.038 268);
   --sidebar-ring: #fcba03;
-  --wander-nav-surface: color-mix(in oklab, oklch(0.16 0.048 248) 92%, transparent);
-  --wander-nav-border: color-mix(in oklab, oklch(0.46 0.08 242) 55%, transparent);
-  --wander-nav-outer-border: oklch(0.38 0.08 248 / 0.52);
-  --wander-footer-surface: color-mix(in oklab, oklch(0.14 0.045 250) 96%, transparent);
-  --wander-footer-border: color-mix(in oklab, oklch(0.4 0.07 240) 45%, transparent);
-  --wander-footer-outer-border: oklch(0.34 0.08 250 / 0.5);
-  --wander-footer-muted: color-mix(in oklab, white 72%, oklch(0.52 0.05 245));
-  --wander-frost-chrome-card: oklch(0.28 0.05 242);
-  --wander-frost-chrome-border: oklch(0.44 0.08 240);
-  --wander-inset-panel: oklch(0.15 0.048 248 / 0.75);
-  --wander-textured-edge: oklch(0.55 0.08 230 / 0.2);
-  --wander-textured-vignette: oklch(0.04 0.05 260 / 0.58);
+  --wander-nav-surface: color-mix(in oklab, oklch(0.2 0.022 272) 92%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.48 0.05 265) 55%, transparent);
+  --wander-nav-outer-border: oklch(0.4 0.05 272 / 0.52);
+  --wander-footer-surface: color-mix(in oklab, oklch(0.17 0.022 268) 96%, transparent);
+  --wander-footer-border: color-mix(in oklab, oklch(0.42 0.04 268) 45%, transparent);
+  --wander-footer-outer-border: oklch(0.38 0.045 275 / 0.5);
+  --wander-footer-muted: color-mix(in oklab, white 78%, oklch(0.52 0.035 268));
+  --wander-frost-chrome-card: oklch(0.31 0.022 272);
+  --wander-frost-chrome-border: oklch(0.45 0.04 268);
+  --wander-inset-panel: oklch(0.17 0.024 270 / 0.75);
+  --wander-textured-edge: color-mix(in oklab, white 18%, transparent);
+  --wander-textured-vignette: oklch(0.05 0.03 268 / 0.52);
 }
 
 [data-wander-shell-season='winter'] .wander-textured {
   position: relative;
-  background-color: #0e141c;
+  background-color: #14161c;
   background-image:
-    radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, oklch(0.04 0.05 260 / 0.7) 100%),
-    radial-gradient(95% 75% at 50% 0%, rgba(200, 230, 255, 0.22) 0%, transparent 48%),
-    linear-gradient(180deg, #0e141c 0%, #151c28 55%, #101820 100%);
+    radial-gradient(ellipse 105% 100% at 50% 48%, transparent 0%, oklch(0.06 0.025 270 / 0.65) 100%),
+    radial-gradient(95% 75% at 50% 0%, rgba(255, 253, 250, 0.2) 0%, transparent 50%),
+    linear-gradient(180deg, #14161c 0%, #1a1d26 52%, #13151c 100%);
   background-repeat: no-repeat;
   box-shadow:
     inset 0 1px 0 0 var(--wander-textured-edge),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Bell, X, MessageCircle, CreditCard, Phone, Users } from 'lucide-react'
@@ -45,6 +45,8 @@ export function NotificationBell({
   const rootRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  /** Viewport-fixed coords so the sheet stays under the bell (not anchored to scaled/clipped portals). */
+  const [belowPanelStyle, setBelowPanelStyle] = useState<CSSProperties | undefined>(undefined)
 
   // Dom-only portal container under the wander shell subtree (inherits season tokens). ESLint suppresses needed for setState syncing portal node.
   /* eslint-disable react-hooks/set-state-in-effect -- mounting portal container is an external DOM subtree */
@@ -121,6 +123,40 @@ export function NotificationBell({
     }
   }, [userId])
 
+  const portalWanderBelow = wanderNav && placement === 'below'
+
+  useLayoutEffect(() => {
+    if (!(open && portalWanderBelow)) {
+      setBelowPanelStyle(undefined)
+      return
+    }
+    function place() {
+      const el = rootRef.current
+      if (!el || typeof window === 'undefined') return
+      const r = el.getBoundingClientRect()
+      const vw = window.innerWidth
+      const margin = 8
+      const width = Math.min(320, vw - margin * 2)
+      let left = r.right - width
+      if (left < margin) left = margin
+      if (left + width > vw - margin) left = Math.max(margin, vw - margin - width)
+      setBelowPanelStyle({
+        position: 'fixed',
+        top: Math.round(r.bottom + 8),
+        left: Math.round(left),
+        width: Math.round(width),
+        zIndex: 9999,
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, portalWanderBelow])
+
   // Close on outside click (trigger lives in rootRef; panel is portaled)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -164,26 +200,27 @@ export function NotificationBell({
     }
   }, [])
 
-  const portalWanderBelow = wanderNav && placement === 'below'
-  const belowPlacementClass =
-    placement === 'below'
-      ? portalWanderBelow
-        ? 'fixed left-2 right-2 top-14 z-[9999] sm:left-auto sm:right-4 sm:top-16 sm:w-80'
-        : 'fixed left-2 right-2 top-14 z-[200] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
+  /** Non-wander: fixed under navbar; anchored right on sm+ via absolute within relative root (no portal). */
+  const belowPlacementClassNonWander =
+    placement === 'below' && !portalWanderBelow
+      ? 'fixed left-4 right-auto top-14 z-[200] flex flex-col max-h-[min(85vh,calc(100vh-2rem))] sm:absolute sm:inset-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80 max-w-[min(20rem,calc(100vw-2rem))]'
       : ''
 
   const panel = open ? (
     <div
       ref={panelRef}
       data-notif-panel
+      style={portalWanderBelow && placement === 'below' ? belowPanelStyle : undefined}
       className={cn(
         'overflow-hidden shadow-2xl transform-gpu',
         wanderNav
-          ? 'glass-modal rounded-2xl text-white pointer-events-auto'
+          ? 'glass-modal rounded-2xl text-white pointer-events-auto flex flex-col max-h-[min(85vh,calc(100vh-2rem))]'
           : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
-        placement === 'below'
-          ? belowPlacementClass
-          : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col z-[200]',
+        placement === 'below' && portalWanderBelow
+          ? undefined
+          : placement === 'below'
+            ? belowPlacementClassNonWander
+            : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col z-[200]',
       )}
     >
       <div

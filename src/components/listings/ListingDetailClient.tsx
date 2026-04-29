@@ -574,7 +574,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
 
       {/* Sidebar - Booking form */}
       <div className="lg:col-span-1 order-first lg:order-none">
-        <div className="sticky top-6 rounded-xl border border-border bg-card p-6 space-y-4 max-h-[calc(100vh-24px)] overflow-y-auto">
+        <div className="glass-card sticky top-6 space-y-4 border-0 bg-transparent p-6 text-card-foreground max-h-[calc(100vh-24px)] overflow-y-auto">
 
           {isRental && items.length > 0 ? (
             /* ── Rental cart sidebar ── */

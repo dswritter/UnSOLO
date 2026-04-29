@@ -165,28 +165,23 @@
   opacity: 0.88;
 }
 
-/* ── Autumn — blurred tiny back leaves + sharp front leaves ────────────────── */
+/* ── Autumn — soft rust / amber wash only (no illustrated leaves; matches wander-textured spirit) ─ */
 [data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--back {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cg fill-opacity='0.55'%3E%3Cpath fill='%239a3412' d='M40 60c6-12 20-14 28-5 4 14-8 28-20 32-2-8 2-18-8-27z'/%3E%3Cpath fill='%23c2410c' d='M120 40c8-10 24-6 30 6-6 16-22 18-30 4z'/%3E%3Cpath fill='%23ea580c' d='M220 90c10-8 26-2 32 12-8 18-30 20-38 2z'/%3E%3Cpath fill='%23b45309' d='M360 55c12-6 24 6 20 22-10 14-28 10-34-8z'/%3E%3Cpath fill='%239a3412' d='M80 180c14-10 32-4 38 12-10 22-34 24-44 4z'/%3E%3Cpath fill='%23f97316' d='M200 200c8-14 28-12 34 8-6 20-28 24-38 6z'/%3E%3Cpath fill='%23c2410c' d='M340 180c16-8 30 4 26 20-12 12-30 8-38-6z'/%3E%3Cpath fill='%23b45309' d='M60 320c12-16 36-12 42 8-8 24-38 30-50 8z'/%3E%3Cpath fill='%23ea580c' d='M180 340c10-12 30-8 36 10-10 20-32 22-42 4z'/%3E%3Cpath fill='%239a3412' d='M300 300c14-10 32-2 36 16-12 18-34 14-42-6z'/%3E%3Cpath fill='%23fb923c' d='M400 260c10-10 28-4 32 14-14 16-32 12-40-8z'/%3E%3Cpath fill='%23c2410c' d='M100 400c16-18 40-14 46 10-10 28-44 36-58 10z'/%3E%3Cpath fill='%23d97706' d='M250 420c12-14 34-10 40 12-12 22-38 26-48 4z'/%3E%3Cpath fill='%23b45309' d='M420 380c14-12 32 2 28 24-16 14-36 6-44-12z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 85% auto;
-  background-position: 48% 40%;
-  background-repeat: no-repeat;
-  filter: blur(1.25px);
-  opacity: 0.45;
-  animation: trip-bd-leaves-far 32s ease-in-out infinite alternate;
+  background:
+    radial-gradient(ellipse 95% 70% at 48% 38%, oklch(0.46 0.1 48 / 0.16) 0%, transparent 58%),
+    radial-gradient(ellipse 80% 50% at 12% 22%, oklch(0.42 0.11 42 / 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 88% 28%, oklch(0.38 0.09 55 / 0.1) 0%, transparent 52%);
+  animation: trip-bd-drift 28s ease-in-out infinite alternate;
+  opacity: 0.75;
 }
 [data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--mid {
-  background: radial-gradient(ellipse 85% 60% at 50% 105%, oklch(0.14 0.05 38 / 0.45) 0%, transparent 58%);
+  background: radial-gradient(ellipse 88% 62% at 50% 102%, oklch(0.14 0.05 38 / 0.42) 0%, transparent 58%);
   mix-blend-mode: multiply;
-  opacity: 0.55;
+  opacity: 0.48;
 }
 [data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--front {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 560'%3E%3Cg fill-opacity='0.88'%3E%3Cpath fill='%23c2410c' d='M48 56c10-20 32-24 44-8 8 24-16 48-38 56-4-16 4-34-6-48z'/%3E%3Cpath fill='%23ea580c' d='M280 88c-8-18 14-38 32-30 12 16-2 40-20 52-14-8-10-16-12-22z'/%3E%3Cpath fill='%23f97316' d='M96 240c16-12 42-4 50 18-10 26-44 30-60 14 4-12 6-22 10-32z'/%3E%3Cpath fill='%23b45309' d='M220 200c22-6 42 12 36 34-14 20-48 16-58-10 10-8 16-16 22-24z'/%3E%3Cpath fill='%23d97706' d='M64 400c14-22 48-18 56 10-6 28-46 36-62 16 2-10 4-18 6-26z'/%3E%3Cpath fill='%23fb923c' d='M200 460c20-10 38 10 32 32-18 16-44 6-52-14 8-6 14-12 20-18z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: min(100%, 34rem) auto;
-  background-position: 58% 32%;
-  background-repeat: no-repeat;
-  animation: trip-bd-leaves-near 20s ease-in-out infinite alternate;
-  opacity: 0.82;
+  background: linear-gradient(172deg, transparent 38%, oklch(0.1 0.04 42 / 0.22) 100%);
+  opacity: 0.78;
 }
 
 /* ── Pre-winter — mist ─────────────────────────────────────────────────────── */
@@ -277,24 +272,6 @@
   to {
     background-position:
       10px 28px, -8px 22px, 12px 26px, -6px 30px, 0 0;
-  }
-}
-
-@keyframes trip-bd-leaves-far {
-  from {
-    transform: translate3d(-0.8%, 0.8%, 0) scale(1);
-  }
-  to {
-    transform: translate3d(0.8%, -0.8%, 0) scale(1.03);
-  }
-}
-
-@keyframes trip-bd-leaves-near {
-  from {
-    transform: translate3d(0, 1.5%, 0) rotate(-0.8deg);
-  }
-  to {
-    transform: translate3d(0, -1.5%, 0) rotate(0.8deg);
   }
 }
 

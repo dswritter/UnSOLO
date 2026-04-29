@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award, Mountain } from 'lucide-react'
-import { formatPrice, formatDate } from '@/lib/utils'
+import { formatPrice, formatDate, cn } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -470,7 +470,11 @@ export default async function PackageDetailPage({
           {/* Sidebar - Booking / Join */}
           <div className="lg:col-span-1">
             <div className="lg:sticky lg:top-20">
-              <Card className="bg-card border-border">
+              <Card
+                className={cn(
+                  'glass-card overflow-hidden rounded-xl border-0 bg-transparent py-4 ring-0 shadow-none text-card-foreground',
+                )}
+              >
                 <CardContent className="p-6 space-y-4">
                   {isCommunityTrip ? (
                     communityDirectCheckout ? (
