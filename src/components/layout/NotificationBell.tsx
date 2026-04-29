@@ -58,7 +58,7 @@ export function NotificationBell({
     }
 
     const shell = rootRef.current?.closest('[data-wander-shell-season]')
-    const parent: HTMLElement = shell ?? document.body
+    const parent: HTMLElement = shell instanceof HTMLElement ? shell : document.body
     const host = document.createElement('div')
     host.setAttribute('data-wander-notif-portal', '')
     host.className = 'pointer-events-none fixed inset-0 z-[9998]'
