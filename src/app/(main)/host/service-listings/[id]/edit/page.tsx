@@ -46,6 +46,8 @@ export default async function EditServiceListingPage({ params, searchParams }: P
     listServiceListingItems(id),
     fetchServiceBookingCountsForListings(supabase, [id]),
   ])
+  if ('error' in itemsResult) notFound()
+  const items = itemsResult.items
   const maxItemMs = items.reduce(
     (m, it) =>
       Math.max(m, Math.max(new Date(it.updated_at).getTime(), new Date(it.created_at).getTime())),
