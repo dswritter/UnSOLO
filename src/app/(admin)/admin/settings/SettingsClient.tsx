@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition, useCallback, useMemo, type Dispatch, type SetStateAction } from 'react'
+import { useState, useTransition, useCallback, useMemo, useRef, type Dispatch, type SetStateAction } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -25,6 +26,7 @@ import {
   type WanderThemeMode,
 } from '@/lib/wander/wander-season-shared'
 import { WanderHeroImageField } from './WanderHeroImageField'
+import { revalidatePlatformSettingsCache } from '@/actions/platform-settings-cache'
 
 interface Setting {
   key: string
@@ -253,9 +255,12 @@ function insertTokenIntoField(
 }
 
 export default function SettingsClient({ settings: initialSettings }: { settings: Setting[] }) {
-  const [settings, setSettings] = useState<Record<string, string>>(() =>
-    buildInitialSettingsMap(initialSettings)
-  )
+  const router = useRouter()
+  const [settings, setSettings] = useState(() => buildInitialSettingsMap(initialSettings))
+  const savedBaselineRef = useRef<Record<string, string> | null>(null)
+  if (savedBaselineRef.current === null) {
+    savedBaselineRef.current = buildInitialSettingsMap(initialSettings)
+  }
   const [generalOpen, setGeneralOpen] = useState(false)
   const [shareSectionOpen, setShareSectionOpen] = useState(false)
   const [refundOpenByKey, setRefundOpenByKey] = useState<Record<string, boolean>>({})
@@ -315,21 +320,35 @@ export default function SettingsClient({ settings: initialSettings }: { settings
         }
       }
 
+      const baseline = savedBaselineRef.current!
+      const rows = Object.entries(settings)
+        .filter(([key, value]) => (value ?? '') !== (baseline[key] ?? ''))
+        .map(([key, value]) => ({
+          key,
+          value: value ?? '',
+          updated_at: new Date().toISOString(),
+        }))
+
+      if (rows.length === 0) {
+        toast.message('Nothing to save', { description: 'Change a setting first.' })
+        return
+      }
+
       const supabase = createClient()
-      const updatedAt = new Date().toISOString()
-      const rows = Object.entries(settings).map(([key, value]) => ({
-        key,
-        value: value ?? '',
-        updated_at: updatedAt,
-      }))
-      // Single round-trip: sequential per-key upserts can trip the browser client's
-      // Web Locks–based session layer ("Lock broken by another request with the 'steal' option").
       const { error } = await supabase.from('platform_settings').upsert(rows, { onConflict: 'key' })
       if (error) {
         toast.error(`Failed to save settings: ${error.message}`)
-      } else {
-        toast.success('Settings saved!')
+        return
       }
+
+      savedBaselineRef.current = { ...settings }
+      try {
+        await revalidatePlatformSettingsCache()
+      } catch {
+        /* revalidate is best-effort; DB is already updated */
+      }
+      router.refresh()
+      toast.success('Settings saved!')
     })
   }
 

@@ -1,223 +1,243 @@
 /**
- * Trip package detail — fills right column below booking card with light-weight,
- * season-matched décor. Scoped by `data-wander-shell-season` from main layout.
- * Respects prefers-reduced-motion.
+ * Package trip detail — full-bleed seasonal atmosphere (no box border).
+ * Scoped by `data-wander-shell-season` on the root layout. `prefers-reduced-motion` disables motion.
  */
 
-.trip-detail-season-decor {
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  min-height: min(72vh, 36rem);
-  border-radius: var(--radius-2xl);
-  border: 1px solid color-mix(in oklab, white 12%, var(--border));
-  background: color-mix(in oklab, var(--card) 42%, transparent);
-  overflow: hidden;
+.trip-detail-season-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   pointer-events: none;
+  overflow: hidden;
+  /* Feather into page so it reads as backdrop, not a card */
+  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 78%);
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 78%);
 }
 
-.trip-detail-season-decor::before,
-.trip-detail-season-decor::after {
+.trip-detail-season-backdrop::before,
+.trip-detail-season-backdrop::after {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: -8%;
   pointer-events: none;
 }
 
-/* ── Default / forest — soft aurora wisps ─────────────────────────────────── */
-[data-wander-shell-season='default'] .trip-detail-season-decor::before {
-  background:
-    radial-gradient(ellipse 80% 50% at 30% 20%, oklch(0.5 0.12 160 / 0.22) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 45% at 85% 60%, oklch(0.42 0.1 155 / 0.18) 0%, transparent 50%);
-  animation: trip-decor-drift 24s ease-in-out infinite alternate;
-}
-[data-wander-shell-season='default'] .trip-detail-season-decor::after {
-  background: radial-gradient(ellipse 100% 80% at 50% 100%, oklch(0.04 0.04 155 / 0.5) 0%, transparent 55%);
-  opacity: 0.9;
+/* Slightly stronger vignette on XL screens so sides melt into shell */
+@media (min-width: 1024px) {
+  .trip-detail-season-backdrop {
+    -webkit-mask-image: radial-gradient(ellipse 92% 80% at 58% 42%, black 18%, transparent 82%);
+    mask-image: radial-gradient(ellipse 92% 80% at 58% 42%, black 18%, transparent 82%);
+  }
 }
 
-/* ── Spring — floating petals ──────────────────────────────────────────────── */
-[data-wander-shell-season='spring'] .trip-detail-season-decor::before {
+/* ── Default — aurora wash ───────────────────────────────────────────────── */
+[data-wander-shell-season='default'] .trip-detail-season-backdrop::before {
   background:
-    radial-gradient(ellipse 12% 8% at 20% 15%, rgba(255, 182, 193, 0.55) 0%, transparent 70%),
-    radial-gradient(ellipse 10% 7% at 75% 25%, rgba(255, 192, 203, 0.45) 0%, transparent 70%),
-    radial-gradient(ellipse 9% 6% at 50% 70%, rgba(255, 218, 185, 0.4) 0%, transparent 70%),
-    radial-gradient(ellipse 11% 7% at 88% 80%, rgba(186, 230, 253, 0.35) 0%, transparent 70%);
-  animation: trip-decor-fall 18s linear infinite;
+    radial-gradient(ellipse 90% 55% at 25% 25%, oklch(0.48 0.11 160 / 0.22) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 50% at 88% 60%, oklch(0.38 0.09 155 / 0.18) 0%, transparent 52%);
+  animation: trip-backdrop-drift 26s ease-in-out infinite alternate;
+  opacity: 0.95;
 }
-[data-wander-shell-season='spring'] .trip-detail-season-decor::after {
-  background: linear-gradient(168deg, transparent 40%, oklch(0.08 0.05 150 / 0.45) 100%);
-}
-
-/* ── Summer — sun pool + heat shimmer ────────────────────────────────────── */
-[data-wander-shell-season='summer'] .trip-detail-season-decor::before {
-  background:
-    radial-gradient(circle 45% at 50% -5%, rgba(255, 220, 100, 0.35) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 40% at 70% 85%, rgba(30, 90, 120, 0.25) 0%, transparent 60%);
-  animation: trip-decor-drift 20s ease-in-out infinite alternate;
-}
-[data-wander-shell-season='summer'] .trip-detail-season-decor::after {
-  background: repeating-linear-gradient(
-    180deg,
-    transparent,
-    transparent 3px,
-    oklch(0.95 0.05 85 / 0.03) 3px,
-    oklch(0.95 0.05 85 / 0.03) 4px
-  );
-  animation: trip-decor-shimmer 4s linear infinite;
-  opacity: 0.5;
-}
-
-/* ── Monsoon — rain streaks ──────────────────────────────────────────────── */
-[data-wander-shell-season='monsoon'] .trip-detail-season-decor::before {
-  background: repeating-linear-gradient(
-    100deg,
-    transparent 0,
-    transparent 9px,
-    oklch(0.92 0.02 230 / 0.12) 9px,
-    oklch(0.92 0.02 230 / 0.12) 10px
-  );
-  animation: trip-decor-rain 0.55s linear infinite;
+[data-wander-shell-season='default'] .trip-detail-season-backdrop::after {
+  background: radial-gradient(ellipse 100% 70% at 50% 100%, oklch(0.06 0.04 155 / 0.4) 0%, transparent 55%);
   opacity: 0.85;
 }
-[data-wander-shell-season='monsoon'] .trip-detail-season-decor::after {
+
+/* ── Spring — petals ─────────────────────────────────────────────────────── */
+[data-wander-shell-season='spring'] .trip-detail-season-backdrop::before {
+  background:
+    radial-gradient(ellipse 14% 10% at 18% 12%, rgba(255, 182, 193, 0.5) 0%, transparent 72%),
+    radial-gradient(ellipse 12% 9% at 78% 22%, rgba(255, 192, 203, 0.42) 0%, transparent 72%),
+    radial-gradient(ellipse 11% 8% at 52% 68%, rgba(255, 218, 185, 0.38) 0%, transparent 72%),
+    radial-gradient(ellipse 13% 9% at 92% 75%, rgba(186, 230, 253, 0.34) 0%, transparent 72%);
+  animation: trip-backdrop-fall 20s linear infinite;
+}
+[data-wander-shell-season='spring'] .trip-detail-season-backdrop::after {
+  background: linear-gradient(170deg, transparent 35%, oklch(0.1 0.05 150 / 0.35) 100%);
+}
+
+/* ── Summer — desert heat: dunes, sun pit, sparse scrub ───────────────────── */
+[data-wander-shell-season='summer'] .trip-detail-season-backdrop::before {
+  background:
+    radial-gradient(circle 55% at 50% -18%, rgba(255, 215, 120, 0.42) 0%, transparent 55%),
+    radial-gradient(ellipse 120% 50% at 50% 108%, rgba(120, 85, 45, 0.35) 0%, transparent 52%),
+    radial-gradient(ellipse 80% 35% at 20% 95%, rgba(160, 110, 60, 0.22) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 30% at 85% 92%, rgba(140, 95, 50, 0.2) 0%, transparent 48%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 120' preserveAspectRatio='xMidYMax slice'%3E%3Cpath fill='%235c4030' fill-opacity='0.35' d='M0 120 L0 85 Q60 72 120 80 T240 78 T360 88 L400 95 L400 120 Z'/%3E%3Cpath fill='%234a3528' fill-opacity='0.28' d='M0 120 L0 98 Q100 88 200 92 T400 102 L400 120 Z'/%3E%3Cpath stroke='%23654538' stroke-opacity='0.4' stroke-width='1.2' fill='none' d='M52 118 L58 96 M188 116 L195 88 M312 118 L320 92'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% min(42%, 14rem);
+  background-position: 0 0, 0 0, 0 0, 0 0, 50% 100%;
+  background-repeat: no-repeat;
+  animation: trip-backdrop-drift 22s ease-in-out infinite alternate;
+  opacity: 1;
+}
+[data-wander-shell-season='summer'] .trip-detail-season-backdrop::after {
+  background:
+    repeating-linear-gradient(
+      175deg,
+      transparent 0 14px,
+      oklch(0.95 0.06 75 / 0.04) 14px 15px
+    ),
+    radial-gradient(ellipse 50% 35% at 72% 18%, oklch(0.95 0.08 85 / 0.12) 0%, transparent 62%);
+  mix-blend-mode: soft-light;
+  animation: trip-backdrop-shimmer 5s linear infinite;
+  opacity: 0.55;
+}
+
+/* ── Monsoon — dotted / star-trail rain (no solid sheets) ───────────────── */
+[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop::before {
   background:
     repeating-linear-gradient(
       102deg,
-      transparent 0,
-      transparent 14px,
-      oklch(0.85 0.03 240 / 0.08) 14px,
-      oklch(0.85 0.03 240 / 0.08) 15px
+      transparent 0 9px,
+      oklch(0.92 0.02 230 / 0.38) 9px 10px,
+      transparent 10px 22px
     ),
-    radial-gradient(ellipse 90% 60% at 50% 0%, oklch(0.35 0.08 220 / 0.35) 0%, transparent 55%);
-  animation: trip-decor-rain-slow 1.1s linear infinite;
-  mix-blend-mode: screen;
+    repeating-linear-gradient(
+      98deg,
+      transparent 0 14px,
+      oklch(0.88 0.03 240 / 0.22) 14px 15px,
+      transparent 15px 34px
+    );
+  background-size: 120% 120%, 140% 140%;
+  animation: trip-backdrop-rain-dots 0.65s linear infinite;
+  opacity: 0.9;
 }
-
-/* ── Autumn — layered fall foliage (SVG) ─────────────────────────────────── */
-[data-wander-shell-season='autumn'] .trip-detail-season-decor::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 520'%3E%3Cg fill='none' opacity='0.92'%3E%3Cpath fill='%23c2410c' d='M42 48c8-18 28-22 40-8 6 22-14 44-34 52-4-14 2-32-6-44z'/%3E%3Cpath fill='%23ea580c' d='M248 72c-6-16 12-34 28-28 10 14-2 36-18 48-12-8-8-14-10-20z'/%3E%3Cpath fill='%23f97316' d='M88 200c14-10 38-4 44 16-8 24-40 28-56 12 4-10 6-20 12-28z'/%3E%3Cpath fill='%23b45309' d='M200 180c20-6 38 10 34 30-12 18-44 14-54-8 8-8 14-14 20-22z'/%3E%3Cpath fill='%23d97706' d='M56 340c12-20 44-16 52 8-4 26-42 34-58 14 2-8 4-16 6-22z'/%3E%3Cpath fill='%239a3412' d='M228 360c-8-18 18-32 36-22 8 16-6 38-24 46-6-8-10-16-12-24z'/%3E%3Cpath fill='%23fb923c' d='M140 420c18-8 34 8 28 28-16 14-40 4-48-12 8-6 14-12 20-16z'/%3E%3Cpath fill='%23c2410c' d='M178 52c-10 2-18-8-12-18 10-6 22 4 24 14-4 2-8 4-12 4z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: 100% auto;
-  background-position: 50% 30%;
-  background-repeat: no-repeat;
-  animation: trip-decor-leaves 22s ease-in-out infinite alternate;
-  opacity: 0.95;
-}
-[data-wander-shell-season='autumn'] .trip-detail-season-decor::after {
+[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop::after {
   background:
-    radial-gradient(ellipse 70% 55% at 50% 110%, oklch(0.15 0.05 35 / 0.65) 0%, transparent 55%),
-    linear-gradient(180deg, transparent 30%, oklch(0.12 0.04 40 / 0.5) 100%);
-  mix-blend-mode: multiply;
-  opacity: 0.7;
-}
-
-/* ── Pre-winter — soft mist bands ────────────────────────────────────────── */
-[data-wander-shell-season='prewinter'] .trip-detail-season-decor::before {
-  background:
-    linear-gradient(165deg, oklch(0.75 0.04 280 / 0.12) 0%, transparent 40%),
-    radial-gradient(ellipse 90% 50% at 60% 70%, oklch(0.55 0.06 50 / 0.15) 0%, transparent 60%);
-  animation: trip-decor-drift 26s ease-in-out infinite alternate;
-}
-[data-wander-shell-season='prewinter'] .trip-detail-season-decor::after {
-  background: radial-gradient(ellipse 80% 70% at 50% 50%, oklch(0.35 0.04 265 / 0.2) 0%, transparent 65%);
-}
-
-/* ── Winter — snow field + snowman (SVG) + flakes ───────────────────────── */
-[data-wander-shell-season='winter'] .trip-detail-season-decor::before {
-  background-image:
-    radial-gradient(circle 1.5px at 12% 18%, white 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 28% 8%, oklch(0.95 0.02 230 / 0.9) 99%, transparent 100%),
-    radial-gradient(circle 2px at 55% 22%, white 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 72% 12%, oklch(0.92 0.02 250 / 0.85) 99%, transparent 100%),
-    radial-gradient(circle 2px at 88% 28%, white 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 18% 45%, oklch(0.9 0.02 240 / 0.8) 99%, transparent 100%),
-    radial-gradient(circle 2px at 44% 38%, white 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 78% 48%, oklch(0.93 0.02 250 / 0.75) 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 92% 55%, white 99%, transparent 100%),
-    radial-gradient(ellipse 120% 55% at 50% 105%, oklch(0.88 0.02 250 / 0.35) 0%, transparent 55%);
+    radial-gradient(circle 1.5px at 15% 25%, oklch(0.95 0.02 230 / 0.55) 99%, transparent 100%),
+    radial-gradient(circle 1px at 42% 38%, oklch(0.92 0.02 235 / 0.45) 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 68% 18%, oklch(0.96 0.01 220 / 0.5) 99%, transparent 100%),
+    radial-gradient(circle 1px at 88% 52%, oklch(0.9 0.02 250 / 0.4) 99%, transparent 100%),
+    radial-gradient(ellipse 95% 55% at 50% -5%, oklch(0.35 0.07 225 / 0.3) 0%, transparent 48%);
   background-size:
-    280% 280%, 280% 280%, 280% 280%, 280% 280%, 280% 280%,
-    280% 280%, 280% 280%, 280% 280%, 280% 280%, 100% 100%;
-  animation: trip-decor-snow 12s linear infinite;
+    180% 180%, 200% 200%, 190% 190%, 210% 210%, 100% 100%;
+  animation: trip-backdrop-rain-sparkle 1.4s linear infinite;
+  mix-blend-mode: screen;
+  opacity: 0.75;
 }
-[data-wander-shell-season='winter'] .trip-detail-season-decor::after {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260' fill='none'%3E%3Ccircle cx='100' cy='208' r='46' fill='oklch(0.92 0.02 250 / 0.92)'/%3E%3Ccircle cx='100' cy='128' r='34' fill='oklch(0.94 0.02 250 / 0.94)'/%3E%3Ccircle cx='100' cy='64' r='26' fill='oklch(0.96 0.02 250 / 0.95)'/%3E%3Ccircle cx='88' cy='54' r='3' fill='%23263e5c'/%3E%3Ccircle cx='112' cy='54' r='3' fill='%23263e5c'/%3E%3Cpath d='M94 68h12l-2 6h-8z' fill='%23ea580c'/%3E%3Cpath stroke='oklch(0.55 0.05 250 / 0.5)' stroke-width='3' stroke-linecap='round' d='M52 118h-22M54 138h-18M148 118h22M146 138h18'/%3E%3C/svg%3E");
+
+/* ── Autumn — leaves ─────────────────────────────────────────────────────── */
+[data-wander-shell-season='autumn'] .trip-detail-season-backdrop::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 560'%3E%3Cg fill-opacity='0.9'%3E%3Cpath fill='%23c2410c' d='M48 56c10-20 32-24 44-8 8 24-16 48-38 56-4-16 4-34-6-48z'/%3E%3Cpath fill='%23ea580c' d='M280 88c-8-18 14-38 32-30 12 16-2 40-20 52-14-8-10-16-12-22z'/%3E%3Cpath fill='%23f97316' d='M96 240c16-12 42-4 50 18-10 26-44 30-60 14 4-12 6-22 10-32z'/%3E%3Cpath fill='%23b45309' d='M220 200c22-6 42 12 36 34-14 20-48 16-58-10 10-8 16-16 22-24z'/%3E%3Cpath fill='%23d97706' d='M64 400c14-22 48-18 56 10-6 28-46 36-62 16 2-10 4-18 6-26z'/%3E%3Cpath fill='%23fb923c' d='M200 460c20-10 38 10 32 32-18 16-44 6-52-14 8-6 14-12 20-18z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: min(100%, 36rem) auto;
+  background-position: 55% 35%;
   background-repeat: no-repeat;
-  background-position: 50% calc(100% - 1.25rem);
-  background-size: min(55%, 11rem) auto;
+  animation: trip-backdrop-leaves 24s ease-in-out infinite alternate;
   opacity: 0.92;
 }
+[data-wander-shell-season='autumn'] .trip-detail-season-backdrop::after {
+  background: radial-gradient(ellipse 85% 60% at 50% 105%, oklch(0.14 0.05 38 / 0.55) 0%, transparent 58%);
+  mix-blend-mode: multiply;
+  opacity: 0.65;
+}
 
-@keyframes trip-decor-drift {
+/* ── Pre-winter — mist ───────────────────────────────────────────────────── */
+[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop::before {
+  background:
+    linear-gradient(168deg, oklch(0.72 0.04 280 / 0.14) 0%, transparent 42%),
+    radial-gradient(ellipse 95% 55% at 62% 72%, oklch(0.5 0.06 55 / 0.16) 0%, transparent 62%);
+  animation: trip-backdrop-drift 28s ease-in-out infinite alternate;
+}
+[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop::after {
+  background: radial-gradient(ellipse 85% 75% at 48% 48%, oklch(0.32 0.04 265 / 0.18) 0%, transparent 68%);
+}
+
+/* ── Winter — snow + snowman ──────────────────────────────────────────────── */
+[data-wander-shell-season='winter'] .trip-detail-season-backdrop::before {
+  background-image:
+    radial-gradient(circle 1.5px at 10% 16%, white 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 26% 10%, oklch(0.95 0.02 230 / 0.95) 99%, transparent 100%),
+    radial-gradient(circle 2px at 54% 20%, white 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 76% 14%, oklch(0.92 0.02 250 / 0.9) 99%, transparent 100%),
+    radial-gradient(circle 2px at 90% 26%, white 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 16% 42%, oklch(0.9 0.02 240 / 0.82) 99%, transparent 100%),
+    radial-gradient(circle 2px at 46% 36%, white 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 82% 46%, oklch(0.93 0.02 250 / 0.78) 99%, transparent 100%),
+    radial-gradient(ellipse 130% 60% at 50% 105%, oklch(0.9 0.02 250 / 0.32) 0%, transparent 58%);
+  background-size:
+    260% 260%, 260% 260%, 260% 260%, 260% 260%, 260% 260%,
+    260% 260%, 260% 260%, 260% 260%, 100% 100%;
+  animation: trip-backdrop-snow 14s linear infinite;
+}
+[data-wander-shell-season='winter'] .trip-detail-season-backdrop::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260' fill='none'%3E%3Ccircle cx='100' cy='208' r='46' fill='oklch(0.92 0.02 250 / 0.88)'/%3E%3Ccircle cx='100' cy='128' r='34' fill='oklch(0.94 0.02 250 / 0.9)'/%3E%3Ccircle cx='100' cy='64' r='26' fill='oklch(0.96 0.02 250 / 0.92)'/%3E%3Ccircle cx='88' cy='54' r='3' fill='%23263e5c'/%3E%3Ccircle cx='112' cy='54' r='3' fill='%23263e5c'/%3E%3Cpath d='M94 68h12l-2 6h-8z' fill='%23ea580c'/%3E%3Cpath stroke='oklch(0.55 0.05 250 / 0.45)' stroke-width='3' stroke-linecap='round' d='M52 118h-22M54 138h-18M148 118h22M146 138h18'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 52% calc(100% - 3rem);
+  background-size: min(40vw, 13rem) auto;
+  opacity: 0.88;
+}
+
+@keyframes trip-backdrop-drift {
   from {
-    transform: translate3d(-1.5%, 0, 0) scale(1);
+    transform: translate3d(-1.2%, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(1.5%, -1%, 0) scale(1.03);
+    transform: translate3d(1.2%, -0.8%, 0) scale(1.02);
   }
 }
 
-@keyframes trip-decor-fall {
+@keyframes trip-backdrop-fall {
   from {
-    transform: translate3d(0, -4%, 0);
+    transform: translate3d(0, -3%, 0);
   }
   to {
-    transform: translate3d(2%, 6%, 0);
+    transform: translate3d(1.5%, 5%, 0);
   }
 }
 
-@keyframes trip-decor-shimmer {
+@keyframes trip-backdrop-shimmer {
   from {
     transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translate3d(0, 12px, 0);
+    transform: translate3d(0, 14px, 0);
   }
 }
 
-@keyframes trip-decor-rain {
-  from {
-    background-position: 0 0;
-  }
-  to {
-    background-position: 14px 22px;
-  }
-}
-
-@keyframes trip-decor-rain-slow {
+@keyframes trip-backdrop-rain-dots {
   from {
     background-position: 0 0, 0 0;
   }
   to {
-    background-position: 18px 28px, 0 0;
+    background-position: 16px 26px, 22px 34px;
   }
 }
 
-@keyframes trip-decor-leaves {
+@keyframes trip-backdrop-rain-sparkle {
   from {
-    transform: translate3d(0, 2%, 0) rotate(-1deg);
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
   }
   to {
-    transform: translate3d(0, -2%, 0) rotate(1deg);
+    background-position:
+      12px 30px, -10px 24px, 14px 28px, -8px 32px, 0 0;
   }
 }
 
-@keyframes trip-decor-snow {
+@keyframes trip-backdrop-leaves {
+  from {
+    transform: translate3d(0, 1.5%, 0) rotate(-0.8deg);
+  }
+  to {
+    transform: translate3d(0, -1.5%, 0) rotate(0.8deg);
+  }
+}
+
+@keyframes trip-backdrop-snow {
   from {
     background-position:
-      0 0, 10% 5%, 20% -2%, 32% 8%, 45% -4%, 55% 6%, 68% -1%, 80% 4%, 92% -3%, 0 0;
+      0 0, 12% 6%, 22% -2%, 34% 8%, 46% -3%, 58% 7%, 70% -1%, 84% 5%, 94% -2%, 0 0;
   }
   to {
     background-position:
-      8px 24px, calc(10% + 6px) calc(5% + 28px), calc(20% - 4px) calc(-2% + 32px), calc(32% + 5px) calc(8% + 26px),
-      calc(45% - 6px) calc(-4% + 30px), calc(55% + 4px) calc(6% + 34px), calc(68% - 3px) calc(-1% + 28px),
-      calc(80% + 5px) calc(4% + 32px), calc(92% - 4px) calc(-3% + 30px), 0 0;
+      6px 22px, calc(12% + 5px) calc(6% + 26px), calc(22% - 4px) calc(-2% + 30px), calc(34% + 4px) calc(8% + 24px),
+      calc(46% - 5px) calc(-3% + 28px), calc(58% + 3px) calc(7% + 32px), calc(70% - 2px) calc(-1% + 26px),
+      calc(84% + 4px) calc(5% + 30px), calc(94% - 3px) calc(-2% + 28px), 0 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trip-detail-season-decor::before,
-  .trip-detail-season-decor::after {
+  .trip-detail-season-backdrop::before,
+  .trip-detail-season-backdrop::after {
     animation: none !important;
   }
 }

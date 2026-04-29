@@ -25,7 +25,7 @@ import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-settings'
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
-import { TripDetailSeasonDecor } from '@/components/packages/TripDetailSeasonDecor'
+import { TripDetailSeasonBackdrop } from '@/components/packages/TripDetailSeasonBackdrop'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile, JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
@@ -220,7 +220,8 @@ export default async function PackageDetailPage({
   return (
     <div className="relative min-h-screen">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
+      <TripDetailSeasonBackdrop />
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         {/* Back */}
         <Link
           href={wanderBackHref}
@@ -466,9 +467,9 @@ export default async function PackageDetailPage({
             />
           </div>
 
-          {/* Sidebar - Booking / Join + seasonal décor (desktop) */}
+          {/* Sidebar - Booking / Join */}
           <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-20 space-y-6">
+            <div className="lg:sticky lg:top-20">
               <Card className="bg-card border-border">
                 <CardContent className="p-6 space-y-4">
                   {isCommunityTrip ? (
@@ -624,7 +625,6 @@ export default async function PackageDetailPage({
                   </div>
                 </CardContent>
               </Card>
-              <TripDetailSeasonDecor />
             </div>
           </div>
         </div>
