@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { Instagram, Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getInitials } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
 import type { WanderRatingHero, WanderStats, WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
 export function WanderHero({
@@ -76,25 +76,28 @@ export function WanderHero({
   }
 
   const instagramHref = heroCopy.instagramUrl
+  const instagramCtaShared = cn(
+    'glass-card flex w-full flex-col gap-2 p-2.5 text-left text-white transition-transform duration-200 hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+  )
   const instagramCta =
     instagramHref != null ? (
       instagramHref.startsWith('/') ? (
-        <Link
-          href={instagramHref}
-          className="mt-4 inline-flex w-fit max-w-full items-center gap-2.5 rounded-full border border-white/18 bg-white/[0.07] px-3.5 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/[0.06] backdrop-blur-md transition-colors hover:bg-white/[0.12] hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <Instagram className="h-4 w-4 shrink-0 text-[#ec4899]" strokeWidth={2} aria-hidden />
-          <span className="min-w-0 truncate">{heroCopy.instagramLabel}</span>
+        <Link href={instagramHref} className={instagramCtaShared}>
+          <span className="flex items-start gap-2">
+            <Instagram className="mt-0.5 h-4 w-4 shrink-0 text-[#f472b6]" strokeWidth={2} aria-hidden />
+            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs">
+              {heroCopy.instagramLabel}
+            </span>
+          </span>
         </Link>
       ) : (
-        <a
-          href={instagramHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-flex w-fit max-w-full items-center gap-2.5 rounded-full border border-white/18 bg-white/[0.07] px-3.5 py-2 text-sm font-medium text-white shadow-sm ring-1 ring-white/[0.06] backdrop-blur-md transition-colors hover:bg-white/[0.12] hover:border-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <Instagram className="h-4 w-4 shrink-0 text-[#ec4899]" strokeWidth={2} aria-hidden />
-          <span className="min-w-0 truncate">{heroCopy.instagramLabel}</span>
+        <a href={instagramHref} target="_blank" rel="noopener noreferrer" className={instagramCtaShared}>
+          <span className="flex items-start gap-2">
+            <Instagram className="mt-0.5 h-4 w-4 shrink-0 text-[#f472b6]" strokeWidth={2} aria-hidden />
+            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs">
+              {heroCopy.instagramLabel}
+            </span>
+          </span>
           <span className="sr-only"> (opens in new tab)</span>
         </a>
       )
@@ -149,7 +152,6 @@ export function WanderHero({
               </p>
               {headlineBlock}
               {subtitleBlock}
-              {instagramCta}
             </div>
             {children ? (
               <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-0">{children}</div>
@@ -157,39 +159,42 @@ export function WanderHero({
           </div>
 
           <div className="flex min-w-0 items-end justify-end self-stretch sm:min-h-[7rem]">
-            <div className="w-[8.5rem] shrink-0 rounded-xl border border-white/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-white/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]">
-              <div className="flex items-start gap-1.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/25">
-                  <Star className="h-4 w-4 text-primary fill-primary" aria-hidden />
+            <div className="flex w-[8.5rem] shrink-0 flex-col items-stretch gap-2.5">
+              {instagramCta}
+              <div className="w-full rounded-xl border border-white/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-white/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]">
+                <div className="flex items-start gap-1.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/25">
+                    <Star className="h-4 w-4 text-primary fill-primary" aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xl font-black text-white leading-none tabular-nums">
+                      {rating.overall.toFixed(1)}
+                      <span className="text-xs font-semibold text-white/50">/5</span>
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xl font-black text-white leading-none tabular-nums">
-                    {rating.overall.toFixed(1)}
-                    <span className="text-xs font-semibold text-white/50">/5</span>
-                  </p>
-                </div>
-              </div>
-              <p className="text-[11px] font-bold leading-tight text-white sm:text-xs">
-                <span className="block">Trusted by {trustLine}</span>
-                <span className="block">solo travelers</span>
-              </p>
-              <div className="flex items-center gap-1.5">
-                <div className="flex -space-x-2">
-                  {rating.recentRaters.slice(0, 5).map(r => (
-                    <Link
-                      key={r.userId}
-                      href={`/profile/${r.username}`}
-                      className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all motion-reduce:transition-none"
-                      title={r.full_name || r.username}
-                    >
-                      <Avatar className="h-6 w-6 border-2 border-background sm:h-7 sm:w-7">
-                        <AvatarImage src={r.avatar_url || ''} alt="" />
-                        <AvatarFallback className="bg-primary/20 text-[9px] font-bold text-primary">
-                          {getInitials(r.full_name || r.username)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Link>
-                  ))}
+                <p className="text-[11px] font-bold leading-tight text-white sm:text-xs">
+                  <span className="block">Trusted by {trustLine}</span>
+                  <span className="block">solo travelers</span>
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex -space-x-2">
+                    {rating.recentRaters.slice(0, 5).map(r => (
+                      <Link
+                        key={r.userId}
+                        href={`/profile/${r.username}`}
+                        className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all motion-reduce:transition-none"
+                        title={r.full_name || r.username}
+                      >
+                        <Avatar className="h-6 w-6 border-2 border-background sm:h-7 sm:w-7">
+                          <AvatarImage src={r.avatar_url || ''} alt="" />
+                          <AvatarFallback className="bg-primary/20 text-[9px] font-bold text-primary">
+                            {getInitials(r.full_name || r.username)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
