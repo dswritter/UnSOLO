@@ -329,7 +329,7 @@ export function Navbar({ user }: NavbarProps) {
                     className={cn(
                       'z-[200] w-60 min-w-[15rem] shadow-lg',
                       isWanderShell
-                        ? 'border border-white/10 bg-card/94 text-white backdrop-blur-xl'
+                        ? 'border border-white/12 bg-[color-mix(in_oklab,var(--card)_82%,transparent)] text-white backdrop-blur-[44px] backdrop-saturate-150'
                         : 'border-border bg-popover text-popover-foreground',
                     )}
                   >

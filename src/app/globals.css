@@ -93,6 +93,10 @@
   --motion-duration-2: 220ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
+  /* Wander “liquid glass” — strong blur + saturation (see .wander-frost*) */
+  --wander-glass-blur: 48px;
+  /* Unitless factor for filter: saturate() — macOS frosting boosts chroma (~1.65–1.85) */
+  --wander-glass-saturate: 1.72;
 }
 
 /* ── UnSOLO Dark Theme — Warm Charcoal + Yellow ──────────── */
@@ -139,13 +143,15 @@
   font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Frosted “glass” surface on top of .wander-theme page bg */
+/* Frosted “glass” on .wander-theme — heavier blur + saturation (macOS-style frosted layer) */
 .wander-frost {
-  background: color-mix(in oklab, var(--card) 72%, transparent);
-  border: 1px solid color-mix(in oklab, white 12%, var(--border));
-  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in oklab, var(--card) 56%, transparent);
+  border: 1px solid color-mix(in oklab, white 16%, var(--border));
+  box-shadow:
+    0 10px 48px oklch(0 0 0 / 0.26),
+    inset 0 1px 0 0 color-mix(in oklab, white 12%, transparent);
+  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
 }
 
 /**
@@ -154,22 +160,37 @@
  * `var(--card)` is still the global light/dark card and would read as greyish white.
  */
 .wander-frost-chrome {
-  background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 72%, transparent);
-  border: 1px solid color-mix(in oklab, white 12%, var(--wander-frost-chrome-border, oklch(0.4 0.08 150)));
-  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 56%, transparent);
+  border: 1px solid color-mix(in oklab, white 14%, var(--wander-frost-chrome-border, oklch(0.4 0.08 150)));
+  box-shadow:
+    0 10px 48px oklch(0 0 0 / 0.26),
+    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent);
+  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
 }
 
 /* Same frosted shell as the /wander search block (radius + padding + glass) */
 .wander-frost-panel {
-  background: color-mix(in oklab, var(--card) 72%, transparent);
-  border: 1px solid color-mix(in oklab, white 12%, var(--border));
-  box-shadow: 0 8px 32px oklch(0 0 0 / 0.18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in oklab, var(--card) 56%, transparent);
+  border: 1px solid color-mix(in oklab, white 14%, var(--border));
+  box-shadow:
+    0 10px 48px oklch(0 0 0 / 0.26),
+    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent);
+  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
   border-radius: var(--radius-2xl);
   padding: 0.75rem 1rem;
+}
+
+/* Trip / listing cards on wander — same glass recipe with card radius from child */
+.wander-theme .wander-frost-card {
+  background: color-mix(in oklab, var(--card) 54%, transparent) !important;
+  border-color: color-mix(in oklab, white 14%, var(--border)) !important;
+  box-shadow:
+    0 10px 44px oklch(0 0 0 / 0.24),
+    inset 0 1px 0 0 color-mix(in oklab, white 9%, transparent);
+  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
 }
 @media (min-width: 640px) {
   .wander-frost-panel {
@@ -181,28 +202,30 @@
 .nav-wander-surface {
   background: var(
     --wander-nav-surface,
-    color-mix(in oklab, oklch(0.16 0.04 155) 92%, transparent)
+    color-mix(in oklab, oklch(0.16 0.04 155) 88%, transparent)
   );
   border-color: var(
     --wander-nav-border,
     color-mix(in oklab, oklch(0.45 0.08 150) 55%, transparent)
   );
   color: oklch(0.97 0.01 90);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 -1px 0 0 color-mix(in oklab, white 6%, transparent);
+  backdrop-filter: blur(36px) saturate(160%);
+  -webkit-backdrop-filter: blur(36px) saturate(160%);
 }
 .footer-wander-surface {
   background: var(
     --wander-footer-surface,
-    color-mix(in oklab, oklch(0.14 0.038 155) 96%, transparent)
+    color-mix(in oklab, oklch(0.14 0.038 155) 90%, transparent)
   );
   border-color: var(
     --wander-footer-border,
     color-mix(in oklab, oklch(0.4 0.07 150) 45%, transparent)
   );
   color: oklch(0.97 0.01 90);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklab, white 5%, transparent);
+  backdrop-filter: blur(32px) saturate(155%);
+  -webkit-backdrop-filter: blur(32px) saturate(155%);
 }
 .footer-wander-surface .text-muted-foreground,
 .footer-wander-surface a {
@@ -210,6 +233,29 @@
 }
 .footer-wander-surface a:hover {
   color: var(--primary);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .wander-frost,
+  .wander-frost-chrome,
+  .wander-frost-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: color-mix(in oklab, var(--card) 92%, transparent);
+  }
+  .wander-frost-chrome {
+    background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 92%, transparent);
+  }
+  .wander-theme .wander-frost-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: color-mix(in oklab, var(--card) 90%, transparent) !important;
+  }
+  .nav-wander-surface,
+  .footer-wander-surface {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 /* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
 .tribe-messaging-ui {

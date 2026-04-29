@@ -70,7 +70,7 @@ export function WanderHero({
           <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3">
             <div className="min-w-0 self-start max-w-3xl">
               <p
-                className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-md ring-1 ring-white/5 sm:text-[13px]"
+                className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-[40px] backdrop-saturate-150 ring-1 ring-white/5 sm:text-[13px]"
                 style={{ WebkitBackdropFilter: 'blur(14px)' }}
               >
                 <ShieldCheck
@@ -95,7 +95,7 @@ export function WanderHero({
           </div>
 
           <div className="flex min-w-0 items-end justify-end self-stretch sm:min-h-[7rem]">
-            <div className="w-[8.5rem] shrink-0 rounded-xl border border-white/15 bg-background/50 p-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md flex flex-col justify-between gap-2.5 ring-1 ring-white/10 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]">
+            <div className="w-[8.5rem] shrink-0 rounded-xl border border-white/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-white/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]">
               <div className="flex items-start gap-1.5">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/25">
                   <Star className="h-4 w-4 text-primary fill-primary" aria-hidden />

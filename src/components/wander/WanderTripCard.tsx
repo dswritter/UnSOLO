@@ -70,7 +70,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
     >
       <Card
         className={cn(
-          'h-full overflow-hidden border-border/80 bg-card/80 py-0 gap-0 transition-all hover:shadow-lg hover:scale-[1.01]',
+          'wander-frost-card h-full overflow-hidden border-border/80 py-0 gap-0 transition-all hover:shadow-lg hover:scale-[1.01]',
           'motion-reduce:transition-none motion-reduce:hover:scale-100',
           pkg.is_featured && 'ring-1 ring-primary/30',
         )}
@@ -98,7 +98,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
               e.stopPropagation()
               toggleWishlist(pkg.id)
             }}
-            className="absolute top-2 right-2 z-10 rounded-full bg-black/40 p-2 backdrop-blur-sm transition-all hover:bg-black/60"
+            className="absolute top-2 right-2 z-10 rounded-full bg-black/35 p-2 backdrop-blur-xl backdrop-saturate-150 transition-all hover:bg-black/55"
             aria-label="Add to wishlist"
           >
             <Heart

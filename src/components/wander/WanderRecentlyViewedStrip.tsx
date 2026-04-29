@@ -21,7 +21,7 @@ export function WanderRecentlyViewedStrip() {
   if (items.length === 0) return null
 
   return (
-    <div className="mb-6 md:mb-8 rounded-2xl border border-white/15 bg-white/[0.06] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.2)] backdrop-blur-md md:p-4">
+    <div className="mb-6 md:mb-8 rounded-2xl border border-white/18 bg-white/[0.05] p-3 shadow-[0_12px_48px_rgba(0,0,0,0.28)] backdrop-blur-[48px] backdrop-saturate-150 md:p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="rounded-full border border-[#fcba03]/40 bg-[#fcba03]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#fcba03]">
           Recently viewed
@@ -33,7 +33,7 @@ export function WanderRecentlyViewedStrip() {
             <button
               type="button"
               onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
-              className="flex items-center gap-2 rounded-xl border border-white/15 bg-card/90 px-3 py-2 pr-7 text-left transition-colors hover:border-primary/40"
+              className="flex items-center gap-2 rounded-xl border border-white/18 bg-[color-mix(in_oklab,var(--card)_52%,transparent)] px-3 py-2 pr-7 text-left shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-[40px] backdrop-saturate-150 transition-colors hover:border-primary/40"
             >
               {rv.image ? (
                 // eslint-disable-next-line @next/next/no-img-element

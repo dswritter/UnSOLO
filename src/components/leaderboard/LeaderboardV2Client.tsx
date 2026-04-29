@@ -36,7 +36,7 @@ function PodiumSlot({
   return (
     <div
       className={cn(
-        'flex flex-col items-center rounded-2xl border border-white/12 bg-white/[0.06] px-3 py-4 text-center shadow-[0_8px_32px_rgba(0,0,0,0.12)] backdrop-blur-[12px] sm:px-4',
+        'flex flex-col items-center rounded-2xl border border-white/15 bg-white/[0.05] px-3 py-4 text-center shadow-[0_12px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px] backdrop-saturate-150 sm:px-4',
         emphasis === 'tall' &&
           'z-[1] border-[#fcba03]/35 bg-[#fcba03]/[0.07] py-5 shadow-[0_12px_40px_rgba(0,0,0,0.2)] sm:py-7',
         emphasis === 'short' && 'opacity-95',
@@ -265,11 +265,11 @@ export function LeaderboardV2Client({
             <div
               className={cn(
                 'overflow-x-auto rounded-2xl border border-white/12',
-                'bg-white/[0.06] shadow-[0_8px_32px_rgba(0,0,0,0.18)] backdrop-blur-[16px]',
+                'bg-white/[0.05] shadow-[0_12px_44px_rgba(0,0,0,0.22)] backdrop-blur-[42px] backdrop-saturate-150',
               )}
             >
               <table className="w-full min-w-[480px] text-left text-sm sm:min-w-[520px]">
-                <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/95 text-[11px] font-semibold uppercase tracking-wide text-white/45 backdrop-blur-sm">
+                <thead className="sticky top-0 z-10 border-b border-white/10 bg-zinc-950/90 text-[11px] font-semibold uppercase tracking-wide text-white/45 backdrop-blur-xl backdrop-saturate-150">
                   <tr>
                     <th className="px-3 py-3 pl-4 sm:px-4">Rank</th>
                     <th className="px-3 py-3 sm:px-4">Traveller</th>
