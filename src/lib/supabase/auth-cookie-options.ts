@@ -36,5 +36,5 @@ export function getSupabaseAuthCookieOptions(): {
       secure: true,
       maxAge: 400 * 24 * 60 * 60,
     },
-  },
+  }
 }
