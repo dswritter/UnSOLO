@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
+
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
 const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact']
 
@@ -59,6 +61,7 @@ export async function proxy(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        ...getSupabaseAuthCookieOptions(),
         cookies: {
           getAll() { return request.cookies.getAll() },
           setAll(cookiesToSet) {
