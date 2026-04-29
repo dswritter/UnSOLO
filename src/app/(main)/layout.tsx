@@ -6,6 +6,7 @@ import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
+import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
 import type { Profile } from '@/types'
 
 export default async function MainLayout({
@@ -41,12 +42,16 @@ export default async function MainLayout({
         h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
         use min-h-0 and scroll only the inner list instead of growing the page.
       */}
-      <main className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto">
+      <main
+        data-wander-main-scroll
+        className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto"
+      >
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
       {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
       <SignInPrompt isAuthenticated={!!user} />
+      <WanderThemeCrossTabSync />
       <FooterWrapper />
     </div>
   )

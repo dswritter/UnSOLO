@@ -27,6 +27,7 @@ import {
 } from '@/lib/wander/wander-season-shared'
 import { WanderHeroImageField } from './WanderHeroImageField'
 import { revalidatePlatformSettingsCache } from '@/actions/platform-settings-cache'
+import { WANDER_THEME_BUMP_STORAGE_KEY } from '@/lib/wander/wander-theme-bump'
 
 interface Setting {
   key: string
@@ -346,6 +347,14 @@ export default function SettingsClient({ settings: initialSettings }: { settings
         await revalidatePlatformSettingsCache()
       } catch {
         /* revalidate is best-effort; DB is already updated */
+      }
+      const themeKeys = new Set(['wander_theme_mode', 'wander_theme_season_manual'])
+      if (rows.some((r) => themeKeys.has(r.key))) {
+        try {
+          localStorage.setItem(WANDER_THEME_BUMP_STORAGE_KEY, String(Date.now()))
+        } catch {
+          /* private / blocked storage */
+        }
       }
       router.refresh()
       toast.success('Settings saved!')

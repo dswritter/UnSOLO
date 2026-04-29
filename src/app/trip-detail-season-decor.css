@@ -1,63 +1,103 @@
 /**
- * Package trip detail — full-bleed seasonal atmosphere (no box border).
- * Scoped by `data-wander-shell-season` on the root layout. `prefers-reduced-motion` disables motion.
+ * Package trip detail — scroll-synced seasonal atmosphere (see TripDetailSeasonBackdrop).
+ * `data-wander-shell-season` on layout. Parallax via --td-par-* from main scroll.
+ * Center-soft mask keeps rich motifs in gutters / negative space over main copy.
  */
 
 .trip-detail-season-backdrop {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 0;
+  min-height: 100%;
   pointer-events: none;
   overflow: hidden;
-  /* Feather into page so it reads as backdrop, not a card */
-  -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 78%);
-  mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 78%);
+  /* Weaker in the reading column; stronger toward sides / top */
+  -webkit-mask-image: radial-gradient(
+    ellipse min(92%, 48rem) min(125%, 52rem) at 50% 34%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.22) 22%,
+    rgba(0, 0, 0, 0.75) 48%,
+    black 100%
+  );
+  mask-image: radial-gradient(
+    ellipse min(92%, 48rem) min(125%, 52rem) at 50% 34%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.22) 22%,
+    rgba(0, 0, 0, 0.75) 48%,
+    black 100%
+  );
 }
 
-.trip-detail-season-backdrop::before,
-.trip-detail-season-backdrop::after {
-  content: '';
-  position: absolute;
-  inset: -8%;
-  pointer-events: none;
-}
-
-/* Slightly stronger vignette on XL screens so sides melt into shell */
 @media (min-width: 1024px) {
   .trip-detail-season-backdrop {
-    -webkit-mask-image: radial-gradient(ellipse 92% 80% at 58% 42%, black 18%, transparent 82%);
-    mask-image: radial-gradient(ellipse 92% 80% at 58% 42%, black 18%, transparent 82%);
+    -webkit-mask-image: radial-gradient(
+      ellipse min(96%, 56rem) min(130%, 58rem) at 52% 32%,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 20%,
+      rgba(0, 0, 0, 0.78) 46%,
+      black 100%
+    );
+    mask-image: radial-gradient(
+      ellipse min(96%, 56rem) min(130%, 58rem) at 52% 32%,
+      transparent 0%,
+      rgba(0, 0, 0, 0.18) 20%,
+      rgba(0, 0, 0, 0.78) 46%,
+      black 100%
+    );
   }
 }
 
-/* ── Default — aurora wash ───────────────────────────────────────────────── */
-[data-wander-shell-season='default'] .trip-detail-season-backdrop::before {
+.trip-detail-season-backdrop__layer {
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: -8%;
+  bottom: -8%;
+  pointer-events: none;
+}
+
+.trip-detail-season-backdrop__layer--back {
+  transform: translate3d(0, var(--td-par-back, 0px), 0);
+}
+.trip-detail-season-backdrop__layer--mid {
+  transform: translate3d(0, var(--td-par-mid, 0px), 0);
+}
+.trip-detail-season-backdrop__layer--front {
+  transform: translate3d(0, var(--td-par-front, 0px), 0);
+}
+
+.trip-detail-season-backdrop__layer-inner {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ── Default — aurora ──────────────────────────────────────────────────────── */
+[data-wander-shell-season='default'] .trip-detail-season-backdrop__layer-inner--back {
   background:
     radial-gradient(ellipse 90% 55% at 25% 25%, oklch(0.48 0.11 160 / 0.22) 0%, transparent 58%),
     radial-gradient(ellipse 70% 50% at 88% 60%, oklch(0.38 0.09 155 / 0.18) 0%, transparent 52%);
-  animation: trip-backdrop-drift 26s ease-in-out infinite alternate;
-  opacity: 0.95;
+  animation: trip-bd-drift 26s ease-in-out infinite alternate;
 }
-[data-wander-shell-season='default'] .trip-detail-season-backdrop::after {
+[data-wander-shell-season='default'] .trip-detail-season-backdrop__layer-inner--front {
   background: radial-gradient(ellipse 100% 70% at 50% 100%, oklch(0.06 0.04 155 / 0.4) 0%, transparent 55%);
-  opacity: 0.85;
 }
 
-/* ── Spring — petals ─────────────────────────────────────────────────────── */
-[data-wander-shell-season='spring'] .trip-detail-season-backdrop::before {
+/* ── Spring — petals ───────────────────────────────────────────────────────── */
+[data-wander-shell-season='spring'] .trip-detail-season-backdrop__layer-inner--back {
   background:
     radial-gradient(ellipse 14% 10% at 18% 12%, rgba(255, 182, 193, 0.5) 0%, transparent 72%),
     radial-gradient(ellipse 12% 9% at 78% 22%, rgba(255, 192, 203, 0.42) 0%, transparent 72%),
     radial-gradient(ellipse 11% 8% at 52% 68%, rgba(255, 218, 185, 0.38) 0%, transparent 72%),
     radial-gradient(ellipse 13% 9% at 92% 75%, rgba(186, 230, 253, 0.34) 0%, transparent 72%);
-  animation: trip-backdrop-fall 20s linear infinite;
+  animation: trip-bd-fall 20s linear infinite;
 }
-[data-wander-shell-season='spring'] .trip-detail-season-backdrop::after {
+[data-wander-shell-season='spring'] .trip-detail-season-backdrop__layer-inner--front {
   background: linear-gradient(170deg, transparent 35%, oklch(0.1 0.05 150 / 0.35) 100%);
 }
 
-/* ── Summer — desert heat: dunes, sun pit, sparse scrub ───────────────────── */
-[data-wander-shell-season='summer'] .trip-detail-season-backdrop::before {
+/* ── Summer — desert ───────────────────────────────────────────────────────── */
+[data-wander-shell-season='summer'] .trip-detail-season-backdrop__layer-inner--back {
   background:
     radial-gradient(circle 55% at 50% -18%, rgba(255, 215, 120, 0.42) 0%, transparent 55%),
     radial-gradient(ellipse 120% 50% at 50% 108%, rgba(120, 85, 45, 0.35) 0%, transparent 52%),
@@ -67,83 +107,101 @@
   background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% min(42%, 14rem);
   background-position: 0 0, 0 0, 0 0, 0 0, 50% 100%;
   background-repeat: no-repeat;
-  animation: trip-backdrop-drift 22s ease-in-out infinite alternate;
-  opacity: 1;
+  animation: trip-bd-drift 22s ease-in-out infinite alternate;
 }
-[data-wander-shell-season='summer'] .trip-detail-season-backdrop::after {
+[data-wander-shell-season='summer'] .trip-detail-season-backdrop__layer-inner--mid {
   background:
     repeating-linear-gradient(
       175deg,
       transparent 0 14px,
-      oklch(0.95 0.06 75 / 0.04) 14px 15px
+      oklch(0.95 0.06 75 / 0.05) 14px 15px
     ),
     radial-gradient(ellipse 50% 35% at 72% 18%, oklch(0.95 0.08 85 / 0.12) 0%, transparent 62%);
   mix-blend-mode: soft-light;
-  animation: trip-backdrop-shimmer 5s linear infinite;
+  animation: trip-bd-shimmer 5s linear infinite;
   opacity: 0.55;
 }
 
-/* ── Monsoon — dotted / star-trail rain (no solid sheets) ───────────────── */
-[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop::before {
-  background:
-    repeating-linear-gradient(
-      102deg,
-      transparent 0 9px,
-      oklch(0.92 0.02 230 / 0.38) 9px 10px,
-      transparent 10px 22px
-    ),
-    repeating-linear-gradient(
-      98deg,
-      transparent 0 14px,
-      oklch(0.88 0.03 240 / 0.22) 14px 15px,
-      transparent 15px 34px
-    );
-  background-size: 120% 120%, 140% 140%;
-  animation: trip-backdrop-rain-dots 0.65s linear infinite;
-  opacity: 0.9;
-}
-[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop::after {
-  background:
-    radial-gradient(circle 1.5px at 15% 25%, oklch(0.95 0.02 230 / 0.55) 99%, transparent 100%),
-    radial-gradient(circle 1px at 42% 38%, oklch(0.92 0.02 235 / 0.45) 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 68% 18%, oklch(0.96 0.01 220 / 0.5) 99%, transparent 100%),
-    radial-gradient(circle 1px at 88% 52%, oklch(0.9 0.02 250 / 0.4) 99%, transparent 100%),
-    radial-gradient(ellipse 95% 55% at 50% -5%, oklch(0.35 0.07 225 / 0.3) 0%, transparent 48%);
-  background-size:
-    180% 180%, 200% 200%, 190% 190%, 210% 210%, 100% 100%;
-  animation: trip-backdrop-rain-sparkle 1.4s linear infinite;
-  mix-blend-mode: screen;
+/* ── Monsoon — depth: far faint dots (slow) + sharp foreground streaks (fast) ─ */
+[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--back {
+  background: repeating-linear-gradient(
+    103deg,
+    transparent 0 11px,
+    oklch(0.9 0.02 240 / 0.14) 11px 12px,
+    transparent 12px 40px
+  );
+  background-size: 130% 130%;
+  filter: blur(0.35px);
+  animation: trip-bd-rain-far 1.05s linear infinite;
   opacity: 0.75;
 }
-
-/* ── Autumn — leaves ─────────────────────────────────────────────────────── */
-[data-wander-shell-season='autumn'] .trip-detail-season-backdrop::before {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 560'%3E%3Cg fill-opacity='0.9'%3E%3Cpath fill='%23c2410c' d='M48 56c10-20 32-24 44-8 8 24-16 48-38 56-4-16 4-34-6-48z'/%3E%3Cpath fill='%23ea580c' d='M280 88c-8-18 14-38 32-30 12 16-2 40-20 52-14-8-10-16-12-22z'/%3E%3Cpath fill='%23f97316' d='M96 240c16-12 42-4 50 18-10 26-44 30-60 14 4-12 6-22 10-32z'/%3E%3Cpath fill='%23b45309' d='M220 200c22-6 42 12 36 34-14 20-48 16-58-10 10-8 16-16 22-24z'/%3E%3Cpath fill='%23d97706' d='M64 400c14-22 48-18 56 10-6 28-46 36-62 16 2-10 4-18 6-26z'/%3E%3Cpath fill='%23fb923c' d='M200 460c20-10 38 10 32 32-18 16-44 6-52-14 8-6 14-12 20-18z'/%3E%3C/g%3E%3C/svg%3E");
-  background-size: min(100%, 36rem) auto;
-  background-position: 55% 35%;
-  background-repeat: no-repeat;
-  animation: trip-backdrop-leaves 24s ease-in-out infinite alternate;
-  opacity: 0.92;
-}
-[data-wander-shell-season='autumn'] .trip-detail-season-backdrop::after {
-  background: radial-gradient(ellipse 85% 60% at 50% 105%, oklch(0.14 0.05 38 / 0.55) 0%, transparent 58%);
-  mix-blend-mode: multiply;
+[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--mid {
+  background:
+    radial-gradient(circle 1px at 15% 25%, oklch(0.95 0.02 230 / 0.35) 99%, transparent 100%),
+    radial-gradient(circle 1px at 42% 38%, oklch(0.92 0.02 235 / 0.28) 99%, transparent 100%),
+    radial-gradient(circle 1.5px at 68% 18%, oklch(0.96 0.01 220 / 0.32) 99%, transparent 100%),
+    radial-gradient(circle 1px at 88% 52%, oklch(0.9 0.02 250 / 0.26) 99%, transparent 100%),
+    radial-gradient(ellipse 95% 55% at 50% -5%, oklch(0.35 0.07 225 / 0.28) 0%, transparent 48%);
+  background-size: 200% 200%, 210% 210%, 195% 195%, 220% 220%, 100% 100%;
+  animation: trip-bd-rain-sparkle 1.5s linear infinite;
+  mix-blend-mode: screen;
   opacity: 0.65;
 }
+[data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--front {
+  background: repeating-linear-gradient(
+    101deg,
+    transparent 0 7px,
+    oklch(0.92 0.02 230 / 0.42) 7px 8px,
+    transparent 8px 20px
+  ),
+  repeating-linear-gradient(
+    98deg,
+    transparent 0 12px,
+    oklch(0.88 0.03 240 / 0.24) 12px 13px,
+    transparent 13px 30px
+  );
+  background-size: 115% 115%, 135% 135%;
+  animation: trip-bd-rain-near 0.55s linear infinite;
+  opacity: 0.88;
+}
 
-/* ── Pre-winter — mist ───────────────────────────────────────────────────── */
-[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop::before {
+/* ── Autumn — blurred tiny back leaves + sharp front leaves ────────────────── */
+[data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cg fill-opacity='0.55'%3E%3Cpath fill='%239a3412' d='M40 60c6-12 20-14 28-5 4 14-8 28-20 32-2-8 2-18-8-27z'/%3E%3Cpath fill='%23c2410c' d='M120 40c8-10 24-6 30 6-6 16-22 18-30 4z'/%3E%3Cpath fill='%23ea580c' d='M220 90c10-8 26-2 32 12-8 18-30 20-38 2z'/%3E%3Cpath fill='%23b45309' d='M360 55c12-6 24 6 20 22-10 14-28 10-34-8z'/%3E%3Cpath fill='%239a3412' d='M80 180c14-10 32-4 38 12-10 22-34 24-44 4z'/%3E%3Cpath fill='%23f97316' d='M200 200c8-14 28-12 34 8-6 20-28 24-38 6z'/%3E%3Cpath fill='%23c2410c' d='M340 180c16-8 30 4 26 20-12 12-30 8-38-6z'/%3E%3Cpath fill='%23b45309' d='M60 320c12-16 36-12 42 8-8 24-38 30-50 8z'/%3E%3Cpath fill='%23ea580c' d='M180 340c10-12 30-8 36 10-10 20-32 22-42 4z'/%3E%3Cpath fill='%239a3412' d='M300 300c14-10 32-2 36 16-12 18-34 14-42-6z'/%3E%3Cpath fill='%23fb923c' d='M400 260c10-10 28-4 32 14-14 16-32 12-40-8z'/%3E%3Cpath fill='%23c2410c' d='M100 400c16-18 40-14 46 10-10 28-44 36-58 10z'/%3E%3Cpath fill='%23d97706' d='M250 420c12-14 34-10 40 12-12 22-38 26-48 4z'/%3E%3Cpath fill='%23b45309' d='M420 380c14-12 32 2 28 24-16 14-36 6-44-12z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 85% auto;
+  background-position: 48% 40%;
+  background-repeat: no-repeat;
+  filter: blur(1.25px);
+  opacity: 0.45;
+  animation: trip-bd-leaves-far 32s ease-in-out infinite alternate;
+}
+[data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--mid {
+  background: radial-gradient(ellipse 85% 60% at 50% 105%, oklch(0.14 0.05 38 / 0.45) 0%, transparent 58%);
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+[data-wander-shell-season='autumn'] .trip-detail-season-backdrop__layer-inner--front {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 560'%3E%3Cg fill-opacity='0.88'%3E%3Cpath fill='%23c2410c' d='M48 56c10-20 32-24 44-8 8 24-16 48-38 56-4-16 4-34-6-48z'/%3E%3Cpath fill='%23ea580c' d='M280 88c-8-18 14-38 32-30 12 16-2 40-20 52-14-8-10-16-12-22z'/%3E%3Cpath fill='%23f97316' d='M96 240c16-12 42-4 50 18-10 26-44 30-60 14 4-12 6-22 10-32z'/%3E%3Cpath fill='%23b45309' d='M220 200c22-6 42 12 36 34-14 20-48 16-58-10 10-8 16-16 22-24z'/%3E%3Cpath fill='%23d97706' d='M64 400c14-22 48-18 56 10-6 28-46 36-62 16 2-10 4-18 6-26z'/%3E%3Cpath fill='%23fb923c' d='M200 460c20-10 38 10 32 32-18 16-44 6-52-14 8-6 14-12 20-18z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: min(100%, 34rem) auto;
+  background-position: 58% 32%;
+  background-repeat: no-repeat;
+  animation: trip-bd-leaves-near 20s ease-in-out infinite alternate;
+  opacity: 0.82;
+}
+
+/* ── Pre-winter — mist ─────────────────────────────────────────────────────── */
+[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop__layer-inner--back {
   background:
     linear-gradient(168deg, oklch(0.72 0.04 280 / 0.14) 0%, transparent 42%),
     radial-gradient(ellipse 95% 55% at 62% 72%, oklch(0.5 0.06 55 / 0.16) 0%, transparent 62%);
-  animation: trip-backdrop-drift 28s ease-in-out infinite alternate;
+  animation: trip-bd-drift 28s ease-in-out infinite alternate;
 }
-[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop::after {
+[data-wander-shell-season='prewinter'] .trip-detail-season-backdrop__layer-inner--front {
   background: radial-gradient(ellipse 85% 75% at 48% 48%, oklch(0.32 0.04 265 / 0.18) 0%, transparent 68%);
 }
 
-/* ── Winter — snow + snowman ──────────────────────────────────────────────── */
-[data-wander-shell-season='winter'] .trip-detail-season-backdrop::before {
+/* ── Winter — snow (back) + snowman in corner only (front) ───────────────── */
+[data-wander-shell-season='winter'] .trip-detail-season-backdrop__layer-inner--back {
   background-image:
     radial-gradient(circle 1.5px at 10% 16%, white 99%, transparent 100%),
     radial-gradient(circle 1.5px at 26% 10%, oklch(0.95 0.02 230 / 0.95) 99%, transparent 100%),
@@ -157,17 +215,17 @@
   background-size:
     260% 260%, 260% 260%, 260% 260%, 260% 260%, 260% 260%,
     260% 260%, 260% 260%, 260% 260%, 100% 100%;
-  animation: trip-backdrop-snow 14s linear infinite;
+  animation: trip-bd-snow 14s linear infinite;
 }
-[data-wander-shell-season='winter'] .trip-detail-season-backdrop::after {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260' fill='none'%3E%3Ccircle cx='100' cy='208' r='46' fill='oklch(0.92 0.02 250 / 0.88)'/%3E%3Ccircle cx='100' cy='128' r='34' fill='oklch(0.94 0.02 250 / 0.9)'/%3E%3Ccircle cx='100' cy='64' r='26' fill='oklch(0.96 0.02 250 / 0.92)'/%3E%3Ccircle cx='88' cy='54' r='3' fill='%23263e5c'/%3E%3Ccircle cx='112' cy='54' r='3' fill='%23263e5c'/%3E%3Cpath d='M94 68h12l-2 6h-8z' fill='%23ea580c'/%3E%3Cpath stroke='oklch(0.55 0.05 250 / 0.45)' stroke-width='3' stroke-linecap='round' d='M52 118h-22M54 138h-18M148 118h22M146 138h18'/%3E%3C/svg%3E");
+[data-wander-shell-season='winter'] .trip-detail-season-backdrop__layer-inner--front {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 260' fill='none'%3E%3Ccircle cx='100' cy='208' r='46' fill='oklch(0.92 0.02 250 / 0.82)'/%3E%3Ccircle cx='100' cy='128' r='34' fill='oklch(0.94 0.02 250 / 0.84)'/%3E%3Ccircle cx='100' cy='64' r='26' fill='oklch(0.96 0.02 250 / 0.86)'/%3E%3Ccircle cx='88' cy='54' r='3' fill='%23263e5c'/%3E%3Ccircle cx='112' cy='54' r='3' fill='%23263e5c'/%3E%3Cpath d='M94 68h12l-2 6h-8z' fill='%23ea580c'/%3E%3Cpath stroke='oklch(0.55 0.05 250 / 0.45)' stroke-width='3' stroke-linecap='round' d='M52 118h-22M54 138h-18M148 118h22M146 138h18'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: 52% calc(100% - 3rem);
-  background-size: min(40vw, 13rem) auto;
-  opacity: 0.88;
+  background-position: left clamp(0.75rem, 4vw, 2.75rem) bottom clamp(18%, 6rem, 42%);
+  background-size: min(30vw, 10rem) auto;
+  opacity: 0.72;
 }
 
-@keyframes trip-backdrop-drift {
+@keyframes trip-bd-drift {
   from {
     transform: translate3d(-1.2%, 0, 0) scale(1);
   }
@@ -176,7 +234,7 @@
   }
 }
 
-@keyframes trip-backdrop-fall {
+@keyframes trip-bd-fall {
   from {
     transform: translate3d(0, -3%, 0);
   }
@@ -185,7 +243,7 @@
   }
 }
 
-@keyframes trip-backdrop-shimmer {
+@keyframes trip-bd-shimmer {
   from {
     transform: translate3d(0, 0, 0);
   }
@@ -194,26 +252,44 @@
   }
 }
 
-@keyframes trip-backdrop-rain-dots {
+@keyframes trip-bd-rain-far {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 10px 18px;
+  }
+}
+
+@keyframes trip-bd-rain-near {
   from {
     background-position: 0 0, 0 0;
   }
   to {
-    background-position: 16px 26px, 22px 34px;
+    background-position: 18px 32px, 22px 38px;
   }
 }
 
-@keyframes trip-backdrop-rain-sparkle {
+@keyframes trip-bd-rain-sparkle {
   from {
     background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
   }
   to {
     background-position:
-      12px 30px, -10px 24px, 14px 28px, -8px 32px, 0 0;
+      10px 28px, -8px 22px, 12px 26px, -6px 30px, 0 0;
   }
 }
 
-@keyframes trip-backdrop-leaves {
+@keyframes trip-bd-leaves-far {
+  from {
+    transform: translate3d(-0.8%, 0.8%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(0.8%, -0.8%, 0) scale(1.03);
+  }
+}
+
+@keyframes trip-bd-leaves-near {
   from {
     transform: translate3d(0, 1.5%, 0) rotate(-0.8deg);
   }
@@ -222,7 +298,7 @@
   }
 }
 
-@keyframes trip-backdrop-snow {
+@keyframes trip-bd-snow {
   from {
     background-position:
       0 0, 12% 6%, 22% -2%, 34% 8%, 46% -3%, 58% 7%, 70% -1%, 84% 5%, 94% -2%, 0 0;
@@ -236,8 +312,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .trip-detail-season-backdrop::before,
-  .trip-detail-season-backdrop::after {
+  .trip-detail-season-backdrop__layer-inner {
     animation: none !important;
   }
 }
