@@ -52,7 +52,7 @@ async function tryEmailHostNewBooking(
   try {
     const { data: hostProf } = await svc.from('profiles').select('email, full_name').eq('id', hostId).maybeSingle()
     const to = hostProf?.email?.trim()
-    if (!to) return
+    if (!hostProf || !to) return
     const { sendHostNewBookingEmail } = await import('@/lib/resend/emails')
     const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
     await sendHostNewBookingEmail({
