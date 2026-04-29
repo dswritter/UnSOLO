@@ -19,7 +19,14 @@ import {
   defaultRentalsRefundTiers,
 } from '@/lib/refund-tiers'
 import { cn } from '@/lib/utils'
-import { DEFAULT_WANDER_TRUST_BADGE_TEXT } from '@/lib/wander/wander-defaults'
+import {
+  DEFAULT_WANDER_HERO_LINE1,
+  DEFAULT_WANDER_LINE2_ACCENT,
+  DEFAULT_WANDER_LINE2_AFTER,
+  DEFAULT_WANDER_LINE2_BEFORE,
+  DEFAULT_WANDER_SUBTITLE,
+  DEFAULT_WANDER_TRUST_BADGE_TEXT,
+} from '@/lib/wander/wander-defaults'
 import {
   isValidManualSeasonValue,
   isValidWanderThemeModeValue,
@@ -28,6 +35,15 @@ import {
 import { WanderHeroImageField } from './WanderHeroImageField'
 import { revalidatePlatformSettingsCache } from '@/actions/platform-settings-cache'
 import { WANDER_THEME_BUMP_STORAGE_KEY } from '@/lib/wander/wander-theme-bump'
+
+const WANDER_HERO_TAIL_KEYS = new Set([
+  'wander_hero_line2_before',
+  'wander_hero_line2_accent',
+  'wander_hero_line2_after',
+  'wander_hero_subtitle',
+  'wander_hero_headline_link_url',
+  'wander_hero_subtitle_link_url',
+])
 
 interface Setting {
   key: string
@@ -81,6 +97,13 @@ const SETTING_LABELS: Record<
     label: 'Wander page — top badge (hero, left)',
     type: 'textarea',
   },
+  wander_hero_line1: { label: 'Wander hero — headline line 1', type: 'text' },
+  wander_hero_line2_before: { label: 'Wander hero — line 2 prefix (before accent word)', type: 'text' },
+  wander_hero_line2_accent: { label: 'Wander hero — accent word(s) on line 2 (brand gold)', type: 'text' },
+  wander_hero_line2_after: { label: 'Wander hero — line 2 suffix (after accent)', type: 'text' },
+  wander_hero_subtitle: { label: 'Wander hero — subtitle paragraph', type: 'textarea' },
+  wander_hero_headline_link_url: { label: 'Wander hero — optional link for headline (path or HTTPS)', type: 'text' },
+  wander_hero_subtitle_link_url: { label: 'Wander hero — optional link for subtitle (path or HTTPS)', type: 'text' },
   wander_theme_mode: {
     label: 'Wander shell — theme mode',
     type: 'text',
@@ -195,6 +218,17 @@ function syntheticGeneralRow(key: string): Setting {
       value: '',
       description: `Text in the top-left /wander pill. Leave empty for the default: “${DEFAULT_WANDER_TRUST_BADGE_TEXT}”.`,
     }
+  }
+  if (key === 'wander_hero_line1') {
+    return {
+      key,
+      value: '',
+      description:
+        'Headline, second line with accent word, and subtitle on /wander. Leave blank for built-in defaults. Optional headline/subtitle links: site path (/explore) or https URL.',
+    }
+  }
+  if (WANDER_HERO_TAIL_KEYS.has(key)) {
+    return { key, value: '', description: null }
   }
   if (key === 'wander_theme_mode') {
     return {
@@ -336,9 +370,25 @@ export default function SettingsClient({ settings: initialSettings }: { settings
       }
 
       const supabase = createClient()
-      const { error } = await supabase.from('platform_settings').upsert(rows, { onConflict: 'key' })
-      if (error) {
-        toast.error(`Failed to save settings: ${error.message}`)
+      const transientAuthLock = (msg: string) => {
+        const m = msg.toLowerCase()
+        return m.includes('stole') || m.includes('auth-token') || (m.includes('released') && m.includes('lock'))
+      }
+      let saveError: { message: string } | null = null
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const { error } = await supabase.from('platform_settings').upsert(rows, { onConflict: 'key' })
+        if (!error) {
+          saveError = null
+          break
+        }
+        saveError = error
+        const msg = error.message ?? ''
+        if (!transientAuthLock(msg)) break
+        if (attempt === 3) break
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)))
+      }
+      if (saveError) {
+        toast.error(`Failed to save settings: ${saveError.message}`)
         return
       }
 
@@ -388,6 +438,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
           <div className="border-t border-border px-4 py-1 bg-card/20">
             {generalSettings.map((s) => {
               const config = SETTING_LABELS[s.key] || { label: s.key, type: 'text' as const }
+              if (WANDER_HERO_TAIL_KEYS.has(s.key)) return null
               if (s.key === 'wander_theme_season_manual') {
                 return null
               }
@@ -490,6 +541,93 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                       className="max-w-xl min-h-[72px] text-sm bg-secondary border-border"
                       spellCheck
                     />
+                  </div>
+                )
+              }
+              if (s.key === 'wander_hero_line1') {
+                return (
+                  <div key="wander-hero-copy" className="space-y-3 border-b border-border/50 py-3 last:border-0">
+                    <div className="min-w-0 sm:max-w-[min(100%,32rem)]">
+                      <div className="text-sm font-medium flex items-center gap-2">
+                        <Settings className="h-3.5 w-3.5 text-primary shrink-0" />
+                        Wander hero — headline & subtitle
+                      </div>
+                      {s.description ? (
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{s.description}</p>
+                      ) : null}
+                    </div>
+                    <div className="grid max-w-xl gap-2">
+                      <label className="text-xs font-medium text-muted-foreground">Line 1 (headline)</label>
+                      <Input
+                        value={settings.wander_hero_line1 || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_line1: e.target.value }))
+                        }
+                        placeholder={DEFAULT_WANDER_HERO_LINE1}
+                        className="bg-secondary border-border h-9"
+                      />
+                      <label className="text-xs font-medium text-muted-foreground mt-2">
+                        Line 2 — prefix, accent, suffix
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          value={settings.wander_hero_line2_before || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({ ...prev, wander_hero_line2_before: e.target.value }))
+                          }
+                          placeholder={DEFAULT_WANDER_LINE2_BEFORE}
+                          className="h-9 min-w-[120px] flex-1 bg-secondary border-border"
+                        />
+                        <Input
+                          value={settings.wander_hero_line2_accent || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({ ...prev, wander_hero_line2_accent: e.target.value }))
+                          }
+                          placeholder={DEFAULT_WANDER_LINE2_ACCENT}
+                          className="h-9 min-w-[140px] flex-1 bg-secondary border-border"
+                        />
+                        <Input
+                          value={settings.wander_hero_line2_after || ''}
+                          onChange={(e) =>
+                            setSettings((prev) => ({ ...prev, wander_hero_line2_after: e.target.value }))
+                          }
+                          placeholder={DEFAULT_WANDER_LINE2_AFTER}
+                          className="h-9 min-w-[80px] flex-1 bg-secondary border-border"
+                        />
+                      </div>
+                      <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle</label>
+                      <Textarea
+                        value={settings.wander_hero_subtitle || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_subtitle: e.target.value }))
+                        }
+                        placeholder={DEFAULT_WANDER_SUBTITLE}
+                        className="min-h-[72px] bg-secondary border-border text-sm"
+                        spellCheck
+                      />
+                      <label className="text-xs font-medium text-muted-foreground mt-2">
+                        Optional headline link (path or https)
+                      </label>
+                      <Input
+                        value={settings.wander_hero_headline_link_url || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_headline_link_url: e.target.value }))
+                        }
+                        placeholder="e.g. /explore"
+                        className="bg-secondary border-border h-9"
+                      />
+                      <label className="text-xs font-medium text-muted-foreground mt-2">
+                        Optional subtitle link (path or https)
+                      </label>
+                      <Input
+                        value={settings.wander_hero_subtitle_link_url || ''}
+                        onChange={(e) =>
+                          setSettings((prev) => ({ ...prev, wander_hero_subtitle_link_url: e.target.value }))
+                        }
+                        placeholder="Leave empty when no link"
+                        className="bg-secondary border-border h-9"
+                      />
+                    </div>
                   </div>
                 )
               }

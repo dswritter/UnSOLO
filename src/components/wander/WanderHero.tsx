@@ -3,26 +3,23 @@ import type { ReactNode } from 'react'
 import { Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
-import type { WanderRatingHero } from '@/lib/wander/wanderQueries'
-import type { WanderStats } from '@/lib/wander/wanderQueries'
+import type { WanderRatingHero, WanderStats, WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
 export function WanderHero({
   rating,
   stats,
   heroImageUrl,
   trustBadgeText,
+  heroCopy,
   children,
   belowHero,
 }: {
   rating: WanderRatingHero
   stats: Pick<WanderStats, 'soloTravelers'>
-  /** From Admin platform_settings `wander_hero_image_url` */
   heroImageUrl: string
-  /** From Admin `wander_trust_badge_text`; product default when empty */
   trustBadgeText: string
-  /** Search / filter bar — placed inside hero so its bottom aligns with the rating card */
+  heroCopy: WanderHeroCopy
   children?: ReactNode
-  /** Status rail + stats row — same hero image extends behind this block */
   belowHero?: ReactNode
 }) {
   const trustLine =
@@ -31,6 +28,52 @@ export function WanderHero({
       : stats.soloTravelers > 0
         ? `${stats.soloTravelers}+`
         : '10K+'
+
+  const headlineInner = (
+    <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]">
+      {heroCopy.line1}
+      <br />
+      {heroCopy.line2Before}
+      <span className="text-primary">{heroCopy.line2Accent}</span>
+      {heroCopy.line2After}
+    </h1>
+  )
+
+  let headlineBlock: ReactNode = headlineInner
+  if (heroCopy.headlineLink) {
+    headlineBlock = heroCopy.headlineLink.startsWith('/') ? (
+      <Link href={heroCopy.headlineLink} className="block rounded-lg outline-offset-[6px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+        {headlineInner}
+      </Link>
+    ) : (
+      <a
+        href={heroCopy.headlineLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block rounded-lg outline-offset-[6px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        {headlineInner}
+      </a>
+    )
+  }
+
+  let subtitleBlock: ReactNode = (
+    <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">{heroCopy.subtitle}</p>
+  )
+  if (heroCopy.subtitleLink) {
+    const subCls =
+      'mt-3 inline-block max-w-2xl text-sm text-white/80 md:text-base rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
+    subtitleBlock =
+      heroCopy.subtitleLink.startsWith('/') ? (
+        <Link href={heroCopy.subtitleLink} className={subCls}>
+          {heroCopy.subtitle}
+        </Link>
+      ) : (
+        <a href={heroCopy.subtitleLink} target="_blank" rel="noopener noreferrer" className={subCls}>
+          {heroCopy.subtitle}
+        </a>
+      )
+  }
 
   return (
     <section className="relative w-full min-h-0 overflow-hidden bg-background">
@@ -71,7 +114,6 @@ export function WanderHero({
             <div className="min-w-0 self-start max-w-3xl">
               <p
                 className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-[40px] backdrop-saturate-150 ring-1 ring-white/5 sm:text-[13px]"
-                style={{ WebkitBackdropFilter: 'blur(14px)' }}
               >
                 <ShieldCheck
                   className="h-4 w-4 shrink-0 text-[#fcba03] mt-0.5"
@@ -80,14 +122,8 @@ export function WanderHero({
                 />
                 <span>{trustBadgeText}</span>
               </p>
-              <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]">
-                Travelling solo?
-                <br />
-                Find your <span className="text-primary">people</span>.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">
-                Trips, stays, experiences and a community for solo travelers.
-              </p>
+              {headlineBlock}
+              {subtitleBlock}
             </div>
             {children ? (
               <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-0">{children}</div>

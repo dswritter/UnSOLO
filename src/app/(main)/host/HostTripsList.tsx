@@ -355,12 +355,12 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                 'rounded-xl border p-4 backdrop-blur-sm transition-all duration-200 group',
                 w
                   ? cn(
-                      'bg-[oklch(0.16_0.038_152/0.92)]',
+                      'bg-[color-mix(in_oklab,var(--card)_88%,transparent)]',
                       deemphasized
                         ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
                         : trip.is_active
-                          ? 'border-white/25'
-                          : 'border-red-400/30',
+                          ? 'border-white/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
+                          : 'border-red-400/30 hover:bg-[color-mix(in_oklab,var(--secondary)_35%,transparent)]',
                     )
                   : cn(
                       'bg-card',

@@ -4,8 +4,80 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
 import type { ServiceEventScheduleEntry } from '@/types'
-import { DEFAULT_WANDER_TRUST_BADGE_TEXT } from '@/lib/wander/wander-defaults'
-export { DEFAULT_WANDER_TRUST_BADGE_TEXT }
+import {
+  DEFAULT_WANDER_HERO_LINE1,
+  DEFAULT_WANDER_LINE2_ACCENT,
+  DEFAULT_WANDER_LINE2_AFTER,
+  DEFAULT_WANDER_LINE2_BEFORE,
+  DEFAULT_WANDER_SUBTITLE,
+  DEFAULT_WANDER_TRUST_BADGE_TEXT,
+} from '@/lib/wander/wander-defaults'
+import { sanitizeAdminPublicHref } from '@/lib/wander/safe-public-link'
+export {
+  DEFAULT_WANDER_TRUST_BADGE_TEXT,
+  DEFAULT_WANDER_HERO_LINE1,
+  DEFAULT_WANDER_LINE2_BEFORE,
+  DEFAULT_WANDER_LINE2_ACCENT,
+  DEFAULT_WANDER_LINE2_AFTER,
+  DEFAULT_WANDER_SUBTITLE,
+}
+
+export type WanderHeroCopy = {
+  line1: string
+  line2Before: string
+  line2Accent: string
+  line2After: string
+  subtitle: string
+  headlineLink: string | null
+  subtitleLink: string | null
+}
+
+const HERO_KEYS = [
+  'wander_hero_line1',
+  'wander_hero_line2_before',
+  'wander_hero_line2_accent',
+  'wander_hero_line2_after',
+  'wander_hero_subtitle',
+  'wander_hero_headline_link_url',
+  'wander_hero_subtitle_link_url',
+] as const
+
+/** Headline lines + subtitle from platform_settings; falsy fields fall back to product defaults. */
+export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
+  const defaults = (): WanderHeroCopy => ({
+    line1: DEFAULT_WANDER_HERO_LINE1,
+    line2Before: DEFAULT_WANDER_LINE2_BEFORE,
+    line2Accent: DEFAULT_WANDER_LINE2_ACCENT,
+    line2After: DEFAULT_WANDER_LINE2_AFTER,
+    subtitle: DEFAULT_WANDER_SUBTITLE,
+    headlineLink: null,
+    subtitleLink: null,
+  })
+  try {
+    const supabase = await createServerClient()
+    const { data } = await supabase.from('platform_settings').select('key, value').in('key', [...HERO_KEYS])
+    const m = Object.fromEntries((data || []).map((r: { key: string; value: string }) => [r.key, r.value ?? '']))
+    const headlineLink = sanitizeAdminPublicHref(m.wander_hero_headline_link_url)
+    const subtitleLink = sanitizeAdminPublicHref(m.wander_hero_subtitle_link_url)
+    const line1 = (m.wander_hero_line1 as string)?.trim()
+    const line2Before = (m.wander_hero_line2_before as string) ?? ''
+    const line2Accent = (m.wander_hero_line2_accent as string) ?? ''
+    const line2After = (m.wander_hero_line2_after as string) ?? ''
+    const subtitle = (m.wander_hero_subtitle as string) ?? ''
+    return {
+      line1: line1 || DEFAULT_WANDER_HERO_LINE1,
+      line2Before: line2Before.trim() !== '' ? line2Before : DEFAULT_WANDER_LINE2_BEFORE,
+      line2Accent: line2Accent.trim() !== '' ? line2Accent : DEFAULT_WANDER_LINE2_ACCENT,
+      line2After: line2After.trim() !== '' ? line2After : DEFAULT_WANDER_LINE2_AFTER,
+      subtitle: subtitle.trim() !== '' ? subtitle : DEFAULT_WANDER_SUBTITLE,
+      headlineLink,
+      subtitleLink,
+    }
+  } catch {
+    /* Supabase down */
+  }
+  return defaults()
+}
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)

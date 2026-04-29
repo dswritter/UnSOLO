@@ -160,13 +160,16 @@
  * `var(--card)` is still the global light/dark card and would read as greyish white.
  */
 .wander-frost-chrome {
-  background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 56%, transparent);
+  /* Slightly more transparent than frost panels — lets backdrop blur read through (popover / chrome UI). */
+  background: color-mix(in oklab, var(--wander-frost-chrome-card, oklch(0.26 0.05 150)) 42%, transparent);
   border: 1px solid color-mix(in oklab, white 14%, var(--wander-frost-chrome-border, oklch(0.4 0.08 150)));
   box-shadow:
     0 10px 48px oklch(0 0 0 / 0.26),
-    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent);
-  backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
-  -webkit-backdrop-filter: blur(var(--wander-glass-blur)) saturate(var(--wander-glass-saturate));
+    inset 0 1px 0 0 color-mix(in oklab, white 10%, transparent));
+  isolation: isolate;
+  transform: translateZ(0);
+  backdrop-filter: blur(calc(var(--wander-glass-blur) + 14px)) saturate(1.78);
+  -webkit-backdrop-filter: blur(calc(var(--wander-glass-blur) + 14px)) saturate(1.78);
 }
 
 /* Same frosted shell as the /wander search block (radius + padding + glass) */
@@ -304,11 +307,6 @@
   background-blend-mode: screen, screen, screen;
   animation: tribe-aurora-pulse 22s ease-in-out infinite alternate;
   will-change: transform, opacity;
-}
-
-.tribe-chat-scroll-pattern > * {
-  position: relative;
-  z-index: 1;
 }
 
 @keyframes tribe-aurora-pulse {

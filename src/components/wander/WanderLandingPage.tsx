@@ -13,6 +13,7 @@ import {
   getListedActivityFilterOptions,
   getWanderHeroImageUrl,
   getWanderTrustBadgeText,
+  getWanderHeroCopy,
 } from '@/lib/wander/wanderQueries'
 import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
@@ -33,13 +34,14 @@ export async function WanderLandingPage({
   const sp = await searchParams
   const isSearchMode = sp.search === '1' || Boolean(sp.tab?.length)
 
-  const [stats, rating, supabase, listedActivities, heroImageUrl, trustBadgeText] = await Promise.all([
+  const [stats, rating, supabase, listedActivities, heroImageUrl, trustBadgeText, heroCopy] = await Promise.all([
     getWanderStats(),
     getWanderRatingHero(),
     createClient(),
     getListedActivityFilterOptions(),
     getWanderHeroImageUrl(),
     getWanderTrustBadgeText(),
+    getWanderHeroCopy(),
   ])
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -91,6 +93,7 @@ export async function WanderLandingPage({
         stats={stats}
         heroImageUrl={heroImageUrl}
         trustBadgeText={trustBadgeText}
+        heroCopy={heroCopy}
         belowHero={
           <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(20rem,30rem)] md:items-stretch md:gap-3">
             <div className="flex min-h-[5.25rem] min-w-0 items-center wander-frost-panel">

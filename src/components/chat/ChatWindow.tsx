@@ -1637,11 +1637,23 @@ export function ChatWindow({
           if (isNearBottom()) setShowJumpButton(false)
         }}
         className={cn(
-          'h-full overflow-y-auto px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
-          tribeShell && 'tribe-chat-scroll-pattern',
+          'h-full overflow-y-auto',
+          tribeShell ? 'relative isolate' : 'px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
         )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
       >
+        {tribeShell ? (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-0 min-h-full overflow-hidden tribe-chat-scroll-pattern tribe-chat-pattern-bg"
+          />
+        ) : null}
+        <div
+          className={cn(
+            tribeShell &&
+              'relative z-[2] px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
+          )}
+        >
         <div className="space-y-5">
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
@@ -1722,6 +1734,7 @@ export function ChatWindow({
             </div>
           )}
           <div ref={bottomRef} />
+        </div>
         </div>
       </div>
       </div>

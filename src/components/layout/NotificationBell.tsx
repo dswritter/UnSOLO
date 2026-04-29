@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Bell, X, MessageCircle, CreditCard, Phone, Users } from 'lucide-react'
 import { cn, timeAgo } from '@/lib/utils'
@@ -38,8 +39,16 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  const ref = useRef<HTMLDivElement>(null)
+  /** Popover portaled to document.body only after mount — avoids SSR hydration issues. */
+  const [mounted, setMounted] = useState(false)
+  /** Trigger + anchored UI (popover portaled to document.body for real backdrop-blur onto page). */
+  const rootRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load notifications
   useEffect(() => {
@@ -88,10 +97,13 @@ export function NotificationBell({
     }
   }, [userId])
 
-  // Close on outside click
+  // Close on outside click (trigger lives in rootRef; panel is portaled)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (rootRef.current?.contains(t)) return
+      if (panelRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -128,8 +140,171 @@ export function NotificationBell({
     }
   }, [])
 
+  const portalWanderBelow = wanderNav && placement === 'below' && mounted
+  const belowPlacementClass =
+    placement === 'below'
+      ? portalWanderBelow
+        ? 'fixed left-2 right-2 top-14 z-[9999] sm:left-auto sm:right-4 sm:top-16 sm:w-80'
+        : 'fixed left-2 right-2 top-14 z-[200] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
+      : ''
+
+  const panel = open ? (
+    <div
+      ref={panelRef}
+      data-notif-panel
+      className={cn(
+        'overflow-hidden shadow-2xl transform-gpu',
+        wanderNav
+          ? 'wander-frost-chrome rounded-2xl text-white'
+          : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
+        placement === 'below'
+          ? belowPlacementClass
+          : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col z-[200]',
+      )}
+    >
+      <div
+        className={cn(
+          'px-4 py-3 flex items-center justify-between border-b',
+          wanderNav ? 'border-white/15' : 'border-border',
+        )}
+      >
+        <span className={cn('text-sm font-black tracking-tight', wanderNav && 'text-white')}>Notifications</span>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAllRead}
+              className={cn(
+                'text-[10px] font-semibold hover:underline',
+                wanderNav ? 'text-[#fcba03] hover:text-[#fcba03]/90' : 'text-primary',
+              )}
+            >
+              Mark all read
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-white/10')}
+          >
+            <X
+              className={cn(
+                'h-3.5 w-3.5',
+                wanderNav ? 'text-white/65 hover:text-white' : 'text-zinc-500',
+              )}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className={cn('min-h-0 overflow-y-auto', placement === 'above' ? 'max-h-72 sm:max-h-80' : 'max-h-80')}>
+        {notifications.length === 0 ? (
+          <div
+            className={cn(
+              'px-4 py-8 text-center text-sm',
+              wanderNav ? 'text-white/55' : 'text-muted-foreground',
+            )}
+          >
+            No notifications yet
+          </div>
+        ) : (
+          notifications.map(n => {
+            const Icon = TYPE_ICONS[n.type] || Bell
+            return (
+              <button
+                key={n.id}
+                type="button"
+                onClick={() => onNotificationClick(n)}
+                className={cn(
+                  'flex items-start gap-3 px-4 py-3 w-full text-left transition-colors border-b last:border-0',
+                  wanderNav
+                    ? cn(
+                        'border-white/10 hover:bg-white/[0.08]',
+                        !n.is_read && 'bg-white/[0.06]',
+                      )
+                    : cn(
+                        'border-border/50 hover:bg-secondary/30',
+                        !n.is_read && 'bg-primary/5',
+                      ),
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
+                    wanderNav
+                      ? !n.is_read
+                        ? 'bg-white/20'
+                        : 'bg-white/12'
+                      : !n.is_read
+                        ? 'bg-primary/20'
+                        : 'bg-secondary',
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      'h-4 w-4',
+                      wanderNav
+                        ? 'text-white'
+                        : !n.is_read
+                          ? 'text-primary'
+                          : 'text-muted-foreground',
+                    )}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <span
+                      className={cn(
+                        'text-xs truncate',
+                        wanderNav
+                          ? !n.is_read
+                            ? 'font-bold text-white'
+                            : 'text-white/85'
+                          : !n.is_read
+                            ? 'font-semibold text-foreground'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      {n.title}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[10px] shrink-0',
+                        wanderNav ? 'text-white/50' : 'text-muted-foreground',
+                      )}
+                    >
+                      {timeAgo(n.created_at)}
+                    </span>
+                  </div>
+                  {n.body && (
+                    <p
+                      className={cn(
+                        'text-xs mt-0.5 line-clamp-3 break-words',
+                        wanderNav ? 'text-white/65' : 'text-muted-foreground',
+                      )}
+                    >
+                      {n.body}
+                    </p>
+                  )}
+                </div>
+                {!n.is_read && (
+                  <span
+                    className={cn(
+                      'h-2 w-2 rounded-full flex-shrink-0 mt-2',
+                      wanderNav ? 'bg-[#fcba03]' : 'bg-primary',
+                    )}
+                  />
+                )}
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  ) : null
+
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={rootRef}>
       <button
         onClick={() => setOpen(!open)}
         className={cn(
@@ -150,158 +325,7 @@ export function NotificationBell({
         )}
       </button>
 
-      {open && (
-        <div
-          className={cn(
-            'overflow-hidden z-[200]',
-            wanderNav
-              ? 'wander-frost-chrome rounded-2xl text-white'
-              : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
-            placement === 'below'
-              ? 'fixed left-2 right-2 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-80'
-              : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col',
-          )}
-        >
-          <div
-            className={cn(
-              'px-4 py-3 flex items-center justify-between border-b',
-              wanderNav ? 'border-white/15' : 'border-border',
-            )}
-          >
-            <span className={cn('text-sm font-black tracking-tight', wanderNav && 'text-white')}>Notifications</span>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={markAllRead}
-                  className={cn(
-                    'text-[10px] font-semibold hover:underline',
-                    wanderNav ? 'text-[#fcba03] hover:text-[#fcba03]/90' : 'text-primary',
-                  )}
-                >
-                  Mark all read
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-white/10')}
-              >
-                <X
-                  className={cn(
-                    'h-3.5 w-3.5',
-                    wanderNav ? 'text-white/65 hover:text-white' : 'text-zinc-500',
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          <div className={cn('min-h-0 overflow-y-auto', placement === 'above' ? 'max-h-72 sm:max-h-80' : 'max-h-80')}>
-            {notifications.length === 0 ? (
-              <div
-                className={cn(
-                  'px-4 py-8 text-center text-sm',
-                  wanderNav ? 'text-white/55' : 'text-muted-foreground',
-                )}
-              >
-                No notifications yet
-              </div>
-            ) : (
-              notifications.map(n => {
-                const Icon = TYPE_ICONS[n.type] || Bell
-                return (
-                  <button
-                    key={n.id}
-                    type="button"
-                    onClick={() => onNotificationClick(n)}
-                    className={cn(
-                      'flex items-start gap-3 px-4 py-3 w-full text-left transition-colors border-b last:border-0',
-                      wanderNav
-                        ? cn(
-                            'border-white/10 hover:bg-white/[0.08]',
-                            !n.is_read && 'bg-white/[0.06]',
-                          )
-                        : cn(
-                            'border-border/50 hover:bg-secondary/30',
-                            !n.is_read && 'bg-primary/5',
-                          ),
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
-                        wanderNav
-                          ? !n.is_read
-                            ? 'bg-white/20'
-                            : 'bg-white/12'
-                          : !n.is_read
-                            ? 'bg-primary/20'
-                            : 'bg-secondary',
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          'h-4 w-4',
-                          wanderNav
-                            ? 'text-white'
-                            : !n.is_read
-                              ? 'text-primary'
-                              : 'text-muted-foreground',
-                        )}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span
-                          className={cn(
-                            'text-xs truncate',
-                            wanderNav
-                              ? !n.is_read
-                                ? 'font-bold text-white'
-                                : 'text-white/85'
-                              : !n.is_read
-                                ? 'font-semibold text-foreground'
-                                : 'text-muted-foreground',
-                          )}
-                        >
-                          {n.title}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-[10px] shrink-0',
-                            wanderNav ? 'text-white/50' : 'text-muted-foreground',
-                          )}
-                        >
-                          {timeAgo(n.created_at)}
-                        </span>
-                      </div>
-                      {n.body && (
-                        <p
-                          className={cn(
-                            'text-xs mt-0.5 line-clamp-3 break-words',
-                            wanderNav ? 'text-white/65' : 'text-muted-foreground',
-                          )}
-                        >
-                          {n.body}
-                        </p>
-                      )}
-                    </div>
-                    {!n.is_read && (
-                      <span
-                        className={cn(
-                          'h-2 w-2 rounded-full flex-shrink-0 mt-2',
-                          wanderNav ? 'bg-[#fcba03]' : 'bg-primary',
-                        )}
-                      />
-                    )}
-                  </button>
-                )
-              })
-            )}
-          </div>
-        </div>
-      )}
+      {open && (portalWanderBelow ? createPortal(panel!, document.body) : panel)}
     </div>
   )
 }

@@ -144,12 +144,12 @@ export function LeaderboardV2Client({
       <div
         className={cn(
           'fixed inset-x-0 bottom-0 top-16 z-10 flex min-h-0 min-w-0 flex-col overflow-y-auto overscroll-y-contain',
-          'bg-gradient-to-b from-[#0c1814] via-[#08120f] to-[#040806] text-white',
+          'text-white bg-transparent',
         )}
       >
         <div
-          className="pointer-events-none absolute inset-0 z-0 [background:radial-gradient(ellipse_90%_70%_at_12%_-10%,rgba(34,197,94,0.22)0%,transparent_52%),radial-gradient(ellipse_60%_50%_at_85%_40%,rgba(6,78,59,0.45)0%,transparent_50%),radial-gradient(ellipse_50%_40%_at_50%_100%,rgba(4,40,32,0.35)0%,transparent_45%)]"
           aria-hidden
+          className="pointer-events-none absolute inset-0 z-0 wander-theme wander-textured [color-scheme:dark]"
         />
         <div className="relative z-[1] mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 pb-10 pt-4 sm:px-6 lg:px-10">
           <div className="shrink-0">

@@ -146,10 +146,12 @@ export default async function HostDashboardPage() {
                 <div
                   key={listing.id}
                   className={cn(
-                    'group rounded-xl border p-4 backdrop-blur-sm bg-[oklch(0.16_0.038_152/0.92)] transition-all duration-200',
+                    'group rounded-xl border p-4 backdrop-blur-sm bg-[color-mix(in_oklab,var(--card)_88%,transparent)] transition-all duration-200',
                     deemphasized
                       ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
-                      : 'border-white/25',
+                      : listing.is_active
+                        ? 'border-white/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
+                        : 'border-white/25',
                     listing.is_active === false && 'border-red-400/30',
                   )}
                 >

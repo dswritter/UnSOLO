@@ -432,3 +432,28 @@
     inset 0 1px 0 0 var(--wander-textured-edge),
     inset 0 0 min(30vw, 24rem) var(--wander-textured-vignette);
 }
+
+/* Tribe chat scrolling column — décor layer only (.tribe-chat-pattern-bg sibling of messages); never filter message bubbles. */
+[data-wander-shell-season='spring'] .tribe-chat-pattern-bg {
+  filter: saturate(1.06) hue-rotate(-28deg);
+}
+[data-wander-shell-season='summer'] .tribe-chat-pattern-bg {
+  filter: saturate(1.07) hue-rotate(14deg);
+}
+[data-wander-shell-season='monsoon'] .tribe-chat-pattern-bg {
+  filter: saturate(1.06) hue-rotate(52deg);
+}
+[data-wander-shell-season='autumn'] .tribe-chat-pattern-bg {
+  filter: saturate(1.05) hue-rotate(148deg);
+}
+[data-wander-shell-season='prewinter'] .tribe-chat-pattern-bg {
+  filter: saturate(0.93) hue-rotate(112deg);
+}
+[data-wander-shell-season='winter'] .tribe-chat-pattern-bg {
+  filter: saturate(0.94) hue-rotate(98deg);
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-wander-shell-season] .tribe-chat-pattern-bg {
+    filter: none;
+  }
+}
