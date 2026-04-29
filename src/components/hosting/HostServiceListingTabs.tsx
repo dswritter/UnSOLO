@@ -56,6 +56,10 @@ interface EditProps extends BaseProps {
   mode: 'edit'
   listing: ServiceListing & { destination_ids?: string[] | null }
   initialItems: ServiceListingItem[]
+  /** Non-cancelled service bookings per item id (server-provided). */
+  bookingCountByItemId?: Record<string, number>
+  /** Total non-cancelled service bookings for this listing. */
+  listingBookingCount?: number
 }
 
 type Props = CreateProps | EditProps
@@ -253,6 +257,8 @@ export function HostServiceListingTabs(props: Props) {
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
+  const bookingCountByItemId = mode === 'edit' ? props.bookingCountByItemId : undefined
+  const listingBookingCount = mode === 'edit' ? props.listingBookingCount : undefined
   const stayLegacyForItems =
     mode === 'edit' && type === 'stays' && initialListing
       ? {
@@ -1664,6 +1670,14 @@ export function HostServiceListingTabs(props: Props) {
               <h3 className="font-semibold">Items</h3>
               <p className="text-xs text-muted-foreground">
                 Add up to 100 items. Each item can have up to 5 photos.
+                {typeof listingBookingCount === 'number' && (
+                  <>
+                    {' '}
+                    <span className="text-foreground/80">
+                      This listing has {listingBookingCount} booking{listingBookingCount === 1 ? '' : 's'} (excludes cancelled).
+                    </span>
+                  </>
+                )}
               </p>
             </div>
             <Button
@@ -1684,6 +1698,12 @@ export function HostServiceListingTabs(props: Props) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">
                     Item {idx + 1}
+                    {mode === 'edit' && draft.dbId && bookingCountByItemId && (
+                      <span className="ml-1.5 font-normal tabular-nums">
+                        · {bookingCountByItemId[draft.dbId] ?? 0} booking
+                        {(bookingCountByItemId[draft.dbId] ?? 0) === 1 ? '' : 's'}
+                      </span>
+                    )}
                   </span>
                   <button
                     type="button"
@@ -1973,7 +1993,14 @@ export function HostServiceListingTabs(props: Props) {
           )}
 
           <div>
-            <h4 className="text-sm font-semibold mb-2">Items ({items.length})</h4>
+            <h4 className="text-sm font-semibold mb-2">
+              Items ({items.length})
+              {typeof listingBookingCount === 'number' && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground tabular-nums">
+                  · {listingBookingCount} booking{listingBookingCount === 1 ? '' : 's'} total
+                </span>
+              )}
+            </h4>
             <ul className="space-y-3">
               {items.map(i => (
                 <li key={i.localKey} className="rounded-lg border border-border p-3">
@@ -1990,6 +2017,15 @@ export function HostServiceListingTabs(props: Props) {
                         ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
                         {(isRental || isActivity || isStay) && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
                         {' · '}{i.maxPerBooking} available · max {i.quantity}/order · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
+                        {mode === 'edit' && i.dbId && bookingCountByItemId && (
+                          <>
+                            {' · '}
+                            <span className="tabular-nums text-foreground/80">
+                              {bookingCountByItemId[i.dbId] ?? 0} booking
+                              {(bookingCountByItemId[i.dbId] ?? 0) === 1 ? '' : 's'}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

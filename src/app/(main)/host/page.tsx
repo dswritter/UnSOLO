@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/hosting'
 import { getPayoutDetails } from '@/actions/payout'
 import { createClient } from '@/lib/supabase/server'
-import { formatPrice, formatDate } from '@/lib/utils'
+import { formatPrice, formatDate, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
 import { hostHiddenStatusClassForest } from '@/components/host/hostBadgeStyles'
-import { cn } from '@/lib/utils'
+import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
@@ -48,7 +48,7 @@ export default async function HostDashboardPage() {
   const { data: serviceListings } = user
     ? await supabase
         .from('service_listings')
-        .select('id, title, type, status, is_active, images')
+        .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at')
         .eq('host_id', user.id)
         .order('created_at', { ascending: false })
     : { data: null }
@@ -56,11 +56,14 @@ export default async function HostDashboardPage() {
   // Best-effort item counts. Returns silently if the items table does not yet
   // exist (migration 049 not applied) so the dashboard still renders.
   const countByListing: Record<string, number> = {}
+  let bookingCountByListing: Record<string, number> = {}
   if (serviceListings && serviceListings.length > 0) {
-    const { data: itemCounts, error: itemCountsError } = await supabase
-      .from('service_listing_items')
-      .select('service_listing_id')
-      .in('service_listing_id', serviceListings.map(l => l.id))
+    const listingIds = serviceListings.map((l) => l.id)
+    const [{ data: itemCounts, error: itemCountsError }, countsResult] = await Promise.all([
+      supabase.from('service_listing_items').select('service_listing_id').in('service_listing_id', listingIds),
+      fetchServiceBookingCountsForListings(supabase, listingIds),
+    ])
+    bookingCountByListing = countsResult.byListingId
     if (!itemCountsError) {
       for (const row of itemCounts || []) {
         countByListing[row.service_listing_id] = (countByListing[row.service_listing_id] || 0) + 1
@@ -124,13 +127,19 @@ export default async function HostDashboardPage() {
           <section className="mt-8">
             <h2 className="text-lg font-bold mb-3 text-white">Your Services</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {serviceListings.map(listing => (
+              {serviceListings.map((listing) => {
+                const deemphasized =
+                  listing.status === 'rejected' || listing.is_active === false
+                const bookingCount = bookingCountByListing[listing.id] ?? 0
+                return (
                 <div
                   key={listing.id}
                   className={cn(
-                    'rounded-xl border p-4 transition-opacity backdrop-blur-sm bg-[oklch(0.16_0.038_152/0.92)]',
-                    listing.is_active === false && 'border-red-400/40 opacity-90',
-                    listing.is_active !== false && 'border-white/25',
+                    'group rounded-xl border p-4 backdrop-blur-sm bg-[oklch(0.16_0.038_152/0.92)] transition-all duration-200',
+                    deemphasized
+                      ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
+                      : 'border-white/25',
+                    listing.is_active === false && 'border-red-400/30',
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -150,6 +159,21 @@ export default async function HostDashboardPage() {
                       </div>
                       <p className="text-xs text-white/75 mt-0.5 capitalize">
                         {String(listing.type).replace('_', ' ')} · {countByListing[listing.id] || 0} item{countByListing[listing.id] === 1 ? '' : 's'}
+                        {' · '}
+                        {bookingCount} booking{bookingCount === 1 ? '' : 's'}
+                      </p>
+                      <p className="text-[11px] text-white/55 mt-1 space-x-2">
+                        <span>
+                          First published:{' '}
+                          {listing.first_approved_at
+                            ? formatDate(listing.first_approved_at)
+                            : 'Not yet'}
+                        </span>
+                        <span className="text-white/35">·</span>
+                        <span>
+                          Last edited:{' '}
+                          {listing.updated_at ? formatDate(listing.updated_at) : '—'}
+                        </span>
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -178,7 +202,8 @@ export default async function HostDashboardPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </section>
         )}

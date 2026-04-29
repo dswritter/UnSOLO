@@ -53,6 +53,8 @@ type Listing = {
   updated_at: string | null
   host?: { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
   items: Item[]
+  booking_count?: number
+  booking_count_by_item_id?: Record<string, number>
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -230,6 +232,25 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           <Field label="About" value={listing.description} highlight={isReReview} />
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-2 text-xs text-muted-foreground">
+          <div className="rounded-lg bg-muted/40 p-3">
+            <p className="font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">First published</p>
+            <p className="mt-0.5 text-sm text-foreground">
+              {listing.first_approved_at
+                ? new Date(listing.first_approved_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+                : 'Not yet approved'}
+            </p>
+          </div>
+          <div className="rounded-lg bg-muted/40 p-3">
+            <p className="font-semibold uppercase tracking-wide text-[11px] text-muted-foreground">Last edited</p>
+            <p className="mt-0.5 text-sm text-foreground">
+              {listing.updated_at
+                ? new Date(listing.updated_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+                : '—'}
+            </p>
+          </div>
+        </div>
+
         {/* Tags */}
         {listing.tags && listing.tags.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -282,6 +303,11 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
             <h3 className="font-semibold text-foreground">Items ({listing.items.length})</h3>
+            {typeof listing.booking_count === 'number' && (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                · {listing.booking_count} booking{listing.booking_count === 1 ? '' : 's'} (non-cancelled)
+              </span>
+            )}
             {isReReview && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 uppercase tracking-wide">
                 Changes may be here
@@ -330,6 +356,15 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {item.quantity_available} available · max {item.max_per_booking}/booking
+                      {listing.booking_count_by_item_id && (
+                        <>
+                          {' · '}
+                          <span className="font-medium text-foreground tabular-nums">
+                            {listing.booking_count_by_item_id[item.id] ?? 0} booking
+                            {(listing.booking_count_by_item_id[item.id] ?? 0) === 1 ? '' : 's'}
+                          </span>
+                        </>
+                      )}
                     </span>
                   </div>
 

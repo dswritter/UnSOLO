@@ -22,7 +22,7 @@ function parseTypeFilter(raw: string | undefined): 'all' | string {
 }
 
 interface ServiceListingsClientProps {
-  serviceListings: ServiceListing[]
+  serviceListings: (ServiceListing & { booking_count?: number })[]
   destinations: Destination[]
   /** From URL (?status= / ?type=) after moderation redirect */
   initialStatusFilter?: string
@@ -135,7 +135,9 @@ export function ServiceListingsClient({
               <th className="px-4 py-3 text-left font-semibold text-foreground">Price</th>
               <th className="px-4 py-3 text-left font-semibold text-foreground">Status</th>
               <th className="px-4 py-3 text-left font-semibold text-foreground">Rating</th>
-              <th className="px-4 py-3 text-left font-semibold text-foreground">Created</th>
+              <th className="px-4 py-3 text-left font-semibold text-foreground">Bookings</th>
+              <th className="px-4 py-3 text-left font-semibold text-foreground">Published</th>
+              <th className="px-4 py-3 text-left font-semibold text-foreground">Last updated</th>
               <th className="px-4 py-3 text-right font-semibold text-foreground">Actions</th>
             </tr>
           </thead>
@@ -174,8 +176,18 @@ export function ServiceListingsClient({
                     <span className="text-xs text-muted-foreground">No reviews</span>
                   )}
                 </td>
+                <td className="px-4 py-3 text-sm tabular-nums text-foreground">
+                  {listing.booking_count ?? 0}
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
-                  {new Date(listing.created_at).toLocaleDateString()}
+                  {listing.first_approved_at
+                    ? new Date(listing.first_approved_at).toLocaleDateString('en-IN')
+                    : '—'}
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {listing.updated_at
+                    ? new Date(listing.updated_at).toLocaleDateString('en-IN')
+                    : '—'}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>

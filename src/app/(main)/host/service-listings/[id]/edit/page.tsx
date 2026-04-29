@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import { checkIsHost } from '@/actions/hosting'
 import { getDestinations } from '@/actions/admin'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
+import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import { ResubmitServiceListingButton } from '@/app/(main)/host/ResubmitServiceListingButton'
@@ -39,11 +40,14 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   if (!listing) notFound()
   if (listing.host_id !== user.id) redirect('/host')
 
-  const [destinations, itemsResult] = await Promise.all([
+  const [destinations, itemsResult, countsResult] = await Promise.all([
     getDestinations(),
     listServiceListingItems(id),
+    fetchServiceBookingCountsForListings(supabase, [id]),
   ])
   const items = 'items' in itemsResult && itemsResult.items ? itemsResult.items : []
+  const listingBookingCount = countsResult.byListingId[id] ?? 0
+  const bookingCountByItemId = countsResult.byItemId
 
   const initialTab = tab ? TAB_INDEX[tab] : undefined
 
@@ -83,6 +87,8 @@ export default async function EditServiceListingPage({ params, searchParams }: P
           listing={listing as ServiceListing & { destination_ids?: string[] | null }}
           initialItems={items}
           initialTab={initialTab}
+          listingBookingCount={listingBookingCount}
+          bookingCountByItemId={bookingCountByItemId}
         />
     </div>
   )

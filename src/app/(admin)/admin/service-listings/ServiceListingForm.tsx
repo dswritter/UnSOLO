@@ -48,7 +48,10 @@ const AMENITIES_BY_TYPE = {
 
 interface ServiceListingFormProps {
   destinations: Destination[]
-  listing?: ServiceListing & { items?: { id: string }[] }
+  listing?: ServiceListing & {
+    items?: { id: string }[]
+    booking_count?: number
+  }
 }
 
 export function ServiceListingForm({ destinations, listing }: ServiceListingFormProps) {
@@ -313,6 +316,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               base price below is automatically synced to the cheapest active item&apos;s price and
               used on explore cards. Edit individual items to change prices.
             </p>
+            {typeof listing.booking_count === 'number' && (
+              <p className="mt-2 text-xs font-medium text-blue-800">
+                Bookings (non-cancelled): {listing.booking_count}
+              </p>
+            )}
           </div>
         )}
         <div className="space-y-4">

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
+import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -35,10 +36,15 @@ export async function getAdminServiceListings() {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []) as (ServiceListing & {
+  const listings = (data || []) as (ServiceListing & {
     destination?: { id: string; name: string; slug: string }
     host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
   })[]
+  const { byListingId } = await fetchServiceBookingCountsForListings(
+    supabase,
+    listings.map((l) => l.id),
+  )
+  return listings.map((l) => ({ ...l, booking_count: byListingId[l.id] ?? 0 }))
 }
 
 export async function getServiceListingDetail(id: string) {
@@ -63,11 +69,17 @@ export async function getServiceListingDetail(id: string) {
   ])
 
   if (error) throw error
+
+  const listingRow = data as ServiceListing & {
+    destination?: { id: string; name: string; slug: string }
+    host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
+  }
+  const { byListingId, byItemId } = await fetchServiceBookingCountsForListings(supabase, [id])
+
   return {
-    ...(data as ServiceListing & {
-      destination?: { id: string; name: string; slug: string }
-      host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
-    }),
+    ...listingRow,
+    booking_count: byListingId[id] ?? 0,
+    booking_count_by_item_id: byItemId,
     items: (items || []) as Array<{
       id: string
       name: string
