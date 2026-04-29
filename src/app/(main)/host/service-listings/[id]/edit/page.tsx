@@ -4,6 +4,7 @@ import { getDestinations } from '@/actions/admin'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
+import { ResubmitServiceListingButton } from '@/app/(main)/host/ResubmitServiceListingButton'
 import type { ServiceListing, ServiceListingType } from '@/types'
 
 interface PageProps {
@@ -57,6 +58,22 @@ export default async function EditServiceListingPage({ params, searchParams }: P
             listing reset its status to Pending so admins can re-review.
           </p>
         </div>
+
+        {(listing.status === 'rejected' || listing.status === 'archived') && (
+          <div className="mb-6 rounded-xl border border-amber-400/45 bg-amber-500/15 px-4 py-3 text-sm text-white">
+            <p className="font-semibold">
+              {listing.status === 'rejected'
+                ? 'This listing was not approved by the team.'
+                : 'This listing has been archived.'}
+            </p>
+            <p className="mt-1 text-white/80">
+              Update your business details or items below, save your changes, then use <strong className="text-white">Resubmit</strong> to send it back to the admin queue. You can also resubmit now if only minor fixes were needed.
+            </p>
+            <div className="mt-3">
+              <ResubmitServiceListingButton listingId={listing.id} />
+            </div>
+          </div>
+        )}
 
         <HostServiceListingTabs
           mode="edit"

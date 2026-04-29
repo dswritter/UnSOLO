@@ -96,10 +96,11 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       } else {
         await createServiceListing({ ...formData, type })
       }
-      router.push('/admin/service-listings')
-      router.refresh()
+      // Hard navigation: client router.push/refresh can leave this page mounted and the button stuck on "Saving...".
+      window.location.assign('/admin/service-listings')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
       setLoading(false)
     }
   }
@@ -488,7 +489,10 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
             {formData.tags.map((tag, idx) => (
-              <span key={idx} className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm">
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/12 px-3 py-1 text-sm font-medium text-white"
+              >
                 {tag}
                 <button
                   type="button"
@@ -498,7 +502,8 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                       tags: formData.tags.filter((_, i) => i !== idx),
                     })
                   }}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="rounded-full px-0.5 text-white/80 hover:bg-white/15 hover:text-white"
+                  aria-label={`Remove tag ${tag}`}
                 >
                   ×
                 </button>
@@ -575,7 +580,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-70 disabled:text-white"
         >
           {loading ? 'Saving...' : listing ? 'Update Listing' : 'Create Listing'}
         </button>

@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type {
@@ -329,9 +330,8 @@ export async function createHostServiceListing(input: {
 }
 
 /**
- * Re-submit a rejected service listing for another round of admin review.
+ * Re-submit a rejected or archived service listing for another round of admin review.
  * Mirrors `resubmitTrip` — flips status back to pending and re-notifies admins.
- * Hosts can only resubmit their own rejected listings.
  */
 export async function resubmitServiceListing(listingId: string) {
   try {
@@ -347,14 +347,16 @@ export async function resubmitServiceListing(listingId: string) {
 
     if (fetchError || !listing) return { error: 'Listing not found' }
     if (listing.host_id !== user.id) return { error: 'Unauthorized' }
-    if (listing.status !== 'rejected') {
-      return { error: 'Only rejected listings can be resubmitted' }
+    if (listing.status !== 'rejected' && listing.status !== 'archived') {
+      return { error: 'Only rejected or archived listings can be resubmitted for review' }
     }
 
-    const { error: updateError } = await supabase
-      .from('service_listings')
-      .update({ status: 'pending' })
-      .eq('id', listingId)
+    const patch: { status: string; is_active?: boolean } = { status: 'pending' }
+    if (listing.status === 'archived') {
+      patch.is_active = true
+    }
+
+    const { error: updateError } = await supabase.from('service_listings').update(patch).eq('id', listingId)
 
     if (updateError) return { error: 'Failed to resubmit listing' }
 
@@ -363,6 +365,10 @@ export async function resubmitServiceListing(listingId: string) {
       listingTitle: listing.title,
       variant: 'resubmitted',
     })
+
+    revalidatePath('/admin/service-listings')
+    revalidatePath('/host')
+    revalidatePath(`/host/service-listings/${listingId}/edit`)
 
     return { success: true }
   } catch (error) {

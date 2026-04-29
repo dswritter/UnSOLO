@@ -21,7 +21,7 @@ export function ResubmitServiceListingButton({ listingId }: Props) {
       toast.error(result.error)
       return
     }
-    toast.success('Listing resubmitted for review')
+    toast.success('Your listing is back in the admin review queue')
     router.refresh()
   }
 
@@ -30,9 +30,9 @@ export function ResubmitServiceListingButton({ listingId }: Props) {
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="text-xs text-amber-500 hover:underline disabled:opacity-50"
+      className="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
     >
-      {loading ? 'Resubmitting…' : 'Resubmit for review →'}
+      {loading ? 'Resubmitting…' : 'Resubmit for admin review →'}
     </button>
   )
 }

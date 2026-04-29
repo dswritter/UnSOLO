@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
@@ -238,6 +239,11 @@ export async function updateServiceListing(
   await logAuditEvent(user.id, 'UPDATE_SERVICE_LISTING', 'service_listing', id, {
     changes: Object.keys(input),
   })
+
+  revalidatePath('/admin/service-listings')
+  revalidatePath(`/admin/service-listings/${id}`)
+  revalidatePath('/')
+  revalidatePath('/host')
 
   return data as ServiceListing
 }

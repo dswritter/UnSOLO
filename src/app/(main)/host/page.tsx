@@ -173,7 +173,7 @@ export default async function HostDashboardPage() {
                     >
                       Items
                     </Link>
-                    {listing.status === 'rejected' && (
+                    {(listing.status === 'rejected' || listing.status === 'archived') && (
                       <ResubmitServiceListingButton listingId={listing.id} />
                     )}
                   </div>
