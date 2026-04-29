@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Bell, X, MessageCircle, CreditCard, Phone, Users } from 'lucide-react'
@@ -33,22 +33,46 @@ export function NotificationBell({
 }: {
   userId: string
   placement?: 'below' | 'above'
-  /** Forest-green bar on /wander: bright bell + light hit area */
+  /** Forest bar on immerse shell (/wander, host hub, etc.): bright bell + portaled frost that follows `--wander-frost-*` per season */
   wanderNav?: boolean
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-  /** Popover portaled to document.body only after mount — avoids SSR hydration issues. */
-  const [mounted, setMounted] = useState(false)
-  /** Trigger + anchored UI (popover portaled to document.body for real backdrop-blur onto page). */
+  /** Popover for wander nav — portaled under `[data-wander-shell-season]` so season CSS vars apply (body alone does not inherit them). */
+  const [wanderShellPortalParent, setWanderShellPortalParent] = useState<HTMLElement | null>(null)
+  const wanderShellPortalHostCleanupRef = useRef<HTMLElement | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  // Dom-only portal container under the wander shell subtree (inherits season tokens). ESLint suppresses needed for setState syncing portal node.
+  /* eslint-disable react-hooks/set-state-in-effect -- mounting portal container is an external DOM subtree */
+  useLayoutEffect(() => {
+    if (!(wanderNav && placement === 'below')) {
+      const old = wanderShellPortalHostCleanupRef.current
+      if (old?.parentNode) old.parentNode.removeChild(old)
+      wanderShellPortalHostCleanupRef.current = null
+      setWanderShellPortalParent(null)
+      return
+    }
+
+    const shell = rootRef.current?.closest('[data-wander-shell-season]')
+    const parent: HTMLElement = shell ?? document.body
+    const host = document.createElement('div')
+    host.setAttribute('data-wander-notif-portal', '')
+    host.className = 'pointer-events-none fixed inset-0 z-[9998]'
+    wanderShellPortalHostCleanupRef.current = host
+    parent.appendChild(host)
+    setWanderShellPortalParent(host)
+
+    return () => {
+      if (host.parentNode) host.parentNode.removeChild(host)
+      wanderShellPortalHostCleanupRef.current = null
+      setWanderShellPortalParent(null)
+    }
+  }, [wanderNav, placement])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Load notifications
   useEffect(() => {
@@ -140,7 +164,7 @@ export function NotificationBell({
     }
   }, [])
 
-  const portalWanderBelow = wanderNav && placement === 'below' && mounted
+  const portalWanderBelow = wanderNav && placement === 'below'
   const belowPlacementClass =
     placement === 'below'
       ? portalWanderBelow
@@ -155,7 +179,7 @@ export function NotificationBell({
       className={cn(
         'overflow-hidden shadow-2xl transform-gpu',
         wanderNav
-          ? 'wander-frost-chrome rounded-2xl text-white'
+          ? 'wander-frost-chrome rounded-2xl text-white pointer-events-auto'
           : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
         placement === 'below'
           ? belowPlacementClass
@@ -325,7 +349,7 @@ export function NotificationBell({
         )}
       </button>
 
-      {open && (portalWanderBelow ? createPortal(panel!, document.body) : panel)}
+      {open && (portalWanderBelow ? (wanderShellPortalParent ? createPortal(panel!, wanderShellPortalParent) : null) : panel)}
     </div>
   )
 }

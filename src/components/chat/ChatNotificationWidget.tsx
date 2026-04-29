@@ -614,7 +614,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
     <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end gap-1.5 pointer-events-none md:bottom-6">
       {minimized && typingRoomId && typingUsers.length > 0 && (
         <div
-          className="pointer-events-none max-w-[min(16rem,calc(100vw-5rem))] rounded-xl border border-white/15 bg-[oklch(0.12_0.045_152/0.95)] px-3 py-1.5 text-right text-[10px] text-white/80 shadow-lg backdrop-blur-sm"
+          className="pointer-events-none max-w-[min(16rem,calc(100vw-5rem))] rounded-xl border border-white/15 bg-[color-mix(in_oklab,var(--card)_90%,transparent)] px-3 py-1.5 text-right text-[10px] text-white/80 shadow-lg backdrop-blur-sm"
           aria-live="polite"
         >
           <span className="italic">
@@ -669,7 +669,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[oklch(0.1_0.044_152/0.97)] px-4 py-3 backdrop-blur-sm">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[color-mix(in_oklab,var(--card)_94%,transparent)] px-4 py-3 backdrop-blur-sm">
               <span className="flex items-center gap-2 text-sm font-bold text-white">
                 <MessageCircle className="h-4 w-4 text-[#fcba03]" aria-hidden />
                 {activeRoom ? activeRoom.name : 'New Messages'}
@@ -695,7 +695,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             {/* Messages */}
             <div
               ref={messagesScrollRef}
-              className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.105_0.045_152/0.88)]"
+              className="min-h-0 flex-1 overflow-y-auto bg-[color-mix(in_oklab,var(--card)_82%,transparent)]"
             >
               {activeRoom ? (
                 <>
@@ -805,7 +805,10 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
             {/* Reply bar */}
             {activeRoom ? (
-              <form onSubmit={handleReply} className="flex gap-2 border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] px-3 py-2 backdrop-blur-sm">
+              <form
+                onSubmit={handleReply}
+                className="flex gap-2 border-t border-white/10 bg-[color-mix(in_oklab,var(--secondary)_88%,transparent)] px-3 py-2 backdrop-blur-sm"
+              >
                 <input
                   ref={inputRef}
                   type="text"
@@ -813,7 +816,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   onChange={e => onReplyInputChange(e.target.value)}
                   onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                   placeholder={`Reply in ${activeRoom.name}...`}
-                  className="flex-1 rounded-xl border border-white/20 bg-[oklch(0.08_0.038_152/0.85)] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
+                  className="flex-1 rounded-xl border border-white/20 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
                 />
                 <button
                   type="submit"
@@ -827,7 +830,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             ) : (
               <Link
                 href={chatListBase}
-                className="block border-t border-white/10 bg-[oklch(0.095_0.042_152/0.97)] py-2.5 text-center text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-[oklch(0.14_0.05_152/0.9)]"
+                className="block border-t border-white/10 bg-[color-mix(in_oklab,var(--secondary)_90%,transparent)] py-2.5 text-center text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-[color-mix(in_oklab,var(--secondary)_98%,transparent)]"
               >
                 Open All Chats →
               </Link>

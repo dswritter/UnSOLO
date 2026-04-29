@@ -2121,7 +2121,7 @@ export function ChatWindow({
         className={cn(
           'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto',
           tribeShell
-            ? 'border-white/10 bg-[oklch(0.12_0.04_152/0.92)] backdrop-blur-md'
+            ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-border bg-background',
         )}
         style={{ bottom: visualViewportBottomInset }}
