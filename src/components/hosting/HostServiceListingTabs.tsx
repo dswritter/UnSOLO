@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { HostSubmittingOverlay } from '@/components/host/HostSubmittingOverlay'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { CoHostSection } from '@/components/hosting/CoHostSection'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
@@ -273,6 +274,8 @@ export function HostServiceListingTabs(props: Props) {
     return 0
   })
   const [saving, setSaving] = useState(false)
+  const [createSubmitOverlayOpen, setCreateSubmitOverlayOpen] = useState(false)
+  const createSubmitCancelledRef = useRef(false)
 
   // ── Validation popup ──────────────────────────────────────────────────
   type ValidationError = { label: string; fieldId: string }
@@ -873,6 +876,8 @@ export function HostServiceListingTabs(props: Props) {
     if (itemsErr) { toast.error(itemsErr); setStep(1); return }
 
     setSaving(true)
+    createSubmitCancelledRef.current = false
+    setCreateSubmitOverlayOpen(true)
     const payload: HostServiceItemDraft[] = items.map(i => ({
       name: i.name.trim(),
       description: i.description.trim() || null,
@@ -884,33 +889,55 @@ export function HostServiceListingTabs(props: Props) {
       amenities: (isRental || isStay) ? (i.amenities || []) : null,
     }))
 
-    const result = await createHostServiceListing({
-      title: title.trim(),
-      description: description.trim() || null,
-      short_description: shortDescription.trim() || null,
-      type,
-      unit,
-      destination_ids: destinationIds,
-      location: location.trim() || null,
-      latitude: pinLatLon?.lat ?? null,
-      longitude: pinLatLon?.lon ?? null,
-      // Rentals & stays: master amenities empty — each item owns its own.
-      amenities: isRental || isStay ? [] : amenities,
-      tags,
-      metadata: null,
-      host_id: userId,
-      items: payload,
-      ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
-    })
-    setSaving(false)
+    let result: Awaited<ReturnType<typeof createHostServiceListing>> | undefined
+    try {
+      result = await createHostServiceListing({
+        title: title.trim(),
+        description: description.trim() || null,
+        short_description: shortDescription.trim() || null,
+        type,
+        unit,
+        destination_ids: destinationIds,
+        location: location.trim() || null,
+        latitude: pinLatLon?.lat ?? null,
+        longitude: pinLatLon?.lon ?? null,
+        // Rentals & stays: master amenities empty — each item owns its own.
+        amenities: isRental || isStay ? [] : amenities,
+        tags,
+        metadata: null,
+        host_id: userId,
+        items: payload,
+        ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
+      })
+    } catch {
+      toast.error('Submission failed. Please try again.')
+      return
+    } finally {
+      setSaving(false)
+      setCreateSubmitOverlayOpen(false)
+    }
+
+    if (!result) return
+
+    if (createSubmitCancelledRef.current) {
+      if (!('error' in result && result.error)) {
+        toast.success('Your listing was submitted for review.')
+        window.location.assign('/host')
+      }
+      return
+    }
 
     if ('error' in result && result.error) {
       toast.error(result.error)
       return
     }
     toast.success('Listing submitted for review!')
-    router.push('/host')
-    router.refresh()
+    window.location.assign('/host')
+  }
+
+  function cancelCreateSubmitOverlay() {
+    createSubmitCancelledRef.current = true
+    setCreateSubmitOverlayOpen(false)
   }
 
   async function saveBusinessEdit() {
@@ -1127,6 +1154,12 @@ export function HostServiceListingTabs(props: Props) {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
+    <>
+      <HostSubmittingOverlay
+        open={createSubmitOverlayOpen}
+        message="Submitting…"
+        onCancel={cancelCreateSubmitOverlay}
+      />
     <div className="space-y-6">
       {/* Stepper */}
       <div className="flex flex-wrap gap-2">
@@ -2327,5 +2360,6 @@ export function HostServiceListingTabs(props: Props) {
         </div>
       )}
     </div>
+    </>
   )
 }

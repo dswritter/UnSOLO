@@ -341,7 +341,7 @@ export async function resubmitServiceListing(listingId: string) {
 
     const { data: listing, error: fetchError } = await supabase
       .from('service_listings')
-      .select('id, title, host_id, status')
+      .select('id, title, host_id, status, updated_at, last_host_resubmit_at')
       .eq('id', listingId)
       .single()
 
@@ -351,7 +351,36 @@ export async function resubmitServiceListing(listingId: string) {
       return { error: 'Only rejected or archived listings can be resubmitted for review' }
     }
 
-    const patch: { status: string; is_active?: boolean } = { status: 'pending' }
+    const lastRes = listing.last_host_resubmit_at as string | null
+    if (lastRes) {
+      const lr = new Date(lastRes).getTime()
+      const lu = new Date(listing.updated_at as string).getTime()
+      const { data: itemRows } = await supabase
+        .from('service_listing_items')
+        .select('updated_at, created_at')
+        .eq('service_listing_id', listingId)
+      let maxItemMs = 0
+      for (const row of itemRows || []) {
+        const r = row as { updated_at: string; created_at: string }
+        maxItemMs = Math.max(
+          maxItemMs,
+          Math.max(new Date(r.updated_at).getTime(), new Date(r.created_at).getTime()),
+        )
+      }
+      if (!(lu > lr || maxItemMs > lr)) {
+        return {
+          error:
+            'Save changes to your listing or items before resubmitting — nothing changed since your last resubmit.',
+        }
+      }
+    }
+
+    const now = new Date().toISOString()
+    const patch: { status: string; is_active?: boolean; last_host_resubmit_at: string; updated_at: string } = {
+      status: 'pending',
+      last_host_resubmit_at: now,
+      updated_at: now,
+    }
     if (listing.status === 'archived') {
       patch.is_active = true
     }
@@ -455,6 +484,8 @@ export async function updateHostServiceListing(
     if (Object.keys(update).length === 0) {
       return { success: true }
     }
+
+    update.updated_at = new Date().toISOString()
 
     const { error: updateError } = await supabase
       .from('service_listings')

@@ -6,6 +6,13 @@ import type { ServiceListingItem } from '@/types'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
+async function touchServiceListingUpdatedAt(supabase: SupabaseServerClient, listingId: string) {
+  await supabase
+    .from('service_listings')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', listingId)
+}
+
 /**
  * Item fields that are safe to tweak on an approved listing without
  * dragging the listing back into re-review. Mirror of
@@ -211,6 +218,7 @@ export async function createServiceListingItem(input: {
   // Re-review is triggered only when the host saves the Business Details
   // tab (updateHostServiceListing), not on individual item CRUD.
   await refreshListingHeroImages(ctx.supabase, input.service_listing_id)
+  await touchServiceListingUpdatedAt(ctx.supabase, input.service_listing_id)
 
   return {
     success: true,
@@ -278,6 +286,7 @@ export async function updateServiceListingItem(
   // (updateHostServiceListing), not on individual item saves.
   const listingId = (existing as { service_listing_id: string }).service_listing_id
   await refreshListingHeroImages(supabase, listingId)
+  await touchServiceListingUpdatedAt(supabase, listingId)
 
   return {
     success: true,
@@ -315,6 +324,7 @@ export async function deleteServiceListingItem(itemId: string) {
   // Refresh hero in case the deleted item was the cover image source.
   // Re-review is triggered only via Business Details save, not item deletes.
   await refreshListingHeroImages(supabase, listingId)
+  await touchServiceListingUpdatedAt(supabase, listingId)
 
   return { success: true, statusChangedToPending: false }
 }

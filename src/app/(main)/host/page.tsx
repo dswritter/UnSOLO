@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
 import { hostHiddenStatusClassForest } from '@/components/host/hostBadgeStyles'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
+import { hostMayResubmitServiceListing } from '@/lib/service-listing-resubmit'
 import { HostTripsList } from './HostTripsList'
 import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
 import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
 import { ToggleServiceListingButton } from './ToggleServiceListingButton'
+import type { ServiceListing } from '@/types'
 import {
   Plus,
   MapPin,
@@ -48,7 +50,7 @@ export default async function HostDashboardPage() {
   const { data: serviceListings } = user
     ? await supabase
         .from('service_listings')
-        .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at')
+        .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at, last_host_resubmit_at')
         .eq('host_id', user.id)
         .order('created_at', { ascending: false })
     : { data: null }
@@ -56,17 +58,26 @@ export default async function HostDashboardPage() {
   // Best-effort item counts. Returns silently if the items table does not yet
   // exist (migration 049 not applied) so the dashboard still renders.
   const countByListing: Record<string, number> = {}
+  /** Max of item created_at / updated_at per listing (for resubmit eligibility). */
+  const maxItemActivityByListing: Record<string, number> = {}
   let bookingCountByListing: Record<string, number> = {}
   if (serviceListings && serviceListings.length > 0) {
     const listingIds = serviceListings.map((l) => l.id)
-    const [{ data: itemCounts, error: itemCountsError }, countsResult] = await Promise.all([
-      supabase.from('service_listing_items').select('service_listing_id').in('service_listing_id', listingIds),
+    const [{ data: itemRows, error: itemRowsError }, countsResult] = await Promise.all([
+      supabase
+        .from('service_listing_items')
+        .select('service_listing_id, updated_at, created_at')
+        .in('service_listing_id', listingIds),
       fetchServiceBookingCountsForListings(supabase, listingIds),
     ])
     bookingCountByListing = countsResult.byListingId
-    if (!itemCountsError) {
-      for (const row of itemCounts || []) {
-        countByListing[row.service_listing_id] = (countByListing[row.service_listing_id] || 0) + 1
+    if (!itemRowsError) {
+      for (const row of itemRows || []) {
+        const lid = row.service_listing_id as string
+        countByListing[lid] = (countByListing[lid] || 0) + 1
+        const r = row as { updated_at: string; created_at: string }
+        const ms = Math.max(new Date(r.updated_at).getTime(), new Date(r.created_at).getTime())
+        maxItemActivityByListing[lid] = Math.max(maxItemActivityByListing[lid] || 0, ms)
       }
     }
   }
@@ -198,7 +209,14 @@ export default async function HostDashboardPage() {
                       Items
                     </Link>
                     {(listing.status === 'rejected' || listing.status === 'archived') && (
-                      <ResubmitServiceListingButton listingId={listing.id} />
+                      <ResubmitServiceListingButton
+                        listingId={listing.id}
+                        allowResubmit={hostMayResubmitServiceListing({
+                          last_host_resubmit_at: (listing as ServiceListing).last_host_resubmit_at,
+                          listing_updated_at: (listing as ServiceListing).updated_at,
+                          maxItemActivityMs: maxItemActivityByListing[listing.id] ?? 0,
+                        })}
+                      />
                     )}
                   </div>
                 </div>

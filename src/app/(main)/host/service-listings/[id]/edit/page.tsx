@@ -3,6 +3,7 @@ import { checkIsHost } from '@/actions/hosting'
 import { getDestinations } from '@/actions/admin'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
+import { hostMayResubmitServiceListing } from '@/lib/service-listing-resubmit'
 import { createClient } from '@/lib/supabase/server'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import { ResubmitServiceListingButton } from '@/app/(main)/host/ResubmitServiceListingButton'
@@ -45,7 +46,17 @@ export default async function EditServiceListingPage({ params, searchParams }: P
     listServiceListingItems(id),
     fetchServiceBookingCountsForListings(supabase, [id]),
   ])
-  const items = 'items' in itemsResult && itemsResult.items ? itemsResult.items : []
+  const maxItemMs = items.reduce(
+    (m, it) =>
+      Math.max(m, Math.max(new Date(it.updated_at).getTime(), new Date(it.created_at).getTime())),
+    0,
+  )
+  const L = listing as ServiceListing
+  const allowServiceResubmit = hostMayResubmitServiceListing({
+    last_host_resubmit_at: L.last_host_resubmit_at ?? null,
+    listing_updated_at: L.updated_at,
+    maxItemActivityMs: maxItemMs,
+  })
   const listingBookingCount = countsResult.byListingId[id] ?? 0
   const bookingCountByItemId = countsResult.byItemId
 
@@ -71,10 +82,12 @@ export default async function EditServiceListingPage({ params, searchParams }: P
                 : 'This listing has been archived.'}
             </p>
             <p className="mt-1 text-white/80">
-              Update your business details or items below, save your changes, then use <strong className="text-white">Resubmit</strong> to send it back to the admin queue. You can also resubmit now if only minor fixes were needed.
+              Update your business details or items below and <strong className="text-white">save your changes</strong>, then use{' '}
+              <strong className="text-white">Resubmit</strong> to send the listing back to the admin queue. After you resubmit once,
+              you need to edit and save again before you can resubmit another time — this helps avoid duplicate submissions.
             </p>
             <div className="mt-3">
-              <ResubmitServiceListingButton listingId={listing.id} />
+              <ResubmitServiceListingButton listingId={listing.id} allowResubmit={allowServiceResubmit} />
             </div>
           </div>
         )}

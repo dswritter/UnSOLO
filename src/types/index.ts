@@ -289,6 +289,8 @@ export type ServiceListing = {
   status: 'pending' | 'approved' | 'rejected' | 'archived'
   /** Set once, on first admin approval; never cleared on later pending resets. */
   first_approved_at?: string | null
+  /** Last host-driven resubmit for review (rejected/archived flow). */
+  last_host_resubmit_at?: string | null
   /**
    * Activities only. Array of scheduled events. `null` = ongoing (non-date-specific).
    * `slots: null` on an entry means "all day"; otherwise the slots list is exhaustive.
