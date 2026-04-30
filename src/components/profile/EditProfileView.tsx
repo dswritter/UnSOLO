@@ -14,10 +14,9 @@ import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
-import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, Gift, Copy, MessageCircle, Users } from 'lucide-react'
+import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock } from 'lucide-react'
 import { LocationSearch } from '@/components/profile/LocationSearch'
-import { getReferralDashboard } from '@/actions/profile'
-import { APP_URL, UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 const DEFAULT_AVATARS = [
   { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=beach&backgroundColor=ffdfbf&skinColor=f2d3b1', label: '🏖️ Beach', theme: 'beach' },
@@ -26,6 +25,9 @@ const DEFAULT_AVATARS = [
   { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=chill&backgroundColor=c0aede&skinColor=f2d3b1', label: '😎 Chill', theme: 'chill' },
   { url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=hardcore&backgroundColor=ff9999&skinColor=ae5d29', label: '🔥 Hardcore', theme: 'hardcore' },
 ]
+const MINIMUM_BIRTHDATE_ISO = new Date(
+  Date.now() - 16 * 365.25 * 24 * 60 * 60 * 1000,
+).toISOString().split('T')[0]
 
 type EditProfileViewProps = {
   /** Base path for “View profile” and internal profile links (canonical: `/profile`). */
@@ -70,8 +72,8 @@ export function EditProfileView({
 
   useEffect(() => {
     const supabase = createClient()
-    void supabase.auth.getUser().then((authRes: { data: { user: User | null } }) => {
-      const user = authRes.data.user
+    void supabase.auth.getSession().then((authRes: { data: { session: { user: User } | null } }) => {
+      const user = authRes.data.session?.user ?? null
       if (!user) return
       void supabase.from('profiles').select('*').eq('id', user.id).single()
         .then((res: { data: Profile | null }) => {
@@ -147,7 +149,8 @@ export function EditProfileView({
 
   async function handleAvatarSelect(url: string) {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user ?? null
     if (!user) return
 
     const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id)
@@ -311,11 +314,11 @@ export function EditProfileView({
 
               <div className="space-y-1">
                 <label className="text-sm font-medium">Date of Birth</label>
-                <Input
+                  <Input
                   name="date_of_birth"
                   type="date"
                   defaultValue={profile.date_of_birth || ''}
-                  max={new Date(Date.now() - 16 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  max={MINIMUM_BIRTHDATE_ISO}
                   className="bg-secondary border-border"
                 />
                 <p className="text-[10px] text-muted-foreground">Required for joining trips with age preferences. Must be 16+.</p>
@@ -572,132 +575,4 @@ export function EditProfileView({
   );
 
   return <ProfileV2Shell>{mainInner}</ProfileV2Shell>
-}
-
-function ReferralDashboard() {
-  const [data, setData] = useState<{
-    referralCode: string | null
-    creditsPaise: number
-    totalReferred: number
-    pendingReferred: number
-    creditedReferred: number
-    referrals: { status: string; username: string; fullName: string | null }[]
-  } | null>(null)
-  const [codeCopied, setCodeCopied] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-
-  useEffect(() => {
-    getReferralDashboard().then(setData)
-  }, [])
-
-  if (!data || !data.referralCode) return null
-
-  const referralLink = `${APP_URL}/signup?ref=${data.referralCode}`
-  const whatsappMsg = encodeURIComponent(
-    `Hey! Join me on UnSOLO — India's solo travel community. Sign up with my code and get ₹200 off your first trip!\n${referralLink}`
-  )
-
-  function copyCode() {
-    navigator.clipboard.writeText(data!.referralCode!)
-    setCodeCopied(true)
-    toast.success('Code copied!')
-    setTimeout(() => setCodeCopied(false), 2000)
-  }
-
-  function copyLink() {
-    navigator.clipboard.writeText(referralLink)
-    setLinkCopied(true)
-    toast.success('Link copied!')
-    setTimeout(() => setLinkCopied(false), 2000)
-  }
-
-  return (
-    <Card className="border-border bg-card">
-      <CardContent className="p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Gift className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-bold">Refer & Earn</h3>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Share your code. When a friend signs up and books their first trip, you earn <span className="text-primary font-bold">₹500</span> and they get <span className="text-primary font-bold">₹200 off</span>!
-        </p>
-
-        {/* Referral code */}
-        <div className="bg-secondary/50 rounded-xl p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs text-muted-foreground block">Your Referral Code</span>
-              <code className="text-xl font-mono font-black text-primary tracking-widest">{data.referralCode}</code>
-            </div>
-            <button onClick={copyCode} className="p-2 rounded-lg hover:bg-secondary transition-colors" title="Copy code">
-              {codeCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-background rounded-lg px-3 py-2">
-            <span className="truncate flex-1">{referralLink}</span>
-            <button onClick={copyLink} className="text-primary hover:underline flex-shrink-0">
-              {linkCopied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-
-          {/* Share buttons */}
-          <div className="flex gap-2">
-            <a
-              href={`https://wa.me/?text=${whatsappMsg}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Share on WhatsApp
-            </a>
-            <button
-              onClick={copyLink}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-colors"
-            >
-              <Copy className="h-4 w-4" />
-              Copy Link
-            </button>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="bg-secondary/30 rounded-lg py-3">
-            <div className="text-xl font-black text-primary">{data.totalReferred}</div>
-            <div className="text-xs text-muted-foreground">Referred</div>
-          </div>
-          <div className="bg-secondary/30 rounded-lg py-3">
-            <div className="text-xl font-black text-primary">{data.pendingReferred}</div>
-            <div className="text-xs text-muted-foreground">Pending</div>
-          </div>
-          <div className="bg-secondary/30 rounded-lg py-3">
-            <div className="text-xl font-black text-primary">₹{((data.creditsPaise || 0) / 100).toLocaleString('en-IN')}</div>
-            <div className="text-xs text-muted-foreground">Credits</div>
-          </div>
-        </div>
-
-        {/* Referral list */}
-        {data.referrals.length > 0 && (
-          <div className="space-y-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Your Referrals</span>
-            {data.referrals.map((r, i) => (
-              <div key={i} className="flex items-center justify-between text-sm bg-secondary/20 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{r.fullName || r.username}</span>
-                  <span className="text-xs text-muted-foreground">@{r.username}</span>
-                </div>
-                <span className={`text-xs font-medium ${r.status === 'credited' ? 'text-green-500' : 'text-yellow-500'}`}>
-                  {r.status === 'credited' ? '₹500 earned' : 'Pending'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
 }

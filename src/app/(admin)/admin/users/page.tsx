@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { redirect } from 'next/navigation'
 import { UsersClient } from './UsersClient'
 import { createClient as createSvcClient } from '@supabase/supabase-js'
 
 export default async function AdminUsersPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()

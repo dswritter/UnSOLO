@@ -4,7 +4,7 @@ import { listServiceListingItems } from '@/actions/host-service-listing-items'
 import { listItemUnavailabilityByListing } from '@/actions/host-service-item-unavailability'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { hostMayResubmitServiceListing } from '@/lib/service-listing-resubmit'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import { ResubmitServiceListingButton } from '@/app/(main)/host/ResubmitServiceListingButton'
 import type { ServiceListing, ServiceListingType } from '@/types'
@@ -28,8 +28,7 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   if (!hostStatus.authenticated) redirect('/login')
   if (!hostStatus.isHost) redirect('/host/verify')
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const { data: listing } = await supabase

@@ -1,12 +1,12 @@
 export const revalidate = 300 // 5 minutes
 
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { MapPin, Users, CheckCircle, Star, ArrowLeft, ShieldCheck, Award, Mountain } from 'lucide-react'
-import { formatPrice, formatDate, cn } from '@/lib/utils'
+import { formatPrice, cn } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { TripDurationStatCard } from '@/components/packages/TripDurationStatCard'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -27,7 +27,7 @@ import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
 import { TripDetailSeasonBackdrop } from '@/components/packages/TripDetailSeasonBackdrop'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
-import type { Package, HostProfile, JoinPreferences } from '@/types'
+import type { Package, HostProfile } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -51,10 +51,9 @@ export default async function PackageDetailPage({
 }) {
   const { slug } = await params
   const { group: groupId } = await searchParams
-  const supabase = await createClient()
+  const { supabase, user } = await getRequestAuth()
 
   // Get auth user first to check if admin or host
-  const { data: { user } } = await supabase.auth.getUser()
   let userRole: string | null = null
   if (user) {
     const { data: userProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -62,7 +61,7 @@ export default async function PackageDetailPage({
   }
 
   // Fetch package — allow admins and the host to see inactive/pending trips
-  let query = supabase
+  const query = supabase
     .from('packages')
     .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
     .eq('slug', slug)

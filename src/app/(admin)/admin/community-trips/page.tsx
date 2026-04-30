@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { getReleasableHostEarning } from '@/actions/host-payout'
 import { isRazorpayXConfigured } from '@/lib/razorpay/x'
 import CommunityTripsClient from './CommunityTripsClient'
 import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
 
+type PendingPayoutRow = { id: string } & Record<string, unknown>
+
 export default async function AdminCommunityTripsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -40,7 +41,7 @@ export default async function AdminCommunityTripsPage() {
 
   // Attach releasable-now info so the client can prefill safe amount + show the refund gate.
   const pendingPayouts = await Promise.all(
-    (pendingPayoutsRaw || []).map(async (row: any) => {
+    ((pendingPayoutsRaw || []) as PendingPayoutRow[]).map(async (row) => {
       const info = await getReleasableHostEarning(row.id)
       return { ...row, releasable: 'error' in info ? null : info }
     }),

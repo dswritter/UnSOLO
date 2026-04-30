@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { getPayoutDetails } from '@/actions/payout'
 import { PayoutDetailsForm } from '@/components/hosting/PayoutDetailsForm'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,7 @@ export default async function PayoutDetailsPage({
 }: {
   searchParams: Promise<{ returnTo?: string }>
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getRequestAuth()
   if (!user) redirect('/login?next=/host/payout')
 
   const payout = await getPayoutDetails()

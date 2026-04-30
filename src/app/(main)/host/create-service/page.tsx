@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
 import { hasPayoutConfigured } from '@/actions/payout'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { ServiceListingType } from '@/types'
 import { GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
@@ -26,8 +26,7 @@ export default async function CreateServiceListingPage({
   if (!hostStatus.isHost) redirect('/host/verify')
 
   // Get current user ID
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   // Get type from params

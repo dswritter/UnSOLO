@@ -3,7 +3,7 @@ export const revalidate = 30 // 30 seconds
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import type { Profile } from '@/types'
 import { ProfileUsernameDetail } from './ProfileUsernameDetail'
 import { ProfilePublicSkeleton } from '@/components/profile/ProfilePublicSkeleton'
@@ -21,10 +21,9 @@ export default async function ProfilePage({
   params: Promise<{ username: string }>
 }) {
   const { username } = await params
-  const supabase = await createClient()
+  const { supabase, user } = await getRequestAuth()
 
-  const [authRes, profileRes, sharePosterRes] = await Promise.all([
-    supabase.auth.getUser(),
+  const [profileRes, sharePosterRes] = await Promise.all([
     supabase.from('profiles').select('*').eq('username', username).single(),
     supabase
       .from('platform_settings')
@@ -36,7 +35,6 @@ export default async function ProfilePage({
       ]),
   ])
 
-  const user = authRes.data.user
   const profile = profileRes.data as ProfileRow | null
   if (profileRes.error || !profile) notFound()
 

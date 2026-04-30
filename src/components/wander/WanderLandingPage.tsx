@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { WanderExploreSection } from '@/components/wander/WanderExploreSection'
 import { WanderExploreSkeleton } from '@/components/wander/WanderExploreSkeleton'
 import {
@@ -34,17 +34,17 @@ export async function WanderLandingPage({
   const sp = await searchParams
   const isSearchMode = sp.search === '1' || Boolean(sp.tab?.length)
 
-  const [stats, rating, supabase, listedActivities, heroImageUrl, trustBadgeText, heroCopy] = await Promise.all([
+  const [stats, rating, auth, listedActivities, heroImageUrl, trustBadgeText, heroCopy] = await Promise.all([
     getWanderStats(),
     getWanderRatingHero(),
-    createClient(),
+    getRequestAuth(),
     getListedActivityFilterOptions(),
     getWanderHeroImageUrl(),
     getWanderTrustBadgeText(),
     getWanderHeroCopy(),
   ])
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = auth
   let profileAvatar: string | null = null
   if (user) {
     const { data: p } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).single()

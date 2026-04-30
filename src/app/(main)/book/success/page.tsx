@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { Button } from '@/components/ui/button'
 import { CheckCircle, MessageCircle, BookOpen, Compass } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
@@ -13,8 +13,7 @@ export default async function BookingSuccessPage({
   const params = await searchParams
   const bookingId = params.booking_id
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
 
   let booking: Booking | null = null
   if (bookingId && user) {

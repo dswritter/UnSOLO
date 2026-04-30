@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { listPendingCollaboratorInvites } from '@/actions/host-service-collaborators'
 import { InvitationsList } from './InvitationsList'
 
 export default async function HostInvitationsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getRequestAuth()
   if (!user) redirect('/login?redirectTo=/host/invitations')
 
   const res = await listPendingCollaboratorInvites()

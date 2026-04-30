@@ -2,8 +2,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/hosting'
 import { getPayoutDetails } from '@/actions/payout'
-import { createClient } from '@/lib/supabase/server'
-import { formatPrice, formatDate, cn } from '@/lib/utils'
+import { getRequestAuth } from '@/lib/auth/request-session'
+import { formatDate, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
 import { hostHiddenStatusClassForest } from '@/components/host/hostBadgeStyles'
@@ -15,17 +15,7 @@ import { HostCreateDropdown } from './HostCreateDropdown'
 import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
 import { ToggleServiceListingButton } from './ToggleServiceListingButton'
 import type { ServiceListing } from '@/types'
-import {
-  Plus,
-  MapPin,
-  Calendar,
-  Users,
-  IndianRupee,
-  TrendingUp,
-  Clock,
-  Wallet,
-  AlertTriangle,
-} from 'lucide-react'
+import { Wallet, AlertTriangle } from 'lucide-react'
 
 export default async function HostDashboardPage() {
   const hostStatus = await checkIsHost()
@@ -45,8 +35,7 @@ export default async function HostDashboardPage() {
   ))
 
   // Fetch this host's service listings (stays/activities/rentals/getting_around).
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getRequestAuth()
   const { data: serviceListings } = user
     ? await supabase
         .from('service_listings')

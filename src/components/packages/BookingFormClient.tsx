@@ -135,7 +135,8 @@ export function BookingFormClient({
       toast.error(`User @${friendUsername} not found`)
     } else {
       // Check if trying to add self
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const currentUser = session?.user ?? null
       if (currentUser && data.id === currentUser.id) {
         toast.error("You're already in the group!")
       } else if (addedFriends.find(f => f.id === data.id)) {
