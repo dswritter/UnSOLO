@@ -8,6 +8,7 @@ import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChat
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
 import type { Profile } from '@/types'
+import { Suspense } from 'react'
 
 export default async function MainLayout({
   children,
@@ -50,7 +51,9 @@ export default async function MainLayout({
       </main>
       {user && <PresenceTracker userId={user.id} />}
       {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
-      <SignInPrompt isAuthenticated={!!user} />
+      <Suspense fallback={null}>
+        <SignInPrompt isAuthenticated={!!user} />
+      </Suspense>
       <WanderThemeCrossTabSync />
       <FooterWrapper />
     </div>
