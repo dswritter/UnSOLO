@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import type { Package, ServiceListing } from '@/types'
 import { ServiceListingCard } from '@/components/explore/ServiceListingCard'
 import { WanderTripCard } from '@/components/wander/WanderTripCard'
@@ -36,18 +37,24 @@ export function WanderListingSections({
   trips,
   tripInterestCounts = {},
   interestedPackageIds = [],
+  stays,
   activities,
   rentals,
+  activeTab = 'trips',
 }: {
   trips: Package[]
   tripInterestCounts?: Record<string, number>
   interestedPackageIds?: string[]
+  stays: ActivityWithItems[]
   activities: ActivityWithItems[]
   rentals: RentalWithItems[]
+  activeTab?: 'trips' | 'stays' | 'activities' | 'rentals'
 }) {
-  return (
-    <div className="space-y-8 md:space-y-10">
-      <section>
+  const sectionOrder = (['trips', 'stays', 'activities', 'rentals'] as const)
+  const orderedTypes = [activeTab, ...sectionOrder.filter(type => type !== activeTab)]
+  const sections = {
+    trips: (
+      <section key="trips">
         <SectionHeader title="Popular trips" actionHref={wanderSearchHref({ tab: 'trips' })} actionLabel="View all trips" />
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground">No trips to show yet.</p>
@@ -64,8 +71,23 @@ export function WanderListingSections({
           </div>
         )}
       </section>
-
-      <section>
+    ),
+    stays: (
+      <section key="stays">
+        <SectionHeader title="Popular stays" actionHref={wanderSearchHref({ tab: 'stays' })} actionLabel="View all stays" />
+        {stays.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No stays to show yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {stays.map(l => (
+              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
+            ))}
+          </div>
+        )}
+      </section>
+    ),
+    activities: (
+      <section key="activities">
         <SectionHeader title="Popular activities" actionHref={wanderSearchHref({ tab: 'activities' })} />
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activities to show yet.</p>
@@ -77,8 +99,9 @@ export function WanderListingSections({
           </div>
         )}
       </section>
-
-      <section>
+    ),
+    rentals: (
+      <section key="rentals">
         <SectionHeader title="Frequently booked rentals" actionHref={wanderSearchHref({ tab: 'rentals' })} />
         {rentals.length === 0 ? (
           <p className="text-sm text-muted-foreground">No rentals to show yet.</p>
@@ -90,6 +113,12 @@ export function WanderListingSections({
           </div>
         )}
       </section>
+    ),
+  } satisfies Record<typeof sectionOrder[number], ReactNode>
+
+  return (
+    <div className="space-y-8 md:space-y-10">
+      {orderedTypes.map(type => sections[type])}
     </div>
   )
 }

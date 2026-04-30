@@ -591,8 +591,8 @@ export function ChatWindow({
       last.user_id !== currentUser.id &&
       last.message_type !== 'system'
 
-    /** Follow the thread: stay pinned to bottom when already there or when you just sent. */
-    const shouldStickToBottom = isNearBottom() || fromSelf
+    /** Direct messages should stay pinned live; group chats keep the "new messages" affordance when scrolled up. */
+    const shouldStickToBottom = roomType === 'direct' || isNearBottom() || fromSelf
 
     if (shouldStickToBottom) {
       setShowJumpButton(false)
@@ -609,7 +609,7 @@ export function ChatWindow({
     if (appended && fromOther) {
       setShowJumpButton(true)
     }
-  }, [messages, currentUser.id])
+  }, [messages, currentUser.id, roomType])
 
   useEffect(() => {
     if (!emojiPickerForMessageId) return
@@ -2351,10 +2351,6 @@ function MessageBubble({
     setTouchLiftEmoji(null)
   }, [])
 
-  useEffect(() => {
-    if (!emojiPickerOpen) setTouchLiftEmoji(null)
-  }, [emojiPickerOpen])
-
   const reactionAgg = useMemo(() => {
     if (!reactionRows?.length) return []
     const m = new Map<string, string[]>()
@@ -2585,6 +2581,7 @@ function MessageBubble({
                 title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
                 onClick={e => {
                   e.stopPropagation()
+                  setTouchLiftEmoji(null)
                   onToggleEmojiPicker()
                 }}
               >

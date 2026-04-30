@@ -122,47 +122,27 @@
   opacity: 0.55;
 }
 
-/* ── Monsoon — depth: far faint dots (slow) + sharp foreground streaks (fast) ─ */
+/* ── Monsoon — moody teal / slate wash only (no rain animation) ─ */
 [data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--back {
-  background: repeating-linear-gradient(
-    103deg,
-    transparent 0 11px,
-    oklch(0.9 0.02 240 / 0.14) 11px 12px,
-    transparent 12px 40px
-  );
-  background-size: 130% 130%;
-  filter: blur(0.35px);
-  animation: trip-bd-rain-far 1.05s linear infinite;
-  opacity: 0.75;
+  background:
+    radial-gradient(ellipse 92% 68% at 50% 35%, oklch(0.34 0.07 225 / 0.18) 0%, transparent 58%),
+    radial-gradient(ellipse 76% 46% at 14% 18%, oklch(0.29 0.05 210 / 0.16) 0%, transparent 54%),
+    radial-gradient(ellipse 72% 42% at 86% 24%, oklch(0.27 0.05 240 / 0.12) 0%, transparent 52%);
+  animation: trip-bd-drift 30s ease-in-out infinite alternate;
+  opacity: 0.82;
 }
 [data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--mid {
   background:
-    radial-gradient(circle 1px at 15% 25%, oklch(0.95 0.02 230 / 0.35) 99%, transparent 100%),
-    radial-gradient(circle 1px at 42% 38%, oklch(0.92 0.02 235 / 0.28) 99%, transparent 100%),
-    radial-gradient(circle 1.5px at 68% 18%, oklch(0.96 0.01 220 / 0.32) 99%, transparent 100%),
-    radial-gradient(circle 1px at 88% 52%, oklch(0.9 0.02 250 / 0.26) 99%, transparent 100%),
-    radial-gradient(ellipse 95% 55% at 50% -5%, oklch(0.35 0.07 225 / 0.28) 0%, transparent 48%);
-  background-size: 200% 200%, 210% 210%, 195% 195%, 220% 220%, 100% 100%;
-  animation: trip-bd-rain-sparkle 1.5s linear infinite;
+    radial-gradient(ellipse 95% 58% at 50% -2%, oklch(0.39 0.07 220 / 0.24) 0%, transparent 52%),
+    radial-gradient(ellipse 82% 52% at 52% 108%, oklch(0.16 0.05 220 / 0.4) 0%, transparent 56%);
   mix-blend-mode: screen;
-  opacity: 0.65;
+  opacity: 0.58;
 }
 [data-wander-shell-season='monsoon'] .trip-detail-season-backdrop__layer-inner--front {
-  background: repeating-linear-gradient(
-    101deg,
-    transparent 0 7px,
-    oklch(0.92 0.02 230 / 0.42) 7px 8px,
-    transparent 8px 20px
-  ),
-  repeating-linear-gradient(
-    98deg,
-    transparent 0 12px,
-    oklch(0.88 0.03 240 / 0.24) 12px 13px,
-    transparent 13px 30px
-  );
-  background-size: 115% 115%, 135% 135%;
-  animation: trip-bd-rain-near 0.55s linear infinite;
-  opacity: 0.88;
+  background:
+    linear-gradient(172deg, transparent 38%, oklch(0.11 0.04 225 / 0.22) 100%),
+    radial-gradient(ellipse 118% 85% at 50% 112%, oklch(0.21 0.04 215 / 0.18) 0%, transparent 58%);
+  opacity: 0.78;
 }
 
 /* ── Autumn — soft rust / amber wash only (no illustrated leaves; matches wander-textured spirit) ─ */

@@ -7,6 +7,7 @@ import {
   getWanderStats,
   getWanderRatingHero,
   getWanderTripRow,
+  getWanderStayRow,
   getWanderActivityRow,
   getWanderRentalRow,
   getWanderServiceItemsForListings,
@@ -32,7 +33,11 @@ export async function WanderLandingPage({
   searchBasePath?: '/'
 }) {
   const sp = await searchParams
-  const isSearchMode = sp.search === '1' || Boolean(sp.tab?.length)
+  const activeTab =
+    sp.tab === 'stays' || sp.tab === 'activities' || sp.tab === 'rentals' || sp.tab === 'trips'
+      ? sp.tab
+      : 'trips'
+  const isSearchMode = sp.search === '1'
 
   const [stats, rating, auth, listedActivities, heroImageUrl, trustBadgeText, heroCopy] = await Promise.all([
     getWanderStats(),
@@ -52,21 +57,25 @@ export async function WanderLandingPage({
   }
 
   let tripRow: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
+  let stays: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
   let activities: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
   let rentals: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
   let landingInterestedPackageIds: string[] = []
 
   if (!isSearchMode) {
-    const [tp, actListings, rentListings] = await Promise.all([
+    const [tp, stayListings, actListings, rentListings] = await Promise.all([
       getWanderTripRow(),
+      getWanderStayRow(),
       getWanderActivityRow(),
       getWanderRentalRow(),
     ])
     tripRow = tp
-    const [a, r] = await Promise.all([
+    const [s, a, r] = await Promise.all([
+      getWanderServiceItemsForListings(stayListings),
       getWanderServiceItemsForListings(actListings),
       getWanderServiceItemsForListings(rentListings),
     ])
+    stays = s
     activities = a
     rentals = r
 
@@ -126,14 +135,16 @@ export async function WanderLandingPage({
             <WanderExploreSection sp={sp} searchBasePath={searchBasePath} />
           </Suspense>
         </div>
-      ) : tripRow && activities && rentals ? (
+      ) : tripRow && stays && activities && rentals ? (
         <div className="border-t border-border/50">
           <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
             <WanderRecentlyViewedStrip />
             <WanderListingSections
+              activeTab={activeTab}
               trips={tripRow.packages}
               tripInterestCounts={tripRow.interestCounts}
               interestedPackageIds={landingInterestedPackageIds}
+              stays={stays}
               activities={activities}
               rentals={rentals}
             />

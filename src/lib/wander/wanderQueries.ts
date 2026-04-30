@@ -367,6 +367,22 @@ export async function getWanderActivityRow(): Promise<ServiceListing[]> {
   return visible.slice(0, 4)
 }
 
+export async function getWanderStayRow(): Promise<ServiceListing[]> {
+  const supabase = svc()
+  const { data, error } = await supabase
+    .from('service_listings')
+    .select('*, destination:destinations(id, name, slug)')
+    .eq('type', 'stays')
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .order('is_featured', { ascending: false })
+    .order('average_rating', { ascending: false })
+    .order('review_count', { ascending: false })
+    .limit(30)
+  if (error || !data) return []
+  return (data as ServiceListing[]).slice(0, 4)
+}
+
 export async function getWanderRentalRow(): Promise<ServiceListing[]> {
   const supabase = svc()
   const { data: listings, error: lerr } = await supabase

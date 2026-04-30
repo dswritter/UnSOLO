@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useLayoutEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { MapPin, CalendarDays, Users, Plane, Home, Compass, Key, Search, Tag, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -78,6 +78,8 @@ export function WanderSearchBar({
 }) {
   const isWander = variant === 'wander'
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isExplorePending, startExploreTransition] = useTransition()
   const [tab, setTab] = useState<Tab>('trips')
 
@@ -121,6 +123,25 @@ export function WanderSearchBar({
       /* ignore */
     }
   }, [])
+
+  useEffect(() => {
+    const urlTab = searchParams.get('tab')
+    if (urlTab === 'trips' || urlTab === 'stays' || urlTab === 'activities' || urlTab === 'rentals') {
+      setTab(urlTab)
+    }
+  }, [searchParams])
+
+  const setBrowseTab = useCallback((nextTab: Tab) => {
+    setTab(nextTab)
+    if (!isWander) return
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', nextTab)
+    const hasActiveExploreFilters = Boolean(params.get('q')?.trim() || params.get('month')?.trim())
+    if (hasActiveExploreFilters) params.set('search', '1')
+    else params.delete('search')
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [isWander, pathname, router, searchParams])
 
   const markNudgeDismissed = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -369,7 +390,7 @@ export function WanderSearchBar({
           <button
             key={id}
             type="button"
-            onClick={() => setTab(id)}
+                  onClick={() => setBrowseTab(id)}
             className={cn(
               'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
               isWander
