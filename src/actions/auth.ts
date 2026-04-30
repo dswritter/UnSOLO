@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
@@ -28,6 +29,38 @@ export type SignUpResult =
   | { error: string }
   | { needsEmailConfirmation: true; email: string }
 
+function normalizeRedirectTarget(value: string | null | undefined): string {
+  if (!value) return '/'
+  if (!value.startsWith('/')) return '/'
+  if (value.startsWith('//')) return '/'
+  return value
+}
+
+async function resolveAppUrl(): Promise<string> {
+  const hdrs = await headers()
+  const origin = hdrs.get('origin')
+  if (origin) {
+    try {
+      return new URL(origin).origin
+    } catch {}
+  }
+
+  const proto = hdrs.get('x-forwarded-proto')
+  const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host')
+  if (host) {
+    return `${proto ?? 'https'}://${host}`
+  }
+
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (envUrl) {
+    try {
+      return new URL(envUrl).origin
+    } catch {}
+  }
+
+  return ''
+}
+
 export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   const supabase = await createClient()
 
@@ -36,9 +69,12 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   const username = formData.get('username') as string
   const fullName = formData.get('fullName') as string
   const referralCode = formData.get('referralCode') as string | null
+  const redirectTo = normalizeRedirectTarget(formData.get('redirectTo') as string | null)
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-  const confirmNext = encodeURIComponent('/login?verified=1')
+  const appUrl = await resolveAppUrl()
+  const confirmNext = encodeURIComponent(
+    `/login?verified=1&redirectTo=${encodeURIComponent(redirectTo)}`
+  )
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -65,7 +101,7 @@ export async function signUp(formData: FormData): Promise<SignUpResult | void> {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect(redirectTo)
 }
 
 export async function signIn(formData: FormData) {
@@ -73,6 +109,7 @@ export async function signIn(formData: FormData) {
 
   const email = formData.get('email') as string
   const password = formData.get('password') as string
+  const redirectTo = normalizeRedirectTarget(formData.get('redirectTo') as string | null)
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -88,7 +125,7 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  redirect(redirectTo)
 }
 
 export async function signOut() {
@@ -99,40 +136,50 @@ export async function signOut() {
 }
 
 /** Resend signup confirmation (user not logged in yet). Uses same redirect as sign-up. */
-export async function resendSignupConfirmationEmail(email: string) {
+export async function resendSignupConfirmationEmail(email: string, redirectTo?: string) {
   const supabase = await createClient()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+  const appUrl = await resolveAppUrl()
+  const nextTarget = normalizeRedirectTarget(redirectTo)
   const { error } = await supabase.auth.resend({
     type: 'signup',
     email: email.trim(),
     options: {
-      emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent('/login?verified=1')}`,
+      emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(`/login?verified=1&redirectTo=${encodeURIComponent(nextTarget)}`)}`,
     },
   })
   if (error) return { error: mapAuthErrorMessage(error.message) }
   return { success: true as const }
 }
 
-export async function signInWithGoogle(referralCode?: string) {
+type OAuthSignInOptions = {
+  redirectTo?: string | null
+  referralCode?: string | null
+}
+
+export async function signInWithGoogle(options?: OAuthSignInOptions) {
   const supabase = await createClient()
+  const appUrl = await resolveAppUrl()
+  const redirectTo = normalizeRedirectTarget(options?.redirectTo)
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-      queryParams: referralCode ? { referral_code: referralCode } : undefined,
+      redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+      queryParams: options?.referralCode ? { referral_code: options.referralCode } : undefined,
     },
   })
   if (error) return { error: error.message }
   if (data.url) redirect(data.url)
 }
 
-export async function signInWithApple(referralCode?: string) {
+export async function signInWithApple(options?: OAuthSignInOptions) {
   const supabase = await createClient()
+  const appUrl = await resolveAppUrl()
+  const redirectTo = normalizeRedirectTarget(options?.redirectTo)
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'apple',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-      queryParams: referralCode ? { referral_code: referralCode } : undefined,
+      redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+      queryParams: options?.referralCode ? { referral_code: options.referralCode } : undefined,
     },
   })
   if (error) return { error: error.message }

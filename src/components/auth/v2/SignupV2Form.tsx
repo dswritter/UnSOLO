@@ -28,6 +28,7 @@ function SignupV2FormInner() {
   const submitLockRef = useRef(false)
   const searchParams = useSearchParams()
   const refCode = searchParams.get('ref') || ''
+  const redirectTo = searchParams.get('redirectTo') || '/'
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmPasswordRef = useRef<HTMLInputElement>(null)
 
@@ -36,7 +37,7 @@ function SignupV2FormInner() {
     setGoogleError(null)
     setGoogleBusy(true)
     try {
-      const result = await signInWithGoogle(refCode || undefined)
+      const result = await signInWithGoogle({ referralCode: refCode || undefined, redirectTo })
       if (result && typeof result === 'object' && 'error' in result && result.error) {
         setGoogleError(result.error)
         setGoogleAttempts(a => a + 1)
@@ -86,7 +87,7 @@ function SignupV2FormInner() {
             disabled={resendBusy}
             onClick={async () => {
               setResendBusy(true)
-              const r = await resendSignupConfirmationEmail(pendingVerificationEmail)
+              const r = await resendSignupConfirmationEmail(pendingVerificationEmail, redirectTo)
               setResendBusy(false)
               if ('error' in r && r.error) toast.error(r.error)
               else toast.success('Another email is on its way.')
@@ -95,7 +96,7 @@ function SignupV2FormInner() {
             {resendBusy ? 'Sending…' : 'Resend email'}
           </Button>
           <Button type="button" className="bg-[#fcba03] text-black font-bold" asChild>
-            <Link href="/login">Go to sign in</Link>
+            <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}${refCode ? `&ref=${encodeURIComponent(refCode)}` : ''}`}>Go to sign in</Link>
           </Button>
         </div>
         <button
@@ -183,6 +184,7 @@ function SignupV2FormInner() {
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {refCode && <input type="hidden" name="referralCode" value={refCode} />}
+        <input type="hidden" name="redirectTo" value={redirectTo} />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
@@ -326,7 +328,10 @@ function SignupV2FormInner() {
 
       <p className="mt-4 text-center text-sm text-white/50">
         Already have an account?{' '}
-        <Link href="/login" className="font-semibold text-[#fcba03] hover:underline">
+        <Link
+          href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+          className="font-semibold text-[#fcba03] hover:underline"
+        >
           Log in
         </Link>
       </p>

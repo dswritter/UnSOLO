@@ -28,6 +28,7 @@ const inputPlaceholderClass =
 function LoginV2FormInner() {
   const searchParams = useSearchParams()
   const verified = searchParams.get('verified') === '1'
+  const redirectTo = searchParams.get('redirectTo') || '/'
   const [loading, setLoading] = useState(false)
   const [quoteIndex, setQuoteIndex] = useState(0)
   const [verifiedSessionChecked, setVerifiedSessionChecked] = useState(false)
@@ -44,7 +45,7 @@ function LoginV2FormInner() {
     setGoogleError(null)
     setGoogleBusy(true)
     try {
-      const result = await signInWithGoogle()
+      const result = await signInWithGoogle({ redirectTo })
       if (result && typeof result === 'object' && 'error' in result && result.error) {
         setGoogleError(result.error)
         setGoogleAttempts(a => a + 1)
@@ -125,7 +126,7 @@ function LoginV2FormInner() {
             <p className="text-sm font-bold text-emerald-500">Email verified</p>
             <p className="text-xs text-white/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
             <Button className="w-full h-9 bg-[#fcba03] text-black text-sm font-bold hover:bg-[#fcba03]/90" asChild>
-              <Link href={WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
+              <Link href={redirectTo || WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
           </div>
         </div>
@@ -140,6 +141,7 @@ function LoginV2FormInner() {
       ) : null}
 
       <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-3.5">
+        <input type="hidden" name="redirectTo" value={redirectTo} />
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-white/80" htmlFor="auth-v2-email">
             Email
@@ -159,7 +161,10 @@ function LoginV2FormInner() {
             <label className="text-xs font-medium text-white/80" htmlFor="auth-v2-password">
               Password
             </label>
-            <Link href="/forgot-password" className="text-xs font-semibold text-[#fcba03] hover:underline">
+            <Link
+              href={`/forgot-password${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+              className="text-xs font-semibold text-[#fcba03] hover:underline"
+            >
               Forgot?
             </Link>
           </div>
@@ -246,7 +251,10 @@ function LoginV2FormInner() {
 
       <p className="mt-4 text-center text-sm text-white/50">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-semibold text-[#fcba03] hover:underline">
+        <Link
+          href={`/signup${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+          className="font-semibold text-[#fcba03] hover:underline"
+        >
           Sign up
         </Link>
       </p>

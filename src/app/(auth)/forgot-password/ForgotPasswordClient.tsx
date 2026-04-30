@@ -20,8 +20,9 @@ export function ForgotPasswordClient() {
     setLoading(true)
 
     const supabase = createClient()
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : APP_URL
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${APP_URL}/auth/callback?next=/reset-password`,
+      redirectTo: `${baseUrl}/auth/callback?next=/reset-password`,
     })
 
     if (error) {

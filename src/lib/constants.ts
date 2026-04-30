@@ -20,7 +20,7 @@ export const REFERRED_DISCOUNT_PAISE = 20000 // ₹200
 export const REFERRAL_CODE_LENGTH = 8
 
 /** App URL for sharing */
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://unsolo-two.vercel.app'
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://unsolo.in'
 
 // ── Peer Hosting Constants ──────────────────────────────────
 

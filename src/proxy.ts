@@ -8,6 +8,11 @@ const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact']
 
 const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])
 
+function matchesRoute(pathname: string, route: string): boolean {
+  if (route === '/') return pathname === '/'
+  return pathname === route || pathname.startsWith(`${route}/`)
+}
+
 /**
  * Normalize apex vs www to match NEXT_PUBLIC_APP_URL so session + branding stay
  * consistent. Pair with shared auth cookie domain (see auth-cookie-options).
@@ -130,13 +135,13 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url, 308)
     }
 
-    const isPublic = PUBLIC_ROUTES.some(r => pathname.startsWith(r)) ||
+    const isPublic = PUBLIC_ROUTES.some(r => matchesRoute(pathname, r)) ||
       pathname.startsWith('/_next') ||
       pathname.startsWith('/favicon') ||
       pathname.startsWith('/sounds') ||
       pathname.includes('.')
 
-    const isPublicContent = PUBLIC_CONTENT.some(r => pathname.startsWith(r))
+    const isPublicContent = PUBLIC_CONTENT.some(r => matchesRoute(pathname, r))
 
     if (isPublic || isPublicContent) {
       return supabaseResponse

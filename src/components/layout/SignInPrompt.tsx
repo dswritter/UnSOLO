@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { X, Mountain } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { signInWithGoogle } from '@/actions/auth'
@@ -11,6 +12,9 @@ const DELAY_MS = 5000
 export function SignInPrompt({ isAuthenticated }: { isAuthenticated: boolean }) {
   const [visible, setVisible] = useState(false)
   const [loading, startTransition] = useTransition()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const redirectTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 
   useEffect(() => {
     if (isAuthenticated) return
@@ -57,7 +61,7 @@ export function SignInPrompt({ isAuthenticated }: { isAuthenticated: boolean }) 
         <Button
           className="w-full gap-2"
           disabled={loading}
-          onClick={() => startTransition(() => { signInWithGoogle() })}
+          onClick={() => startTransition(() => { signInWithGoogle({ redirectTo }) })}
         >
           <Mountain className="h-4 w-4 text-primary-foreground" />
           {loading ? 'Redirecting…' : 'Continue with Google'}

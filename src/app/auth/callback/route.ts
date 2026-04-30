@@ -1,13 +1,38 @@
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+
+import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  const nextParam = searchParams.get('next')
+  const next = nextParam?.startsWith('/') ? nextParam : '/'
+  const successResponse = NextResponse.redirect(`${origin}${next}`)
+  const failureResponse = NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 
   if (code) {
-    const supabase = await createClient()
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        ...getSupabaseAuthCookieOptions(),
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+              successResponse.cookies.set(name, value, options)
+              failureResponse.cookies.set(name, value, options)
+            })
+          },
+        },
+      },
+    )
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
@@ -16,7 +41,7 @@ export async function GET(request: Request) {
         .from('profiles')
         .select('id')
         .eq('id', data.user.id)
-        .single()
+        .maybeSingle()
 
       if (!existing) {
         const email = data.user.email || ''
@@ -36,9 +61,9 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      return successResponse
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
+  return failureResponse
 }
