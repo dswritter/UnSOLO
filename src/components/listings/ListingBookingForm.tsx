@@ -39,6 +39,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const unitPricePaise = selectedItem?.price_paise ?? listing.price_paise
   const maxPerBooking = selectedItem?.max_per_booking ?? listing.max_guests_per_booking ?? 10
   const availableQty = selectedItem?.quantity_available ?? listing.quantity_available
+  const itemUnavailable = !!selectedItem?.is_out_of_stock
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
 
@@ -172,6 +173,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       if (entry.slots && entry.slots.length > 0 && !slotKey) return 'Select a time slot'
     }
     if (quantity < 1) return 'Quantity must be at least 1'
+    if (itemUnavailable) return 'This item is currently out of stock'
     if (quantity > maxPerBooking) return `Maximum ${maxPerBooking} per booking`
     if (availableQty != null && quantity > availableQty) return `Only ${availableQty} available`
     return ''

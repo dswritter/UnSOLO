@@ -414,11 +414,11 @@ export async function getWanderServiceItemsForListings(
   const ids = listings.map(l => l.id)
   const { data: itemRows } = await supabase
     .from('service_listing_items')
-    .select('id, name, price_paise, images, unit, service_listing_id')
+    .select('id, name, price_paise, images, unit, is_out_of_stock, service_listing_id')
     .in('service_listing_id', ids)
     .eq('is_active', true)
     .order('position_order', { ascending: true })
-  const itemsBy = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>>()
+  const itemsBy = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null; is_out_of_stock: boolean }>>()
   for (const row of itemRows || []) {
     const lid = (row as { service_listing_id: string }).service_listing_id
     if (!itemsBy.has(lid)) itemsBy.set(lid, [])
@@ -428,6 +428,7 @@ export async function getWanderServiceItemsForListings(
       price_paise: (row as { price_paise: number }).price_paise,
       images: ((row as { images: string[] | null }).images) || [],
       unit: (row as { unit: string | null }).unit,
+      is_out_of_stock: Boolean((row as { is_out_of_stock?: boolean | null }).is_out_of_stock),
     })
   }
   return listings.map(l => ({ ...l, items: itemsBy.get(l.id) || [] }))

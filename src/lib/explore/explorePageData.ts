@@ -145,13 +145,13 @@ async function attachItemsToServiceListings(
   const ids = listings.map(l => l.id)
   const { data: itemRows } = await supabase
     .from('service_listing_items')
-    .select('id, name, price_paise, images, unit, service_listing_id')
+    .select('id, name, price_paise, images, unit, is_out_of_stock, service_listing_id')
     .in('service_listing_id', ids)
     .eq('is_active', true)
     .order('position_order', { ascending: true })
     .order('created_at', { ascending: true })
 
-  const itemsByListing = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>>()
+  const itemsByListing = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null; is_out_of_stock: boolean }>>()
   for (const row of itemRows || []) {
     const lid = (row as { service_listing_id: string }).service_listing_id
     if (!itemsByListing.has(lid)) itemsByListing.set(lid, [])
@@ -161,6 +161,7 @@ async function attachItemsToServiceListings(
       price_paise: row.price_paise,
       images: (row.images as string[]) || [],
       unit: row.unit as string | null,
+      is_out_of_stock: Boolean((row as { is_out_of_stock?: boolean | null }).is_out_of_stock),
     })
   }
 

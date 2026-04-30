@@ -47,7 +47,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   // first item so the sidebar price/form has something to render; user can
   // switch via the carousel arrows or by clicking another card.
   const [selectedItemId, setSelectedItemId] = useState<string | null>(
-    items.length > 0 ? items[0].id : null,
+    items.find(i => !i.is_out_of_stock && i.quantity_available !== 0)?.id ?? items[0]?.id ?? null,
   )
   const selectedItem = items.find(i => i.id === selectedItemId) || null
 
@@ -340,7 +340,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
             <h2 className="text-xl font-bold mb-3">{isRental ? 'Choose vehicles' : 'Choose an option'}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {items.map((item) => {
-                const soldOut = item.quantity_available === 0
+                const soldOut = item.is_out_of_stock || item.quantity_available === 0
                 const cartQty = rentalCart[item.id] ?? 0
                 const isSelected = item.id === selectedItemId
                 const maxQty = item.max_per_booking != null
@@ -368,7 +368,9 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                         )}
                         {soldOut && (
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">Sold out</span>
+                            <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">
+                              {item.is_out_of_stock ? 'Out of stock' : 'Sold out'}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -381,6 +383,11 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                         </p>
                         {!soldOut && item.quantity_available != null && (
                           <p className="text-xs text-emerald-400">{item.quantity_available} available</p>
+                        )}
+                        {soldOut && (
+                          <p className="text-xs text-amber-400">
+                            {item.is_out_of_stock ? 'Temporarily unavailable' : 'Currently sold out'}
+                          </p>
                         )}
                         {item.amenities && item.amenities.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-1">
@@ -438,9 +445,11 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                       )}
                       {soldOut && (
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">Sold out</span>
-                        </div>
-                      )}
+                            <span className="text-xs font-semibold text-white bg-black/60 px-2 py-0.5 rounded">
+                              {item.is_out_of_stock ? 'Out of stock' : 'Sold out'}
+                            </span>
+                          </div>
+                        )}
                     </div>
                     <div className="p-2.5 space-y-0.5">
                       <p className="font-semibold text-sm leading-tight line-clamp-2">{item.name}</p>
@@ -450,6 +459,11 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                       </p>
                       {!soldOut && item.quantity_available != null && (
                         <p className="text-xs text-emerald-400">{item.quantity_available} available</p>
+                      )}
+                      {soldOut && (
+                        <p className="text-xs text-amber-400">
+                          {item.is_out_of_stock ? 'Temporarily unavailable' : 'Currently sold out'}
+                        </p>
                       )}
                       {item.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2 pt-0.5">{stripMarkdown(item.description)}</p>

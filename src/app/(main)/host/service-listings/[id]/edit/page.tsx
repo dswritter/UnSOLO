@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
+import { listItemUnavailabilityByListing } from '@/actions/host-service-item-unavailability'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { hostMayResubmitServiceListing } from '@/lib/service-listing-resubmit'
 import { createClient } from '@/lib/supabase/server'
@@ -40,13 +41,16 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   if (!listing) notFound()
   if (listing.host_id !== user.id) redirect('/host')
 
-  const [destinations, itemsResult, countsResult] = await Promise.all([
+  const [destinations, itemsResult, countsResult, unavailabilityResult] = await Promise.all([
     getDestinationsPublic(),
     listServiceListingItems(id),
     fetchServiceBookingCountsForListings(supabase, [id]),
+    listItemUnavailabilityByListing(id),
   ])
   if ('error' in itemsResult) notFound()
+  if ('error' in unavailabilityResult) notFound()
   const items = itemsResult.items
+  const itemUnavailability = unavailabilityResult.entries
   const maxItemMs = items.reduce(
     (m, it) =>
       Math.max(m, Math.max(new Date(it.updated_at).getTime(), new Date(it.created_at).getTime())),
@@ -100,6 +104,7 @@ export default async function EditServiceListingPage({ params, searchParams }: P
           userId={user.id}
           listing={listing as ServiceListing & { destination_ids?: string[] | null }}
           initialItems={items}
+          initialItemUnavailability={itemUnavailability}
           initialTab={initialTab}
           listingBookingCount={listingBookingCount}
           bookingCountByItemId={bookingCountByItemId}

@@ -143,6 +143,7 @@ function buildPreviewShape(p: HostServiceListingPreviewPayload): {
     images: it.images,
     position_order: i,
     is_active: true,
+    is_out_of_stock: false,
     unit: it.unit ?? null,
     amenities: it.amenities ?? null,
     created_at: now,

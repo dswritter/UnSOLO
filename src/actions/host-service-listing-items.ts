@@ -24,6 +24,7 @@ const OPERATIONAL_ITEM_FIELDS = new Set<string>([
   'quantity_available',
   'max_per_booking',
   'is_active',
+  'is_out_of_stock',
   'position_order',
 ])
 
@@ -183,6 +184,7 @@ export async function createServiceListingItem(input: {
   position_order?: number
   unit?: ItemUnit | null
   amenities?: string[] | null
+  is_out_of_stock?: boolean
 }) {
   const ctx = await requireHostOfListing(input.service_listing_id)
   if ('error' in ctx) return { error: ctx.error }
@@ -205,6 +207,7 @@ export async function createServiceListingItem(input: {
       position_order: input.position_order ?? 0,
       unit: input.unit ?? null,
       amenities: input.amenities ?? null,
+      is_out_of_stock: input.is_out_of_stock ?? false,
     })
     .select('*')
     .single()
@@ -238,6 +241,7 @@ export async function updateServiceListingItem(
     images: string[]
     position_order: number
     is_active: boolean
+    is_out_of_stock: boolean
     unit: ItemUnit | null
     amenities: string[] | null
   }>,

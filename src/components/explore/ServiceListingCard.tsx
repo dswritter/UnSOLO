@@ -13,6 +13,7 @@ type CardItem = {
   price_paise: number
   images: string[]
   unit: string | null
+  is_out_of_stock?: boolean
 }
 
 interface ServiceListingCardProps {
@@ -231,6 +232,9 @@ function ItemsCarouselCard({
               From {formatPrice(activeItem.price_paise)}
               {activeItem.unit ? ` / ${activeItem.unit.replace('per_', '').replace('_', ' ')}` : ''}
             </p>
+            {activeItem.is_out_of_stock ? (
+              <p className="text-[11px] font-semibold text-amber-300 mt-1">Out of stock</p>
+            ) : null}
           </div>
 
           {/* Dot indicators */}

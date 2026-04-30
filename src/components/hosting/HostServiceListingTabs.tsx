@@ -27,6 +27,10 @@ import {
   deleteServiceListingItem,
 } from '@/actions/host-service-listing-items'
 import {
+  addItemUnavailability,
+  removeItemUnavailability,
+} from '@/actions/host-service-item-unavailability'
+import {
   SERVICE_LISTING_PREVIEW_HANDOFF_KEY,
   type HostServiceListingPreviewPayload,
 } from '@/lib/host-service-listing-preview-session'
@@ -34,6 +38,7 @@ import type {
   Destination,
   ServiceListing,
   ServiceListingItem,
+  ServiceListingItemUnavailability,
   ServiceListingMetadata,
   ServiceListingType,
 } from '@/types'
@@ -57,6 +62,7 @@ interface EditProps extends BaseProps {
   mode: 'edit'
   listing: ServiceListing & { destination_ids?: string[] | null }
   initialItems: ServiceListingItem[]
+  initialItemUnavailability: ServiceListingItemUnavailability[]
   /** Non-cancelled service bookings per item id (server-provided). */
   bookingCountByItemId?: Record<string, number>
   /** Total non-cancelled service bookings for this listing. */
@@ -153,6 +159,7 @@ type DraftItem = {
   quantity: number
   maxPerBooking: number
   images: string[]
+  isOutOfStock: boolean
   /** Rentals & stays: per-item. Other types inherit master unit (or activities: per-item unit only). */
   unit?: Unit
   /** Rentals & stays: per-item. */
@@ -170,6 +177,7 @@ function emptyDraft(type: ServiceListingType): DraftItem {
     quantity: 1,
     maxPerBooking: 10,
     images: [],
+    isOutOfStock: false,
   }
   if (type === 'rentals') {
     base.unit = TYPE_CONFIG.rentals.defaultUnit
@@ -198,6 +206,7 @@ function itemFromRow(
     quantity: row.max_per_booking,
     maxPerBooking: row.quantity_available,
     images: row.images,
+    isOutOfStock: row.is_out_of_stock,
   }
   if (type === 'rentals') {
     draft.unit = (row.unit as Unit) || TYPE_CONFIG.rentals.defaultUnit
@@ -258,6 +267,7 @@ export function HostServiceListingTabs(props: Props) {
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
+  const initialItemUnavailability = mode === 'edit' ? props.initialItemUnavailability : []
   const bookingCountByItemId = mode === 'edit' ? props.bookingCountByItemId : undefined
   const listingBookingCount = mode === 'edit' ? props.listingBookingCount : undefined
   const stayLegacyForItems =
@@ -555,6 +565,8 @@ export function HostServiceListingTabs(props: Props) {
       ? initialItems.map(row => itemFromRow(row, type, stayLegacyForItems))
       : [emptyDraft(type)],
   )
+  const [itemUnavailability, setItemUnavailability] = useState<ServiceListingItemUnavailability[]>(initialItemUnavailability)
+  const [availabilityDrafts, setAvailabilityDrafts] = useState<Record<string, { start: string; end: string }>>({})
   const isRental = type === 'rentals'
   const isActivity = type === 'activities'
   const isStay = type === 'stays'
@@ -773,6 +785,17 @@ export function HostServiceListingTabs(props: Props) {
     setItems(prev => prev.map(i => i.localKey === localKey ? { ...i, ...patch } : i))
   }
 
+  function updateAvailabilityDraft(localKey: string, patch: Partial<{ start: string; end: string }>) {
+    setAvailabilityDrafts(prev => ({
+      ...prev,
+      [localKey]: {
+        start: prev[localKey]?.start || '',
+        end: prev[localKey]?.end || '',
+        ...patch,
+      },
+    }))
+  }
+
   async function removeDraft(draft: DraftItem) {
     if (items.length === 1) {
       toast.error('Keep at least one item')
@@ -789,6 +812,62 @@ export function HostServiceListingTabs(props: Props) {
       toast.success('Item removed')
     }
     setItems(prev => prev.filter(i => i.localKey !== draft.localKey))
+    if (draft.dbId) {
+      setItemUnavailability(prev => prev.filter(e => e.service_listing_item_id !== draft.dbId))
+    }
+  }
+
+  async function addUnavailableToday(draft: DraftItem) {
+    if (!draft.dbId) {
+      toast.message('Save the item first, then add date-based stock blocks.')
+      return
+    }
+    const today = new Date().toISOString().slice(0, 10)
+    const res = await addItemUnavailability(draft.dbId, today, today)
+    if ('error' in res && res.error) {
+      toast.error(res.error)
+      return
+    }
+    if (!('entry' in res) || !res.entry) {
+      toast.error('Could not save unavailable dates')
+      return
+    }
+    setItemUnavailability(prev => [...prev, res.entry].sort((a, b) => a.start_date.localeCompare(b.start_date)))
+    toast.success('Marked unavailable for today')
+  }
+
+  async function addUnavailableRange(draft: DraftItem) {
+    if (!draft.dbId) {
+      toast.message('Save the item first, then add date-based stock blocks.')
+      return
+    }
+    const form = availabilityDrafts[draft.localKey] || { start: '', end: '' }
+    if (!form.start) {
+      toast.error('Choose a start date')
+      return
+    }
+    const res = await addItemUnavailability(draft.dbId, form.start, form.end || form.start)
+    if ('error' in res && res.error) {
+      toast.error(res.error)
+      return
+    }
+    if (!('entry' in res) || !res.entry) {
+      toast.error('Could not save unavailable dates')
+      return
+    }
+    setItemUnavailability(prev => [...prev, res.entry].sort((a, b) => a.start_date.localeCompare(b.start_date)))
+    setAvailabilityDrafts(prev => ({ ...prev, [draft.localKey]: { start: '', end: '' } }))
+    toast.success('Unavailable dates saved')
+  }
+
+  async function removeUnavailableRange(entryId: string) {
+    const res = await removeItemUnavailability(entryId)
+    if ('error' in res && res.error) {
+      toast.error(res.error)
+      return
+    }
+    setItemUnavailability(prev => prev.filter(e => e.id !== entryId))
+    toast.success('Unavailable dates removed')
   }
 
   async function handleItemImageAdd(draft: DraftItem, files: FileList | null) {
@@ -1000,6 +1079,7 @@ export function HostServiceListingTabs(props: Props) {
           quantity_available: draft.maxPerBooking,
           max_per_booking: draft.quantity,
           images: draft.images,
+          is_out_of_stock: draft.isOutOfStock,
           ...(isRental || isStay
             ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
             : isActivity
@@ -1021,6 +1101,7 @@ export function HostServiceListingTabs(props: Props) {
           max_per_booking: draft.quantity,
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
+          is_out_of_stock: draft.isOutOfStock,
           ...(isRental || isStay
             ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
             : isActivity
@@ -1089,6 +1170,7 @@ export function HostServiceListingTabs(props: Props) {
             quantity_available: draft.maxPerBooking,
             max_per_booking: draft.quantity,
             images: draft.images,
+            is_out_of_stock: draft.isOutOfStock,
             ...(isRental || isStay
               ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
               : isActivity
@@ -1112,6 +1194,7 @@ export function HostServiceListingTabs(props: Props) {
             max_per_booking: draft.quantity,
             images: draft.images,
             position_order: items.findIndex(i => i.localKey === draft.localKey),
+            is_out_of_stock: draft.isOutOfStock,
             ...(isRental || isStay
               ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
               : isActivity
@@ -1774,6 +1857,13 @@ export function HostServiceListingTabs(props: Props) {
           <div className="space-y-4">
             {items.map((draft, idx) => (
               <div key={draft.localKey} className="rounded-xl border border-border bg-card p-4 space-y-3">
+                {(() => {
+                  const availabilityRows = draft.dbId
+                    ? itemUnavailability.filter(e => e.service_listing_item_id === draft.dbId)
+                    : []
+                  const availabilityForm = availabilityDrafts[draft.localKey] || { start: '', end: '' }
+                  return (
+                    <>
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">
                     Item {idx + 1}
@@ -1791,6 +1881,84 @@ export function HostServiceListingTabs(props: Props) {
                   >
                     Remove
                   </button>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Stock status</p>
+                    <p className="text-xs text-muted-foreground">
+                      Mark this item out of stock without hiding it or sending it for admin review.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateDraft(draft.localKey, { isOutOfStock: !draft.isOutOfStock })}
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      draft.isOutOfStock
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
+                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30'
+                    }`}
+                  >
+                    {draft.isOutOfStock ? 'Out of stock' : 'In stock'}
+                  </button>
+                </div>
+
+                <div className="rounded-lg border border-border bg-background/60 p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Unavailable dates</p>
+                      <p className="text-xs text-muted-foreground">
+                        Block today, one date, or a full date range for this item.
+                      </p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={() => void addUnavailableToday(draft)}>
+                      Block today
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2">
+                    <input
+                      type="date"
+                      value={availabilityForm.start}
+                      onChange={(e) => updateAvailabilityDraft(draft.localKey, { start: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+                    />
+                    <input
+                      type="date"
+                      value={availabilityForm.end}
+                      onChange={(e) => updateAvailabilityDraft(draft.localKey, { end: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+                    />
+                    <Button type="button" onClick={() => void addUnavailableRange(draft)}>
+                      Add block
+                    </Button>
+                  </div>
+
+                  {availabilityRows.length > 0 ? (
+                    <div className="space-y-2">
+                      {availabilityRows.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex items-center justify-between rounded-md border border-border bg-secondary/40 px-3 py-2"
+                        >
+                          <div className="text-xs text-foreground">
+                            {entry.start_date === entry.end_date
+                              ? entry.start_date
+                              : `${entry.start_date} to ${entry.end_date}`}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void removeUnavailableRange(entry.id)}
+                            className="text-xs text-red-500 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No date-based blocks yet.</p>
+                  )}
                 </div>
 
                 <div>
@@ -1865,7 +2033,7 @@ export function HostServiceListingTabs(props: Props) {
 
                 {draft.quantity > (draft.maxPerBooking || 0) && draft.maxPerBooking > 0 && (
                   <p className="text-xs text-red-500 font-medium">
-                    "Max per order" ({draft.quantity}) cannot exceed "Total available" ({draft.maxPerBooking}). Reduce max per order.
+                    &quot;Max per order&quot; ({draft.quantity}) cannot exceed &quot;Total available&quot; ({draft.maxPerBooking}). Reduce max per order.
                   </p>
                 )}
 
@@ -2031,6 +2199,9 @@ export function HostServiceListingTabs(props: Props) {
                     </Button>
                   </div>
                 )}
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
@@ -2095,6 +2266,7 @@ export function HostServiceListingTabs(props: Props) {
                       <div className="text-xs text-muted-foreground">
                         ₹{(i.priceRupees ?? 0).toLocaleString('en-IN')}
                         {(isRental || isActivity || isStay) && i.unit ? ` / ${i.unit.replace('per_', '').replace('_', ' ')}` : ''}
+                        {i.isOutOfStock ? ' · out of stock' : ''}
                         {' · '}{i.maxPerBooking} available · max {i.quantity}/order · {i.images.length} photo{i.images.length === 1 ? '' : 's'}
                         {mode === 'edit' && i.dbId && bookingCountByItemId && (
                           <>

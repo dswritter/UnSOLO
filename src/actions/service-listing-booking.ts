@@ -7,6 +7,7 @@ import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { sendServiceBookingConfirmedEmail } from '@/lib/resend/emails'
 import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
+import { itemHasDateBlock } from '@/lib/service-item-unavailability'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -46,6 +47,17 @@ async function deductInventory(
       .update({ quantity_available: Math.max(0, listing.quantity_available - quantity) })
       .eq('id', listingId)
   }
+}
+
+function getBookingDateRange(
+  type: ServiceListingType,
+  checkInDate: string,
+  checkOutDate?: string,
+) {
+  if ((type === 'stays' || type === 'rentals') && checkOutDate) {
+    return { startDate: checkInDate, endDate: checkOutDate }
+  }
+  return { startDate: checkInDate, endDate: checkInDate }
 }
 
 export async function createServiceListingOrder(
@@ -127,10 +139,10 @@ export async function createServiceListingOrder(
     if (bookingData.service_listing_item_id) {
       const { data: item, error: itemError } = await supabase
         .from('service_listing_items')
-        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active')
+        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
         .eq('id', bookingData.service_listing_item_id)
         .single()
-      if (itemError || !item || !item.is_active || item.service_listing_id !== listingId) {
+      if (itemError || !item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
         return { error: 'Selected item is unavailable' }
       }
       if (bookingData.quantity > item.max_per_booking) {
@@ -147,13 +159,23 @@ export async function createServiceListingOrder(
 
     // Calculate price (rentals multiply by duration)
     const rentalDays = listing.type === 'rentals' ? Math.max(1, bookingData.rental_days ?? 1) : 1
-    let totalPaise = unitPricePaise * bookingData.quantity * rentalDays
+    const totalPaise = unitPricePaise * bookingData.quantity * rentalDays
 
     // Compute checkout date for rentals when not explicitly provided
     if (listing.type === 'rentals' && !bookingData.check_out_date && rentalDays > 0) {
       const d = new Date(bookingData.check_in_date)
       d.setDate(d.getDate() + rentalDays)
       bookingData = { ...bookingData, check_out_date: d.toISOString().slice(0, 10) }
+    }
+    if (itemId) {
+      const { startDate, endDate } = getBookingDateRange(
+        listing.type as ServiceListingType,
+        bookingData.check_in_date,
+        bookingData.check_out_date,
+      )
+      if (await itemHasDateBlock(itemId, startDate, endDate)) {
+        return { error: 'This item is unavailable for the selected date(s)' }
+      }
     }
     let discountPaise = 0
     let appliedPromoCode = ''
@@ -525,10 +547,10 @@ export async function createRentalCartOrder(
       if (ci.quantity < 1) continue
       const { data: item } = await supabase
         .from('service_listing_items')
-        .select('id, price_paise, quantity_available, max_per_booking, is_active, service_listing_id')
+        .select('id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock, service_listing_id')
         .eq('id', ci.itemId)
         .single()
-      if (!item || !item.is_active || item.service_listing_id !== listingId) {
+      if (!item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
         return { error: `Item not available` }
       }
       if (item.max_per_booking != null && ci.quantity > item.max_per_booking) {
@@ -536,6 +558,9 @@ export async function createRentalCartOrder(
       }
       if (item.quantity_available != null && ci.quantity > item.quantity_available) {
         return { error: `Not enough stock for one of the items` }
+      }
+      if (await itemHasDateBlock(ci.itemId, bookingData.check_in_date, checkOutDate)) {
+        return { error: 'One of the selected items is unavailable for the chosen dates' }
       }
       grossPaise += item.price_paise * ci.quantity * rentalDays
       validated.push({ id: ci.itemId, quantity: ci.quantity, pricePaise: item.price_paise, max_per_booking: item.max_per_booking, quantity_available: item.quantity_available })
