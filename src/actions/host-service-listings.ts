@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type {
   ServiceEventScheduleEntry,
@@ -174,8 +175,7 @@ export async function createHostServiceListing(input: {
   event_schedule?: ServiceEventScheduleEntry[] | null
 }) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
 
     // Verify user is authenticated
     if (!user) {
@@ -335,8 +335,7 @@ export async function createHostServiceListing(input: {
  */
 export async function resubmitServiceListing(listingId: string) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user) return { error: 'Not authenticated' }
 
     const { data: listing, error: fetchError } = await supabase
@@ -431,8 +430,7 @@ export async function updateHostServiceListing(
   },
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user) return { error: 'Not authenticated' }
 
     const { data: existing, error: fetchError } = await supabase
@@ -516,8 +514,7 @@ export async function updateHostServiceListing(
 
 export async function toggleHostServiceListingActive(listingId: string) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user) return { error: 'Not authenticated' }
 
     const { data: listing, error: fetchError } = await supabase

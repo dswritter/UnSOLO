@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import Razorpay from 'razorpay'
 import crypto from 'crypto'
 import { getPlatformFeePercentByCategory } from '@/lib/platform-settings'
@@ -77,8 +78,7 @@ export async function createServiceListingOrder(
   },
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user?.id) {
       return { error: 'Please log in to book' }
     }
@@ -331,8 +331,7 @@ export async function confirmServiceListingPayment(
   signature: string,
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user?.id) {
       return { error: 'Please log in', success: false }
     }
@@ -510,8 +509,7 @@ export async function createRentalCartOrder(
   },
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user?.id) return { error: 'Please log in to book' }
 
     if (!cartItems.length) return { error: 'Cart is empty' }
@@ -669,8 +667,7 @@ export async function confirmRentalCartPayment(
   signature: string,
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { supabase, user } = await getActionAuth()
     if (!user?.id) return { error: 'Please log in', success: false }
 
     const body = orderId + '|' + paymentId

@@ -1,7 +1,8 @@
 'use server'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { splitRefundPaise } from '@/lib/community-payment'
 import {
   REFUND_TIER_SETTING_KEYS,
@@ -198,10 +199,7 @@ export type TravelerCancellationPreview = {
 export async function getTravelerCancellationPreview(
   bookingId: string,
 ): Promise<{ preview: TravelerCancellationPreview } | { error: string }> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: row } = await supabase
@@ -278,8 +276,7 @@ export async function applyRefundSplitToEarning(
   tierPercent: number,
   refundPaise: number,
 ): Promise<{ ok: true; split?: CancellationQuote } | { ok: false; error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { ok: false, error: 'Not authenticated' }
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || !['admin', 'super_admin'].includes(profile.role)) {

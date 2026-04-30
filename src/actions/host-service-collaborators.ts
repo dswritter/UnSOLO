@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { ServiceListingCollaborator } from '@/types'
 
@@ -61,8 +62,7 @@ export async function searchCohostCandidates(
     avatar_url: string | null
   }>
 }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { candidates: [] }
 
   const q = query.trim().replace(/[%_]/g, '').slice(0, 60)
@@ -136,8 +136,7 @@ export async function inviteServiceListingCollaborator(
   listingId: string,
   handle: string,
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: listing } = await supabase
@@ -209,8 +208,7 @@ export async function respondToCollaboratorInvite(
   collaboratorId: string,
   response: 'accepted' | 'declined',
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: row } = await supabase
@@ -257,8 +255,7 @@ export async function respondToCollaboratorInvite(
 export async function removeServiceListingCollaborator(
   collaboratorId: string,
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: row } = await supabase
@@ -294,8 +291,7 @@ export async function toggleCollaboratorNotifyOnBooking(
   collaboratorId: string,
   notify: boolean,
 ): Promise<{ success: true } | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: row } = await supabase
@@ -329,8 +325,7 @@ export async function listPendingCollaboratorInvites(): Promise<
     }
   | { error: string }
 > {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data, error } = await supabase

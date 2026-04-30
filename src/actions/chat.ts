@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { assertMessageSendRateLimit } from '@/lib/server-rate-limit'
 
@@ -13,8 +14,7 @@ function revalidateChatRoutes(roomId: string) {
 }
 
 export async function sendMessage(roomId: string, content: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const rate = await assertMessageSendRateLimit(supabase, user.id)
@@ -55,8 +55,7 @@ export async function editMessage(messageId: string, roomId: string, content: st
   const trimmed = content.trim()
   if (!trimmed) return { error: 'Message cannot be empty' }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
@@ -96,8 +95,7 @@ export async function editMessage(messageId: string, roomId: string, content: st
 }
 
 export async function joinRoom(roomId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: roomMeta } = await supabase
@@ -167,8 +165,7 @@ export async function joinRoom(roomId: string) {
 }
 
 export async function getMyRooms() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const { data } = await supabase
@@ -184,8 +181,7 @@ function isCommunityChatStaffRole(role: string | null | undefined) {
 }
 
 export async function setRoomPinnedMessage(roomId: string, messageId: string | null) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -241,8 +237,7 @@ export async function createChatPoll(
     if (line.length > 200) return { error: 'Each option must be 200 characters or less' }
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const rate = await assertMessageSendRateLimit(supabase, user.id)
@@ -305,8 +300,7 @@ export async function createChatPoll(
 }
 
 export async function castChatPollVote(roomId: string, pollId: string, optionIds: string[]) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: member } = await supabase
@@ -355,8 +349,7 @@ export async function castChatPollVote(roomId: string, pollId: string, optionIds
 }
 
 export async function getPollStateForMessage(messageId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' as const, state: null as null }
 
   const { data: poll, error: pollErr } = await supabase
@@ -373,8 +366,7 @@ export async function getPollStateForMessage(messageId: string) {
 
 /** Refetch a single poll by id (e.g. realtime vote events). */
 export async function getPollStateByPollId(pollId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' as const, state: null as null }
 
   const { data: row, error } = await supabase

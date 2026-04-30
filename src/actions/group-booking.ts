@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 
 export async function createGroupBooking(
@@ -11,8 +11,7 @@ export async function createGroupBooking(
   friendIds?: string[],
   priceVariantIndex?: number,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: pkg } = await supabase
@@ -97,8 +96,7 @@ export async function createGroupBooking(
 }
 
 export async function joinGroupByInvite(inviteCode: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: group } = await supabase
@@ -150,8 +148,7 @@ export async function joinGroupByInvite(inviteCode: string) {
 }
 
 export async function getGroupBooking(groupId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return null
 
   const { data: group } = await supabase
@@ -172,8 +169,7 @@ export async function getGroupBooking(groupId: string) {
 }
 
 export async function getMyGroupBookings() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   // Groups I'm a member of
@@ -206,8 +202,7 @@ export async function getMyGroupBookings() {
 }
 
 export async function addExpenseToGroup(groupId: string, description: string, amountPaise: number, paidBy: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // For now, store expenses in metadata or a simple approach
@@ -241,8 +236,7 @@ export async function addExpenseToGroup(groupId: string, description: string, am
 }
 
 export async function completeGroupPayment(groupId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Mark member as paid
@@ -366,8 +360,7 @@ export async function completeGroupPayment(groupId: string) {
 
 // ── Group Cancellation Request ──────────────────────────────
 export async function requestGroupCancellation(groupId: string, reason: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: group } = await supabase

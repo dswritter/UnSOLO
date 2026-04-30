@@ -1,14 +1,14 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 
 async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
   const { data: profile } = await supabase

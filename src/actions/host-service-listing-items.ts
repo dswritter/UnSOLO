@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import type { ServiceListingItem } from '@/types'
 
@@ -140,8 +141,7 @@ async function maybeBounceListingToPending(
 }
 
 async function requireHostOfListing(listingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' as const }
 
   const { data: listing } = await supabase
@@ -246,8 +246,7 @@ export async function updateServiceListingItem(
     amenities: string[] | null
   }>,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Verify ownership via join-like lookup.
@@ -300,8 +299,7 @@ export async function updateServiceListingItem(
 }
 
 export async function deleteServiceListingItem(itemId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: existing } = await supabase

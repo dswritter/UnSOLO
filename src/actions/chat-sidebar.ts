@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { getSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
 
@@ -30,8 +31,7 @@ function revalidateTribeSidebars() {
 }
 
 export async function toggleChatSidebarPin(roomId: string): Promise<{ error?: string; pinned?: boolean }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const can = await userCanPinRoom(supabase, user.id, roomId)
@@ -63,8 +63,7 @@ export async function loadMoreSidebarRooms(offset: number): Promise<{
   pinnedRoomIds: string[]
   error?: string
 }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { rooms: [], total: 0, pinnedRoomIds: [], error: 'Not authenticated' }
 
   const { rooms, total, pinnedRoomIds } = await getSidebarRooms(supabase, user.id, {

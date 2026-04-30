@@ -1,13 +1,12 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import type { ServiceListingItemUnavailability } from '@/lib/service-item-unavailability'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 async function requireHostOfItem(itemId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' as const }
 
   const { data: item } = await supabase
@@ -24,8 +23,7 @@ async function requireHostOfItem(itemId: string) {
 }
 
 export async function listItemUnavailabilityByListing(listingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' as const }
 
   const { data: listing } = await supabase
@@ -86,8 +84,7 @@ export async function addItemUnavailability(itemId: string, startDate: string, e
 }
 
 export async function removeItemUnavailability(entryId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: existing } = await supabase

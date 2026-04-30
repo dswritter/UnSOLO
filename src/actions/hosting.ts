@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { APP_URL, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
 import {
   minPricePaiseFromVariants,
@@ -90,8 +91,7 @@ export async function toggleHostTripDateClosed(
 // ── Helpers ─────────────────────────────────────────────────
 
 async function requireHost() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
   const { data: profile } = await supabase
     .from('profiles')
@@ -452,8 +452,7 @@ export async function getHostDashboardStats() {
 // ── Join Requests ───────────────────────────────────────────
 
 export async function requestToJoin(tripId: string, message: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Get the trip
@@ -763,10 +762,7 @@ export async function rejectJoinRequest(requestId: string, reason?: string) {
 
 /** Traveler withdraws a pending or approved (unpaid) join request; notifies host and staff. */
 export async function withdrawJoinRequest(joinRequestId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: jr } = await supabase
@@ -915,8 +911,7 @@ export async function getHostTripDetail(tripId: string) {
 }
 
 export async function checkIsHost() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { authenticated: false, isHost: false }
   const { data: profile } = await supabase
     .from('profiles')

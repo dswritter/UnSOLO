@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 
 export type PayoutDetails = {
   upi_id: string | null
@@ -12,8 +13,7 @@ export type PayoutDetails = {
 }
 
 export async function getPayoutDetails(): Promise<PayoutDetails | { error: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data, error } = await supabase
@@ -50,8 +50,7 @@ export async function updatePayoutDetails(input: {
   bank_ifsc?: string | null
   payout_method: 'upi' | 'bank'
 }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const upi = (input.upi_id || '').trim().toLowerCase() || null

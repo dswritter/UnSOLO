@@ -2,10 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 
 export async function updateProfile(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Convert Instagram handle to full URL
@@ -44,8 +44,7 @@ export async function updateProfile(formData: FormData) {
 }
 
 export async function updateUsername(newUsername: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Validate format
@@ -117,8 +116,7 @@ export async function getProfile(username: string) {
 }
 
 export async function getCurrentUserProfile() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return null
 
   const { data } = await supabase
@@ -139,8 +137,7 @@ export async function submitReview(
   title: string,
   body: string,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Verify the booking belongs to this user and is completed
@@ -222,8 +219,7 @@ export async function submitReview(
 // ── Phone Privacy ────────────────────────────────────────────
 
 export async function updatePhoneSettings(phone: string, isPublic: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
@@ -237,8 +233,7 @@ export async function updatePhoneSettings(phone: string, isPublic: boolean) {
 }
 
 export async function requestPhoneAccess(targetUserId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
   if (user.id === targetUserId) return { error: 'Cannot request your own number' }
 
@@ -288,8 +283,7 @@ export async function requestPhoneAccess(targetUserId: string) {
 }
 
 export async function respondToPhoneRequest(requestId: string, approve: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
@@ -312,8 +306,7 @@ export async function respondToPhoneRequest(requestId: string, approve: boolean)
 }
 
 export async function getPhoneRequests() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const { data } = await supabase
@@ -329,8 +322,7 @@ export async function getPhoneRequests() {
 // ── Follows ──────────────────────────────────────────────────
 
 export async function followUser(targetUserId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
   if (user.id === targetUserId) return { error: 'Cannot follow yourself' }
 
@@ -346,8 +338,7 @@ export async function followUser(targetUserId: string) {
 }
 
 export async function unfollowUser(targetUserId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
@@ -393,8 +384,7 @@ export async function getFollowData(profileId: string, viewerUserId: string | nu
 // ── Direct Messaging ─────────────────────────────────────────
 
 export async function startDirectMessage(targetUserId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
   if (user.id === targetUserId) return { error: 'Cannot DM yourself' }
 
@@ -411,8 +401,7 @@ export async function startDirectMessage(targetUserId: string) {
 // ── Privacy Settings ─────────────────────────────────────────
 
 export async function updatePrivacySettings(tripsPrivate: boolean, statesPrivate: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { error } = await supabase
@@ -428,8 +417,7 @@ export async function updatePrivacySettings(tripsPrivate: boolean, statesPrivate
 // ── User Status ──────────────────────────────────────────────
 
 export async function updateStatus(statusText: string, visibility: 'public' | 'followers', isCustom: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   if (statusText.length > 100) return { error: 'Status must be 100 characters or less' }
@@ -451,8 +439,7 @@ export async function updateStatus(statusText: string, visibility: 'public' | 'f
 // ── Online Presence ──────────────────────────────────────────
 
 export async function updatePresence(online: boolean) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   await supabase.rpc('upsert_presence', { p_user_id: user.id, p_online: online })
@@ -476,8 +463,7 @@ export async function getOnlineUsers() {
 // ── Community Search ─────────────────────────────────────────
 
 export async function searchCommunityMembers(query: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const search = query.trim().toLowerCase()
@@ -495,8 +481,7 @@ export async function searchCommunityMembers(query: string) {
 
 /** Prefix match on username or full name (no @ required). For status audience picker. */
 export async function searchProfilesForStatusAudience(query: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const q = query.trim().replace(/[%_]/g, '').slice(0, 40)
@@ -528,8 +513,7 @@ export async function searchProfilesForStatusAudience(query: string) {
 // ── Frequent & Recent Contacts ──────────────────────────────
 
 export async function getFrequentContacts() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { recent: [], frequent: [] }
 
   // Get all my messages in DM rooms (most recent first)
@@ -601,8 +585,7 @@ export async function getFrequentContacts() {
 // ── Referral Dashboard ────────────────────────────────────────
 
 export async function getReferralDashboard() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return null
 
   const { data: profile } = await supabase
@@ -640,8 +623,7 @@ export async function getReferralDashboard() {
 // ── Get user's available credits for checkout ─────────────────
 
 export async function getUserCredits() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { credits: 0, isReferred: false, isFirstBooking: false }
 
   const { data: profile } = await supabase

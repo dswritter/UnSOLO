@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { serializeAudience, type StatusStoryAudience } from '@/lib/statusStories/audience'
 
 export type StatusStripStory = {
@@ -29,8 +30,7 @@ async function usernamesToIds(usernamesCsv: string): Promise<string[]> {
 }
 
 export async function getMyGeneralRoomsForStatus(): Promise<{ id: string; name: string }[]> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const { data } = await supabase
@@ -48,8 +48,7 @@ export async function getMyGeneralRoomsForStatus(): Promise<{ id: string; name: 
 }
 
 export async function countActiveStatusStoriesForUser(): Promise<number> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return 0
   const { count, error } = await supabase
     .from('status_stories')
@@ -66,8 +65,7 @@ export async function getStatusStripForHome(): Promise<{
   /** Story ids the current user has already viewed (any device) — syncs ring / ordering */
   seenStoryIds: string[]
 }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { stories: [], currentUserId: null, seenStoryIds: [] }
 
   const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
@@ -126,7 +124,7 @@ async function buildAudiencePayload(input: {
   includeUsernames?: string
   includeRoomIds?: string[]
 }): Promise<{ audience: StatusStoryAudience; error?: string }> {
-  let audience: StatusStoryAudience = { mode: input.mode }
+  const audience: StatusStoryAudience = { mode: input.mode }
 
   if (input.mode === 'all' && input.excludeUsernames?.trim()) {
     audience.exclude_user_ids = await usernamesToIds(input.excludeUsernames)
@@ -151,8 +149,7 @@ export async function createStatusStories(input: {
   includeUsernames?: string
   includeRoomIds?: string[]
 }): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const urls = input.mediaUrls.map(u => u.trim()).filter(Boolean)
@@ -214,8 +211,7 @@ export async function createStatusStory(input: {
 }
 
 export async function deleteStatusStory(storyId: string): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: prof } = await supabase.from('profiles').select('username').eq('id', user.id).single()
@@ -230,8 +226,7 @@ export async function deleteStatusStory(storyId: string): Promise<{ error?: stri
 
 /** Record that the current user has seen these stories (for “Seen by” metrics). */
 export async function recordStatusStoryViews(storyIds: string[]): Promise<{ error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user || !storyIds.length) return {}
 
   const unique = [...new Set(storyIds)]
@@ -253,8 +248,7 @@ export type StatusStoryViewerInfo = {
 }
 
 export async function getStatusStoryViewers(storyId: string): Promise<{ viewers: StatusStoryViewerInfo[]; error?: string }> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { viewers: [], error: 'Not authenticated' }
 
   const { data: story } = await supabase.from('status_stories').select('author_id').eq('id', storyId).single()

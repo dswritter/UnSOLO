@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { sendSMS, generateOTP } from '@/lib/sms/client'
 import { validateIndianPhone } from '@/lib/utils'
 import {
@@ -59,8 +60,7 @@ async function getOtpSendNotBefore(
 }
 
 export async function sendPhoneOTP(phoneNumber: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Validate phone format
@@ -121,8 +121,7 @@ export async function sendPhoneOTP(phoneNumber: string) {
 }
 
 export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Find latest non-expired OTP for this user+phone
@@ -194,8 +193,7 @@ export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
 }
 
 export async function checkVerificationStatus() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return null
 
   const { data: profile } = await supabase
@@ -227,8 +225,7 @@ export async function checkVerificationStatus() {
 }
 
 export async function resendEmailVerification() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user?.email) return { error: 'No email found' }
 
   const { error } = await supabase.auth.resend({ type: 'signup', email: user.email })
@@ -248,8 +245,10 @@ async function checkAndSetHostStatus(
     .single()
 
   // Also check auth email confirmation
-  const { data: { user } } = await supabase.auth.getUser()
-  const emailVerified = !!user?.email_confirmed_at || profile?.is_email_verified
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const emailVerified = !!session?.user?.email_confirmed_at || profile?.is_email_verified
 
   if (profile?.is_phone_verified && emailVerified) {
     await supabase

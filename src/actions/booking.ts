@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
@@ -634,7 +635,7 @@ async function runPostConfirmationPipeline(
       destination?: { name?: string; state?: string }
     } | null
 
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    const { user: authUser } = await getActionAuth()
     const customerEmail = authUser?.email
     if (customerEmail && pkg) {
       const { data: profile } = await supabase
@@ -739,8 +740,7 @@ export async function createRazorpayOrder(
     return { error: 'Number of guests must be at least 1' }
   }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
 
   if (!user) {
     return { error: 'Not authenticated' }
@@ -1029,8 +1029,7 @@ export async function confirmPayment(
   razorpayPaymentId: string,
   razorpaySignature: string,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Verify signature
@@ -1122,8 +1121,7 @@ export async function confirmPayment(
 
 /** Pay remaining balance for a community trip booked with token_to_book (second Razorpay order). */
 export async function createBookingBalanceOrder(bookingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: booking } = await supabase
@@ -1199,8 +1197,7 @@ export async function submitCustomDateRequest(
   contactNumber: string,
   contactEmail: string,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const today = new Date()
@@ -1266,8 +1263,7 @@ export async function submitCustomDateRequest(
 }
 
 export async function getMyBookings() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return []
 
   const { data } = await supabase
@@ -1282,8 +1278,7 @@ export async function getMyBookings() {
 // ── Package Interest ────────────────────────────────────────
 
 export async function toggleInterest(packageId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const since = new Date(Date.now() - 300_000).toISOString()
@@ -1348,8 +1343,7 @@ export async function toggleInterest(packageId: string) {
 }
 
 export async function getInterestData(packageId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
 
   const { count } = await supabase
     .from('package_interests')
@@ -1393,8 +1387,7 @@ export async function getInterestedUsers(packageId: string): Promise<InterestedU
 
 // ── Date Change (only for pending bookings) ─────────────────
 export async function changeBookingDate(bookingId: string, newDate: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Verify booking belongs to user and is pending
@@ -1425,8 +1418,7 @@ export async function changeBookingDate(bookingId: string, newDate: string) {
 
 // ── Cancel before payment (pending only) — no admin review queue ─────────
 export async function cancelPendingBooking(bookingId: string, reason?: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: booking } = await supabase
@@ -1524,8 +1516,7 @@ function isMissingUserDismissedColumnError(err: { message?: string; code?: strin
 
 /** Hide a service booking from My Trips after abandoning checkout, or clear a cancelled row. Cancels unpaid rows first. */
 export async function dismissServiceBookingFromMyTrips(bookingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: row } = await supabase
@@ -1575,8 +1566,7 @@ export async function dismissServiceBookingFromMyTrips(bookingId: string) {
 
 // ── Cancellation Request ────────────────────────────────────
 export async function requestCancellation(bookingId: string, reason: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: booking } = await supabase
@@ -1753,10 +1743,7 @@ export async function confirmTravelerCancellation(
   bookingId: string,
   reason: string,
 ): Promise<ConfirmTravelerCancellationResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const trimmed = reason.trim()
@@ -1983,8 +1970,7 @@ export async function processCancellation(
   adminNote?: string,
   tierPercent?: number,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   // Verify admin/staff role
@@ -2106,8 +2092,7 @@ export async function processCancellation(
 
 // ── Admin: Initiate Razorpay Refund ─────────────────────────
 export async function initiateRefund(bookingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -2141,8 +2126,7 @@ export async function initiateRefund(bookingId: string) {
 
 // ── Admin: Mark Refund as Complete ──────────────────────────
 export async function markRefundComplete(bookingId: string) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
@@ -2190,8 +2174,7 @@ export async function createCommunityTripOrder(
   joinRequestId: string,
   options?: CommunityTripOrderOptions,
 ) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const orderRate = await assertBookingOrderRateLimit(supabase, user.id)

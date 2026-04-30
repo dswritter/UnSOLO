@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import type { JoinPreferences, UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 
@@ -26,8 +27,7 @@ export async function logAuditEvent(
 // ── Helpers ──────────────────────────────────────────────────
 
 async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
   const { data: profile } = await supabase
@@ -41,8 +41,7 @@ async function requireAdmin() {
 }
 
 async function requireStaff() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
   const { data: profile } = await supabase
@@ -652,8 +651,7 @@ export async function addIncludesOption(label: string) {
 // ── Check admin access ───────────────────────────────────────
 
 export async function checkAdminAccess() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) return { allowed: false, role: null }
 
   const { data: profile } = await supabase
@@ -889,8 +887,7 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
 // ── Community chat rooms (general) — admin + social_media_manager ─────────
 
 async function requireCommunityChatStaff() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   const role = profile?.role as UserRole

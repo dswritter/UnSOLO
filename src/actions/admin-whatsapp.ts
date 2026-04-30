@@ -1,13 +1,13 @@
 'use server'
 
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { logAuditEvent } from '@/actions/admin'
 import { DEFAULT_SUPPORT_WHATSAPP_NUMBER } from '@/lib/platform-settings'
 import { revalidatePath } from 'next/cache'
 
 async function requireAdmin(): Promise<string> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
