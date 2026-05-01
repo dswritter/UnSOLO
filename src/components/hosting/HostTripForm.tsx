@@ -373,13 +373,10 @@ export function HostTripForm({
     load()
   }, [router, editTripId, resumeDraftId])
 
-  // Tomorrow as minimum (trip can't start today)
-  const tomorrow = (() => {
+  const today = (() => {
     const d = new Date()
-    d.setDate(d.getDate() + 1)
     return d.toISOString().split('T')[0]
   })()
-  const today = tomorrow // alias for min attribute
   const maxDateStr = (() => {
     const d = new Date()
     d.setFullYear(d.getFullYear() + 2)
@@ -894,8 +891,8 @@ export function HostTripForm({
   }
 
   function updateScheduleRow(idx: number, field: 'dep' | 'ret', value: string) {
-    if (value && value.length === 10 && value < tomorrow) {
-      toast.error(field === 'dep' ? 'Departure date must be in the future' : 'Return date must be in the future')
+    if (value && value.length === 10 && value < today) {
+      toast.error(field === 'dep' ? 'Departure date cannot be in the past' : 'Return date cannot be in the past')
       return
     }
     setScheduleRows((prev) =>

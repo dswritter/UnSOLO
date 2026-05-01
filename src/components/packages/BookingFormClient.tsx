@@ -221,25 +221,21 @@ export function BookingFormClient({
   const payFullForTokenTrip = needsTokenVsFullChoice && tokenPayMode === 'full'
   const dueNowDisplayPaise = payFullForTokenTrip ? tripTotalAfterDiscounts : tokenFirstSlicePaise ?? tripTotalAfterDiscounts
   const balanceLaterDisplayPaise = Math.max(0, tripTotalAfterDiscounts - dueNowDisplayPaise)
-  // Tomorrow is the earliest bookable date (not today)
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const tomorrowStr = tomorrow.toISOString().split('T')[0]
-  const today = tomorrowStr // min date for date inputs
+  const today = new Date().toISOString().split('T')[0]
   const maxDate = getMaxDate()
 
   // All departure dates (past dates shown as disabled)
   const allDates = departureDates || []
-  // Only future dates are bookable
-  const futureDates = allDates.filter((d) => d >= tomorrowStr)
+  // Today and future dates are bookable
+  const futureDates = allDates.filter((d) => d >= today)
 
   async function handleBook() {
     if (!selectedDate) {
       toast.error('Please select a departure date')
       return
     }
-    if (new Date(selectedDate) <= new Date()) {
-      toast.error('Travel date must be in the future')
+    if (selectedDate < today) {
+      toast.error('Travel date cannot be in the past')
       return
     }
     setLoading(true)
@@ -544,7 +540,7 @@ export function BookingFormClient({
             {allDates.length > 0 ? (
               <div className="grid gap-2">
                 {allDates.map((date) => {
-                  const isPast = date < tomorrowStr
+                  const isPast = date < today
                   const slots = availableSlots[date] ?? maxGroupSize
                   const soldOut = !isPast && slots <= 0
                   const isDisabled = isPast || soldOut

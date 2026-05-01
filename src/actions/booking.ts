@@ -795,12 +795,12 @@ export async function createRazorpayOrder(
     return { error: 'This trip is not available for booking' }
   }
 
-  // Server-side date validation — must be at least 1 day in the future
+  // Server-side date validation — same-day departures are allowed, but past dates are not.
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const selectedDate = new Date(travelDate)
-  if (selectedDate <= today) {
-    return { error: 'Travel date must be in the future' }
+  if (selectedDate < today) {
+    return { error: 'Travel date cannot be in the past' }
   }
 
   const closedDates = (pkg.departure_dates_closed || []).map(tripDepartureDateKey)
