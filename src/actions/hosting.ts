@@ -29,7 +29,7 @@ export async function toggleHostTripActive(tripId: string) {
 
   const { error } = await supabase
     .from('packages')
-    .update({ is_active: !trip.is_active, updated_at: new Date().toISOString() })
+    .update({ is_active: !trip.is_active })
     .eq('id', tripId)
     .eq('host_id', user.id)
 
@@ -70,7 +70,7 @@ export async function toggleHostTripDateClosed(
 
   const { data: updated, error } = await svcSupabase
     .from('packages')
-    .update({ departure_dates_closed: next, updated_at: new Date().toISOString() })
+    .update({ departure_dates_closed: next })
     .eq('id', tripId)
     .eq('host_id', user.id)
     .select('departure_dates_closed')
@@ -272,8 +272,6 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
     payload.moderation_status = 'pending'
   }
 
-  payload.updated_at = new Date().toISOString()
-
   const { error } = await supabase
     .from('packages')
     .update(payload)
@@ -321,7 +319,7 @@ export async function cancelHostedTrip(tripId: string) {
   // Deactivate the trip
   await supabase
     .from('packages')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .update({ is_active: false })
     .eq('id', tripId)
 
   // Cancel all active bookings for this trip
