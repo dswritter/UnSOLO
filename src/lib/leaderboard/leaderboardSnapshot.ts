@@ -28,7 +28,7 @@ export async function getLeaderboardSnapshot(supabase: SupabaseClient, userId: s
   const entries = (leaderboard || []) as LeaderboardEntryRow[]
 
   let myRank: number | null = null
-  let myEntry: LeaderboardEntryRow | null = null
+  let myEntry: LeaderboardEntryRow | null = userId ? (entries.find(e => e.user_id === userId) ?? null) : null
   if (userId) {
     myRank = await getLeaderboardRank(supabase, userId)
     const inTop100 = entries.some(e => e.user_id === userId)
@@ -43,6 +43,7 @@ export async function getLeaderboardSnapshot(supabase: SupabaseClient, userId: s
   }
 
   const inTop100 = userId ? entries.some(e => e.user_id === userId) : false
+  const inTop50 = userId ? entries.slice(0, 50).some(e => e.user_id === userId) : false
 
   const monthStart = new Date()
   monthStart.setDate(1)
@@ -63,5 +64,5 @@ export async function getLeaderboardSnapshot(supabase: SupabaseClient, userId: s
     .sort((a, b) => b.monthly_trips - a.monthly_trips)
     .slice(0, 20)
 
-  return { entries, myRank, myEntry, monthlyEntries, inTop100, userId }
+  return { entries, myRank, myEntry, monthlyEntries, inTop100, inTop50, userId }
 }

@@ -103,8 +103,10 @@ export function LeaderboardV2Client({
   myEntry,
   monthlyEntries,
 }: Props) {
+  const PAGE_SIZE = 50
   const [view, setView] = useState<'alltime' | 'monthly'>('alltime')
   const [search, setSearch] = useState('')
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const isMonthly = view === 'monthly'
   const rawList: (LeaderboardEntryRow | MonthlyLeaderboardEntry)[] = isMonthly ? monthlyEntries : entries
 
@@ -122,11 +124,20 @@ export function LeaderboardV2Client({
 
   const showPodium = !search.trim() && rawList.length >= 3
 
+  const visibleRawList = useMemo(() => {
+    if (search.trim()) return rawList
+    return rawList.slice(0, visibleCount)
+  }, [rawList, search, visibleCount])
+
   const tableEntries = useMemo(() => {
-    if (search.trim()) return filtered
-    if (showPodium) return rawList.slice(3)
-    return rawList
-  }, [search, filtered, rawList, showPodium])
+    const source = search.trim() ? filtered : visibleRawList
+    if (search.trim()) return source
+    if (showPodium) return source.slice(3)
+    return source
+  }, [search, filtered, visibleRawList, showPodium])
+
+  const canLoadMore = !search.trim() && !isMonthly && visibleCount < rawList.length
+  const stickyMyEntry = !isMonthly && myRank != null && myEntry
 
   // main has overflow-y-auto globally; for this page the rank list (not main) should scroll.
   useLayoutEffect(() => {
@@ -380,48 +391,17 @@ export function LeaderboardV2Client({
               </table>
             </div>
 
-            {!isMonthly && myRank != null && myEntry && (
-              <div className="mt-1 shrink-0 rounded-2xl border border-[#fcba03]/30 bg-[#fcba03]/5">
-                <p className="border-b border-[#fcba03]/20 px-4 py-2 text-xs font-semibold text-[#fcba03]">
-                  Your rank
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-sm">
-                    <tbody>
-                      <tr className="hover:bg-[#fcba03]/5">
-                        <td className="px-3 py-3 pl-4 sm:px-4">
-                          <div className="flex w-10 justify-center sm:w-12">
-                            <LeaderboardRankBadge rank={myRank} />
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 sm:px-4">
-                          <Link href={`/profile/${myEntry.profile?.username}`} className="flex min-w-0 items-center gap-2.5">
-                            <Avatar className="h-9 w-9 border border-white/10">
-                              <AvatarImage src={myEntry.profile?.avatar_url || ''} />
-                              <AvatarFallback className="bg-[#fcba03]/20 text-xs font-bold text-[#fcba03]">
-                                {getInitials(myEntry.profile?.full_name || myEntry.profile?.username || 'You')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-bold text-white">
-                                {myEntry.profile?.full_name || myEntry.profile?.username}
-                              </div>
-                              <div className="text-xs text-white/40">@{myEntry.profile?.username}</div>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.trips_completed}</td>
-                        <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.destinations_count}</td>
-                        <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.reviews_written}</td>
-                        <td className="px-3 py-3 pr-4 text-right font-black sm:px-4" style={{ color: GOLD }}>
-                          {formatPts(myEntry.total_score)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+            {canLoadMore ? (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, rawList.length))}
+                  className="rounded-full border border-[#fcba03]/35 bg-[#fcba03]/10 px-5 py-2 text-sm font-bold text-[#fcba03] transition hover:bg-[#fcba03]/20"
+                >
+                  Load more
+                </button>
               </div>
-            )}
+            ) : null}
 
             <div
               className={cn(
@@ -473,6 +453,49 @@ export function LeaderboardV2Client({
             </p>
           </div>
         </div>
+
+        {stickyMyEntry ? (
+          <div className="sticky bottom-0 z-[2] px-4 pb-4 sm:px-6 lg:px-10">
+            <div className="mx-auto w-full max-w-[1100px] overflow-x-auto rounded-2xl border border-[#fcba03]/30 bg-zinc-950/92 shadow-[0_-10px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+              <div className="border-b border-[#fcba03]/20 px-4 py-2 text-xs font-semibold text-[#fcba03]">
+                You&apos;re at
+              </div>
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <tbody>
+                  <tr className="bg-[#fcba03]/5">
+                    <td className="px-3 py-3 pl-4 sm:px-4">
+                      <div className="flex w-10 justify-center sm:w-12">
+                        <LeaderboardRankBadge rank={myRank} />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 sm:px-4">
+                      <Link href={`/profile/${myEntry.profile?.username}`} className="flex min-w-0 items-center gap-2.5">
+                        <Avatar className="h-9 w-9 border border-white/10">
+                          <AvatarImage src={myEntry.profile?.avatar_url || ''} />
+                          <AvatarFallback className="bg-[#fcba03]/20 text-xs font-bold text-[#fcba03]">
+                            {getInitials(myEntry.profile?.full_name || myEntry.profile?.username || 'You')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-bold text-white">
+                            {myEntry.profile?.full_name || myEntry.profile?.username}
+                          </div>
+                          <div className="text-xs text-white/40">@{myEntry.profile?.username}</div>
+                        </div>
+                      </Link>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.trips_completed}</td>
+                    <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.destinations_count}</td>
+                    <td className="px-3 py-3 text-right tabular-nums sm:px-4">{myEntry.reviews_written}</td>
+                    <td className="px-3 py-3 pr-4 text-right font-black sm:px-4" style={{ color: GOLD }}>
+                      {formatPts(myEntry.total_score)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default async function LeaderboardPage() {
   const { supabase, user } = await getRequestAuth()
-  const { entries, myRank, myEntry, monthlyEntries, inTop100 } = await getLeaderboardSnapshot(
+  const { entries, myRank, myEntry, monthlyEntries, inTop50 } = await getLeaderboardSnapshot(
     supabase,
     user?.id ?? null,
   )
@@ -21,7 +21,7 @@ export default async function LeaderboardPage() {
     <LeaderboardV2Client
       entries={entries}
       currentUserId={user?.id}
-      myRank={!inTop100 ? myRank : null}
+      myRank={!inTop50 ? myRank : null}
       myEntry={myEntry}
       monthlyEntries={monthlyEntries}
     />
