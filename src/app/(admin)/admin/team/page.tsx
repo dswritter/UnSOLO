@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getTeamMembers } from '@/actions/admin'
 import { TeamManagementClient } from './TeamManagementClient'
 

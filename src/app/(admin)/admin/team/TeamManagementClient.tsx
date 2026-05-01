@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { addTeamMember, removeTeamMember } from '@/actions/admin'
 import { ROLE_LABELS, ROLE_COLORS, type TeamMember, type UserRole } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function TeamManagementClient({ teamMembers: initial }: Props) {
+  const router = useRouter()
   const [identifier, setIdentifier] = useState('')
   const [selectedRole, setSelectedRole] = useState<UserRole>('field_person')
   const [notes, setNotes] = useState('')
@@ -33,9 +35,10 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
       if (res.error) {
         setMessage({ type: 'error', text: res.error })
       } else {
-        setMessage({ type: 'success', text: `Team member added as ${ROLE_LABELS[selectedRole]}! Reload to see changes.` })
+        setMessage({ type: 'success', text: `Team member added as ${ROLE_LABELS[selectedRole]}.` })
         setIdentifier('')
         setNotes('')
+        router.refresh()
       }
     })
   }
@@ -47,7 +50,8 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
       if (res.error) {
         setMessage({ type: 'error', text: res.error })
       } else {
-        setMessage({ type: 'success', text: `${name} removed from team. Reload to see changes.` })
+        setMessage({ type: 'success', text: `${name} removed from team.` })
+        router.refresh()
       }
     })
   }

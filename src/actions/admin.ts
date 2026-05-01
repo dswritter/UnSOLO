@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import type { JoinPreferences, UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
@@ -271,12 +271,17 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
 // ── Team Management ──────────────────────────────────────────
 
 export async function getTeamMembers() {
-  const { supabase } = await requireAdmin()
+  await requireAdmin()
+  const supabase = createServiceRoleClient()
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('team_members')
     .select('*, profile:profiles(*)')
     .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('getTeamMembers error:', error)
+  }
 
   return data || []
 }
