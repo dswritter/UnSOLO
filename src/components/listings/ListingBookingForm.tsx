@@ -92,9 +92,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const router = useRouter()
 
   // Date constraints
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const minDate = tomorrow.toISOString().split('T')[0]
+  const minDate = todayStr
   const maxDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   // Load user credits and referral status
@@ -126,8 +124,8 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   // Compute rental return date
   const rentalReturnDate = (() => {
     if (listing.type !== 'rentals' || !rentalStartDate || rentalDays < 1) return ''
-    const d = new Date(rentalStartDate)
-    d.setDate(d.getDate() + rentalDays)
+    const d = new Date(rentalStartDate + 'T12:00:00')
+    d.setDate(d.getDate() + Math.max(0, rentalDays - 1))
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
   })()
 
@@ -166,7 +164,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       if (new Date(selectedDate) < new Date(minDate)) return 'Date cannot be in the past'
     }
     if (listing.type === 'stays' && !checkOutDate) return 'Select a check-out date'
-    if (listing.type === 'stays' && new Date(checkOutDate) <= new Date(checkInDate)) return 'Check-out must be after check-in'
+    if (listing.type === 'stays' && new Date(checkOutDate) < new Date(checkInDate)) return 'Check-out cannot be before check-in'
     if (listing.type === 'activities' && upcomingSchedule) {
       const entry = upcomingSchedule.find(e => e.date === selectedDate)
       if (!entry) return 'Selected date is not on the schedule'

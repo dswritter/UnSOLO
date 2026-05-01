@@ -61,6 +61,18 @@ function getBookingDateRange(
   return { startDate: checkInDate, endDate: checkInDate }
 }
 
+function addInclusiveDays(isoDate: string, totalDays: number) {
+  const d = new Date(isoDate + 'T12:00:00')
+  d.setDate(d.getDate() + Math.max(0, totalDays - 1))
+  return d.toISOString().slice(0, 10)
+}
+
+function inclusiveDaysBetween(startDate: string, endDate: string) {
+  const start = new Date(startDate + 'T12:00:00').getTime()
+  const end = new Date(endDate + 'T12:00:00').getTime()
+  return Math.max(1, Math.round((end - start) / 86400000) + 1)
+}
+
 export async function createServiceListingOrder(
   listingId: string,
   bookingData: {
@@ -163,9 +175,7 @@ export async function createServiceListingOrder(
 
     // Compute checkout date for rentals when not explicitly provided
     if (listing.type === 'rentals' && !bookingData.check_out_date && rentalDays > 0) {
-      const d = new Date(bookingData.check_in_date)
-      d.setDate(d.getDate() + rentalDays)
-      bookingData = { ...bookingData, check_out_date: d.toISOString().slice(0, 10) }
+      bookingData = { ...bookingData, check_out_date: addInclusiveDays(bookingData.check_in_date, rentalDays) }
     }
     if (itemId) {
       const { startDate, endDate } = getBookingDateRange(
@@ -515,11 +525,7 @@ export async function createRentalCartOrder(
     if (!cartItems.length) return { error: 'Cart is empty' }
 
     const rentalDays = Math.max(1, bookingData.rental_days)
-    const checkOutDate = (() => {
-      const d = new Date(bookingData.check_in_date)
-      d.setDate(d.getDate() + rentalDays)
-      return d.toISOString().slice(0, 10)
-    })()
+    const checkOutDate = addInclusiveDays(bookingData.check_in_date, rentalDays)
 
     // Validate listing
     const { data: listing } = await supabase
@@ -798,7 +804,7 @@ export async function confirmRentalCartPayment(
 
           const totalPaid = bookings.reduce((s, b) => s + (b.amount_paise ?? 0), 0)
           const rentalDays = firstBooking.check_in_date && firstBooking.check_out_date
-            ? Math.max(1, Math.round((new Date(firstBooking.check_out_date).getTime() - new Date(firstBooking.check_in_date).getTime()) / 86400000))
+            ? inclusiveDaysBetween(firstBooking.check_in_date, firstBooking.check_out_date)
             : undefined
 
           await sendServiceBookingConfirmedEmail({

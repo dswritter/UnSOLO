@@ -74,8 +74,8 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
 
   const returnDate = (() => {
     if (!checkInDate || rentalDays < 1) return ''
-    const d = new Date(checkInDate)
-    d.setDate(d.getDate() + rentalDays)
+    const d = new Date(checkInDate + 'T12:00:00')
+    d.setDate(d.getDate() + Math.max(0, rentalDays - 1))
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
   })()
 
