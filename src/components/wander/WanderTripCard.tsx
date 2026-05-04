@@ -142,15 +142,8 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
               ) : null}
             </div>
           </div>
-          <p className="mt-2 text-[10px]">
-            <Link
-              href="/refund-policy"
-              onClick={e => e.stopPropagation()}
-              className="font-semibold text-primary hover:underline"
-            >
-              Cancellations &amp; refunds
-            </Link>
-          </p>
+          {/* Cancellations & refunds link is intentionally NOT on the card —
+              it lives on the trip detail page so the listing grid stays clean. */}
           {interestCount > 0 && (
             <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
               <Heart className="h-3 w-3 shrink-0 fill-red-400 text-red-400" />

@@ -493,15 +493,8 @@ export function ExploreClient({
                         <div className="text-[11px] text-muted-foreground">Max {pkg.max_group_size} people</div>
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px]">
-                      <Link
-                        href="/refund-policy"
-                        onClick={e => e.stopPropagation()}
-                        className="font-semibold text-primary hover:underline"
-                      >
-                        Cancellations &amp; refunds
-                      </Link>
-                    </p>
+                    {/* Cancellations & refunds link removed from cards —
+                        kept only on the trip detail page. */}
                     {interestTotal > 0 && (
                       <div className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1">
                         <Heart className="h-3 w-3 text-red-400 fill-red-400" />
