@@ -39,9 +39,20 @@ export function SearchDrawer({
   useFocusTrap(isOpen, trapRef)
 
   useEffect(() => {
-    if (isOpen) {
-      inputRef.current?.focus()
-    }
+    if (!isOpen) return
+    // Mobile browsers won't open the keyboard from focus() unless it lands within
+    // a microtask of the user's tap. We schedule both an immediate and a paint-aligned
+    // focus attempt — the rAF one wins on iOS/Chrome where the input has just mounted.
+    inputRef.current?.focus({ preventScroll: true })
+    const raf = requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus({ preventScroll: true })
+      // Move caret to end so the existing query stays usable for editing.
+      const len = el.value.length
+      try { el.setSelectionRange(len, len) } catch {}
+    })
+    return () => cancelAnimationFrame(raf)
   }, [isOpen])
 
   useEffect(() => {
@@ -107,7 +118,14 @@ export function SearchDrawer({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
               ref={inputRef}
-              type="text"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleKeyDown}
