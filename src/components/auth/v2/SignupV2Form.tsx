@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useRef, Suspense } from 'react'
+import { useState, useRef, Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { isLikelyNextRedirectError } from '@/lib/navigation/nextRedirect'
@@ -31,6 +31,16 @@ function SignupV2FormInner() {
   const redirectTo = searchParams.get('redirectTo') || '/'
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmPasswordRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth >= 1024) return
+    const t = window.setTimeout(() => {
+      const el = document.getElementById('auth-v2-signup-email')
+      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      el instanceof HTMLElement && el.focus()
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [])
 
   async function handleGoogleSignUp() {
     if (googleBusy || googleAttempts >= 2) return

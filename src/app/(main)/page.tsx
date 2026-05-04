@@ -1,4 +1,4 @@
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
 
 import { WanderThemeShell } from '@/components/wander/WanderThemeShell'
 import { WanderLandingPage } from '@/components/wander/WanderLandingPage'

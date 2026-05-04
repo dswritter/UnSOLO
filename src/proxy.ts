@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
-const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact']
+const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact', '/offers']
 
 const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])
 

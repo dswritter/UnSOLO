@@ -9,7 +9,7 @@ import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X } from 'lucide-react'
+import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X, ChevronLeft } from 'lucide-react'
 import { formatPrice, cn, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
@@ -107,7 +107,15 @@ export function ExploreClient({
   const prevParamsRef = useRef<string>('')
   const interestedSet = new Set(interestedPackageIds)
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
+  const [isMobile, setIsMobile] = useState(false)
   useEffect(() => { setRecentlyViewed(readRecentlyViewedPackages()) }, [])
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   useEffect(() => {
     setActiveTab(initialTab)
@@ -175,6 +183,24 @@ export function ExploreClient({
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {isWanderShell ? (
           <div className="mb-4">
+            <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-white/10 bg-zinc-950/94 px-4 py-3 backdrop-blur-xl lg:hidden">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6 text-white"
+                  aria-label="Back to home"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">
+                    {activeTab === 'trips' ? 'Trips' : typeLabels[activeTab as ServiceListingType]}
+                  </p>
+                  <p className="text-[11px] text-white/60">{resultCount} results</p>
+                </div>
+              </div>
+            </div>
             <h2 className="text-2xl md:text-3xl font-black tracking-tight text-white">Explore</h2>
             <p className="mt-1 text-sm text-white/70">Search and filter the full catalog while you stay in Wander.</p>
           </div>
@@ -239,7 +265,13 @@ export function ExploreClient({
               {recentlyViewed.map(rv => (
                 <div key={rv.id} className="relative group/rv flex-shrink-0">
                   <button
-                    onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
+                    onClick={() => {
+                      if (isMobile) {
+                        router.push(`/packages/${rv.slug}`)
+                        return
+                      }
+                      window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')
+                    }}
                     className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 pr-7 hover:border-primary/40 transition-colors text-left"
                   >
                     {rv.image ? (
@@ -326,6 +358,10 @@ export function ExploreClient({
                     image: pkg.images?.[0] || null,
                     destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
                   })
+                  if (isMobile) {
+                    router.push(`/packages/${pkg.slug}`)
+                    return
+                  }
                   window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
                 }}
                 onMouseEnter={() => router.prefetch(`/packages/${pkg.slug}`)}
@@ -507,6 +543,7 @@ export function ExploreClient({
       {/* Mobile Action Bar & Drawers - hide when search is open */}
       {!searchDrawerOpen && (
         <MobileExploreActionBar
+          activeTab={activeTab}
           onSearchClick={() => setSearchDrawerOpen(true)}
           onFilterClick={() => setFilterDrawerOpen(true)}
         />

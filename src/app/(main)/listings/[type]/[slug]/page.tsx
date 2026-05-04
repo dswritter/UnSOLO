@@ -9,6 +9,13 @@ import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
 
+const CATEGORY_LABELS: Record<ServiceListingType, string> = {
+  stays: 'Stays',
+  activities: 'Activities',
+  rentals: 'Rentals',
+  getting_around: 'Getting Around',
+}
+
 export default async function ServiceListingDetailPage({
   params,
 }: {
@@ -68,13 +75,22 @@ export default async function ServiceListingDetailPage({
 
     return (
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-        <Link
-          href={wanderBackHref}
-          className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Wander
-        </Link>
+        <div className="sticky top-16 z-30 -mx-4 mb-5 border-b border-white/10 bg-zinc-950/94 px-4 py-3 backdrop-blur-xl md:top-0 md:mx-0 md:rounded-2xl md:border md:px-5">
+          <Link
+            href={wanderBackHref}
+            className="flex items-center gap-3 text-white transition-colors hover:text-primary"
+          >
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/6">
+              <ArrowLeft className="h-4 w-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-primary/90">
+                {CATEGORY_LABELS[type]}
+              </span>
+              <span className="block truncate text-sm font-bold text-white">{listing.title}</span>
+            </span>
+          </Link>
+        </div>
 
         {listing.status === 'pending' && listing.first_approved_at && (
           <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import type { ServiceListing } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
@@ -31,6 +32,8 @@ function PlainCard({
   listing: ServiceListing
   showViewDetailsButton?: boolean
 }) {
+  const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
   const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
@@ -59,8 +62,22 @@ function PlainCard({
     return parts.join(' • ')
   }
 
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   return (
-    <Link href={`/listings/${listing.type}/${listing.slug}`} target="_blank" rel="noopener noreferrer">
+    <Link
+      href={`/listings/${listing.type}/${listing.slug}`}
+      target={isMobile ? undefined : '_blank'}
+      rel={isMobile ? undefined : 'noopener noreferrer'}
+      onClick={() => {
+        if (isMobile) router.prefetch(`/listings/${listing.type}/${listing.slug}`)
+      }}
+    >
       <div className={cn(
         'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
         'hover:shadow-xl hover:scale-[1.02]',
@@ -136,6 +153,8 @@ function ItemsCarouselCard({
   items: CardItem[]
   showViewDetailsButton?: boolean
 }) {
+  const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
   const [idx, setIdx] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const ratingDisplay =
@@ -152,6 +171,13 @@ function ItemsCarouselCard({
     resetTimer()
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [idx, resetTimer])
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   const goTo = useCallback((next: number) => {
     setIdx(next)
@@ -174,14 +200,20 @@ function ItemsCarouselCard({
   const heroImage = activeItem.images[0] || listing.images?.[0] || '/placeholder-listing.svg'
 
   const href = `/listings/${listing.type}/${listing.slug}`
-  const openInNewTab = () => window.open(href, '_blank', 'noopener,noreferrer')
+  const openDetail = () => {
+    if (isMobile) {
+      router.push(href)
+      return
+    }
+    window.open(href, '_blank', 'noopener,noreferrer')
+  }
 
   return (
     <div
       role="link"
       tabIndex={0}
-      onClick={openInNewTab}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openInNewTab() }}
+      onClick={openDetail}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDetail() }}
       className={cn(
         'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
         'hover:shadow-xl hover:scale-[1.02]',
@@ -315,7 +347,7 @@ function ItemsCarouselCard({
 
           {showViewDetailsButton ? (
             <button
-              onClick={(e) => { e.stopPropagation(); openInNewTab() }}
+              onClick={(e) => { e.stopPropagation(); openDetail() }}
               className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
             >
               View Details

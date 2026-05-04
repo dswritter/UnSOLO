@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -27,6 +27,7 @@ type Props = {
 
 export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Props) {
   const router = useRouter()
+  const [isMobile, setIsMobile] = useState(false)
   const interestedSet = new Set(interestedPackageIds)
   const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
@@ -47,8 +48,19 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
   }, [])
 
   const openPackage = useCallback(() => {
+    if (isMobile) {
+      router.push(`/packages/${pkg.slug}`)
+      return
+    }
     window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
-  }, [pkg.slug])
+  }, [isMobile, pkg.slug, router])
+
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth < 768)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   const heartActive = wishlisted.has(pkg.id) || interestedSet.has(pkg.id)
   const nextDeparture = packageNextDepartureLine(pkg)

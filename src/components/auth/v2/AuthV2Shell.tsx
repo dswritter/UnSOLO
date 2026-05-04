@@ -61,7 +61,7 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
         {/* Left: wordmark, headline, frosted stats — over tent */}
         <div
           className={cn(
-            'flex min-h-[min(58vh,560px)] w-full min-w-0 flex-1 flex-col p-4 sm:p-5 md:p-8 lg:min-h-dvh lg:w-[48%] lg:max-w-[52%] lg:py-10',
+            'flex min-h-[17rem] w-full min-w-0 flex-1 flex-col p-4 sm:p-5 md:p-8 lg:min-h-dvh lg:w-[48%] lg:max-w-[52%] lg:py-10',
             'lg:pr-4',
           )}
         >
@@ -90,7 +90,7 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
         <div
           className={cn(
             'flex w-full flex-1 flex-col justify-stretch',
-            'px-4 pb-6 pt-2 lg:min-h-dvh lg:w-[52%] lg:min-w-0 lg:justify-center lg:px-10 lg:py-8 xl:px-14',
+            'px-4 pb-6 pt-3 lg:min-h-dvh lg:w-[52%] lg:min-w-0 lg:justify-center lg:px-10 lg:py-8 xl:px-14',
             'min-h-0',
           )}
         >

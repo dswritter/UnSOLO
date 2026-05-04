@@ -1,11 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, ChevronRight, Compass, Home, Key, Loader2, MapPin, Plane, Search, Users } from 'lucide-react'
+import { NotificationBell } from '@/components/layout/NotificationBell'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import type { WanderHeroCopy, WanderStats } from '@/lib/wander/wanderQueries'
+import { cn, getInitials } from '@/lib/utils'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 import { WanderNominatimLocationInput } from '@/components/wander/WanderNominatimLocationInput'
 
@@ -13,9 +17,9 @@ type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
 
 const TABS: { id: Tab; label: string; icon: typeof Plane }[] = [
   { id: 'trips', label: 'Trips', icon: Plane },
-  { id: 'stays', label: 'Stays', icon: Home },
-  { id: 'activities', label: 'Activities', icon: Compass },
   { id: 'rentals', label: 'Rentals', icon: Key },
+  { id: 'activities', label: 'Activities', icon: Compass },
+  { id: 'stays', label: 'Stays', icon: Home },
 ]
 
 const MOBILE_HERO_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string; cta: string }> = {
@@ -71,11 +75,22 @@ function maxIsoDate(a: string, b: string) {
 export function WanderMobileHeroSearch({
   initialTab = 'trips',
   heroImageUrl,
+  heroCopy,
+  stats,
+  userProfile,
   listedActivities,
   wanderSearchBasePath = '/',
 }: {
   initialTab?: Tab
   heroImageUrl: string
+  heroCopy: WanderHeroCopy
+  stats: Pick<WanderStats, 'destinations' | 'bookings' | 'happyPercent'>
+  userProfile?: {
+    id: string
+    username: string
+    full_name: string | null
+    avatar_url: string | null
+  } | null
   listedActivities: string[]
   wanderSearchBasePath?: '/'
 }) {
@@ -184,8 +199,22 @@ export function WanderMobileHeroSearch({
     ]
   }, [actEnd, actStart, actType, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
 
-  const hero = MOBILE_HERO_COPY[tab]
+  const hero =
+    tab === 'trips'
+      ? {
+          eyebrow: MOBILE_HERO_COPY.trips.eyebrow,
+          title: heroCopy.line1,
+          subtitle: heroCopy.subtitle,
+          cta: MOBILE_HERO_COPY.trips.cta,
+        }
+      : MOBILE_HERO_COPY[tab]
   const activityOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
+  const instagramHref = heroCopy.instagramUrl
+  const statsInline = [
+    `${stats.destinations}+ destinations`,
+    `${stats.bookings}+ bookings`,
+    `${stats.happyPercent}% happy`,
+  ]
 
   return (
     <div className="md:hidden">
@@ -195,33 +224,85 @@ export function WanderMobileHeroSearch({
           <img src={heroImageUrl} alt="" className="h-full w-full object-cover opacity-60" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,20,0.18),rgba(6,12,20,0.84)_52%,rgba(6,12,20,0.98)_100%)]" />
         </div>
-        <div className="relative z-[1] px-4 pb-5 pt-5">
-          <div className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+        <div className="relative z-[1] px-4 pb-4 pt-4">
+          <div className="flex items-start justify-between gap-3">
+            {instagramHref ? (
+              instagramHref.startsWith('/') ? (
+                <Link
+                  href={instagramHref}
+                  className="inline-flex min-w-0 max-w-[58%] items-center gap-2 rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white/88 backdrop-blur-md"
+                >
+                  <span className="truncate">{heroCopy.instagramLabel}</span>
+                </Link>
+              ) : (
+                <a
+                  href={instagramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-w-0 max-w-[58%] items-center gap-2 rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white/88 backdrop-blur-md"
+                >
+                  <span className="truncate">{heroCopy.instagramLabel}</span>
+                </a>
+              )
+            ) : (
+              <span />
+            )}
+
+            <div className="flex items-center gap-3">
+              {userProfile ? <NotificationBell userId={userProfile.id} wanderNav /> : null}
+              {userProfile ? (
+                <Link href={`/profile/${userProfile.username}`} className="shrink-0">
+                  <Avatar className="h-9 w-9 border-2 border-white/20">
+                    <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                      {getInitials(userProfile.full_name || userProfile.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              ) : (
+                <Link
+                  href={`/login?redirectTo=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`)}`}
+                  className="rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
             {hero.eyebrow}
           </div>
-          <h1 className="mt-3 max-w-[18rem] text-[1.9rem] font-black leading-[1.02] tracking-tight text-white">
+          <h1 className="mt-3 max-w-[15rem] text-[1.4rem] font-black leading-[1.05] tracking-tight text-white">
             {hero.title}
           </h1>
-          <p className="mt-2 max-w-[21rem] text-sm leading-relaxed text-white/78">
+          <p className="mt-2 max-w-[18rem] text-[13px] leading-relaxed text-white/78">
             {hero.subtitle}
           </p>
+          <div className="mt-4 ml-auto flex max-w-[11.5rem] flex-col gap-1 rounded-2xl border border-white/14 bg-black/20 p-3 text-right backdrop-blur-md">
+            {statsInline.map((item) => (
+              <p key={item} className="text-[11px] font-semibold leading-tight text-white/92">
+                {item}
+              </p>
+            ))}
+          </div>
         </div>
       </section>
 
-      <div className="sticky top-16 z-30 border-b border-white/10 bg-zinc-950/92 backdrop-blur-xl">
-        <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide">
+      <div className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/92 backdrop-blur-xl">
+        <div className="grid grid-cols-4 gap-2 px-4 py-3">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setBrowseTab(id)}
               className={cn(
-                'inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-                tab === id ? 'bg-primary text-primary-foreground' : 'bg-white/7 text-white/80 hover:bg-white/12',
+                'inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full px-1 py-2 text-[13px] font-semibold transition-colors',
+                tab === id ? 'text-primary' : 'text-white/80 hover:text-white',
               )}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className={cn('h-4 w-4 shrink-0 stroke-[1.9]', tab === id && 'fill-current')} />
+              <span className="truncate">{label}</span>
             </button>
           ))}
         </div>

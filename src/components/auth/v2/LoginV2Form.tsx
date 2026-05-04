@@ -69,6 +69,16 @@ function LoginV2FormInner() {
   }, [verified])
 
   useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth >= 1024) return
+    const t = window.setTimeout(() => {
+      const el = document.getElementById('auth-v2-email')
+      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      el instanceof HTMLElement && el.focus()
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
     if (!loading) return
     setQuoteIndex(Math.floor(Math.random() * TRAVEL_QUOTES.length))
     const interval = setInterval(() => {

@@ -52,9 +52,21 @@ export async function WanderLandingPage({
 
   const { supabase, user } = auth
   let profileAvatar: string | null = null
+  let mobileHeroUser: {
+    id: string
+    username: string
+    full_name: string | null
+    avatar_url: string | null
+  } | null = null
   if (user) {
-    const { data: p } = await supabase.from('profiles').select('avatar_url').eq('id', user.id).single()
+    const { data: p } = await supabase.from('profiles').select('avatar_url, username, full_name').eq('id', user.id).single()
     profileAvatar = p?.avatar_url ?? null
+    mobileHeroUser = p ? {
+      id: user.id,
+      username: p.username,
+      full_name: p.full_name ?? null,
+      avatar_url: p.avatar_url ?? null,
+    } : null
   }
 
   let tripRow: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
@@ -102,6 +114,9 @@ export async function WanderLandingPage({
         <WanderMobileHeroSearch
           initialTab={activeTab}
           heroImageUrl={heroImageUrl}
+          heroCopy={heroCopy}
+          stats={stats}
+          userProfile={mobileHeroUser}
           listedActivities={listedActivities}
           wanderSearchBasePath={searchBasePath}
         />
@@ -116,13 +131,12 @@ export async function WanderLandingPage({
                   <p className="mb-3 text-sm text-muted-foreground">
                     Sign in to see recent stories from people you follow — unread first.
                   </p>
-                  <Link href="/login" className="text-sm font-semibold text-primary hover:underline">
+                  <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
                     Sign in
                   </Link>
                 </div>
               )}
             </div>
-            <WanderStatsGrid stats={stats} />
           </div>
         </div>
       </div>
@@ -145,7 +159,7 @@ export async function WanderLandingPage({
                     <p className="text-sm text-muted-foreground mb-3">
                       Sign in to see recent stories from people you follow — unread first.
                     </p>
-                    <Link href="/login" className="text-sm font-semibold text-primary hover:underline">
+                    <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
                       Sign in
                     </Link>
                   </div>

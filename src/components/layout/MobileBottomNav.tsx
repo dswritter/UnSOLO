@@ -35,6 +35,12 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
       active: (p) => p === '/leaderboard',
     },
     {
+      href: '/community',
+      label: 'Meet Travellers',
+      icon: MessageSquare,
+      active: (p) => p === '/community' || Boolean(p?.startsWith('/community/')) || p === '/tribe' || Boolean(p?.startsWith('/tribe/')),
+    },
+    {
       href: '/offers',
       label: 'Offers',
       icon: Gift,
@@ -45,12 +51,6 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
       label: 'Become Host',
       icon: Tent,
       active: (p) => Boolean(p?.startsWith('/host')),
-    },
-    {
-      href: '/community',
-      label: 'Meet Travellers',
-      icon: MessageSquare,
-      active: (p) => p === '/community' || Boolean(p?.startsWith('/community/')) || p === '/tribe' || Boolean(p?.startsWith('/tribe/')),
     },
   ]
 
@@ -64,12 +64,12 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
               key={href}
               href={href}
               className={cn(
-                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-semibold transition-colors',
-                isActive ? 'bg-primary text-primary-foreground' : 'text-white/70 hover:bg-white/8 hover:text-white',
+                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold transition-colors',
+                isActive ? 'text-primary' : 'text-white/72 hover:text-white',
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="truncate">{label}</span>
+              <Icon className={cn('h-4.5 w-4.5 shrink-0 stroke-[1.9]', isActive && 'fill-current')} />
+              <span className="truncate text-center leading-tight">{label}</span>
             </Link>
           )
         })}

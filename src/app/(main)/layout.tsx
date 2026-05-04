@@ -4,6 +4,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
+import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
@@ -50,7 +51,7 @@ export default async function MainLayout({
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
-      {user ? <DeferredChatNotificationWidget userId={user.id} /> : null}
+      {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
       <MobileBottomNav isHost={!!profile?.is_host} />
       <Suspense fallback={null}>
         <SignInPrompt isAuthenticated={!!user} />

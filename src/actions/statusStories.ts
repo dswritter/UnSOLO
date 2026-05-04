@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import { serializeAudience, type StatusStoryAudience } from '@/lib/statusStories/audience'
 
 export type StatusStripStory = {
@@ -30,7 +31,7 @@ async function usernamesToIds(usernamesCsv: string): Promise<string[]> {
 }
 
 export async function getMyGeneralRoomsForStatus(): Promise<{ id: string; name: string }[]> {
-  const { supabase, user } = await getActionAuth()
+  const { supabase, user } = await getRequestAuth()
   if (!user) return []
 
   const { data } = await supabase
@@ -48,7 +49,7 @@ export async function getMyGeneralRoomsForStatus(): Promise<{ id: string; name: 
 }
 
 export async function countActiveStatusStoriesForUser(): Promise<number> {
-  const { supabase, user } = await getActionAuth()
+  const { supabase, user } = await getRequestAuth()
   if (!user) return 0
   const { count, error } = await supabase
     .from('status_stories')
@@ -65,7 +66,7 @@ export async function getStatusStripForHome(): Promise<{
   /** Story ids the current user has already viewed (any device) — syncs ring / ordering */
   seenStoryIds: string[]
 }> {
-  const { supabase, user } = await getActionAuth()
+  const { supabase, user } = await getRequestAuth()
   if (!user) return { stories: [], currentUserId: null, seenStoryIds: [] }
 
   const { data: follows } = await supabase.from('follows').select('following_id').eq('follower_id', user.id)
