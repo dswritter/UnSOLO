@@ -24,12 +24,23 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   const { id } = await params
   const { tab } = await searchParams
 
-  const hostStatus = await checkIsHost()
-  if (!hostStatus.authenticated) redirect('/login')
-  if (!hostStatus.isHost) redirect('/host/verify')
-
+  // Auth: the listing's host can edit, but admins can also edit any listing
+  // (entry point linked from /admin/service-listings/[id]).
   const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isAdmin = profile?.role === 'admin'
+
+  if (!isAdmin) {
+    const hostStatus = await checkIsHost()
+    if (!hostStatus.authenticated) redirect('/login')
+    if (!hostStatus.isHost) redirect('/host/verify')
+  }
 
   const { data: listing } = await supabase
     .from('service_listings')
@@ -38,7 +49,7 @@ export default async function EditServiceListingPage({ params, searchParams }: P
     .single()
 
   if (!listing) notFound()
-  if (listing.host_id !== user.id) redirect('/host')
+  if (!isAdmin && listing.host_id !== user.id) redirect('/host')
 
   const [destinations, itemsResult, countsResult, unavailabilityResult] = await Promise.all([
     getDestinationsPublic(),

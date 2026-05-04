@@ -314,8 +314,15 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <p className="mt-0.5 text-xs text-blue-600">
               This listing has {listing.items.length} item{listing.items.length !== 1 ? 's' : ''} — the
               base price below is automatically synced to the cheapest active item&apos;s price and
-              used on explore cards. Edit individual items to change prices.
+              used on explore cards. Use the full editor to change individual item prices,
+              schedules, photos, and weekend rates.
             </p>
+            <a
+              href={`/host/service-listings/${listing.id}/edit?tab=items`}
+              className="mt-2 inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+            >
+              Open full editor (items, photos, schedule)
+            </a>
             {typeof listing.booking_count === 'number' && (
               <p className="mt-2 text-xs font-medium text-blue-800">
                 Bookings (non-cancelled): {listing.booking_count}

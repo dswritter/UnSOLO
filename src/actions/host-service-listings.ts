@@ -133,6 +133,10 @@ async function userCanEditServiceListing(
   if (!listing) return null
   if (listing.host_id === userId) return { allowed: true, isPrimary: true }
 
+  // Admin can edit any listing — surfaced from the admin panel.
+  const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle()
+  if (prof?.role === 'admin') return { allowed: true, isPrimary: false }
+
   const { data: collab } = await supabase
     .from('service_listing_collaborators')
     .select('id')

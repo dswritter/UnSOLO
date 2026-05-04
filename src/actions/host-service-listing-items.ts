@@ -151,7 +151,11 @@ async function requireHostOfListing(listingId: string) {
     .single()
 
   if (!listing) return { error: 'Listing not found' as const }
-  if (listing.host_id !== user.id) return { error: 'Unauthorized' as const }
+  if (listing.host_id !== user.id) {
+    // Admins are allowed to edit any host's listing from the admin panel.
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' as const }
+  }
 
   return { supabase, user, listing }
 }
@@ -255,7 +259,7 @@ export async function updateServiceListingItem(
   const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
-  // Verify ownership via join-like lookup.
+  // Verify ownership via join-like lookup. Admins may edit any host's items.
   const { data: existing } = await supabase
     .from('service_listing_items')
     .select('id, service_listing_id, service_listings!inner(host_id)')
@@ -264,8 +268,10 @@ export async function updateServiceListingItem(
 
   if (!existing) return { error: 'Item not found' }
   // @ts-expect-error supabase join shape
-  if (existing.service_listings?.host_id !== user.id) {
-    return { error: 'Unauthorized' }
+  const ownerId = existing.service_listings?.host_id as string | undefined
+  if (ownerId !== user.id) {
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' }
   }
 
   if (patch.name !== undefined && !patch.name.trim()) {
