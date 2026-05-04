@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Menu, X, Shield, Users, Gift, Pencil, Tent, MessageSquare, ChevronDown } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Shield, Users, Gift, Pencil, Tent, MessageSquare, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
 import { getInitials, cn } from '@/lib/utils'
-import { useState, useEffect, useRef, useTransition, useCallback, type MouseEvent } from 'react'
+import { useState, useEffect, useTransition, useCallback, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
@@ -25,7 +25,6 @@ interface NavbarProps {
 }
 
 export function Navbar({ user }: NavbarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const router = useRouter()
@@ -77,47 +76,6 @@ export function Navbar({ user }: NavbarProps) {
     }
     return pathname === href
   }
-  const mobileMenuRef = useRef<HTMLDivElement>(null)
-  const mobileToggleRef = useRef<HTMLButtonElement>(null)
-  const touchStart = useRef<{ x: number; y: number } | null>(null)
-
-  // Dismiss the mobile menu on outside tap or Escape.
-  useEffect(() => {
-    if (!mobileOpen) return
-    function onPointerDown(e: PointerEvent) {
-      const target = e.target as Node
-      if (mobileMenuRef.current?.contains(target)) return
-      if (mobileToggleRef.current?.contains(target)) return
-      setMobileOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMobileOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [mobileOpen])
-
-  // Swipe up or swipe left on the drawer closes it.
-  function onMenuTouchStart(e: React.TouchEvent) {
-    const t = e.touches[0]
-    touchStart.current = { x: t.clientX, y: t.clientY }
-  }
-  function onMenuTouchEnd(e: React.TouchEvent) {
-    const start = touchStart.current
-    touchStart.current = null
-    if (!start) return
-    const t = e.changedTouches[0]
-    const dx = t.clientX - start.x
-    const dy = t.clientY - start.y
-    const SWIPE = 40
-    if (dy < -SWIPE && Math.abs(dy) > Math.abs(dx)) { setMobileOpen(false); return }
-    if (dx < -SWIPE && Math.abs(dx) > Math.abs(dy)) { setMobileOpen(false); return }
-  }
-
   // Track unread messages for Community badge
   useEffect(() => {
     if (!user) return
@@ -208,7 +166,7 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/', label: 'Explore', icon: Compass },
-    { href: '/community', label: 'Tribe', icon: MessageSquare, showBadge: true },
+    { href: '/community', label: 'Meet Travellers', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
@@ -278,9 +236,6 @@ export function Navbar({ user }: NavbarProps) {
             <>
               <div className="hidden md:block w-56 ml-4">
                 <SearchBar />
-              </div>
-              <div className="md:hidden">
-                <SearchBar isMobile={true} />
               </div>
             </>
           )}
@@ -393,84 +348,9 @@ export function Navbar({ user }: NavbarProps) {
               </div>
             )}
 
-            {/* Mobile menu toggle */}
-            <button
-              ref={mobileToggleRef}
-              className={cn('md:hidden', isWanderShell ? 'text-white/80 hover:text-primary' : 'text-muted-foreground hover:text-foreground')}
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-              aria-expanded={mobileOpen}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
           </div>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {mobileOpen && (
-        <div
-          ref={mobileMenuRef}
-          onTouchStart={onMenuTouchStart}
-          onTouchEnd={onMenuTouchEnd}
-          className={cn(
-            'md:hidden border-t px-4 py-4 space-y-2',
-            isWanderShell ? 'border-[color:var(--wander-nav-outer-border)] bg-[color:var(--wander-inset-panel)]' : 'border-border bg-background',
-          )}
-        >
-          {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
-            const isActive = navLinkActive(href)
-            const isTribeLink = href === '/community'
-            return (
-            <Link
-              key={href}
-              href={href}
-              prefetch
-              onMouseEnter={isTribeLink ? prefetchTribeRoutes : undefined}
-              onFocusCapture={isTribeLink ? prefetchTribeRoutes : undefined}
-              onClick={e => {
-                setMobileOpen(false)
-                onTribeNavClick(e, href)
-              }}
-              className={cn(
-                'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                isTribeLink && isTribeNavPending && 'opacity-80',
-                isWanderShell
-                  ? isActive
-                    ? 'text-primary bg-primary/12 underline decoration-primary decoration-2 underline-offset-4'
-                    : 'text-white/90 hover:text-primary hover:bg-white/10'
-                  : isActive
-                    ? 'text-primary bg-primary/10 underline decoration-primary decoration-2 underline-offset-4'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {showBadge && unreadChatCount > 0 && (
-                <span className="ml-auto h-5 min-w-[20px] px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unreadChatCount > 99 ? '99+' : unreadChatCount}
-                </span>
-              )}
-              {showHostBadge && pendingJoinCount > 0 && (
-                <span className="ml-auto h-5 min-w-[20px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {pendingJoinCount > 99 ? '99+' : pendingJoinCount}
-                </span>
-              )}
-            </Link>
-            )
-          })}
-          {user && (
-            <Link
-              href="/bookings"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <BookOpen className="h-4 w-4" />
-              My Bookings
-            </Link>
-          )}
-        </div>
-      )}
     </nav>
   )
 }

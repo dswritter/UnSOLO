@@ -33,7 +33,7 @@ export function FooterWrapper() {
   return (
     <footer
       className={cn(
-        'border-t mt-auto',
+        'hidden md:block border-t mt-auto',
         isWander ? 'footer-wander-surface border-[color:var(--wander-footer-outer-border)]' : 'border-border bg-card/50',
       )}
     >
@@ -85,7 +85,7 @@ export function FooterWrapper() {
                   href="/community"
                   className={cn('text-xs', isWander ? 'text-white/75 hover:text-primary' : 'text-muted-foreground hover:text-primary')}
                 >
-                  Community
+                  Meet Travellers
                 </a>
               </li>
             </ul>

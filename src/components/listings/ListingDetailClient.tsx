@@ -85,6 +85,10 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   const isRental = listing.type === 'rentals'
   const isStay = listing.type === 'stays'
   const displayUnit = ((isRental || isStay) && selectedItem?.unit) || listing.unit
+  const bookingDisabled =
+    (!isRental && !selectedItem && items.length > 0) ||
+    (displayAvailable != null && displayAvailable <= 0) ||
+    !!selectedItem?.is_out_of_stock
 
   // Type-specific metadata display
   const getMetadataDisplay = () => {
@@ -128,6 +132,13 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   }
 
   const metadataDisplay = getMetadataDisplay()
+  const stickyLabel = isRental
+    ? rentalCartTotal > 0
+      ? 'Review cart'
+      : 'Start rental booking'
+    : bookingDisabled
+      ? 'Currently unavailable'
+      : 'Book now'
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -588,7 +599,10 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
 
       {/* Sidebar - Booking form */}
       <div className="lg:col-span-1 order-first lg:order-none">
-        <div className="glass-card sticky top-6 space-y-4 border-0 bg-transparent p-6 text-card-foreground max-h-[calc(100vh-24px)] overflow-y-auto">
+        <div
+          id="listing-booking-card"
+          className="glass-card sticky top-6 space-y-4 border-0 bg-transparent p-6 text-card-foreground max-h-[calc(100vh-24px)] overflow-y-auto scroll-mt-24"
+        >
 
           {isRental && items.length > 0 ? (
             /* ── Rental cart sidebar ── */
@@ -648,6 +662,32 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               </div>
             </>
           )}
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 px-4 md:hidden">
+        <div className="pointer-events-auto rounded-2xl border border-white/12 bg-zinc-950/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
+                {isRental ? 'Plan your rental' : listing.type === 'stays' ? 'Stay booking' : 'Service booking'}
+              </p>
+              <p className="truncate text-sm font-bold text-white">
+                {formatPrice(displayPricePaise)}{' '}
+                <span className="text-white/68">/ {displayUnit.replace('per_', '').replace('_', ' ')}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={bookingDisabled && !isRental}
+              onClick={() => {
+                document.getElementById('listing-booking-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {stickyLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

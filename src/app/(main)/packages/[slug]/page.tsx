@@ -468,7 +468,7 @@ export default async function PackageDetailPage({
 
           {/* Sidebar - Booking / Join */}
           <div className="lg:col-span-1">
-            <div className="lg:sticky lg:top-20">
+            <div id="trip-booking-card" className="scroll-mt-24 lg:sticky lg:top-20">
               <Card
                 className={cn(
                   'glass-card overflow-hidden rounded-xl border-0 bg-transparent py-4 ring-0 shadow-none text-card-foreground',
@@ -628,6 +628,37 @@ export default async function PackageDetailPage({
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </div>
+        </div>
+
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 px-4 md:hidden">
+          <div className="pointer-events-auto rounded-2xl border border-white/12 bg-zinc-950/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
+                  {isCommunityTrip && !communityDirectCheckout ? 'Community trip' : 'Ready to book'}
+                </p>
+                <p className="truncate text-sm font-bold text-white">
+                  {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                  {formatPrice(package_.price_paise)} per person
+                </p>
+              </div>
+              {isHost ? (
+                <Button size="sm" className="shrink-0 font-bold" variant="outline" asChild>
+                  <Link href="/host">Host Dashboard</Link>
+                </Button>
+              ) : !user ? (
+                <Button size="sm" className="shrink-0 bg-primary font-bold text-primary-foreground hover:bg-primary/90" asChild>
+                  <Link href={`/login?redirectTo=/packages/${package_.slug}`}>Sign In</Link>
+                </Button>
+              ) : (
+                <Button size="sm" className="shrink-0 bg-primary font-bold text-primary-foreground hover:bg-primary/90" asChild>
+                  <a href="#trip-booking-card">
+                    {isCommunityTrip && !communityDirectCheckout ? 'Join this trip' : 'Book this trip'}
+                  </a>
+                </Button>
+              )}
             </div>
           </div>
         </div>

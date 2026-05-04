@@ -44,7 +44,7 @@ export default async function ProfilePage({
   )
   const sharePosterFooterTagline =
     String(sharePosterByKey['share_poster_footer_tagline'] ?? '').trim() ||
-    'Book treks, find your tribe, share the stoke.'
+    'Book treks, meet travellers, share the stoke.'
   const sharePosterShareTitle =
     String(sharePosterByKey['share_poster_share_title'] ?? '').trim() ||
     '{displayName} on UnSOLO'

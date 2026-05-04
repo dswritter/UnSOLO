@@ -52,6 +52,7 @@ export function WanderListingSections({
 }) {
   const sectionOrder = (['trips', 'stays', 'activities', 'rentals'] as const)
   const orderedTypes = [activeTab, ...sectionOrder.filter(type => type !== activeTab)]
+  const tripSupportCopy = activeTab === 'trips'
   const sections = {
     trips: (
       <section key="trips">
@@ -74,7 +75,11 @@ export function WanderListingSections({
     ),
     stays: (
       <section key="stays">
-        <SectionHeader title="Popular stays" actionHref={wanderSearchHref({ tab: 'stays' })} actionLabel="View all stays" />
+        <SectionHeader
+          title={tripSupportCopy ? 'Stays near these trips' : 'Popular stays'}
+          actionHref={wanderSearchHref({ tab: 'stays' })}
+          actionLabel="View all stays"
+        />
         {stays.length === 0 ? (
           <p className="text-sm text-muted-foreground">No stays to show yet.</p>
         ) : (
@@ -88,7 +93,10 @@ export function WanderListingSections({
     ),
     activities: (
       <section key="activities">
-        <SectionHeader title="Popular activities" actionHref={wanderSearchHref({ tab: 'activities' })} />
+        <SectionHeader
+          title={tripSupportCopy ? 'Activities you can add' : 'Popular activities'}
+          actionHref={wanderSearchHref({ tab: 'activities' })}
+        />
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activities to show yet.</p>
         ) : (
@@ -102,7 +110,10 @@ export function WanderListingSections({
     ),
     rentals: (
       <section key="rentals">
-        <SectionHeader title="Frequently booked rentals" actionHref={wanderSearchHref({ tab: 'rentals' })} />
+        <SectionHeader
+          title={tripSupportCopy ? 'Useful rentals in the area' : 'Frequently booked rentals'}
+          actionHref={wanderSearchHref({ tab: 'rentals' })}
+        />
         {rentals.length === 0 ? (
           <p className="text-sm text-muted-foreground">No rentals to show yet.</p>
         ) : (

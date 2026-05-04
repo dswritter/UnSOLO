@@ -1,6 +1,6 @@
 import { getAdminDashboardStats } from '@/actions/admin'
 import Link from 'next/link'
-import { Users, CreditCard, Clock, UserCheck, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, AlertTriangle, MessageCircle } from 'lucide-react'
+import { Users, CreditCard, Clock, UserCheck, BookOpen, ArrowRight, Package, Mountain, Tag, FileText, AlertTriangle, MessageCircle, Sparkles } from 'lucide-react'
 
 function fmtPrice(paise: number) {
   if (paise === 0) return '₹0'
@@ -92,6 +92,7 @@ export default async function AdminDashboardPage() {
           { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips', badge: stats.pendingCommunityTrips },
           { href: '/admin/community-chats', icon: MessageCircle, title: 'Community chats', desc: 'Rooms, images, enable/disable', badge: 0 },
           { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers', badge: 0 },
+          { href: '/admin/offers', icon: Sparkles, title: 'Offers Page', desc: 'Arrange section order and bundle rows', badge: 0 },
         ] as const).map(({ href, icon: Icon, title, desc, badge }) => (
           <Link
             key={href}

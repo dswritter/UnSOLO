@@ -33,6 +33,7 @@ const navItems: { href: string; label: string; icon: typeof LayoutDashboard; rol
   { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager'] },
   { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
+  { href: '/admin/offers', label: 'Offers Page', icon: Sparkles, roles: ['admin'] },
   { href: '/admin/promo-cards', label: 'Home promos', icon: Sparkles, roles: ['admin'] },
   { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, roles: ['admin'] },
   { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'] },

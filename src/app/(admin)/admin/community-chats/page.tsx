@@ -8,7 +8,7 @@ export default async function AdminCommunityChatsPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-black">Community <span className="text-primary">Chat Rooms</span></h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and manage public tribe rooms shown under Community in chat</p>
+        <p className="text-sm text-muted-foreground mt-1">Create and manage public Meet Travellers rooms shown under Community in chat</p>
       </div>
       {error ? (
         <p className="text-sm text-destructive">{error}</p>

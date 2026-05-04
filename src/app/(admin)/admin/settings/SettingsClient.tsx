@@ -142,7 +142,7 @@ const GENERAL_SETTING_KEYS = Object.keys(SETTING_LABELS).filter(
 const SHARE_POSTER_DEFAULTS: Record<(typeof SHARE_POSTER_ORDER)[number], string> = {
   share_poster_share_title: '{displayName} on UnSOLO',
   share_poster_share_text: 'See my travel story on UnSOLO — {profileUrl}',
-  share_poster_footer_tagline: 'Book treks, find your tribe, share the stoke.',
+  share_poster_footer_tagline: 'Book treks, meet travellers, share the stoke.',
 }
 
 function refundSettingDescription(key: string, fallback: string | null): string | null {

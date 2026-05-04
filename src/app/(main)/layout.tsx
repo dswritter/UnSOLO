@@ -3,8 +3,8 @@ import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
-import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
 import type { Profile } from '@/types'
@@ -45,12 +45,13 @@ export default async function MainLayout({
       */}
       <main
         data-wander-main-scroll
-        className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto"
+        className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto pb-[5.75rem] md:pb-0"
       >
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
-      {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
+      {user ? <DeferredChatNotificationWidget userId={user.id} /> : null}
+      <MobileBottomNav isHost={!!profile?.is_host} />
       <Suspense fallback={null}>
         <SignInPrompt isAuthenticated={!!user} />
       </Suspense>
