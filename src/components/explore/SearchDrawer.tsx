@@ -12,6 +12,14 @@ interface SearchDrawerProps {
   initialValue?: string
   basePath?: string
   preserveWanderSearch?: boolean
+  activeTab?: 'trips' | 'stays' | 'activities' | 'rentals'
+}
+
+const TAB_PLACEHOLDER: Record<NonNullable<SearchDrawerProps['activeTab']>, string> = {
+  trips: 'Search trips by destination…',
+  stays: 'Search stays by city or area…',
+  activities: 'Search activities (e.g. trek, kayak)…',
+  rentals: 'Search rentals (e.g. bike, car)…',
 }
 
 export function SearchDrawer({
@@ -20,6 +28,7 @@ export function SearchDrawer({
   initialValue = '',
   basePath = '/',
   preserveWanderSearch = false,
+  activeTab,
 }: SearchDrawerProps) {
   const [searchInput, setSearchInput] = useState(initialValue)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -83,8 +92,16 @@ export function SearchDrawer({
 
   return (
     <div ref={trapRef} role="dialog" aria-modal="true" aria-label="Search">
-      {/* Full-width search bar above keyboard */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-bottom">
+      {/* Backdrop — closes on outside tap, also dims the bottom nav so the
+          search bar above it is visually clearly the active surface. */}
+      <button
+        type="button"
+        aria-label="Close search"
+        onClick={onClose}
+        className="md:hidden fixed inset-0 z-[55] bg-black/40 backdrop-blur-[2px]"
+      />
+      {/* Full-width search bar — sits above the bottom nav (z-50) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] bg-background border-t border-border safe-bottom">
         <div className="flex items-center gap-2 px-4 py-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -94,7 +111,7 @@ export function SearchDrawer({
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Find trips, stays..."
+              placeholder={activeTab ? TAB_PLACEHOLDER[activeTab] : 'Search…'}
               className="w-full pl-9 pr-9 py-2 rounded-full bg-secondary border border-border text-sm focus:outline-none focus:border-primary transition-colors"
             />
             {searchInput && (

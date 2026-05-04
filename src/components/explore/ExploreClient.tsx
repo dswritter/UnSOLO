@@ -555,6 +555,7 @@ export function ExploreClient({
         initialValue={params.q || ''}
         basePath={basePath}
         preserveWanderSearch={isWanderShell}
+        activeTab={(activeTab === 'trips' || activeTab === 'stays' || activeTab === 'activities' || activeTab === 'rentals') ? activeTab : undefined}
       />
 
       <FilterDrawer

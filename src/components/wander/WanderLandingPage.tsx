@@ -110,36 +110,38 @@ export async function WanderLandingPage({
       <Suspense fallback={null}>
         <WanderSearchScroll />
       </Suspense>
-      <div className="md:hidden">
-        <WanderMobileHeroSearch
-          initialTab={activeTab}
-          heroImageUrl={heroImageUrl}
-          heroCopy={heroCopy}
-          stats={stats}
-          userProfile={mobileHeroUser}
-          listedActivities={listedActivities}
-          wanderSearchBasePath={searchBasePath}
-        />
-        <div className="border-b border-border/50 px-4 py-4">
-          <div className="space-y-4">
-            <div className="wander-frost-panel">
-              {user ? (
-                <WanderStatusRail avatarUrl={profileAvatar} />
-              ) : (
-                <div className="space-y-1">
-                  <h3 className="text-sm font-bold">Traveler status</h3>
-                  <p className="mb-3 text-sm text-muted-foreground">
-                    Sign in to see recent stories from people you follow — unread first.
-                  </p>
-                  <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
-                    Sign in
-                  </Link>
-                </div>
-              )}
+      {!isSearchMode && (
+        <div className="md:hidden">
+          <WanderMobileHeroSearch
+            initialTab={activeTab}
+            heroImageUrl={heroImageUrl}
+            heroCopy={heroCopy}
+            stats={stats}
+            userProfile={mobileHeroUser}
+            listedActivities={listedActivities}
+            wanderSearchBasePath={searchBasePath}
+          />
+          <div className="border-b border-border/50 px-4 py-4">
+            <div className="space-y-4">
+              <div className="wander-frost-panel">
+                {user ? (
+                  <WanderStatusRail avatarUrl={profileAvatar} />
+                ) : (
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold">Traveler status</h3>
+                    <p className="mb-3 text-sm text-muted-foreground">
+                      Sign in to see recent stories from people you follow — unread first.
+                    </p>
+                    <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
+                      Sign in
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="hidden md:block">
         <WanderHero
