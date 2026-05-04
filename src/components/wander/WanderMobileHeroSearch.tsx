@@ -202,7 +202,7 @@ export function WanderMobileHeroSearch({
   const statsInline = [
     { icon: MapPin, value: `${stats.destinations}+`, label: 'Destinations' },
     { icon: CreditCard, value: `${stats.bookings}+`, label: 'Bookings' },
-    { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy' },
+    { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy users' },
   ] as const
   const heroTypography = heroCopy.mobileFontMode === 'custom' ? heroCopy.mobileTypography : heroCopy.desktopTypography
   const eyebrowStyle: CSSProperties | undefined = heroTypography.badgeSize ? { fontSize: heroTypography.badgeSize } : undefined
@@ -222,8 +222,12 @@ export function WanderMobileHeroSearch({
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,20,0.18),rgba(6,12,20,0.84)_52%,rgba(6,12,20,0.98)_100%)]" />
         </div>
         <div className="relative z-[1] px-4 pb-4 pt-4">
-          <div className="flex items-start justify-end gap-3">
-            <div className="flex items-center gap-3">
+          {/* Top row: eyebrow chip on the left, notifications + avatar on the right */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary" style={eyebrowStyle}>
+              {hero.eyebrow}
+            </div>
+            <div className="flex items-center gap-2">
               {userProfile ? <NotificationBell userId={userProfile.id} wanderNav /> : null}
               {userProfile ? (
                 <Link href={`/profile/${userProfile.username}`} className="shrink-0">
@@ -245,10 +249,7 @@ export function WanderMobileHeroSearch({
             </div>
           </div>
 
-          <div className="mt-4 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary" style={eyebrowStyle}>
-            {hero.eyebrow}
-          </div>
-          <h1 className="mt-3 text-[1.95rem] font-black leading-[1.04] tracking-tight text-white" style={titleStyle}>
+          <h1 className="mt-3 text-[1.6rem] font-black leading-[1.05] tracking-tight text-white" style={titleStyle}>
             {hero.title}
             {showDesktopLine2 ? (
               <>
@@ -259,11 +260,11 @@ export function WanderMobileHeroSearch({
               </>
             ) : null}
           </h1>
-          <p className="mt-2 max-w-[20rem] text-[13px] leading-relaxed text-white/78" style={subtitleStyle}>
+          <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-white/78" style={subtitleStyle}>
             {hero.subtitle}
           </p>
 
-          {/* Stats — icons + big numbers, single row */}
+          {/* Stats row — icons + big numbers, with Instagram pinned at the right end */}
           <div className="mt-4 flex items-stretch gap-2 rounded-2xl border border-white/14 bg-black/25 p-2.5 backdrop-blur-md">
             {statsInline.map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -276,31 +277,29 @@ export function WanderMobileHeroSearch({
                 </div>
               </div>
             ))}
+            {instagramHref ? (
+              instagramHref.startsWith('/') ? (
+                <Link
+                  href={instagramHref}
+                  aria-label={instagramLabel || 'Instagram'}
+                  className="ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#f472b6] via-[#a855f7] to-[#f59e0b] text-white shadow-md transition-transform hover:-translate-y-0.5"
+                >
+                  <Instagram className="h-4.5 w-4.5" strokeWidth={2} aria-hidden />
+                </Link>
+              ) : (
+                <a
+                  href={instagramHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={instagramLabel || 'Instagram'}
+                  className="ml-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#f472b6] via-[#a855f7] to-[#f59e0b] text-white shadow-md transition-transform hover:-translate-y-0.5"
+                >
+                  <Instagram className="h-4.5 w-4.5" strokeWidth={2} aria-hidden />
+                </a>
+              )
+            ) : null}
           </div>
         </div>
-
-        {/* Floating Instagram icon — bottom right of hero */}
-        {instagramHref ? (
-          instagramHref.startsWith('/') ? (
-            <Link
-              href={instagramHref}
-              aria-label={instagramLabel || 'Instagram'}
-              className="absolute bottom-3 right-3 z-[2] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-[#f472b6] via-[#a855f7] to-[#f59e0b] text-white shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
-            >
-              <Instagram className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </Link>
-          ) : (
-            <a
-              href={instagramHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={instagramLabel || 'Instagram'}
-              className="absolute bottom-3 right-3 z-[2] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-[#f472b6] via-[#a855f7] to-[#f59e0b] text-white shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
-            >
-              <Instagram className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </a>
-          )
-        ) : null}
       </section>
 
       <div className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/92 backdrop-blur-xl">

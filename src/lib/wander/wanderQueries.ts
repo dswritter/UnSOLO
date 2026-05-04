@@ -356,9 +356,12 @@ export async function getWanderStats(): Promise<WanderStats> {
       .eq('is_active', true)
       .not('host_id', 'is', null)
       .not('destination_id', 'is', null),
+    // Service listings can span multiple destinations (see migration 048);
+    // we read both the primary id and the destination_ids array so stays /
+    // activities / rentals counts contribute every distinct destination.
     supabase
       .from('service_listings')
-      .select('destination_id')
+      .select('destination_id, destination_ids')
       .eq('is_active', true)
       .not('host_id', 'is', null)
       .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)'),
@@ -372,8 +375,11 @@ export async function getWanderStats(): Promise<WanderStats> {
     if (d) destSet.add(d)
   }
   for (const r of destServices.data || []) {
-    const d = (r as { destination_id: string | null }).destination_id
-    if (d) destSet.add(d)
+    const row = r as { destination_id: string | null; destination_ids: string[] | null }
+    if (row.destination_id) destSet.add(row.destination_id)
+    for (const id of row.destination_ids ?? []) {
+      if (id) destSet.add(id)
+    }
   }
 
   const allRatings = [
