@@ -113,11 +113,44 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url, 308)
   }
 
-  // Build the base response first so the Supabase client can attach updated
-  // session cookies to it. Must use this response object (not NextResponse.next())
-  // for every return path so refreshed cookies always reach the browser.
-  let supabaseResponse = nextWithUnsoloPath(request, browserPathname)
+  // Retired preview URLs → canonical auth (query string preserved on cloned URL)
+  if (pathname === '/login-v2' || pathname.startsWith('/login-v2/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url, 308)
+  }
+  if (pathname === '/signup-v2' || pathname.startsWith('/signup-v2/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/signup'
+    return NextResponse.redirect(url, 308)
+  }
 
+  const isPublic = PUBLIC_ROUTES.some(r => matchesRoute(pathname, r)) ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/sounds') ||
+    pathname.includes('.')
+
+  const isPublicContent = PUBLIC_CONTENT.some(r => matchesRoute(pathname, r))
+
+  // Public routes: do NOT touch Supabase from middleware.
+  //
+  // Reason: every getSession() call here is a potential JWT refresh. When the
+  // user lands on the home page on mobile we render N listing cards (each a
+  // <Link>) plus the bottom nav — Next.js prefetches those Links concurrently,
+  // and *each* prefetch fans into a middleware run. Multiple concurrent
+  // refreshes race the single-use Supabase refresh token: the first wins, the
+  // rest see session=null (or, worse, their refresh fails and the cookie pair
+  // is left invalid for follow-up requests). Skipping the Supabase call on
+  // public routes — which is most of the app — eliminates that race entirely.
+  // The token still refreshes naturally on the next protected-route hit, on
+  // any client-side supabase call, or when the page itself reads getRequestAuth().
+  if (isPublic || isPublicContent) {
+    return nextWithUnsoloPath(request, browserPathname)
+  }
+
+  // Protected route: now we read + refresh the session.
+  let supabaseResponse = nextWithUnsoloPath(request, browserPathname)
   try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,46 +169,15 @@ export async function proxy(request: NextRequest) {
         },
       },
     )
-
-    // Use getSession() here — reads the JWT from cookies locally with no
-    // network round-trip. getUser() (which calls the Supabase auth server on
-    // every request) can intermittently return null in Chrome when the token
-    // is valid but the upstream call is slow or fails, causing spurious logouts.
-    // Token validity and expiry are still enforced; refresh happens via the
-    // Supabase client when the access token is near expiry.
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Retired preview URLs → canonical auth (query string preserved on cloned URL)
-    if (pathname === '/login-v2' || pathname.startsWith('/login-v2/')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url, 308)
-    }
-    if (pathname === '/signup-v2' || pathname.startsWith('/signup-v2/')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/signup'
-      return NextResponse.redirect(url, 308)
-    }
-
-    const isPublic = PUBLIC_ROUTES.some(r => matchesRoute(pathname, r)) ||
-      pathname.startsWith('/_next') ||
-      pathname.startsWith('/favicon') ||
-      pathname.startsWith('/sounds') ||
-      pathname.includes('.')
-
-    const isPublicContent = PUBLIC_CONTENT.some(r => matchesRoute(pathname, r))
-
-    if (isPublic || isPublicContent) {
-      return supabaseResponse
-    }
-
     if (!session) {
-      // Concurrent prefetches can race the Supabase refresh-token (it's
-      // single-use). The 2nd+ middleware run sees session=null even though
-      // the user *is* authenticated — the auth cookie is still on the
-      // request and a follow-up call will succeed. Detect that case and
-      // pass through; the page will rerender with the refreshed session.
-      // Only kick to /login when no auth cookie exists at all.
+      // Even on protected routes a concurrent refresh-token race can leave
+      // session=null while the auth cookie itself is still present. Fall
+      // through to the page in that case — the page-level getRequestAuth()
+      // will revalidate via getUser() and either confirm the session or
+      // redirect itself. Only middleware-redirect when there's no auth
+      // cookie at all (genuinely signed out).
       const hasAuthCookie = request.cookies
         .getAll()
         .some(c => c.name.startsWith('sb-') && c.name.includes('-auth-token'))
