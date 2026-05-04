@@ -39,6 +39,9 @@ export function NotificationBell({
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const PAGE_SIZE = 20
   /** Popover for wander nav — portaled under `[data-wander-shell-season]` so season CSS vars apply (body alone does not inherit them). */
   const [wanderShellPortalParent, setWanderShellPortalParent] = useState<HTMLElement | null>(null)
   const wanderShellPortalHostCleanupRef = useRef<HTMLElement | null>(null)
@@ -87,10 +90,11 @@ export function NotificationBell({
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(PAGE_SIZE)
       if (data) {
         setNotifications(data as Notification[])
         setUnreadCount(data.filter((n: Notification) => !n.is_read).length)
+        setHasMore(data.length === PAGE_SIZE)
       }
     }
 
@@ -104,7 +108,8 @@ export function NotificationBell({
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
         (payload: { new: Record<string, unknown> }) => {
           const n = payload.new as unknown as Notification
-          setNotifications(prev => [n, ...prev].slice(0, 20))
+          // Prepend new notification; keep already-loaded older ones intact.
+          setNotifications(prev => [n, ...prev])
           setUnreadCount(c => c + 1)
 
           if ('Notification' in window && Notification.permission === 'granted') {
@@ -168,6 +173,26 @@ export function NotificationBell({
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  async function loadMore() {
+    if (!userId || loadingMore || !hasMore) return
+    setLoadingMore(true)
+    const supabase = createClient()
+    const oldest = notifications[notifications.length - 1]
+    let q = supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(PAGE_SIZE)
+    if (oldest) q = q.lt('created_at', oldest.created_at)
+    const { data } = await q
+    if (data) {
+      setNotifications(prev => [...prev, ...(data as Notification[])])
+      setHasMore(data.length === PAGE_SIZE)
+    }
+    setLoadingMore(false)
+  }
 
   async function markAllRead() {
     const supabase = createClient()
@@ -359,6 +384,21 @@ export function NotificationBell({
               </button>
             )
           })
+        )}
+        {notifications.length > 0 && hasMore && (
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className={cn(
+              'w-full px-4 py-3 text-xs font-semibold transition-colors disabled:opacity-50',
+              wanderNav
+                ? 'text-white/75 hover:text-white hover:bg-white/[0.06]'
+                : 'text-primary hover:bg-secondary/50',
+            )}
+          >
+            {loadingMore ? 'Loading…' : 'Load older notifications'}
+          </button>
         )}
       </div>
     </div>
