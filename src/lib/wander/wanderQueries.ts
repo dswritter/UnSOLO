@@ -35,6 +35,34 @@ export type WanderHeroCopy = {
   /** Shown below subtitle when `instagramUrl` is set. */
   instagramLabel: string
   instagramUrl: string | null
+  mobileContentMode: 'inherit' | 'custom'
+  mobileInstagramLabel: string
+  mobileInstagramUrl: string | null
+  mobileTabs: {
+    trips: WanderHeroMobileTabCopy
+    rentals: WanderHeroMobileTabCopy
+    activities: WanderHeroMobileTabCopy
+    stays: WanderHeroMobileTabCopy
+  }
+  mobileFontMode: 'inherit' | 'custom'
+  desktopTypography: WanderHeroTypography
+  mobileTypography: WanderHeroTypography
+}
+
+export type WanderHeroMobileTab = 'trips' | 'rentals' | 'activities' | 'stays'
+
+export type WanderHeroMobileTabCopy = {
+  eyebrow: string
+  title: string
+  subtitle: string
+}
+
+export type WanderHeroTypography = {
+  badgeSize: string | null
+  headlineSize: string | null
+  subtitleSize: string | null
+  instagramSize: string | null
+  statsSize: string | null
 }
 
 const HERO_KEYS = [
@@ -47,7 +75,68 @@ const HERO_KEYS = [
   'wander_hero_subtitle_link_url',
   'wander_hero_instagram_text',
   'wander_hero_instagram_url',
+  'wander_hero_mobile_content_mode',
+  'wander_hero_mobile_instagram_text',
+  'wander_hero_mobile_instagram_url',
+  'wander_hero_mobile_trips_eyebrow',
+  'wander_hero_mobile_trips_title',
+  'wander_hero_mobile_trips_subtitle',
+  'wander_hero_mobile_rentals_eyebrow',
+  'wander_hero_mobile_rentals_title',
+  'wander_hero_mobile_rentals_subtitle',
+  'wander_hero_mobile_activities_eyebrow',
+  'wander_hero_mobile_activities_title',
+  'wander_hero_mobile_activities_subtitle',
+  'wander_hero_mobile_stays_eyebrow',
+  'wander_hero_mobile_stays_title',
+  'wander_hero_mobile_stays_subtitle',
+  'wander_hero_mobile_font_mode',
+  'wander_hero_desktop_badge_size',
+  'wander_hero_desktop_headline_size',
+  'wander_hero_desktop_subtitle_size',
+  'wander_hero_desktop_instagram_size',
+  'wander_hero_mobile_badge_size',
+  'wander_hero_mobile_headline_size',
+  'wander_hero_mobile_subtitle_size',
+  'wander_hero_mobile_instagram_size',
+  'wander_hero_mobile_stats_size',
 ] as const
+
+const DEFAULT_MOBILE_TAB_COPY: Record<WanderHeroMobileTab, WanderHeroMobileTabCopy> = {
+  trips: {
+    eyebrow: 'Trips-first planning',
+    title: 'Find your next solo journey',
+    subtitle: 'Start with the trip, then layer in stays, activities, and rentals around it.',
+  },
+  stays: {
+    eyebrow: 'Stay nearby',
+    title: 'Book stays around your route',
+    subtitle: 'Find trusted places that fit naturally into the trip you already have in mind.',
+  },
+  activities: {
+    eyebrow: 'Add adventure',
+    title: 'Pick the best add-on activity',
+    subtitle: 'Rafting, paragliding, camps, and day plans that make the trip more memorable.',
+  },
+  rentals: {
+    eyebrow: 'Move smoothly',
+    title: 'Get the right rental for the plan',
+    subtitle: 'Cars, bikes, and gear rentals that fit the area and timing of your trip.',
+  },
+}
+
+function sanitizeHeroFontSize(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim().toLowerCase()
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)(px|rem|em)$/)
+  if (!match) return null
+  const value = Number(match[1])
+  if (!Number.isFinite(value) || value <= 0) return null
+  const unit = match[2]
+  const max = unit === 'px' ? 96 : 8
+  if (value > max) return null
+  return `${value}${unit}`
+}
 
 /** Headline lines + subtitle from platform_settings; falsy fields fall back to product defaults. */
 export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
@@ -61,6 +150,25 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
     subtitleLink: null,
     instagramLabel: DEFAULT_WANDER_INSTAGRAM_LABEL,
     instagramUrl: null,
+    mobileContentMode: 'inherit',
+    mobileInstagramLabel: DEFAULT_WANDER_INSTAGRAM_LABEL,
+    mobileInstagramUrl: null,
+    mobileTabs: DEFAULT_MOBILE_TAB_COPY,
+    mobileFontMode: 'inherit',
+    desktopTypography: {
+      badgeSize: null,
+      headlineSize: null,
+      subtitleSize: null,
+      instagramSize: null,
+      statsSize: null,
+    },
+    mobileTypography: {
+      badgeSize: null,
+      headlineSize: null,
+      subtitleSize: null,
+      instagramSize: null,
+      statsSize: null,
+    },
   })
   try {
     const supabase = await createServerClient()
@@ -76,6 +184,42 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
     const line2Accent = (m.wander_hero_line2_accent as string) ?? ''
     const line2After = (m.wander_hero_line2_after as string) ?? ''
     const subtitle = (m.wander_hero_subtitle as string) ?? ''
+    const mobileContentMode = m.wander_hero_mobile_content_mode === 'custom' ? 'custom' : 'inherit'
+    const mobileFontMode = m.wander_hero_mobile_font_mode === 'custom' ? 'custom' : 'inherit'
+    const mobileInstagramUrl = sanitizeAdminPublicHref(m.wander_hero_mobile_instagram_url)
+    const mobileInstagramRaw = (m.wander_hero_mobile_instagram_text as string | undefined)?.trim()
+    const mobileInstagramLabel = mobileInstagramRaw || instagramLabel
+    const mobileTabs: WanderHeroCopy['mobileTabs'] = {
+      trips: {
+        eyebrow: (m.wander_hero_mobile_trips_eyebrow as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.trips.eyebrow,
+        title: (m.wander_hero_mobile_trips_title as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.trips.title,
+        subtitle:
+          (m.wander_hero_mobile_trips_subtitle as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.trips.subtitle,
+      },
+      rentals: {
+        eyebrow:
+          (m.wander_hero_mobile_rentals_eyebrow as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.rentals.eyebrow,
+        title: (m.wander_hero_mobile_rentals_title as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.rentals.title,
+        subtitle:
+          (m.wander_hero_mobile_rentals_subtitle as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.rentals.subtitle,
+      },
+      activities: {
+        eyebrow:
+          (m.wander_hero_mobile_activities_eyebrow as string)?.trim() ||
+          DEFAULT_MOBILE_TAB_COPY.activities.eyebrow,
+        title:
+          (m.wander_hero_mobile_activities_title as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.activities.title,
+        subtitle:
+          (m.wander_hero_mobile_activities_subtitle as string)?.trim() ||
+          DEFAULT_MOBILE_TAB_COPY.activities.subtitle,
+      },
+      stays: {
+        eyebrow: (m.wander_hero_mobile_stays_eyebrow as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.stays.eyebrow,
+        title: (m.wander_hero_mobile_stays_title as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.stays.title,
+        subtitle:
+          (m.wander_hero_mobile_stays_subtitle as string)?.trim() || DEFAULT_MOBILE_TAB_COPY.stays.subtitle,
+      },
+    }
     return {
       line1: line1 || DEFAULT_WANDER_HERO_LINE1,
       line2Before: line2Before.trim() !== '' ? line2Before : DEFAULT_WANDER_LINE2_BEFORE,
@@ -86,6 +230,25 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
       subtitleLink,
       instagramLabel,
       instagramUrl: instagramUrl ?? null,
+      mobileContentMode,
+      mobileInstagramLabel,
+      mobileInstagramUrl: mobileInstagramUrl ?? null,
+      mobileTabs,
+      mobileFontMode,
+      desktopTypography: {
+        badgeSize: sanitizeHeroFontSize(m.wander_hero_desktop_badge_size),
+        headlineSize: sanitizeHeroFontSize(m.wander_hero_desktop_headline_size),
+        subtitleSize: sanitizeHeroFontSize(m.wander_hero_desktop_subtitle_size),
+        instagramSize: sanitizeHeroFontSize(m.wander_hero_desktop_instagram_size),
+        statsSize: null,
+      },
+      mobileTypography: {
+        badgeSize: sanitizeHeroFontSize(m.wander_hero_mobile_badge_size),
+        headlineSize: sanitizeHeroFontSize(m.wander_hero_mobile_headline_size),
+        subtitleSize: sanitizeHeroFontSize(m.wander_hero_mobile_subtitle_size),
+        instagramSize: sanitizeHeroFontSize(m.wander_hero_mobile_instagram_size),
+        statsSize: sanitizeHeroFontSize(m.wander_hero_mobile_stats_size),
+      },
     }
   } catch {
     /* Supabase down */

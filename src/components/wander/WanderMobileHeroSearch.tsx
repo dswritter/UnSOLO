@@ -1,14 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, ChevronRight, Compass, Home, Key, Loader2, MapPin, Plane, Search, Users } from 'lucide-react'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { WanderHeroCopy, WanderStats } from '@/lib/wander/wanderQueries'
+import type { WanderHeroCopy, WanderHeroMobileTabCopy, WanderStats } from '@/lib/wander/wanderQueries'
 import { cn, getInitials } from '@/lib/utils'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 import { WanderNominatimLocationInput } from '@/components/wander/WanderNominatimLocationInput'
@@ -22,31 +22,27 @@ const TABS: { id: Tab; label: string; icon: typeof Plane }[] = [
   { id: 'stays', label: 'Stays', icon: Home },
 ]
 
-const MOBILE_HERO_COPY: Record<Tab, { eyebrow: string; title: string; subtitle: string; cta: string }> = {
-  trips: {
-    eyebrow: 'Trips-first planning',
-    title: 'Find your next solo journey',
-    subtitle: 'Start with the trip, then layer in stays, activities, and rentals around it.',
-    cta: 'Explore Trips',
-  },
-  stays: {
-    eyebrow: 'Stay nearby',
-    title: 'Book stays around your route',
-    subtitle: 'Find trusted places that fit naturally into the trip you already have in mind.',
-    cta: 'Find Stays',
-  },
-  activities: {
-    eyebrow: 'Add adventure',
-    title: 'Pick the best add-on activity',
-    subtitle: 'Rafting, paragliding, camps, and day plans that make the trip more memorable.',
-    cta: 'Explore Activities',
-  },
-  rentals: {
-    eyebrow: 'Move smoothly',
-    title: 'Get the right rental for the plan',
-    subtitle: 'Cars, bikes, and gear rentals that fit the area and timing of your trip.',
-    cta: 'Find Rentals',
-  },
+const MOBILE_CTA_COPY: Record<Tab, string> = {
+  trips: 'Explore Trips',
+  stays: 'Find Stays',
+  activities: 'Explore Activities',
+  rentals: 'Find Rentals',
+}
+
+function joinDesktopHeadline(copy: WanderHeroCopy) {
+  return `${copy.line2Before}${copy.line2Accent}${copy.line2After}`.trim()
+}
+
+function resolveMobileHeroTab(copy: WanderHeroCopy, tab: Tab): WanderHeroMobileTabCopy {
+  if (copy.mobileContentMode === 'custom') return copy.mobileTabs[tab]
+  if (tab === 'trips') {
+    return {
+      eyebrow: copy.mobileTabs.trips.eyebrow,
+      title: copy.line1,
+      subtitle: copy.subtitle,
+    }
+  }
+  return copy.mobileTabs[tab]
 }
 
 function todayLocalIsoDate() {
@@ -199,22 +195,23 @@ export function WanderMobileHeroSearch({
     ]
   }, [actEnd, actStart, actType, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
 
-  const hero =
-    tab === 'trips'
-      ? {
-          eyebrow: MOBILE_HERO_COPY.trips.eyebrow,
-          title: heroCopy.line1,
-          subtitle: heroCopy.subtitle,
-          cta: MOBILE_HERO_COPY.trips.cta,
-        }
-      : MOBILE_HERO_COPY[tab]
+  const hero = resolveMobileHeroTab(heroCopy, tab)
   const activityOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
-  const instagramHref = heroCopy.instagramUrl
+  const instagramHref = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramUrl : heroCopy.instagramUrl
+  const instagramLabel = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramLabel : heroCopy.instagramLabel
   const statsInline = [
     `${stats.destinations}+ destinations`,
     `${stats.bookings}+ bookings`,
     `${stats.happyPercent}% happy`,
   ]
+  const heroTypography = heroCopy.mobileFontMode === 'custom' ? heroCopy.mobileTypography : heroCopy.desktopTypography
+  const eyebrowStyle: CSSProperties | undefined = heroTypography.badgeSize ? { fontSize: heroTypography.badgeSize } : undefined
+  const titleStyle: CSSProperties | undefined = heroTypography.headlineSize ? { fontSize: heroTypography.headlineSize } : undefined
+  const subtitleStyle: CSSProperties | undefined = heroTypography.subtitleSize ? { fontSize: heroTypography.subtitleSize } : undefined
+  const instagramStyle: CSSProperties | undefined = heroTypography.instagramSize ? { fontSize: heroTypography.instagramSize } : undefined
+  const statsStyle: CSSProperties | undefined = heroTypography.statsSize ? { fontSize: heroTypography.statsSize } : undefined
+  const desktopLine2 = joinDesktopHeadline(heroCopy)
+  const showDesktopLine2 = heroCopy.mobileContentMode === 'inherit' && tab === 'trips' && desktopLine2.length > 0
 
   return (
     <div className="md:hidden">
@@ -231,8 +228,9 @@ export function WanderMobileHeroSearch({
                 <Link
                   href={instagramHref}
                   className="inline-flex min-w-0 max-w-[58%] items-center gap-2 rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white/88 backdrop-blur-md"
+                  style={instagramStyle}
                 >
-                  <span className="truncate">{heroCopy.instagramLabel}</span>
+                  <span className="truncate">{instagramLabel}</span>
                 </Link>
               ) : (
                 <a
@@ -240,8 +238,9 @@ export function WanderMobileHeroSearch({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-w-0 max-w-[58%] items-center gap-2 rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white/88 backdrop-blur-md"
+                  style={instagramStyle}
                 >
-                  <span className="truncate">{heroCopy.instagramLabel}</span>
+                  <span className="truncate">{instagramLabel}</span>
                 </a>
               )
             ) : (
@@ -270,18 +269,26 @@ export function WanderMobileHeroSearch({
             </div>
           </div>
 
-          <div className="mt-5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <div className="mt-5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-primary" style={eyebrowStyle}>
             {hero.eyebrow}
           </div>
-          <h1 className="mt-3 max-w-[15rem] text-[1.4rem] font-black leading-[1.05] tracking-tight text-white">
+          <h1 className="mt-3 max-w-[15rem] text-[1.4rem] font-black leading-[1.05] tracking-tight text-white" style={titleStyle}>
             {hero.title}
+            {showDesktopLine2 ? (
+              <>
+                <br />
+                {heroCopy.line2Before}
+                <span className="text-primary">{heroCopy.line2Accent}</span>
+                {heroCopy.line2After}
+              </>
+            ) : null}
           </h1>
-          <p className="mt-2 max-w-[18rem] text-[13px] leading-relaxed text-white/78">
+          <p className="mt-2 max-w-[18rem] text-[13px] leading-relaxed text-white/78" style={subtitleStyle}>
             {hero.subtitle}
           </p>
           <div className="mt-4 ml-auto flex max-w-[11.5rem] flex-col gap-1 rounded-2xl border border-white/14 bg-black/20 p-3 text-right backdrop-blur-md">
             {statsInline.map((item) => (
-              <p key={item} className="text-[11px] font-semibold leading-tight text-white/92">
+              <p key={item} className="text-[11px] font-semibold leading-tight text-white/92" style={statsStyle}>
                 {item}
               </p>
             ))}
@@ -317,7 +324,7 @@ export function WanderMobileHeroSearch({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
-                {hero.cta}
+                {MOBILE_CTA_COPY[tab]}
               </p>
               <p className="mt-1 truncate text-base font-bold text-white">{summaryLines[0]}</p>
               <p className="mt-1 text-sm text-white/62">{summaryLines[1]}</p>
@@ -340,8 +347,8 @@ export function WanderMobileHeroSearch({
           <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border-t border-white/10 bg-zinc-950 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-24px_60px_rgba(0,0,0,0.36)]">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15" />
             <div className="mb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">{hero.eyebrow}</p>
-              <h2 className="mt-1 text-lg font-black text-white">{hero.cta}</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90" style={eyebrowStyle}>{hero.eyebrow}</p>
+              <h2 className="mt-1 text-lg font-black text-white">{MOBILE_CTA_COPY[tab]}</h2>
             </div>
 
             <div className="max-h-[70vh] overflow-y-auto pr-1">
@@ -471,7 +478,7 @@ export function WanderMobileHeroSearch({
                   Searching…
                 </>
               ) : (
-                hero.cta
+                MOBILE_CTA_COPY[tab]
               )}
             </Button>
           </div>

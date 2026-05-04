@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Instagram, Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
@@ -29,8 +29,14 @@ export function WanderHero({
         ? `${stats.soloTravelers}+`
         : '10K+'
 
+  const desktopTypography = heroCopy.desktopTypography
+  const badgeStyle: CSSProperties | undefined = desktopTypography.badgeSize ? { fontSize: desktopTypography.badgeSize } : undefined
+  const headlineStyle: CSSProperties | undefined = desktopTypography.headlineSize ? { fontSize: desktopTypography.headlineSize } : undefined
+  const subtitleStyle: CSSProperties | undefined = desktopTypography.subtitleSize ? { fontSize: desktopTypography.subtitleSize } : undefined
+  const instagramStyle: CSSProperties | undefined = desktopTypography.instagramSize ? { fontSize: desktopTypography.instagramSize } : undefined
+
   const headlineInner = (
-    <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]">
+    <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]" style={headlineStyle}>
       {heroCopy.line1}
       <br />
       {heroCopy.line2Before}
@@ -58,18 +64,18 @@ export function WanderHero({
   }
 
   let subtitleBlock: ReactNode = (
-    <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base">{heroCopy.subtitle}</p>
+    <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base" style={subtitleStyle}>{heroCopy.subtitle}</p>
   )
   if (heroCopy.subtitleLink) {
     const subCls =
       'mt-3 inline-block max-w-2xl text-sm text-white/80 md:text-base rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
     subtitleBlock =
       heroCopy.subtitleLink.startsWith('/') ? (
-        <Link href={heroCopy.subtitleLink} className={subCls}>
+        <Link href={heroCopy.subtitleLink} className={subCls} style={subtitleStyle}>
           {heroCopy.subtitle}
         </Link>
       ) : (
-        <a href={heroCopy.subtitleLink} target="_blank" rel="noopener noreferrer" className={subCls}>
+        <a href={heroCopy.subtitleLink} target="_blank" rel="noopener noreferrer" className={subCls} style={subtitleStyle}>
           {heroCopy.subtitle}
         </a>
       )
@@ -85,7 +91,7 @@ export function WanderHero({
         <Link href={instagramHref} className={instagramCtaShared}>
           <span className="flex items-start gap-2">
             <Instagram className="mt-0.5 h-4 w-4 shrink-0 text-[#f472b6]" strokeWidth={2} aria-hidden />
-            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs">
+            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs" style={instagramStyle}>
               {heroCopy.instagramLabel}
             </span>
           </span>
@@ -94,7 +100,7 @@ export function WanderHero({
         <a href={instagramHref} target="_blank" rel="noopener noreferrer" className={instagramCtaShared}>
           <span className="flex items-start gap-2">
             <Instagram className="mt-0.5 h-4 w-4 shrink-0 text-[#f472b6]" strokeWidth={2} aria-hidden />
-            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs">
+            <span className="min-w-0 flex-1 break-words text-[11px] font-semibold leading-snug [overflow-wrap:anywhere] sm:text-xs" style={instagramStyle}>
               {heroCopy.instagramLabel}
             </span>
           </span>
@@ -142,6 +148,7 @@ export function WanderHero({
             <div className="min-w-0 self-start max-w-3xl">
               <p
                 className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-[40px] backdrop-saturate-150 ring-1 ring-white/5 sm:text-[13px]"
+                style={badgeStyle}
               >
                 <ShieldCheck
                   className="h-4 w-4 shrink-0 text-[#fcba03] mt-0.5"

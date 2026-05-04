@@ -21,12 +21,12 @@ import {
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_WANDER_HERO_LINE1,
+  DEFAULT_WANDER_INSTAGRAM_LABEL,
   DEFAULT_WANDER_LINE2_ACCENT,
   DEFAULT_WANDER_LINE2_AFTER,
   DEFAULT_WANDER_LINE2_BEFORE,
   DEFAULT_WANDER_SUBTITLE,
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
-  DEFAULT_WANDER_INSTAGRAM_LABEL,
 } from '@/lib/wander/wander-defaults'
 import {
   isValidManualSeasonValue,
@@ -46,6 +46,31 @@ const WANDER_HERO_TAIL_KEYS = new Set([
   'wander_hero_subtitle_link_url',
   'wander_hero_instagram_text',
   'wander_hero_instagram_url',
+  'wander_hero_mobile_content_mode',
+  'wander_hero_mobile_instagram_text',
+  'wander_hero_mobile_instagram_url',
+  'wander_hero_mobile_trips_eyebrow',
+  'wander_hero_mobile_trips_title',
+  'wander_hero_mobile_trips_subtitle',
+  'wander_hero_mobile_rentals_eyebrow',
+  'wander_hero_mobile_rentals_title',
+  'wander_hero_mobile_rentals_subtitle',
+  'wander_hero_mobile_activities_eyebrow',
+  'wander_hero_mobile_activities_title',
+  'wander_hero_mobile_activities_subtitle',
+  'wander_hero_mobile_stays_eyebrow',
+  'wander_hero_mobile_stays_title',
+  'wander_hero_mobile_stays_subtitle',
+  'wander_hero_mobile_font_mode',
+  'wander_hero_desktop_badge_size',
+  'wander_hero_desktop_headline_size',
+  'wander_hero_desktop_subtitle_size',
+  'wander_hero_desktop_instagram_size',
+  'wander_hero_mobile_badge_size',
+  'wander_hero_mobile_headline_size',
+  'wander_hero_mobile_subtitle_size',
+  'wander_hero_mobile_instagram_size',
+  'wander_hero_mobile_stats_size',
 ])
 
 interface Setting {
@@ -109,6 +134,31 @@ const SETTING_LABELS: Record<
   wander_hero_subtitle_link_url: { label: 'Wander hero — optional link for subtitle (path or HTTPS)', type: 'text' },
   wander_hero_instagram_text: { label: 'Wander hero — Instagram label (next to icon)', type: 'text' },
   wander_hero_instagram_url: { label: 'Wander hero — Instagram URL (https://)', type: 'text' },
+  wander_hero_mobile_content_mode: { label: 'Wander hero — mobile content mode', type: 'text' },
+  wander_hero_mobile_instagram_text: { label: 'Wander hero — mobile Instagram label', type: 'text' },
+  wander_hero_mobile_instagram_url: { label: 'Wander hero — mobile Instagram URL', type: 'text' },
+  wander_hero_mobile_trips_eyebrow: { label: 'Wander hero — mobile trips eyebrow', type: 'text' },
+  wander_hero_mobile_trips_title: { label: 'Wander hero — mobile trips title', type: 'text' },
+  wander_hero_mobile_trips_subtitle: { label: 'Wander hero — mobile trips subtitle', type: 'textarea' },
+  wander_hero_mobile_rentals_eyebrow: { label: 'Wander hero — mobile rentals eyebrow', type: 'text' },
+  wander_hero_mobile_rentals_title: { label: 'Wander hero — mobile rentals title', type: 'text' },
+  wander_hero_mobile_rentals_subtitle: { label: 'Wander hero — mobile rentals subtitle', type: 'textarea' },
+  wander_hero_mobile_activities_eyebrow: { label: 'Wander hero — mobile activities eyebrow', type: 'text' },
+  wander_hero_mobile_activities_title: { label: 'Wander hero — mobile activities title', type: 'text' },
+  wander_hero_mobile_activities_subtitle: { label: 'Wander hero — mobile activities subtitle', type: 'textarea' },
+  wander_hero_mobile_stays_eyebrow: { label: 'Wander hero — mobile stays eyebrow', type: 'text' },
+  wander_hero_mobile_stays_title: { label: 'Wander hero — mobile stays title', type: 'text' },
+  wander_hero_mobile_stays_subtitle: { label: 'Wander hero — mobile stays subtitle', type: 'textarea' },
+  wander_hero_mobile_font_mode: { label: 'Wander hero — mobile font mode', type: 'text' },
+  wander_hero_desktop_badge_size: { label: 'Wander hero — desktop badge size', type: 'text' },
+  wander_hero_desktop_headline_size: { label: 'Wander hero — desktop headline size', type: 'text' },
+  wander_hero_desktop_subtitle_size: { label: 'Wander hero — desktop subtitle size', type: 'text' },
+  wander_hero_desktop_instagram_size: { label: 'Wander hero — desktop Instagram size', type: 'text' },
+  wander_hero_mobile_badge_size: { label: 'Wander hero — mobile eyebrow size', type: 'text' },
+  wander_hero_mobile_headline_size: { label: 'Wander hero — mobile headline size', type: 'text' },
+  wander_hero_mobile_subtitle_size: { label: 'Wander hero — mobile subtitle size', type: 'text' },
+  wander_hero_mobile_instagram_size: { label: 'Wander hero — mobile Instagram size', type: 'text' },
+  wander_hero_mobile_stats_size: { label: 'Wander hero — mobile stats size', type: 'text' },
   wander_theme_mode: {
     label: 'Wander shell — theme mode',
     type: 'text',
@@ -232,6 +282,23 @@ function syntheticGeneralRow(key: string): Setting {
         'Headline, second line with accent word, subtitle, and optional Instagram CTA on /wander. Leave blank for built-in defaults. Links: site path (/explore) or https URL.',
     }
   }
+  if (key === 'wander_hero_mobile_content_mode') {
+    return {
+      key,
+      value: 'inherit',
+      description: 'inherit uses the shared / desktop hero copy where possible; custom unlocks separate mobile hero text.',
+    }
+  }
+  if (key === 'wander_hero_mobile_font_mode') {
+    return {
+      key,
+      value: 'inherit',
+      description: 'inherit keeps mobile on the desktop hero size scale; custom unlocks separate mobile font sizes.',
+    }
+  }
+  if (key.startsWith('wander_hero_mobile_') || key.startsWith('wander_hero_desktop_')) {
+    return { key, value: '', description: null }
+  }
   if (WANDER_HERO_TAIL_KEYS.has(key)) {
     return { key, value: '', description: null }
   }
@@ -263,6 +330,26 @@ const SHARE_PLACEHOLDERS = [
     hint: 'Full profile URL for the person being shared (filled in at share time).',
   },
 ] as const
+
+const MOBILE_HERO_TAB_FIELDS = [
+  { id: 'trips', label: 'Trips' },
+  { id: 'rentals', label: 'Rentals' },
+  { id: 'activities', label: 'Activities' },
+  { id: 'stays', label: 'Stays' },
+] as const
+
+const HERO_FONT_SIZE_PLACEHOLDER = 'e.g. 1.4rem or 22px'
+
+function isValidHeroFontSizeValue(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) return true
+  const match = trimmed.match(/^(\d+(?:\.\d+)?)(px|rem|em)$/)
+  if (!match) return false
+  const amount = Number(match[1])
+  if (!Number.isFinite(amount) || amount <= 0) return false
+  const max = match[2] === 'px' ? 96 : 8
+  return amount <= max
+}
 
 function insertTokenIntoField(
   field: 'share_poster_share_title' | 'share_poster_share_text',
@@ -336,6 +423,33 @@ export default function SettingsClient({ settings: initialSettings }: { settings
 
   function handleSave() {
     startTransition(async () => {
+      const mobileContentMode = (settings.wander_hero_mobile_content_mode ?? 'inherit').trim().toLowerCase()
+      if (mobileContentMode !== 'inherit' && mobileContentMode !== 'custom') {
+        toast.error('Mobile hero content mode must be inherit or custom.')
+        return
+      }
+      const mobileFontMode = (settings.wander_hero_mobile_font_mode ?? 'inherit').trim().toLowerCase()
+      if (mobileFontMode !== 'inherit' && mobileFontMode !== 'custom') {
+        toast.error('Mobile hero font mode must be inherit or custom.')
+        return
+      }
+      const heroFontKeys = [
+        'wander_hero_desktop_badge_size',
+        'wander_hero_desktop_headline_size',
+        'wander_hero_desktop_subtitle_size',
+        'wander_hero_desktop_instagram_size',
+        'wander_hero_mobile_badge_size',
+        'wander_hero_mobile_headline_size',
+        'wander_hero_mobile_subtitle_size',
+        'wander_hero_mobile_instagram_size',
+        'wander_hero_mobile_stats_size',
+      ] as const
+      for (const key of heroFontKeys) {
+        if (!isValidHeroFontSizeValue(settings[key] || '')) {
+          toast.error(`Invalid hero font size for ${key}. Use values like 22px, 1.4rem, or 1.1em.`)
+          return
+        }
+      }
       const modeRaw = (settings.wander_theme_mode ?? 'default').trim().toLowerCase()
       if (!isValidWanderThemeModeValue(modeRaw)) {
         toast.error('Wander theme mode must be default, auto, or manual.')
@@ -550,110 +664,329 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                 )
               }
               if (s.key === 'wander_hero_line1') {
+                const mobileContentMode = (settings.wander_hero_mobile_content_mode || 'inherit').trim().toLowerCase()
+                const mobileFontMode = (settings.wander_hero_mobile_font_mode || 'inherit').trim().toLowerCase()
                 return (
                   <div key="wander-hero-copy" className="space-y-3 border-b border-border/50 py-3 last:border-0">
                     <div className="min-w-0 sm:max-w-[min(100%,32rem)]">
                       <div className="text-sm font-medium flex items-center gap-2">
                         <Settings className="h-3.5 w-3.5 text-primary shrink-0" />
-                        Wander hero — headline & subtitle
+                        Wander hero — responsive copy & font sizes
                       </div>
                       {s.description ? (
                         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{s.description}</p>
                       ) : null}
                     </div>
-                    <div className="grid max-w-xl gap-2">
-                      <label className="text-xs font-medium text-muted-foreground">Line 1 (headline)</label>
-                      <Input
-                        value={settings.wander_hero_line1 || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_line1: e.target.value }))
-                        }
-                        placeholder={DEFAULT_WANDER_HERO_LINE1}
-                        className="bg-secondary border-border h-9"
-                      />
-                      <label className="text-xs font-medium text-muted-foreground mt-2">
-                        Line 2 — prefix, accent, suffix
-                      </label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={settings.wander_hero_line2_before || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({ ...prev, wander_hero_line2_before: e.target.value }))
-                          }
-                          placeholder={DEFAULT_WANDER_LINE2_BEFORE}
-                          className="h-9 min-w-[120px] flex-1 bg-secondary border-border"
-                        />
-                        <Input
-                          value={settings.wander_hero_line2_accent || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({ ...prev, wander_hero_line2_accent: e.target.value }))
-                          }
-                          placeholder={DEFAULT_WANDER_LINE2_ACCENT}
-                          className="h-9 min-w-[140px] flex-1 bg-secondary border-border"
-                        />
-                        <Input
-                          value={settings.wander_hero_line2_after || ''}
-                          onChange={(e) =>
-                            setSettings((prev) => ({ ...prev, wander_hero_line2_after: e.target.value }))
-                          }
-                          placeholder={DEFAULT_WANDER_LINE2_AFTER}
-                          className="h-9 min-w-[80px] flex-1 bg-secondary border-border"
-                        />
+                    <div className="grid max-w-3xl gap-4">
+                      <div className="rounded-xl border border-border/60 bg-card/30 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">Desktop + shared base</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          This remains the default hero for desktop and the fallback source for mobile when mobile copy is set to inherit.
+                        </p>
+                        <div className="mt-3 grid gap-2">
+                          <label className="text-xs font-medium text-muted-foreground">Line 1 (headline)</label>
+                          <Input
+                            value={settings.wander_hero_line1 || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_line1: e.target.value }))
+                            }
+                            placeholder={DEFAULT_WANDER_HERO_LINE1}
+                            className="bg-secondary border-border h-9"
+                          />
+                          <label className="text-xs font-medium text-muted-foreground mt-2">
+                            Line 2 — prefix, accent, suffix
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                              value={settings.wander_hero_line2_before || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, wander_hero_line2_before: e.target.value }))
+                              }
+                              placeholder={DEFAULT_WANDER_LINE2_BEFORE}
+                              className="h-9 min-w-[120px] flex-1 bg-secondary border-border"
+                            />
+                            <Input
+                              value={settings.wander_hero_line2_accent || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, wander_hero_line2_accent: e.target.value }))
+                              }
+                              placeholder={DEFAULT_WANDER_LINE2_ACCENT}
+                              className="h-9 min-w-[140px] flex-1 bg-secondary border-border"
+                            />
+                            <Input
+                              value={settings.wander_hero_line2_after || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, wander_hero_line2_after: e.target.value }))
+                              }
+                              placeholder={DEFAULT_WANDER_LINE2_AFTER}
+                              className="h-9 min-w-[80px] flex-1 bg-secondary border-border"
+                            />
+                          </div>
+                          <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle</label>
+                          <Textarea
+                            value={settings.wander_hero_subtitle || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_subtitle: e.target.value }))
+                            }
+                            placeholder={DEFAULT_WANDER_SUBTITLE}
+                            className="min-h-[72px] bg-secondary border-border text-sm"
+                            spellCheck
+                          />
+                          <label className="text-xs font-medium text-muted-foreground mt-2">
+                            Optional headline link (path or https)
+                          </label>
+                          <Input
+                            value={settings.wander_hero_headline_link_url || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_headline_link_url: e.target.value }))
+                            }
+                            placeholder="e.g. /explore"
+                            className="bg-secondary border-border h-9"
+                          />
+                          <label className="text-xs font-medium text-muted-foreground mt-2">
+                            Optional subtitle link (path or https)
+                          </label>
+                          <Input
+                            value={settings.wander_hero_subtitle_link_url || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_subtitle_link_url: e.target.value }))
+                            }
+                            placeholder="Leave empty when no link"
+                            className="bg-secondary border-border h-9"
+                          />
+                          <label className="text-xs font-medium text-muted-foreground mt-2">
+                            Instagram — label (shown next to icon)
+                          </label>
+                          <Input
+                            value={settings.wander_hero_instagram_text || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_instagram_text: e.target.value }))
+                            }
+                            placeholder={DEFAULT_WANDER_INSTAGRAM_LABEL}
+                            className="bg-secondary border-border h-9"
+                          />
+                          <label className="text-xs font-medium text-muted-foreground mt-2">
+                            Instagram — profile or post URL (empty hides CTA)
+                          </label>
+                          <Input
+                            value={settings.wander_hero_instagram_url || ''}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_instagram_url: e.target.value }))
+                            }
+                            placeholder="https://www.instagram.com/yourhandle/"
+                            className="bg-secondary border-border h-9"
+                          />
+                        </div>
                       </div>
-                      <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle</label>
-                      <Textarea
-                        value={settings.wander_hero_subtitle || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_subtitle: e.target.value }))
-                        }
-                        placeholder={DEFAULT_WANDER_SUBTITLE}
-                        className="min-h-[72px] bg-secondary border-border text-sm"
-                        spellCheck
-                      />
-                      <label className="text-xs font-medium text-muted-foreground mt-2">
-                        Optional headline link (path or https)
-                      </label>
-                      <Input
-                        value={settings.wander_hero_headline_link_url || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_headline_link_url: e.target.value }))
-                        }
-                        placeholder="e.g. /explore"
-                        className="bg-secondary border-border h-9"
-                      />
-                      <label className="text-xs font-medium text-muted-foreground mt-2">
-                        Optional subtitle link (path or https)
-                      </label>
-                      <Input
-                        value={settings.wander_hero_subtitle_link_url || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_subtitle_link_url: e.target.value }))
-                        }
-                        placeholder="Leave empty when no link"
-                        className="bg-secondary border-border h-9"
-                      />
-                      <label className="text-xs font-medium text-muted-foreground mt-2">
-                        Instagram — label (shown next to icon)
-                      </label>
-                      <Input
-                        value={settings.wander_hero_instagram_text || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_instagram_text: e.target.value }))
-                        }
-                        placeholder={DEFAULT_WANDER_INSTAGRAM_LABEL}
-                        className="bg-secondary border-border h-9"
-                      />
-                      <label className="text-xs font-medium text-muted-foreground mt-2">
-                        Instagram — profile or post URL (empty hides CTA)
-                      </label>
-                      <Input
-                        value={settings.wander_hero_instagram_url || ''}
-                        onChange={(e) =>
-                          setSettings((prev) => ({ ...prev, wander_hero_instagram_url: e.target.value }))
-                        }
-                        placeholder="https://www.instagram.com/yourhandle/"
-                        className="bg-secondary border-border h-9"
-                      />
+
+                      <div className="rounded-xl border border-border/60 bg-card/30 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">Mobile hero copy</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Use separate mobile hero text, or keep inheriting the shared desktop base.
+                            </p>
+                          </div>
+                          <select
+                            value={mobileContentMode === 'custom' ? 'custom' : 'inherit'}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_mobile_content_mode: e.target.value }))
+                            }
+                            className="h-9 rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
+                          >
+                            <option value="inherit">Use shared / desktop copy</option>
+                            <option value="custom">Use separate mobile copy</option>
+                          </select>
+                        </div>
+
+                        <div
+                          className={cn(
+                            'mt-3 space-y-4',
+                            mobileContentMode !== 'custom' && 'pointer-events-none opacity-55',
+                          )}
+                        >
+                          <div className="grid gap-2">
+                            <label className="text-xs font-medium text-muted-foreground">Mobile Instagram label</label>
+                            <Input
+                              value={settings.wander_hero_mobile_instagram_text || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, wander_hero_mobile_instagram_text: e.target.value }))
+                              }
+                              placeholder={DEFAULT_WANDER_INSTAGRAM_LABEL}
+                              className="bg-secondary border-border h-9"
+                            />
+                            <label className="text-xs font-medium text-muted-foreground mt-2">Mobile Instagram URL</label>
+                            <Input
+                              value={settings.wander_hero_mobile_instagram_url || ''}
+                              onChange={(e) =>
+                                setSettings((prev) => ({ ...prev, wander_hero_mobile_instagram_url: e.target.value }))
+                              }
+                              placeholder="https://www.instagram.com/yourhandle/"
+                              className="bg-secondary border-border h-9"
+                            />
+                          </div>
+
+                          {MOBILE_HERO_TAB_FIELDS.map((tab) => {
+                            const prefix = `wander_hero_mobile_${tab.id}` as const
+                            return (
+                              <div key={tab.id} className="rounded-xl border border-border/50 bg-background/30 p-3">
+                                <p className="text-sm font-semibold text-foreground">{tab.label}</p>
+                                <div className="mt-3 grid gap-2">
+                                  <label className="text-xs font-medium text-muted-foreground">Eyebrow / label</label>
+                                  <Input
+                                    value={settings[`${prefix}_eyebrow`] || ''}
+                                    onChange={(e) =>
+                                      setSettings((prev) => ({ ...prev, [`${prefix}_eyebrow`]: e.target.value }))
+                                    }
+                                    placeholder={`Mobile ${tab.label.toLowerCase()} eyebrow`}
+                                    className="bg-secondary border-border h-9"
+                                  />
+                                  <label className="text-xs font-medium text-muted-foreground mt-2">Headline</label>
+                                  <Input
+                                    value={settings[`${prefix}_title`] || ''}
+                                    onChange={(e) =>
+                                      setSettings((prev) => ({ ...prev, [`${prefix}_title`]: e.target.value }))
+                                    }
+                                    placeholder={`Mobile ${tab.label.toLowerCase()} title`}
+                                    className="bg-secondary border-border h-9"
+                                  />
+                                  <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle</label>
+                                  <Textarea
+                                    value={settings[`${prefix}_subtitle`] || ''}
+                                    onChange={(e) =>
+                                      setSettings((prev) => ({ ...prev, [`${prefix}_subtitle`]: e.target.value }))
+                                    }
+                                    placeholder={`Mobile ${tab.label.toLowerCase()} subtitle`}
+                                    className="min-h-[72px] bg-secondary border-border text-sm"
+                                    spellCheck
+                                  />
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-border/60 bg-card/30 p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/90">Hero font sizes</p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Leave any field blank to keep the built-in scale. Valid examples: 22px, 1.4rem, 1.1em.
+                            </p>
+                          </div>
+                          <select
+                            value={mobileFontMode === 'custom' ? 'custom' : 'inherit'}
+                            onChange={(e) =>
+                              setSettings((prev) => ({ ...prev, wander_hero_mobile_font_mode: e.target.value }))
+                            }
+                            className="h-9 rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
+                          >
+                            <option value="inherit">Mobile inherits desktop sizes</option>
+                            <option value="custom">Use separate mobile sizes</option>
+                          </select>
+                        </div>
+
+                        <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                          <div className="rounded-xl border border-border/50 bg-background/30 p-3">
+                            <p className="text-sm font-semibold text-foreground">Desktop</p>
+                            <div className="mt-3 grid gap-2">
+                              <label className="text-xs font-medium text-muted-foreground">Top badge size</label>
+                              <Input
+                                value={settings.wander_hero_desktop_badge_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_desktop_badge_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Headline size</label>
+                              <Input
+                                value={settings.wander_hero_desktop_headline_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_desktop_headline_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle size</label>
+                              <Input
+                                value={settings.wander_hero_desktop_subtitle_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_desktop_subtitle_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Instagram label size</label>
+                              <Input
+                                value={settings.wander_hero_desktop_instagram_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_desktop_instagram_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                            </div>
+                          </div>
+
+                          <div
+                            className={cn(
+                              'rounded-xl border border-border/50 bg-background/30 p-3',
+                              mobileFontMode !== 'custom' && 'pointer-events-none opacity-55',
+                            )}
+                          >
+                            <p className="text-sm font-semibold text-foreground">Mobile</p>
+                            <div className="mt-3 grid gap-2">
+                              <label className="text-xs font-medium text-muted-foreground">Eyebrow size</label>
+                              <Input
+                                value={settings.wander_hero_mobile_badge_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_mobile_badge_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Headline size</label>
+                              <Input
+                                value={settings.wander_hero_mobile_headline_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_mobile_headline_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Subtitle size</label>
+                              <Input
+                                value={settings.wander_hero_mobile_subtitle_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_mobile_subtitle_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Instagram label size</label>
+                              <Input
+                                value={settings.wander_hero_mobile_instagram_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_mobile_instagram_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                              <label className="text-xs font-medium text-muted-foreground mt-2">Stats block size</label>
+                              <Input
+                                value={settings.wander_hero_mobile_stats_size || ''}
+                                onChange={(e) =>
+                                  setSettings((prev) => ({ ...prev, wander_hero_mobile_stats_size: e.target.value }))
+                                }
+                                placeholder={HERO_FONT_SIZE_PLACEHOLDER}
+                                className="bg-secondary border-border h-9"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )
