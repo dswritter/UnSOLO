@@ -3,8 +3,9 @@ import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
-import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
-import { MobileChatButton } from '@/components/layout/MobileChatButton'
+// Sticky chat button temporarily hidden — re-enable with imports below if/when needed
+// import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
+// import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
@@ -51,7 +52,8 @@ export default async function MainLayout({
         {children}
       </main>
       {user && <PresenceTracker userId={user.id} />}
-      {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />}
+      {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
+      {/* {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />} */}
       <MobileBottomNav isHost={!!profile?.is_host} />
       <Suspense fallback={null}>
         <SignInPrompt isAuthenticated={!!user} />

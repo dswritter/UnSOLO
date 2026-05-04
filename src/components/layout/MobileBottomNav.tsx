@@ -17,6 +17,12 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
 
   const items: NavItem[] = [
     {
+      href: '/leaderboard',
+      label: 'Leaderboard',
+      icon: Trophy,
+      active: (p) => p === '/leaderboard',
+    },
+    {
       href: '/',
       label: 'Explore',
       icon: Compass,
@@ -27,12 +33,6 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
         Boolean(p?.startsWith('/booking/')) ||
         Boolean(p?.startsWith('/book/')) ||
         Boolean(p?.startsWith('/bookings')),
-    },
-    {
-      href: '/leaderboard',
-      label: 'Leaderboard',
-      icon: Trophy,
-      active: (p) => p === '/leaderboard',
     },
     {
       href: '/community',
