@@ -147,6 +147,8 @@ export type HostServiceItemDraft = {
   name: string
   description: string | null
   price_paise: number
+  /** Stays only: optional Sat/Sun rate. Null = same as price_paise. */
+  weekend_price_paise?: number | null
   quantity_available: number
   max_per_booking: number
   images: string[]
@@ -299,6 +301,8 @@ export async function createHostServiceListing(input: {
         name: item.name.trim(),
         description: item.description?.trim() || null,
         price_paise: item.price_paise,
+        // Stays-only: weekend price is optional, falls back to price_paise when null.
+        weekend_price_paise: input.type === 'stays' ? (item.weekend_price_paise ?? null) : null,
         quantity_available: item.quantity_available,
         max_per_booking: item.max_per_booking,
         images: item.images,

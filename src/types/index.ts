@@ -363,6 +363,8 @@ export type ServiceListingItem = {
   name: string
   description: string | null
   price_paise: number
+  /** Stays-friendly: optional Sat/Sun rate. Null = same as price_paise every night. */
+  weekend_price_paise?: number | null
   quantity_available: number
   max_per_booking: number
   images: string[]

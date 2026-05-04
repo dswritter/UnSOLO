@@ -131,7 +131,32 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
 
   // Calculate totals (rentals multiply by days)
   const isRental = listing.type === 'rentals'
-  const basePrice = unitPricePaise * quantity * (isRental ? rentalDays : 1)
+  // Stays: count nights between check-in/out and apply optional weekend rate.
+  // Rentals: flat × days. Activities / others: flat × quantity.
+  const isStay = listing.type === 'stays'
+  const stayWeekendPaise =
+    isStay && selectedItem ? (selectedItem as { weekend_price_paise?: number | null }).weekend_price_paise ?? null : null
+  let basePrice = unitPricePaise * quantity * (isRental ? rentalDays : 1)
+  if (isStay && checkInDate && checkOutDate) {
+    // Inline copy of calcStayTotalPaise to avoid an extra client import on the cold path.
+    const a = new Date(`${checkInDate}T00:00:00`)
+    const b = new Date(`${checkOutDate}T00:00:00`)
+    const nights = Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000))
+    if (nights > 0) {
+      let perRoom = 0
+      if (!stayWeekendPaise || stayWeekendPaise === unitPricePaise) {
+        perRoom = unitPricePaise * nights
+      } else {
+        const cur = new Date(a)
+        for (let i = 0; i < nights; i++) {
+          const dow = cur.getDay()
+          perRoom += dow === 0 || dow === 6 ? stayWeekendPaise : unitPricePaise
+          cur.setDate(cur.getDate() + 1)
+        }
+      }
+      basePrice = perRoom * quantity
+    }
+  }
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
   const creditsToApply = applyCredits && userCredits ? Math.min(userCredits, basePrice) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply

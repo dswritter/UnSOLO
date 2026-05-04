@@ -178,6 +178,7 @@ export async function createServiceListingItem(input: {
   name: string
   description?: string | null
   price_paise: number
+  weekend_price_paise?: number | null
   quantity_available: number
   max_per_booking: number
   images: string[]
@@ -191,6 +192,9 @@ export async function createServiceListingItem(input: {
 
   if (!input.name.trim()) return { error: 'Item name is required' }
   if (input.price_paise < 0) return { error: 'Price cannot be negative' }
+  if (input.weekend_price_paise != null && input.weekend_price_paise < 0) {
+    return { error: 'Weekend price cannot be negative' }
+  }
   if (input.quantity_available < 0) return { error: 'Quantity cannot be negative' }
   if (input.max_per_booking < 1) return { error: 'Max per booking must be at least 1' }
 
@@ -201,6 +205,7 @@ export async function createServiceListingItem(input: {
       name: input.name.trim(),
       description: input.description?.trim() || null,
       price_paise: input.price_paise,
+      weekend_price_paise: input.weekend_price_paise ?? null,
       quantity_available: input.quantity_available,
       max_per_booking: input.max_per_booking,
       images: input.images,
@@ -236,6 +241,7 @@ export async function updateServiceListingItem(
     name: string
     description: string | null
     price_paise: number
+    weekend_price_paise: number | null
     quantity_available: number
     max_per_booking: number
     images: string[]

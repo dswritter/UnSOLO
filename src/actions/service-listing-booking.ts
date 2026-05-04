@@ -148,10 +148,11 @@ export async function createServiceListingOrder(
     // If an item is specified, it drives price and inventory checks.
     let unitPricePaise: number = listing.price_paise
     let itemId: string | null = null
+    let weekendPricePaise: number | null = null
     if (bookingData.service_listing_item_id) {
       const { data: item, error: itemError } = await supabase
         .from('service_listing_items')
-        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
+        .select('id, service_listing_id, price_paise, weekend_price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
         .eq('id', bookingData.service_listing_item_id)
         .single()
       if (itemError || !item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
@@ -164,14 +165,33 @@ export async function createServiceListingOrder(
         return { error: 'Not enough availability for this item' }
       }
       unitPricePaise = item.price_paise
+      weekendPricePaise = (item as { weekend_price_paise?: number | null }).weekend_price_paise ?? null
       itemId = item.id
     } else if (listing.quantity_available != null && bookingData.quantity > listing.quantity_available) {
       return { error: 'Not enough availability' }
     }
 
-    // Calculate price (rentals multiply by duration)
+    // Calculate price.
+    // - Rentals: weekday-flat × quantity × days
+    // - Stays:   weekday + optional weekend differential, summed per night × rooms
+    // - Activities / others: unit price × quantity (single-shot)
     const rentalDays = listing.type === 'rentals' ? Math.max(1, bookingData.rental_days ?? 1) : 1
-    const totalPaise = unitPricePaise * bookingData.quantity * rentalDays
+    let totalPaise: number
+    if (listing.type === 'stays' && bookingData.check_out_date) {
+      const { calcStayTotalPaise } = await import('@/lib/stay-pricing')
+      totalPaise = calcStayTotalPaise(
+        bookingData.check_in_date,
+        bookingData.check_out_date,
+        unitPricePaise,
+        weekendPricePaise,
+        bookingData.quantity,
+      )
+      // Fallback: if we somehow ended up with zero (mis-clicked dates) charge at least one night
+      // so the order isn't created at ₹0 and the user gets the real validation message.
+      if (totalPaise === 0) totalPaise = unitPricePaise * bookingData.quantity
+    } else {
+      totalPaise = unitPricePaise * bookingData.quantity * rentalDays
+    }
 
     // Compute checkout date for rentals when not explicitly provided
     if (listing.type === 'rentals' && !bookingData.check_out_date && rentalDays > 0) {

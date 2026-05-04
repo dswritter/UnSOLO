@@ -156,6 +156,8 @@ type DraftItem = {
   description: string
   /** Null = blank / unentered. Host must enter a value before the item is valid. */
   priceRupees: number | null
+  /** Stays only: optional Sat/Sun rate. Null = same as priceRupees on weekends. */
+  weekendPriceRupees?: number | null
   quantity: number
   maxPerBooking: number
   images: string[]
@@ -203,6 +205,7 @@ function itemFromRow(
     name: row.name,
     description: row.description || '',
     priceRupees: row.price_paise / 100,
+    weekendPriceRupees: row.weekend_price_paise != null ? row.weekend_price_paise / 100 : null,
     quantity: row.max_per_booking,
     maxPerBooking: row.quantity_available,
     images: row.images,
@@ -967,6 +970,9 @@ export function HostServiceListingTabs(props: Props) {
         name: i.name.trim(),
         description: i.description.trim() || null,
         price_paise: Math.round((i.priceRupees ?? 0) * 100),
+        weekend_price_paise: isStay && i.weekendPriceRupees != null
+          ? Math.round(i.weekendPriceRupees * 100)
+          : null,
         quantity_available: i.maxPerBooking,
         max_per_booking: i.quantity,
         images: i.images,
@@ -1076,6 +1082,7 @@ export function HostServiceListingTabs(props: Props) {
           name: draft.name,
           description: draft.description || null,
           price_paise: Math.round(draft.priceRupees * 100),
+          ...(isStay ? { weekend_price_paise: draft.weekendPriceRupees != null ? Math.round(draft.weekendPriceRupees * 100) : null } : {}),
           quantity_available: draft.maxPerBooking,
           max_per_booking: draft.quantity,
           images: draft.images,
@@ -1097,6 +1104,7 @@ export function HostServiceListingTabs(props: Props) {
           name: draft.name,
           description: draft.description,
           price_paise: Math.round((draft.priceRupees ?? 0) * 100),
+          ...(isStay ? { weekend_price_paise: draft.weekendPriceRupees != null ? Math.round(draft.weekendPriceRupees * 100) : null } : {}),
           quantity_available: draft.maxPerBooking,
           max_per_booking: draft.quantity,
           images: draft.images,
@@ -1167,6 +1175,7 @@ export function HostServiceListingTabs(props: Props) {
             name: draft.name,
             description: draft.description || null,
             price_paise: Math.round((draft.priceRupees ?? 0) * 100),
+            ...(isStay ? { weekend_price_paise: draft.weekendPriceRupees != null ? Math.round(draft.weekendPriceRupees * 100) : null } : {}),
             quantity_available: draft.maxPerBooking,
             max_per_booking: draft.quantity,
             images: draft.images,
@@ -1190,6 +1199,7 @@ export function HostServiceListingTabs(props: Props) {
             name: draft.name,
             description: draft.description,
             price_paise: Math.round((draft.priceRupees ?? 0) * 100),
+            ...(isStay ? { weekend_price_paise: draft.weekendPriceRupees != null ? Math.round(draft.weekendPriceRupees * 100) : null } : {}),
             quantity_available: draft.maxPerBooking,
             max_per_booking: draft.quantity,
             images: draft.images,
@@ -2035,6 +2045,29 @@ export function HostServiceListingTabs(props: Props) {
                   <p className="text-xs text-red-500 font-medium">
                     &quot;Max per order&quot; ({draft.quantity}) cannot exceed &quot;Total available&quot; ({draft.maxPerBooking}). Reduce max per order.
                   </p>
+                )}
+
+                {/* Stays-only: optional weekend (Sat/Sun) rate. Empty = same as weekday. */}
+                {isStay && (
+                  <div>
+                    <label className="text-xs font-semibold">Weekend rate (₹) — optional</label>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Charged for Saturday &amp; Sunday nights. Leave blank to use the weekday price every day.
+                    </p>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder={draft.priceRupees != null ? `Default: ₹${draft.priceRupees}` : 'e.g. 1500'}
+                      value={draft.weekendPriceRupees ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        updateDraft(draft.localKey, {
+                          weekendPriceRupees: v === '' ? null : Number(v),
+                        })
+                      }}
+                      className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-primary"
+                    />
+                  </div>
                 )}
 
                 {(isRental || isActivity || isStay) && (
