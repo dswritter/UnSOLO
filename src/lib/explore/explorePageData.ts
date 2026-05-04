@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getRequestAuth } from '@/lib/auth/request-session'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { fuzzyMatch, tokenizeLocationQuery } from '@/lib/utils'
@@ -275,7 +276,17 @@ export async function loadExploreListData(params: Record<string, string>): Promi
   let interestCounts: Record<string, number> = {}
 
   if (activeTab === 'trips') {
-    packages = await getPackages(params)
+    // Run packages + max-price + cached auth in parallel — they don't depend on each other.
+    // (Previously these ran sequentially and getUser() always made a GoTrue round-trip,
+    // which dominated mobile view-all latency.)
+    const [pkgList, maxPrice, auth] = await Promise.all([
+      getPackages(params),
+      getMaxPackagePrice(supabase),
+      getRequestAuth(),
+    ])
+    packages = pkgList
+    maxPackagePrice = maxPrice
+
     if (params.q && packages.length === 0) {
       const rest = { ...params }
       delete rest.q
@@ -286,23 +297,23 @@ export async function loadExploreListData(params: Record<string, string>): Promi
       }
     }
     resultCount = packages.length
-    maxPackagePrice = await getMaxPackagePrice(supabase)
 
-    if (packages.length > 0) {
-      const ids = packages.map(p => p.id)
-      const { bookedGuests, interestCount } = await fetchPackagePopularityMaps(supabase, ids)
-      for (const [id, count] of bookedGuests) spotsBooked[id] = count
-      for (const [id, count] of interestCount) interestCounts[id] = count
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: interests } = await supabase
-        .from('package_interests')
-        .select('package_id')
-        .eq('user_id', user.id)
-      interestedPackageIds = (interests || []).map(i => i.package_id)
-    }
+    // Popularity + per-user interests can also be parallel.
+    const ids = packages.map(p => p.id)
+    const [popularity, userInterests] = await Promise.all([
+      ids.length > 0
+        ? fetchPackagePopularityMaps(supabase, ids)
+        : Promise.resolve({ bookedGuests: new Map<string, number>(), interestCount: new Map<string, number>() }),
+      auth.user
+        ? supabase
+            .from('package_interests')
+            .select('package_id')
+            .eq('user_id', auth.user.id)
+        : Promise.resolve({ data: [] as Array<{ package_id: string }> | null }),
+    ])
+    for (const [id, count] of popularity.bookedGuests) spotsBooked[id] = count
+    for (const [id, count] of popularity.interestCount) interestCounts[id] = count
+    interestedPackageIds = (userInterests.data || []).map(i => i.package_id)
   } else {
     const svc = await getServiceListings(params)
     serviceListings = svc.listings
