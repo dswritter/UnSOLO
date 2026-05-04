@@ -4,7 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSupabaseAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/terms', '/privacy', '/refund-policy', '/forgot-password', '/reset-password']
-const PUBLIC_CONTENT = ['/packages', '/leaderboard', '/contact', '/offers']
+// Pages that render usefully without auth — let the page itself decide whether to gate
+// (sign-in prompts, redirects, etc). Avoids spurious /login bounces when getSession()
+// briefly reads stale cookies during navigation on mobile.
+const PUBLIC_CONTENT = ['/packages', '/listings', '/leaderboard', '/contact', '/offers', '/profile', '/host', '/become-host']
 
 const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])
 
