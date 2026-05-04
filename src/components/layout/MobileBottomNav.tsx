@@ -63,6 +63,15 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
             <Link
               key={href}
               href={href}
+              // CRITICAL: prefetch={false}. The bottom nav has 5 always-visible
+              // links. Default prefetch fires 5 concurrent RSC requests when the
+              // page mounts — each runs through the middleware and may try to
+              // refresh the Supabase JWT. Supabase refresh tokens are single-use,
+              // so the second concurrent refresh fails, the proxy reads
+              // session=null, and the next click bounces to /login. Disabling
+              // prefetch here makes navigation sequential (one request per click),
+              // which keeps mobile sessions stable.
+              prefetch={false}
               className={cn(
                 'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold transition-colors',
                 isActive ? 'text-primary' : 'text-white/72 hover:text-white',

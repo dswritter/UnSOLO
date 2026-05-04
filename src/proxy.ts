@@ -170,6 +170,18 @@ export async function proxy(request: NextRequest) {
     }
 
     if (!session) {
+      // Concurrent prefetches can race the Supabase refresh-token (it's
+      // single-use). The 2nd+ middleware run sees session=null even though
+      // the user *is* authenticated — the auth cookie is still on the
+      // request and a follow-up call will succeed. Detect that case and
+      // pass through; the page will rerender with the refreshed session.
+      // Only kick to /login when no auth cookie exists at all.
+      const hasAuthCookie = request.cookies
+        .getAll()
+        .some(c => c.name.startsWith('sb-') && c.name.includes('-auth-token'))
+      if (hasAuthCookie) {
+        return supabaseResponse
+      }
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       url.searchParams.set('redirectTo', pathname)
