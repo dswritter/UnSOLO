@@ -68,7 +68,9 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
                 isActive ? 'text-primary' : 'text-white/72 hover:text-white',
               )}
             >
-              <Icon className={cn('h-4.5 w-4.5 shrink-0 stroke-[1.9]', isActive && 'fill-current')} />
+              {/* Active state stays as colour-only — never fill the icon, otherwise
+                  identifiable shapes (Compass, Tent) lose their wireframe lines. */}
+              <Icon className="h-4.5 w-4.5 shrink-0 stroke-[2]" />
               <span className="truncate text-center leading-tight">{label}</span>
             </Link>
           )

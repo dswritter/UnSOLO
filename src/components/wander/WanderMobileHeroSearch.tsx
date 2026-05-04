@@ -310,11 +310,14 @@ export function WanderMobileHeroSearch({
               type="button"
               onClick={() => setBrowseTab(id)}
               className={cn(
-                'flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 transition-colors',
-                tab === id ? 'text-primary bg-primary/10' : 'text-white/75 hover:text-white',
+                'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors',
+                // Active state = colour change only (yellow). No filled background pill,
+                // no fill on the icon stroke — preserves each icon's wireframe identity
+                // (e.g. Compass, Key) which previously got crushed when filled.
+                tab === id ? 'text-primary' : 'text-white/75 hover:text-white',
               )}
             >
-              <Icon className={cn('h-5 w-5 shrink-0 stroke-[1.9]', tab === id && 'fill-current')} />
+              <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
               <span className="text-[11px] font-semibold leading-tight tracking-tight">{label}</span>
             </button>
           ))}
