@@ -7,7 +7,26 @@ const PUBLIC_ROUTES = ['/', '/login', '/signup', '/auth/callback', '/api', '/ter
 // Pages that render usefully without auth — let the page itself decide whether to gate
 // (sign-in prompts, redirects, etc). Avoids spurious /login bounces when getSession()
 // briefly reads stale cookies during navigation on mobile.
-const PUBLIC_CONTENT = ['/packages', '/listings', '/leaderboard', '/contact', '/offers', '/profile', '/host', '/become-host']
+//
+// All bottom-nav destinations are listed here so a transient session-read miss never
+// kicks the user back to /login while they switch tabs. Pages still call their own
+// `if (!user) redirect('/login')` (see e.g. tribe/page.tsx) when they truly need auth.
+const PUBLIC_CONTENT = [
+  '/packages',
+  '/listings',
+  '/leaderboard',
+  '/contact',
+  '/offers',
+  '/profile',
+  '/host',
+  '/become-host',
+  '/community',
+  '/tribe',
+  '/chat',
+  '/bookings',
+  '/notifications',
+  '/referrals',
+]
 
 const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])
 

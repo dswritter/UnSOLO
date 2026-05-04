@@ -48,7 +48,7 @@ export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
     },
     {
       href: isHost ? '/host' : '/host/verify',
-      label: 'Become Host',
+      label: isHost ? 'Hosting' : 'Become Host',
       icon: Tent,
       active: (p) => Boolean(p?.startsWith('/host')),
     },
