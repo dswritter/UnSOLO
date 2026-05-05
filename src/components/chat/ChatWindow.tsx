@@ -1641,7 +1641,13 @@ export function ChatWindow({
           if (isNearBottom()) setShowJumpButton(false)
         }}
         className={cn(
-          'h-full overflow-y-auto',
+          // flex-1 min-h-0 (instead of h-full) so this fills the *remaining*
+          // height between the sticky header and the in-flow input — h-full
+          // was hitting parent height which let the input push out and the
+          // bottom of the messages drift behind whatever overlay was there.
+          // overscroll-y-contain prevents the rubber-band bounce that was
+          // exposing blank space below the last message on mobile.
+          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain',
           tribeShell ? 'relative isolate' : 'px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
         )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
@@ -2120,15 +2126,22 @@ export function ChatWindow({
         </div>
       ) : null}
 
-      {/* Input — fixed; bottom tracks visualViewport so it sits above the mobile keyboard */}
+      {/* Input — in-flow shrink-0 child of the chat flex column. Stays
+          docked to the bottom because it's the last flex item and the scroll
+          area takes flex-1. visualViewport offset (set as a transform) keeps
+          it above the mobile keyboard without breaking out of the layout. */}
       <div
         className={cn(
-          'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 md:static fixed left-0 right-0 z-20 md:z-auto md:bottom-auto',
+          'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
           tribeShell
             ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-border bg-background',
         )}
-        style={{ bottom: visualViewportBottomInset }}
+        // Keyboard offset: when the soft keyboard opens visualViewport shrinks
+        // by `visualViewportBottomInset`. Lift the in-flow input by the same
+        // amount so it stays directly above the keyboard. On desktop and when
+        // the keyboard is closed, this is 0 — no visual change.
+        style={{ marginBottom: visualViewportBottomInset || undefined }}
       >
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           {!isDM && (roomType === 'general' || roomType === 'trip') ? (

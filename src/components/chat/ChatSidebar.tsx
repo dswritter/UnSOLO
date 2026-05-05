@@ -408,7 +408,7 @@ export function ChatSidebar({
       <NotificationPrompt />
 
       {/* Room list — scrollable */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto overscroll-y-contain min-h-0">
         {filtered.length === 0 && userResults.length === 0 && !searchingUsers ? (
           <div className="px-4 py-12 text-center text-sm text-muted-foreground">
             <MessageCircle className="h-10 w-10 mx-auto mb-2 opacity-20" />
