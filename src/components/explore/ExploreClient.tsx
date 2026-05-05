@@ -30,11 +30,14 @@ import {
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
+// Order intentionally matches the mobile hero tab strip (trips → rentals →
+// activities → stays) so users don't have to mentally re-map the categories
+// when they leave the home screen.
 const ALL_TABS: { id: TabType; label: string; icon: any }[] = [
   { id: 'trips', label: 'Trips', icon: Plane },
-  { id: 'stays', label: 'Stays', icon: Home },
-  { id: 'activities', label: 'Activities', icon: Compass },
   { id: 'rentals', label: 'Rentals', icon: Key },
+  { id: 'activities', label: 'Activities', icon: Compass },
+  { id: 'stays', label: 'Stays', icon: Home },
   { id: 'getting_around', label: 'Getting Around', icon: Navigation },
 ]
 const TABS = ALL_TABS.filter(t => t.id !== 'getting_around' || GETTING_AROUND_ENABLED)
@@ -180,19 +183,43 @@ export function ExploreClient({
         isWanderShell ? 'bg-transparent text-foreground' : 'min-h-screen bg-background',
       )}
     >
+      {/* Mobile: sticky frosted tab strip flush against the navbar — same
+          4-column grid order as the home hero so the user never has to
+          reorient. Desktop falls back to the existing flex pill row. */}
+      {isWanderShell ? (
+        <div className="md:hidden sticky top-0 z-30 -mx-px border-b border-white/10 bg-zinc-950/80 backdrop-blur-2xl backdrop-saturate-150">
+          <div className="grid grid-cols-4 gap-1 px-2 py-2">
+            {TABS.filter(t => t.id !== 'getting_around').map(tab => {
+              const Icon = tab.icon
+              const active = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => handleTabChange(tab.id)}
+                  className={cn(
+                    'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 transition-colors',
+                    active ? 'text-primary' : 'text-white/75 hover:text-white',
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+                  <span className="text-[11px] font-semibold leading-tight">{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {isWanderShell ? (
           <div className="mb-4">
-            {/* Mobile: no top strip at all — the active tab pill below already
-                indicates the category. Showing "Trips · 3 results" duplicated
-                that info and burned vertical space (felt very 2010-website).
-                Desktop still shows the heading + tagline. */}
             <h2 className="hidden lg:block text-2xl md:text-3xl font-black tracking-tight text-white">Explore</h2>
             <p className="hidden lg:block mt-1 text-sm text-white/70">Search and filter the full catalog while you stay in Wander.</p>
           </div>
         ) : null}
-        {/* Tabs — mockup: gold active on wander */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        {/* Desktop tabs (mobile uses the sticky strip above). */}
+        <div className="hidden md:flex mb-6 flex-wrap items-center justify-between gap-3">
           <div className="flex gap-2 overflow-x-auto pb-2 -mb-0">
             {TABS.map((tab) => {
               const Icon = tab.icon
