@@ -183,15 +183,10 @@ export function ExploreClient({
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {isWanderShell ? (
           <div className="mb-4">
-            {/* Mobile: a slim title-only strip; back button moves to the bottom action bar
-                so it sits next to the thumb on mobile. The "Explore" h2 + tagline are
-                desktop-only — they were just visual noise on a small screen. */}
-            <div className="-mx-4 mb-4 border-b border-white/10 bg-zinc-950/94 px-4 py-3 backdrop-blur-xl lg:hidden">
-              <p className="text-sm font-bold text-white">
-                {activeTab === 'trips' ? 'Trips' : typeLabels[activeTab as ServiceListingType]}
-                <span className="ml-2 text-[11px] font-medium text-white/55">{resultCount} results</span>
-              </p>
-            </div>
+            {/* Mobile: no top strip at all — the active tab pill below already
+                indicates the category. Showing "Trips · 3 results" duplicated
+                that info and burned vertical space (felt very 2010-website).
+                Desktop still shows the heading + tagline. */}
             <h2 className="hidden lg:block text-2xl md:text-3xl font-black tracking-tight text-white">Explore</h2>
             <p className="hidden lg:block mt-1 text-sm text-white/70">Search and filter the full catalog while you stay in Wander.</p>
           </div>

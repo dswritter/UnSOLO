@@ -33,14 +33,17 @@ const nextConfig: NextConfig = {
     ],
   },
   /**
-   * Client router cache: soft navigations reuse prefetched RSC payloads instead of
-   * refetching on every click (defaults: dynamic 0s, static 5m). Helps Explore ↔ Host feel instant.
+   * Client router cache: soft navigations (including browser back) reuse the
+   * prefetched RSC payload instead of refetching from the server. Bumped
+   * dynamic from 120s to 300s so the back button on mobile feels instant —
+   * within five minutes the previous page renders straight from cache, no
+   * loading skeleton flash.
    * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/staleTimes
    */
   experimental: {
     staleTimes: {
-      dynamic: 120,
-      static: 300,
+      dynamic: 300,
+      static: 600,
     },
   },
 };
