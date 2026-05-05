@@ -11,6 +11,7 @@ import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { MobileChatBottomBar } from '@/components/chat/MobileChatBottomBar'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { TribeSidebarSkeleton } from '@/components/chat/TribeSidebarSkeleton'
+import { TribeMessagingContainer } from '@/components/chat/TribeMessagingContainer'
 import { cn } from '@/lib/utils'
 
 const tribeSans = Plus_Jakarta_Sans({
@@ -39,7 +40,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
       )}
     >
       <TribeMessageCacheBootstrap />
-      <div className="tribe-messaging-ui h-[calc(100dvh-4rem-4.5rem)] md:h-[calc(100dvh-4rem)] flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full">
+      <TribeMessagingContainer>
         <Suspense fallback={<TribeSidebarSkeleton layout="desktop" />}>
           <CommunitySidebarSection
             userId={user.id}
@@ -50,7 +51,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
         <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-clip rounded-2xl border border-white/12 bg-[color:var(--wander-inset-panel)] backdrop-blur-[44px] backdrop-saturate-[1.65]">
           {children}
         </div>
-      </div>
+      </TribeMessagingContainer>
       <MobileChatBottomBar rooms={rooms} basePath={messagingBasePath} />
     </div>
   )

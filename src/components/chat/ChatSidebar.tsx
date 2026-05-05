@@ -367,22 +367,8 @@ export function ChatSidebar({
 
   return (
     <div className={`flex flex-col ${className}`} role="region" aria-label="Your conversations">
-      {/* Header */}
+      {/* Header: filter tabs only — search lives at the bottom */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search people and chats"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:border-primary"
-            aria-label="Search people and chats"
-          />
-        </div>
-
-        {/* Filter tabs + sound */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5 min-w-0">
             {(['all', 'direct', 'trip', 'general'] as const).map(f => (
@@ -616,6 +602,21 @@ export function ChatSidebar({
           )}
           </>
         )}
+      </div>
+
+      {/* Search — sticky at bottom so filters + conversations start at the top */}
+      <div className="shrink-0 border-t border-border px-4 py-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search people and chats"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:border-primary"
+            aria-label="Search people and chats"
+          />
+        </div>
       </div>
     </div>
   )

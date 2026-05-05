@@ -20,7 +20,7 @@ import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderMobileHeroCoordinator } from '@/components/wander/WanderMobileHeroCoordinator'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
 import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
-import { WanderListingSections } from '@/components/wander/WanderListingSections'
+import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListingsSectionsWrapper'
 import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
@@ -174,8 +174,7 @@ export async function WanderLandingPage({
         <div className="border-t border-border/50">
           <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
             <WanderRecentlyViewedStrip />
-            <WanderListingSections
-              activeTab={activeTab}
+            <WanderListingsSectionsWrapper
               trips={tripRow.packages}
               tripInterestCounts={tripRow.interestCounts}
               interestedPackageIds={landingInterestedPackageIds}
@@ -203,6 +202,7 @@ export async function WanderLandingPage({
               }
             />
             <div className="mt-6 grid gap-3 md:hidden">
+
               <div className="rounded-2xl border border-white/14 bg-white/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>
                 <h3 className="mt-1 text-lg font-black text-white">Check deals and meet other travellers</h3>
