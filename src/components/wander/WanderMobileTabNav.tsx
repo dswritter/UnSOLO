@@ -1,9 +1,11 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Compass, Home, Key, Plane } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+export const WANDER_TAB_CHANGE_EVENT = 'unsolo:wander-tab-change'
 
 type Tab = 'trips' | 'rentals' | 'activities' | 'stays'
 
@@ -30,18 +32,30 @@ export function WanderMobileTabNav() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+  const [pendingTab, setPendingTab] = useState<Tab | null>(null)
+
   const urlTab = searchParams.get('tab')
-  const tab: Tab | null =
+  const confirmedTab: Tab | null =
     urlTab === 'trips' || urlTab === 'rentals' || urlTab === 'activities' || urlTab === 'stays'
       ? urlTab
       : null
+  // Show pending tab instantly; fall back to URL-confirmed tab
+  const tab = pendingTab ?? confirmedTab
 
   const setBrowseTab = useCallback(
     (next: Tab) => {
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('tab', next)
-      const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+      // Immediately update visible state — no waiting for server
+      setPendingTab(next)
+      window.dispatchEvent(new CustomEvent(WANDER_TAB_CHANGE_EVENT, { detail: next }))
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('tab', next)
+        const qs = params.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+        // Clear optimistic once navigation commits
+        setPendingTab(null)
+      })
     },
     [pathname, router, searchParams],
   )
@@ -56,12 +70,15 @@ export function WanderMobileTabNav() {
               type="button"
               onClick={() => setBrowseTab(id)}
               className={cn(
-                'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
+                'relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
                 tab === id ? 'text-primary' : 'text-white/80 hover:text-white',
               )}
             >
-              <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+              <Icon className={cn('h-5 w-5 shrink-0 stroke-[2]', isPending && tab === id && 'opacity-60')} />
               <span className="text-[11px] font-semibold leading-tight tracking-tight">{label}</span>
+              {isPending && tab === id && (
+                <span className="absolute inset-0 rounded-xl border border-primary/40 animate-pulse" />
+              )}
             </button>
           ))}
         </div>

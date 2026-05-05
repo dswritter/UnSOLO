@@ -1,3 +1,4 @@
+import { unstable_cache } from 'next/cache'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -312,7 +313,7 @@ export async function getWanderTrustBadgeText(): Promise<string> {
 /**
  * Distinct activity labels from live listings: tags + metadata.activity_category.
  */
-export async function getListedActivityFilterOptions(): Promise<string[]> {
+export const getListedActivityFilterOptions = unstable_cache(async function (): Promise<string[]> {
   const supabase = svc()
   const { data, error } = await supabase
     .from('service_listings')
@@ -332,7 +333,7 @@ export async function getListedActivityFilterOptions(): Promise<string[]> {
     if (c?.trim()) set.add(c.trim())
   }
   return [...set].sort((a, b) => a.localeCompare(b))
-}
+}, ['wander-activity-filter-opts'], { revalidate: 120 })
 
 export type WanderStats = {
   soloTravelers: number
@@ -341,7 +342,7 @@ export type WanderStats = {
   happyPercent: number
 }
 
-export async function getWanderStats(): Promise<WanderStats> {
+export const getWanderStats = unstable_cache(async function (): Promise<WanderStats> {
   const supabase = svc()
 
   const [{ count: profileCount }, { count: bookingCount }, destPackages, destServices, reviews, hostReviews] = await Promise.all([
@@ -396,7 +397,7 @@ export async function getWanderStats(): Promise<WanderStats> {
     bookings: bookingCount ?? 0,
     happyPercent,
   }
-}
+}, ['wander-stats'], { revalidate: 120 })
 
 export type RaterPreview = { userId: string; avatar_url: string | null; username: string; full_name: string | null }
 
@@ -407,7 +408,7 @@ export type WanderRatingHero = {
   recentRaters: RaterPreview[]
 }
 
-export async function getWanderRatingHero(): Promise<WanderRatingHero> {
+export const getWanderRatingHero = unstable_cache(async function (): Promise<WanderRatingHero> {
   const supabase = svc()
   const [reviews, hostRows] = await Promise.all([
     supabase.from('reviews').select('user_id, rating, created_at'),
@@ -453,7 +454,7 @@ export async function getWanderRatingHero(): Promise<WanderRatingHero> {
   }
 
   return { overall, reviewCount: n, recentRaters }
-}
+}, ['wander-rating-hero'], { revalidate: 120 })
 
 function filterPackagesWithFutureDepartures(packages: Package[]): Package[] {
   const todayStr = new Date().toISOString().split('T')[0]
@@ -474,7 +475,7 @@ export type WanderTripRowResult = {
 }
 
 /** Featured first, then by average review rating, then explore popularity sort. */
-export async function getWanderTripRow(): Promise<WanderTripRowResult> {
+export const getWanderTripRow = unstable_cache(async function (): Promise<WanderTripRowResult> {
   const supabase = svc()
   const { data: raw } = await supabase
     .from('packages')
@@ -517,9 +518,9 @@ export async function getWanderTripRow(): Promise<WanderTripRowResult> {
     interestCounts[p.id] = interestCount.get(p.id) || 0
   }
   return { packages: sliced, interestCounts }
-}
+}, ['wander-trip-row'], { revalidate: 60 })
 
-export async function getWanderActivityRow(): Promise<ServiceListing[]> {
+export const getWanderActivityRow = unstable_cache(async function (): Promise<ServiceListing[]> {
   const supabase = svc()
   const { data, error } = await supabase
     .from('service_listings')
@@ -534,9 +535,9 @@ export async function getWanderActivityRow(): Promise<ServiceListing[]> {
   if (error || !data) return []
   const visible = ((data || []) as ServiceListing[]).filter(l => isActivityVisibleToPublic(l))
   return visible.slice(0, 4)
-}
+}, ['wander-activity-row'], { revalidate: 60 })
 
-export async function getWanderStayRow(): Promise<ServiceListing[]> {
+export const getWanderStayRow = unstable_cache(async function (): Promise<ServiceListing[]> {
   const supabase = svc()
   const { data, error } = await supabase
     .from('service_listings')
@@ -550,9 +551,9 @@ export async function getWanderStayRow(): Promise<ServiceListing[]> {
     .limit(30)
   if (error || !data) return []
   return (data as ServiceListing[]).slice(0, 4)
-}
+}, ['wander-stay-row'], { revalidate: 60 })
 
-export async function getWanderRentalRow(): Promise<ServiceListing[]> {
+export const getWanderRentalRow = unstable_cache(async function (): Promise<ServiceListing[]> {
   const supabase = svc()
   const { data: listings, error: lerr } = await supabase
     .from('service_listings')
@@ -583,7 +584,7 @@ export async function getWanderRentalRow(): Promise<ServiceListing[]> {
     return (b.average_rating || 0) - (a.average_rating || 0)
   })
   return sorted.slice(0, 4)
-}
+}, ['wander-rental-row'], { revalidate: 60 })
 
 export async function getWanderServiceItemsForListings(
   listings: ServiceListing[],
