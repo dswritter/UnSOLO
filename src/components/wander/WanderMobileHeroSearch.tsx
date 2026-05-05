@@ -313,7 +313,10 @@ export function WanderMobileHeroSearch({
             </div>
           </div>
 
-          <h1 className="mt-3 text-[1.6rem] font-black leading-[1.05] tracking-tight text-white" style={titleStyle}>
+          {/* Headline shrinks closer to the subtitle size so the whole hero
+              fits without growing taller. The tab strip below straddles the
+              hero/below boundary; this trims the room it needs. */}
+          <h1 className="mt-3 text-[1.25rem] font-black leading-[1.15] tracking-tight text-white" style={titleStyle}>
             {hero.title}
             {showDesktopLine2 ? (
               <>
@@ -324,12 +327,13 @@ export function WanderMobileHeroSearch({
               </>
             ) : null}
           </h1>
-          <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-white/78" style={subtitleStyle}>
+          <p className="mt-1.5 max-w-[22rem] text-[12.5px] leading-snug text-white/78" style={subtitleStyle}>
             {hero.subtitle}
           </p>
 
-          {/* Stats row — icons + big numbers, with Instagram pinned at the right end */}
-          <div className="mt-4 flex items-stretch gap-2 rounded-2xl border border-white/14 bg-black/25 p-2.5 backdrop-blur-md">
+          {/* Frosted stats panel — saturated glass instead of flat black/25 so
+              it reads like the desktop search/filter card. */}
+          <div className="mt-3 flex items-stretch gap-2 rounded-2xl border border-white/16 bg-white/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
             {statsInline.map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
                 <Icon className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.85} aria-hidden />
@@ -366,25 +370,30 @@ export function WanderMobileHeroSearch({
         </div>
       </section>
 
-      <div className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/92 backdrop-blur-xl">
-        <div className="grid grid-cols-4 gap-1 px-2 py-2">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setBrowseTab(id)}
-              className={cn(
-                'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 transition-colors',
-                // Active state = colour change only (yellow). No filled background pill,
-                // no fill on the icon stroke — preserves each icon's wireframe identity
-                // (e.g. Compass, Key) which previously got crushed when filled.
-                tab === id ? 'text-primary' : 'text-white/75 hover:text-white',
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
-              <span className="text-[11px] font-semibold leading-tight tracking-tight">{label}</span>
-            </button>
-          ))}
+      {/* Tab nav straddles the hero / content boundary. Negative top margin
+          pulls the strip up so its top half overlaps the hero, while sticky
+          top-0 still works once the user scrolls past it. The strip uses a
+          frosted glass look matching the desktop search/filter card. */}
+      <div className="relative -mt-5 px-3">
+        <div className="sticky top-0 z-30 rounded-2xl border border-white/16 bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+          <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setBrowseTab(id)}
+                className={cn(
+                  'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
+                  // Active = colour change only (yellow). No filled background
+                  // pill / icon fill — keeps each icon's wireframe identity.
+                  tab === id ? 'text-primary' : 'text-white/80 hover:text-white',
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+                <span className="text-[11px] font-semibold leading-tight tracking-tight">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
