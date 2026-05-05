@@ -7,6 +7,8 @@ import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { CommunitySidebarSection } from '@/components/chat/CommunitySidebarSection'
 import { TribeMessageCacheBootstrap } from '@/components/chat/TribeMessageCacheBootstrap'
+import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
+import { MobileChatBottomBar } from '@/components/chat/MobileChatBottomBar'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { TribeSidebarSkeleton } from '@/components/chat/TribeSidebarSkeleton'
 import { cn } from '@/lib/utils'
@@ -25,6 +27,9 @@ export default async function TribeLayout({ children }: { children: ReactNode })
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()
+
+  // For the mobile chat bottom bar — recent rooms (avatar strip).
+  const { rooms } = await getCachedSidebarRooms(user.id, { limit: 12, offset: 0 })
 
   return (
     <div
@@ -46,6 +51,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
           {children}
         </div>
       </div>
+      <MobileChatBottomBar rooms={rooms} basePath={messagingBasePath} />
     </div>
   )
 }

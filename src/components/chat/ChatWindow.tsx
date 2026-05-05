@@ -1348,11 +1348,15 @@ export function ChatWindow({
         tribeShell ? 'border-white/10 bg-transparent' : 'border-border bg-background',
       )}
     >
-      {/* Header */}
+      {/* Header — sticky so the chat partner's name stays at the top of the
+          chat container even when message scroll bleeds outside the inner
+          scrollAreaRef (e.g. mobile address-bar resizes or scroll-chaining). */}
       <div
         className={cn(
-          'px-4 py-3 flex items-center justify-between',
-          tribeShell ? 'border-b border-white/10' : 'border-b border-border',
+          'sticky top-0 z-20 px-4 py-3 flex items-center justify-between shrink-0',
+          tribeShell
+            ? 'border-b border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
+            : 'border-b border-border bg-background/95 backdrop-blur',
         )}
       >
         <div className="flex items-center gap-3 min-w-0">
