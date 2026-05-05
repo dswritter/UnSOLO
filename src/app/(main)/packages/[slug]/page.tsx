@@ -220,13 +220,17 @@ export default async function PackageDetailPage({
     <div className="relative min-h-screen">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
       <TripDetailSeasonBackdrop />
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back */}
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+        {/* Back arrow only — no inline label. On mobile the browser/OS back
+            chevron is the primary affordance, so the redundant text strip just
+            ate vertical space at the very top of the listing. Keep a small
+            icon-only button for desktop where there's no system back. */}
         <Link
           href={wanderBackHref}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary mb-6 transition-colors"
+          aria-label="Back"
+          className="hidden md:inline-flex items-center justify-center h-8 w-8 rounded-full text-muted-foreground hover:text-primary mb-6 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Wander
+          <ArrowLeft className="h-4 w-4" />
         </Link>
 
         {/* Edits-under-review banner: shown to the public when the host recently

@@ -185,30 +185,33 @@ export function ExploreClient({
         isWanderShell ? 'bg-transparent text-foreground' : 'min-h-screen bg-background',
       )}
     >
-      {/* Mobile: sticky frosted tab strip flush against the navbar — same
-          4-column grid order as the home hero so the user never has to
-          reorient. Desktop falls back to the existing flex pill row. */}
+      {/* Mobile: sticky frosted tab strip — same rounded glass shell as the
+          home hero. The element below has padding-top to push the strip
+          away from the absolute top edge so it sits flush with a small
+          inset like a card, matching the home design. */}
       {isWanderShell ? (
-        <div className="md:hidden sticky top-0 z-30 -mx-px border-b border-white/10 bg-zinc-950/80 backdrop-blur-2xl backdrop-saturate-150">
-          <div className="grid grid-cols-4 gap-1 px-2 py-2">
-            {TABS.filter(t => t.id !== 'getting_around').map(tab => {
-              const Icon = tab.icon
-              const active = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabChange(tab.id)}
-                  className={cn(
-                    'flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 transition-colors',
-                    active ? 'text-primary' : 'text-white/75 hover:text-white',
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
-                  <span className="text-[11px] font-semibold leading-tight">{tab.label}</span>
-                </button>
-              )
-            })}
+        <div className="md:hidden sticky top-0 z-40 px-3 pt-2 pb-1">
+          <div className="rounded-2xl border border-white/16 bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+            <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
+              {TABS.filter(t => t.id !== 'getting_around').map(tab => {
+                const Icon = tab.icon
+                const active = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleTabChange(tab.id)}
+                    className={cn(
+                      'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
+                      active ? 'text-primary' : 'text-white/80 hover:text-white',
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+                    <span className="text-[11px] font-semibold leading-tight">{tab.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       ) : null}

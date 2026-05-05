@@ -12,14 +12,14 @@ import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/packa
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { MapPin, Mountain, Heart } from 'lucide-react'
 
-// Frosted-glass difficulty chip, sitting on top of the card image. Stronger
-// blur + saturate + a hairline white border so the label always reads even
-// over a busy hero photo (the previous /15 backgrounds were near-invisible
-// on light skies). Foreground colour stays in the difficulty hue.
+// Frosted-glass difficulty chip, sitting on top of the card image. The text
+// is a deeper hue than the previous lights — pale rose / amber / emerald
+// vanished on a frosted background, so we lean toward saturated mid tones
+// that hold their identity against both bright skies and dark forest art.
 const DIFF: Record<string, string> = {
-  easy: 'bg-white/15 text-emerald-300 border-white/20 backdrop-blur-md backdrop-saturate-150 shadow-sm',
-  moderate: 'bg-white/15 text-amber-300 border-white/20 backdrop-blur-md backdrop-saturate-150 shadow-sm',
-  challenging: 'bg-white/15 text-rose-300 border-white/20 backdrop-blur-md backdrop-saturate-150 shadow-sm',
+  easy: 'bg-white/15 text-emerald-200 border-white/25 backdrop-blur-md backdrop-saturate-150 shadow-sm',
+  moderate: 'bg-white/15 text-amber-200 border-white/25 backdrop-blur-md backdrop-saturate-150 shadow-sm',
+  challenging: 'bg-rose-900/55 text-rose-100 border-rose-300/40 backdrop-blur-md backdrop-saturate-150 shadow-sm',
 }
 
 type Props = {

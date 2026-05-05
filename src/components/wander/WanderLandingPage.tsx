@@ -18,6 +18,7 @@ import {
 } from '@/lib/wander/wanderQueries'
 import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderMobileHeroSearch } from '@/components/wander/WanderMobileHeroSearch'
+import { WanderMobileTabNav } from '@/components/wander/WanderMobileTabNav'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
 import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
 import { WanderListingSections } from '@/components/wander/WanderListingSections'
@@ -117,19 +118,24 @@ export async function WanderLandingPage({
         <WanderSearchScroll />
       </Suspense>
       {!isSearchMode && (
-        <div className="md:hidden">
-          <WanderMobileHeroSearch
-            initialTab={activeTab}
-            heroImageUrl={heroImageUrl}
-            heroCopy={heroCopy}
-            stats={stats}
-            userProfile={mobileHeroUser}
-            listedActivities={listedActivities}
-            wanderSearchBasePath={searchBasePath}
-          />
-          {/* Traveler status was here; moved into the listing sections so the
-              mobile landing reads trips → rentals → status → stays → activities. */}
-        </div>
+        <>
+          <div className="md:hidden">
+            <WanderMobileHeroSearch
+              initialTab={activeTab}
+              heroImageUrl={heroImageUrl}
+              heroCopy={heroCopy}
+              stats={stats}
+              userProfile={mobileHeroUser}
+              listedActivities={listedActivities}
+              wanderSearchBasePath={searchBasePath}
+            />
+          </div>
+          {/* Tab nav rendered here — sibling of the hero (not nested inside
+              it) so its sticky parent is the full-height page container.
+              That's the difference between "scrolls away after 60px" and
+              "actually sticks all the way down the page". */}
+          <WanderMobileTabNav />
+        </>
       )}
 
       <div className="hidden md:block">

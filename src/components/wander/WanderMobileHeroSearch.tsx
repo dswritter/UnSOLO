@@ -332,8 +332,9 @@ export function WanderMobileHeroSearch({
           </p>
 
           {/* Frosted stats panel — saturated glass instead of flat black/25 so
-              it reads like the desktop search/filter card. */}
-          <div className="mt-3 flex items-stretch gap-2 rounded-2xl border border-white/16 bg-white/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+              it reads like the desktop search/filter card. Extra bottom space
+              below so the tab strip can land on the hero with breathing room. */}
+          <div className="mt-3 mb-7 flex items-stretch gap-2 rounded-2xl border border-white/16 bg-white/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
             {statsInline.map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
                 <Icon className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.85} aria-hidden />
@@ -370,32 +371,11 @@ export function WanderMobileHeroSearch({
         </div>
       </section>
 
-      {/* Tab nav straddles the hero / content boundary. Negative top margin
-          pulls the strip up so its top half overlaps the hero, while sticky
-          top-0 still works once the user scrolls past it. The strip uses a
-          frosted glass look matching the desktop search/filter card. */}
-      <div className="relative -mt-5 px-3">
-        <div className="sticky top-0 z-30 rounded-2xl border border-white/16 bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
-          <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
-            {TABS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setBrowseTab(id)}
-                className={cn(
-                  'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
-                  // Active = colour change only (yellow). No filled background
-                  // pill / icon fill — keeps each icon's wireframe identity.
-                  tab === id ? 'text-primary' : 'text-white/80 hover:text-white',
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
-                <span className="text-[11px] font-semibold leading-tight tracking-tight">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* Tab nav lives in WanderMobileTabNav now (rendered as a sibling of
+          this component in WanderLandingPage). Sticky needs a tall parent
+          or it scrolls away — by living one level up, the tab strip's
+          parent is the page's `w-full` container and sticky persists down
+          the entire route. */}
 
       {/* Search card only renders once the user picks a category. On first
           landing the rows below speak for themselves; the card appears the
