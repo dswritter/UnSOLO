@@ -1696,13 +1696,10 @@ export function ChatWindow({
           if (isNearBottom()) setShowJumpButton(false)
         }}
         className={cn(
-          // flex-1 min-h-0 (instead of h-full) so this fills the *remaining*
-          // height between the sticky header and the in-flow input — h-full
-          // was hitting parent height which let the input push out and the
-          // bottom of the messages drift behind whatever overlay was there.
+          // h-full fills the messages wrapper (flex-1 min-h-0 flex item).
           // overscroll-y-contain prevents the rubber-band bounce that was
           // exposing blank space below the last message on mobile.
-          'flex-1 min-h-0 overflow-y-auto overscroll-y-contain',
+          'h-full overflow-y-auto overscroll-y-contain',
           tribeShell ? 'relative isolate' : 'px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
         )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
@@ -2183,9 +2180,8 @@ export function ChatWindow({
       ) : null}
 
       {/* Input — in-flow shrink-0 child of the chat flex column. Stays
-          docked to the bottom because it's the last flex item and the scroll
-          area takes flex-1. visualViewport offset (set as a transform) keeps
-          it above the mobile keyboard without breaking out of the layout. */}
+          docked to the bottom because it's the last flex item and the messages
+          scroll area takes flex-1 / h-full. */}
       <div
         className={cn(
           'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
@@ -2193,11 +2189,8 @@ export function ChatWindow({
             ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-border bg-background',
         )}
-        // Keyboard offset: when the soft keyboard opens visualViewport shrinks
-        // by `visualViewportBottomInset`. Lift the in-flow input by the same
-        // amount so it stays directly above the keyboard. On desktop and when
-        // the keyboard is closed, this is 0 — no visual change.
-        style={{ marginBottom: visualViewportBottomInset || undefined }}
+        // dvh units (used in h-[calc(100dvh-...)]) adapt to the visual viewport
+        // automatically when the mobile keyboard opens, so no extra style needed.
       >
         {/* Reply-to preview — appears the moment the user swipes a bubble.
             One-line snippet of the message they're replying to, with a tiny
