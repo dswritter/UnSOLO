@@ -369,20 +369,16 @@ export function WanderMobileHeroSearch({
             ) : null}
           </div>
         </div>
-      </section>
 
-      {/* Tab nav lives in WanderMobileTabNav now (rendered as a sibling of
-          this component in WanderLandingPage). Sticky needs a tall parent
-          or it scrolls away — by living one level up, the tab strip's
-          parent is the page's `w-full` container and sticky persists down
-          the entire route. */}
-
-      {/* Search card only renders once the user picks a category. On first
-          landing the rows below speak for themselves; the card appears the
-          moment a tab is tapped, populated with that category's prompt. */}
-      {tab ? (
-        <div className="px-4 pt-4">
-          <button
+        {/* Search card lives inside the <section> so the WanderMobileTabNav
+            (rendered as a sibling in WanderLandingPage, with sticky top-0
+            and -mt-7) always sits BELOW the hero + card in the DOM. When the
+            tab nav sticks, only the hero/card area scrolls under it — not the
+            other way round. pb-7 buffers the card so the tab nav's -mt-7
+            overlaps padding rather than card content. */}
+        {tab ? (
+          <div className="px-4 pt-4 pb-7">
+            <button
             type="button"
             onClick={() => setSheetOpen(true)}
             className="w-full rounded-[1.7rem] border border-white/12 bg-white/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
@@ -401,7 +397,8 @@ export function WanderMobileHeroSearch({
             </div>
           </button>
         </div>
-      ) : null}
+        ) : null}
+      </section>
 
       {sheetOpen ? (
         <div className="fixed inset-0 z-[70] bg-black/70">

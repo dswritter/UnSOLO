@@ -1712,8 +1712,7 @@ export function ChatWindow({
         ) : null}
         <div
           className={cn(
-            tribeShell &&
-              'relative z-[2] px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
+            tribeShell && 'relative z-[2] px-4 py-4',
           )}
         >
         <div className="space-y-5">

@@ -8,6 +8,7 @@ import { FooterWrapper } from '@/components/layout/FooterWrapper'
 // import { MobileChatButton } from '@/components/layout/MobileChatButton'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
+import { MainScrollContainer } from '@/components/layout/MainScrollContainer'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
 import type { Profile } from '@/types'
 import { Suspense } from 'react'
@@ -45,12 +46,9 @@ export default async function MainLayout({
         h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
         use min-h-0 and scroll only the inner list instead of growing the page.
       */}
-      <main
-        data-wander-main-scroll
-        className="flex h-0 min-h-0 flex-1 flex-col overflow-y-auto pb-[5.75rem] md:pb-0"
-      >
+      <MainScrollContainer>
         {children}
-      </main>
+      </MainScrollContainer>
       {user && <PresenceTracker userId={user.id} />}
       {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
       {/* {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />} */}
