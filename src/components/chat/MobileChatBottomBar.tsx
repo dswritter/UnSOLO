@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { Home, Users } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
 
 /**
@@ -35,6 +37,33 @@ export function MobileChatBottomBar({
   // Only render when the user is *inside* a room — on the list page the
   // sidebar/list IS the chat surface, so the bar would be redundant.
   const onRoomPage = pathname ? new RegExp(`^${basePath}/[^/]+`).test(pathname) : false
+
+  // Live presence: same poll-pattern the sidebar uses (user_presence rows
+  // last seen within the past two minutes count as online). Refreshes every
+  // minute so the green dot stays roughly accurate without spamming Supabase.
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!onRoomPage) return
+    const supabase = createClient()
+    let cancelled = false
+    async function poll() {
+      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+      const { data } = await supabase
+        .from('user_presence')
+        .select('user_id')
+        .eq('is_online', true)
+        .gte('last_seen', twoMinAgo)
+      if (cancelled || !data) return
+      setOnlineUserIds(new Set((data as { user_id: string }[]).map(r => r.user_id)))
+    }
+    poll()
+    const interval = setInterval(poll, 60_000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [onRoomPage])
+
   if (!onRoomPage) return null
   // Take the freshest 12 rooms — anything further is one tap away in the full list.
   const sortedRooms = [...rooms]
@@ -82,6 +111,7 @@ export function MobileChatBottomBar({
                 const img = partner?.avatar_url || r.tripImage || r.communityImage || ''
                 const isCurrent = pathname?.startsWith(`${basePath}/${r.id}`)
                 const hasUnseenStatus = r.dmHasActiveStatus && !r.dmStatusSeen
+                const isOnline = !!partner?.id && onlineUserIds.has(partner.id)
                 return (
                   <button
                     key={r.id}
@@ -108,6 +138,16 @@ export function MobileChatBottomBar({
                         </AvatarFallback>
                       </Avatar>
                     </span>
+                    {/* Online dot — only on DM rooms (group/community rooms
+                        don't have a single "online" partner). Tucked into
+                        the bottom-right of the avatar with a dark ring so it
+                        reads against any avatar background. */}
+                    {isOnline ? (
+                      <span
+                        className="pointer-events-none absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950"
+                        aria-label="Online"
+                      />
+                    ) : null}
                   </button>
                 )
               })
