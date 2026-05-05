@@ -294,27 +294,35 @@ export async function createHostServiceListing(input: {
 
     if (insertError) {
       console.error('Database error:', insertError)
-      return { error: 'Failed to create listing' }
+      const detail = insertError.message || insertError.code || 'unknown'
+      return { error: `Failed to create listing: ${detail}` }
     }
 
     // Batch-insert items with stable ordering.
+    // weekend_price_paise is only included when migration 076 has been run
+    // *and* the host actually entered a weekend rate — otherwise omitting the
+    // key means the insert works on databases that don't yet have the column.
     const { error: itemsError } = await supabase
       .from('service_listing_items')
-      .insert(items.map((item, idx) => ({
-        service_listing_id: data.id,
-        name: item.name.trim(),
-        description: item.description?.trim() || null,
-        price_paise: item.price_paise,
-        // Stays-only: weekend price is optional, falls back to price_paise when null.
-        weekend_price_paise: input.type === 'stays' ? (item.weekend_price_paise ?? null) : null,
-        quantity_available: item.quantity_available,
-        max_per_booking: item.max_per_booking,
-        images: item.images,
-        position_order: idx,
-        // Rentals & stays carry per-item unit/amenities; other types leave these null.
-        unit: input.type === 'rentals' || input.type === 'stays' ? (item.unit ?? null) : null,
-        amenities: input.type === 'rentals' || input.type === 'stays' ? (item.amenities ?? []) : null,
-      })))
+      .insert(items.map((item, idx) => {
+        const row: Record<string, unknown> = {
+          service_listing_id: data.id,
+          name: item.name.trim(),
+          description: item.description?.trim() || null,
+          price_paise: item.price_paise,
+          quantity_available: item.quantity_available,
+          max_per_booking: item.max_per_booking,
+          images: item.images,
+          position_order: idx,
+          // Rentals & stays carry per-item unit/amenities; other types leave these null.
+          unit: input.type === 'rentals' || input.type === 'stays' ? (item.unit ?? null) : null,
+          amenities: input.type === 'rentals' || input.type === 'stays' ? (item.amenities ?? []) : null,
+        }
+        if (input.type === 'stays' && item.weekend_price_paise != null) {
+          row.weekend_price_paise = item.weekend_price_paise
+        }
+        return row
+      }))
 
     if (itemsError) {
       console.error('Items insert error:', itemsError)

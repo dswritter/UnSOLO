@@ -150,9 +150,12 @@ export async function createServiceListingOrder(
     let itemId: string | null = null
     let weekendPricePaise: number | null = null
     if (bookingData.service_listing_item_id) {
+      // First, the core item fields. weekend_price_paise (migration 076) is
+      // selected separately so the booking still works if the column hasn't
+      // been applied yet.
       const { data: item, error: itemError } = await supabase
         .from('service_listing_items')
-        .select('id, service_listing_id, price_paise, weekend_price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
+        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
         .eq('id', bookingData.service_listing_item_id)
         .single()
       if (itemError || !item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
@@ -165,8 +168,16 @@ export async function createServiceListingOrder(
         return { error: 'Not enough availability for this item' }
       }
       unitPricePaise = item.price_paise
-      weekendPricePaise = (item as { weekend_price_paise?: number | null }).weekend_price_paise ?? null
       itemId = item.id
+      // Optional weekend rate — falls back to weekday price when the column
+      // doesn't exist or wasn't set.
+      const { data: weekendRow } = await supabase
+        .from('service_listing_items')
+        .select('weekend_price_paise')
+        .eq('id', item.id)
+        .maybeSingle()
+        .then(r => r, () => ({ data: null }))
+      weekendPricePaise = (weekendRow as { weekend_price_paise?: number | null } | null)?.weekend_price_paise ?? null
     } else if (listing.quantity_available != null && bookingData.quantity > listing.quantity_available) {
       return { error: 'Not enough availability' }
     }

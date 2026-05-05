@@ -202,22 +202,29 @@ export async function createServiceListingItem(input: {
   if (input.quantity_available < 0) return { error: 'Quantity cannot be negative' }
   if (input.max_per_booking < 1) return { error: 'Max per booking must be at least 1' }
 
+  // Build the insert payload conditionally: weekend_price_paise only goes in
+  // when the host actually entered one. Omitting the key means rows still
+  // insert on databases that don't yet have migration 076 applied.
+  const insertRow: Record<string, unknown> = {
+    service_listing_id: input.service_listing_id,
+    name: input.name.trim(),
+    description: input.description?.trim() || null,
+    price_paise: input.price_paise,
+    quantity_available: input.quantity_available,
+    max_per_booking: input.max_per_booking,
+    images: input.images,
+    position_order: input.position_order ?? 0,
+    unit: input.unit ?? null,
+    amenities: input.amenities ?? null,
+    is_out_of_stock: input.is_out_of_stock ?? false,
+  }
+  if (input.weekend_price_paise != null) {
+    insertRow.weekend_price_paise = input.weekend_price_paise
+  }
+
   const { data, error } = await ctx.supabase
     .from('service_listing_items')
-    .insert({
-      service_listing_id: input.service_listing_id,
-      name: input.name.trim(),
-      description: input.description?.trim() || null,
-      price_paise: input.price_paise,
-      weekend_price_paise: input.weekend_price_paise ?? null,
-      quantity_available: input.quantity_available,
-      max_per_booking: input.max_per_booking,
-      images: input.images,
-      position_order: input.position_order ?? 0,
-      unit: input.unit ?? null,
-      amenities: input.amenities ?? null,
-      is_out_of_stock: input.is_out_of_stock ?? false,
-    })
+    .insert(insertRow)
     .select('*')
     .single()
 
