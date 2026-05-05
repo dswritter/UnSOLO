@@ -42,10 +42,12 @@ const ALL_TABS: { id: TabType; label: string; icon: any }[] = [
 ]
 const TABS = ALL_TABS.filter(t => t.id !== 'getting_around' || GETTING_AROUND_ENABLED)
 
+// Frosted glass over the hero image — saturated blur reads cleanly on every
+// background, hairline white border keeps the chip distinct from the photo.
 const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
-  moderate: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
-  challenging: 'bg-black/60 text-white backdrop-blur-sm border-white/10',
+  easy: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
+  moderate: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
+  challenging: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
 }
 
 const DIFFICULTY_ICONS: Record<string, string> = {
