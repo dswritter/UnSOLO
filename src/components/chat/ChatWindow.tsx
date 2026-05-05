@@ -484,6 +484,11 @@ export function ChatWindow({
   const [editTarget, setEditTarget] = useState<Message | null>(null)
   const [editDraft, setEditDraft] = useState('')
   const [editSaving, setEditSaving] = useState(false)
+  // Swipe-to-reply: when the user swipes left on a bubble, that message
+  // becomes the reply target. The active target is shown as a preview banner
+  // just above the input; on send we prepend a `> @user: "snippet"` quote
+  // so the reply context survives without a schema migration.
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null)
   const [pollByMessageId, setPollByMessageId] = useState<Record<string, ChatPollState>>(initialPollsByMessageId)
   const [pollDialogOpen, setPollDialogOpen] = useState(false)
   const [pollQuestion, setPollQuestion] = useState('')
@@ -998,9 +1003,24 @@ export function ChatWindow({
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim() || sending) return
-    const content = input.trim()
+    let content = input.trim()
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+
+    // Reply quote: when a reply target is set, prepend a one-line quote so
+    // the conversation context is preserved without a schema migration.
+    // Format: `> @username: "snippet up to 80 chars"`
+    if (replyTarget) {
+      const quotedAuthor = replyTarget.user?.username
+        ? `@${replyTarget.user.username}`
+        : 'reply'
+      const snippet =
+        replyTarget.content.length > 80
+          ? `${replyTarget.content.slice(0, 77)}…`
+          : replyTarget.content
+      content = `> ${quotedAuthor}: "${snippet.replace(/\n/g, ' ')}"\n\n${content}`
+      setReplyTarget(null)
+    }
 
     // Show message instantly (optimistic UI)
     addOptimisticMessage(content)
@@ -1258,7 +1278,9 @@ export function ChatWindow({
     if (m.user_id !== currentUser.id) return false
     if (m.message_type !== 'text') return false
     if (m.id.startsWith('optimistic-')) return false
-    return Date.now() - new Date(m.created_at).getTime() < 60 * 60 * 1000
+    // 2-hour edit window — long enough to fix typos and afterthoughts but
+    // short enough that conversations don't get rewritten retroactively.
+    return Date.now() - new Date(m.created_at).getTime() < 2 * 60 * 60 * 1000
   }
 
   function bubbleLongPressHandlers(message: Message) {
@@ -1304,7 +1326,40 @@ export function ChatWindow({
     }
   }
 
-  function onBubbleTouchEnd(messageId: string, e: React.TouchEvent) {
+  // Swipe-to-reply gesture state. Tracked at this level so the same handlers
+  // can run for every bubble without each one allocating its own listeners.
+  const swipeStartRef = useRef<{ id: string; x: number; y: number; t: number } | null>(null)
+
+  function onBubbleTouchStart(message: Message, e: React.TouchEvent) {
+    if (message.id.startsWith('optimistic-')) return
+    const t = e.touches[0]
+    swipeStartRef.current = { id: message.id, x: t.clientX, y: t.clientY, t: Date.now() }
+  }
+
+  function onBubbleTouchEnd(message: Message, e: React.TouchEvent) {
+    const messageId = message.id
+    // Swipe-to-reply: a horizontal flick of >50px and shorter than ~600ms,
+    // with vertical drift no greater than the horizontal drift, sets the
+    // bubble as the reply target. Direction-agnostic (works left or right).
+    const start = swipeStartRef.current
+    swipeStartRef.current = null
+    if (start && start.id === messageId) {
+      const t = e.changedTouches[0]
+      const dx = t.clientX - start.x
+      const dy = t.clientY - start.y
+      const dt = Date.now() - start.t
+      if (dt < 600 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        e.preventDefault()
+        setReplyTarget(message)
+        // Cancel any in-flight long-press so the swipe doesn't also open emoji.
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current)
+          longPressTimerRef.current = null
+        }
+        return
+      }
+    }
+
     if (messageId.startsWith('optimistic-')) return
     const now = Date.now()
     const last = lastTapRef.current
@@ -1713,7 +1768,8 @@ export function ChatWindow({
                 memberProfiles={memberProfiles}
                 onToggleReaction={emoji => { void toggleReaction(item.message.id, emoji) }}
                 bubbleLongPress={bubbleLongPressHandlers(item.message)}
-                onBubbleTouchEnd={e => onBubbleTouchEnd(item.message.id, e)}
+                onBubbleTouchStart={e => onBubbleTouchStart(item.message, e)}
+                onBubbleTouchEnd={e => onBubbleTouchEnd(item.message, e)}
                 onBubbleDoubleClick={() => {
                   if (
                     !item.message.id.startsWith('optimistic-') &&
@@ -2143,6 +2199,37 @@ export function ChatWindow({
         // the keyboard is closed, this is 0 — no visual change.
         style={{ marginBottom: visualViewportBottomInset || undefined }}
       >
+        {/* Reply-to preview — appears the moment the user swipes a bubble.
+            One-line snippet of the message they're replying to, with a tiny
+            X to cancel. The reply context gets prepended to the next sent
+            message as a `> @user: "..."` quote. */}
+        {replyTarget ? (
+          <div
+            className={cn(
+              'mb-1.5 flex items-start gap-2 rounded-lg border-l-2 px-2.5 py-1.5 text-xs',
+              tribeShell
+                ? 'border-primary/70 bg-white/[0.05]'
+                : 'border-primary bg-secondary/60',
+            )}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                Replying to {replyTarget.user?.username ? `@${replyTarget.user.username}` : 'message'}
+              </p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {replyTarget.content}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyTarget(null)}
+              className="shrink-0 rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label="Cancel reply"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : null}
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           {!isDM && (roomType === 'general' || roomType === 'trip') ? (
             <button
@@ -2278,6 +2365,7 @@ function MessageBubble({
   memberProfiles,
   onToggleReaction,
   bubbleLongPress,
+  onBubbleTouchStart,
   onBubbleTouchEnd,
   onBubbleDoubleClick,
   onShowReactors,
@@ -2312,6 +2400,7 @@ function MessageBubble({
     onPointerCancel: () => void
     onPointerLeave: () => void
   }
+  onBubbleTouchStart?: (e: React.TouchEvent) => void
   onBubbleTouchEnd: (e: React.TouchEvent) => void
   onBubbleDoubleClick: () => void
   onShowReactors: (emoji: string, userIds: string[]) => void
@@ -2531,7 +2620,8 @@ function MessageBubble({
                 : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
           }`}
           {...(canReact ? bubbleLongPress : {})}
-          onTouchEnd={canReact ? onBubbleTouchEnd : undefined}
+          onTouchStart={onBubbleTouchStart}
+          onTouchEnd={canReact ? onBubbleTouchEnd : onBubbleTouchEnd}
           onDoubleClick={canReact ? onBubbleDoubleClick : undefined}
         >
           {renderWithMentions(message.content, isOwn)}
@@ -2539,7 +2629,7 @@ function MessageBubble({
             <span
               className={`block text-[10px] mt-1 italic ${isOwn ? 'text-zinc-800/75' : 'text-muted-foreground'}`}
             >
-              Edited
+              edited
             </span>
           ) : null}
         </div>
