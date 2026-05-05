@@ -44,6 +44,7 @@ import type {
 } from '@/types'
 import { UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
 import { formatFileSize } from '@/lib/utils'
+import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 
 type Unit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
 
@@ -1298,6 +1299,20 @@ export function HostServiceListingTabs(props: Props) {
         open={createSubmitOverlayOpen}
         message="Submitting…"
         onCancel={cancelCreateSubmitOverlay}
+      />
+      {/* Photo upload overlay — same UX as the trip-create form: blocks
+          accidental Next/Back clicks, exposes a tiny X to cancel, and shows
+          a per-file progress preview. */}
+      <ImageUploadOverlay
+        open={uploadingLocalKey !== null}
+        message="Uploading photos…"
+        subMessage={uploadProgress.length > 0
+          ? `${uploadProgress.filter(p => p === 100).length} of ${uploadProgress.length} done`
+          : 'Please keep this tab open.'}
+        onCancel={() => {
+          setUploadingLocalKey(null)
+          setUploadProgress([])
+        }}
       />
     <div className="space-y-6">
       {/* Stepper */}
