@@ -352,7 +352,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             <div
               key={trip.id}
               className={cn(
-                'rounded-xl border p-4 backdrop-blur-sm transition-all duration-200 group',
+                'rounded-xl border p-4 backdrop-blur-sm transition-all duration-200 group min-w-0 overflow-hidden',
                 w
                   ? cn(
                       'bg-[color-mix(in_oklab,var(--card)_88%,transparent)]',
@@ -518,7 +518,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 md:shrink-0">
                   {trip.pending_requests > 0 && (
                     <button
                       onClick={() => setExpandedRequests(prev => {
