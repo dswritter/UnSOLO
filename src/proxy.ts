@@ -23,6 +23,7 @@ const PUBLIC_CONTENT = [
   '/community',
   '/tribe',
   '/chat',
+  '/status',
   '/bookings',
   '/notifications',
   '/referrals',

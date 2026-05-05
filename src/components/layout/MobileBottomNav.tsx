@@ -15,13 +15,13 @@ type NavItem = {
 export function MobileBottomNav({ isHost = false }: { isHost?: boolean }) {
   const pathname = usePathname()
 
-  // Chat routes (community / tribe / chat) render their own purpose-built
-  // bottom bar. Suppress the global one there so it doesn't overlap the
-  // typing input or shift the chat layout.
+  // Chat + status routes render their own purpose-built bars. Suppress the
+  // global one there so it doesn't overlap the typing input / status grid.
   const onChatRoute =
     pathname?.startsWith('/community') ||
     pathname?.startsWith('/tribe') ||
-    pathname?.startsWith('/chat')
+    pathname?.startsWith('/chat') ||
+    pathname?.startsWith('/status')
   if (onChatRoute) return null
 
   const items: NavItem[] = [
