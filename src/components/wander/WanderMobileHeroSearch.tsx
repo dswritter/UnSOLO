@@ -3,11 +3,19 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { CalendarDays, ChevronRight, Compass, CreditCard, Home, Instagram, Key, Loader2, MapPin, Plane, Search, Smile, Users } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronRight, Compass, CreditCard, Gift, Home, Instagram, Key, Loader2, LogOut, MapPin, Pencil, Plane, Search, Shield, Smile, User, Users } from 'lucide-react'
 import { NotificationBell } from '@/components/layout/NotificationBell'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { signOut } from '@/actions/auth'
 import type { WanderHeroCopy, WanderHeroMobileTabCopy, WanderStats } from '@/lib/wander/wanderQueries'
 import { cn, getInitials } from '@/lib/utils'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
@@ -86,6 +94,8 @@ export function WanderMobileHeroSearch({
     username: string
     full_name: string | null
     avatar_url: string | null
+    is_host?: boolean
+    role?: string | null
   } | null
   listedActivities: string[]
   wanderSearchBasePath?: '/'
@@ -230,14 +240,62 @@ export function WanderMobileHeroSearch({
             <div className="flex items-center gap-2">
               {userProfile ? <NotificationBell userId={userProfile.id} wanderNav /> : null}
               {userProfile ? (
-                <Link href={`/profile/${userProfile.username}`} className="shrink-0">
-                  <Avatar className="h-9 w-9 border-2 border-white/20">
-                    <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                      {getInitials(userProfile.full_name || userProfile.username)}
-                    </AvatarFallback>
-                  </Avatar>
-                </Link>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger className="shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/45 rounded-full">
+                    <Avatar className="h-9 w-9 border-2 border-white/20">
+                      <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                        {getInitials(userProfile.full_name || userProfile.username)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="z-[200] glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0 min-w-[15rem]">
+                    <div className="px-4 py-3">
+                      <p className="text-base font-semibold truncate">{userProfile.full_name || userProfile.username}</p>
+                      <p className="text-sm text-white/65">@{userProfile.username}</p>
+                    </div>
+                    <DropdownMenuSeparator className="bg-white/15" />
+                    <DropdownMenuItem
+                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                      onClick={() => router.push(`/profile/${userProfile.username}`)}
+                    >
+                      <User className="mr-3 h-4 w-4" /> My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                      onClick={() => router.push('/profile')}
+                    >
+                      <Pencil className="mr-3 h-4 w-4" /> Edit Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                      onClick={() => router.push('/bookings')}
+                    >
+                      <BookOpen className="mr-3 h-4 w-4" /> My Bookings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                      onClick={() => router.push('/referrals')}
+                    >
+                      <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
+                    </DropdownMenuItem>
+                    {userProfile.role && userProfile.role !== 'user' && (
+                      <DropdownMenuItem
+                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                        onClick={() => router.push('/admin')}
+                      >
+                        <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator className="bg-white/15" />
+                    <DropdownMenuItem
+                      className="py-2.5 text-sm text-destructive focus:bg-red-500/15 focus:text-red-300"
+                      onClick={() => signOut()}
+                    >
+                      <LogOut className="mr-3 h-4 w-4" /> Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Link
                   href={`/login?redirectTo=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`)}`}

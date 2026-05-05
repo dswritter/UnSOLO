@@ -57,15 +57,19 @@ export async function WanderLandingPage({
     username: string
     full_name: string | null
     avatar_url: string | null
+    is_host: boolean
+    role: string | null
   } | null = null
   if (user) {
-    const { data: p } = await supabase.from('profiles').select('avatar_url, username, full_name').eq('id', user.id).single()
+    const { data: p } = await supabase.from('profiles').select('avatar_url, username, full_name, is_host, role').eq('id', user.id).single()
     profileAvatar = p?.avatar_url ?? null
     mobileHeroUser = p ? {
       id: user.id,
       username: p.username,
       full_name: p.full_name ?? null,
       avatar_url: p.avatar_url ?? null,
+      is_host: !!p.is_host,
+      role: p.role ?? null,
     } : null
   }
 
