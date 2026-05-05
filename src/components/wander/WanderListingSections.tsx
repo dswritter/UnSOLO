@@ -82,7 +82,13 @@ export function WanderListingSections({
   stays,
   activities,
   rentals,
-  activeTab = 'trips',
+  activeTab = null,
+  /**
+   * Optional content rendered between the 2nd and 3rd category sections —
+   * used by the mobile landing to slot Traveler status between "Popular trips"
+   * + "Frequently booked rentals" and the rest.
+   */
+  interludeSlot,
 }: {
   trips: Package[]
   tripInterestCounts?: Record<string, number>
@@ -90,10 +96,16 @@ export function WanderListingSections({
   stays: ActivityWithItems[]
   activities: ActivityWithItems[]
   rentals: RentalWithItems[]
-  activeTab?: 'trips' | 'stays' | 'activities' | 'rentals'
+  activeTab?: 'trips' | 'stays' | 'activities' | 'rentals' | null
+  interludeSlot?: ReactNode
 }) {
-  const sectionOrder = (['trips', 'stays', 'activities', 'rentals'] as const)
-  const orderedTypes = [activeTab, ...sectionOrder.filter(type => type !== activeTab)]
+  // Default mobile order is trips → rentals → stays → activities so a fresh
+  // visitor sees the most discoverable rows first. Once a tab is picked we
+  // hoist that category to the top.
+  const sectionOrder = (['trips', 'rentals', 'stays', 'activities'] as const)
+  const orderedTypes = activeTab
+    ? [activeTab, ...sectionOrder.filter(type => type !== activeTab)]
+    : [...sectionOrder]
   const tripSupportCopy = activeTab === 'trips'
 
   const tripsHref = wanderSearchHref({ tab: 'trips' })
@@ -177,7 +189,15 @@ export function WanderListingSections({
 
   return (
     <div className="space-y-8 md:space-y-10">
-      {orderedTypes.map(type => sections[type])}
+      {orderedTypes.map((type, idx) => (
+        <div key={type} className="contents">
+          {sections[type]}
+          {/* Inject the interlude (e.g. Traveler status) once after the 2nd
+              section so the mobile landing reads: trips → rentals → status →
+              stays → activities. */}
+          {idx === 1 && interludeSlot ? <div key={`interlude-${idx}`}>{interludeSlot}</div> : null}
+        </div>
+      ))}
     </div>
   )
 }

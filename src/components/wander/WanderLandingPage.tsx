@@ -34,10 +34,12 @@ export async function WanderLandingPage({
   searchBasePath?: '/'
 }) {
   const sp = await searchParams
-  const activeTab =
+  // Allow null when no ?tab= is present in the URL — mobile landing shows
+  // the rows but no tab highlighted on first visit; clicking a pill picks one.
+  const activeTab: 'trips' | 'stays' | 'activities' | 'rentals' | null =
     sp.tab === 'stays' || sp.tab === 'activities' || sp.tab === 'rentals' || sp.tab === 'trips'
       ? sp.tab
-      : 'trips'
+      : null
   const isSearchMode = sp.search === '1'
 
   const [stats, rating, auth, listedActivities, heroImageUrl, trustBadgeText, heroCopy] = await Promise.all([
@@ -125,25 +127,8 @@ export async function WanderLandingPage({
             listedActivities={listedActivities}
             wanderSearchBasePath={searchBasePath}
           />
-          <div className="border-b border-border/50 px-4 py-4">
-            <div className="space-y-4">
-              <div className="wander-frost-panel">
-                {user ? (
-                  <WanderStatusRail avatarUrl={profileAvatar} />
-                ) : (
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-bold">Traveler status</h3>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      Sign in to see recent stories from people you follow — unread first.
-                    </p>
-                    <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
-                      Sign in
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* Traveler status was here; moved into the listing sections so the
+              mobile landing reads trips → rentals → status → stays → activities. */}
         </div>
       )}
 
@@ -216,6 +201,25 @@ export async function WanderLandingPage({
               stays={stays}
               activities={activities}
               rentals={rentals}
+              interludeSlot={
+                <div className="md:hidden">
+                  <div className="wander-frost-panel">
+                    {user ? (
+                      <WanderStatusRail avatarUrl={profileAvatar} />
+                    ) : (
+                      <div className="space-y-1">
+                        <h3 className="text-sm font-bold">Traveler status</h3>
+                        <p className="mb-3 text-sm text-muted-foreground">
+                          Sign in to see recent stories from people you follow — unread first.
+                        </p>
+                        <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
+                          Sign in
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              }
             />
           </div>
         </div>

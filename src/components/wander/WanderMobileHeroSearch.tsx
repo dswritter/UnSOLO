@@ -77,7 +77,7 @@ function maxIsoDate(a: string, b: string) {
 }
 
 export function WanderMobileHeroSearch({
-  initialTab = 'trips',
+  initialTab = null,
   heroImageUrl,
   heroCopy,
   stats,
@@ -85,7 +85,12 @@ export function WanderMobileHeroSearch({
   listedActivities,
   wanderSearchBasePath = '/',
 }: {
-  initialTab?: Tab
+  /**
+   * `null` = first landing, no category chosen yet — all tabs are visually
+   * inactive and the search card stays hidden until the user picks one. When
+   * the URL has `?tab=trips` etc. the corresponding tab opens highlighted.
+   */
+  initialTab?: Tab | null
   heroImageUrl: string
   heroCopy: WanderHeroCopy
   stats: Pick<WanderStats, 'destinations' | 'bookings' | 'happyPercent'>
@@ -104,7 +109,7 @@ export function WanderMobileHeroSearch({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isExplorePending, startExploreTransition] = useTransition()
-  const [tab, setTab] = useState<Tab>(initialTab)
+  const [tab, setTab] = useState<Tab | null>(initialTab)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const [today, setToday] = useState<string | null>(null)
@@ -149,6 +154,7 @@ export function WanderMobileHeroSearch({
   }, [pathname, router, searchParams])
 
   const buildExploreHref = useCallback((): string => {
+    if (!tab) return wanderSearchBasePath
     const params = new URLSearchParams()
     params.set('tab', tab)
 
@@ -205,7 +211,7 @@ export function WanderMobileHeroSearch({
     ]
   }, [actEnd, actStart, actType, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
 
-  const hero = resolveMobileHeroTab(heroCopy, tab)
+  const hero = resolveMobileHeroTab(heroCopy, tab ?? 'trips')
   const activityOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
   const instagramHref = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramUrl : heroCopy.instagramUrl
   const instagramLabel = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramLabel : heroCopy.instagramLabel
@@ -382,26 +388,31 @@ export function WanderMobileHeroSearch({
         </div>
       </div>
 
-      <div className="px-4 pt-4">
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          className="w-full rounded-[1.7rem] border border-white/12 bg-white/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
-                {MOBILE_CTA_COPY[tab]}
-              </p>
-              <p className="mt-1 truncate text-base font-bold text-white">{summaryLines[0]}</p>
-              <p className="mt-1 text-sm text-white/62">{summaryLines[1]}</p>
+      {/* Search card only renders once the user picks a category. On first
+          landing the rows below speak for themselves; the card appears the
+          moment a tab is tapped, populated with that category's prompt. */}
+      {tab ? (
+        <div className="px-4 pt-4">
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="w-full rounded-[1.7rem] border border-white/12 bg-white/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
+                  {MOBILE_CTA_COPY[tab]}
+                </p>
+                <p className="mt-1 truncate text-base font-bold text-white">{summaryLines[0]}</p>
+                <p className="mt-1 text-sm text-white/62">{summaryLines[1]}</p>
+              </div>
+              <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <ChevronRight className="h-4 w-4" />
+              </span>
             </div>
-            <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <ChevronRight className="h-4 w-4" />
-            </span>
-          </div>
-        </button>
-      </div>
+          </button>
+        </div>
+      ) : null}
 
       {sheetOpen ? (
         <div className="fixed inset-0 z-[70] bg-black/70">
@@ -415,7 +426,7 @@ export function WanderMobileHeroSearch({
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15" />
             <div className="mb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90" style={eyebrowStyle}>{hero.eyebrow}</p>
-              <h2 className="mt-1 text-lg font-black text-white">{MOBILE_CTA_COPY[tab]}</h2>
+              <h2 className="mt-1 text-lg font-black text-white">{tab ? MOBILE_CTA_COPY[tab] : ''}</h2>
             </div>
 
             <div className="max-h-[70vh] overflow-y-auto pr-1">
@@ -545,7 +556,7 @@ export function WanderMobileHeroSearch({
                   Searching…
                 </>
               ) : (
-                MOBILE_CTA_COPY[tab]
+                tab ? MOBILE_CTA_COPY[tab] : 'Explore'
               )}
             </Button>
           </div>

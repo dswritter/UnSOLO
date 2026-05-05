@@ -163,7 +163,11 @@ export function LeaderboardV2Client({
           className="pointer-events-none absolute inset-0 z-0 wander-theme wander-textured [color-scheme:dark]"
         />
         <div className="relative z-[1] mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 pb-10 pt-4 sm:px-6 lg:px-10">
-          <div className="shrink-0">
+          {/* Title block: desktop only. On mobile the page already has the
+              UNSOLO header above; the big "Travel Leaderboard" + tagline +
+              "Top travellers" caption + podium was three labels for the same
+              thing. The podium is self-explanatory. */}
+          <div className="hidden md:block shrink-0">
             <div className="flex items-start gap-3 lg:pt-1">
               <div
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#fcba03]/35 bg-[#fcba03]/10"
@@ -183,7 +187,7 @@ export function LeaderboardV2Client({
 
           {showPodium ? (
             <div className="shrink-0">
-              <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-white/45">
+              <p className="hidden md:block mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-white/45">
                 Top travellers
               </p>
               <div className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 sm:gap-5">
