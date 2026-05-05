@@ -17,8 +17,7 @@ import {
   getWanderHeroCopy,
 } from '@/lib/wander/wanderQueries'
 import { WanderHero } from '@/components/wander/WanderHero'
-import { WanderMobileHeroSearch } from '@/components/wander/WanderMobileHeroSearch'
-import { WanderMobileTabNav } from '@/components/wander/WanderMobileTabNav'
+import { WanderMobileHeroCoordinator } from '@/components/wander/WanderMobileHeroCoordinator'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
 import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
 import { WanderListingSections } from '@/components/wander/WanderListingSections'
@@ -119,22 +118,15 @@ export async function WanderLandingPage({
       </Suspense>
       {!isSearchMode && (
         <>
-          <div className="md:hidden">
-            <WanderMobileHeroSearch
-              initialTab={activeTab}
-              heroImageUrl={heroImageUrl}
-              heroCopy={heroCopy}
-              stats={stats}
-              userProfile={mobileHeroUser}
-              listedActivities={listedActivities}
-              wanderSearchBasePath={searchBasePath}
-            />
-          </div>
-          {/* Tab nav rendered here — sibling of the hero (not nested inside
-              it) so its sticky parent is the full-height page container.
-              That's the difference between "scrolls away after 60px" and
-              "actually sticks all the way down the page". */}
-          <WanderMobileTabNav />
+          <WanderMobileHeroCoordinator
+            initialTab={activeTab}
+            heroImageUrl={heroImageUrl}
+            heroCopy={heroCopy}
+            stats={stats}
+            userProfile={mobileHeroUser}
+            listedActivities={listedActivities}
+            wanderSearchBasePath={searchBasePath}
+          />
         </>
       )}
 
@@ -182,23 +174,6 @@ export async function WanderLandingPage({
         <div className="border-t border-border/50">
           <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
             <WanderRecentlyViewedStrip />
-            <div className="mb-6 grid gap-3 md:hidden">
-              <div className="rounded-2xl border border-white/14 bg-white/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>
-                <h3 className="mt-1 text-lg font-black text-white">Check deals and meet other travellers</h3>
-                <p className="mt-1 text-sm text-white/62">
-                  Save on bundles, or jump into communities while you shape the plan.
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <Link href="/offers" className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">
-                    View Offers
-                  </Link>
-                  <Link href="/community" className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/14 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">
-                    Meet Travellers
-                  </Link>
-                </div>
-              </div>
-            </div>
             <WanderListingSections
               activeTab={activeTab}
               trips={tripRow.packages}
@@ -227,6 +202,23 @@ export async function WanderLandingPage({
                 </div>
               }
             />
+            <div className="mt-6 grid gap-3 md:hidden">
+              <div className="rounded-2xl border border-white/14 bg-white/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>
+                <h3 className="mt-1 text-lg font-black text-white">Check deals and meet other travellers</h3>
+                <p className="mt-1 text-sm text-white/62">
+                  Save on bundles, or jump into communities while you shape the plan.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <Link href="/offers" className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">
+                    View Offers
+                  </Link>
+                  <Link href="/community" className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/14 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">
+                    Meet Travellers
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

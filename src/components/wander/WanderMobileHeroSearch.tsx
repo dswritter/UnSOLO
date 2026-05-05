@@ -84,6 +84,7 @@ export function WanderMobileHeroSearch({
   userProfile,
   listedActivities,
   wanderSearchBasePath = '/',
+  onCardState,
 }: {
   /**
    * `null` = first landing, no category chosen yet — all tabs are visually
@@ -104,6 +105,7 @@ export function WanderMobileHeroSearch({
   } | null
   listedActivities: string[]
   wanderSearchBasePath?: '/'
+  onCardState?: (state: { tab: Tab; summaryLines: [string, string]; openSheet: () => void } | null) => void
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -111,6 +113,7 @@ export function WanderMobileHeroSearch({
   const [isExplorePending, startExploreTransition] = useTransition()
   const [tab, setTab] = useState<Tab | null>(initialTab)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const openSheet = useCallback(() => setSheetOpen(true), [])
 
   const [today, setToday] = useState<string | null>(null)
   const [tripWhere, setTripWhere] = useState('')
@@ -139,6 +142,8 @@ export function WanderMobileHeroSearch({
     const urlTab = searchParams.get('tab')
     if (urlTab === 'trips' || urlTab === 'stays' || urlTab === 'activities' || urlTab === 'rentals') {
       setTab(urlTab)
+    } else {
+      setTab(null)
     }
   }, [searchParams])
 
@@ -210,6 +215,15 @@ export function WanderMobileHeroSearch({
       'Best for local transport and gear planning',
     ]
   }, [actEnd, actStart, actType, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
+
+  useEffect(() => {
+    if (!onCardState) return
+    if (tab) {
+      onCardState({ tab, summaryLines: summaryLines as [string, string], openSheet })
+    } else {
+      onCardState(null)
+    }
+  }, [tab, summaryLines, openSheet, onCardState])
 
   const hero = resolveMobileHeroTab(heroCopy, tab ?? 'trips')
   const activityOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
@@ -370,34 +384,6 @@ export function WanderMobileHeroSearch({
           </div>
         </div>
 
-        {/* Search card lives inside the <section> so the WanderMobileTabNav
-            (rendered as a sibling in WanderLandingPage, with sticky top-0
-            and -mt-7) always sits BELOW the hero + card in the DOM. When the
-            tab nav sticks, only the hero/card area scrolls under it — not the
-            other way round. pb-7 buffers the card so the tab nav's -mt-7
-            overlaps padding rather than card content. */}
-        {tab ? (
-          <div className="px-4 pt-4 pb-7">
-            <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            className="w-full rounded-[1.7rem] border border-white/12 bg-white/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
-                  {MOBILE_CTA_COPY[tab]}
-                </p>
-                <p className="mt-1 truncate text-base font-bold text-white">{summaryLines[0]}</p>
-                <p className="mt-1 text-sm text-white/62">{summaryLines[1]}</p>
-              </div>
-              <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <ChevronRight className="h-4 w-4" />
-              </span>
-            </div>
-          </button>
-        </div>
-        ) : null}
       </section>
 
       {sheetOpen ? (
