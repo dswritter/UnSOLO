@@ -54,7 +54,7 @@ export default async function MainLayout({
       {user && <PresenceTracker userId={user.id} />}
       {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
       {/* {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />} */}
-      <MobileBottomNav isHost={!!profile?.is_host} />
+      <MobileBottomNav isHost={!!profile?.is_host} userId={user?.id ?? null} />
       <Suspense fallback={null}>
         <SignInPrompt isAuthenticated={!!user} />
       </Suspense>
