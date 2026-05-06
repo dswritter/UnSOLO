@@ -16,6 +16,7 @@ import { signOut } from '@/actions/auth'
 import { getInitials, cn } from '@/lib/utils'
 import { useState, useEffect, useTransition, useCallback, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import type { Profile } from '@/types'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
@@ -27,6 +28,7 @@ interface NavbarProps {
 export function Navbar({ user }: NavbarProps) {
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
+  const mobileChatComposerActive = useMobileChatComposerActive()
   const router = useRouter()
   const pathname = usePathname()
   const [isTribeNavPending, startTribeNavTransition] = useTransition()
@@ -61,6 +63,10 @@ export function Navbar({ user }: NavbarProps) {
     pathname?.startsWith('/host') ||
     pathname?.startsWith('/community') ||
     pathname?.startsWith('/tribe')
+  const onMobileChatRoom =
+    Boolean(pathname?.startsWith('/community/')) ||
+    Boolean(pathname?.startsWith('/tribe/')) ||
+    Boolean(pathname?.startsWith('/chat/'))
 
   function navLinkActive(href: string): boolean {
     if (href === '/community') {
@@ -176,6 +182,7 @@ export function Navbar({ user }: NavbarProps) {
       className={cn(
         'sticky top-0 z-50 border-b',
         pathname === '/' && 'max-md:hidden',
+        onMobileChatRoom && mobileChatComposerActive && 'max-md:hidden',
         isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >

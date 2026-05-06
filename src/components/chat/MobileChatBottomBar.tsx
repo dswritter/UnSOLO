@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Home, Users } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import { getInitials } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { SidebarRoom } from '@/components/chat/ChatSidebar'
@@ -34,6 +35,7 @@ export function MobileChatBottomBar({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const mobileChatComposerActive = useMobileChatComposerActive()
   // Only render when the user is *inside* a room — on the list page the
   // sidebar/list IS the chat surface, so the bar would be redundant.
   const onRoomPage = pathname ? new RegExp(`^${basePath}/[^/]+`).test(pathname) : false
@@ -64,7 +66,7 @@ export function MobileChatBottomBar({
     }
   }, [onRoomPage])
 
-  if (!onRoomPage) return null
+  if (!onRoomPage || mobileChatComposerActive) return null
   // Take the freshest 12 rooms — anything further is one tap away in the full list.
   const sortedRooms = [...rooms]
     .sort((a, b) => {

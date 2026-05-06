@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { setMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRealtimeChat } from '@/hooks/useRealtimeChat'
@@ -367,6 +368,7 @@ export function ChatWindow({
   }, [messages])
 
   const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
+  const [isComposerFocused, setIsComposerFocused] = useState(false)
 
   useLayoutEffect(() => {
     const cached = queryClient.getQueryData<Message[]>(messagesKey)
@@ -1386,6 +1388,15 @@ export function ChatWindow({
   const isDM = roomType === 'direct'
   const dmPartner = isDM ? memberProfiles.find(m => m.id !== currentUser.id) : null
   const dmPartnerOnline = dmPartner ? isUserOnline(dmPartner.id) : false
+  const isMobileComposerOverlayActive =
+    isComposerFocused && visualViewportBottomInset > 120
+
+  useEffect(() => {
+    setMobileChatComposerActive(isMobileComposerOverlayActive)
+    return () => {
+      setMobileChatComposerActive(false)
+    }
+  }, [isMobileComposerOverlayActive])
 
   // Auto-resize textarea
   function autoResizeTextarea() {
@@ -1409,6 +1420,7 @@ export function ChatWindow({
       <div
         className={cn(
           'sticky top-0 z-20 px-4 py-3 flex items-center justify-between shrink-0',
+          isMobileComposerOverlayActive && 'max-md:hidden',
           tribeShell
             ? 'border-b border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-b border-border bg-background/95 backdrop-blur',
@@ -2256,11 +2268,13 @@ export function ChatWindow({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => {
+              setIsComposerFocused(true)
               if (typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches) return
               requestAnimationFrame(() => {
                 textareaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
               })
             }}
+            onBlur={() => setIsComposerFocused(false)}
             placeholder="Message"
             rows={1}
             className="bg-secondary border-border resize-none min-h-[36px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-sm py-2"
