@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2 } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2, Search, ChevronUp, ChevronDown, Bold, Italic, Strikethrough } from 'lucide-react'
 import { getInitials, timeAgo, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -249,6 +249,7 @@ function renderMessageContent(
   isOwn: boolean = false,
   chatLinkTargets: ChatLinkTarget[] = [],
   chatListPath: string = '/community',
+  searchQuery: string = '',
 ) {
   const lines = content.split('\n')
 
@@ -259,15 +260,84 @@ function renderMessageContent(
     ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/12 text-zinc-900 text-xs font-semibold hover:bg-black/18 transition-colors'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
-  const urlRegex = /(https?:\/\/[^\s<]+)/g
+  const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi
+  const normalizedSearch = searchQuery.trim().toLowerCase()
 
-  return lines.map((line, lineIdx) => {
+  function escapeRegex(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+  function normalizeHref(raw: string) {
+    return /^(https?:)?\/\//i.test(raw) ? raw : `https://${raw}`
+  }
+
+  function renderSearchHighlightedText(text: string, key: string) {
+    if (!normalizedSearch) {
+      return renderTextWithMentionsAndTags(text, key, isOwn, chatLinkTargets, chatListPath)
+    }
+    const regex = new RegExp(`(${escapeRegex(searchQuery.trim())})`, 'ig')
+    const parts = text.split(regex)
+    return (
+      <span key={key}>
+        {parts.map((part, idx) => {
+          if (!part) return null
+          if (part.toLowerCase() === normalizedSearch) {
+            return (
+              <mark
+                key={`${key}-m-${idx}`}
+                className={isOwn ? 'rounded bg-black/20 px-0.5 text-zinc-950' : 'rounded bg-primary/25 px-0.5 text-primary'}
+              >
+                {part}
+              </mark>
+            )
+          }
+          return renderTextWithMentionsAndTags(part, `${key}-${idx}`, isOwn, chatLinkTargets, chatListPath)
+        })}
+      </span>
+    )
+  }
+
+  function renderInlineMarkup(text: string, key: string) {
+    const tokens = text.split(/(<\/?[bis]>)/i)
+    const stack: Array<'b' | 'i' | 's'> = []
+    const nodes: React.ReactNode[] = []
+    let partIndex = 0
+
+    function wrapNode(node: React.ReactNode) {
+      return stack.reduceRight<React.ReactNode>((acc, tag, tagIdx) => {
+        if (tag === 'b') return <strong key={`${key}-b-${partIndex}-${tagIdx}`}>{acc}</strong>
+        if (tag === 'i') return <em key={`${key}-i-${partIndex}-${tagIdx}`}>{acc}</em>
+        return <s key={`${key}-s-${partIndex}-${tagIdx}`}>{acc}</s>
+      }, node)
+    }
+
+    for (const token of tokens) {
+      const lower = token.toLowerCase()
+      if (lower === '<b>' || lower === '<i>' || lower === '<s>') {
+        stack.push(lower[1] as 'b' | 'i' | 's')
+        continue
+      }
+      if (lower === '</b>' || lower === '</i>' || lower === '</s>') {
+        const target = lower[2] as 'b' | 'i' | 's'
+        const stackIndex = stack.lastIndexOf(target)
+        if (stackIndex >= 0) stack.splice(stackIndex, 1)
+        continue
+      }
+      if (!token) continue
+      nodes.push(wrapNode(renderSearchHighlightedText(token, `${key}-t-${partIndex}`)))
+      partIndex += 1
+    }
+
+    return <span key={key}>{nodes}</span>
+  }
+
+  function renderLine(line: string, lineKey: string) {
     const parts = line.split(urlRegex)
-
-    const lineContent = parts.map((part, partIdx) => {
-      const key = `${lineIdx}-${partIdx}`
-      if (/^https?:\/\//.test(part)) {
-        const pkgMatch = part.match(/\/packages\/([a-z0-9-]+)/)
+    return parts.map((part, partIdx) => {
+      const key = `${lineKey}-${partIdx}`
+      if (part && /^(?:https?:\/\/|www\.|(?:[a-z0-9-]+\.)+[a-z]{2,})/i.test(part)) {
+        const normalizedHref = normalizeHref(part)
+        const pkgMatch = normalizedHref.match(/\/packages\/([a-z0-9-]+)/i)
         if (pkgMatch) {
           return (
             <Link key={key} href={`/packages/${pkgMatch[1]}`} target="_blank" rel="noopener noreferrer" className={pkgBtnClass} onClick={e => e.stopPropagation()}>
@@ -277,22 +347,66 @@ function renderMessageContent(
           )
         }
         return (
-          <a key={key} href={part} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={e => e.stopPropagation()}>
-            {part.length > 60 ? part.slice(0, 57) + '...' : part}
+          <a key={key} href={normalizedHref} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={e => e.stopPropagation()}>
+            {part.length > 60 ? `${part.slice(0, 57)}...` : part}
           </a>
         )
       }
       if (!part) return null
-      return renderTextWithMentionsAndTags(part, key, isOwn, chatLinkTargets, chatListPath)
+      return renderInlineMarkup(part, key)
     })
+  }
 
-    return (
-      <span key={lineIdx}>
-        {lineContent}
-        {lineIdx < lines.length - 1 && <br />}
-      </span>
-    )
-  })
+  const blocks: React.ReactNode[] = []
+  let lineIdx = 0
+  while (lineIdx < lines.length) {
+    const bulletItems: string[] = []
+    const orderedItems: string[] = []
+
+    let probe = lineIdx
+    while (probe < lines.length && /^\s*[-*•]\s+/.test(lines[probe])) {
+      bulletItems.push(lines[probe].replace(/^\s*[-*•]\s+/, ''))
+      probe += 1
+    }
+    if (bulletItems.length > 0) {
+      blocks.push(
+        <ul key={`ul-${lineIdx}`} className="ml-5 list-disc space-y-1">
+          {bulletItems.map((item, itemIdx) => (
+            <li key={`ul-${lineIdx}-${itemIdx}`}>{renderLine(item, `ul-${lineIdx}-${itemIdx}`)}</li>
+          ))}
+        </ul>,
+      )
+      lineIdx = probe
+      continue
+    }
+
+    probe = lineIdx
+    while (probe < lines.length && /^\s*\d+\.\s+/.test(lines[probe])) {
+      orderedItems.push(lines[probe].replace(/^\s*\d+\.\s+/, ''))
+      probe += 1
+    }
+    if (orderedItems.length > 0) {
+      blocks.push(
+        <ol key={`ol-${lineIdx}`} className="ml-5 list-decimal space-y-1">
+          {orderedItems.map((item, itemIdx) => (
+            <li key={`ol-${lineIdx}-${itemIdx}`}>{renderLine(item, `ol-${lineIdx}-${itemIdx}`)}</li>
+          ))}
+        </ol>,
+      )
+      lineIdx = probe
+      continue
+    }
+
+    blocks.push(<span key={`line-${lineIdx}`}>{renderLine(lines[lineIdx], `line-${lineIdx}`)}</span>)
+    lineIdx += 1
+  }
+
+  return blocks.map((block, blockIdx) => (
+    <span key={`block-${blockIdx}`}>
+      {block}
+      {blockIdx < blocks.length - 1 && <br />}
+    </span>
+  ))
 }
 
 export function ChatWindow({
@@ -446,6 +560,7 @@ export function ChatWindow({
   }, [])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [showJumpButton, setShowJumpButton] = useState(false)
   /** Per-room: first paint scrolls to bottom; then "New messages" only when others post while scrolled up. */
@@ -458,6 +573,10 @@ export function ChatWindow({
     currentUser,
   )
   const [input, setInput] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0)
+  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number } | null>(null)
   const [sending, setSending] = useState(false)
   const [profilePopup, setProfilePopup] = useState<string | null>(null)
   const [showMembers, setShowMembers] = useState(false)
@@ -478,6 +597,15 @@ export function ChatWindow({
   // Chat menu state
   const [showMenu, setShowMenu] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+  const messageSearchMatches = useMemo(() => {
+    if (!normalizedSearchQuery) return []
+    return [...messages]
+      .reverse()
+      .filter(m => m.message_type !== 'system' && m.content.toLowerCase().includes(normalizedSearchQuery))
+      .map(m => m.id)
+  }, [messages, normalizedSearchQuery])
+  const currentSearchMatchId = messageSearchMatches[activeSearchIndex] ?? null
 
   // @mention state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
@@ -1101,8 +1229,13 @@ export function ChatWindow({
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const val = e.target.value
+    let val = e.target.value
     const pos = e.target.selectionStart || 0
+    const lineStart = val.lastIndexOf('\n', Math.max(0, pos - 1)) + 1
+    const currentLine = val.slice(lineStart, pos)
+    if (currentLine === '- ' || currentLine === '* ') {
+      val = `${val.slice(0, lineStart)}• ${val.slice(pos)}`
+    }
     setInput(val)
     setCursorPos(pos)
     autoResizeTextarea()
@@ -1151,6 +1284,33 @@ export function ChatWindow({
         typingThrottleRef.current = null
       }, 2000)
     }
+  }
+
+  function applyComposerFormat(tag: 'b' | 'i' | 's') {
+    const ta = textareaRef.current
+    if (!ta) return
+    const start = ta.selectionStart ?? 0
+    const end = ta.selectionEnd ?? 0
+    if (start === end) return
+    const selected = input.slice(start, end)
+    const open = `<${tag}>`
+    const close = `</${tag}>`
+    const next = `${input.slice(0, start)}${open}${selected}${close}${input.slice(end)}`
+    setInput(next)
+    setSelectionRange(null)
+    requestAnimationFrame(() => {
+      ta.focus()
+      const selectionStart = start + open.length
+      ta.setSelectionRange(selectionStart, selectionStart + selected.length)
+    })
+  }
+
+  function updateSelectionState() {
+    const ta = textareaRef.current
+    if (!ta) return
+    const start = ta.selectionStart ?? 0
+    const end = ta.selectionEnd ?? 0
+    setSelectionRange(start === end ? null : { start, end })
   }
 
   function insertMention(username: string) {
@@ -1408,6 +1568,21 @@ export function ChatWindow({
     }
   }, [isMobileComposerOverlayActive])
 
+  useEffect(() => {
+    setActiveSearchIndex(0)
+  }, [normalizedSearchQuery])
+
+  useEffect(() => {
+    if (!currentSearchMatchId) return
+    const node = document.getElementById(`chat-msg-${currentSearchMatchId}`)
+    node?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [currentSearchMatchId])
+
+  useEffect(() => {
+    if (!isSearchOpen) return
+    searchInputRef.current?.focus()
+  }, [isSearchOpen])
+
   // Auto-resize textarea
   function autoResizeTextarea() {
     const ta = textareaRef.current
@@ -1495,55 +1670,109 @@ export function ChatWindow({
           </div>
         </div>
 
-        {/* Chat menu — Leave / Mute (for group and trip chats) */}
-        {!isDM && (
-          <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-            {showMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
-                  <button
-                    onClick={() => { setIsMuted(!isMuted); setShowMenu(false); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted') }}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors"
-                  >
-                    {isMuted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                    {isMuted ? 'Unmute' : 'Mute'}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setShowMenu(false)
-                      const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
-                      if (!confirmed) return
-                      const sb = (await import('@/lib/supabase/client')).createClient()
-                      // Post system message that user left
-                      await sb.from('messages').insert({
-                        room_id: roomId,
-                        user_id: null,
-                        content: `${currentUser.full_name || currentUser.username} (@${currentUser.username}) left the chat`,
-                        message_type: 'system',
-                      })
-                      await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
-                      toast.success('Left the chat room')
-                      // Navigate back to community
-                      window.location.href = chatListPath
-                    }}
-                    className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Leave Chat
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (isSearchOpen) {
+                setIsSearchOpen(false)
+                setSearchQuery('')
+                setActiveSearchIndex(0)
+                return
+              }
+              setIsSearchOpen(true)
+            }}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            aria-label="Search messages"
+          >
+            <Search className="h-4 w-4" />
+          </button>
+          {!isDM && (
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
+                    <button
+                      onClick={() => { setIsMuted(!isMuted); setShowMenu(false); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted') }}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors"
+                    >
+                      {isMuted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                      {isMuted ? 'Unmute' : 'Mute'}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setShowMenu(false)
+                        const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
+                        if (!confirmed) return
+                        const sb = (await import('@/lib/supabase/client')).createClient()
+                        await sb.from('messages').insert({
+                          room_id: roomId,
+                          user_id: null,
+                          content: `${currentUser.full_name || currentUser.username} (@${currentUser.username}) left the chat`,
+                          message_type: 'system',
+                        })
+                        await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
+                        toast.success('Left the chat room')
+                        window.location.href = chatListPath
+                      }}
+                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Leave Chat
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+      {isSearchOpen ? (
+        <div
+          className={cn(
+            'shrink-0 border-b px-3 py-2 flex items-center gap-2',
+            tribeShell
+              ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_90%,transparent)]'
+              : 'border-border bg-background/95',
+          )}
+        >
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search in chat"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            {messageSearchMatches.length ? `${activeSearchIndex + 1}/${messageSearchMatches.length}` : '0/0'}
+          </span>
+          <button
+            type="button"
+            disabled={messageSearchMatches.length === 0}
+            onClick={() => setActiveSearchIndex(i => (i - 1 + messageSearchMatches.length) % messageSearchMatches.length)}
+            className="rounded-lg border border-border p-2 text-muted-foreground disabled:opacity-40"
+            aria-label="Previous result"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            disabled={messageSearchMatches.length === 0}
+            onClick={() => setActiveSearchIndex(i => (i + 1) % messageSearchMatches.length)}
+            className="rounded-lg border border-border p-2 text-muted-foreground disabled:opacity-40"
+            aria-label="Next result"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
 
       {!isDM && displayPinnedMessage && (
         <PinnedMessageBanner
@@ -1746,7 +1975,14 @@ export function ChatWindow({
             item.kind === 'divider' ? (
               <ChatDateDivider key={item.key} label={item.label} />
             ) : (
-            <div key={item.key} id={`chat-msg-${item.message.id}`} className="scroll-mt-8">
+            <div
+              key={item.key}
+              id={`chat-msg-${item.message.id}`}
+              className={cn(
+                'scroll-mt-8 rounded-2xl transition-shadow',
+                currentSearchMatchId === item.message.id && 'ring-2 ring-primary/65 ring-offset-2 ring-offset-transparent',
+              )}
+            >
               <MessageBubble
                 message={item.message}
                 roomId={roomId}
@@ -1780,6 +2016,7 @@ export function ChatWindow({
                 isDM={isDM}
                 readByReaders={!isDM && item.message.user_id === currentUser.id ? latestReadReadersByMessageId.get(item.message.id) : undefined}
                 chatLinkTargets={chatLinkTargets}
+                searchQuery={searchQuery}
                 reactionRows={reactionsByMessage.get(item.message.id)}
                 currentUserId={currentUser.id}
                 memberProfiles={memberProfiles}
@@ -2243,6 +2480,34 @@ export function ChatWindow({
             </button>
           </div>
         ) : null}
+        {selectionRange ? (
+          <div className="mb-1.5 flex items-center justify-end gap-1">
+            <button
+              type="button"
+              onClick={() => applyComposerFormat('b')}
+              className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
+              aria-label="Bold"
+            >
+              <Bold className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyComposerFormat('i')}
+              className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
+              aria-label="Italic"
+            >
+              <Italic className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => applyComposerFormat('s')}
+              className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
+              aria-label="Strikethrough"
+            >
+              <Strikethrough className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : null}
         <form onSubmit={handleSend} className="flex gap-2 items-end">
           {!isDM && (roomType === 'general' || roomType === 'trip') ? (
             <button
@@ -2283,7 +2548,12 @@ export function ChatWindow({
                 textareaRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
               })
             }}
-            onBlur={() => setIsComposerFocused(false)}
+            onBlur={() => {
+              setIsComposerFocused(false)
+              setSelectionRange(null)
+            }}
+            onSelect={updateSelectionState}
+            onContextMenu={() => requestAnimationFrame(updateSelectionState)}
             placeholder="Message"
             rows={1}
             className="bg-secondary border-border resize-none min-h-[36px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-sm py-2"
@@ -2375,6 +2645,7 @@ function MessageBubble({
   isDM,
   readByReaders,
   chatLinkTargets = [],
+  searchQuery = '',
   reactionRows,
   currentUserId,
   memberProfiles,
@@ -2405,6 +2676,7 @@ function MessageBubble({
   isDM?: boolean
   readByReaders?: ChatMemberProfile[]
   chatLinkTargets?: ChatLinkTarget[]
+  searchQuery?: string
   reactionRows?: ReactionRowLite[]
   currentUserId: string
   memberProfiles: ChatMemberProfile[]
@@ -2582,7 +2854,7 @@ function MessageBubble({
   }
 
   function renderWithMentions(content: string, ownMsg: boolean) {
-    return renderMessageContent(content, ownMsg, chatLinkTargets, chatListPath)
+    return renderMessageContent(content, ownMsg, chatLinkTargets, chatListPath, searchQuery)
   }
 
   return (
