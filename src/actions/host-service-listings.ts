@@ -124,18 +124,18 @@ async function userCanEditServiceListing(
   supabase: Awaited<ReturnType<typeof createClient>>,
   listingId: string,
   userId: string,
-): Promise<{ allowed: boolean; isPrimary: boolean } | null> {
+): Promise<{ allowed: boolean; isPrimary: boolean; isAdmin: boolean } | null> {
   const { data: listing } = await supabase
     .from('service_listings')
     .select('host_id')
     .eq('id', listingId)
     .single()
   if (!listing) return null
-  if (listing.host_id === userId) return { allowed: true, isPrimary: true }
+  if (listing.host_id === userId) return { allowed: true, isPrimary: true, isAdmin: false }
 
   // Admin can edit any listing — surfaced from the admin panel.
   const { data: prof } = await supabase.from('profiles').select('role').eq('id', userId).maybeSingle()
-  if (prof?.role === 'admin') return { allowed: true, isPrimary: false }
+  if (prof?.role === 'admin') return { allowed: true, isPrimary: false, isAdmin: true }
 
   const { data: collab } = await supabase
     .from('service_listing_collaborators')
@@ -144,7 +144,7 @@ async function userCanEditServiceListing(
     .eq('user_id', userId)
     .eq('status', 'accepted')
     .maybeSingle()
-  return { allowed: !!collab, isPrimary: false }
+  return { allowed: !!collab, isPrimary: false, isAdmin: false }
 }
 
 export type HostServiceItemDraft = {
@@ -490,7 +490,7 @@ export async function updateHostServiceListing(
     // changed. Tags / amenities / address-text edits stay live so travelers
     // can keep booking while the host polishes details.
     const substantiveChange = Object.keys(update).some(k => !HOST_SERVICE_OPERATIONAL_FIELDS.has(k))
-    const wasApproved = existing.status === 'approved' && substantiveChange
+    const wasApproved = existing.status === 'approved' && substantiveChange && !access.isAdmin
     if (wasApproved) {
       update.status = 'pending'
     }

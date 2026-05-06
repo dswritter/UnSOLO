@@ -17,7 +17,10 @@ async function requireHostOfItem(itemId: string) {
 
   if (!item) return { error: 'Item not found' as const }
   // @ts-expect-error supabase join shape
-  if (item.service_listings?.host_id !== user.id) return { error: 'Unauthorized' as const }
+  if (item.service_listings?.host_id !== user.id) {
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' as const }
+  }
 
   return { supabase, user, item }
 }
@@ -32,7 +35,10 @@ export async function listItemUnavailabilityByListing(listingId: string) {
     .eq('id', listingId)
     .single()
   if (!listing) return { error: 'Listing not found' as const }
-  if (listing.host_id !== user.id) return { error: 'Unauthorized' as const }
+  if (listing.host_id !== user.id) {
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' as const }
+  }
 
   const { data, error } = await supabase
     .from('service_listing_item_unavailability')
@@ -96,7 +102,8 @@ export async function removeItemUnavailability(entryId: string) {
   if (!existing) return { error: 'Availability entry not found' }
   // @ts-expect-error supabase join shape
   if (existing.service_listing_items?.service_listings?.host_id !== user.id) {
-    return { error: 'Unauthorized' }
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' }
   }
 
   const { error } = await supabase

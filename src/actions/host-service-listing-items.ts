@@ -330,7 +330,8 @@ export async function deleteServiceListingItem(itemId: string) {
   if (!existing) return { error: 'Item not found' }
   // @ts-expect-error supabase join shape
   if (existing.service_listings?.host_id !== user.id) {
-    return { error: 'Unauthorized' }
+    const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    if (prof?.role !== 'admin') return { error: 'Unauthorized' }
   }
 
   const listingId = (existing as { service_listing_id: string }).service_listing_id

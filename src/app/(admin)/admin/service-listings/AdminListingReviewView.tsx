@@ -176,6 +176,12 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
 
         {/* Action buttons */}
         <div className="flex gap-2 flex-shrink-0">
+          <Link
+            href={`/host/service-listings/${listing.id}/edit`}
+            className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-100"
+          >
+            Edit details
+          </Link>
           <a
             href={previewUrl}
             target="_blank"
@@ -433,6 +439,12 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
           ← Back to listings
         </Link>
         <div className="flex gap-2">
+          <Link
+            href={`/host/service-listings/${listing.id}/edit`}
+            className="flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+          >
+            Edit details
+          </Link>
           <a
             href={previewUrl}
             target="_blank"
