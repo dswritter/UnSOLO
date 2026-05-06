@@ -1388,8 +1388,7 @@ export function ChatWindow({
   const isDM = roomType === 'direct'
   const dmPartner = isDM ? memberProfiles.find(m => m.id !== currentUser.id) : null
   const dmPartnerOnline = dmPartner ? isUserOnline(dmPartner.id) : false
-  const isMobileComposerOverlayActive =
-    isComposerFocused && visualViewportBottomInset > 120
+  const isMobileComposerOverlayActive = isComposerFocused
 
   useEffect(() => {
     setMobileChatComposerActive(isMobileComposerOverlayActive)
@@ -1420,7 +1419,6 @@ export function ChatWindow({
       <div
         className={cn(
           'sticky top-0 z-20 px-4 py-3 flex items-center justify-between shrink-0',
-          isMobileComposerOverlayActive && 'max-md:hidden',
           tribeShell
             ? 'border-b border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-b border-border bg-background/95 backdrop-blur',

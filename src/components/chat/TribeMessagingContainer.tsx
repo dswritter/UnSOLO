@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 
@@ -17,6 +18,7 @@ export function TribeMessagingContainer({
   className?: string
 }) {
   const pathname = usePathname()
+  const mobileChatComposerActive = useMobileChatComposerActive()
   const isRoomPage = /^\/(tribe|community)\/[^/]+/.test(pathname || '')
 
   return (
@@ -24,7 +26,9 @@ export function TribeMessagingContainer({
       className={cn(
         'tribe-messaging-ui flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full',
         isRoomPage
-          ? 'h-[calc(100dvh-4rem-4.5rem)] md:h-[calc(100dvh-4rem)]'
+          ? mobileChatComposerActive
+            ? 'h-[calc(100dvh-4rem)]'
+            : 'h-[calc(100dvh-4rem-4.5rem)] md:h-[calc(100dvh-4rem)]'
           : 'h-[calc(100dvh-4rem)]',
         className,
       )}
