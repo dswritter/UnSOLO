@@ -235,12 +235,14 @@ function hostTripFieldChanged(prev: unknown, next: unknown): boolean {
 export async function updateHostedTrip(tripId: string, updates: Record<string, unknown>) {
   const { supabase, user, isAdmin } = await requireHostOrAdmin()
 
-  const { data: current } = await supabase
+  const currentQuery = supabase
     .from('packages')
     .select('*')
     .eq('id', tripId)
-    .eq('host_id', user.id)
-    .single()
+
+  const { data: current } = isAdmin
+    ? await currentQuery.single()
+    : await currentQuery.eq('host_id', user.id).single()
 
   if (!current) return { error: 'Trip not found' }
 
@@ -284,11 +286,14 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
     payload.moderation_status = 'pending'
   }
 
-  const { error } = await supabase
+  const updateQuery = supabase
     .from('packages')
     .update(payload)
     .eq('id', tripId)
-    .eq('host_id', user.id)
+
+  const { error } = isAdmin
+    ? await updateQuery
+    : await updateQuery.eq('host_id', user.id)
 
   if (error) return { error: error.message }
 
