@@ -33,7 +33,7 @@ export function TribeMessagingContainer({
         isRoomPage
           ? mobileChatComposerActive
             ? 'max-md:h-[var(--mobile-visual-viewport-height)] md:h-[calc(100dvh-4rem)]'
-            : 'h-[calc(100dvh-4rem-4.5rem)] md:h-[calc(100dvh-4rem)]'
+            : 'max-md:h-[calc(100dvh-4.5rem)] md:h-[calc(100dvh-4rem)]'
           : 'h-[calc(100dvh-4rem)]',
         className,
       )}

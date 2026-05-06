@@ -182,7 +182,7 @@ export function Navbar({ user }: NavbarProps) {
       className={cn(
         'sticky top-0 z-50 border-b',
         pathname === '/' && 'max-md:hidden',
-        onMobileChatRoom && mobileChatComposerActive && 'max-md:hidden',
+        onMobileChatRoom && 'max-md:hidden',
         isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >
