@@ -213,10 +213,6 @@ export function HostTripForm({
         router.push('/login')
         return
       }
-      if (!hostStatus.isHost) {
-        router.push('/host/verify')
-        return
-      }
 
       const [dests, includes] = await Promise.all([
         getDestinationsPublic(),
@@ -228,6 +224,18 @@ export function HostTripForm({
       // Fetch admin-managed max group size
       const { createClient: cc } = await import('@/lib/supabase/client')
       const sb = cc()
+      if (!hostStatus.isHost) {
+        const { data: authUser } = await sb.auth.getUser()
+        const userId = authUser.user?.id
+        const { data: profileRow } = userId
+          ? await sb.from('profiles').select('role').eq('id', userId).single()
+          : { data: null }
+        const isAdmin = profileRow?.role === 'admin'
+        if (!isAdmin || !editTripId) {
+          router.push('/host/verify')
+          return
+        }
+      }
       const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
       if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 50)
       const { data: feeSetting } = await sb.from('platform_settings').select('value').eq('key', 'platform_fee_percent').single()
@@ -300,6 +308,19 @@ export function HostTripForm({
           }
         }
       } else {
+        if (!hostStatus.isHost) {
+          const { data: currentUser } = await sb.auth.getUser()
+          const userId = currentUser.user?.id
+          if (!userId) {
+            router.push('/host/verify')
+            return
+          }
+          const { data: profileRow } = await sb.from('profiles').select('role, is_host').eq('id', userId).single()
+          if (profileRow?.role !== 'admin') {
+            router.push('/host/verify')
+            return
+          }
+        }
         draftSaveNotifiedRef.current = false
         const resuming = resumeDraftId ? getHostTripDraftById(resumeDraftId) : null
         const newId =

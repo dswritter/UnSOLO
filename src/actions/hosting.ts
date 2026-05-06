@@ -102,6 +102,18 @@ async function requireHost() {
   return { supabase, user }
 }
 
+async function requireHostOrAdmin() {
+  const { supabase, user } = await getActionAuth()
+  if (!user) throw new Error('Not authenticated')
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_host, role')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.is_host && profile?.role !== 'admin') throw new Error('Host verification required')
+  return { supabase, user, isAdmin: profile?.role === 'admin' }
+}
+
 function generateSlug(title: string): string {
   return title
     .toLowerCase()
@@ -221,7 +233,7 @@ function hostTripFieldChanged(prev: unknown, next: unknown): boolean {
 }
 
 export async function updateHostedTrip(tripId: string, updates: Record<string, unknown>) {
-  const { supabase, user } = await requireHost()
+  const { supabase, user, isAdmin } = await requireHostOrAdmin()
 
   const { data: current } = await supabase
     .from('packages')
@@ -266,7 +278,7 @@ export async function updateHostedTrip(tripId: string, updates: Record<string, u
   }
 
   const wasApproved = current.moderation_status === 'approved'
-  const needsModerationReset = wasApproved && substantiveChange
+  const needsModerationReset = wasApproved && substantiveChange && !isAdmin
 
   if (needsModerationReset) {
     payload.moderation_status = 'pending'
@@ -895,14 +907,16 @@ export async function getIncludesOptionsPublic() {
 }
 
 export async function getHostTripDetail(tripId: string) {
-  const { supabase, user } = await requireHost()
+  const { supabase, user, isAdmin } = await requireHostOrAdmin()
 
-  const { data: trip } = await supabase
+  const baseQuery = supabase
     .from('packages')
     .select('*, destination:destinations(name, state)')
     .eq('id', tripId)
-    .eq('host_id', user.id)
-    .single()
+
+  const { data: trip } = isAdmin
+    ? await baseQuery.single()
+    : await baseQuery.eq('host_id', user.id).single()
 
   if (!trip) return null
   return trip

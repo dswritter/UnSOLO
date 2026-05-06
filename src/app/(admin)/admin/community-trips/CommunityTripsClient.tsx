@@ -575,6 +575,11 @@ export default function CommunityTripsClient({
                   )}
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/host/${trip.id}/edit`}>
+                      <Button variant="outline" size="sm" className="text-xs border-border">
+                        <Settings className="h-3 w-3 mr-1" /> Edit Trip
+                      </Button>
+                    </Link>
                     <Link href={`/packages/${trip.slug}`} target="_blank">
                       <Button variant="outline" size="sm" className="text-xs border-border">
                         <Eye className="h-3 w-3 mr-1" /> Preview
@@ -601,7 +606,7 @@ export default function CommunityTripsClient({
                   </div>
 
                   {/* Moderation actions */}
-                  {trip.moderation_status === 'pending' && (
+                    {trip.moderation_status === 'pending' && (
                     <div className="border-t border-border pt-3 space-y-2">
                       <div className="flex gap-2">
                         <Button
