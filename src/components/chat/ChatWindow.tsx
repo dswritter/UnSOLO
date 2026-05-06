@@ -370,6 +370,7 @@ export function ChatWindow({
   const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
   const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false)
   const [isComposerFocused, setIsComposerFocused] = useState(false)
+  const baselineViewportHeightRef = useRef(0)
 
   useLayoutEffect(() => {
     const cached = queryClient.getQueryData<Message[]>(messagesKey)
@@ -421,9 +422,15 @@ export function ChatWindow({
     if (!vv) return
 
     const sync = () => {
-      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      const measuredHeight = Math.round(vv.height + vv.offsetTop)
+      const baselineHeight = baselineViewportHeightRef.current
+      if (!baselineHeight || measuredHeight > baselineHeight) {
+        baselineViewportHeightRef.current = measuredHeight
+      }
+      const viewportGap = Math.max(0, baselineViewportHeightRef.current - measuredHeight)
+      const inset = Math.max(0, Math.round(viewportGap))
       setVisualViewportBottomInset(inset)
-      setIsMobileKeyboardOpen(inset > 0 || vv.height < window.innerHeight - 80)
+      setIsMobileKeyboardOpen(viewportGap > 120)
       document.documentElement.style.setProperty('--mobile-visual-viewport-height', `${Math.round(vv.height)}px`)
     }
 
