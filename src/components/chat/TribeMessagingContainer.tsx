@@ -20,14 +20,19 @@ export function TribeMessagingContainer({
   const pathname = usePathname()
   const mobileChatComposerActive = useMobileChatComposerActive()
   const isRoomPage = /^\/(tribe|community)\/[^/]+/.test(pathname || '')
+  const composerViewportStyle =
+    isRoomPage && mobileChatComposerActive
+      ? { height: 'var(--mobile-visual-viewport-height, 100dvh)' }
+      : undefined
 
   return (
     <div
+      style={composerViewportStyle}
       className={cn(
         'tribe-messaging-ui flex flex-1 min-h-0 min-w-0 text-foreground relative px-2 sm:px-4 py-2 md:py-3 gap-3 md:gap-4 max-w-[1920px] mx-auto w-full',
         isRoomPage
           ? mobileChatComposerActive
-            ? 'h-[calc(100dvh-4rem)]'
+            ? 'max-md:h-[var(--mobile-visual-viewport-height)] md:h-[calc(100dvh-4rem)]'
             : 'h-[calc(100dvh-4rem-4.5rem)] md:h-[calc(100dvh-4rem)]'
           : 'h-[calc(100dvh-4rem)]',
         className,

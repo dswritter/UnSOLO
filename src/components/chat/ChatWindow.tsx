@@ -422,6 +422,7 @@ export function ChatWindow({
     const sync = () => {
       const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
       setVisualViewportBottomInset(inset)
+      document.documentElement.style.setProperty('--mobile-visual-viewport-height', `${Math.round(vv.height)}px`)
     }
 
     vv.addEventListener('resize', sync)
@@ -431,6 +432,7 @@ export function ChatWindow({
     return () => {
       vv.removeEventListener('resize', sync)
       vv.removeEventListener('scroll', sync)
+      document.documentElement.style.removeProperty('--mobile-visual-viewport-height')
     }
   }, [])
 
