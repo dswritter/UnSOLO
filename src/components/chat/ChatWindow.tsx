@@ -368,6 +368,7 @@ export function ChatWindow({
   }, [messages])
 
   const [visualViewportBottomInset, setVisualViewportBottomInset] = useState(0)
+  const [isMobileKeyboardOpen, setIsMobileKeyboardOpen] = useState(false)
   const [isComposerFocused, setIsComposerFocused] = useState(false)
 
   useLayoutEffect(() => {
@@ -422,6 +423,7 @@ export function ChatWindow({
     const sync = () => {
       const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
       setVisualViewportBottomInset(inset)
+      setIsMobileKeyboardOpen(inset > 0 || vv.height < window.innerHeight - 80)
       document.documentElement.style.setProperty('--mobile-visual-viewport-height', `${Math.round(vv.height)}px`)
     }
 
@@ -1390,7 +1392,7 @@ export function ChatWindow({
   const isDM = roomType === 'direct'
   const dmPartner = isDM ? memberProfiles.find(m => m.id !== currentUser.id) : null
   const dmPartnerOnline = dmPartner ? isUserOnline(dmPartner.id) : false
-  const isMobileComposerOverlayActive = isComposerFocused
+  const isMobileComposerOverlayActive = isComposerFocused && isMobileKeyboardOpen
 
   useEffect(() => {
     setMobileChatComposerActive(isMobileComposerOverlayActive)
