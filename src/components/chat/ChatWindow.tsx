@@ -298,37 +298,37 @@ function renderMessageContent(
   }
 
   function renderInlineMarkup(text: string, key: string) {
-    const tokens = text.split(/(<\/?[bis]>)/i)
-    const stack: Array<'b' | 'i' | 's'> = []
-    const nodes: React.ReactNode[] = []
-    let partIndex = 0
-
-    function wrapNode(node: React.ReactNode) {
-      return stack.reduceRight<React.ReactNode>((acc, tag, tagIdx) => {
-        if (tag === 'b') return <strong key={`${key}-b-${partIndex}-${tagIdx}`}>{acc}</strong>
-        if (tag === 'i') return <em key={`${key}-i-${partIndex}-${tagIdx}`}>{acc}</em>
-        return <s key={`${key}-s-${partIndex}-${tagIdx}`}>{acc}</s>
-      }, node)
-    }
-
-    for (const token of tokens) {
-      const lower = token.toLowerCase()
-      if (lower === '<b>' || lower === '<i>' || lower === '<s>') {
-        stack.push(lower[1] as 'b' | 'i' | 's')
-        continue
-      }
-      if (lower === '</b>' || lower === '</i>' || lower === '</s>') {
-        const target = lower[2] as 'b' | 'i' | 's'
-        const stackIndex = stack.lastIndexOf(target)
-        if (stackIndex >= 0) stack.splice(stackIndex, 1)
-        continue
-      }
-      if (!token) continue
-      nodes.push(wrapNode(renderSearchHighlightedText(token, `${key}-t-${partIndex}`)))
-      partIndex += 1
-    }
-
-    return <span key={key}>{nodes}</span>
+    const pattern = /(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~|<b>.*?<\/b>|<i>.*?<\/i>|<s>.*?<\/s>)/gi
+    const tokens = text.split(pattern)
+    return (
+      <span key={key}>
+        {tokens.map((token, idx) => {
+          if (!token) return null
+          if (
+            (token.startsWith('*') && token.endsWith('*')) ||
+            /^<b>.*<\/b>$/i.test(token)
+          ) {
+            const inner = token.startsWith('*') ? token.slice(1, -1) : token.replace(/^<b>|<\/b>$/gi, '')
+            return <strong key={`${key}-b-${idx}`}>{renderSearchHighlightedText(inner, `${key}-btxt-${idx}`)}</strong>
+          }
+          if (
+            (token.startsWith('_') && token.endsWith('_')) ||
+            /^<i>.*<\/i>$/i.test(token)
+          ) {
+            const inner = token.startsWith('_') ? token.slice(1, -1) : token.replace(/^<i>|<\/i>$/gi, '')
+            return <em key={`${key}-i-${idx}`}>{renderSearchHighlightedText(inner, `${key}-itxt-${idx}`)}</em>
+          }
+          if (
+            (token.startsWith('~') && token.endsWith('~')) ||
+            /^<s>.*<\/s>$/i.test(token)
+          ) {
+            const inner = token.startsWith('~') ? token.slice(1, -1) : token.replace(/^<s>|<\/s>$/gi, '')
+            return <s key={`${key}-s-${idx}`}>{renderSearchHighlightedText(inner, `${key}-stxt-${idx}`)}</s>
+          }
+          return renderSearchHighlightedText(token, `${key}-t-${idx}`)
+        })}
+      </span>
+    )
   }
 
   function renderLine(line: string, lineKey: string) {
@@ -1222,7 +1222,7 @@ export function ChatWindow({
       }
     }
 
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       handleSend(e as unknown as React.FormEvent)
     }
@@ -1293,8 +1293,9 @@ export function ChatWindow({
     const end = ta.selectionEnd ?? 0
     if (start === end) return
     const selected = input.slice(start, end)
-    const open = `<${tag}>`
-    const close = `</${tag}>`
+    const marker = tag === 'b' ? '*' : tag === 'i' ? '_' : '~'
+    const open = marker
+    const close = marker
     const next = `${input.slice(0, start)}${open}${selected}${close}${input.slice(end)}`
     setInput(next)
     setSelectionRange(null)
@@ -1610,169 +1611,171 @@ export function ChatWindow({
             : 'border-b border-border bg-background/95 backdrop-blur',
         )}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => (onBack ? onBack() : router.push(chatListPath))}
-            className="text-muted-foreground hover:text-foreground transition-colors md:hidden shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          {!isDM && roomImageUrl ? (
+        {isSearchOpen ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
-              onClick={() => setRoomImageLightbox(true)}
-              className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              title="View room image"
-            >
-              <img src={roomImageUrl} alt="" className="h-full w-full object-cover" />
-            </button>
-          ) : null}
-          {isDM && dmPartner ? (
-            <Link
-              href={`/profile/${dmPartner.username}`}
-              className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              title={roomName}
-            >
-              <Avatar className="h-full w-full">
-                <AvatarImage src={dmPartner.avatar_url || ''} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
-                  {getInitials(dmPartner.full_name || dmPartner.username)}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          ) : null}
-          <div className="min-w-0">
-          {isDM && dmPartner ? (
-            <Link href={`/profile/${dmPartner.username}`} className="font-bold hover:text-primary transition-colors">{roomName}</Link>
-          ) : (
-            <h2 className="font-bold">{roomName}</h2>
-          )}
-          {isDM ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {dmPartnerOnline ? (
-                <span className="flex items-center gap-1"><span className="h-2 w-2 bg-green-500 rounded-full inline-block" /> Online</span>
-              ) : (
-                <span className="flex items-center gap-1"><span className="h-2 w-2 bg-zinc-500 rounded-full inline-block" /> Offline</span>
-              )}
-            </div>
-          ) : (
-            <button onClick={() => setShowMembers(!showMembers)} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              {onlineCount > 0 && (
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                  {onlineCount} active
-                </span>
-              )}
-              <span>{memberProfiles.length} members</span>
-            </button>
-          )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              if (isSearchOpen) {
+              onClick={() => {
                 setIsSearchOpen(false)
                 setSearchQuery('')
                 setActiveSearchIndex(0)
-                return
-              }
-              setIsSearchOpen(true)
-            }}
-            className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-            aria-label="Search messages"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-          {!isDM && (
-            <div className="relative">
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              aria-label="Close search"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <div className="min-w-0 flex-1 rounded-full bg-black/20 px-3 py-2">
+              <input
+                ref={searchInputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/55"
+              />
+            </div>
+            <span className="text-[11px] text-white/75 tabular-nums shrink-0">
+              {messageSearchMatches.length ? `${activeSearchIndex + 1}/${messageSearchMatches.length}` : '0/0'}
+            </span>
+            <button
+              type="button"
+              disabled={messageSearchMatches.length === 0}
+              onClick={() => setActiveSearchIndex(i => (i - 1 + messageSearchMatches.length) % messageSearchMatches.length)}
+              className="shrink-0 rounded-full p-2 text-white/85 disabled:opacity-40"
+              aria-label="Previous result"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              disabled={messageSearchMatches.length === 0}
+              onClick={() => setActiveSearchIndex(i => (i + 1) % messageSearchMatches.length)}
+              className="shrink-0 rounded-full p-2 text-white/85 disabled:opacity-40"
+              aria-label="Next result"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 min-w-0">
               <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                type="button"
+                onClick={() => (onBack ? onBack() : router.push(chatListPath))}
+                className="text-muted-foreground hover:text-foreground transition-colors md:hidden shrink-0"
               >
-                <MoreVertical className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
               </button>
-              {showMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
-                    <button
-                      onClick={() => { setIsMuted(!isMuted); setShowMenu(false); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted') }}
-                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors"
-                    >
-                      {isMuted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-                      {isMuted ? 'Unmute' : 'Mute'}
-                    </button>
-                    <button
-                      onClick={async () => {
-                        setShowMenu(false)
-                        const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
-                        if (!confirmed) return
-                        const sb = (await import('@/lib/supabase/client')).createClient()
-                        await sb.from('messages').insert({
-                          room_id: roomId,
-                          user_id: null,
-                          content: `${currentUser.full_name || currentUser.username} (@${currentUser.username}) left the chat`,
-                          message_type: 'system',
-                        })
-                        await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
-                        toast.success('Left the chat room')
-                        window.location.href = chatListPath
-                      }}
-                      className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Leave Chat
-                    </button>
-                  </div>
-                </>
+              {!isDM && roomImageUrl ? (
+                <button
+                  type="button"
+                  onClick={() => setRoomImageLightbox(true)}
+                  className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  title="View room image"
+                >
+                  <img src={roomImageUrl} alt="" className="h-full w-full object-cover" />
+                </button>
+              ) : null}
+              {isDM && dmPartner ? (
+                <Link
+                  href={`/profile/${dmPartner.username}`}
+                  className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  title={roomName}
+                >
+                  <Avatar className="h-full w-full">
+                    <AvatarImage src={dmPartner.avatar_url || ''} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
+                      {getInitials(dmPartner.full_name || dmPartner.username)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              ) : null}
+              <div className="min-w-0">
+              {isDM && dmPartner ? (
+                <Link href={`/profile/${dmPartner.username}`} className="font-bold hover:text-primary transition-colors">{roomName}</Link>
+              ) : (
+                <h2 className="font-bold">{roomName}</h2>
+              )}
+              {isDM ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {dmPartnerOnline ? (
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 bg-green-500 rounded-full inline-block" /> Online</span>
+                  ) : (
+                    <span className="flex items-center gap-1"><span className="h-2 w-2 bg-zinc-500 rounded-full inline-block" /> Offline</span>
+                  )}
+                </div>
+              ) : (
+                <button onClick={() => setShowMembers(!showMembers)} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  {onlineCount > 0 && (
+                    <span className="flex items-center gap-1">
+                      <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                      {onlineCount} active
+                    </span>
+                  )}
+                  <span>{memberProfiles.length} members</span>
+                </button>
+              )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                aria-label="Search messages"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              {!isDM && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-2 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  {showMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44">
+                        <button
+                          onClick={() => { setIsMuted(!isMuted); setShowMenu(false); toast.success(isMuted ? 'Notifications unmuted' : 'Notifications muted') }}
+                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors"
+                        >
+                          {isMuted ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                          {isMuted ? 'Unmute' : 'Mute'}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setShowMenu(false)
+                            const confirmed = window.confirm('Leave this chat room? You can rejoin later.')
+                            if (!confirmed) return
+                            const sb = (await import('@/lib/supabase/client')).createClient()
+                            await sb.from('messages').insert({
+                              room_id: roomId,
+                              user_id: null,
+                              content: `${currentUser.full_name || currentUser.username} (@${currentUser.username}) left the chat`,
+                              message_type: 'system',
+                            })
+                            await sb.from('chat_room_members').delete().eq('room_id', roomId).eq('user_id', currentUser.id)
+                            toast.success('Left the chat room')
+                            window.location.href = chatListPath
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-left hover:bg-secondary/50 transition-colors text-red-400"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          Leave Chat
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
-      {isSearchOpen ? (
-        <div
-          className={cn(
-            'shrink-0 border-b px-3 py-2 flex items-center gap-2',
-            tribeShell
-              ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_90%,transparent)]'
-              : 'border-border bg-background/95',
-          )}
-        >
-          <input
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search in chat"
-            className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {messageSearchMatches.length ? `${activeSearchIndex + 1}/${messageSearchMatches.length}` : '0/0'}
-          </span>
-          <button
-            type="button"
-            disabled={messageSearchMatches.length === 0}
-            onClick={() => setActiveSearchIndex(i => (i - 1 + messageSearchMatches.length) % messageSearchMatches.length)}
-            className="rounded-lg border border-border p-2 text-muted-foreground disabled:opacity-40"
-            aria-label="Previous result"
-          >
-            <ChevronUp className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            disabled={messageSearchMatches.length === 0}
-            onClick={() => setActiveSearchIndex(i => (i + 1) % messageSearchMatches.length)}
-            className="rounded-lg border border-border p-2 text-muted-foreground disabled:opacity-40"
-            aria-label="Next result"
-          >
-            <ChevronDown className="h-4 w-4" />
-          </button>
-        </div>
-      ) : null}
 
       {!isDM && displayPinnedMessage && (
         <PinnedMessageBanner
@@ -2441,7 +2444,7 @@ export function ChatWindow({
           scroll area takes flex-1 / h-full. */}
       <div
         className={cn(
-          'shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
+          'relative shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
           tribeShell
             ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-border bg-background',
@@ -2481,7 +2484,7 @@ export function ChatWindow({
           </div>
         ) : null}
         {selectionRange ? (
-          <div className="mb-1.5 flex items-center justify-end gap-1">
+          <div className="absolute right-3 top-0 z-40 flex -translate-y-[calc(100%+0.5rem)] items-center gap-1 rounded-xl border border-border bg-[color-mix(in_oklab,var(--secondary)_94%,transparent)] p-1 shadow-xl backdrop-blur-md">
             <button
               type="button"
               onClick={() => applyComposerFormat('b')}
