@@ -1563,11 +1563,11 @@ export function ChatWindow({
   const isMobileComposerOverlayActive = isComposerFocused && isMobileKeyboardOpen
 
   useEffect(() => {
-    setMobileChatComposerActive(isMobileComposerOverlayActive)
+    setMobileChatComposerActive(isMobileComposerOverlayActive || isSearchOpen)
     return () => {
       setMobileChatComposerActive(false)
     }
-  }, [isMobileComposerOverlayActive])
+  }, [isMobileComposerOverlayActive, isSearchOpen])
 
   useEffect(() => {
     setActiveSearchIndex(0)
@@ -1631,7 +1631,7 @@ export function ChatWindow({
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-full bg-transparent text-sm outline-none placeholder:text-white/55"
+                className="w-full bg-transparent text-sm outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-white/55"
               />
             </div>
             <span className="text-[11px] text-white/75 tabular-nums shrink-0">
@@ -1981,10 +1981,7 @@ export function ChatWindow({
             <div
               key={item.key}
               id={`chat-msg-${item.message.id}`}
-              className={cn(
-                'scroll-mt-8 rounded-2xl transition-shadow',
-                currentSearchMatchId === item.message.id && 'ring-2 ring-primary/65 ring-offset-2 ring-offset-transparent',
-              )}
+              className="scroll-mt-8 rounded-2xl transition-shadow"
             >
               <MessageBubble
                 message={item.message}
@@ -2442,6 +2439,7 @@ export function ChatWindow({
       {/* Input — in-flow shrink-0 child of the chat flex column. Stays
           docked to the bottom because it's the last flex item and the messages
           scroll area takes flex-1 / h-full. */}
+      {!isSearchOpen ? (
       <div
         className={cn(
           'relative shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
@@ -2484,9 +2482,10 @@ export function ChatWindow({
           </div>
         ) : null}
         {selectionRange ? (
-          <div className="absolute right-3 top-0 z-40 flex -translate-y-[calc(100%+0.5rem)] items-center gap-1 rounded-xl border border-border bg-[color-mix(in_oklab,var(--secondary)_94%,transparent)] p-1 shadow-xl backdrop-blur-md">
+          <div className="fixed left-1/2 top-[5.25rem] z-[70] flex -translate-x-1/2 items-center gap-1 rounded-xl border border-border bg-[color-mix(in_oklab,var(--secondary)_94%,transparent)] p-1 shadow-xl backdrop-blur-md">
             <button
               type="button"
+              onMouseDown={e => e.preventDefault()}
               onClick={() => applyComposerFormat('b')}
               className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
               aria-label="Bold"
@@ -2495,6 +2494,7 @@ export function ChatWindow({
             </button>
             <button
               type="button"
+              onMouseDown={e => e.preventDefault()}
               onClick={() => applyComposerFormat('i')}
               className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
               aria-label="Italic"
@@ -2503,6 +2503,7 @@ export function ChatWindow({
             </button>
             <button
               type="button"
+              onMouseDown={e => e.preventDefault()}
               onClick={() => applyComposerFormat('s')}
               className="rounded-lg border border-border bg-secondary p-2 text-muted-foreground"
               aria-label="Strikethrough"
@@ -2564,6 +2565,7 @@ export function ChatWindow({
           />
           <Button
             type="submit" size="sm"
+            onMouseDown={e => e.preventDefault()}
             className="bg-primary text-black hover:bg-primary/90 h-9 w-9 sm:h-10 sm:w-10 p-0 flex-shrink-0"
             disabled={!input.trim() || sending}
           >
@@ -2571,6 +2573,7 @@ export function ChatWindow({
           </Button>
         </form>
       </div>
+      ) : null}
     </div>
   )
 }
