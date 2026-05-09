@@ -25,9 +25,10 @@ export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix
   const [copied, setCopied] = useState(false)
 
   const url = `${APP_URL}/packages/${slug}`
+  const shareUrl = `${url}?share=1`
   const priceLine = `${priceLinePrefix}${formatPrice(pricePaise)}/person`
-  const whatsappMessage = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${priceLine} | ${durationSummary}\n${url}`
-  const shareMessage = `I found this trip on UnSOLO: ${title}. Check it out: ${url}`
+  const whatsappMessage = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${priceLine} | ${durationSummary}\n${shareUrl}`
+  const shareMessage = `I found this trip on UnSOLO: ${title}. Check it out: ${shareUrl}`
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`
 
   async function handleShare() {
