@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -356,9 +357,8 @@ export function BookingsClient({
                     {/* Collapsed header — same layout as solo cards */}
                     <div className="flex flex-col sm:flex-row gap-4">
                       {pkg?.images?.[0] && (
-                        <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
+                        <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                          <Image src={pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -506,9 +506,8 @@ export function BookingsClient({
                 <Card key={booking.id} className="bg-card border-border hover:border-primary/20 transition-colors">
                   <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imageUrl} alt={listing?.title} className="w-full h-full object-cover" />
+                      <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                        <Image src={imageUrl} alt={listing?.title ?? ''} fill className="object-cover" sizes="112px" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
@@ -833,10 +832,9 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
     <Card className="bg-card border-border hover:border-primary/20 transition-colors">
       <CardContent className="p-5">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+          <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
             {pkg.images?.[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
+              <Image src={pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
             )}
@@ -1071,10 +1069,9 @@ function BookingItem({
       <CardContent className="p-5">
         <div className="flex flex-col sm:flex-row gap-4">
           {/* Image */}
-          <div className="w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+          <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
             {pkg?.images?.[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pkg.images[0]} alt={pkg.title} className="w-full h-full object-cover" />
+              <Image src={pkg.images[0]} alt={pkg.title ?? ''} fill className="object-cover" sizes="112px" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
             )}

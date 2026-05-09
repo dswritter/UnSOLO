@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -85,7 +86,7 @@ export function HeroCarousel({
       {/* Package image background when showing a trip */}
       {pkg?.images?.[0] && (
         <div className="absolute inset-0 transition-opacity duration-700">
-          <img src={pkg.images[0]} alt="" className="w-full h-full object-cover opacity-70" />
+          <Image src={pkg.images[0]} alt="" fill className="object-cover opacity-70" sizes="100vw" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
         </div>
       )}

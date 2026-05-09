@@ -109,6 +109,8 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   const [userInteracting, setUserInteracting] = useState(false)
   const [typingUsers, setTypingUsers] = useState<{ user_id: string; username: string }[]>([])
   const [viewerUsername, setViewerUsername] = useState<string | null>(null)
+  /** Local cache of room IDs the user belongs to — avoids a DB round-trip per incoming message. */
+  const memberRoomsRef = useRef<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesScrollRef = useRef<HTMLDivElement>(null)
@@ -144,6 +146,20 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
       .single()
       .then(({ data }) => {
         if (data?.username) setViewerUsername(data.username)
+      })
+  }, [userId])
+
+  // Preload all rooms this user belongs to once — checked locally on every incoming message
+  // so we skip 3 round-trips for messages from rooms the user isn't in.
+  useEffect(() => {
+    if (!userId) return
+    const supabase = createClient()
+    void supabase
+      .from('chat_room_members')
+      .select('room_id')
+      .eq('user_id', userId)
+      .then(({ data }) => {
+        if (data) memberRoomsRef.current = new Set(data.map(r => r.room_id as string))
       })
   }, [userId])
 
@@ -262,13 +278,13 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           if (msg.user_id === userId || msg.message_type === 'system') return
 
-          const [{ data: membership }, { data: senderProfile }, { data: room }] = await Promise.all([
-            supabase
-              .from('chat_room_members')
-              .select('id')
-              .eq('room_id', msg.room_id)
-              .eq('user_id', userId)
-              .single(),
+          // Fast local check — skip all DB calls if user isn't in this room.
+          // memberRoomsRef is seeded once at mount; keep it fresh when user joins new rooms.
+          if (!memberRoomsRef.current.has(msg.room_id)) return
+          memberRoomsRef.current.add(msg.room_id) // no-op if already present
+
+          // Only now fetch the two pieces of info we actually need to display the notification.
+          const [{ data: senderProfile }, { data: room }] = await Promise.all([
             supabase
               .from('profiles')
               .select('username, full_name, avatar_url')
@@ -280,8 +296,6 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
               .eq('id', msg.room_id)
               .single(),
           ])
-
-          if (!membership) return
 
           setTypingUsers(prev => prev.filter(u => u.user_id !== msg.user_id))
 

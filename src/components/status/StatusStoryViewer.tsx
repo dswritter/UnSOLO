@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
@@ -378,13 +379,14 @@ export function StatusStoryViewer({
           <div className="flex-1 flex items-center justify-center p-4 min-w-0 relative">
             {story.media_url ? (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   key={story.id}
                   src={story.media_url}
                   alt=""
-                  className={`max-w-full max-h-full object-contain pointer-events-none transition-opacity duration-200 ${loadingImage ? 'opacity-40' : 'opacity-100'}`}
+                  fill
+                  className={`object-contain pointer-events-none transition-opacity duration-200 ${loadingImage ? 'opacity-40' : 'opacity-100'}`}
                   draggable={false}
+                  sizes="100vw"
                   onLoad={() => setLoadedMediaId(story.id)}
                   onError={() => setLoadedMediaId(story.id)}
                 />

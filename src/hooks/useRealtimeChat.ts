@@ -20,7 +20,9 @@ export function useRealtimeChat(
   const currentUserRef = useRef(currentUser)
   messagesRef.current = messages
   currentUserRef.current = currentUser
-  const supabase = createClient()
+  // Stable client reference — createClient() must not be called on every render.
+  const supabaseRef = useRef(createClient())
+  const supabase = supabaseRef.current
 
   const roomKey = normalizeRoomId(roomId)
 
@@ -225,7 +227,8 @@ export function useRealtimeChat(
       })
     }
 
-    const interval = setInterval(() => { void pollNewer() }, 4000)
+    // 30 s catch-up (realtime handles messages in real-time; this only recovers missed events)
+    const interval = setInterval(() => { void pollNewer() }, 30_000)
     const onVisible = () => { if (document.visibilityState === 'visible') void pollNewer() }
     document.addEventListener('visibilitychange', onVisible)
     void pollNewer()

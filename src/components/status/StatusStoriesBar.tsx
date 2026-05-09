@@ -201,20 +201,11 @@ export function StatusStoriesBar({
     return othersGrouped.slice(0, maxOtherAuthors)
   }, [othersGrouped, maxOtherAuthors, showAllOthers])
 
-  useEffect(() => {
-    const sb = createClient()
-    const ch = sb
-      .channel('home-status-stories')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'status_stories' },
-        () => router.refresh(),
-      )
-      .subscribe()
-    return () => {
-      void sb.removeChannel(ch)
-    }
-  }, [router])
+  // NOTE: removed the unfiltered status_stories realtime subscription that called
+  // router.refresh() on every INSERT/UPDATE/DELETE from any user. With 60 users that
+  // caused a full-page re-render (and 7+ DB queries) for every story change globally.
+  // New stories from others are visible on the next page navigation; the user's own
+  // new story is already handled by onCreated() and the upload handler above.
 
   return (
     <>

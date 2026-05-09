@@ -63,12 +63,8 @@ export function ActiveUnSOLOs({ currentUserId }: { currentUserId: string }) {
       )
       .subscribe()
 
-    // Also poll every 15s as backup
-    const interval = setInterval(fetchOnline, 15000)
-
     return () => {
       supabase.removeChannel(channel)
-      clearInterval(interval)
     }
   }, [currentUserId])
 

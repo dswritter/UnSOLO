@@ -45,12 +45,22 @@ export function ProfileStatusStories({
             onClick={() => setViewer({ stories, index: i })}
             className="shrink-0 flex flex-col items-center gap-1"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={s.media_url}
-              alt=""
-              className="h-14 w-14 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/40 transition-all"
-            />
+            {s.media_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={s.media_url}
+                alt=""
+                className="h-14 w-14 rounded-lg object-cover border border-border hover:ring-2 hover:ring-primary/40 transition-all"
+              />
+            ) : (
+              /* text/link story — show a coloured placeholder */
+              <div
+                className="h-14 w-14 rounded-lg flex items-center justify-center border border-border text-[11px] text-white/70"
+                style={{ background: s.bg_color || '#1a1a2e' }}
+              >
+                {s.link_url ? '🔗' : '📝'}
+              </div>
+            )}
             <span className="text-[10px] text-white/70">View</span>
           </button>
         ))}

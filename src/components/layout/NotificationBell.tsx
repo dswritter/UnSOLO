@@ -119,8 +119,8 @@ export function NotificationBell({
       )
       .subscribe()
 
-    // Also poll every 15s as fallback (realtime can miss events with RLS)
-    const pollInterval = setInterval(load, 15000)
+    // 2 min safety-net poll (realtime INSERT subscription handles real-time delivery)
+    const pollInterval = setInterval(load, 120_000)
 
     return () => {
       supabase.removeChannel(channel)
