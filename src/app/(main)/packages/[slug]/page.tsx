@@ -539,6 +539,7 @@ export default async function PackageDetailPage({
                             packageSlug={package_.slug}
                             pricePerPersonPaise={package_.price_paise}
                             priceVariants={package_.price_variants}
+                            hostId={package_.host_id}
                             maxGroupSize={package_.max_group_size}
                             packageTitle={package_.title}
                             departureDates={package_.departure_dates}
@@ -578,6 +579,7 @@ export default async function PackageDetailPage({
                         packageSlug={package_.slug}
                         pricePerPersonPaise={package_.price_paise}
                         compareAtPricePaise={compareAtDisplayPaise}
+                        hostId={package_.host_id}
                         priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                         priceVariants={package_.price_variants}
                         departureDates={package_.departure_dates}
@@ -610,6 +612,7 @@ export default async function PackageDetailPage({
                           packageSlug={package_.slug}
                           pricePerPersonPaise={package_.price_paise}
                           priceVariants={package_.price_variants}
+                          hostId={package_.host_id}
                           maxGroupSize={package_.max_group_size}
                           packageTitle={package_.title}
                           departureDates={package_.departure_dates}

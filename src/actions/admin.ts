@@ -4,6 +4,7 @@ import { createClient, createServiceClient, createServiceRoleClient } from '@/li
 import { getActionAuth } from '@/lib/auth/action-auth'
 import type { JoinPreferences, UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
+import { validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
 
 // ── Audit Log ─────────────────────────────────────────────────
 
@@ -725,9 +726,68 @@ export async function getDiscountOffers() {
   const { supabase } = await requireAdmin()
   const { data } = await supabase
     .from('discount_offers')
-    .select('*')
+    .select(`
+      *,
+      host:profiles!discount_offers_scope_host_id_fkey(id, username, full_name),
+      package:packages!discount_offers_scope_package_id_fkey(id, title, slug),
+      service_listing:service_listings!discount_offers_scope_service_listing_id_fkey(id, title, slug, type)
+    `)
     .order('created_at', { ascending: false })
   return data || []
+}
+
+async function resolveDiscountScopeInput(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  scopeMode: string,
+  hostUsernameRaw: string | null,
+  packageSlugRaw: string | null,
+  serviceListingSlugRaw: string | null,
+) {
+  const hostUsername = hostUsernameRaw?.trim().toLowerCase() || ''
+  const packageSlug = packageSlugRaw?.trim() || ''
+  const serviceListingSlug = serviceListingSlugRaw?.trim() || ''
+  let scopeHostId: string | null = null
+  let scopePackageId: string | null = null
+  let scopeServiceListingId: string | null = null
+
+  if (scopeMode === 'host') {
+    if (!hostUsername) return { error: 'Enter a host username for host-scoped coupons.' }
+    const { data: host } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', hostUsername)
+      .single()
+    if (!host) return { error: `Host @${hostUsername} not found.` }
+    scopeHostId = host.id
+  }
+
+  if (scopeMode === 'package') {
+    if (!packageSlug) return { error: 'Enter a trip slug for trip-specific coupons.' }
+    const { data: pkg } = await supabase
+      .from('packages')
+      .select('id')
+      .eq('slug', packageSlug)
+      .single()
+    if (!pkg) return { error: `Trip slug "${packageSlug}" not found.` }
+    scopePackageId = pkg.id
+  }
+
+  if (scopeMode === 'service_listing') {
+    if (!serviceListingSlug) return { error: 'Enter a listing slug for listing-specific coupons.' }
+    const { data: listing } = await supabase
+      .from('service_listings')
+      .select('id')
+      .eq('slug', serviceListingSlug)
+      .single()
+    if (!listing) return { error: `Listing slug "${serviceListingSlug}" not found.` }
+    scopeServiceListingId = listing.id
+  }
+
+  return {
+    scopeHostId,
+    scopePackageId,
+    scopeServiceListingId,
+  }
 }
 
 export async function createDiscountOffer(formData: FormData) {
@@ -735,15 +795,37 @@ export async function createDiscountOffer(formData: FormData) {
 
   const name = formData.get('name') as string
   const type = formData.get('type') as string
-  const discountPaise = parseInt(formData.get('discountPaise') as string)
+  const discountInput = (formData.get('discountRupees') as string) || (formData.get('discountPaise') as string)
+  const discountPaise = parseInt(discountInput) * (formData.get('discountRupees') ? 100 : 1)
   const minTrips = parseInt(formData.get('minTrips') as string) || 0
   const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim() || null
   const maxUses = formData.get('maxUses') ? parseInt(formData.get('maxUses') as string) : null
   const validUntil = formData.get('validUntil') as string || null
+  const checkoutVisibility = ((formData.get('checkoutVisibility') as string) || 'auto').trim()
+  const scopeListingType = ((formData.get('scopeListingType') as string) || 'all').trim()
+  const scopeMode = ((formData.get('scopeMode') as string) || 'global').trim()
 
   if (!name || !type || !discountPaise || discountPaise <= 0) {
     return { error: 'Name, type, and discount amount are required' }
   }
+  if (!['auto', 'manual_only'].includes(checkoutVisibility)) {
+    return { error: 'Invalid checkout visibility.' }
+  }
+  if (!['all', 'trips', 'stays', 'activities', 'rentals', 'getting_around'].includes(scopeListingType)) {
+    return { error: 'Invalid listing type scope.' }
+  }
+  if (!['global', 'host', 'package', 'service_listing'].includes(scopeMode)) {
+    return { error: 'Invalid coupon scope.' }
+  }
+
+  const scopeResolution = await resolveDiscountScopeInput(
+    supabase,
+    scopeMode,
+    formData.get('hostUsername') as string | null,
+    formData.get('packageSlug') as string | null,
+    formData.get('serviceListingSlug') as string | null,
+  )
+  if ('error' in scopeResolution) return scopeResolution
 
   const { error } = await supabase.from('discount_offers').insert({
     name,
@@ -753,6 +835,11 @@ export async function createDiscountOffer(formData: FormData) {
     promo_code: promoCode,
     max_uses: maxUses,
     valid_until: validUntil || null,
+    checkout_visibility: checkoutVisibility,
+    scope_listing_type: scopeListingType,
+    scope_host_id: scopeResolution.scopeHostId,
+    scope_package_id: scopeResolution.scopePackageId,
+    scope_service_listing_id: scopeResolution.scopeServiceListingId,
     created_by: user.id,
   })
 
@@ -789,12 +876,29 @@ export async function editDiscountOffer(offerId: string, formData: FormData) {
   const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim()
   const maxUses = formData.get('maxUses') as string
   const validUntil = formData.get('validUntil') as string
+  const checkoutVisibility = ((formData.get('checkoutVisibility') as string) || 'auto').trim()
+  const scopeListingType = ((formData.get('scopeListingType') as string) || 'all').trim()
+  const scopeMode = ((formData.get('scopeMode') as string) || 'global').trim()
 
   if (name) updates.name = name
   if (discountRupees) updates.discount_paise = parseInt(discountRupees) * 100
-  if (promoCode) updates.promo_code = promoCode
-  if (maxUses) updates.max_uses = parseInt(maxUses)
-  if (validUntil) updates.valid_until = validUntil
+  updates.promo_code = promoCode || null
+  updates.max_uses = maxUses ? parseInt(maxUses) : null
+  updates.valid_until = validUntil || null
+  updates.checkout_visibility = checkoutVisibility
+  updates.scope_listing_type = scopeListingType
+
+  const scopeResolution = await resolveDiscountScopeInput(
+    supabase,
+    scopeMode,
+    formData.get('hostUsername') as string | null,
+    formData.get('packageSlug') as string | null,
+    formData.get('serviceListingSlug') as string | null,
+  )
+  if ('error' in scopeResolution) return scopeResolution
+  updates.scope_host_id = scopeResolution.scopeHostId
+  updates.scope_package_id = scopeResolution.scopePackageId
+  updates.scope_service_listing_id = scopeResolution.scopeServiceListingId
 
   const { error } = await supabase
     .from('discount_offers')
@@ -842,35 +946,17 @@ export async function grantUserCredits(username: string, amountPaise: number, re
 }
 
 // Validate promo code at checkout
-export async function validatePromoCode(code: string) {
+export async function validatePromoCode(code: string, context?: PromoScopeContext) {
   const supabase = (await import('@/lib/supabase/server')).createClient
   const supa = await supabase()
-
-  const { data: offer } = await supa
-    .from('discount_offers')
-    .select('*')
-    .eq('promo_code', code.toUpperCase().trim())
-    .eq('is_active', true)
-    .single()
-
-  if (!offer) return { error: 'Invalid promo code' }
-
-  // Check max uses
-  if (offer.max_uses && offer.used_count >= offer.max_uses) {
-    return { error: 'This promo code has expired' }
-  }
-
-  // Check validity dates
-  const now = new Date()
-  if (offer.valid_until && new Date(offer.valid_until) < now) {
-    return { error: 'This promo code has expired' }
-  }
-
+  const effectiveContext = context ?? { listingType: 'trips' as const }
+  const result = await validateScopedPromoCode(supa, code, effectiveContext)
+  if ('error' in result) return result
   return {
     valid: true,
-    discountPaise: offer.discount_paise,
-    name: offer.name,
-    offerId: offer.id,
+    discountPaise: result.discountPaise,
+    name: result.name,
+    offerId: result.offerId,
   }
 }
 

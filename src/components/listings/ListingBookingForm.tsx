@@ -12,7 +12,7 @@ import Script from 'next/script'
 import { Calendar, Users, Gift, Tag, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
-import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
+import { fetchCheckoutPromoList, type PromoScopeContext } from '@/lib/checkout-promos'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 
@@ -36,6 +36,11 @@ interface ListingBookingFormProps {
 }
 
 export function ListingBookingForm({ listing, selectedItem }: ListingBookingFormProps) {
+  const promoScope: PromoScopeContext = {
+    listingType: listing.type,
+    serviceListingId: listing.id,
+    hostId: listing.host_id,
+  }
   const unitPricePaise = selectedItem?.price_paise ?? listing.price_paise
   const maxPerBooking = selectedItem?.max_per_booking ?? listing.max_guests_per_booking ?? 10
   const availableQty = selectedItem?.quantity_available ?? listing.quantity_available
@@ -110,7 +115,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
     let cancelled = false
     setPromosLoading(true)
     const supabase = createClient()
-    fetchCheckoutPromoList(supabase).then((list) => {
+    fetchCheckoutPromoList(supabase, promoScope).then((list) => {
       if (!cancelled) {
         setAvailablePromos(list)
         setPromosLoading(false)
@@ -119,7 +124,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
     return () => {
       cancelled = true
     }
-  }, [showPromoInput])
+  }, [showPromoInput, promoScope.hostId, promoScope.listingType, promoScope.serviceListingId])
 
   // Compute rental return date
   const rentalReturnDate = (() => {
@@ -207,7 +212,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const result = await validatePromoCode(promoCode)
+    const result = await validatePromoCode(promoCode, promoScope)
     if ('error' in result) {
       toast.error(result.error)
       setPromoDiscount(0)

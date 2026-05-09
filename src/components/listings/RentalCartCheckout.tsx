@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import Script from 'next/script'
 import { Calendar, Tag, X, ShoppingCart } from 'lucide-react'
 import { getUserCredits } from '@/actions/profile'
-import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
+import { fetchCheckoutPromoList, type PromoScopeContext } from '@/lib/checkout-promos'
 import { createClient } from '@/lib/supabase/client'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 
@@ -31,6 +31,11 @@ interface RentalCartCheckoutProps {
 }
 
 export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutProps) {
+  const promoScope: PromoScopeContext = {
+    listingType: listing.type,
+    serviceListingId: listing.id,
+    hostId: listing.host_id,
+  }
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
@@ -52,8 +57,8 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   useEffect(() => {
     getUserCredits().then(data => setUserCredits(data.credits))
     const supabase = createClient()
-    fetchCheckoutPromoList(supabase).then(p => setAvailablePromos(p))
-  }, [])
+    fetchCheckoutPromoList(supabase, promoScope).then(p => setAvailablePromos(p))
+  }, [promoScope.hostId, promoScope.listingType, promoScope.serviceListingId])
 
   const cartEntries = Object.entries(cart).filter(([, qty]) => qty > 0)
   const cartItemDetails = cartEntries.map(([itemId, qty]) => {
@@ -84,7 +89,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const res = await validatePromoCode(promoCode.trim().toUpperCase())
+    const res = await validatePromoCode(promoCode.trim().toUpperCase(), promoScope)
     setPromoValidating(false)
     if ('error' in res) { toast.error(res.error as string); return }
     if ('discountPaise' in res) {

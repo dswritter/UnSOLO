@@ -9,6 +9,7 @@ import { splitHostEarning } from '@/lib/community-payment'
 import { sendServiceBookingConfirmedEmail } from '@/lib/resend/emails'
 import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 import { itemHasDateBlock } from '@/lib/service-item-unavailability'
+import { incrementPromoOfferUsed, validateScopedPromoCode } from '@/lib/checkout-promos'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -220,20 +221,19 @@ export async function createServiceListingOrder(
     }
     let discountPaise = 0
     let appliedPromoCode = ''
+    let promoOfferId: string | null = null
 
     // Apply promo code if provided
     if (bookingData.promoCode) {
-      const { data: promo } = await supabase
-        .from('promo_codes')
-        .select('discount_paise')
-        .eq('code', bookingData.promoCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
-
-      if (promo) {
-        discountPaise = promo.discount_paise
-        appliedPromoCode = bookingData.promoCode
-      }
+      const promo = await validateScopedPromoCode(supabase, bookingData.promoCode, {
+        listingType: listing.type as ServiceListingType,
+        serviceListingId: listingId,
+        hostId: listing.host_id,
+      })
+      if ('error' in promo) return promo
+      discountPaise = promo.discountPaise
+      appliedPromoCode = bookingData.promoCode
+      promoOfferId = promo.offerId
     }
 
     // Apply credits if requested
@@ -278,6 +278,7 @@ export async function createServiceListingOrder(
           razorpay_payment_id: null,
           razorpay_order_id: null,
           promo_code: appliedPromoCode || null,
+          promo_offer_id: promoOfferId,
         })
         .select('id')
         .single()
@@ -293,6 +294,10 @@ export async function createServiceListingOrder(
           .from('profiles')
           .update({ referral_credits_paise: userProfile.referral_credits_paise - creditsUsed })
           .eq('id', user.id)
+      }
+
+      if (promoOfferId) {
+        await incrementPromoOfferUsed(supabase, promoOfferId)
       }
 
       await deductInventory(supabase, listingId, itemId, bookingData.quantity)
@@ -337,6 +342,7 @@ export async function createServiceListingOrder(
         payment_status: 'pending',
         razorpay_order_id: order.id,
         promo_code: appliedPromoCode || null,
+        promo_offer_id: promoOfferId,
       })
       .select('id')
       .single()
@@ -391,7 +397,7 @@ export async function confirmServiceListingPayment(
     // Get booking by order ID
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, amount_paise, gross_paise, discount_paise, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise, check_in_date, check_out_date')
+      .select('id, amount_paise, gross_paise, discount_paise, promo_offer_id, user_id, service_listing_id, service_listing_item_id, quantity, wallet_deducted_paise, check_in_date, check_out_date')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
       .single()
@@ -412,6 +418,10 @@ export async function confirmServiceListingPayment(
 
     if (updateError) {
       return { error: 'Failed to update booking', success: false }
+    }
+
+    if (booking.promo_offer_id) {
+      await incrementPromoOfferUsed(supabase, booking.promo_offer_id)
     }
 
     // Deduct wallet credits if any
@@ -606,14 +616,17 @@ export async function createRentalCartOrder(
     // Promo
     let discountPaise = 0
     let appliedPromoCode = ''
+    let promoOfferId: string | null = null
     if (bookingData.promoCode) {
-      const { data: promo } = await supabase
-        .from('promo_codes')
-        .select('discount_paise')
-        .eq('code', bookingData.promoCode.toUpperCase())
-        .eq('is_active', true)
-        .single()
-      if (promo) { discountPaise = promo.discount_paise; appliedPromoCode = bookingData.promoCode }
+      const promo = await validateScopedPromoCode(supabase, bookingData.promoCode, {
+        listingType: listing.type as ServiceListingType,
+        serviceListingId: listingId,
+        hostId: listing.host_id,
+      })
+      if ('error' in promo) return promo
+      discountPaise = promo.discountPaise
+      appliedPromoCode = bookingData.promoCode
+      promoOfferId = promo.offerId
     }
 
     // Credits
@@ -671,6 +684,7 @@ export async function createRentalCartOrder(
           payment_status: 'pending',
           razorpay_order_id: order.id,
           promo_code: appliedPromoCode || null,
+          promo_offer_id: promoOfferId,
         })
         .select('id')
         .single()
@@ -717,7 +731,7 @@ export async function confirmRentalCartPayment(
     // Get all bookings for this order
     const { data: bookings } = await supabase
       .from('bookings')
-      .select('id, service_listing_id, service_listing_item_id, quantity, gross_paise, discount_paise, wallet_deducted_paise, amount_paise, check_in_date, check_out_date')
+      .select('id, service_listing_id, service_listing_item_id, quantity, gross_paise, discount_paise, promo_offer_id, wallet_deducted_paise, amount_paise, check_in_date, check_out_date')
       .eq('razorpay_order_id', orderId)
       .eq('user_id', user.id)
 
@@ -731,6 +745,11 @@ export async function confirmRentalCartPayment(
       .eq('user_id', user.id)
 
     if (updateError) return { error: 'Failed to update bookings', success: false }
+
+    const promoIds = [...new Set(bookings.map(b => b.promo_offer_id).filter(Boolean))] as string[]
+    for (const promoId of promoIds) {
+      await incrementPromoOfferUsed(supabase, promoId)
+    }
 
     // Deduct wallet credits now that payment is confirmed
     const totalWalletUsed = bookings.reduce((s, b) => s + (b.wallet_deducted_paise ?? 0), 0)

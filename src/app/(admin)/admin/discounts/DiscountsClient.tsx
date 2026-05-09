@@ -19,6 +19,11 @@ interface Offer {
   is_active: boolean
   valid_until: string | null
   created_at: string
+  checkout_visibility?: 'auto' | 'manual_only' | null
+  scope_listing_type?: 'all' | 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around' | null
+  host?: { username: string; full_name: string | null } | null
+  package?: { slug: string; title: string } | null
+  service_listing?: { slug: string; title: string; type: string } | null
 }
 
 const TYPE_ICONS: Record<string, typeof Tag> = {
@@ -34,6 +39,15 @@ const TYPE_COLORS: Record<string, string> = {
   custom: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700',
   referral: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700',
 }
+
+const SCOPE_TYPE_OPTIONS = [
+  { value: 'all', label: 'All listings' },
+  { value: 'trips', label: 'Trips' },
+  { value: 'stays', label: 'Stays' },
+  { value: 'activities', label: 'Activities' },
+  { value: 'rentals', label: 'Rentals' },
+  { value: 'getting_around', label: 'Getting Around' },
+] as const
 
 interface Props {
   offers: Offer[]
@@ -105,10 +119,7 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium">Discount Amount (₹)</label>
-              <Input name="discountPaise" type="number" min="1" placeholder="500" required className="bg-secondary border-border"
-                onChange={e => e.target.form!.discountPaise.value = String(parseInt(e.target.value) * 100 || '')}
-              />
-              <input type="hidden" name="discountPaise" />
+              <Input name="discountRupees" type="number" min="1" placeholder="500" required className="bg-secondary border-border" />
             </div>
             <div className="space-y-1">
               <label className="text-xs font-medium">Promo Code (for promo type)</label>
@@ -116,6 +127,19 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Checkout visibility</label>
+              <select name="checkoutVisibility" defaultValue="auto" className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                <option value="auto">Show on "Have a promo code?"</option>
+                <option value="manual_only">Manual entry only</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Listing type scope</label>
+              <select name="scopeListingType" defaultValue="all" className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                {SCOPE_TYPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </div>
             <div className="space-y-1">
               <label className="text-xs font-medium">Min Trips (loyalty)</label>
               <Input name="minTrips" type="number" min="0" defaultValue="0" className="bg-secondary border-border" />
@@ -127,6 +151,29 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
             <div className="space-y-1">
               <label className="text-xs font-medium">Valid Until</label>
               <Input name="validUntil" type="date" className="bg-secondary border-border" />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Exact scope</label>
+              <select name="scopeMode" defaultValue="global" className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                <option value="global">Global</option>
+                <option value="host">Host-wide</option>
+                <option value="package">Specific trip</option>
+                <option value="service_listing">Specific service listing</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Host username</label>
+              <Input name="hostUsername" placeholder="host_username" className="bg-secondary border-border" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Trip slug</label>
+              <Input name="packageSlug" placeholder="kasol-weekend-getaway" className="bg-secondary border-border" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Listing slug</label>
+              <Input name="serviceListingSlug" placeholder="riverside-stay-kasol" className="bg-secondary border-border" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -190,9 +237,16 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                   <div className="text-xs text-muted-foreground flex items-center gap-3 mt-0.5">
                     <span className="font-medium text-primary">₹{(offer.discount_paise / 100).toLocaleString('en-IN')} off</span>
                     {offer.promo_code && <span>Code: <code className="font-mono bg-secondary px-1.5 py-0.5 rounded">{offer.promo_code}</code></span>}
+                    <span>{offer.checkout_visibility === 'manual_only' ? 'Manual only' : 'Auto shown'}</span>
+                    <span>{SCOPE_TYPE_OPTIONS.find(o => o.value === (offer.scope_listing_type || 'all'))?.label || 'All listings'}</span>
+                    {offer.host && <span>Host: @{offer.host.username}</span>}
+                    {offer.package && <span>Trip: {offer.package.slug}</span>}
+                    {offer.service_listing && <span>Listing: {offer.service_listing.slug}</span>}
                     {offer.min_trips > 0 && <span>Min {offer.min_trips} trips</span>}
                     <span>{offer.used_count}{offer.max_uses ? `/${offer.max_uses}` : ''} used</span>
-                    {offer.valid_until && <span>Until {new Date(offer.valid_until).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                    {offer.valid_until
+                      ? <span>Until {new Date(offer.valid_until).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      : <span>Never expires</span>}
                   </div>
                 </div>
               </div>
@@ -255,6 +309,46 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Valid Until</label>
                     <Input name="validUntil" type="date" defaultValue={offer.valid_until?.split('T')[0] || ''} className="bg-secondary border-border text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Checkout visibility</label>
+                    <select name="checkoutVisibility" defaultValue={offer.checkout_visibility || 'auto'} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                      <option value="auto">Show on "Have a promo code?"</option>
+                      <option value="manual_only">Manual entry only</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Listing type scope</label>
+                    <select name="scopeListingType" defaultValue={offer.scope_listing_type || 'all'} className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm">
+                      {SCOPE_TYPE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Exact scope</label>
+                    <select
+                      name="scopeMode"
+                      defaultValue={offer.package ? 'package' : offer.service_listing ? 'service_listing' : offer.host ? 'host' : 'global'}
+                      className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="global">Global</option>
+                      <option value="host">Host-wide</option>
+                      <option value="package">Specific trip</option>
+                      <option value="service_listing">Specific service listing</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Host username</label>
+                    <Input name="hostUsername" defaultValue={offer.host?.username || ''} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Trip slug</label>
+                    <Input name="packageSlug" defaultValue={offer.package?.slug || ''} className="bg-secondary border-border text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium">Listing slug</label>
+                    <Input name="serviceListingSlug" defaultValue={offer.service_listing?.slug || ''} className="bg-secondary border-border text-sm" />
                   </div>
                 </div>
                 <div className="flex gap-2">

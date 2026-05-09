@@ -14,6 +14,7 @@ import { getUserCredits } from '@/actions/profile'
 import { validatePromoCode } from '@/actions/admin'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
+import type { PromoScopeContext } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout } from '@/lib/join-preferences'
 import Link from 'next/link'
@@ -43,6 +44,7 @@ interface JoinRequestFormProps {
   packageSlug: string
   pricePerPersonPaise: number
   compareAtPricePaise?: number | null
+  hostId?: string | null
   /** e.g. "From " when the package has multiple price tiers */
   priceLinePrefix?: string
   priceVariants?: { description: string; price_paise: number }[] | null
@@ -74,6 +76,7 @@ export function JoinRequestForm({
   packageSlug,
   pricePerPersonPaise,
   compareAtPricePaise = null,
+  hostId = null,
   priceLinePrefix = '',
   priceVariants,
   departureDates,
@@ -97,6 +100,11 @@ export function JoinRequestForm({
       : null
   /** Join-request flow (not direct checkout on the package page). */
   const paymentAfterApproval = !isCommunityDirectCheckout(joinPreferences ?? undefined)
+  const promoScope: PromoScopeContext = {
+    listingType: 'trips',
+    packageId,
+    hostId,
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -359,6 +367,7 @@ export function JoinRequestForm({
         originalTripPriceDisplay={originalTripPriceDisplay}
         amountPaise={pricePerPersonPaise}
         packageTitle={packageTitle}
+        promoScope={promoScope}
       />
     )
   }
@@ -507,12 +516,14 @@ function ApprovedPaymentSection({
   originalTripPriceDisplay,
   amountPaise,
   packageTitle,
+  promoScope,
 }: {
   existingRequest: ExistingRequest
   tripPriceDisplay: string
   originalTripPriceDisplay: string | null
   amountPaise: number
   packageTitle: string
+  promoScope: PromoScopeContext
 }) {
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
@@ -543,7 +554,7 @@ function ApprovedPaymentSection({
     let cancelled = false
     setPromosLoading(true)
     const supabase = createClient()
-    fetchCheckoutPromoList(supabase).then((list) => {
+    fetchCheckoutPromoList(supabase, promoScope).then((list) => {
       if (!cancelled) {
         setAvailablePromos(list)
         setPromosLoading(false)
@@ -552,12 +563,12 @@ function ApprovedPaymentSection({
     return () => {
       cancelled = true
     }
-  }, [showPromoInput])
+  }, [showPromoInput, promoScope.hostId, promoScope.packageId])
 
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const result = await validatePromoCode(promoCode)
+    const result = await validatePromoCode(promoCode, promoScope)
     if ('error' in result) {
       toast.error(result.error)
       setPromoDiscount(0)

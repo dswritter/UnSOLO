@@ -12,6 +12,7 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
+import { incrementPromoOfferUsed, validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { z } from 'zod'
 
@@ -73,26 +74,11 @@ async function tryEmailHostNewBooking(
 async function validatePromoForCheckout(
   supabase: SupabaseServer,
   code: string,
+  context: PromoScopeContext,
 ): Promise<{ discountPaise: number; offerId: string } | { error: string }> {
-  const trimmed = code.toUpperCase().trim()
-  if (!trimmed) return { error: 'Enter a promo code' }
-
-  const { data: offer } = await supabase
-    .from('discount_offers')
-    .select('id, discount_paise, max_uses, used_count, valid_until')
-    .eq('promo_code', trimmed)
-    .eq('is_active', true)
-    .single()
-
-  if (!offer) return { error: 'Invalid promo code' }
-  if (offer.max_uses && (offer.used_count ?? 0) >= offer.max_uses) {
-    return { error: 'This promo code has expired' }
-  }
-  if (offer.valid_until && new Date(offer.valid_until) < new Date()) {
-    return { error: 'This promo code has expired' }
-  }
-
-  return { discountPaise: offer.discount_paise, offerId: offer.id }
+  const result = await validateScopedPromoCode(supabase, code, context)
+  if ('error' in result) return result
+  return { discountPaise: result.discountPaise, offerId: result.offerId }
 }
 
 async function referredDiscountForUser(
@@ -139,19 +125,6 @@ function walletAndRazorpayAmount(
     razorpayAmount = grossAfterPromoAndReferred - walletDeducted
   }
   return { walletDeducted, razorpayAmount }
-}
-
-async function incrementPromoOfferUsed(supabase: SupabaseServer, offerId: string) {
-  const { data: row } = await supabase
-    .from('discount_offers')
-    .select('used_count')
-    .eq('id', offerId)
-    .single()
-  if (!row) return
-  await supabase
-    .from('discount_offers')
-    .update({ used_count: (row.used_count ?? 0) + 1 })
-    .eq('id', offerId)
 }
 
 /** First token payment only: wallet, chat, achievements, admin — no promo increment, host earnings, or referral. */
@@ -878,7 +851,11 @@ export async function createRazorpayOrder(
   let promoOfferId: string | null = null
   let promoDiscountPaise = 0
   if (options?.promoCode?.trim()) {
-    const pr = await validatePromoForCheckout(supabase, options.promoCode)
+    const pr = await validatePromoForCheckout(supabase, options.promoCode, {
+      listingType: 'trips',
+      packageId: pkg.id,
+      hostId: pkg.host_id,
+    })
     if ('error' in pr) return { error: pr.error }
     promoDiscountPaise = Math.min(pr.discountPaise, grossList)
     promoOfferId = pr.offerId
@@ -2217,7 +2194,11 @@ export async function createCommunityTripOrder(
   let promoOfferId: string | null = null
   let promoDiscountPaise = 0
   if (options?.promoCode?.trim()) {
-    const pr = await validatePromoForCheckout(supabase, options.promoCode)
+    const pr = await validatePromoForCheckout(supabase, options.promoCode, {
+      listingType: 'trips',
+      packageId: trip.id,
+      hostId: trip.host_id,
+    })
     if ('error' in pr) return { error: pr.error }
     promoDiscountPaise = Math.min(pr.discountPaise, grossList)
     promoOfferId = pr.offerId

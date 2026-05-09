@@ -20,7 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
 import { validatePromoCode } from '@/actions/admin'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
-import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
+import { fetchCheckoutPromoList, type PromoScopeContext } from '@/lib/checkout-promos'
 
 declare global {
   interface Window {
@@ -52,6 +52,7 @@ interface BookingFormClientProps {
   availableSlots?: Record<string, number>
   /** Community trips with payment_timing token_to_book */
   tokenBooking?: { tokenAmountPaisePerPerson: number } | null
+  hostId?: string | null
 }
 
 export function BookingFormClient({
@@ -67,6 +68,7 @@ export function BookingFormClient({
   groupInvite,
   availableSlots = {},
   tokenBooking = null,
+  hostId = null,
 }: BookingFormClientProps) {
   const pkgCal: TripPackageCalendar = {
     duration_days: Math.max(1, durationDays || 1),
@@ -75,6 +77,11 @@ export function BookingFormClient({
   }
 
   const variantTiers = parsePriceVariants(priceVariants)
+  const promoScope: PromoScopeContext = {
+    listingType: 'trips',
+    packageId,
+    hostId,
+  }
 
   function travelRangeLabel(depIso: string): string {
     const end = tripEndDateIsoForBooking(depIso, pkgCal)
@@ -170,7 +177,7 @@ export function BookingFormClient({
     let cancelled = false
     setPromosLoading(true)
     const supabase = createClient()
-    fetchCheckoutPromoList(supabase).then((list) => {
+    fetchCheckoutPromoList(supabase, promoScope).then((list) => {
       if (!cancelled) {
         setAvailablePromos(list)
         setPromosLoading(false)
@@ -179,12 +186,12 @@ export function BookingFormClient({
     return () => {
       cancelled = true
     }
-  }, [showPromoInput])
+  }, [showPromoInput, promoScope.hostId, promoScope.packageId])
 
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const result = await validatePromoCode(promoCode)
+    const result = await validatePromoCode(promoCode, promoScope)
     if ('error' in result) {
       toast.error(result.error)
       setPromoDiscount(0)
