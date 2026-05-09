@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AdminNotificationBell } from './AdminNotificationBell'
-import type { UserRole } from '@/types'
+import type { UserRole, AdminPermissionKey } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
@@ -23,22 +23,68 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-const navItems: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[]; badgeKey?: string }[] = [
-  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
-  { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'] },
-  { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'], badgeKey: 'bookings' },
-  { href: '/admin/requests', label: 'Custom Requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'], badgeKey: 'requests' },
-  { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'] },
-  { href: '/admin/service-listings', label: 'Service Listings', icon: Store, roles: ['admin'], badgeKey: 'serviceListings' },
-  { href: '/admin/community-trips', label: 'Community Trips', icon: Mountain, roles: ['admin'], badgeKey: 'communityTrips' },
-  { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager'] },
-  { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'] },
-  { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'] },
-  { href: '/admin/offers', label: 'Offers Page', icon: Sparkles, roles: ['admin'] },
-  { href: '/admin/promo-cards', label: 'Home promos', icon: Sparkles, roles: ['admin'] },
-  { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, roles: ['admin'] },
-  { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'] },
-  { href: '/admin/team', label: 'Team', icon: Users, roles: ['admin'] },
+const navItems: {
+  href: string
+  label: string
+  icon: typeof LayoutDashboard
+  roles: UserRole[]
+  badgeKey?: string
+  permissionKey?: AdminPermissionKey
+}[] = [
+  {
+    href: '/admin',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom'],
+  },
+  { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'], permissionKey: 'users' },
+  {
+    href: '/admin/bookings',
+    label: 'Bookings',
+    icon: BookOpen,
+    roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'],
+    badgeKey: 'bookings',
+    permissionKey: 'bookings',
+  },
+  {
+    href: '/admin/requests',
+    label: 'Custom Requests',
+    icon: FileText,
+    roles: ['admin', 'social_media_manager', 'field_person'],
+    badgeKey: 'requests',
+    permissionKey: 'requests',
+  },
+  { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'], permissionKey: 'packages' },
+  {
+    href: '/admin/service-listings',
+    label: 'Service Listings',
+    icon: Store,
+    roles: ['admin', 'host_onboarding_staff'],
+    badgeKey: 'serviceListings',
+    permissionKey: 'service_listings',
+  },
+  {
+    href: '/admin/community-trips',
+    label: 'Community Trips',
+    icon: Mountain,
+    roles: ['admin', 'host_onboarding_staff'],
+    badgeKey: 'communityTrips',
+    permissionKey: 'community_trips',
+  },
+  {
+    href: '/admin/community-chats',
+    label: 'Community chats',
+    icon: MessageCircle,
+    roles: ['admin', 'social_media_manager', 'chat_responder'],
+    permissionKey: 'community_chats',
+  },
+  { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'], permissionKey: 'revenue' },
+  { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
+  { href: '/admin/offers', label: 'Offers Page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },
+  { href: '/admin/promo-cards', label: 'Home promos', icon: Sparkles, roles: ['admin'], permissionKey: 'promo_cards' },
+  { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, roles: ['admin'], permissionKey: 'whatsapp' },
+  { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'], permissionKey: 'settings' },
+  { href: '/admin/team', label: 'Team', icon: Users, roles: ['admin'], permissionKey: 'team' },
 ]
 
 interface AdminSidebarProps {
@@ -46,14 +92,23 @@ interface AdminSidebarProps {
   name: string
   userId: string
   pendingCounts?: { bookings: number; requests: number; serviceListings: number; communityTrips: number }
+  customPermissions?: AdminPermissionKey[]
 }
 
-export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebarProps) {
+export function AdminSidebar({ role, name, userId, pendingCounts, customPermissions = [] }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const isAdmin = role === 'admin'
-  const visible = navItems.filter(n => n.roles.includes(role))
+
+  // For 'custom' role: show dashboard always + items whose permissionKey is in customPermissions
+  // For all other roles: filter by the roles array
+  const visible = navItems.filter(n => {
+    if (n.roles.includes(role)) return true
+    if (role === 'custom' && n.permissionKey && customPermissions.includes(n.permissionKey)) return true
+    return false
+  })
+
   const counts = pendingCounts ?? { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
 
   useEffect(() => {

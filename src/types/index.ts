@@ -1,4 +1,11 @@
-export type UserRole = 'user' | 'admin' | 'social_media_manager' | 'field_person' | 'chat_responder'
+export type UserRole =
+  | 'user'
+  | 'admin'
+  | 'social_media_manager'
+  | 'field_person'
+  | 'chat_responder'
+  | 'host_onboarding_staff'
+  | 'custom'
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   user: 'User',
@@ -6,6 +13,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   social_media_manager: 'Social Media Manager',
   field_person: 'Field Person',
   chat_responder: 'Chat Responder',
+  host_onboarding_staff: 'Hosts Onboarding Staff',
+  custom: 'Custom',
 }
 
 export const ROLE_COLORS: Record<UserRole, string> = {
@@ -14,6 +23,64 @@ export const ROLE_COLORS: Record<UserRole, string> = {
   social_media_manager: 'bg-purple-900/50 text-purple-300 border border-purple-700',
   field_person: 'bg-green-900/50 text-green-300 border border-green-700',
   chat_responder: 'bg-blue-900/50 text-blue-300 border border-blue-700',
+  host_onboarding_staff: 'bg-teal-900/50 text-teal-300 border border-teal-700',
+  custom: 'bg-orange-900/50 text-orange-300 border border-orange-700',
+}
+
+// ── Admin permission keys ────────────────────────────────────
+
+export type AdminPermissionKey =
+  | 'users'
+  | 'bookings'
+  | 'requests'
+  | 'packages'
+  | 'service_listings'
+  | 'community_trips'
+  | 'community_chats'
+  | 'revenue'
+  | 'discounts'
+  | 'offers'
+  | 'promo_cards'
+  | 'whatsapp'
+  | 'settings'
+  | 'team'
+
+export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
+  users: 'Manage Users',
+  bookings: 'Manage Bookings',
+  requests: 'Custom Date Requests',
+  packages: 'Manage Packages',
+  service_listings: 'Service Listings (Stays, Activities, Rentals)',
+  community_trips: 'Community Trips (Host trips)',
+  community_chats: 'Community Chats & Chat Rooms',
+  revenue: 'Revenue Reports',
+  discounts: 'Discounts & Promo Codes',
+  offers: 'Offers Page',
+  promo_cards: 'Home Promo Cards',
+  whatsapp: 'WhatsApp Settings',
+  settings: 'Platform Settings',
+  team: 'Team Management',
+}
+
+/** Default permissions for each non-admin staff role. Admin always gets all. */
+export const ROLE_DEFAULT_PERMISSIONS: Partial<Record<UserRole, AdminPermissionKey[]>> = {
+  social_media_manager: ['bookings', 'requests', 'community_chats'],
+  field_person: ['bookings', 'requests'],
+  chat_responder: ['bookings', 'community_chats'],
+  host_onboarding_staff: ['service_listings', 'community_trips'],
+  user: [],
+  // 'custom' resolved at runtime from team_members.custom_permissions
+}
+
+export function hasAdminPermission(
+  role: UserRole,
+  customPermissions: AdminPermissionKey[],
+  key: AdminPermissionKey,
+): boolean {
+  if (role === 'admin') return true
+  if (role === 'custom') return customPermissions.includes(key)
+  const defaults = ROLE_DEFAULT_PERMISSIONS[role] ?? []
+  return defaults.includes(key)
 }
 
 export type Profile = {
@@ -53,6 +120,8 @@ export type TeamMember = {
   added_by: string | null
   is_active: boolean
   notes: string | null
+  /** Only populated for role === 'custom'. Array of AdminPermissionKey values. */
+  custom_permissions?: AdminPermissionKey[]
   created_at: string
   updated_at: string
   profile?: Profile

@@ -6,7 +6,7 @@ import { ROLE_LABELS, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
 
-const STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder']
+const STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom']
 
 // ── Audit Log ─────────────────────────────────────────────────
 
@@ -325,11 +325,15 @@ export async function addTeamMember(
   identifier: string, // email or username
   role: UserRole,
   notes?: string,
+  customPermissions?: string[],
 ) {
   const { user } = await requireAdmin()
   const supabase = createServiceRoleClient()
 
   if (role === 'user') return { error: 'Cannot add a "user" role to team' }
+  if (role === 'custom' && (!customPermissions || customPermissions.length === 0)) {
+    return { error: 'Please select at least one permission for a Custom role.' }
+  }
 
   // Find user by email or username
   let targetUserId: string | null = null
@@ -374,6 +378,7 @@ export async function addTeamMember(
       added_by: user.id,
       is_active: true,
       notes: notes || null,
+      custom_permissions: role === 'custom' ? (customPermissions ?? []) : [],
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' })
 

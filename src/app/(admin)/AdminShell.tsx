@@ -1,10 +1,9 @@
 import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
-import type { UserRole } from '@/types'
+import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
+import type { UserRole, AdminPermissionKey } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
 import { getAdminDashboardStats } from '@/actions/admin'
-
-const STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder']
 
 export async function AdminShell({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await getRequestAuth()
@@ -19,7 +18,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
       .single(),
     supabase
       .from('team_members')
-      .select('role, is_active')
+      .select('role, is_active, custom_permissions')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
@@ -34,6 +33,11 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
   if (!profile || !effectiveRole) {
     redirect('/')
   }
+
+  const customPermissions: AdminPermissionKey[] =
+    effectiveRole === 'custom' && Array.isArray(membership?.custom_permissions)
+      ? (membership.custom_permissions as AdminPermissionKey[])
+      : []
 
   let pendingCounts = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
   try {
@@ -55,6 +59,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
         name={profile.full_name || profile.username}
         userId={user.id}
         pendingCounts={pendingCounts}
+        customPermissions={customPermissions}
       />
 
       <main className="flex-1 min-w-0 min-h-dvh overflow-y-auto pt-14 md:pt-0 [scrollbar-gutter:stable]">
