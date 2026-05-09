@@ -50,6 +50,7 @@ export function ServiceListingsClient({
 }: ServiceListingsClientProps) {
   const [filter, setFilter] = useState<StatusFilter>(() => parseStatusFilter(initialStatusFilter))
   const [typeFilter, setTypeFilter] = useState<'all' | string>(() => parseTypeFilter(initialTypeFilter))
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
   const [rejectListingId, setRejectListingId] = useState<string | null>(null)
   const [rejectReasonInput, setRejectReasonInput] = useState('')
@@ -69,6 +70,10 @@ export function ServiceListingsClient({
   const filtered = serviceListings.filter((l) => {
     if (filter !== 'all' && l.status !== filter) return false
     if (typeFilter !== 'all' && l.type !== typeFilter) return false
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      if (!l.title?.toLowerCase().includes(q) && !l.location?.toLowerCase().includes(q)) return false
+    }
     return true
   })
 
@@ -118,6 +123,17 @@ export function ServiceListingsClient({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 rounded-xl border border-border bg-card/90 p-4 shadow-sm shadow-black/10">
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-xs font-semibold text-muted-foreground">Search</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Title or location…"
+            className="mt-1 w-full rounded-lg border border-border bg-secondary/80 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+          />
+        </div>
+
         <div>
           <label className="text-xs font-semibold text-muted-foreground">Status</label>
           <select

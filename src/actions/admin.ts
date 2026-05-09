@@ -160,7 +160,7 @@ export async function getAdminBookings(status?: string) {
 
   let query = supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*)), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)')
+    .select('*, package:packages(*, destination:destinations(*)), service_listing:service_listings(id, title, type), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)')
     .order('created_at', { ascending: false })
 
   if (status && status !== 'all') {
@@ -205,6 +205,31 @@ export async function updateBookingNotes(bookingId: string, notes: string) {
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
+  return { success: true }
+}
+
+export async function adminDeleteBooking(bookingId: string) {
+  const { supabase, user } = await requireAdmin()
+
+  // Only allow deletion of cancelled or pending bookings
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('id, status, payment_status')
+    .eq('id', bookingId)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (!['cancelled', 'pending'].includes(booking.status)) {
+    return { error: 'Only cancelled or pending bookings can be deleted' }
+  }
+
+  const { error } = await supabase.from('bookings').delete().eq('id', bookingId)
+  if (error) return { error: error.message }
+
+  await logAuditEvent(user.id, 'DELETE_BOOKING', 'booking', bookingId, {
+    status: booking.status,
+  })
+
   return { success: true }
 }
 

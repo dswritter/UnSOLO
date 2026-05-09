@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import { formatPrice, formatDate, ROLE_LABELS, type Booking, type Profile } from '@/types'
-import { assignPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes } from '@/actions/admin'
+import { assignPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
 import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign } from 'lucide-react'
+import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2 } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
@@ -39,6 +39,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
   const [searchUser, setSearchUser] = useState('')
   const [filterMonth, setFilterMonth] = useState('')
   const [filterYear, setFilterYear] = useState('')
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
   // Apply all filters
   let filtered = filter === 'all'
@@ -135,6 +136,15 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
     })
   }
 
+  function handleDeleteBooking(bookingId: string) {
+    if (!confirm('Permanently delete this booking? This cannot be undone.')) return
+    startTransition(async () => {
+      const res = await adminDeleteBooking(bookingId)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else setDeletedIds(prev => new Set([...prev, bookingId]))
+    })
+  }
+
   function handleSaveNotes(bookingId: string, notes: string) {
     startTransition(async () => {
       const res = await updateBookingNotes(bookingId, notes)
@@ -215,11 +225,14 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
           <p className="text-muted-foreground text-center py-12">No bookings found.</p>
         )}
 
-        {filtered.map((booking) => {
+        {filtered.filter(b => !deletedIds.has(b.id)).map((booking) => {
           const pkg = booking.package as (PackageDurationDisplay & { title?: string; destination?: { name?: string; state?: string } }) | null
+          const sl = booking.service_listing as { id: string; title: string; type: string } | null
+          const displayTitle = sl?.title || pkg?.title || 'Unknown'
           const usr = booking.user as Profile | null
           const poc = booking.poc as Profile | null
           const isExpanded = expandedId === booking.id
+          const isDeletable = booking.status === 'cancelled' || booking.status === 'pending'
 
           return (
             <div key={booking.id} className="rounded-xl border border-border bg-card/50 overflow-hidden">
@@ -233,7 +246,14 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     {booking.status}
                   </Badge>
                   <div className="min-w-0">
-                    <p className="font-semibold truncate">{pkg?.title || 'Unknown'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold truncate">{displayTitle}</p>
+                      {sl && (
+                        <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20 capitalize">
+                          {sl.type}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {usr?.full_name || usr?.username || 'Unknown'} · {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {booking.travel_date ? formatDate(booking.travel_date) : '—'}
                     </p>
@@ -404,6 +424,22 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       {booking.refund_status === 'completed' && (
                         <p className="text-xs text-green-400">Refund credited to customer&apos;s account</p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Delete booking */}
+                  {isDeletable && (
+                    <div className="pt-2 border-t border-border">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-300"
+                        onClick={() => handleDeleteBooking(booking.id)}
+                        disabled={isPending}
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete booking
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-1">Permanently remove this {booking.status} booking record.</p>
                     </div>
                   )}
 

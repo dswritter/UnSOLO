@@ -41,6 +41,7 @@ export default function CommunityTripsClient({
   const [trips, setTrips] = useState(initialTrips)
   const [pendingPayouts, setPendingPayouts] = useState(initialPayouts)
   const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -57,9 +58,19 @@ export default function CommunityTripsClient({
   const [payoutManual, setPayoutManual] = useState<Record<string, boolean>>({})
   const [confirmReject, setConfirmReject] = useState<string | null>(null)
 
-  const filtered = filter === 'all'
-    ? trips
-    : trips.filter(t => t.moderation_status === filter)
+  const filtered = trips.filter(t => {
+    if (filter !== 'all' && t.moderation_status !== filter) return false
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      const host = t.host as any
+      if (
+        !t.title?.toLowerCase().includes(q) &&
+        !host?.full_name?.toLowerCase().includes(q) &&
+        !host?.username?.toLowerCase().includes(q)
+      ) return false
+    }
+    return true
+  })
 
   function toggleFeatured(tripId: string, currentlyFeatured: boolean) {
     startTransition(async () => {
@@ -355,6 +366,20 @@ export default function CommunityTripsClient({
       </div>
 
       {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-1">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by title or host…"
+          className="flex-1 min-w-[200px] px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+        />
+        {search && (
+          <button onClick={() => setSearch('')} className="text-xs text-red-400 hover:text-red-300 shrink-0">
+            Clear
+          </button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         {['all', 'pending', 'approved', 'rejected'].map(s => (
           <button
@@ -376,6 +401,7 @@ export default function CommunityTripsClient({
 
       {/* Trips list */}
       <div className="space-y-3">
+        <p className="text-xs text-muted-foreground text-right">{filtered.length} trip{filtered.length !== 1 ? 's' : ''}</p>
         {filtered.length === 0 && (
           <p className="text-muted-foreground text-center py-12">No community trips found.</p>
         )}
