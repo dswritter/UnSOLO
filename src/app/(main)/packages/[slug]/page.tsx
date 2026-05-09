@@ -141,10 +141,6 @@ export default async function PackageDetailPage({
   const jp = package_.join_preferences
   const communityDirectCheckout = isCommunityTrip && isCommunityDirectCheckout(jp ?? undefined)
   const hostData = (pkg.host as unknown as HostProfile) || null
-  const hostPhoneVisible = !!hostData?.phone_number && (hostData.phone_public === true || hostData.is_host === true)
-  const hostPhoneHref = hostData?.phone_number
-    ? `tel:${hostData.phone_number.replace(/[^\d+]/g, '')}`
-    : null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
   const compareAtDisplayPaise = hasTieredPricing(package_.price_variants)
     ? ((package_.price_variants || [])
@@ -431,16 +427,9 @@ export default async function PackageDetailPage({
                     {hostData.bio && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{hostData.bio}</p>
                     )}
-                    {hostPhoneVisible && hostPhoneHref && (
-                      <div className="mt-3">
-                        <a
-                          href={hostPhoneHref}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-                        >
-                          Call host: {hostData.phone_number}
-                        </a>
-                      </div>
-                    )}
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      The host&apos;s contact number will be shared with you once your booking is completed.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -714,14 +703,6 @@ export default async function PackageDetailPage({
                         <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
                         </Link>
-                      </div>
-                    )}
-                    {isCommunityTrip && hostPhoneVisible && hostData?.phone_number && (
-                      <div className="flex justify-between gap-3">
-                        <span>Host phone</span>
-                        <a href={hostPhoneHref || '#'} className="text-primary hover:underline">
-                          {hostData.phone_number}
-                        </a>
                       </div>
                     )}
                   </div>
