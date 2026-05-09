@@ -765,6 +765,25 @@ export async function deletePackage(packageId: string) {
   return { success: true }
 }
 
+/** Permanently removes a package / community trip row regardless of bookings. */
+export async function hardDeletePackage(packageId: string) {
+  const { supabase, user } = await requireAdmin()
+
+  // Null out package_id on existing bookings first so FK doesn't block
+  await supabase.from('bookings').update({ package_id: null }).eq('package_id', packageId)
+
+  const { error } = await supabase.from('packages').delete().eq('id', packageId)
+  if (error) return { error: error.message }
+
+  await logAuditEvent(user.id, 'HARD_DELETE_PACKAGE', 'package', packageId)
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/')
+  revalidatePath('/admin/packages')
+  revalidatePath('/admin/community-trips')
+  return { success: true }
+}
+
 export async function createDestination(name: string, state: string, description?: string, imageUrl?: string) {
   const { supabase } = await requireAdmin()
 

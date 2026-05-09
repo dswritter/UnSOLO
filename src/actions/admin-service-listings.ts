@@ -279,6 +279,18 @@ export async function deleteServiceListing(id: string) {
   await logAuditEvent(user.id, 'DELETE_SERVICE_LISTING', 'service_listing', id)
 }
 
+export async function hardDeleteServiceListing(id: string) {
+  const { supabase, user } = await requireAdmin()
+
+  const { error } = await supabase.from('service_listings').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+
+  await logAuditEvent(user.id, 'HARD_DELETE_SERVICE_LISTING', 'service_listing', id)
+
+  revalidatePath('/admin/service-listings')
+  revalidatePath('/')
+}
+
 async function notifyHostOfModeration(opts: {
   listingId: string
   approved: boolean

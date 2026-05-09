@@ -376,25 +376,53 @@ export function StatusStoryViewer({
           }}
         >
           <div className="flex-1 flex items-center justify-center p-4 min-w-0 relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={story.id}
-              src={story.media_url}
-              alt=""
-              className={`max-w-full max-h-full object-contain pointer-events-none transition-opacity duration-200 ${loadingImage ? 'opacity-40' : 'opacity-100'}`}
-              draggable={false}
-              onLoad={() => {
-                setLoadedMediaId(story.id)
-              }}
-              onError={() => {
-                setLoadedMediaId(story.id)
-              }}
-            />
-            {loadingImage ? (
-              <div className="absolute inset-4 flex items-center justify-center pointer-events-none rounded-xl bg-black/50 backdrop-blur-md border border-white/10">
-                <Loader2 className="h-10 w-10 text-white animate-spin opacity-90" />
+            {story.media_url ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  key={story.id}
+                  src={story.media_url}
+                  alt=""
+                  className={`max-w-full max-h-full object-contain pointer-events-none transition-opacity duration-200 ${loadingImage ? 'opacity-40' : 'opacity-100'}`}
+                  draggable={false}
+                  onLoad={() => setLoadedMediaId(story.id)}
+                  onError={() => setLoadedMediaId(story.id)}
+                />
+                {loadingImage && (
+                  <div className="absolute inset-4 flex items-center justify-center pointer-events-none rounded-xl bg-black/50 backdrop-blur-md border border-white/10">
+                    <Loader2 className="h-10 w-10 text-white animate-spin opacity-90" />
+                  </div>
+                )}
+                {/* Caption overlay on images */}
+                {story.caption && (
+                  <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-black/60 backdrop-blur-sm px-4 py-3">
+                    <p className="text-white text-sm leading-snug">{story.caption}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Text / link story — no image */
+              <div
+                className="w-full max-w-sm mx-auto rounded-2xl p-6 flex flex-col items-center justify-center gap-4 text-center min-h-[200px]"
+                style={{ background: story.bg_color || '#1a1a2e' }}
+              >
+                {story.caption && (
+                  <p className="text-white text-lg font-medium leading-snug">{story.caption}</p>
+                )}
+                {story.link_url && (
+                  <a
+                    href={story.link_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 px-4 py-2 text-white text-sm font-medium transition-colors max-w-full"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <span className="truncate max-w-[220px]">{story.link_url.replace(/^https?:\/\//, '')}</span>
+                    <span className="shrink-0 opacity-70">↗</span>
+                  </a>
+                )}
               </div>
-            ) : null}
+            )}
           </div>
         </div>
       </div>

@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
-import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2, Search, ChevronUp, ChevronDown, Bold, Italic, Strikethrough } from 'lucide-react'
+import { Send, Wifi, WifiOff, Phone, Lock, X, User, Share2, Package, Check, CheckCheck, ArrowLeft, MoreVertical, LogOut, BellOff, Bell, SmilePlus, BarChart2, Pin, Home, CalendarDays, Car, Loader2, Search, ChevronUp, ChevronDown, Bold, Italic, Strikethrough, CornerUpLeft } from 'lucide-react'
 import { getInitials, timeAgo, cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -2044,6 +2044,11 @@ export function ChatWindow({
                 tribeShell={tribeShell}
                 roomType={roomType}
                 tripHostUserId={tripHostUserId}
+                onReply={
+                  item.message.message_type !== 'system' && !item.message.id.startsWith('optimistic-')
+                    ? () => setReplyTarget(item.message)
+                    : undefined
+                }
               />
             </div>
             ),
@@ -2669,6 +2674,7 @@ function MessageBubble({
   tribeShell = false,
   roomType = 'general',
   tripHostUserId = null,
+  onReply,
 }: {
   message: Message
   roomId: string
@@ -2705,6 +2711,7 @@ function MessageBubble({
   tribeShell?: boolean
   roomType?: 'trip' | 'general' | 'direct'
   tripHostUserId?: string | null
+  onReply?: () => void
 }): React.ReactNode {
   const memberFallback =
     message.user_id && !message.user
@@ -2864,7 +2871,7 @@ function MessageBubble({
   }
 
   return (
-    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''} group`}>
+    <div className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : ''} group/msg`}>
       {!isOwn ? (
         <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0">
           <div className="relative">
@@ -3068,6 +3075,17 @@ function MessageBubble({
           )}
         </div>
       </div>
+      {/* Desktop hover reply button */}
+      {onReply && (
+        <button
+          type="button"
+          onClick={onReply}
+          className="hidden md:flex items-center justify-center h-7 w-7 rounded-full shrink-0 self-center opacity-0 group-hover/msg:opacity-100 transition-opacity text-muted-foreground hover:text-foreground hover:bg-secondary/80 border border-transparent hover:border-border"
+          title="Reply"
+        >
+          <CornerUpLeft className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   )
 }

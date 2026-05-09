@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { moderateCommunityTrip, updatePackage } from '@/actions/admin'
+import { moderateCommunityTrip, updatePackage, hardDeletePackage } from '@/actions/admin'
 import { releaseHostPayout } from '@/actions/host-payout'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
@@ -81,6 +81,16 @@ export default function CommunityTripsClient({
       }
       toast.success(!currentlyFeatured ? 'Trip is now featured on Explore' : 'Removed from featured')
       setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, is_featured: !currentlyFeatured } : t)))
+    })
+  }
+
+  function handleHardDelete(tripId: string) {
+    if (!confirm('Permanently delete this community trip? This CANNOT be undone.')) return
+    startTransition(async () => {
+      const res = await hardDeletePackage(tripId)
+      if (res.error) { toast.error(res.error); return }
+      toast.success('Trip permanently deleted')
+      setTrips(prev => prev.filter(t => t.id !== tripId))
     })
   }
 
@@ -682,6 +692,21 @@ export default function CommunityTripsClient({
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+                  {/* Hard delete — only for rejected trips */}
+                  {trip.moderation_status === 'rejected' && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950"
+                        onClick={() => handleHardDelete(trip.id)}
+                        disabled={isPending}
+                      >
+                        🗑 Permanently delete trip
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-1">Removes the trip and unlinks its bookings. Cannot be undone.</p>
                     </div>
                   )}
                 </div>

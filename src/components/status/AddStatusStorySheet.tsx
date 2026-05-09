@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
-import { X, ChevronRight, ImagePlus } from 'lucide-react'
+import { X, ChevronRight, ImagePlus, Type, Link2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createStatusStories } from '@/actions/statusStories'
 import type { StatusStoryAudienceMode } from '@/lib/statusStories/audience'
@@ -48,6 +48,8 @@ export function AddStatusStorySheet({
   const [busy, setBusy] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
+  const [caption, setCaption] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
   const [audienceOpen, setAudienceOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -66,6 +68,8 @@ export function AddStatusStorySheet({
       prev.forEach(u => URL.revokeObjectURL(u))
       return []
     })
+    setCaption('')
+    setLinkUrl('')
     setAudienceOpen(false)
     setMode('all')
     setExcludeUsers([])
@@ -95,12 +99,13 @@ export function AddStatusStorySheet({
   }
 
   async function submit() {
-    if (!files.length) {
-      toast.error('Choose at least one photo')
+    const hasContent = files.length > 0 || caption.trim().length > 0 || linkUrl.trim().length > 0
+    if (!hasContent) {
+      toast.error('Add a photo, some text, or a link')
       return
     }
     if (maxNew <= 0) {
-      toast.error('You already have 3 active status photos')
+      toast.error('You already have 3 active status items')
       return
     }
 
@@ -146,6 +151,8 @@ export function AddStatusStorySheet({
         excludeUsernames: mode === 'all' ? excludeUsers.join(', ') : undefined,
         includeUsernames: mode === 'users' ? includeUsers.join(', ') : undefined,
         includeRoomIds: mode === 'communities' ? [...roomIds] : undefined,
+        caption: caption.trim() || undefined,
+        linkUrl: linkUrl.trim() || undefined,
       })
       if (r.error) {
         toast.error(r.error)
@@ -182,10 +189,42 @@ export function AddStatusStorySheet({
             </button>
           </div>
           <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4 min-h-[200px]">
-            <p className="text-xs text-muted-foreground">Photos only · Up to 3 active at once · Removed automatically after 24 hours.</p>
+            <p className="text-xs text-muted-foreground">Share a photo, text, or link · Up to 3 active at once · Expires in 24 hours.</p>
+
+            {/* Text caption */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Type className="h-3 w-3" /> Text (optional)
+              </label>
+              <textarea
+                value={caption}
+                onChange={e => setCaption(e.target.value)}
+                placeholder="What's on your mind? Where are you headed?"
+                rows={3}
+                maxLength={280}
+                className="w-full rounded-lg border border-border bg-secondary/60 px-3 py-2 text-sm placeholder:text-muted-foreground resize-none focus:outline-none focus:border-primary"
+              />
+              {caption.length > 0 && (
+                <p className="text-[10px] text-muted-foreground text-right">{caption.length}/280</p>
+              )}
+            </div>
+
+            {/* Link */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Link2 className="h-3 w-3" /> Link (optional)
+              </label>
+              <input
+                type="url"
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-lg border border-border bg-secondary/60 px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+              />
+            </div>
 
             <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground">Photos ({files.length}/{maxNew || 0} new)</label>
+              <label className="text-xs font-medium text-muted-foreground">Photos ({files.length}/{maxNew || 0} new) · optional when adding text/link</label>
               <input
                 ref={fileRef}
                 type="file"

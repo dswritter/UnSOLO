@@ -9,7 +9,11 @@ import { serializeAudience, type StatusStoryAudience } from '@/lib/statusStories
 export type StatusStripStory = {
   id: string
   author_id: string
-  media_url: string
+  media_url: string | null
+  media_type: 'image' | 'text' | 'link'
+  caption: string | null
+  link_url: string | null
+  bg_color: string | null
   created_at: string
   expires_at: string
   author: {
@@ -149,12 +153,24 @@ export async function createStatusStories(input: {
   excludeUsernames?: string
   includeUsernames?: string
   includeRoomIds?: string[]
+  /** For text/link stories — the body text */
+  caption?: string
+  /** For link stories — the URL */
+  linkUrl?: string
+  /** Background colour for text-only stories (CSS colour string) */
+  bgColor?: string
 }): Promise<{ error?: string }> {
   const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const urls = input.mediaUrls.map(u => u.trim()).filter(Boolean)
-  if (!urls.length) return { error: 'Add at least one photo' }
+  const hasCaption = (input.caption?.trim().length ?? 0) > 0
+  const hasLink = (input.linkUrl?.trim().length ?? 0) > 0
+
+  // Must have either images or a caption/link
+  if (!urls.length && !hasCaption && !hasLink) {
+    return { error: 'Add at least one photo, some text, or a link' }
+  }
   if (urls.length > MAX_ACTIVE_STATUS_PER_USER) return { error: `You can share up to ${MAX_ACTIVE_STATUS_PER_USER} photos at once` }
 
   const { count: existing } = await supabase
@@ -164,9 +180,10 @@ export async function createStatusStories(input: {
     .gt('expires_at', new Date().toISOString())
 
   const n = existing ?? 0
-  if (n + urls.length > MAX_ACTIVE_STATUS_PER_USER) {
+  const toAdd = urls.length || 1
+  if (n + toAdd > MAX_ACTIVE_STATUS_PER_USER) {
     return {
-      error: `You can have at most ${MAX_ACTIVE_STATUS_PER_USER} active status photos. Remove some or wait for them to expire.`,
+      error: `You can have at most ${MAX_ACTIVE_STATUS_PER_USER} active status items. Remove some or wait for them to expire.`,
     }
   }
 
@@ -177,11 +194,29 @@ export async function createStatusStories(input: {
   expires.setTime(expires.getTime() + 24 * 60 * 60 * 1000)
   const audienceJson = serializeAudience(audience)
 
-  for (const media_url of urls) {
+  if (urls.length > 0) {
+    // Image stories
+    for (const media_url of urls) {
+      const { error } = await supabase.from('status_stories').insert({
+        author_id: user.id,
+        media_url,
+        media_type: 'image',
+        caption: input.caption?.trim() || null,
+        expires_at: expires.toISOString(),
+        audience: audienceJson,
+      })
+      if (error) return { error: error.message }
+    }
+  } else {
+    // Text / link story (no image)
+    const mediaType = hasLink ? 'link' : 'text'
     const { error } = await supabase.from('status_stories').insert({
       author_id: user.id,
-      media_url,
-      media_type: 'image',
+      media_url: null,
+      media_type: mediaType,
+      caption: input.caption?.trim() || null,
+      link_url: input.linkUrl?.trim() || null,
+      bg_color: input.bgColor || '#1a1a2e',
       expires_at: expires.toISOString(),
       audience: audienceJson,
     })

@@ -28,6 +28,7 @@ interface NavbarProps {
 export function Navbar({ user }: NavbarProps) {
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
+  const [hasRooms, setHasRooms] = useState(false)
   const mobileChatComposerActive = useMobileChatComposerActive()
   const router = useRouter()
   const pathname = usePathname()
@@ -138,6 +139,17 @@ export function Navbar({ user }: NavbarProps) {
     return () => { supabase.removeChannel(ch) }
   }, [user])
 
+  // "Meet Travellers" → "Community" once user has joined any room
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    supabase
+      .from('chat_room_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .then(({ count }) => setHasRooms((count ?? 0) > 0))
+  }, [user])
+
   // Fetch pending join request count for hosts
   useEffect(() => {
     if (!user?.is_host) return
@@ -172,7 +184,7 @@ export function Navbar({ user }: NavbarProps) {
 
   const navLinks = [
     { href: '/', label: 'Explore', icon: Compass },
-    { href: '/community', label: 'Meet Travellers', icon: MessageSquare, showBadge: true },
+    { href: '/community', label: hasRooms ? 'Community' : 'Meet Travellers', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
