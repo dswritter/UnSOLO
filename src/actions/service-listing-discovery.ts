@@ -133,7 +133,7 @@ export async function getServiceListingDetail(slug: string) {
     .select(`
       *,
       destination:destinations(id, name, slug),
-      host:profiles(id, username, full_name, avatar_url, host_rating, is_verified)
+      host:profiles(id, username, full_name, avatar_url, phone_number, phone_public, is_host, host_rating, is_verified)
     `)
     .eq('slug', slug)
     .eq('is_active', true)
@@ -148,6 +148,9 @@ export async function getServiceListingDetail(slug: string) {
       username: string
       full_name: string | null
       avatar_url: string | null
+      phone_number: string | null
+      phone_public: boolean | null
+      is_host: boolean | null
       host_rating: number | null
       is_verified: boolean
     }

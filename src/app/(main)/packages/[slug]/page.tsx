@@ -122,7 +122,7 @@ export default async function PackageDetailPage({
   // Fetch package — allow admins and the host to see inactive/pending trips
   const query = supabase
     .from('packages')
-    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
+    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, phone_number, phone_public, is_host, host_rating, is_verified, total_hosted_trips)')
     .eq('slug', slug)
 
   // Only filter by is_active for regular users
@@ -141,6 +141,10 @@ export default async function PackageDetailPage({
   const jp = package_.join_preferences
   const communityDirectCheckout = isCommunityTrip && isCommunityDirectCheckout(jp ?? undefined)
   const hostData = (pkg.host as unknown as HostProfile) || null
+  const hostPhoneVisible = !!hostData?.phone_number && (hostData.phone_public === true || hostData.is_host === true)
+  const hostPhoneHref = hostData?.phone_number
+    ? `tel:${hostData.phone_number.replace(/[^\d+]/g, '')}`
+    : null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
   const compareAtDisplayPaise = hasTieredPricing(package_.price_variants)
     ? ((package_.price_variants || [])
@@ -426,6 +430,16 @@ export default async function PackageDetailPage({
                     </div>
                     {hostData.bio && (
                       <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{hostData.bio}</p>
+                    )}
+                    {hostPhoneVisible && hostPhoneHref && (
+                      <div className="mt-3">
+                        <a
+                          href={hostPhoneHref}
+                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                          Call host: {hostData.phone_number}
+                        </a>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -723,6 +737,14 @@ export default async function PackageDetailPage({
                         <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
                         </Link>
+                      </div>
+                    )}
+                    {isCommunityTrip && hostPhoneVisible && hostData?.phone_number && (
+                      <div className="flex justify-between gap-3">
+                        <span>Host phone</span>
+                        <a href={hostPhoneHref || '#'} className="text-primary hover:underline">
+                          {hostData.phone_number}
+                        </a>
                       </div>
                     )}
                   </div>

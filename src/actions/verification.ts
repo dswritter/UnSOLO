@@ -253,7 +253,7 @@ async function checkAndSetHostStatus(
   if (profile?.is_phone_verified && emailVerified) {
     await supabase
       .from('profiles')
-      .update({ is_host: true, is_email_verified: true })
+      .update({ is_host: true, is_email_verified: true, phone_public: true })
       .eq('id', userId)
     return true
   }

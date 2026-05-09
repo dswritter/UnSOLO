@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink, Plus, Minus } from 'lucide-react'
+import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink, Plus, Minus, Phone } from 'lucide-react'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
@@ -26,6 +26,9 @@ type ListingHost = {
   username: string
   full_name: string | null
   avatar_url: string | null
+  phone_number?: string | null
+  phone_public?: boolean | null
+  is_host?: boolean | null
   host_rating: number | null
   is_verified: boolean
 }
@@ -68,6 +71,10 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
 
   const router = useRouter()
   const [openingChat, setOpeningChat] = useState(false)
+  const hostPhoneVisible = !!host?.phone_number && (host.phone_public === true || host.is_host === true)
+  const hostPhoneHref = host?.phone_number
+    ? `tel:${host.phone_number.replace(/[^\d+]/g, '')}`
+    : null
 
   async function handleMessageHost() {
     if (!host) return
@@ -287,6 +294,15 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                 )}
               </div>
               <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
+                {hostPhoneVisible && hostPhoneHref && (
+                  <a
+                    href={hostPhoneHref}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+                  >
+                    <Phone className="h-4 w-4" />
+                    {host.phone_number}
+                  </a>
+                )}
                 <Link
                   href={`/profile/${host.username}`}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"

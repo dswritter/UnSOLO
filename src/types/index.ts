@@ -93,6 +93,9 @@ export type HostProfile = {
   full_name: string | null
   avatar_url: string | null
   bio: string | null
+  phone_number?: string | null
+  phone_public?: boolean
+  is_host?: boolean
   host_rating: number | null
   is_verified: boolean
   total_hosted_trips: number | null

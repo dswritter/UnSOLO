@@ -338,6 +338,11 @@ export async function createHostServiceListing(input: {
       variant: 'submitted',
     })
 
+    await supabase
+      .from('profiles')
+      .update({ phone_public: true })
+      .eq('id', input.host_id)
+
     return { success: true, data }
   } catch (error) {
     console.error('Error creating service listing:', error)

@@ -206,6 +206,11 @@ export async function createHostedTrip(formData: {
     })
   }
 
+  await supabase
+    .from('profiles')
+    .update({ phone_public: true })
+    .eq('id', user.id)
+
   revalidatePath('/host')
   revalidatePath('/')
   return { success: true, slug: trip?.slug }
