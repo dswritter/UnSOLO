@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { AdminNotificationBell } from './AdminNotificationBell'
 import type { UserRole } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard,
   BookOpen,
@@ -20,7 +21,7 @@ import {
   Sparkles,
   Store,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 const navItems: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[]; badgeKey?: string }[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'] },
@@ -49,10 +50,42 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ role, name, userId, pendingCounts }: AdminSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const isAdmin = role === 'admin'
   const visible = navItems.filter(n => n.roles.includes(role))
   const counts = pendingCounts ?? { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`admin-sidebar-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => router.refresh(),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'packages',
+          filter: 'moderation_status=eq.pending',
+        },
+        () => router.refresh(),
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [router, userId])
 
   const sidebarContent = (
     <>

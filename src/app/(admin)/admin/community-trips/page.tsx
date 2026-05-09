@@ -19,6 +19,7 @@ export default async function AdminCommunityTripsPage() {
     .from('packages')
     .select('*, destination:destinations(name, state), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
     .not('host_id', 'is', null)
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
 
   const tripList = trips || []

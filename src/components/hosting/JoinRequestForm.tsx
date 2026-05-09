@@ -42,6 +42,7 @@ interface JoinRequestFormProps {
   packageTitle: string
   packageSlug: string
   pricePerPersonPaise: number
+  compareAtPricePaise?: number | null
   /** e.g. "From " when the package has multiple price tiers */
   priceLinePrefix?: string
   priceVariants?: { description: string; price_paise: number }[] | null
@@ -72,6 +73,7 @@ export function JoinRequestForm({
   packageTitle,
   packageSlug,
   pricePerPersonPaise,
+  compareAtPricePaise = null,
   priceLinePrefix = '',
   priceVariants,
   departureDates,
@@ -89,6 +91,10 @@ export function JoinRequestForm({
 
   /** Traveler pays the listed per-person price (platform fee is included, not added at checkout). */
   const tripPriceDisplay = `${priceLinePrefix}${formatPrice(pricePerPersonPaise)}`
+  const originalTripPriceDisplay =
+    typeof compareAtPricePaise === 'number' && compareAtPricePaise > pricePerPersonPaise
+      ? formatPrice(compareAtPricePaise)
+      : null
   /** Join-request flow (not direct checkout on the package page). */
   const paymentAfterApproval = !isCommunityDirectCheckout(joinPreferences ?? undefined)
 
@@ -118,6 +124,9 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
+          {originalTripPriceDisplay ? (
+            <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+          ) : null}
           <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
@@ -136,6 +145,9 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
+          {originalTripPriceDisplay ? (
+            <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+          ) : null}
           <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
@@ -211,6 +223,9 @@ export function JoinRequestForm({
             }
           }} className="space-y-4">
             <div>
+              {originalTripPriceDisplay ? (
+                <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+              ) : null}
               <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
               <span className="text-muted-foreground text-sm ml-2">per person</span>
             </div>
@@ -286,6 +301,9 @@ export function JoinRequestForm({
       return (
         <div className="space-y-4">
           <div>
+            {originalTripPriceDisplay ? (
+              <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+            ) : null}
             <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
             <span className="text-muted-foreground text-sm ml-2">per person</span>
           </div>
@@ -338,6 +356,7 @@ export function JoinRequestForm({
       <ApprovedPaymentSection
         existingRequest={existingRequest}
         tripPriceDisplay={tripPriceDisplay}
+        originalTripPriceDisplay={originalTripPriceDisplay}
         amountPaise={pricePerPersonPaise}
         packageTitle={packageTitle}
       />
@@ -349,6 +368,9 @@ export function JoinRequestForm({
     return (
       <div className="space-y-4">
         <div>
+          {originalTripPriceDisplay ? (
+            <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+          ) : null}
           <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
           <span className="text-muted-foreground text-sm ml-2">per person</span>
         </div>
@@ -379,6 +401,9 @@ export function JoinRequestForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
+        {originalTripPriceDisplay ? (
+          <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+        ) : null}
         <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
         <span className="text-muted-foreground text-sm ml-2">per person</span>
       </div>
@@ -479,11 +504,13 @@ export function JoinRequestForm({
 function ApprovedPaymentSection({
   existingRequest,
   tripPriceDisplay,
+  originalTripPriceDisplay,
   amountPaise,
   packageTitle,
 }: {
   existingRequest: ExistingRequest
   tripPriceDisplay: string
+  originalTripPriceDisplay: string | null
   amountPaise: number
   packageTitle: string
 }) {
@@ -634,6 +661,9 @@ function ApprovedPaymentSection({
       )}
 
       <div>
+        {originalTripPriceDisplay ? (
+          <div className="text-sm text-muted-foreground line-through">{originalTripPriceDisplay}</div>
+        ) : null}
         <span className="text-3xl font-black text-primary">{tripPriceDisplay}</span>
         <span className="text-muted-foreground text-sm ml-2">per person</span>
       </div>

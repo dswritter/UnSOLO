@@ -18,7 +18,7 @@ export type HostTripCreateDraftV1 = {
   destination: { id: string; name: string; state: string } | null
   description: string
   shortDescription: string
-  priceRows: { rupees: string; facilities: string }[]
+  priceRows: { rupees: string; compareRupees?: string; facilities: string }[]
   tripDays: string
   tripNights: string
   excludeFirstTravel: boolean
@@ -56,7 +56,7 @@ type DraftStoreV2 = {
 }
 
 const DEFAULT_SCHEDULE = [{ dep: '', ret: '' }]
-const DEFAULT_PRICE = [{ rupees: '', facilities: '' }]
+const DEFAULT_PRICE = [{ rupees: '', compareRupees: '', facilities: '' }]
 
 export function emptyHostTripCreateDraftFields(): HostTripDraftPayload {
   return {
@@ -229,4 +229,3 @@ export function deleteHostTripDraft(id: string): void {
   const drafts = store.drafts.filter((d) => d.id !== id && t - d.updatedAt <= HOST_TRIP_DRAFT_MAX_AGE_MS)
   writeStoreV2(drafts)
 }
-

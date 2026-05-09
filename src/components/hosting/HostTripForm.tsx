@@ -144,8 +144,8 @@ export function HostTripForm({
   const [description, setDescription] = useState('')
   const [shortDescription, setShortDescription] = useState('')
 
-  const [priceRows, setPriceRows] = useState<{ rupees: string; facilities: string }[]>([
-    { rupees: '', facilities: '' },
+  const [priceRows, setPriceRows] = useState<{ rupees: string; compareRupees: string; facilities: string }[]>([
+    { rupees: '', compareRupees: '', facilities: '' },
   ])
   const [tripDays, setTripDays] = useState('')
   const [tripNights, setTripNights] = useState('')
@@ -165,6 +165,7 @@ export function HostTripForm({
     { dep: '', ret: '' },
   ])
   const [selectedIncludes, setSelectedIncludes] = useState<string[]>([])
+  const [customIncludeInput, setCustomIncludeInput] = useState('')
 
   const [images, setImages] = useState<string[]>([])
   const imagesRef = useRef(images)
@@ -260,9 +261,25 @@ export function HostTripForm({
         setShortDescription(tripData.short_description || '')
         const pv = tripData.price_variants as PriceVariant[] | null
         if (pv && Array.isArray(pv) && pv.length >= 2) {
-          setPriceRows(pv.map((t) => ({ rupees: String(t.price_paise / 100), facilities: t.description })))
+          setPriceRows(
+            pv.map((t) => ({
+              rupees: String(t.price_paise / 100),
+              compareRupees:
+                typeof t.compare_at_paise === 'number' && Number.isFinite(t.compare_at_paise)
+                  ? String(t.compare_at_paise / 100)
+                  : '',
+              facilities: t.description,
+            })),
+          )
         } else {
-          setPriceRows([{ rupees: String((tripData.price_paise || 0) / 100), facilities: '' }])
+          setPriceRows([{
+            rupees: String((tripData.price_paise || 0) / 100),
+            compareRupees:
+              typeof tripData.compare_at_price_paise === 'number' && Number.isFinite(tripData.compare_at_price_paise)
+                ? String(tripData.compare_at_price_paise / 100)
+                : '',
+            facilities: '',
+          }])
         }
         setTripDays(String(tripData.trip_days ?? tripData.duration_days ?? ''))
         setTripNights(String(tripData.trip_nights ?? 0))
@@ -342,8 +359,12 @@ export function HostTripForm({
           setShortDescription(draft.shortDescription ?? '')
           setPriceRows(
             Array.isArray(draft.priceRows) && draft.priceRows.length > 0
-              ? draft.priceRows.map((r) => ({ rupees: r.rupees ?? '', facilities: r.facilities ?? '' }))
-              : [{ rupees: '', facilities: '' }],
+              ? draft.priceRows.map((r) => ({
+                  rupees: r.rupees ?? '',
+                  compareRupees: r.compareRupees ?? '',
+                  facilities: r.facilities ?? '',
+                }))
+              : [{ rupees: '', compareRupees: '', facilities: '' }],
           )
           setTripDays(draft.tripDays ?? '')
           setTripNights(draft.tripNights ?? '')
@@ -440,7 +461,11 @@ export function HostTripForm({
       destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
       description,
       shortDescription,
-      priceRows: priceRows.map((r) => ({ rupees: r.rupees, facilities: r.facilities })),
+      priceRows: priceRows.map((r) => ({
+        rupees: r.rupees,
+        compareRupees: r.compareRupees,
+        facilities: r.facilities,
+      })),
       tripDays,
       tripNights,
       excludeFirstTravel,
@@ -692,7 +717,7 @@ export function HostTripForm({
 
   function addPriceRow() {
     const nextIdx = priceRows.length
-    setPriceRows((prev) => [...prev, { rupees: '', facilities: '' }])
+    setPriceRows((prev) => [...prev, { rupees: '', compareRupees: '', facilities: '' }])
     setActivePriceTierIndex(nextIdx)
   }
 
@@ -705,7 +730,7 @@ export function HostTripForm({
     })
   }
 
-  function updatePriceRow(i: number, field: 'rupees' | 'facilities', value: string) {
+  function updatePriceRow(i: number, field: 'rupees' | 'compareRupees' | 'facilities', value: string) {
     setPriceRows((prev) => prev.map((r, j) => (j === i ? { ...r, [field]: value } : r)))
   }
 
@@ -984,6 +1009,7 @@ export function HostTripForm({
           description: string
           short_description: string | null
           price_paise: number
+          compare_at_price_paise?: number | null
           price_variants: PriceVariant[] | null
           duration_days: number
           trip_days: number
@@ -1006,6 +1032,7 @@ export function HostTripForm({
       try {
         const rows = priceRows.map((r) => ({
           pricePaise: Math.round(parseFloat(r.rupees) * 100),
+          compareAtPaise: r.compareRupees ? Math.round(parseFloat(r.compareRupees) * 100) : null,
           facilities: r.facilities,
         }))
         const tiersBuilt = priceVariantsFromFormRows(rows)
@@ -1019,6 +1046,18 @@ export function HostTripForm({
       pricePaise = Math.round(parseFloat(priceRows[0]?.rupees || '') * 100)
       if (!Number.isFinite(pricePaise) || pricePaise < 100) {
         return { error: 'Enter a valid price per person (minimum ₹1)' }
+      }
+    }
+    const compareAtPricePaise =
+      priceRows.length < 2 && priceRows[0]?.compareRupees
+        ? Math.round(parseFloat(priceRows[0].compareRupees) * 100)
+        : null
+    if (compareAtPricePaise != null) {
+      if (!Number.isFinite(compareAtPricePaise) || compareAtPricePaise < 100) {
+        return { error: 'Enter a valid original price (minimum ₹1)' }
+      }
+      if (compareAtPricePaise <= pricePaise) {
+        return { error: 'Original price must be higher than the current price' }
       }
     }
 
@@ -1073,6 +1112,7 @@ export function HostTripForm({
         description: description.trim(),
         short_description: shortDescription.trim() || null,
         price_paise: pricePaise,
+        compare_at_price_paise: compareAtPricePaise,
         price_variants,
         duration_days,
         trip_days: td,
@@ -1376,6 +1416,18 @@ export function HostTripForm({
                             min="1"
                           />
                         </div>
+                        <div className="flex-1 min-w-[120px]">
+                          <span className="text-[10px] text-muted-foreground block mb-1">Original price (optional)</span>
+                          <Input
+                            type="number"
+                            value={row.compareRupees}
+                            onChange={(e) => updatePriceRow(i, 'compareRupees', e.target.value)}
+                            onFocus={() => setActivePriceTierIndex(i)}
+                            placeholder="10999"
+                            className="bg-secondary border-border"
+                            min="1"
+                          />
+                        </div>
                         {priceRows.length > 1 && (
                           <button
                             type="button"
@@ -1405,9 +1457,16 @@ export function HostTripForm({
                   ))}
                 </div>
                 {priceRows.length === 1 && priceRows[0].rupees && (
-                  <p className="text-xs text-muted-foreground">
-                    Listed from {formatPrice(Math.round(parseFloat(priceRows[0].rupees || '0') * 100))} / person
-                  </p>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {priceRows[0].compareRupees ? (
+                      <p>
+                        Original {formatPrice(Math.round(parseFloat(priceRows[0].compareRupees || '0') * 100))} / person
+                      </p>
+                    ) : null}
+                    <p>
+                      Listed from {formatPrice(Math.round(parseFloat(priceRows[0].rupees || '0') * 100))} / person
+                    </p>
+                  </div>
                 )}
                 {priceRows.length >= 2 && (
                   <p className="text-xs text-muted-foreground">
@@ -1647,18 +1706,36 @@ export function HostTripForm({
                   <input
                     type="text"
                     placeholder="Add custom (e.g. Yoga Mats)"
+                    value={customIncludeInput}
+                    onChange={e => setCustomIncludeInput(e.target.value)}
                     className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm flex-1 max-w-[250px] focus:outline-none focus:border-primary"
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
-                        const val = (e.target as HTMLInputElement).value.trim()
+                        const val = customIncludeInput.trim()
                         if (val && !selectedIncludes.includes(val)) {
                           setSelectedIncludes(prev => [...prev, val])
-                          ;(e.target as HTMLInputElement).value = ''
+                          setCustomIncludeInput('')
                         }
                       }
                     }}
                   />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs"
+                    onClick={() => {
+                      const val = customIncludeInput.trim()
+                      if (val && !selectedIncludes.includes(val)) {
+                        setSelectedIncludes(prev => [...prev, val])
+                        setCustomIncludeInput('')
+                      }
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add
+                  </Button>
                   <span className="text-[10px] text-muted-foreground self-center">Press Enter</span>
                 </div>
               </div>

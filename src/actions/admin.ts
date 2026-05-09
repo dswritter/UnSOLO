@@ -88,6 +88,7 @@ export async function getAdminDashboardStats() {
     // Pending host-created community trips (packages with a host_id and pending moderation)
     supabase.from('packages').select('*', { count: 'exact', head: true })
       .not('host_id', 'is', null)
+      .is('archived_at', null)
       .eq('moderation_status', 'pending'),
   ])
 
@@ -449,6 +450,7 @@ export async function getAdminPackages() {
   const { data } = await supabase
     .from('packages')
     .select('*, destination:destinations(*)')
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
 
   return data || []
@@ -467,6 +469,7 @@ export async function createPackage(formData: {
   description: string
   short_description: string
   price_paise: number
+  compare_at_price_paise?: number | null
   price_variants?: PriceVariant[] | null
   duration_days: number
   trip_days: number
@@ -492,6 +495,7 @@ export async function createPackage(formData: {
   const { error } = await supabase.from('packages').insert({
     ...formData,
     price_paise,
+    compare_at_price_paise: formData.compare_at_price_paise ?? null,
     price_variants: tiers,
     is_active: true,
   })
@@ -509,6 +513,7 @@ export async function updatePackage(
     description?: string
     short_description?: string
     price_paise?: number
+    compare_at_price_paise?: number | null
     price_variants?: PriceVariant[] | null
     duration_days?: number
     trip_days?: number
@@ -577,6 +582,38 @@ export async function deletePackage(packageId: string) {
 
   if (count && count > 0) {
     return { error: `Cannot delete: ${count} active booking(s) exist for this package. Deactivate it instead.` }
+  }
+
+  const { count: totalBookings } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+
+  if (totalBookings && totalBookings > 0) {
+    const { data: pkg } = await supabase
+      .from('packages')
+      .select('slug, title')
+      .eq('id', packageId)
+      .single()
+
+    const archivedSlug = `${pkg?.slug || 'package'}-archived-${Date.now().toString(36)}`
+    const { error } = await supabase
+      .from('packages')
+      .update({
+        archived_at: new Date().toISOString(),
+        is_active: false,
+        moderation_status: 'rejected',
+        slug: archivedSlug,
+        title: `[Archived] ${pkg?.title || 'Package'}`,
+      })
+      .eq('id', packageId)
+
+    if (error) return { error: error.message }
+    const { revalidatePath } = await import('next/cache')
+    revalidatePath('/')
+    revalidatePath('/admin/packages')
+    revalidatePath('/admin/community-trips')
+    return { success: true, archived: true }
   }
 
   const { error } = await supabase

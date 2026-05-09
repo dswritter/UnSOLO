@@ -43,7 +43,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   // Form state
   const [form, setForm] = useState({
     title: '', slug: '', destination_id: '', description: '', short_description: '',
-    priceRows: [{ rupees: '', facilities: '' }] as { rupees: string; facilities: string }[],
+    priceRows: [{ rupees: '', compareRupees: '', facilities: '' }] as { rupees: string; compareRupees: string; facilities: string }[],
     trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
     exclude_first_travel: true,
     departure_time: 'morning' as 'morning' | 'evening',
@@ -53,6 +53,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     departureDates: [] as { departure: string; returnDate: string }[],
     is_featured: false,
     join_payment_timing: 'after_host_approval' as 'after_host_approval' | 'pay_on_booking',
+    join_token_enabled: false,
+    join_token_amount: '',
     join_gender: 'all' as 'all' | 'men' | 'women',
     join_min_trips: '',
     join_min_age: '',
@@ -78,7 +80,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   function resetForm() {
     setForm({
       title: '', slug: '', destination_id: '', description: '', short_description: '',
-      priceRows: [{ rupees: '', facilities: '' }],
+      priceRows: [{ rupees: '', compareRupees: '', facilities: '' }],
       trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
       exclude_first_travel: true,
       departure_time: 'morning' as 'morning' | 'evening',
@@ -86,6 +88,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       selectedIncludes: [], images: [],
       departureDates: [], is_featured: false,
       join_payment_timing: 'after_host_approval',
+      join_token_enabled: false,
+      join_token_amount: '',
       join_gender: 'all',
       join_min_trips: '',
       join_min_age: '',
@@ -112,9 +116,20 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         hasTieredPricing(pkg.price_variants) && Array.isArray(pkg.price_variants)
           ? pkg.price_variants.map((v) => ({
               rupees: String(v.price_paise / 100),
+              compareRupees:
+                typeof v.compare_at_paise === 'number' && Number.isFinite(v.compare_at_paise)
+                  ? String(v.compare_at_paise / 100)
+                  : '',
               facilities: v.description,
             }))
-          : [{ rupees: String(pkg.price_paise / 100), facilities: '' }],
+          : [{
+              rupees: String(pkg.price_paise / 100),
+              compareRupees:
+                typeof pkg.compare_at_price_paise === 'number' && Number.isFinite(pkg.compare_at_price_paise)
+                  ? String(pkg.compare_at_price_paise / 100)
+                  : '',
+              facilities: '',
+            }],
       trip_days: String(pkg.trip_days ?? pkg.duration_days),
       trip_nights: String(pkg.trip_nights ?? Math.max(0, pkg.duration_days - 1)),
       max_group_size: String(pkg.max_group_size),
@@ -133,6 +148,11 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         pkg.join_preferences?.payment_timing === 'pay_on_booking'
           ? 'pay_on_booking'
           : 'after_host_approval',
+      join_token_enabled: !!pkg.join_preferences?.token_deposit_enabled,
+      join_token_amount:
+        pkg.join_preferences?.token_amount_paise != null && Number.isFinite(pkg.join_preferences.token_amount_paise)
+          ? String(pkg.join_preferences.token_amount_paise / 100)
+          : '',
       join_gender:
         pkg.join_preferences?.gender_preference === 'men' ||
         pkg.join_preferences?.gender_preference === 'women'
@@ -212,6 +232,15 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       if (Number.isFinite(a)) join_preferences.max_age = a
     }
     if (form.join_interest_tags.length > 0) join_preferences.interest_tags = [...form.join_interest_tags]
+    if (form.join_token_enabled) {
+      const tokenAmountPaise = Math.round(parseFloat(form.join_token_amount) * 100)
+      if (!Number.isFinite(tokenAmountPaise) || tokenAmountPaise < 100) {
+        setMessage({ type: 'error', text: 'Enter a valid token amount per person (minimum ₹1).' })
+        return
+      }
+      join_preferences.token_deposit_enabled = true
+      join_preferences.token_amount_paise = tokenAmountPaise
+    }
 
     if (!editingId && form.images.length === 0) {
       setMessage({ type: 'error', text: 'Please add at least one thumbnail image for the package.' })
@@ -220,11 +249,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     }
 
     let price_paise: number
+    let compare_at_price_paise: number | null = null
     let price_variants: PriceVariant[] | null = null
     if (form.priceRows.length >= 2) {
       try {
         const rows = form.priceRows.map((r) => ({
           pricePaise: Math.round(parseFloat(r.rupees) * 100),
+          compareAtPaise: r.compareRupees ? Math.round(parseFloat(r.compareRupees) * 100) : null,
           facilities: r.facilities,
         }))
         const tiersBuilt = priceVariantsFromFormRows(rows)
@@ -240,6 +271,25 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       }
     } else {
       price_paise = Math.round(parseFloat(form.priceRows[0].rupees) * 100)
+      compare_at_price_paise = form.priceRows[0].compareRupees
+        ? Math.round(parseFloat(form.priceRows[0].compareRupees) * 100)
+        : null
+      if (compare_at_price_paise != null && (!Number.isFinite(compare_at_price_paise) || compare_at_price_paise < 100)) {
+        setMessage({ type: 'error', text: 'Original price must be a valid amount of at least ₹1.' })
+        return
+      }
+      if (compare_at_price_paise != null && compare_at_price_paise <= price_paise) {
+        setMessage({ type: 'error', text: 'Original price must be higher than the listed price.' })
+        return
+      }
+    }
+
+    if (form.join_token_enabled) {
+      const tokenAmountPaise = Math.round(parseFloat(form.join_token_amount) * 100)
+      if (tokenAmountPaise > price_paise) {
+        setMessage({ type: 'error', text: 'Token amount cannot be higher than the trip price.' })
+        return
+      }
     }
 
     const data = {
@@ -249,6 +299,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       description: form.description,
       short_description: form.short_description,
       price_paise,
+      compare_at_price_paise,
       price_variants,
       duration_days,
       trip_days,
@@ -514,7 +565,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   onClick={() =>
                     setForm((f) => ({
                       ...f,
-                      priceRows: [...f.priceRows, { rupees: '', facilities: '' }],
+                      priceRows: [...f.priceRows, { rupees: '', compareRupees: '', facilities: '' }],
                     }))
                   }
                 >
@@ -540,6 +591,21 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                       }
                       placeholder="8999"
                       className="bg-secondary border-border max-w-[140px]"
+                      min={1}
+                    />
+                    <Input
+                      type="number"
+                      value={row.compareRupees}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          priceRows: f.priceRows.map((r, j) =>
+                            j === i ? { ...r, compareRupees: e.target.value } : r,
+                          ),
+                        }))
+                      }
+                      placeholder="Original price"
+                      className="bg-secondary border-border max-w-[160px]"
                       min={1}
                     />
                     {form.priceRows.length > 1 && (
@@ -575,7 +641,13 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   )}
                 </div>
               ))}
-            </div>            <div>
+              {form.priceRows.length === 1 && form.priceRows[0].compareRupees && (
+                <p className="text-[10px] text-muted-foreground">
+                  Original price will appear struck through above the live price on the public trip page.
+                </p>
+              )}
+            </div>
+            <div>
               <label className="text-xs text-muted-foreground mb-1 block">Trip days (on trip) *</label>
               <Input type="number" value={form.trip_days} onChange={e => setForm(f => ({ ...f, trip_days: e.target.value }))} placeholder="4" className="bg-secondary border-border" min={1} />
             </div>
@@ -684,9 +756,38 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               </div>
             </div>
             {form.join_payment_timing === 'pay_on_booking' && (
-              <p className="text-xs text-amber-600/90 dark:text-amber-400/90">
-                Gender and min-trips filters apply when using request-first booking.
-              </p>
+              <div className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 accent-primary"
+                    checked={form.join_token_enabled}
+                    onChange={e => setForm(f => ({ ...f, join_token_enabled: e.target.checked }))}
+                  />
+                  <span>
+                    Collect a token amount at booking
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      Useful for reserving a seat while keeping the rest payable later.
+                    </span>
+                  </span>
+                </label>
+                {form.join_token_enabled && (
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">Token amount per person (INR)</label>
+                    <Input
+                      type="number"
+                      value={form.join_token_amount}
+                      onChange={e => setForm(f => ({ ...f, join_token_amount: e.target.value }))}
+                      placeholder="e.g. 1999"
+                      className="bg-secondary border-border max-w-[220px]"
+                      min={1}
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-amber-600/90 dark:text-amber-400/90">
+                  Gender and min-trips filters apply when using request-first booking.
+                </p>
+              </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -971,9 +1072,18 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-primary font-bold text-sm">
-                {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
-              </span>
+              <div className="text-right leading-tight">
+                {!hasTieredPricing(pkg.price_variants) &&
+                typeof pkg.compare_at_price_paise === 'number' &&
+                pkg.compare_at_price_paise > pkg.price_paise ? (
+                  <div className="text-[11px] text-muted-foreground line-through">
+                    {formatPrice(pkg.compare_at_price_paise)}
+                  </div>
+                ) : null}
+                <span className="text-primary font-bold text-sm">
+                  {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
+                </span>
+              </div>
               <Button
                 size="sm" variant="ghost"
                 className="text-muted-foreground hover:text-white"
@@ -1003,7 +1113,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                     if (res.error) setMessage({ type: 'error', text: res.error })
                     else {
                       setPackages(prev => prev.filter(p => p.id !== pkg.id))
-                      setMessage({ type: 'success', text: 'Package deleted' })
+                      setMessage({ type: 'success', text: 'archived' in res && res.archived ? 'Package archived because booking history exists' : 'Package deleted' })
                     }
                   })
                 }}

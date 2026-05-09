@@ -1,6 +1,10 @@
 /** Tiered per-person pricing (accommodation / facilities). */
 
-export type PriceVariant = { description: string; price_paise: number }
+export type PriceVariant = {
+  description: string
+  price_paise: number
+  compare_at_paise?: number | null
+}
 
 const MIN_PRICE_PAISE = 100 // ₹1
 
@@ -13,8 +17,20 @@ export function parsePriceVariants(raw: unknown): PriceVariant[] | null {
     if (!row || typeof row !== 'object') continue
     const description = String((row as { description?: string }).description ?? '').trim()
     const price_paise = Number((row as { price_paise?: unknown }).price_paise)
+    const compare_at_raw = (row as { compare_at_paise?: unknown }).compare_at_paise
+    const compare_at_paise =
+      compare_at_raw == null || compare_at_raw === ''
+        ? null
+        : Math.round(Number(compare_at_raw))
     if (!description || !Number.isFinite(price_paise) || price_paise < MIN_PRICE_PAISE) continue
-    out.push({ description, price_paise: Math.round(price_paise) })
+    out.push({
+      description,
+      price_paise: Math.round(price_paise),
+      compare_at_paise:
+        compare_at_paise != null && Number.isFinite(compare_at_paise) && compare_at_paise > Math.round(price_paise)
+          ? compare_at_paise
+          : null,
+    })
   }
   return out.length >= 2 ? out : null
 }
@@ -42,7 +58,7 @@ export function resolvePerPersonFromPackage(
 
 /** Build DB payload from form rows (multi-tier). Caller ensures length >= 2 and validates copy. */
 export function priceVariantsFromFormRows(
-  rows: { pricePaise: number; facilities: string }[],
+  rows: { pricePaise: number; compareAtPaise?: number | null; facilities: string }[],
 ): PriceVariant[] | null {
   if (rows.length < 2) return null
   const out: PriceVariant[] = []
@@ -51,7 +67,15 @@ export function priceVariantsFromFormRows(
     if (!description || !Number.isFinite(r.pricePaise) || r.pricePaise < MIN_PRICE_PAISE) {
       throw new Error('Each price tier needs a facility description and a valid price.')
     }
-    out.push({ description, price_paise: Math.round(r.pricePaise) })
+    const next: PriceVariant = { description, price_paise: Math.round(r.pricePaise) }
+    if (r.compareAtPaise != null && Number.isFinite(r.compareAtPaise)) {
+      const compareAt = Math.round(r.compareAtPaise)
+      if (compareAt <= next.price_paise) {
+        throw new Error('Original price must be higher than the current price.')
+      }
+      next.compare_at_paise = compareAt
+    }
+    out.push(next)
   }
   return out
 }

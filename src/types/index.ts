@@ -106,8 +106,9 @@ export type Package = {
   description: string
   short_description: string | null
   price_paise: number
-  /** When set: 2+ tiers { description, price_paise }; price_paise is min tier for filters. */
-  price_variants?: { description: string; price_paise: number }[] | null
+  compare_at_price_paise?: number | null
+  /** When set: 2+ tiers { description, price_paise, compare_at_paise? }; price_paise is min tier for filters. */
+  price_variants?: { description: string; price_paise: number; compare_at_paise?: number | null }[] | null
   duration_days: number
   /** Display: on-trip days (host/admin entered). Falls back to duration_days if null. */
   trip_days?: number | null
@@ -136,6 +137,7 @@ export type Package = {
   join_preferences: JoinPreferences | null
   created_at: string
   updated_at?: string | null
+  archived_at?: string | null
   destination?: Destination
   host?: HostProfile
 }
@@ -267,6 +269,7 @@ export type ServiceListing = {
   short_description: string | null
   type: ServiceListingType
   price_paise: number
+  compare_at_price_paise?: number | null
   /** When set: 2+ tiers { description, price_paise }; price_paise is min tier for filters. */
   price_variants?: { description: string; price_paise: number }[] | null
   unit: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'

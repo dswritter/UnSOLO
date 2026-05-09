@@ -82,8 +82,12 @@ export default function CommunityTripsClient({
     setConfirmReject(null)
     startTransition(async () => {
       const res = await moderateCommunityTrip(tripId, approve, reason)
-      if (res.error) toast.error(res.error)
-      else toast.success(approve ? 'Trip approved and published!' : 'Trip rejected — host notified to edit and resubmit')
+      if (res.error) {
+        toast.error(res.error)
+        return
+      }
+      toast.success(approve ? 'Trip approved and published!' : 'Trip rejected — host notified to edit and resubmit')
+      router.refresh()
     })
   }
 

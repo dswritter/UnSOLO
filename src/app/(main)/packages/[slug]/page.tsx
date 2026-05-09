@@ -83,6 +83,24 @@ export default async function PackageDetailPage({
   const communityDirectCheckout = isCommunityTrip && isCommunityDirectCheckout(jp ?? undefined)
   const hostData = (pkg.host as unknown as HostProfile) || null
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
+  const compareAtDisplayPaise = hasTieredPricing(package_.price_variants)
+    ? ((package_.price_variants || [])
+        .filter(
+          (variant): variant is NonNullable<Package['price_variants']>[number] & { compare_at_paise: number } =>
+            typeof variant.compare_at_paise === 'number' &&
+            Number.isFinite(variant.compare_at_paise) &&
+            variant.compare_at_paise > variant.price_paise &&
+            variant.price_paise === package_.price_paise,
+        )
+        .reduce<number | null>((highest, variant) => {
+          if (highest == null) return variant.compare_at_paise
+          return Math.max(highest, variant.compare_at_paise)
+        }, null))
+    : typeof package_.compare_at_price_paise === 'number' &&
+        Number.isFinite(package_.compare_at_price_paise) &&
+        package_.compare_at_price_paise > package_.price_paise
+      ? package_.compare_at_price_paise
+      : null
 
   // Existing join request + group invite are independent — fetch in parallel.
   const shouldLoadJoinRequest = isCommunityTrip && !!user && !isHost
@@ -484,6 +502,11 @@ export default async function PackageDetailPage({
                       isHost ? (
                         <div className="space-y-4">
                           <div>
+                            {compareAtDisplayPaise ? (
+                              <div className="text-sm text-muted-foreground line-through">
+                                {formatPrice(compareAtDisplayPaise)}
+                              </div>
+                            ) : null}
                             <span className="text-3xl font-black text-primary">
                               {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                               {formatPrice(package_.price_paise)}
@@ -500,6 +523,11 @@ export default async function PackageDetailPage({
                       ) : user ? (
                         <>
                           <div>
+                            {compareAtDisplayPaise ? (
+                              <div className="text-sm text-muted-foreground line-through">
+                                {formatPrice(compareAtDisplayPaise)}
+                              </div>
+                            ) : null}
                             <span className="text-3xl font-black text-primary">
                               {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                               {formatPrice(package_.price_paise)}
@@ -549,6 +577,7 @@ export default async function PackageDetailPage({
                         packageTitle={package_.title}
                         packageSlug={package_.slug}
                         pricePerPersonPaise={package_.price_paise}
+                        compareAtPricePaise={compareAtDisplayPaise}
                         priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                         priceVariants={package_.price_variants}
                         departureDates={package_.departure_dates}
@@ -563,6 +592,11 @@ export default async function PackageDetailPage({
                     /* UnSOLO trip: Standard booking flow */
                     <>
                       <div>
+                        {compareAtDisplayPaise ? (
+                          <div className="text-sm text-muted-foreground line-through">
+                            {formatPrice(compareAtDisplayPaise)}
+                          </div>
+                        ) : null}
                         <span className="text-3xl font-black text-primary">
                           {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                           {formatPrice(package_.price_paise)}
@@ -643,6 +677,11 @@ export default async function PackageDetailPage({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
                   {isCommunityTrip && !communityDirectCheckout ? 'Community trip' : 'Ready to book'}
                 </p>
+                {compareAtDisplayPaise ? (
+                  <p className="text-[11px] text-zinc-400 line-through">
+                    {formatPrice(compareAtDisplayPaise)} per person
+                  </p>
+                ) : null}
                 <p className="truncate text-sm font-bold text-white">
                   {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                   {formatPrice(package_.price_paise)} per person

@@ -131,6 +131,7 @@ export async function createHostedTrip(formData: {
   description: string
   short_description?: string
   price_paise: number
+  compare_at_price_paise?: number | null
   price_variants?: PriceVariant[] | null
   /** Max inclusive calendar span across all dep/return pairs (bookings, filters). */
   duration_days: number
@@ -163,6 +164,7 @@ export async function createHostedTrip(formData: {
       description: formData.description,
       short_description: formData.short_description || '',
       price_paise,
+      compare_at_price_paise: formData.compare_at_price_paise ?? null,
       price_variants: tiers,
       duration_days: formData.duration_days,
       trip_days: formData.trip_days,
