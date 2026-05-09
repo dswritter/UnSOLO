@@ -254,35 +254,45 @@ export async function createServiceListingOrder(
 
     const finalAmount = Math.max(0, totalPaise - discountPaise - creditsUsed)
 
+    // Build insert payload. Only include promo columns when they have values
+    // — older databases may be missing migration 039 (promo_offer_id) or 061
+    // (promo_code), and PostgREST otherwise rejects the whole insert.
+    function buildInsertPayload(extras: Record<string, unknown>) {
+      const base: Record<string, unknown> = {
+        user_id: user!.id,
+        service_listing_id: listingId,
+        service_listing_item_id: itemId,
+        booking_type: 'service',
+        check_in_date: bookingData.check_in_date,
+        check_out_date: bookingData.check_out_date ?? null,
+        // legacy NOT NULL column from package bookings — mirror quantity so the
+        // constraint is satisfied for ongoing activities and any other path.
+        guests: bookingData.quantity,
+        quantity: bookingData.quantity,
+        total_amount_paise: totalPaise,
+        amount_paise: finalAmount,
+        gross_paise: totalPaise,
+        discount_paise: discountPaise,
+        wallet_deducted_paise: creditsUsed,
+        booking_slot_start: slotStart,
+        booking_slot_end: slotEnd,
+        ...extras,
+      }
+      if (appliedPromoCode) base.promo_code = appliedPromoCode
+      if (promoOfferId) base.promo_offer_id = promoOfferId
+      return base
+    }
+
     // If amount is 0, create instant booking without Razorpay
     if (finalAmount === 0) {
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .insert({
-          user_id: user.id,
-          service_listing_id: listingId,
-          service_listing_item_id: itemId,
-          booking_type: 'service',
-          check_in_date: bookingData.check_in_date,
-          check_out_date: bookingData.check_out_date ?? null,
-          // legacy NOT NULL column from package bookings — mirror quantity so the
-          // constraint is satisfied for ongoing activities and any other path.
-          guests: bookingData.quantity,
-          quantity: bookingData.quantity,
-          total_amount_paise: totalPaise,
-          amount_paise: finalAmount,
-          gross_paise: totalPaise,
-          discount_paise: discountPaise,
-          wallet_deducted_paise: creditsUsed,
-          booking_slot_start: slotStart,
-          booking_slot_end: slotEnd,
+        .insert(buildInsertPayload({
           status: 'confirmed',
           payment_status: 'paid',
           razorpay_payment_id: null,
           razorpay_order_id: null,
-          promo_code: appliedPromoCode || null,
-          promo_offer_id: promoOfferId,
-        })
+        }))
         .select('id')
         .single()
 
@@ -326,30 +336,11 @@ export async function createServiceListingOrder(
     // Create booking record in pending state
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .insert({
-        user_id: user.id,
-        service_listing_id: listingId,
-        service_listing_item_id: itemId,
-        booking_type: 'service',
-        check_in_date: bookingData.check_in_date,
-        check_out_date: bookingData.check_out_date ?? null,
-        // legacy NOT NULL column from package bookings — mirror quantity so the
-        // constraint is satisfied for ongoing activities and any other path.
-        guests: bookingData.quantity,
-        quantity: bookingData.quantity,
-        total_amount_paise: totalPaise,
-        amount_paise: finalAmount,
-        gross_paise: totalPaise,
-        discount_paise: discountPaise,
-        wallet_deducted_paise: creditsUsed,
-        booking_slot_start: slotStart,
-        booking_slot_end: slotEnd,
+      .insert(buildInsertPayload({
         status: 'pending',
         payment_status: 'pending',
         razorpay_order_id: order.id,
-        promo_code: appliedPromoCode || null,
-        promo_offer_id: promoOfferId,
-      })
+      }))
       .select('id')
       .single()
 
@@ -670,29 +661,30 @@ export async function createRentalCartOrder(
       const itemCredits = Math.round(creditsUsed * ratio)
       const itemFinal = Math.round(finalAmount * ratio)
 
+      const cartPayload: Record<string, unknown> = {
+        user_id: user.id,
+        service_listing_id: listingId,
+        service_listing_item_id: v.id,
+        booking_type: 'service',
+        check_in_date: bookingData.check_in_date,
+        check_out_date: checkOutDate,
+        guests: v.quantity,
+        quantity: v.quantity,
+        // Required NOT NULL; line list total before split discounts (matches gross_paise).
+        total_amount_paise: itemGross,
+        amount_paise: itemFinal,
+        gross_paise: itemGross,
+        discount_paise: itemDiscount,
+        wallet_deducted_paise: itemCredits,
+        status: 'pending',
+        payment_status: 'pending',
+        razorpay_order_id: order.id,
+      }
+      if (appliedPromoCode) cartPayload.promo_code = appliedPromoCode
+      if (promoOfferId) cartPayload.promo_offer_id = promoOfferId
       const { data: booking, error: rowError } = await supabase
         .from('bookings')
-        .insert({
-          user_id: user.id,
-          service_listing_id: listingId,
-          service_listing_item_id: v.id,
-          booking_type: 'service',
-          check_in_date: bookingData.check_in_date,
-          check_out_date: checkOutDate,
-          guests: v.quantity,
-          quantity: v.quantity,
-          // Required NOT NULL; line list total before split discounts (matches gross_paise).
-          total_amount_paise: itemGross,
-          amount_paise: itemFinal,
-          gross_paise: itemGross,
-          discount_paise: itemDiscount,
-          wallet_deducted_paise: itemCredits,
-          status: 'pending',
-          payment_status: 'pending',
-          razorpay_order_id: order.id,
-          promo_code: appliedPromoCode || null,
-          promo_offer_id: promoOfferId,
-        })
+        .insert(cartPayload)
         .select('id')
         .single()
       if (rowError) {
