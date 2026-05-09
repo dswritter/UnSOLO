@@ -195,13 +195,14 @@ export async function createStatusStories(input: {
   const audienceJson = serializeAudience(audience)
 
   if (urls.length > 0) {
-    // Image stories
+    // Image stories — caption and link travel with every image
     for (const media_url of urls) {
       const { error } = await supabase.from('status_stories').insert({
         author_id: user.id,
         media_url,
         media_type: 'image',
         caption: input.caption?.trim() || null,
+        link_url: input.linkUrl?.trim() || null,
         expires_at: expires.toISOString(),
         audience: audienceJson,
       })

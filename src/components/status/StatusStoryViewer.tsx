@@ -393,10 +393,24 @@ export function StatusStoryViewer({
                     <Loader2 className="h-10 w-10 text-white animate-spin opacity-90" />
                   </div>
                 )}
-                {/* Caption overlay on images */}
-                {story.caption && (
-                  <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-black/60 backdrop-blur-sm px-4 py-3">
-                    <p className="text-white text-sm leading-snug">{story.caption}</p>
+                {/* Caption + link overlay on images */}
+                {(story.caption || story.link_url) && (
+                  <div className="absolute bottom-4 left-4 right-4 rounded-xl bg-black/60 backdrop-blur-sm px-4 py-3 flex flex-col gap-2">
+                    {story.caption && (
+                      <p className="text-white text-sm leading-snug">{story.caption}</p>
+                    )}
+                    {story.link_url && (
+                      <a
+                        href={story.link_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 self-start rounded-full bg-white/20 hover:bg-white/30 border border-white/25 px-3 py-1 text-white text-xs font-medium transition-colors max-w-full"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <span className="truncate max-w-[220px]">{story.link_url.replace(/^https?:\/\//, '')}</span>
+                        <span className="shrink-0 opacity-80">↗</span>
+                      </a>
+                    )}
                   </div>
                 )}
               </>
