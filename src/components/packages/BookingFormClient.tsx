@@ -42,6 +42,7 @@ interface BookingFormClientProps {
   packageId: string
   packageSlug: string
   pricePerPersonPaise: number
+  compareAtPricePaise?: number | null
   priceVariants?: { description: string; price_paise: number }[] | null
   maxGroupSize: number
   packageTitle?: string
@@ -59,6 +60,7 @@ export function BookingFormClient({
   packageId,
   packageSlug,
   pricePerPersonPaise,
+  compareAtPricePaise = null,
   priceVariants = null,
   maxGroupSize,
   packageTitle,
@@ -128,6 +130,15 @@ export function BookingFormClient({
   const perPersonForBooking = variantTiers?.length
     ? variantTiers[selectedVariantIndex ?? 0].price_paise
     : pricePerPersonPaise
+  const selectedVariant =
+    variantTiers?.length && selectedVariantIndex != null ? variantTiers[selectedVariantIndex] : null
+  const currentCompareAtPaise =
+    selectedVariant?.compare_at_paise != null
+      ? selectedVariant.compare_at_paise
+      : compareAtPricePaise != null && compareAtPricePaise > perPersonForBooking
+        ? compareAtPricePaise
+        : null
+  const showStartingFromPrefix = !!variantTiers?.length && selectedVariantIndex == null
 
   async function searchAndAddFriend() {
     if (!friendUsername.trim()) return
@@ -497,6 +508,19 @@ export function BookingFormClient({
   return (
     <div className="space-y-4">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+
+      <div>
+        {currentCompareAtPaise ? (
+          <div className="text-sm text-muted-foreground line-through">
+            {formatPrice(currentCompareAtPaise)}
+          </div>
+        ) : null}
+        <span className="text-3xl font-black text-primary">
+          {showStartingFromPrefix ? 'Starting from ' : ''}
+          {formatPrice(perPersonForBooking)}
+        </span>
+        <span className="text-muted-foreground text-sm ml-2">per person</span>
+      </div>
 
       {/* Payment verification overlay */}
       {verifying && (

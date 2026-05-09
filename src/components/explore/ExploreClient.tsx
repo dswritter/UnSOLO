@@ -505,7 +505,7 @@ export function ExploreClient({
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <span className="text-primary font-black text-xl">
-                          {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
+                          {hasTieredPricing(pkg.price_variants) ? 'Starting from ' : ''}
                           {formatPrice(pkg.price_paise)}
                         </span>
                         <span className="text-muted-foreground text-xs ml-1">/ person</span>

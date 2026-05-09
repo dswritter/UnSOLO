@@ -134,7 +134,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
           <div className="flex items-end justify-between gap-2">
             <div className="min-w-0">
               <span className="text-base font-black text-primary sm:text-lg">
-                {hasTieredPricing(pkg.price_variants) ? 'From ' : ''}
+                {hasTieredPricing(pkg.price_variants) ? 'Starting from ' : ''}
                 {formatPrice(pkg.price_paise)}
               </span>
               <span className="text-[10px] text-muted-foreground"> / person</span>

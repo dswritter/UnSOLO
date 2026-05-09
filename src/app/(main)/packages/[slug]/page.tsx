@@ -595,22 +595,11 @@ export default async function PackageDetailPage({
                         </div>
                       ) : user ? (
                         <>
-                          <div>
-                            {compareAtDisplayPaise ? (
-                              <div className="text-sm text-muted-foreground line-through">
-                                {formatPrice(compareAtDisplayPaise)}
-                              </div>
-                            ) : null}
-                            <span className="text-3xl font-black text-primary">
-                              {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
-                              {formatPrice(package_.price_paise)}
-                            </span>
-                            <span className="text-muted-foreground text-sm ml-2">per person</span>
-                          </div>
                           <BookingFormClient
                             packageId={package_.id}
                             packageSlug={package_.slug}
                             pricePerPersonPaise={package_.price_paise}
+                            compareAtPricePaise={compareAtDisplayPaise}
                             priceVariants={package_.price_variants}
                             hostId={package_.host_id}
                             maxGroupSize={package_.max_group_size}
@@ -653,7 +642,7 @@ export default async function PackageDetailPage({
                         pricePerPersonPaise={package_.price_paise}
                         compareAtPricePaise={compareAtDisplayPaise}
                         hostId={package_.host_id}
-                        priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+                        priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'Starting from ' : ''}
                         priceVariants={package_.price_variants}
                         departureDates={package_.departure_dates}
                         hostName={hostData?.full_name || hostData?.username || 'the host'}
@@ -666,24 +655,12 @@ export default async function PackageDetailPage({
                   ) : (
                     /* UnSOLO trip: Standard booking flow */
                     <>
-                      <div>
-                        {compareAtDisplayPaise ? (
-                          <div className="text-sm text-muted-foreground line-through">
-                            {formatPrice(compareAtDisplayPaise)}
-                          </div>
-                        ) : null}
-                        <span className="text-3xl font-black text-primary">
-                          {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
-                          {formatPrice(package_.price_paise)}
-                        </span>
-                        <span className="text-muted-foreground text-sm ml-2">per person</span>
-                      </div>
-
                       {user ? (
                         <BookingFormClient
                           packageId={package_.id}
                           packageSlug={package_.slug}
                           pricePerPersonPaise={package_.price_paise}
+                          compareAtPricePaise={compareAtDisplayPaise}
                           priceVariants={package_.price_variants}
                           hostId={package_.host_id}
                           maxGroupSize={package_.max_group_size}
