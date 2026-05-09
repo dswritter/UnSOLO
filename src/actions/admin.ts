@@ -573,23 +573,7 @@ export async function togglePackageActive(packageId: string, isActive: boolean) 
 export async function deletePackage(packageId: string) {
   const { supabase } = await requireAdmin()
 
-  // Check for active bookings
-  const { count } = await supabase
-    .from('bookings')
-    .select('id', { count: 'exact', head: true })
-    .eq('package_id', packageId)
-    .in('status', ['pending', 'confirmed'])
-
-  if (count && count > 0) {
-    return { error: `Cannot delete: ${count} active booking(s) exist for this package. Deactivate it instead.` }
-  }
-
-  const { count: totalBookings } = await supabase
-    .from('bookings')
-    .select('id', { count: 'exact', head: true })
-    .eq('package_id', packageId)
-
-  if (totalBookings && totalBookings > 0) {
+  async function archivePackage() {
     const { data: pkg } = await supabase
       .from('packages')
       .select('slug, title')
@@ -613,7 +597,27 @@ export async function deletePackage(packageId: string) {
     revalidatePath('/')
     revalidatePath('/admin/packages')
     revalidatePath('/admin/community-trips')
-    return { success: true, archived: true }
+    return { success: true as const, archived: true as const }
+  }
+
+  // Check for active bookings
+  const { count } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+    .in('status', ['pending', 'confirmed'])
+
+  if (count && count > 0) {
+    return { error: `Cannot delete: ${count} active booking(s) exist for this package. Deactivate it instead.` }
+  }
+
+  const { count: totalBookings } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+
+  if (totalBookings && totalBookings > 0) {
+    return archivePackage()
   }
 
   const { error } = await supabase
@@ -621,7 +625,12 @@ export async function deletePackage(packageId: string) {
     .delete()
     .eq('id', packageId)
 
-  if (error) return { error: error.message }
+  if (error) {
+    if (error.message.includes('violates foreign key constraint')) {
+      return archivePackage()
+    }
+    return { error: error.message }
+  }
   return { success: true }
 }
 
