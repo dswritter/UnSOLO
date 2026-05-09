@@ -11,13 +11,27 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, full_name, username')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('role, full_name, username')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('team_members')
+      .select('role, is_active')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
 
-  if (!profile || !STAFF_ROLES.includes(profile.role as UserRole)) {
+  const effectiveRole =
+    profile?.role && STAFF_ROLES.includes(profile.role as UserRole)
+      ? (profile.role as UserRole)
+      : membership?.is_active && membership.role && STAFF_ROLES.includes(membership.role as UserRole)
+        ? (membership.role as UserRole)
+        : null
+
+  if (!profile || !effectiveRole) {
     redirect('/')
   }
 
@@ -37,7 +51,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex w-full min-h-dvh text-foreground">
       <AdminSidebar
-        role={profile.role as UserRole}
+        role={effectiveRole}
         name={profile.full_name || profile.username}
         userId={user.id}
         pendingCounts={pendingCounts}

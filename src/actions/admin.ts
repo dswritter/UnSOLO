@@ -2,9 +2,11 @@
 
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
-import type { JoinPreferences, UserRole } from '@/types'
+import { ROLE_LABELS, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
+
+const STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder']
 
 // ── Audit Log ─────────────────────────────────────────────────
 
@@ -45,17 +47,46 @@ async function requireStaff() {
   const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('team_members')
+      .select('role, is_active')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
 
-  const staffRoles: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder']
-  if (!profile || !staffRoles.includes(profile.role as UserRole)) {
+  const effectiveRole =
+    profile?.role && STAFF_ROLES.includes(profile.role as UserRole)
+      ? (profile.role as UserRole)
+      : membership?.is_active && membership.role && STAFF_ROLES.includes(membership.role as UserRole)
+        ? (membership.role as UserRole)
+        : null
+
+  if (!effectiveRole) {
     throw new Error('Unauthorized — staff only')
   }
-  return { supabase, user, role: profile.role as UserRole }
+  return { supabase, user, role: effectiveRole }
+}
+
+async function syncTeamMemberProfileRoles() {
+  const svc = createServiceRoleClient()
+  const { data: teamRows, error } = await svc
+    .from('team_members')
+    .select('user_id, role, is_active')
+
+  if (error || !teamRows?.length) return
+
+  for (const row of teamRows) {
+    await svc
+      .from('profiles')
+      .update({ role: row.is_active ? (row.role as UserRole) : 'user' })
+      .eq('id', row.user_id)
+  }
 }
 
 // ── Dashboard Stats ──────────────────────────────────────────
@@ -276,9 +307,11 @@ export async function getTeamMembers() {
   await requireAdmin()
   const supabase = createServiceRoleClient()
 
+  await syncTeamMemberProfileRoles()
+
   const { data, error } = await supabase
     .from('team_members')
-    .select('*, profile:profiles(*)')
+    .select('*, profile:profiles!team_members_user_id_fkey(*)')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -293,7 +326,8 @@ export async function addTeamMember(
   role: UserRole,
   notes?: string,
 ) {
-  const { supabase, user } = await requireAdmin()
+  const { user } = await requireAdmin()
+  const supabase = createServiceRoleClient()
 
   if (role === 'user') return { error: 'Cannot add a "user" role to team' }
 
@@ -344,11 +378,27 @@ export async function addTeamMember(
     }, { onConflict: 'user_id' })
 
   if (error) return { error: error.message }
+
+  await supabase.from('notifications').insert({
+    user_id: targetUserId,
+    type: 'system',
+    title: 'You were added to the UnSOLO team',
+    body: `Your staff role is now ${ROLE_LABELS[role]}. Open the admin panel to access your assigned tools.`,
+    link: '/admin',
+  })
+
+  await logAuditEvent(user.id, 'add_team_member', 'team_member', targetUserId, {
+    assigned_role: role,
+    identifier,
+    notes: notes || null,
+  })
+
   return { success: true }
 }
 
 export async function removeTeamMember(teamMemberId: string) {
-  const { supabase } = await requireAdmin()
+  const { user } = await requireAdmin()
+  const supabase = createServiceRoleClient()
 
   // Get user_id first
   const { data: member } = await supabase
@@ -372,6 +422,19 @@ export async function removeTeamMember(teamMemberId: string) {
     .eq('id', teamMemberId)
 
   if (error) return { error: error.message }
+
+  await supabase.from('notifications').insert({
+    user_id: member.user_id,
+    type: 'system',
+    title: 'Your team access was updated',
+    body: 'Your staff assignment was removed and your account is back on standard user access.',
+    link: '/',
+  })
+
+  await logAuditEvent(user.id, 'remove_team_member', 'team_member', teamMemberId, {
+    removed_user_id: member.user_id,
+  })
+
   return { success: true }
 }
 
