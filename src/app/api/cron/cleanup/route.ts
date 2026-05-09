@@ -165,17 +165,15 @@ export async function POST(request: Request) {
         await supabase.from('bookings').update({ status: 'completed' }).eq('id', booking.id)
 
         // Leaderboard inputs only — total_score is generated. Completed bookings only;
-        // trips_completed = sum of guests (25 pts per guest in DB formula).
+        // trips_completed = count of bookings (25 pts per booking, regardless of group size).
         const { data: completedRows } = await supabase
           .from('bookings')
-          .select('guests, package:packages(destination_id)')
+          .select('package:packages(destination_id)')
           .eq('user_id', booking.user_id)
           .eq('status', 'completed')
 
-        const guestTripUnits = (completedRows || []).reduce(
-          (sum, b) => sum + Math.max(Number(b.guests) || 1, 1),
-          0,
-        )
+        const tripsCompleted = (completedRows || []).length
+
         const allDestIds = new Set(
           (completedRows || []).map(b => (b.package as unknown as { destination_id?: string })?.destination_id).filter(Boolean),
         )
@@ -187,7 +185,7 @@ export async function POST(request: Request) {
 
         await supabase.from('leaderboard_scores').upsert({
           user_id: booking.user_id,
-          trips_completed: guestTripUnits,
+          trips_completed: tripsCompleted,
           destinations_count: allDestIds.size,
           reviews_written: reviewCount || 0,
           updated_at: new Date().toISOString(),
