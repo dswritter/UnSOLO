@@ -1,5 +1,6 @@
 export const revalidate = 300 // 5 minutes
 
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { Badge } from '@/components/ui/badge'
@@ -29,6 +30,7 @@ import { TripDetailSeasonBackdrop } from '@/components/packages/TripDetailSeason
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
+import { APP_URL } from '@/lib/constants'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -40,6 +42,63 @@ const GENDER_LABELS: Record<string, string> = {
   women: 'Women only',
   men: 'Men only',
   all: 'All genders welcome',
+}
+
+function toAbsoluteUrl(value: string | null | undefined) {
+  if (!value) return null
+  if (/^https?:\/\//i.test(value)) return value
+  return `${APP_URL.replace(/\/$/, '')}/${value.replace(/^\//, '')}`
+}
+
+function cleanText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, ' ').trim() || ''
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const { supabase } = await getRequestAuth()
+  const { data: pkg } = await supabase
+    .from('packages')
+    .select('title, slug, description, short_description, images, destination:destinations(name)')
+    .eq('slug', slug)
+    .single()
+
+  if (!pkg) {
+    return {}
+  }
+
+  const packageTitle = pkg.title || 'Trip'
+  const destinationName =
+    (pkg.destination as { name?: string | null } | null)?.name?.trim() || ''
+  const title = destinationName ? `${packageTitle} | ${destinationName} | UnSOLO` : `${packageTitle} | UnSOLO`
+  const description =
+    cleanText(pkg.short_description) ||
+    cleanText(pkg.description) ||
+    `Discover ${packageTitle} on UnSOLO.`
+  const url = `${APP_URL.replace(/\/$/, '')}/packages/${pkg.slug}`
+  const imageUrl = toAbsoluteUrl(pkg.images?.[0])
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url,
+      images: imageUrl ? [{ url: imageUrl, alt: packageTitle }] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  }
 }
 
 export default async function PackageDetailPage({

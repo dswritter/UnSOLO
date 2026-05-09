@@ -1,5 +1,6 @@
 export const revalidate = 300 // 5 minutes
 
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
@@ -8,12 +9,75 @@ import { getPublicServiceListingItems } from '@/actions/host-service-listing-ite
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
+import { APP_URL } from '@/lib/constants'
 
 const CATEGORY_LABELS: Record<ServiceListingType, string> = {
   stays: 'Stays',
   activities: 'Activities',
   rentals: 'Rentals',
   getting_around: 'Getting Around',
+}
+
+function toAbsoluteUrl(value: string | null | undefined) {
+  if (!value) return null
+  if (/^https?:\/\//i.test(value)) return value
+  return `${APP_URL.replace(/\/$/, '')}/${value.replace(/^\//, '')}`
+}
+
+function cleanText(value: string | null | undefined) {
+  return value?.replace(/\s+/g, ' ').trim() || ''
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ type: string; slug: string }>
+}): Promise<Metadata> {
+  const { type: typeParam, slug } = await params
+  const validTypes: ServiceListingType[] = ['stays', 'activities', 'rentals', 'getting_around']
+  if (!validTypes.includes(typeParam as ServiceListingType)) {
+    return {}
+  }
+
+  const supabase = await createClient()
+  const { data: listing } = await supabase
+    .from('service_listings')
+    .select('title, slug, type, location, short_description, description, images')
+    .eq('slug', slug)
+    .eq('type', typeParam)
+    .single()
+
+  if (!listing) {
+    return {}
+  }
+
+  const categoryLabel = CATEGORY_LABELS[listing.type as ServiceListingType] || 'Listing'
+  const title = `${listing.title} | ${categoryLabel} | UnSOLO`
+  const description =
+    cleanText(listing.short_description) ||
+    cleanText(listing.description) ||
+    cleanText(listing.location) ||
+    `Discover this ${categoryLabel.toLowerCase()} on UnSOLO.`
+  const url = `${APP_URL.replace(/\/$/, '')}/listings/${listing.type}/${listing.slug}`
+  const imageUrl = toAbsoluteUrl(listing.images?.[0])
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url,
+      images: imageUrl ? [{ url: imageUrl, alt: listing.title }] : undefined,
+    },
+    twitter: {
+      card: imageUrl ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+  }
 }
 
 export default async function ServiceListingDetailPage({
