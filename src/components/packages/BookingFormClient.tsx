@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,12 +111,15 @@ export function BookingFormClient({
   const [friendUsername, setFriendUsername] = useState('')
   const [friendSearching, setFriendSearching] = useState(false)
   const [addedFriends, setAddedFriends] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
-  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   /** token_to_book only: pay host token slice now vs full trip now */
   const [tokenPayMode, setTokenPayMode] = useState<'token' | 'full'>('token')
+  const [missingChoiceHint, setMissingChoiceHint] = useState<'tier' | 'date' | null>(null)
+  const priceTierSectionRef = useRef<HTMLDivElement | null>(null)
+  const departureDateSectionRef = useRef<HTMLDivElement | null>(null)
 
   const perPersonForBooking = variantTiers?.length
-    ? variantTiers[selectedVariantIndex].price_paise
+    ? variantTiers[selectedVariantIndex ?? 0].price_paise
     : pricePerPersonPaise
 
   async function searchAndAddFriend() {
@@ -229,9 +232,39 @@ export function BookingFormClient({
   // Today and future dates are bookable
   const futureDates = allDates.filter((d) => d >= today)
 
+  useEffect(() => {
+    if (variantTiers && variantTiers.length >= 2) {
+      setSelectedVariantIndex((current) =>
+        current != null && current >= 0 && current < variantTiers.length ? current : null,
+      )
+      return
+    }
+    setSelectedVariantIndex(0)
+  }, [variantTiers])
+
+  useEffect(() => {
+    if (futureDates.length === 1) {
+      setSelectedDate(futureDates[0])
+      return
+    }
+    setSelectedDate((current) => (current && futureDates.includes(current) ? current : ''))
+  }, [futureDates])
+
+  function scrollToMissingChoice(kind: 'tier' | 'date') {
+    setMissingChoiceHint(kind)
+    const target = kind === 'tier' ? priceTierSectionRef.current : departureDateSectionRef.current
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   async function handleBook() {
+    if (variantTiers && variantTiers.length >= 2 && selectedVariantIndex == null) {
+      toast.error('Please choose a price option before booking')
+      scrollToMissingChoice('tier')
+      return
+    }
     if (!selectedDate) {
-      toast.error('Please select a departure date')
+      toast.error('Please select a departure date before booking')
+      scrollToMissingChoice('date')
       return
     }
     if (selectedDate < today) {
@@ -247,7 +280,7 @@ export function BookingFormClient({
         guests,
         applyCredits,
         {
-          ...(variantTiers ? { priceVariantIndex: selectedVariantIndex } : {}),
+          ...(variantTiers && selectedVariantIndex != null ? { priceVariantIndex: selectedVariantIndex } : {}),
           ...(promoDiscount > 0 && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
           ...(payFullForTokenTrip ? { payFullAmountForTokenTrip: true } : {}),
         },
@@ -503,8 +536,16 @@ export function BookingFormClient({
       {tab === 'fixed' && (
         <>
           {variantTiers && variantTiers.length >= 2 && (
-            <div className="space-y-2">
+            <div
+              ref={priceTierSectionRef}
+              className={`space-y-2 scroll-mt-28 rounded-xl transition-colors ${
+                missingChoiceHint === 'tier' ? 'ring-2 ring-primary/50 p-2 bg-primary/5' : ''
+              }`}
+            >
               <label className="text-sm font-medium">Choose your option</label>
+              {missingChoiceHint === 'tier' && selectedVariantIndex == null && (
+                <p className="text-xs text-primary">Select one price option to continue.</p>
+              )}
               <div className="space-y-2">
                 {variantTiers.map((t, i) => (
                   <label
@@ -520,7 +561,10 @@ export function BookingFormClient({
                       name="price-tier"
                       className="mt-1 accent-primary"
                       checked={selectedVariantIndex === i}
-                      onChange={() => setSelectedVariantIndex(i)}
+                      onChange={() => {
+                        setSelectedVariantIndex(i)
+                        setMissingChoiceHint((current) => (current === 'tier' ? null : current))
+                      }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-foreground">{formatPrice(t.price_paise)}</div>
@@ -533,10 +577,18 @@ export function BookingFormClient({
           )}
 
           {/* Departure date selection */}
-          <div className="space-y-2">
+          <div
+            ref={departureDateSectionRef}
+            className={`space-y-2 scroll-mt-28 rounded-xl transition-colors ${
+              missingChoiceHint === 'date' ? 'ring-2 ring-primary/50 p-2 bg-primary/5' : ''
+            }`}
+          >
             <label className="text-sm font-medium flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5 text-primary" /> Select Departure
             </label>
+            {missingChoiceHint === 'date' && !selectedDate && futureDates.length > 1 && (
+              <p className="text-xs text-primary">Select one departure to continue.</p>
+            )}
             {allDates.length > 0 ? (
               <div className="grid gap-2">
                 {allDates.map((date) => {
@@ -547,7 +599,11 @@ export function BookingFormClient({
                   return (
                   <button
                     key={date}
-                    onClick={() => !isDisabled && setSelectedDate(date)}
+                    onClick={() => {
+                      if (isDisabled) return
+                      setSelectedDate(date)
+                      setMissingChoiceHint((current) => (current === 'date' ? null : current))
+                    }}
                     disabled={isDisabled}
                     className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       isPast
@@ -788,17 +844,17 @@ export function BookingFormClient({
 
           <Button
             onClick={handleBook}
-            disabled={loading || !selectedDate}
+            disabled={loading || futureDates.length === 0}
             className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 glow-gold"
             size="lg"
           >
             {loading
               ? 'Processing...'
               : !tokenBooking
-                ? 'Book This Trip'
+                ? 'Pay & book'
                 : needsTokenVsFullChoice && tokenPayMode === 'token'
-                  ? 'Pay token & book'
-                  : 'Pay and book'}
+                  ? `Pay ${formatPrice(dueNowDisplayPaise)} token & book`
+                  : `Pay ${formatPrice(dueNowDisplayPaise)} & book`}
           </Button>
         </>
       )}
@@ -1091,7 +1147,7 @@ export function BookingFormClient({
                     groupDate,
                     addedFriends.length + 1,
                     addedFriends.map(f => f.id),
-                    variantTiers ? selectedVariantIndex : undefined,
+                    variantTiers && selectedVariantIndex != null ? selectedVariantIndex : undefined,
                   )
                   if ('error' in result) {
                     toast.error(result.error)
