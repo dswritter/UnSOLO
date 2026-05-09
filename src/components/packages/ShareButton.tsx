@@ -26,19 +26,20 @@ export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix
 
   const url = `${APP_URL}/packages/${slug}`
   const priceLine = `${priceLinePrefix}${formatPrice(pricePaise)}/person`
-  const message = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${priceLine} | ${durationSummary}\n${url}`
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+  const whatsappMessage = `Hi! May I know more about this trip?\n\n${title} - ${location} | ${priceLine} | ${durationSummary}\n${url}`
+  const shareMessage = `I found this trip on UnSOLO: ${title}. Check it out: ${url}`
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`
 
   async function handleShare() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: `UnSOLO: ${title}`, text: message, url })
+        await navigator.share({ title: `UnSOLO: ${title}`, text: shareMessage })
         return
       } catch { /* user cancelled, fall through to clipboard */ }
     }
-    await navigator.clipboard.writeText(url)
+    await navigator.clipboard.writeText(shareMessage)
     setCopied(true)
-    toast.success('Link copied!')
+    toast.success('Share text copied!')
     setTimeout(() => setCopied(false), 2000)
   }
 
