@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
-import type { ServiceListing, ServiceListingType, ServiceListingMetadata } from '@/types'
+import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 
@@ -120,6 +120,8 @@ export async function createServiceListing(input: {
   is_active?: boolean
   is_featured?: boolean
   status?: 'pending' | 'approved' | 'rejected' | 'archived'
+  /** Activities only: explicit dates + slots. Null = ongoing. */
+  event_schedule?: ServiceEventScheduleEntry[] | null
 }) {
   const { supabase, user } = await requireAdmin()
 
@@ -199,6 +201,8 @@ export async function updateServiceListing(
     status: 'pending' | 'approved' | 'rejected' | 'archived'
     average_rating: number
     review_count: number
+    /** Activities only: explicit dates + slots. Null = ongoing. */
+    event_schedule: ServiceEventScheduleEntry[] | null
   }>
 ) {
   const { supabase, user } = await requireAdmin()

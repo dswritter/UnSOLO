@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Destination, ServiceListing, ServiceListingType, ServiceListingMetadata } from '@/types'
+import type {
+  Destination,
+  ServiceListing,
+  ServiceListingType,
+  ServiceListingMetadata,
+  ServiceEventScheduleEntry,
+} from '@/types'
 import type { PriceVariant } from '@/lib/package-pricing'
 import { createServiceListing, updateServiceListing } from '@/actions/admin-service-listings'
 
@@ -86,6 +92,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
     is_active: listing?.is_active || false,
     is_featured: listing?.is_featured || false,
     status: listing?.status || 'pending',
+    event_schedule: (listing?.event_schedule ?? null) as ServiceEventScheduleEntry[] | null,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -546,6 +553,14 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       {/* Type-Specific Metadata */}
       <TypeSpecificFields type={type} metadata={formData.metadata} onChange={handleMetadataChange} />
 
+      {/* Activities: schedule (date-specific or ongoing) */}
+      {type === 'activities' && (
+        <ActivityScheduleEditor
+          schedule={formData.event_schedule}
+          onChange={(next) => setFormData((prev) => ({ ...prev, event_schedule: next }))}
+        />
+      )}
+
       {/* Moderation */}
       <section>
         <h2 className="mb-4 text-lg font-semibold">Moderation</h2>
@@ -880,3 +895,248 @@ function TypeSpecificFields({ type, metadata, onChange }: TypeSpecificFieldsProp
 
   return null
 }
+
+// ── Activity event schedule editor ────────────────────────────────────────
+interface ActivityScheduleEditorProps {
+  schedule: ServiceEventScheduleEntry[] | null
+  onChange: (next: ServiceEventScheduleEntry[] | null) => void
+}
+
+function ActivityScheduleEditor({ schedule, onChange }: ActivityScheduleEditorProps) {
+  const isDateSpecific = schedule !== null
+  const hasSlots = !!schedule?.some((entry) => entry.slots && entry.slots.length > 0)
+  const [newDate, setNewDate] = useState('')
+  const todayStr = new Date().toISOString().slice(0, 10)
+
+  function setDateSpecific(on: boolean) {
+    onChange(on ? (schedule ?? []) : null)
+  }
+
+  function setHasSlots(on: boolean) {
+    if (!schedule) return
+    if (on) {
+      // Default each date to a single 09:00–11:00 slot
+      onChange(
+        schedule.map((entry) => ({
+          ...entry,
+          slots: entry.slots && entry.slots.length > 0 ? entry.slots : [{ start: '09:00', end: '11:00' }],
+        })),
+      )
+    } else {
+      // Strip slots → all-day for every date
+      onChange(schedule.map((entry) => ({ ...entry, slots: null })))
+    }
+  }
+
+  function addDate() {
+    if (!schedule) return
+    if (!newDate) return
+    if (schedule.some((e) => e.date === newDate)) {
+      setNewDate('')
+      return
+    }
+    const next: ServiceEventScheduleEntry[] = [
+      ...schedule,
+      { date: newDate, slots: hasSlots ? [{ start: '09:00', end: '11:00' }] : null },
+    ].sort((a, b) => a.date.localeCompare(b.date))
+    onChange(next)
+    setNewDate('')
+  }
+
+  function removeDate(date: string) {
+    if (!schedule) return
+    onChange(schedule.filter((e) => e.date !== date))
+  }
+
+  function updateSlot(date: string, idx: number, field: 'start' | 'end', value: string) {
+    if (!schedule) return
+    onChange(
+      schedule.map((entry) => {
+        if (entry.date !== date || !entry.slots) return entry
+        const slots = entry.slots.map((s, i) => (i === idx ? { ...s, [field]: value } : s))
+        return { ...entry, slots }
+      }),
+    )
+  }
+
+  function addSlot(date: string) {
+    if (!schedule) return
+    onChange(
+      schedule.map((entry) => {
+        if (entry.date !== date) return entry
+        const slots = [...(entry.slots ?? []), { start: '09:00', end: '11:00' }]
+        return { ...entry, slots }
+      }),
+    )
+  }
+
+  function removeSlot(date: string, idx: number) {
+    if (!schedule) return
+    onChange(
+      schedule.map((entry) => {
+        if (entry.date !== date || !entry.slots) return entry
+        const slots = entry.slots.filter((_, i) => i !== idx)
+        return { ...entry, slots: slots.length > 0 ? slots : [{ start: '09:00', end: '11:00' }] }
+      }),
+    )
+  }
+
+  return (
+    <section>
+      <h2 className="mb-4 text-lg font-semibold">Activity Schedule</h2>
+
+      <div className="space-y-4">
+        {/* Date-specific toggle */}
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">Is this a date-specific activity?</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDateSpecific(false)}
+              className={`rounded-md border px-3 py-1.5 text-sm ${
+                !isDateSpecific ? 'border-primary bg-primary/10 text-primary' : 'border-border'
+              }`}
+            >
+              No, ongoing
+            </button>
+            <button
+              type="button"
+              onClick={() => setDateSpecific(true)}
+              className={`rounded-md border px-3 py-1.5 text-sm ${
+                isDateSpecific ? 'border-primary bg-primary/10 text-primary' : 'border-border'
+              }`}
+            >
+              Yes, specific dates
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ongoing activities are bookable on any date. Date-specific activities only allow the dates you list below.
+          </p>
+        </div>
+
+        {isDateSpecific && (
+          <>
+            {/* Slots toggle */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">Multiple time slots per date?</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHasSlots(false)}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    !hasSlots ? 'border-primary bg-primary/10 text-primary' : 'border-border'
+                  }`}
+                >
+                  No (all day)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHasSlots(true)}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${
+                    hasSlots ? 'border-primary bg-primary/10 text-primary' : 'border-border'
+                  }`}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+
+            {/* Add date */}
+            <div>
+              <label className="block text-sm font-medium text-foreground">Add date</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="date"
+                  min={todayStr}
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="flex-1 rounded border border-border px-3 py-2"
+                />
+                <button
+                  type="button"
+                  onClick={addDate}
+                  disabled={!newDate}
+                  className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Add date
+                </button>
+              </div>
+            </div>
+
+            {/* Schedule list */}
+            <div className="space-y-3">
+              {schedule!.length === 0 && (
+                <p className="text-sm text-muted-foreground">No dates added yet.</p>
+              )}
+              {schedule!.map((entry) => {
+                const isPast = entry.date < todayStr
+                return (
+                  <div
+                    key={entry.date}
+                    className={`rounded-lg border p-3 ${isPast ? 'border-border bg-secondary/30 opacity-60' : 'border-border bg-card/40'}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-medium ${isPast ? 'line-through' : ''}`}>
+                        {new Date(entry.date + 'T12:00:00').toLocaleDateString('en-IN', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeDate(entry.date)}
+                        className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {hasSlots && entry.slots && (
+                      <div className="mt-3 space-y-2">
+                        {entry.slots.map((slot, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={slot.start}
+                              onChange={(e) => updateSlot(entry.date, idx, 'start', e.target.value)}
+                              className="rounded border border-border px-2 py-1 text-sm"
+                            />
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <input
+                              type="time"
+                              value={slot.end}
+                              onChange={(e) => updateSlot(entry.date, idx, 'end', e.target.value)}
+                              className="rounded border border-border px-2 py-1 text-sm"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSlot(entry.date, idx)}
+                              className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                              disabled={entry.slots!.length <= 1}
+                            >
+                              Remove slot
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addSlot(entry.date)}
+                          className="rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50"
+                        >
+                          + Add slot
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+

@@ -264,7 +264,10 @@ export async function createServiceListingOrder(
           service_listing_item_id: itemId,
           booking_type: 'service',
           check_in_date: bookingData.check_in_date,
-          check_out_date: bookingData.check_out_date,
+          check_out_date: bookingData.check_out_date ?? null,
+          // legacy NOT NULL column from package bookings — mirror quantity so the
+          // constraint is satisfied for ongoing activities and any other path.
+          guests: bookingData.quantity,
           quantity: bookingData.quantity,
           total_amount_paise: totalPaise,
           amount_paise: finalAmount,
@@ -285,7 +288,7 @@ export async function createServiceListingOrder(
 
       if (bookingError) {
         console.error('service booking insert error (instant):', bookingError)
-        return { error: 'Failed to create booking' }
+        return { error: `Failed to create booking: ${bookingError.message}` }
       }
 
       // Deduct credits
@@ -329,7 +332,10 @@ export async function createServiceListingOrder(
         service_listing_item_id: itemId,
         booking_type: 'service',
         check_in_date: bookingData.check_in_date,
-        check_out_date: bookingData.check_out_date,
+        check_out_date: bookingData.check_out_date ?? null,
+        // legacy NOT NULL column from package bookings — mirror quantity so the
+        // constraint is satisfied for ongoing activities and any other path.
+        guests: bookingData.quantity,
         quantity: bookingData.quantity,
         total_amount_paise: totalPaise,
         amount_paise: finalAmount,
@@ -349,7 +355,7 @@ export async function createServiceListingOrder(
 
     if (bookingError) {
       console.error('createServiceListingOrder insert:', bookingError)
-      return { error: 'Failed to create booking' }
+      return { error: `Failed to create booking: ${bookingError.message}` }
     }
 
     return {
@@ -673,6 +679,7 @@ export async function createRentalCartOrder(
           booking_type: 'service',
           check_in_date: bookingData.check_in_date,
           check_out_date: checkOutDate,
+          guests: v.quantity,
           quantity: v.quantity,
           // Required NOT NULL; line list total before split discounts (matches gross_paise).
           total_amount_paise: itemGross,
