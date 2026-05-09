@@ -256,9 +256,16 @@ export async function sharePOCWithCustomer(bookingId: string) {
 export async function sendBookingConfirmationEmail(bookingId: string) {
   const { supabase } = await requireStaff()
 
+  // Pull both relationships — only one of them will resolve depending on
+  // whether the booking is a package trip or a service listing.
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*)), user:profiles!bookings_user_id_fkey(*)')
+    .select(
+      `*,
+       package:packages(*, destination:destinations(*)),
+       service_listing:service_listings(*),
+       user:profiles!bookings_user_id_fkey(*)`,
+    )
     .eq('id', bookingId)
     .single()
 
@@ -268,36 +275,66 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
   const { data: authUser } = await serviceClient.auth.admin.getUserById(booking.user_id)
   if (!authUser?.user?.email) return { error: 'Customer email not found' }
 
+  const usr = booking.user as { full_name?: string } | null
+  const isServiceBooking = booking.booking_type === 'service' || !!booking.service_listing_id
+
   try {
+    if (isServiceBooking) {
+      // Service-listing booking — route to the service email template.
+      const listing = booking.service_listing as
+        | { title: string; type: string; location: string }
+        | null
+      if (!listing) return { error: 'Service listing not found for this booking' }
+
+      const { sendServiceBookingConfirmedEmail } = await import('@/lib/resend/emails')
+      await sendServiceBookingConfirmedEmail({
+        customerEmail: authUser.user.email,
+        customerName: usr?.full_name,
+        listingTitle: listing.title,
+        listingType: listing.type,
+        location: listing.location,
+        checkInDate: booking.check_in_date ?? '',
+        checkOutDate: booking.check_out_date ?? undefined,
+        quantity: booking.quantity ?? 1,
+        amountPaise: booking.amount_paise ?? booking.total_amount_paise ?? 0,
+        bookingId: booking.id,
+      })
+      return { success: true }
+    }
+
+    // Package (trip) booking — original path.
     const { sendBookingConfirmation } = await import('@/lib/resend/emails')
-    const { tripEndDateIsoForBooking, packageDurationShortLabel } = await import('@/lib/package-trip-calendar')
+    const { tripEndDateIsoForBooking, packageDurationShortLabel } = await import(
+      '@/lib/package-trip-calendar'
+    )
     const pkg = booking.package as import('@/types').Package | null
-    const usr = booking.user as { full_name?: string } | null
+    if (!pkg) return { error: 'Package not found for this booking' }
 
     const cal = {
-      duration_days: Math.max(1, Number(pkg?.duration_days) || 1),
-      departure_dates: pkg?.departure_dates,
-      return_dates: pkg?.return_dates,
+      duration_days: Math.max(1, Number(pkg.duration_days) || 1),
+      departure_dates: pkg.departure_dates,
+      return_dates: pkg.return_dates,
     }
     const returnDateIso = tripEndDateIsoForBooking(booking.travel_date, cal)
 
     await sendBookingConfirmation({
       customerEmail: authUser.user.email,
       customerName: usr?.full_name || 'Traveler',
-      packageTitle: pkg?.title || 'Trip',
-      destination: pkg?.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
+      packageTitle: pkg.title,
+      destination: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
       travelDate: booking.travel_date,
       returnDateIso,
       guests: booking.guests,
       totalAmount: booking.total_amount_paise,
       confirmationCode: booking.confirmation_code || '',
-      durationSummary: pkg ? packageDurationShortLabel(pkg) : `${cal.duration_days} days`,
+      durationSummary: packageDurationShortLabel(pkg),
     })
 
     return { success: true }
   } catch (err) {
     console.error('Send confirmation error:', err)
-    return { error: 'Failed to send email' }
+    const message = err instanceof Error ? err.message : 'Failed to send email'
+    return { error: `Failed to send email: ${message}` }
   }
 }
 
