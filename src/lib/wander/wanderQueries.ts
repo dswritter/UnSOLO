@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { listingScheduleTodayISO } from '@/lib/utils'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
 import type { ServiceEventScheduleEntry } from '@/types'
@@ -258,7 +259,7 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  return listingScheduleTodayISO()
 }
 
 function isActivityVisibleToPublic(

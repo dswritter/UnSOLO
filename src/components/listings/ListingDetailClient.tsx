@@ -13,7 +13,7 @@ import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, listingScheduleTodayISO } from '@/lib/utils'
 
 function stripMarkdown(text: string): string {
   return text
@@ -107,7 +107,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
         ].filter(Boolean)
       case 'activities': {
         // For single-day activities with no time slots, don't show duration
-        const todayStr = new Date().toISOString().slice(0, 10)
+        const todayStr = listingScheduleTodayISO()
         const upcomingSchedule = listing.event_schedule
           ? listing.event_schedule.filter(e => e.date >= todayStr)
           : null
@@ -159,7 +159,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
         <p className="text-lg text-muted-foreground">{listing.short_description}</p>
       )}
       {listing.type === 'activities' && listing.event_schedule && listing.event_schedule.length > 0 && (() => {
-        const today = new Date().toISOString().slice(0, 10)
+        const today = listingScheduleTodayISO()
         const upcoming = listing.event_schedule
           .filter(e => e.date >= today)
           .sort((a, b) => a.date.localeCompare(b.date))

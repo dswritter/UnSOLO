@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createRazorpayOrder, confirmPayment, submitCustomDateRequest } from '@/actions/booking'
 import { createGroupBooking } from '@/actions/group-booking'
-import { formatPrice, formatDate, validateIndianPhone, getMaxDate, getTripCountdown } from '@/lib/utils'
+import { formatPrice, formatDate, listingScheduleTodayISO, validateIndianPhone, getMaxDate, getTripCountdown } from '@/lib/utils'
 import {
   formatDateRangeFromEdges,
   tripEndDateIsoForBooking,
@@ -244,7 +244,7 @@ export function BookingFormClient({
   const balanceLaterDisplayPaise = Math.max(0, tripTotalAfterDiscounts - dueNowDisplayPaise)
   // All departure dates; bookable subset is future only — past listed separately
   const allDates = departureDates || []
-  const today = new Date().toISOString().split('T')[0]
+  const today = listingScheduleTodayISO()
   const futureDates = allDates.filter((d) => d >= today)
   const pastDates = allDates.filter((d) => d < today).sort((a, b) => b.localeCompare(a))
 

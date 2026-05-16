@@ -28,6 +28,15 @@ export function formatDate(dateStr: string): string {
   })
 }
 
+/**
+ * Calendar "today" as YYYY-MM-DD in Asia/Kolkata for comparing host-entered
+ * schedule strings (`event_schedule`, package departures). `toISOString()` uses
+ * UTC and mislabels past vs upcoming around the IST/UTC day boundary.
+ */
+export function listingScheduleTodayISO(now: Date = new Date()): string {
+  return now.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+}
+
 export function generateConfirmationCode(): string {
   const year = new Date().getFullYear()
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

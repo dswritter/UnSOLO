@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
-import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
+import { escapeIlikePattern, listingScheduleTodayISO, tokenizeLocationQuery } from '@/lib/utils'
 
 /**
  * Activities with an `event_schedule` are date-specific events. Once every
@@ -21,7 +21,7 @@ function isListingVisibleToPublic(
 }
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+  return listingScheduleTodayISO()
 }
 
 export async function getServiceListingsByType(

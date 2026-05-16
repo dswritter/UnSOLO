@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createServiceListingOrder, confirmServiceListingPayment } from '@/actions/service-listing-booking'
-import { formatPrice, validateIndianPhone } from '@/lib/utils'
+import { formatPrice, listingScheduleTodayISO, validateIndianPhone } from '@/lib/utils'
 import { validatePromoCode } from '@/actions/admin'
 import { toast } from 'sonner'
 import Script from 'next/script'
@@ -53,7 +53,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const [checkOutDate, setCheckOutDate] = useState('')
   // For activities: auto-prefill to the single upcoming date when the host
   // scheduled exactly one; otherwise stay blank until the user picks.
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = listingScheduleTodayISO()
   const upcomingSchedule = (listing.type === 'activities' && listing.event_schedule)
     ? listing.event_schedule.filter(e => e.date >= todayStr)
     : null
