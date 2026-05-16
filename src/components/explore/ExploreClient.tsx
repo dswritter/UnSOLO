@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Mountain, Plane, Home, Compass, Navigation, Key, X } from 'lucide-react'
 import { cn, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
-import { packageHasUpcomingOpenDeparture } from '@/lib/package-trip-calendar'
+import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { ExploreTripPackageCard } from './ExploreTripPackageCard'
 import { ExploreSidebar } from './ExploreSidebar'
@@ -45,7 +45,7 @@ function activityExploreHasUpcomingDates(listing: ServiceListing, todayStr: stri
   if (listing.type !== 'activities') return true
   const sch = listing.event_schedule
   if (!sch?.length) return true
-  return sch.some(e => e.date >= todayStr)
+  return sch.some((e) => tripDepartureDateKey(e.date) >= todayStr)
 }
 
 interface ExploreClientProps {
@@ -198,6 +198,22 @@ export function ExploreClient({
         ? serviceListings.filter((l) => !activityExploreHasUpcomingDates(l, exploreCalendarToday))
         : ([] as ServiceListingWithItems[]),
     [activeTab, serviceListings, exploreCalendarToday],
+  )
+
+  /** Upcoming-first, past after — one grid so rows flow naturally (past uses tag + muted styling). */
+  const tripsDisplayOrder = useMemo(
+    () => [...tripsUpcomingPkgs, ...tripsPastPkgs],
+    [tripsUpcomingPkgs, tripsPastPkgs],
+  )
+  const pastTripPackageIds = useMemo(() => new Set(tripsPastPkgs.map((p) => p.id)), [tripsPastPkgs])
+
+  const activitiesDisplayOrder = useMemo(
+    () => [...activitiesLiveListings, ...activitiesPastOnlyListings],
+    [activitiesLiveListings, activitiesPastOnlyListings],
+  )
+  const pastActivityIds = useMemo(
+    () => new Set(activitiesPastOnlyListings.map((l) => l.id)),
+    [activitiesPastOnlyListings],
   )
 
   const tripGridClassName = cn(
@@ -396,122 +412,45 @@ export function ExploreClient({
                 </Button>
               </div>
             ) : isTripsTab ? (
-              <div className="space-y-10">
-                {tripsUpcomingPkgs.length > 0 ? (
-                  <div className={tripGridClassName}>
-                    {tripsUpcomingPkgs.map((pkg) => (
-                      <ExploreTripPackageCard
-                        key={pkg.id}
-                        pkg={pkg}
-                        pastEdition={false}
-                        spotsBooked={spotsBooked[pkg.id] ?? 0}
-                        interestTotal={interestCounts[pkg.id] ?? 0}
-                        wishlistedIds={wishlisted.has(pkg.id)}
-                        hasPublishedInterest={interestedSet.has(pkg.id)}
-                        onToggleWishlist={toggleWishlist}
-                        onOpenDetail={() => {
-                          writeRecentlyViewedPackage({
-                            id: pkg.id,
-                            title: pkg.title,
-                            slug: pkg.slug,
-                            image: pkg.images?.[0] || null,
-                            destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
-                          })
-                          if (isMobile) {
-                            pushWithRouteProgress(router, `/packages/${pkg.slug}`)
-                            return
-                          }
-                          window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
-                        }}
-                        onPrefetch={() => router.prefetch(`/packages/${pkg.slug}`)}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-                {tripsPastPkgs.length > 0 ? (
-                  <div className={cn(tripsUpcomingPkgs.length > 0 && 'mt-10 border-t border-border/55 pt-10')}>
-                    <h3
-                      className={cn(
-                        'text-sm font-semibold uppercase tracking-wide mb-1',
-                        isWanderShell ? 'text-white/55' : 'text-muted-foreground',
-                      )}
-                    >
-                      Past trips
-                    </h3>
-                    <p
-                      className={cn(
-                        'mb-5 max-w-lg text-xs',
-                        isWanderShell ? 'text-white/50' : 'text-muted-foreground/90',
-                      )}
-                    >
-                      No upcoming departures — open a trip for itineraries, hosts, and reviews from travellers.
-                    </p>
-                    <div className={tripGridClassName}>
-                      {tripsPastPkgs.map((pkg) => (
-                        <ExploreTripPackageCard
-                          key={pkg.id}
-                          pkg={pkg}
-                          pastEdition
-                          spotsBooked={spotsBooked[pkg.id] ?? 0}
-                          interestTotal={interestCounts[pkg.id] ?? 0}
-                          wishlistedIds={wishlisted.has(pkg.id)}
-                          hasPublishedInterest={interestedSet.has(pkg.id)}
-                          onToggleWishlist={toggleWishlist}
-                          onOpenDetail={() => {
-                            writeRecentlyViewedPackage({
-                              id: pkg.id,
-                              title: pkg.title,
-                              slug: pkg.slug,
-                              image: pkg.images?.[0] || null,
-                              destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
-                            })
-                            if (isMobile) {
-                              pushWithRouteProgress(router, `/packages/${pkg.slug}`)
-                              return
-                            }
-                            window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
-                          }}
-                          onPrefetch={() => router.prefetch(`/packages/${pkg.slug}`)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+              <div className={tripGridClassName}>
+                {tripsDisplayOrder.map((pkg) => (
+                  <ExploreTripPackageCard
+                    key={pkg.id}
+                    pkg={pkg}
+                    pastEdition={pastTripPackageIds.has(pkg.id)}
+                    spotsBooked={spotsBooked[pkg.id] ?? 0}
+                    interestTotal={interestCounts[pkg.id] ?? 0}
+                    wishlistedIds={wishlisted.has(pkg.id)}
+                    hasPublishedInterest={interestedSet.has(pkg.id)}
+                    onToggleWishlist={toggleWishlist}
+                    onOpenDetail={() => {
+                      writeRecentlyViewedPackage({
+                        id: pkg.id,
+                        title: pkg.title,
+                        slug: pkg.slug,
+                        image: pkg.images?.[0] || null,
+                        destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
+                      })
+                      if (isMobile) {
+                        pushWithRouteProgress(router, `/packages/${pkg.slug}`)
+                        return
+                      }
+                      window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
+                    }}
+                    onPrefetch={() => router.prefetch(`/packages/${pkg.slug}`)}
+                  />
+                ))}
               </div>
             ) : activeTab === 'activities' ? (
-              <div className="space-y-10">
-                {activitiesLiveListings.length > 0 ? (
-                  <div className={serviceGridClassName}>
-                    {activitiesLiveListings.map((listing) => (
-                      <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
-                    ))}
-                  </div>
-                ) : null}
-                {activitiesPastOnlyListings.length > 0 ? (
-                  <div className={cn(activitiesLiveListings.length > 0 && 'mt-10 border-t border-border/55 pt-10')}>
-                    <h3
-                      className={cn(
-                        'text-sm font-semibold uppercase tracking-wide mb-1',
-                        isWanderShell ? 'text-white/55' : 'text-muted-foreground',
-                      )}
-                    >
-                      Past activities
-                    </h3>
-                    <p
-                      className={cn(
-                        'mb-5 max-w-lg text-xs',
-                        isWanderShell ? 'text-white/50' : 'text-muted-foreground/90',
-                      )}
-                    >
-                      Scheduled dates have passed — open a listing for photos, pricing context, and reviews.
-                    </p>
-                    <div className={serviceGridClassName}>
-                      {activitiesPastOnlyListings.map((listing) => (
-                        <ServiceListingCard key={listing.id} listing={listing} items={listing.items} muted />
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+              <div className={serviceGridClassName}>
+                {activitiesDisplayOrder.map((listing) => (
+                  <ServiceListingCard
+                    key={listing.id}
+                    listing={listing}
+                    items={listing.items}
+                    muted={pastActivityIds.has(listing.id)}
+                  />
+                ))}
               </div>
             ) : (
               <div className={serviceGridClassName}>
