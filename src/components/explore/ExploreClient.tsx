@@ -1,19 +1,16 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
+import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X, ChevronLeft } from 'lucide-react'
-import { formatPrice, cn, formatDate } from '@/lib/utils'
+import { Mountain, Plane, Home, Compass, Navigation, Key, X } from 'lucide-react'
+import { cn, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
-import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
-import { hasTieredPricing } from '@/lib/package-pricing'
+import { packageHasUpcomingOpenDeparture } from '@/lib/package-trip-calendar'
 import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
+import { ExploreTripPackageCard } from './ExploreTripPackageCard'
 import { ExploreSidebar } from './ExploreSidebar'
 import { ServiceListingCard } from './ServiceListingCard'
 import { MobileExploreActionBar } from './MobileExploreActionBar'
@@ -43,24 +40,12 @@ const ALL_TABS: { id: TabType; label: string; icon: any }[] = [
 ]
 const TABS = ALL_TABS.filter(t => t.id !== 'getting_around' || GETTING_AROUND_ENABLED)
 
-// Frosted glass over the hero image — saturated blur reads cleanly on every
-// background, hairline white border keeps the chip distinct from the photo.
-const DIFFICULTY_COLORS: Record<string, string> = {
-  easy: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
-  moderate: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
-  challenging: 'bg-white/15 text-white backdrop-blur-md backdrop-saturate-150 border-white/20 shadow-sm',
-}
-
-const DIFFICULTY_ICONS: Record<string, string> = {
-  easy: '\u2714',
-  moderate: '\u26A0',
-  challenging: '\u26A1',
-}
-
-const GENDER_LABELS: Record<string, string> = {
-  women: 'Women only',
-  men: 'Men only',
-  all: 'All genders',
+/** Activities with dated schedule only: true if empty schedule or any upcoming date (India calendar compare). */
+function activityExploreHasUpcomingDates(listing: ServiceListing, todayStr: string): boolean {
+  if (listing.type !== 'activities') return true
+  const sch = listing.event_schedule
+  if (!sch?.length) return true
+  return sch.some(e => e.date >= todayStr)
 }
 
 interface ExploreClientProps {
@@ -181,9 +166,48 @@ export function ExploreClient({
   }, [])
 
   const isTripsTab = activeTab === 'trips'
-  const isServiceTab = !isTripsTab
   const results = isTripsTab ? packages : serviceListings
 
+  const exploreCalendarToday = listingScheduleTodayISO()
+
+  const tripsUpcomingPkgs = useMemo(
+    () =>
+      isTripsTab
+        ? (packages as Package[]).filter((p) => packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
+        : ([] as Package[]),
+    [isTripsTab, packages, exploreCalendarToday],
+  )
+  const tripsPastPkgs = useMemo(
+    () =>
+      isTripsTab
+        ? (packages as Package[]).filter((p) => !packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
+        : ([] as Package[]),
+    [isTripsTab, packages, exploreCalendarToday],
+  )
+
+  const activitiesLiveListings = useMemo(
+    () =>
+      activeTab === 'activities'
+        ? serviceListings.filter((l) => activityExploreHasUpcomingDates(l, exploreCalendarToday))
+        : ([] as ServiceListingWithItems[]),
+    [activeTab, serviceListings, exploreCalendarToday],
+  )
+  const activitiesPastOnlyListings = useMemo(
+    () =>
+      activeTab === 'activities'
+        ? serviceListings.filter((l) => !activityExploreHasUpcomingDates(l, exploreCalendarToday))
+        : ([] as ServiceListingWithItems[]),
+    [activeTab, serviceListings, exploreCalendarToday],
+  )
+
+  const tripGridClassName = cn(
+    'grid grid-cols-1 sm:grid-cols-2 gap-6',
+    isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+  )
+  const serviceGridClassName = cn(
+    'grid grid-cols-1 md:grid-cols-2 gap-4',
+    isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+  )
   return (
     <div
       className={cn(
@@ -372,192 +396,125 @@ export function ExploreClient({
                 </Button>
               </div>
             ) : isTripsTab ? (
-              /* Trips Grid */
-              <div
-                className={cn(
-                  'grid grid-cols-1 sm:grid-cols-2 gap-6',
-                  isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
-                )}
-              >
-            {(packages as Package[]).map((pkg) => {
-              const spotsLeft = pkg.max_group_size - (spotsBooked[pkg.id] || 0)
-              const interestTotal = interestCounts[pkg.id] || 0
-              const nextDeparture = packageNextDepartureLine(pkg)
-              return (
-              <div
-                key={pkg.id}
-                onClick={() => {
-                  writeRecentlyViewedPackage({
-                    id: pkg.id, title: pkg.title, slug: pkg.slug,
-                    image: pkg.images?.[0] || null,
-                    destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
-                  })
-                  if (isMobile) {
-                    pushWithRouteProgress(router, `/packages/${pkg.slug}`)
-                    return
-                  }
-                  window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
-                }}
-                onMouseEnter={() => router.prefetch(`/packages/${pkg.slug}`)}
-                onFocus={() => router.prefetch(`/packages/${pkg.slug}`)}
-                className="cursor-pointer"
-              >
-                <Card
-                  className={cn(
-                    'bg-card border-border overflow-hidden cursor-pointer h-full group py-0 gap-0',
-                    'transition-all duration-300 hover:shadow-xl hover:scale-[1.02]',
-                    'motion-reduce:transition-none motion-reduce:hover:scale-100',
-                    'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
-                    pkg.host_id
-                      ? 'ring-2 ring-blue-500/50 bg-gradient-to-br from-card to-blue-500/5'
-                      : ''
-                  )}
-                >
-                  <div className="relative h-52 bg-secondary overflow-hidden shrink-0 rounded-t-xl">
-                    {pkg.images?.[0] ? (
-                      <Image
-                        src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]}
-                        alt={pkg.title}
-                        fill
-                        sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+              <div className="space-y-10">
+                {tripsUpcomingPkgs.length > 0 ? (
+                  <div className={tripGridClassName}>
+                    {tripsUpcomingPkgs.map((pkg) => (
+                      <ExploreTripPackageCard
+                        key={pkg.id}
+                        pkg={pkg}
+                        pastEdition={false}
+                        spotsBooked={spotsBooked[pkg.id] ?? 0}
+                        interestTotal={interestCounts[pkg.id] ?? 0}
+                        wishlistedIds={wishlisted.has(pkg.id)}
+                        hasPublishedInterest={interestedSet.has(pkg.id)}
+                        onToggleWishlist={toggleWishlist}
+                        onOpenDetail={() => {
+                          writeRecentlyViewedPackage({
+                            id: pkg.id,
+                            title: pkg.title,
+                            slug: pkg.slug,
+                            image: pkg.images?.[0] || null,
+                            destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
+                          })
+                          if (isMobile) {
+                            pushWithRouteProgress(router, `/packages/${pkg.slug}`)
+                            return
+                          }
+                          window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
+                        }}
+                        onPrefetch={() => router.prefetch(`/packages/${pkg.slug}`)}
                       />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-secondary to-muted">
-                        <Mountain className="h-14 w-14 text-primary/30" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
-                      <Badge className={`text-xs ${DIFFICULTY_COLORS[pkg.difficulty]}`}>
-                        {DIFFICULTY_ICONS[pkg.difficulty] || ''} {pkg.difficulty}
-                      </Badge>
-                      {pkg.is_featured && (
-                        <Badge className="text-xs bg-primary/90 text-black border-none">Featured</Badge>
-                      )}
-                      {pkg.host_id && (
-                        <Badge className="text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">Community</Badge>
-                      )}
-                      {spotsLeft > 0 && spotsLeft <= 5 && (
-                        <Badge className="text-xs bg-red-500/80 text-white border-none">Only {spotsLeft} left!</Badge>
-                      )}
-                    </div>
-
-                    {/* Wishlist heart button - synced with interest status */}
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        toggleWishlist(pkg.id)
-                      }}
-                      className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 transition-all z-10 backdrop-blur-sm"
-                      aria-label="Add to wishlist"
-                    >
-                      <Heart
-                        className={cn(
-                          'h-5 w-5 transition-all duration-300',
-                          wishlisted.has(pkg.id) || interestedSet.has(pkg.id)
-                            ? 'fill-red-500 text-red-500 scale-110'
-                            : 'text-white/80 hover:text-white'
-                        )}
-                      />
-                    </button>
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1 text-xs text-white/80">
-                      <MapPin className="h-3 w-3" />
-                      {pkg.destination?.name}, {pkg.destination?.state}
-                    </div>
-
-                    {/* Host avatar overlay for community trips */}
-                    {pkg.host_id && pkg.host && (
-                      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1">
-                        {pkg.host.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={storageThumbnailUrl(pkg.host.avatar_url) || pkg.host.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-5 h-5 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
-                            {(pkg.host.full_name || pkg.host.username || 'H')[0].toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-[10px] text-white/90 font-medium truncate max-w-[80px]">
-                          {pkg.host.full_name || pkg.host.username}
-                        </span>
-                        {pkg.host.is_verified && <ShieldCheck className="h-3 w-3 text-blue-400 flex-shrink-0" />}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-bold text-foreground text-lg leading-tight mb-1">{pkg.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{pkg.short_description}</p>
-
-                    {/* Host info for community trips */}
-                    {pkg.host_id && pkg.host && (
-                      <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border">
-                        {pkg.host.host_rating != null && pkg.host.host_rating > 0 && (
-                          <div className="flex items-center gap-0.5 text-xs text-muted-foreground">
-                            <Star className="h-3 w-3 text-yellow-400 fill-yellow-400" />
-                            <span>{pkg.host.host_rating.toFixed(1)}</span>
-                          </div>
-                        )}
-                        {/* Join preference badges */}
-                        {pkg.join_preferences && (
-                          <div className="flex flex-wrap gap-1">
-                            {pkg.join_preferences.gender_preference &&
-                              pkg.join_preferences.gender_preference !== 'all' && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/20">
-                                  {GENDER_LABELS[pkg.join_preferences.gender_preference]}
-                                </span>
-                              )}
-                            {pkg.join_preferences.min_trips_completed &&
-                              pkg.join_preferences.min_trips_completed > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
-                                  {pkg.join_preferences.min_trips_completed}+ trips
-                                </span>
-                              )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="text-primary font-black text-xl">
-                          {hasTieredPricing(pkg.price_variants) ? 'Starting from ' : ''}
-                          {formatPrice(pkg.price_paise)}
-                        </span>
-                        <span className="text-muted-foreground text-xs ml-1">/ person</span>
-                      </div>
-                      <div className="text-right shrink-0 space-y-0.5">
-                        <div className="text-xs font-semibold text-foreground tabular-nums">
-                          {packageDurationShortLabel(pkg)}
-                        </div>
-                        {nextDeparture ? (
-                          <div className="text-[11px] font-medium text-primary leading-tight">{nextDeparture}</div>
-                        ) : null}
-                        <div className="text-[11px] text-muted-foreground">Max {pkg.max_group_size} people</div>
-                      </div>
+                ) : null}
+                {tripsPastPkgs.length > 0 ? (
+                  <div className={cn(tripsUpcomingPkgs.length > 0 && 'mt-10 border-t border-border/55 pt-10')}>
+                    <h3
+                      className={cn(
+                        'text-sm font-semibold uppercase tracking-wide mb-1',
+                        isWanderShell ? 'text-white/55' : 'text-muted-foreground',
+                      )}
+                    >
+                      Past trips
+                    </h3>
+                    <p
+                      className={cn(
+                        'mb-5 max-w-lg text-xs',
+                        isWanderShell ? 'text-white/50' : 'text-muted-foreground/90',
+                      )}
+                    >
+                      No upcoming departures — open a trip for itineraries, hosts, and reviews from travellers.
+                    </p>
+                    <div className={tripGridClassName}>
+                      {tripsPastPkgs.map((pkg) => (
+                        <ExploreTripPackageCard
+                          key={pkg.id}
+                          pkg={pkg}
+                          pastEdition
+                          spotsBooked={spotsBooked[pkg.id] ?? 0}
+                          interestTotal={interestCounts[pkg.id] ?? 0}
+                          wishlistedIds={wishlisted.has(pkg.id)}
+                          hasPublishedInterest={interestedSet.has(pkg.id)}
+                          onToggleWishlist={toggleWishlist}
+                          onOpenDetail={() => {
+                            writeRecentlyViewedPackage({
+                              id: pkg.id,
+                              title: pkg.title,
+                              slug: pkg.slug,
+                              image: pkg.images?.[0] || null,
+                              destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
+                            })
+                            if (isMobile) {
+                              pushWithRouteProgress(router, `/packages/${pkg.slug}`)
+                              return
+                            }
+                            window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
+                          }}
+                          onPrefetch={() => router.prefetch(`/packages/${pkg.slug}`)}
+                        />
+                      ))}
                     </div>
-                    {/* Cancellations & refunds link removed from cards —
-                        kept only on the trip detail page. */}
-                    {interestTotal > 0 && (
-                      <div className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1">
-                        <Heart className="h-3 w-3 text-red-400 fill-red-400" />
-                        {interestTotal} {interestTotal === 1 ? 'person' : 'people'} interested
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  </div>
+                ) : null}
               </div>
-              )
-            })}
-          </div>
+            ) : activeTab === 'activities' ? (
+              <div className="space-y-10">
+                {activitiesLiveListings.length > 0 ? (
+                  <div className={serviceGridClassName}>
+                    {activitiesLiveListings.map((listing) => (
+                      <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
+                    ))}
+                  </div>
+                ) : null}
+                {activitiesPastOnlyListings.length > 0 ? (
+                  <div className={cn(activitiesLiveListings.length > 0 && 'mt-10 border-t border-border/55 pt-10')}>
+                    <h3
+                      className={cn(
+                        'text-sm font-semibold uppercase tracking-wide mb-1',
+                        isWanderShell ? 'text-white/55' : 'text-muted-foreground',
+                      )}
+                    >
+                      Past activities
+                    </h3>
+                    <p
+                      className={cn(
+                        'mb-5 max-w-lg text-xs',
+                        isWanderShell ? 'text-white/50' : 'text-muted-foreground/90',
+                      )}
+                    >
+                      Scheduled dates have passed — open a listing for photos, pricing context, and reviews.
+                    </p>
+                    <div className={serviceGridClassName}>
+                      {activitiesPastOnlyListings.map((listing) => (
+                        <ServiceListingCard key={listing.id} listing={listing} items={listing.items} muted />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             ) : (
-              /* Service Listings Grid */
-              <div
-                className={cn(
-                  'grid grid-cols-1 md:grid-cols-2 gap-4',
-                  isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
-                )}
-              >
+              <div className={serviceGridClassName}>
                 {serviceListings.map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
                 ))}

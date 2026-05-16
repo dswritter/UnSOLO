@@ -1,5 +1,7 @@
 /** Calendar math and copy for packages with optional per-departure return_dates. */
 
+import { listingScheduleTodayISO } from '@/lib/utils'
+
 /** Normalize DB/API date strings to YYYY-MM-DD for comparisons and closed-date sets. */
 export function tripDepartureDateKey(isoOrDate: string): string {
   return String(isoOrDate).split('T')[0]
@@ -87,20 +89,40 @@ export function packageDurationFullLabel(p: PackageDurationDisplay): string {
   return parts.join(' · ')
 }
 
+/**
+ * True when the listing has at least one open departure on or after `todayIso`
+ * (India calendar default). Packages with no dates are treated as always bookable/upcoming.
+ */
+export function packageHasUpcomingOpenDeparture(
+  pkg: { departure_dates?: string[] | null; departure_dates_closed?: string[] | null },
+  todayIso?: string,
+): boolean {
+  const todayStr = todayIso ?? listingScheduleTodayISO()
+  const raw = pkg.departure_dates?.filter(Boolean)
+  if (!raw?.length) return true
+  const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
+  return raw.some((d) => {
+    const k = tripDepartureDateKey(d)
+    if (closed.has(k)) return false
+    return k >= todayStr
+  })
+}
+
 /** Scannable line for cards: next upcoming departure, or last departure if all past. */
-export function packageNextDepartureLine(input: { departure_dates?: string[] | null }): string | null {
+export function packageNextDepartureLine(
+  input: { departure_dates?: string[] | null },
+  todayIso?: string,
+): string | null {
   const raw = input.departure_dates?.filter(Boolean)
   if (!raw?.length) return null
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const todayStr = todayIso ?? listingScheduleTodayISO()
   const keys = [...raw].map(tripDepartureDateKey).sort()
   for (const k of keys) {
+    if (k < todayStr) continue
     const d = new Date(`${k}T12:00:00`)
     if (Number.isNaN(d.getTime())) continue
-    if (d >= today) {
-      const fmt = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
-      return `Next · ${fmt}`
-    }
+    const fmt = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+    return `Next · ${fmt}`
   }
   const last = keys[keys.length - 1]
   if (!last) return null

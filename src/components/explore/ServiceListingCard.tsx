@@ -24,15 +24,19 @@ interface ServiceListingCardProps {
   items?: CardItem[]
   /** When false, the card is tappable/clickable only (no bottom CTA). */
   showViewDetailsButton?: boolean
+  /** Dated listings with no upcoming schedule — subdued grid treatment (explore Past section). */
+  muted?: boolean
 }
 
 // ── Single-image fallback card (no items or just one) ─────────────────────
 function PlainCard({
   listing,
   showViewDetailsButton = true,
+  muted = false,
 }: {
   listing: ServiceListing
   showViewDetailsButton?: boolean
+  muted?: boolean
 }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
@@ -83,18 +87,26 @@ function PlainCard({
         window.dispatchEvent(new CustomEvent('unsolo:navigate'))
       }}
     >
-      <div className={cn(
-        'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
-        'hover:shadow-xl hover:scale-[1.02]',
-        'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
-        'border-border dark:border-border'
-      )}>
+      <div
+        className={cn(
+          'group overflow-hidden rounded-lg border bg-card transition-all duration-300 border-border dark:border-border',
+          muted
+            ? 'border-dashed border-border/55 bg-muted/20 opacity-[0.93] saturate-[0.9] grayscale-[12%]'
+            : cn(
+                'hover:shadow-xl hover:scale-[1.02]',
+                'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
+              ),
+        )}
+      >
         <div className="relative aspect-video overflow-hidden bg-secondary">
           <Image
             src={imageUrl}
             alt={listing.title}
             fill
-            className="object-cover transition-transform group-hover:scale-110"
+            className={cn(
+              'object-cover transition-transform group-hover:scale-110',
+              muted && 'brightness-[0.9] saturate-90 group-hover:scale-[1.02]',
+            )}
           />
           {listing.is_featured && (
             <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs font-semibold px-2 py-1 rounded">
@@ -104,18 +116,34 @@ function PlainCard({
         </div>
         <div className="p-4 space-y-2">
           <div>
-            <h3 className="font-semibold text-sm text-foreground line-clamp-2">{listing.title}</h3>
+            <h3
+              className={cn(
+                'font-semibold text-sm line-clamp-2',
+                muted ? 'text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              {listing.title}
+            </h3>
             <p className="text-xs text-muted-foreground">{listing.location}</p>
+            {muted ? (
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/95">
+                Past edition
+              </p>
+            ) : null}
           </div>
           <p className="text-xs text-muted-foreground">{getMetadataDisplay()}</p>
           <div className="flex items-baseline gap-1">
             <span className="text-xs text-muted-foreground">From</span>
-            <span className="text-lg font-bold text-foreground">{formatPrice(listing.price_paise)}</span>
+            <span className={cn('text-lg font-bold', muted ? 'text-muted-foreground' : 'text-foreground')}>
+              {formatPrice(listing.price_paise)}
+            </span>
             <span className="text-xs text-muted-foreground">/ {listing.unit.replace('_', ' ')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            <span className="text-sm font-medium text-foreground">{ratingDisplay}</span>
+            <span className={cn('text-sm font-medium', muted ? 'text-muted-foreground' : 'text-foreground')}>
+              {ratingDisplay}
+            </span>
             {listing.review_count > 0 && (
               <span className="text-xs text-muted-foreground">({listing.review_count})</span>
             )}
@@ -153,10 +181,12 @@ function ItemsCarouselCard({
   listing,
   items,
   showViewDetailsButton = true,
+  muted = false,
 }: {
   listing: ServiceListing
   items: CardItem[]
   showViewDetailsButton?: boolean
+  muted?: boolean
 }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
@@ -221,9 +251,10 @@ function ItemsCarouselCard({
       onClick={openDetail}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDetail() }}
       className={cn(
-        'group overflow-hidden rounded-lg border bg-card transition-all duration-300',
-        'hover:shadow-xl hover:scale-[1.02]',
-        'border-border dark:border-border cursor-pointer'
+        'group overflow-hidden rounded-lg border bg-card transition-all duration-300 cursor-pointer border-border dark:border-border',
+        muted
+          ? 'border-dashed border-border/55 bg-muted/20 opacity-[0.93] saturate-[0.9] grayscale-[12%] hover:scale-[1.01]'
+          : 'hover:shadow-xl hover:scale-[1.02]',
       )}
     >
       {/* ── Hero image with overlay info ──────────────────────────────── */}
@@ -232,10 +263,18 @@ function ItemsCarouselCard({
             src={heroImage}
             alt={activeItem.name}
             fill
-            className="object-cover transition-all duration-500"
+            className={cn(
+              'object-cover transition-all duration-500',
+              muted && 'brightness-[0.9] saturate-90',
+            )}
           />
           {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+          <div
+            className={cn(
+              'absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10',
+              muted && 'opacity-90',
+            )}
+          />
 
           {listing.is_featured && (
             <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs font-semibold px-2 py-1 rounded">
@@ -324,14 +363,17 @@ function ItemsCarouselCard({
         {/* ── Card footer ───────────────────────────────────────────────── */}
         <div className="px-4 pt-2.5 pb-4 space-y-2">
           <div>
-            <h3 className="font-semibold text-sm text-foreground line-clamp-1">{listing.title}</h3>
+            <h3 className={cn('font-semibold text-sm line-clamp-1', muted ? 'text-muted-foreground' : 'text-foreground')}>{listing.title}</h3>
             <p className="text-xs text-muted-foreground">{listing.location}</p>
+            {muted ? (
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/95">Past edition</p>
+            ) : null}
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              <span className="text-sm font-medium text-foreground">{ratingDisplay}</span>
+              <span className={cn('text-sm font-medium', muted ? 'text-muted-foreground' : 'text-foreground')}>{ratingDisplay}</span>
               {listing.review_count > 0 && (
                 <span className="text-xs text-muted-foreground">({listing.review_count})</span>
               )}
@@ -366,7 +408,7 @@ function ItemsCarouselCard({
 }
 
 // ── Public export ──────────────────────────────────────────────────────────
-export function ServiceListingCard({ listing, items, showViewDetailsButton = true }: ServiceListingCardProps) {
+export function ServiceListingCard({ listing, items, showViewDetailsButton = true, muted = false }: ServiceListingCardProps) {
   // Show carousel only when there are 2+ active items with at least one image
   const carouselItems = (items || []).filter((it) => it.images.length > 0)
   if (carouselItems.length >= 2) {
@@ -375,8 +417,9 @@ export function ServiceListingCard({ listing, items, showViewDetailsButton = tru
         listing={listing}
         items={carouselItems}
         showViewDetailsButton={showViewDetailsButton}
+        muted={muted}
       />
     )
   }
-  return <PlainCard listing={listing} showViewDetailsButton={showViewDetailsButton} />
+  return <PlainCard listing={listing} showViewDetailsButton={showViewDetailsButton} muted={muted} />
 }
