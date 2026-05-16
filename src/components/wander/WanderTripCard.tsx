@@ -28,9 +28,11 @@ type Props = {
   interestCount: number
   /** Server: package ids the signed-in user already marked interested */
   interestedPackageIds: string[]
+  /** Render like explore “past” editions: subdued card + Past trip badge. */
+  pastEdition?: boolean
 }
 
-export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Props) {
+export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastEdition = false }: Props) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
   const interestedSet = new Set(interestedPackageIds)
@@ -83,13 +85,15 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
       }}
       onMouseEnter={() => router.prefetch(`/packages/${pkg.slug}`)}
       onFocus={() => router.prefetch(`/packages/${pkg.slug}`)}
-      className="block h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/50 rounded-xl"
+      className={cn('block h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/50 rounded-xl', pastEdition && 'opacity-95')}
     >
       <Card
         className={cn(
           'wander-frost-card h-full overflow-hidden border-border/80 py-0 gap-0 transition-all hover:shadow-lg hover:scale-[1.01]',
           'motion-reduce:transition-none motion-reduce:hover:scale-100',
-          pkg.is_featured && 'ring-1 ring-primary/30',
+          pkg.is_featured && !pastEdition && 'ring-1 ring-primary/30',
+          pastEdition &&
+            'border-dashed border-border/60 bg-muted/20 saturate-[0.92] grayscale-[15%] shadow-none hover:scale-[1.005] hover:grayscale-[5%]',
         )}
       >
         <div className="relative h-48 bg-secondary overflow-hidden">
@@ -98,7 +102,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
               src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]}
               alt=""
               fill
-              className="object-cover"
+              className={cn('object-cover', pastEdition && 'brightness-[0.88] saturate-90')}
               sizes="(min-width: 1024px) 25vw, 100vw"
             />
           ) : (
@@ -107,8 +111,18 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
             </div>
           )}
           <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            {pastEdition ? (
+              <Badge className="text-[10px] border bg-black/55 text-white/95 border-white/25 backdrop-blur-xl">Past trip</Badge>
+            ) : null}
             {pkg.is_featured ? (
-              <Badge className="text-[10px] bg-primary text-primary-foreground border-0">Featured</Badge>
+              <Badge
+                className={cn(
+                  'text-[10px] border-0',
+                  pastEdition ? 'bg-primary/70 text-primary-foreground' : 'bg-primary text-primary-foreground',
+                )}
+              >
+                Featured
+              </Badge>
             ) : null}
             <Badge variant="outline" className={cn('text-[10px] capitalize border', DIFF[pkg.difficulty] || '')}>
               {pkg.difficulty}
@@ -133,23 +147,39 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
           </button>
         </div>
         <CardContent className="p-3 sm:p-4">
-          <h3 className="mb-1 line-clamp-2 text-sm font-bold leading-snug sm:text-base">{pkg.title}</h3>
+          <h3
+            className={cn(
+              'mb-1 line-clamp-2 text-sm font-bold leading-snug sm:text-base',
+              pastEdition && 'text-muted-foreground font-semibold',
+            )}
+          >
+            {pkg.title}
+          </h3>
           <p className="mb-2 flex items-center gap-1 text-[11px] text-muted-foreground">
             <MapPin className="h-3 w-3 shrink-0" />
             {pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '—'}
           </p>
           <div className="flex items-end justify-between gap-2">
             <div className="min-w-0">
-              <span className="text-base font-black text-primary sm:text-lg">
+              <span
+                className={cn(
+                  'text-base sm:text-lg',
+                  pastEdition ? 'font-bold text-muted-foreground' : 'font-black text-primary',
+                )}
+              >
                 {hasTieredPricing(pkg.price_variants) ? 'Starting from ' : ''}
                 {formatPrice(pkg.price_paise)}
               </span>
               <span className="text-[10px] text-muted-foreground"> / person</span>
             </div>
             <div className="text-right text-[10px] space-y-0.5 shrink-0">
-              <div className="font-semibold text-foreground tabular-nums">{packageDurationShortLabel(pkg)}</div>
+              <div className={cn('font-semibold tabular-nums', pastEdition ? 'text-muted-foreground' : 'text-foreground')}>
+                {packageDurationShortLabel(pkg)}
+              </div>
               {nextDeparture ? (
-                <div className="text-[10px] font-medium text-primary leading-tight">{nextDeparture}</div>
+                <div className={cn('font-medium leading-tight', pastEdition ? 'text-muted-foreground/90' : 'text-primary')}>
+                  {nextDeparture}
+                </div>
               ) : null}
             </div>
           </div>

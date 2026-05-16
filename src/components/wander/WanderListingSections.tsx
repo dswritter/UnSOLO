@@ -5,6 +5,8 @@ import { ServiceListingCard } from '@/components/explore/ServiceListingCard'
 import { WanderTripCard } from '@/components/wander/WanderTripCard'
 import { ChevronRight, ArrowRight } from 'lucide-react'
 import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
+import { cn, listingScheduleTodayISO } from '@/lib/utils'
+import { packageHasUpcomingOpenDeparture } from '@/lib/package-trip-calendar'
 
 type ActivityWithItems = ServiceListing & {
   items: Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>
@@ -12,6 +14,14 @@ type ActivityWithItems = ServiceListing & {
 type RentalWithItems = ActivityWithItems
 
 const MOBILE_MAX = 5
+
+/** Mirrors explore: dated activities with every date before today-only are “past”. */
+function activityHasUpcomingOnExploreCalendar(listing: ServiceListing, todayStr: string): boolean {
+  if (listing.type !== 'activities') return true
+  const sch = listing.event_schedule
+  if (!sch?.length) return true
+  return sch.some((e) => e.date >= todayStr)
+}
 
 function SectionHeader({
   title,
@@ -112,6 +122,13 @@ export function WanderListingSections({
   const staysHref = wanderSearchHref({ tab: 'stays' })
   const activitiesHref = wanderSearchHref({ tab: 'activities' })
   const rentalsHref = wanderSearchHref({ tab: 'rentals' })
+  const wanderTodayISO = listingScheduleTodayISO()
+
+  const tripsOpen = trips.filter((p) => packageHasUpcomingOpenDeparture(p, wanderTodayISO))
+  const tripsPastOnly = trips.filter((p) => !packageHasUpcomingOpenDeparture(p, wanderTodayISO))
+
+  const activitiesOpen = activities.filter((l) => activityHasUpcomingOnExploreCalendar(l, wanderTodayISO))
+  const activitiesPastOnly = activities.filter((l) => !activityHasUpcomingOnExploreCalendar(l, wanderTodayISO))
 
   const sections = {
     trips: (
@@ -120,16 +137,39 @@ export function WanderListingSections({
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground">No trips to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={tripsHref} viewAllLabel="View all trips">
-            {trips.map(p => (
-              <WanderTripCard
-                key={p.id}
-                pkg={p}
-                interestCount={tripInterestCounts[p.id] ?? 0}
-                interestedPackageIds={interestedPackageIds}
-              />
-            ))}
-          </ScrollRow>
+          <div className="space-y-8">
+            {tripsOpen.length > 0 ? (
+              <ScrollRow viewAllHref={tripsHref} viewAllLabel="View all trips">
+                {tripsOpen.map((p) => (
+                  <WanderTripCard
+                    key={p.id}
+                    pkg={p}
+                    interestCount={tripInterestCounts[p.id] ?? 0}
+                    interestedPackageIds={interestedPackageIds}
+                  />
+                ))}
+              </ScrollRow>
+            ) : null}
+            {tripsPastOnly.length > 0 ? (
+              <div className={cn(tripsOpen.length > 0 && 'border-t border-border/55 pt-8')}>
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Past trips</h3>
+                <p className="mb-4 max-w-lg text-[11px] text-muted-foreground">
+                  No upcoming departures — open a trip for itineraries, hosts, and reviews from travellers.
+                </p>
+                <ScrollRow viewAllHref={tripsHref} viewAllLabel="View all trips">
+                  {tripsPastOnly.map((p) => (
+                    <WanderTripCard
+                      key={p.id}
+                      pkg={p}
+                      pastEdition
+                      interestCount={tripInterestCounts[p.id] ?? 0}
+                      interestedPackageIds={interestedPackageIds}
+                    />
+                  ))}
+                </ScrollRow>
+              </div>
+            ) : null}
+          </div>
         )}
       </section>
     ),
@@ -160,11 +200,36 @@ export function WanderListingSections({
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activities to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={activitiesHref} viewAllLabel="View all activities">
-            {activities.map(l => (
-              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
-            ))}
-          </ScrollRow>
+          <div className="space-y-8">
+            {activitiesOpen.length > 0 ? (
+              <ScrollRow viewAllHref={activitiesHref} viewAllLabel="View all activities">
+                {activitiesOpen.map((l) => (
+                  <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
+                ))}
+              </ScrollRow>
+            ) : null}
+            {activitiesPastOnly.length > 0 ? (
+              <div className={cn(activitiesOpen.length > 0 && 'border-t border-border/55 pt-8')}>
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Past activities
+                </h3>
+                <p className="mb-4 max-w-lg text-[11px] text-muted-foreground">
+                  Scheduled dates have passed — open a listing for photos, pricing context, and reviews.
+                </p>
+                <ScrollRow viewAllHref={activitiesHref} viewAllLabel="View all activities">
+                  {activitiesPastOnly.map((l) => (
+                    <ServiceListingCard
+                      key={l.id}
+                      listing={l}
+                      items={l.items}
+                      showViewDetailsButton={false}
+                      muted
+                    />
+                  ))}
+                </ScrollRow>
+              </div>
+            ) : null}
+          </div>
         )}
       </section>
     ),
