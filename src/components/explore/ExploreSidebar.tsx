@@ -56,6 +56,8 @@ interface ExploreSidebarProps {
   isLoading?: boolean
   maxPackagePrice?: number
   basePath?: string
+  /** Fired immediately when starting a navigation that clears or changes filters (before RSC resolves). */
+  onNavigationStart?: () => void
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -74,6 +76,7 @@ export function ExploreSidebar({
   isLoading = false,
   maxPackagePrice = 2000000,
   basePath = '/',
+  onNavigationStart,
 }: ExploreSidebarProps) {
   const router = useRouter()
   const isTripsTab = activeTab === 'trips'
@@ -140,6 +143,7 @@ export function ExploreSidebar({
   }
 
   function clearAllFilters() {
+    onNavigationStart?.()
     setIsClearing(true)
     setOptimisticParams({})
     pushExploreUrl(router, basePath, basePath)
@@ -168,10 +172,10 @@ export function ExploreSidebar({
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
-            disabled={isClearing}
-            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            disabled={isClearing || isLoading}
+            className="text-xs font-medium text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
           >
-            Clear
+            {isClearing || isLoading ? 'Clearing…' : 'Clear'}
           </button>
         )}
       </div>

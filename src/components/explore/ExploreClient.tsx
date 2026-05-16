@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useTransition } from 'react'
+import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import Image from 'next/image'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
@@ -176,6 +175,11 @@ export function ExploreClient({
   // Show skeleton while any navigation is in-flight.
   const isLoading = isTabPending || isNavigating
 
+  /** Call as soon as we initiate a filter URL change so the UI does not feel idle before searchParams catch up. */
+  const onExploreNavigationStart = useCallback(() => {
+    setIsNavigating(true)
+  }, [])
+
   const isTripsTab = activeTab === 'trips'
   const isServiceTab = !isTripsTab
   const results = isTripsTab ? packages : serviceListings
@@ -335,6 +339,7 @@ export function ExploreClient({
               isLoading={isLoading}
               maxPackagePrice={maxPackagePrice}
               basePath={basePath}
+              onNavigationStart={onExploreNavigationStart}
             />
           </div>
 
@@ -353,8 +358,17 @@ export function ExploreClient({
                   No {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]} found
                 </h3>
                 <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
-                <Button asChild variant="outline">
-                  <Link href={basePath}>Clear filters</Link>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isLoading}
+                  onClick={() => {
+                    onExploreNavigationStart()
+                    pushExploreUrl(router, basePath, basePath)
+                  }}
+                  className="gap-2"
+                >
+                  {isLoading ? 'Updating results…' : 'Clear filters'}
                 </Button>
               </div>
             ) : isTripsTab ? (
@@ -581,6 +595,7 @@ export function ExploreClient({
         maxPackagePrice={maxPackagePrice}
         basePath={basePath}
         preserveWanderSearch={isWanderShell}
+        onNavigationStart={onExploreNavigationStart}
       />
     </div>
   )

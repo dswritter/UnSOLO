@@ -54,6 +54,8 @@ interface FilterDrawerProps {
   basePath?: string
   /** Keep `search=1` on /wander URLs */
   preserveWanderSearch?: boolean
+  /** Fired immediately when starting a navigation that clears filters (before RSC resolves). */
+  onNavigationStart?: () => void
 }
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
@@ -75,6 +77,7 @@ export function FilterDrawer({
   maxPackagePrice = 2000000,
   basePath = '/',
   preserveWanderSearch = false,
+  onNavigationStart,
 }: FilterDrawerProps) {
   const [mounted, setMounted] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
@@ -118,6 +121,7 @@ export function FilterDrawer({
   }
 
   function clearAllFilters() {
+    onNavigationStart?.()
     setIsClearing(true)
     pushExploreUrl(router, basePath, basePath)
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
@@ -415,12 +419,13 @@ export function FilterDrawer({
         <div className="border-t border-border p-4 flex-shrink-0 space-y-2">
           <button
             onClick={clearAllFilters}
-            disabled={isClearing}
+            disabled={isClearing || isLoading}
             className={cn(
               'w-full px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2',
               isClearing
                 ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
+              (isClearing || isLoading) && 'opacity-80',
             )}
           >
             {isClearing ? (
@@ -428,6 +433,8 @@ export function FilterDrawer({
                 <Check className="h-4 w-4" />
                 Filters cleared
               </>
+            ) : isLoading ? (
+              'Updating results…'
             ) : (
               'Clear all filters'
             )}
