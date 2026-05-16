@@ -227,8 +227,8 @@ export function useRealtimeChat(
       })
     }
 
-    // 30 s catch-up (realtime handles messages in real-time; this only recovers missed events)
-    const interval = setInterval(() => { void pollNewer() }, 30_000)
+    // 60s catch-up (realtime handles messages in real-time; this only recovers missed events)
+    const interval = setInterval(() => { void pollNewer() }, 60_000)
     const onVisible = () => { if (document.visibilityState === 'visible') void pollNewer() }
     document.addEventListener('visibilitychange', onVisible)
     void pollNewer()

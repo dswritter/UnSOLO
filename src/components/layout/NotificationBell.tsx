@@ -119,8 +119,8 @@ export function NotificationBell({
       )
       .subscribe()
 
-    // 2 min safety-net poll (realtime INSERT subscription handles real-time delivery)
-    const pollInterval = setInterval(load, 120_000)
+    // 5 min safety-net poll (realtime INSERT handles delivery; polling is only a fallback)
+    const pollInterval = setInterval(load, 300_000)
 
     return () => {
       supabase.removeChannel(channel)

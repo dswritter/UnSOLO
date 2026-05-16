@@ -24,12 +24,12 @@ export function PresenceTracker({ userId }: { userId: string }) {
     // Mark online immediately
     setPresence(true)
 
-    // Heartbeat every 20 seconds — keeps last_seen fresh
+    // Heartbeat every 60s when visible — keeps last_seen fresh without hammering Supabase RPC counts
     intervalRef.current = setInterval(() => {
       if (document.visibilityState === 'visible') {
         setPresence(true)
       }
-    }, 20 * 1000)
+    }, 60 * 1000)
 
     // Mark offline on tab/window close — use BOTH events for max reliability
     function markOfflineBeacon() {

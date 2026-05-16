@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/actions/auth'
 import { getInitials, cn } from '@/lib/utils'
-import { useState, useEffect, useTransition, useCallback, type MouseEvent } from 'react'
+import { useState, useEffect, useTransition, useCallback, useRef, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import type { Profile } from '@/types'
@@ -83,42 +83,76 @@ export function Navbar({ user }: NavbarProps) {
     }
     return pathname === href
   }
-  // Track unread messages for Community badge
+
+  /** Avoid re-subscribing realtime on every route change */
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
+
+  // Track unread messages for Community badge — realtime filtered to rooms this user is in.
+  // Previously: unfiltered messages INSERT + chat_room_members query on *every* message app-wide.
   useEffect(() => {
     if (!user) return
 
     const supabase = createClient()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let cancelled = false
 
-    // Listen for new messages in rooms the user is a member of
-    const channel = supabase
-      .channel('navbar-unread')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-      }, async (payload: { new: Record<string, unknown> }) => {
-        const msg = payload.new as { user_id: string; room_id: string; message_type: string }
-        if (msg.user_id === user.id || msg.message_type === 'system') return
+    function subscribe(roomIds: string[]) {
+      if (channel) {
+        supabase.removeChannel(channel)
+        channel = null
+      }
+      if (roomIds.length === 0) return
 
-        // Check if user is a member
-        const { data: membership } = await supabase
-          .from('chat_room_members')
-          .select('id')
-          .eq('room_id', msg.room_id)
-          .eq('user_id', user.id)
-          .single()
+      const filter =
+        roomIds.length === 1
+          ? `room_id=eq.${roomIds[0]}`
+          : `room_id=in.(${roomIds.join(',')})`
 
-        if (!membership) return
+      channel = supabase
+        .channel(`navbar-unread:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter,
+          },
+          (payload: { new: Record<string, unknown> }) => {
+            const msg = payload.new as { user_id: string; message_type: string }
+            if (msg.user_id === user.id || msg.message_type === 'system') return
+            const p = pathnameRef.current
+            if (!p?.startsWith('/community') && !p?.startsWith('/tribe')) {
+              setUnreadChatCount(prev => prev + 1)
+            }
+          },
+        )
+        .subscribe()
+    }
 
-        // Only show badge when NOT on community page
-        if (!pathname?.startsWith('/community') && !pathname?.startsWith('/tribe')) {
-          setUnreadChatCount(prev => prev + 1)
-        }
-      })
-      .subscribe()
+    async function loadRoomsAndSubscribe() {
+      const { data } = await supabase
+        .from('chat_room_members')
+        .select('room_id')
+        .eq('user_id', user.id)
+      if (cancelled) return
+      const roomIds = [...new Set((data ?? []).map(r => r.room_id).filter(Boolean))] as string[]
+      subscribe(roomIds)
+    }
 
-    return () => { supabase.removeChannel(channel) }
-  }, [user, pathname])
+    void loadRoomsAndSubscribe()
+    const interval = setInterval(() => void loadRoomsAndSubscribe(), 120_000)
+    const onFocus = () => void loadRoomsAndSubscribe()
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      if (channel) supabase.removeChannel(channel)
+    }
+  }, [user])
 
   // Same account on another device marked messages read — keep badge in sync
   useEffect(() => {
@@ -128,7 +162,12 @@ export function Navbar({ user }: NavbarProps) {
       .channel('navbar-read-sync')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_read_receipts',
+          filter: `user_id=eq.${user.id}`,
+        },
         (payload: { new: Record<string, unknown> }) => {
           const r = payload.new as { user_id: string }
           if (r.user_id !== user.id) return
@@ -172,14 +211,19 @@ export function Navbar({ user }: NavbarProps) {
 
     fetchPending()
 
+    let debounce: ReturnType<typeof setTimeout> | null = null
     const ch = supabase
       .channel('navbar-join-requests')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'join_requests' }, () => {
-        fetchPending()
+        if (debounce) clearTimeout(debounce)
+        debounce = setTimeout(() => void fetchPending(), 1200)
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(ch) }
+    return () => {
+      if (debounce) clearTimeout(debounce)
+      supabase.removeChannel(ch)
+    }
   }, [user])
 
   const navLinks = [

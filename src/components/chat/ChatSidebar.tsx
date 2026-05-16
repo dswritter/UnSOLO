@@ -246,7 +246,12 @@ export function ChatSidebar({
       .channel(`sidebar-read-sync-${sidebarRealtimeId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_read_receipts',
+          filter: `user_id=eq.${viewerUserId}`,
+        },
         async (payload: { new: Record<string, unknown> }) => {
           const r = payload.new as { user_id: string; message_id: string }
           if (r.user_id !== viewerUserId) return
