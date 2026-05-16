@@ -18,6 +18,16 @@ type NavItem = {
 export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; userId?: string | null }) {
   const pathname = usePathname()
 
+  // The Android WebView shell sets "UnsoloAndroid" in the UA and provides its
+  // own native bottom nav. useState(false) + useEffect avoids SSR mismatch:
+  // the nav mounts hidden-by-default on the server, then immediately hides on
+  // the client when the UA token is detected.
+  const [isAndroidShell, setIsAndroidShell] = useState(false)
+  useEffect(() => {
+    if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
+  }, [])
+  if (isAndroidShell) return null
+
   // Unread message badge + conditional label. We mirror the Navbar's realtime
   // subscription so the user sees a counter on the mobile nav even though the
   // top Navbar is hidden on home/explore. Initial unread count comes from
