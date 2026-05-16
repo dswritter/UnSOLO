@@ -3,6 +3,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
+import { listingScheduleTodayISO } from '@/lib/utils'
+import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import {
   DEFAULT_WANDER_HERO_LINE1,
   DEFAULT_WANDER_INSTAGRAM_LABEL,
@@ -446,6 +448,33 @@ export type WanderTripRowResult = {
   interestCounts: Record<string, number>
 }
 
+/** Carousel slots used on Wander home for trips / activities / stays / rentals. */
+const WANDER_LANDING_ROW_SLOTS = 4
+
+/**
+ * Preserve `ordered`'s inherent priority (featured, ratings, bookings, etc.)
+ * but fill up to `limit` with upcoming/bookable-first, then pad with dated-past editions.
+ */
+function wanderLandingPrioritizeThenCap<T>(
+  ordered: T[],
+  hasBookableAhead: (item: T) => boolean,
+  limit: number,
+): T[] {
+  const open = ordered.filter(hasBookableAhead)
+  const pastOnly = ordered.filter((item) => !hasBookableAhead(item))
+  const headOpen = open.slice(0, limit)
+  const remainder = Math.max(0, limit - headOpen.length)
+  const headPast = remainder > 0 ? pastOnly.slice(0, remainder) : []
+  return [...headOpen, ...headPast]
+}
+
+function wanderActivityListingHasUpcoming(scheduleListing: ServiceListing, todayISO: string): boolean {
+  if (scheduleListing.type !== 'activities') return true
+  const sch = scheduleListing.event_schedule
+  if (!sch?.length) return true
+  return sch.some(e => tripDepartureDateKey(e.date) >= todayISO)
+}
+
 /** Featured first, then by average review rating, then explore popularity sort. */
 export const getWanderTripRow = unstable_cache(async function (): Promise<WanderTripRowResult> {
   const supabase = svc()
@@ -484,7 +513,10 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
     if (rb !== ra) return rb - ra
     return 0
   })
-  const sliced = packages.slice(0, 4)
+
+  const todayISO = listingScheduleTodayISO()
+  const sliced = wanderLandingPrioritizeThenCap(packages, p => packageHasUpcomingOpenDeparture(p, todayISO), WANDER_LANDING_ROW_SLOTS)
+
   const interestCounts: Record<string, number> = {}
   for (const p of sliced) {
     interestCounts[p.id] = interestCount.get(p.id) || 0
@@ -505,7 +537,13 @@ export const getWanderActivityRow = unstable_cache(async function (): Promise<Se
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  return ((data || []) as ServiceListing[]).slice(0, 4)
+  const listings = (data || []) as ServiceListing[]
+  const todayISO = listingScheduleTodayISO()
+  return wanderLandingPrioritizeThenCap(
+    listings,
+    l => wanderActivityListingHasUpcoming(l, todayISO),
+    WANDER_LANDING_ROW_SLOTS,
+  )
 }, ['wander-activity-row'], { revalidate: 60 })
 
 export const getWanderStayRow = unstable_cache(async function (): Promise<ServiceListing[]> {
@@ -521,7 +559,7 @@ export const getWanderStayRow = unstable_cache(async function (): Promise<Servic
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  return (data as ServiceListing[]).slice(0, 4)
+  return wanderLandingPrioritizeThenCap(data as ServiceListing[], () => true, WANDER_LANDING_ROW_SLOTS)
 }, ['wander-stay-row'], { revalidate: 60 })
 
 export const getWanderRentalRow = unstable_cache(async function (): Promise<ServiceListing[]> {
@@ -554,7 +592,7 @@ export const getWanderRentalRow = unstable_cache(async function (): Promise<Serv
     if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
     return (b.average_rating || 0) - (a.average_rating || 0)
   })
-  return sorted.slice(0, 4)
+  return wanderLandingPrioritizeThenCap(sorted, () => true, WANDER_LANDING_ROW_SLOTS)
 }, ['wander-rental-row'], { revalidate: 60 })
 
 export async function getWanderServiceItemsForListings(
