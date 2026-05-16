@@ -31,6 +31,7 @@ import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import type { Package, HostProfile } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 import { APP_URL } from '@/lib/constants'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -392,7 +393,11 @@ export default async function PackageDetailPage({
                   <Link href={`/profile/${hostData.username}`}>
                     {hostData.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={hostData.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all" />
+                      <img
+                        src={storageThumbnailUrl(hostData.avatar_url) || hostData.avatar_url}
+                        alt=""
+                        className="w-14 h-14 rounded-full object-cover ring-2 ring-primary/20 hover:ring-primary/40 transition-all"
+                      />
                     ) : (
                       <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center text-lg font-bold text-primary ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
                         {(hostData.full_name || hostData.username || 'H')[0].toUpperCase()}
@@ -515,7 +520,11 @@ export default async function PackageDetailPage({
                     <a key={sp.id} href={`/packages/${sp.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:bg-secondary/50 rounded-lg p-2 -mx-2 transition-colors">
                       {sp.images?.[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={sp.images[0]} alt={sp.title} className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                        <img
+                          src={storageThumbnailUrl(sp.images[0]) || sp.images[0]}
+                          alt={sp.title}
+                          className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                        />
                       ) : (
                         <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
                           <Mountain className="h-5 w-5 text-muted-foreground" />

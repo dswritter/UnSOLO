@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 const COVER_MENU_MIN_W = 200
 const COVER_MENU_APPROX_H = 44
@@ -115,7 +116,7 @@ export function TripImageGridWithCover({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={url}
+              src={storageThumbnailUrl(url) || url}
               alt=""
               draggable={false}
               className={cn(imgClassName, 'pointer-events-none')}

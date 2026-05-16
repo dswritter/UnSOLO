@@ -16,6 +16,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { formatPrice } from '@/types'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { approveServiceListing, rejectServiceListing } from '@/actions/admin-service-listings'
 
 type Item = {
@@ -354,7 +355,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
                 {item.images[0] ? (
                   <a href={item.images[0]} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                     <Image
-                      src={item.images[0]}
+                      src={storageThumbnailUrl(item.images[0]) || item.images[0]}
                       alt={item.name}
                       width={88}
                       height={88}

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MapPin, Mountain, Star, ShieldCheck, Plane, Home, Compass, Navigation, Heart, Key, Clock, X, ChevronLeft } from 'lucide-react'
 import { formatPrice, cn, formatDate } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
@@ -294,7 +295,7 @@ export function ExploreClient({
                   >
                     {rv.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      <img src={storageThumbnailUrl(rv.image) || rv.image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
                         <Mountain className="h-4 w-4 text-muted-foreground" />
@@ -400,7 +401,7 @@ export function ExploreClient({
                   <div className="relative h-52 bg-secondary overflow-hidden shrink-0 rounded-t-xl">
                     {pkg.images?.[0] ? (
                       <Image
-                        src={pkg.images[0]}
+                        src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]}
                         alt={pkg.title}
                         fill
                         sizes="(min-width: 1280px) 33vw, (min-width: 640px) 50vw, 100vw"
@@ -456,7 +457,7 @@ export function ExploreClient({
                       <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1">
                         {pkg.host.avatar_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={pkg.host.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                          <img src={storageThumbnailUrl(pkg.host.avatar_url) || pkg.host.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
                         ) : (
                           <div className="w-5 h-5 rounded-full bg-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
                             {(pkg.host.full_name || pkg.host.username || 'H')[0].toUpperCase()}

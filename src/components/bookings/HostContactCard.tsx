@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Phone, MessageCircle, User as UserIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { startDirectMessage } from '@/actions/profile'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 /**
  * Post-booking host contact block. Shown once a service booking is
@@ -57,7 +58,7 @@ export function HostContactCard({
       <div className="flex items-start gap-3">
         {host.avatar_url ? (
           <Image
-            src={host.avatar_url}
+            src={storageThumbnailUrl(host.avatar_url) || host.avatar_url}
             alt=""
             width={48}
             height={48}

@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import sharp from 'sharp'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+import {
+  UPLOAD_MAX_IMAGE_BYTES,
+  UPLOAD_IMAGE_TOO_LARGE_MESSAGE,
+  UPLOAD_WEBP_FULL_MAX_WIDTH,
+  UPLOAD_WEBP_THUMB_MAX_WIDTH,
+} from '@/lib/constants'
+
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -20,7 +28,6 @@ export async function POST(req: NextRequest) {
     .single()
 
   const purposeTrim = purposeRaw?.trim() || null
-  // UnSOLO package gallery = admin only. Verified hosts use host_trip (or we infer it when purpose is omitted).
   let purpose: string
   if (purposeTrim) {
     purpose = purposeTrim
@@ -51,7 +58,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Validate file type
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
   if (!allowed.includes(file.type)) {
     return NextResponse.json({ error: 'Only JPEG, PNG, WebP, AVIF images allowed' }, { status: 400 })
@@ -61,7 +67,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: UPLOAD_IMAGE_TOO_LARGE_MESSAGE }, { status: 400 })
   }
 
-  const ext = file.name.split('.').pop() || 'jpg'
   const folder =
     purpose === 'avatar'
       ? 'avatars'
@@ -74,26 +79,71 @@ export async function POST(req: NextRequest) {
             : purpose === 'host_trip'
               ? 'host-trips'
               : 'packages'
-  const fileName = `${folder}/${user.id}-${Date.now()}.${ext}`
+
+  const base = `${folder}/${user.id}-${Date.now()}`
+  const fullKey = `${base}.webp`
+  const thumbKey = `${base}_thumb.webp`
 
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  // Use service role client to bypass storage RLS
-  const serviceClient = await createServiceClient()
-
-  const { error } = await serviceClient.storage
-    .from('images')
-    .upload(fileName, buffer, {
-      contentType: file.type,
-      upsert: true,
-    })
-
-  if (error) {
-    console.error('Storage upload error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  let fullBuf: Buffer
+  let thumbBuf: Buffer
+  try {
+    const rotated = sharp(buffer).rotate()
+    ;[fullBuf, thumbBuf] = await Promise.all([
+      rotated
+        .clone()
+        .resize({
+          width: UPLOAD_WEBP_FULL_MAX_WIDTH,
+          height: UPLOAD_WEBP_FULL_MAX_WIDTH,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 86, effort: 4 })
+        .toBuffer(),
+      sharp(buffer)
+        .rotate()
+        .resize({
+          width: UPLOAD_WEBP_THUMB_MAX_WIDTH,
+          height: UPLOAD_WEBP_THUMB_MAX_WIDTH,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: 80, effort: 4 })
+        .toBuffer(),
+    ])
+  } catch (e) {
+    console.error('Image processing error:', e)
+    return NextResponse.json({ error: 'Could not process this image. Try a different file.' }, { status: 400 })
   }
 
-  const { data: urlData } = serviceClient.storage.from('images').getPublicUrl(fileName)
+  const serviceClient = await createServiceClient()
 
-  return NextResponse.json({ url: urlData.publicUrl })
+  const { error: fullErr } = await serviceClient.storage.from('images').upload(fullKey, fullBuf, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  if (fullErr) {
+    console.error('Storage upload error (full):', fullErr)
+    return NextResponse.json({ error: fullErr.message }, { status: 500 })
+  }
+
+  const { error: thumbErr } = await serviceClient.storage.from('images').upload(thumbKey, thumbBuf, {
+    contentType: 'image/webp',
+    upsert: true,
+  })
+  if (thumbErr) {
+    console.error('Storage upload error (thumb):', thumbErr)
+    try {
+      await serviceClient.storage.from('images').remove([fullKey])
+    } catch {
+      /* best-effort cleanup */
+    }
+    return NextResponse.json({ error: thumbErr.message }, { status: 500 })
+  }
+
+  const { data: fullUrl } = serviceClient.storage.from('images').getPublicUrl(fullKey)
+  const { data: thumbUrl } = serviceClient.storage.from('images').getPublicUrl(thumbKey)
+
+  return NextResponse.json({ url: fullUrl.publicUrl, thumbUrl: thumbUrl.publicUrl })
 }

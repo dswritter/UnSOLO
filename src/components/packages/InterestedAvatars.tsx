@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { X, Users } from 'lucide-react'
 import { getInterestedUsers, type InterestedUser } from '@/actions/booking'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 interface Props {
   packageId: string
@@ -52,7 +53,7 @@ export function InterestedAvatars({ packageId, totalCount, preview }: Props) {
           >
             {u.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+              <img src={storageThumbnailUrl(u.avatar_url) || u.avatar_url} alt="" className="h-full w-full object-cover" />
             ) : (
               <span className="text-[11px] font-bold text-primary">
                 {(u.full_name || u.username)[0].toUpperCase()}
@@ -122,7 +123,7 @@ export function InterestedAvatars({ packageId, totalCount, preview }: Props) {
                       <div className="relative h-9 w-9 rounded-full overflow-hidden bg-secondary flex items-center justify-center shrink-0">
                         {u.avatar_url ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={u.avatar_url} alt="" className="h-full w-full object-cover" />
+                          <img src={storageThumbnailUrl(u.avatar_url) || u.avatar_url} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <span className="text-sm font-bold text-primary">
                             {(u.full_name || u.username)[0].toUpperCase()}

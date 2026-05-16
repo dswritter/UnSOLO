@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Trash2, Plus, Pencil, Power, PowerOff, ImageIcon, X, Maximize2 } from 'lucide-react'
 import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 async function uploadCommunityRoomCover(file: File): Promise<string | null> {
   if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
@@ -159,7 +160,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
                     className="h-14 w-14 rounded-full border border-border bg-secondary flex items-center justify-center shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
                   >
                     {newImageUrl ? (
-                      <img src={newImageUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={storageThumbnailUrl(newImageUrl) || newImageUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="text-xl">💬</span>
                     )}
@@ -272,7 +273,7 @@ function RoomEditor({
                     className="h-14 w-14 rounded-full border border-border bg-secondary flex items-center justify-center shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
                   >
                     {previewUrl ? (
-                      <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={storageThumbnailUrl(previewUrl) || previewUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="text-xl">💬</span>
                     )}
@@ -302,7 +303,7 @@ function RoomEditor({
               className="h-14 w-14 rounded-full object-cover border border-border shrink-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-primary hover:ring-2 hover:ring-primary/40 transition-all"
               title="View image"
             >
-              <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+              <img src={storageThumbnailUrl(previewUrl) || previewUrl} alt="" className="h-full w-full object-cover" />
             </button>
           ) : (
             <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center text-xl shrink-0">💬</div>

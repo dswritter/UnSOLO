@@ -10,6 +10,7 @@ import {
   type PriceVariant,
 } from '@/lib/package-pricing'
 import { INTEREST_TAGS, UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1052,7 +1053,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             <div className="flex items-center gap-3 min-w-0">
               {pkg.images?.[0] && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={pkg.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                <img src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
               )}
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

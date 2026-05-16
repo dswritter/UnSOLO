@@ -7,6 +7,7 @@ import {
   removeRecentlyViewedPackage,
   type RecentlyViewedPackage,
 } from '@/lib/explore/recently-viewed-packages'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 /**
  * Homepage “recently viewed packages” strip (`rv_packages`), shown above curated rows when not in search mode.
@@ -33,7 +34,7 @@ export function WanderRecentlyViewedStrip() {
             >
               {rv.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={rv.image} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
+                <img src={storageThumbnailUrl(rv.image) || rv.image} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
               ) : (
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/5">
                   <Mountain className="h-4 w-4 text-white/40" />

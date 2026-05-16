@@ -54,6 +54,11 @@ export const UPLOAD_MAX_IMAGE_BYTES = 5 * 1024 * 1024
 export const UPLOAD_IMAGE_TOO_LARGE_MESSAGE =
   'This image is larger than 5MB. Please upload an image under 5MB.'
 
+/** Max width/height (fit inside) for processed WebP stored as the primary URL — must match /api/upload */
+export const UPLOAD_WEBP_FULL_MAX_WIDTH = 1920
+/** Companion `_thumb.webp` max edge — must match /api/upload */
+export const UPLOAD_WEBP_THUMB_MAX_WIDTH = 320
+
 /** OTP expiry in minutes */
 export const OTP_EXPIRY_MINUTES = 10
 

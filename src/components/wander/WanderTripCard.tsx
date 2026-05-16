@@ -8,6 +8,7 @@ import type { Package } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, cn } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { MapPin, Mountain, Heart } from 'lucide-react'
@@ -93,7 +94,13 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
       >
         <div className="relative h-48 bg-secondary overflow-hidden">
           {pkg.images?.[0] ? (
-            <Image src={pkg.images[0]} alt="" fill className="object-cover" sizes="(min-width: 1024px) 25vw, 100vw" />
+            <Image
+              src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="(min-width: 1024px) 25vw, 100vw"
+            />
           ) : (
             <div className="flex h-full items-center justify-center">
               <Mountain className="h-12 w-12 text-primary/30" />

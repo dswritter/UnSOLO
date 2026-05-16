@@ -44,6 +44,7 @@ import type {
 } from '@/types'
 import { UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
 import { formatFileSize } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 
 type Unit = 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month'
@@ -2305,7 +2306,7 @@ export function HostServiceListingTabs(props: Props) {
                   <div className="flex items-start gap-3">
                     {i.images[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={i.images[0]} alt="" className="h-14 w-14 rounded object-cover flex-shrink-0" />
+                      <img src={storageThumbnailUrl(i.images[0]) || i.images[0]} alt="" className="h-14 w-14 rounded object-cover flex-shrink-0" />
                     ) : (
                       <div className="h-14 w-14 rounded bg-secondary flex-shrink-0" />
                     )}

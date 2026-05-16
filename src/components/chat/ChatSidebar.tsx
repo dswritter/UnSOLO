@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search, UserPlus, ChevronDown, Loader2, Pin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -484,11 +485,11 @@ export function ChatSidebar({
                   <div className="relative shrink-0">
                     {room.type === 'trip' && room.tripImage ? (
                       <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
-                        <img src={room.tripImage} alt="" className="h-full w-full object-cover" />
+                        <img src={storageThumbnailUrl(room.tripImage) || room.tripImage} alt="" className="h-full w-full object-cover" />
                       </div>
                     ) : room.type === 'general' && room.communityImage ? (
                       <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
-                        <img src={room.communityImage} alt="" className="h-full w-full object-cover" />
+                        <img src={storageThumbnailUrl(room.communityImage) || room.communityImage} alt="" className="h-full w-full object-cover" />
                       </div>
                     ) : (
                       <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">

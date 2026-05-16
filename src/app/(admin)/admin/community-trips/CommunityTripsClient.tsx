@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { moderateCommunityTrip, updatePackage, hardDeletePackage } from '@/actions/admin'
 import { releaseHostPayout } from '@/actions/host-payout'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { toast } from 'sonner'
@@ -437,7 +438,7 @@ export default function CommunityTripsClient({
               >
                 <div className="flex items-center gap-3">
                   {trip.images?.[0] && (
-                    <img src={trip.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                    <img src={storageThumbnailUrl(trip.images[0]) || trip.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover" />
                   )}
                   <div className="text-left">
                     <div className="font-bold text-sm">{trip.title}</div>
@@ -594,7 +595,7 @@ export default function CommunityTripsClient({
                   {trip.images && trip.images.length > 0 && (
                     <div className="flex gap-2 overflow-x-auto pb-1">
                       {trip.images.map((img: string, i: number) => (
-                        <img key={i} src={img} alt="" className="h-20 w-28 rounded-lg object-cover flex-shrink-0" />
+                        <img key={i} src={storageThumbnailUrl(img) || img} alt="" className="h-20 w-28 rounded-lg object-cover flex-shrink-0" />
                       ))}
                     </div>
                   )}

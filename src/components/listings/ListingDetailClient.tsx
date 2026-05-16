@@ -9,6 +9,7 @@ import { ListingBookingForm } from './ListingBookingForm'
 import { RentalCartCheckout } from './RentalCartCheckout'
 import { Suspense, useState } from 'react'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -377,7 +378,11 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                       <div className="aspect-square bg-secondary overflow-hidden relative">
                         {item.images[0] ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                          <img
+                            src={storageThumbnailUrl(item.images[0]) || item.images[0]}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Package className="h-8 w-8 text-muted-foreground/30" />
@@ -454,7 +459,11 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                     <div className="aspect-square bg-secondary overflow-hidden relative">
                       {item.images[0] ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                        <img
+                          src={storageThumbnailUrl(item.images[0]) || item.images[0]}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Package className="h-8 w-8 text-muted-foreground/30" />
@@ -520,7 +529,8 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
             <h2 className="text-xl font-bold mb-4">More {listing.type}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {relatedListings.map((related) => {
-                const relatedImage = related.images?.[0] || '/placeholder-listing.svg'
+                const relatedImageRaw = related.images?.[0] || '/placeholder-listing.svg'
+                const relatedImage = storageThumbnailUrl(relatedImageRaw) || relatedImageRaw
                 const relatedRating = related.average_rating > 0 ? `${related.average_rating.toFixed(1)}` : 'New'
                 return (
                   <Link
@@ -562,7 +572,8 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
               {hostListings.map((hostListing) => {
                 // Detect if it's a package or service listing
                 const isPackage = 'duration_days' in hostListing
-                const hostImage = hostListing.images?.[0] || '/placeholder-listing.svg'
+                const hostImageRaw = hostListing.images?.[0] || '/placeholder-listing.svg'
+                const hostImage = storageThumbnailUrl(hostImageRaw) || hostImageRaw
                 const hostRating = hostListing.average_rating > 0 ? `${hostListing.average_rating.toFixed(1)}` : 'New'
                 const href = isPackage
                   ? `/packages/${hostListing.slug}`

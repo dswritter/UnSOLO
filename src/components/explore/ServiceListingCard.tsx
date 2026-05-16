@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import type { ServiceListing } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type CardItem = {
@@ -34,7 +35,8 @@ function PlainCard({
 }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
-  const imageUrl = listing.images?.[0] || '/placeholder-listing.svg'
+  const rawCover = listing.images?.[0]
+  const imageUrl = rawCover ? (storageThumbnailUrl(rawCover) || rawCover) : '/placeholder-listing.svg'
   const ratingDisplay =
     listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
 
@@ -197,7 +199,8 @@ function ItemsCarouselCard({
   }, [idx, items.length, goTo])
 
   const activeItem = items[idx]
-  const heroImage = activeItem.images[0] || listing.images?.[0] || '/placeholder-listing.svg'
+  const rawHero = activeItem.images[0] || listing.images?.[0]
+  const heroImage = rawHero ? (storageThumbnailUrl(rawHero) || rawHero) : '/placeholder-listing.svg'
 
   const href = `/listings/${listing.type}/${listing.slug}`
   const openDetail = () => {
@@ -291,7 +294,8 @@ function ItemsCarouselCard({
         {items.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto px-3 pt-2.5 pb-0 scrollbar-hide">
             {items.map((item, i) => {
-              const thumb = item.images[0] || '/placeholder-listing.svg'
+              const rawT = item.images[0]
+              const thumb = rawT ? (storageThumbnailUrl(rawT) || rawT) : '/placeholder-listing.svg'
               return (
                 <button
                   key={item.id}

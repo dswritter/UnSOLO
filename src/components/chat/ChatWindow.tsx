@@ -33,6 +33,7 @@ import { PinnedMessageBanner } from '@/components/chat/PinnedMessageBanner'
 import { ChatPollCard } from '@/components/chat/ChatPollCard'
 import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
 import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
 
@@ -1673,7 +1674,7 @@ export function ChatWindow({
                   className="h-10 w-10 rounded-full overflow-hidden border border-border shrink-0 ring-offset-background hover:ring-2 hover:ring-primary/55 hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   title="View room image"
                 >
-                  <img src={roomImageUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={storageThumbnailUrl(roomImageUrl) || roomImageUrl} alt="" className="h-full w-full object-cover" />
                 </button>
               ) : null}
               {isDM && dmPartner ? (
@@ -1683,7 +1684,7 @@ export function ChatWindow({
                   title={roomName}
                 >
                   <Avatar className="h-full w-full">
-                    <AvatarImage src={dmPartner.avatar_url || ''} />
+                    <AvatarImage src={storageThumbnailUrl(dmPartner.avatar_url || '') || dmPartner.avatar_url || ''} />
                     <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
                       {getInitials(dmPartner.full_name || dmPartner.username)}
                     </AvatarFallback>
@@ -1796,7 +1797,7 @@ export function ChatWindow({
               <Link key={m.id} href={`/profile/${m.username}`} className="shrink-0 group/avatar" title={m.full_name || m.username}>
                 <div className="relative">
                   <Avatar className="h-6 w-6 ring-1 ring-green-500/50 group-hover/avatar:ring-green-400 transition-all">
-                    <AvatarImage src={m.avatar_url || ''} />
+                    <AvatarImage src={storageThumbnailUrl(m.avatar_url || '') || m.avatar_url || ''} />
                     <AvatarFallback className="bg-primary/20 text-primary text-[8px] font-bold">
                       {getInitials(m.full_name || m.username)}
                     </AvatarFallback>
@@ -1830,7 +1831,7 @@ export function ChatWindow({
               >
                 <div className="relative">
                   <Avatar className="h-6 w-6">
-                    <AvatarImage src={m.avatar_url || ''} />
+                    <AvatarImage src={storageThumbnailUrl(m.avatar_url || '') || m.avatar_url || ''} />
                     <AvatarFallback className="bg-primary/20 text-primary text-[10px] font-bold">
                       {getInitials(m.full_name || m.username)}
                     </AvatarFallback>
@@ -1865,7 +1866,7 @@ export function ChatWindow({
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src={popupMember.avatar_url || ''} />
+                    <AvatarImage src={storageThumbnailUrl(popupMember.avatar_url || '') || popupMember.avatar_url || ''} />
                     <AvatarFallback className="bg-primary/20 text-primary font-bold">
                       {getInitials(popupMember.full_name || popupMember.username)}
                     </AvatarFallback>
@@ -2821,7 +2822,7 @@ function MessageBubble({
           <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0">
             <div className="relative">
               <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all">
-                <AvatarImage src={user?.avatar_url || ''} />
+                <AvatarImage src={storageThumbnailUrl(user?.avatar_url || '') || user?.avatar_url || ''} />
                 <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
                   {getInitials(name)}
                 </AvatarFallback>
@@ -2834,7 +2835,7 @@ function MessageBubble({
         ) : (
           <div className="flex-shrink-0 mt-0">
             <Avatar className="h-7 w-7">
-              <AvatarImage src={user?.avatar_url || ''} />
+              <AvatarImage src={storageThumbnailUrl(user?.avatar_url || '') || user?.avatar_url || ''} />
               <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
                 {getInitials(name)}
               </AvatarFallback>
@@ -2876,7 +2877,7 @@ function MessageBubble({
         <Link href={profileUrl} className="focus:outline-none flex-shrink-0 mt-0">
           <div className="relative">
             <Avatar className="h-7 w-7 cursor-pointer hover:ring-2 hover:ring-primary/40 transition-all">
-              <AvatarImage src={user?.avatar_url || ''} />
+              <AvatarImage src={storageThumbnailUrl(user?.avatar_url || '') || user?.avatar_url || ''} />
               <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
                 {getInitials(name)}
               </AvatarFallback>
@@ -2889,7 +2890,7 @@ function MessageBubble({
       ) : (
         <div className="flex-shrink-0 mt-0">
           <Avatar className="h-7 w-7">
-            <AvatarImage src={user?.avatar_url || ''} />
+            <AvatarImage src={storageThumbnailUrl(user?.avatar_url || '') || user?.avatar_url || ''} />
             <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
               {getInitials(name)}
             </AvatarFallback>
@@ -3058,7 +3059,7 @@ function MessageBubble({
                   onClick={e => e.stopPropagation()}
                 >
                   <Avatar className="h-5 w-5">
-                    <AvatarImage src={r.avatar_url || ''} />
+                    <AvatarImage src={storageThumbnailUrl(r.avatar_url || '') || r.avatar_url || ''} />
                     <AvatarFallback className="bg-primary/30 text-primary text-[7px] font-bold">{getInitials(r.full_name || r.username)}</AvatarFallback>
                   </Avatar>
                 </Link>

@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getInitials } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { createClient } from '@/lib/supabase/client'
 import type { StatusStripStory } from '@/actions/statusStories'
 import { StatusStoryViewer } from '@/components/status/StatusStoryViewer'
@@ -74,7 +75,7 @@ export function DmSidebarAvatarMenu({
           }`}
         >
           <Avatar className="h-10 w-10 border-2 border-background">
-            <AvatarImage src={avatarUrl || ''} />
+            <AvatarImage src={storageThumbnailUrl(avatarUrl || '') || avatarUrl || ''} />
             <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
               {getInitials(fallbackName)}
             </AvatarFallback>
@@ -82,7 +83,7 @@ export function DmSidebarAvatarMenu({
         </span>
       ) : (
         <Avatar className="h-11 w-11">
-          <AvatarImage src={avatarUrl || ''} />
+          <AvatarImage src={storageThumbnailUrl(avatarUrl || '') || avatarUrl || ''} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm font-bold">
             {getInitials(fallbackName)}
           </AvatarFallback>

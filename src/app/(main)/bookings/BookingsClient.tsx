@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus, Loader2 } from 'lucide-react'
 import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import {
   tripEndDateIsoForBooking,
   formatDateRangeFromEdges,
@@ -358,7 +359,7 @@ export function BookingsClient({
                     <div className="flex flex-col sm:flex-row gap-4">
                       {pkg?.images?.[0] && (
                         <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-                          <Image src={pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
+                          <Image src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
@@ -498,7 +499,10 @@ export function BookingsClient({
           <div className="space-y-4">
             {serviceBookings.map((booking) => {
               const listing = (booking as any).service_listings
-              const imageUrl = listing?.images?.[0] || '/placeholder-listing.svg'
+              const rawListingImg = listing?.images?.[0]
+              const imageUrl = rawListingImg
+                ? (storageThumbnailUrl(rawListingImg) || rawListingImg)
+                : '/placeholder-listing.svg'
               const checkInDate = booking.check_in_date ? formatDate(booking.check_in_date) : 'N/A'
               const checkOutDate = booking.check_out_date ? formatDate(booking.check_out_date) : null
 
@@ -834,7 +838,7 @@ function IncompleteJoinCard({ row }: { row: IncompleteJoinTrip }) {
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
             {pkg.images?.[0] ? (
-              <Image src={pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
+              <Image src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
             )}
@@ -1071,7 +1075,7 @@ function BookingItem({
           {/* Image */}
           <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
             {pkg?.images?.[0] ? (
-              <Image src={pkg.images[0]} alt={pkg.title ?? ''} fill className="object-cover" sizes="112px" />
+              <Image src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt={pkg.title ?? ''} fill className="object-cover" sizes="112px" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-2xl">🏔️</div>
             )}

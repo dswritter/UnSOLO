@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { checkIsHost, getHostTripDetail, getJoinRequestsForTrip } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
@@ -66,7 +67,7 @@ export default async function ManageTripPage({
             {trip.images?.[0] && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={trip.images[0]}
+                src={storageThumbnailUrl(trip.images[0]) || trip.images[0]}
                 alt=""
                 className="h-32 w-48 rounded-lg object-cover shrink-0"
               />

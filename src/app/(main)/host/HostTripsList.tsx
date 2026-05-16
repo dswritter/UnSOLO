@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { toggleHostTripActive, toggleHostTripDateClosed, getJoinRequestsForTrip, approveJoinRequest, rejectJoinRequest } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -376,7 +377,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                 <div className="flex items-start gap-3 min-w-0">
                   {trip.images?.[0] && (
                     <img
-                      src={trip.images[0]}
+                      src={storageThumbnailUrl(trip.images[0]) || trip.images[0]}
                       alt=""
                       className={cn('h-14 w-20 rounded-lg object-cover shrink-0 hidden sm:block', w && 'ring-1 ring-white/15')}
                     />

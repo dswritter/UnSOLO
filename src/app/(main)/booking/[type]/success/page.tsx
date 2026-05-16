@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatPrice, formatDate } from '@/lib/utils'
 import type { ServiceListingType } from '@/types'
 import { HostContactCard } from '@/components/bookings/HostContactCard'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 const validTypes: ServiceListingType[] = ['stays', 'activities', 'rentals', 'getting_around']
 
@@ -56,7 +57,8 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
   }
 
   const listing = booking.service_listings as any
-  const imageUrl = listing?.images?.[0] || '/placeholder-listing.svg'
+  const rawCover = listing?.images?.[0] as string | undefined
+  const imageUrl = rawCover ? (storageThumbnailUrl(rawCover) || rawCover) : '/placeholder-listing.svg'
 
   // Fetch host profile separately. The service_listings row may have a null
   // host_id for UnSOLO-hosted listings — in that case we skip the contact

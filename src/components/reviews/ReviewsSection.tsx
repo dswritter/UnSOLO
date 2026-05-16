@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { Review } from '@/types'
 import { EditableReviewCard } from './EditableReviewCard'
 import { formatDate } from '@/lib/utils'
+import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 
 interface ReviewsSectionProps {
   reviews: (Review & { user?: { id?: string; username: string; full_name: string | null; avatar_url: string | null } })[]
@@ -91,7 +92,7 @@ export function ReviewsSection({
                     <Link href={`/profile/${review.user?.username || ''}`} className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary hover:ring-2 hover:ring-primary/40 transition-all flex-shrink-0">
                       {review.user?.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={review.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        <img src={storageThumbnailUrl(review.user.avatar_url) || review.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
                       ) : (
                         (review.user?.full_name || review.user?.username || 'U')[0].toUpperCase()
                       )}
