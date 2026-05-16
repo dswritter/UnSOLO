@@ -145,7 +145,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
       : 'Book now'
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-[calc(11rem+env(safe-area-inset-bottom,0px))] md:pb-0">
       {/* Main content */}
       <div className="lg:col-span-2 space-y-8 order-last lg:order-none">
         {/* Hero image — click to expand full image */}

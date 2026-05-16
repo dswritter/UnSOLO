@@ -298,7 +298,7 @@ export default async function PackageDetailPage({
     <div className="relative min-h-screen">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
       <TripDetailSeasonBackdrop />
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-4 md:py-8">
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-4 pb-[calc(11rem+env(safe-area-inset-bottom,0px))] md:py-8">
         {/* Back arrow only — no inline label. On mobile the browser/OS back
             chevron is the primary affordance, so the redundant text strip just
             ate vertical space at the very top of the listing. Keep a small
