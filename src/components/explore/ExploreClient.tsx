@@ -28,6 +28,7 @@ import {
   removeRecentlyViewedPackage,
   type RecentlyViewedPackage,
 } from '@/lib/explore/recently-viewed-packages'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -101,9 +102,9 @@ export function ExploreClient({
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-  const [isPending, startTransition] = useTransition()
+  const [isTabPending, startTabTransition] = useTransition()
   // isNavigating covers external navigations (sidebar/filter changes) that we
-  // don't initiate via startTransition. Cleared only when fresh props arrive.
+  // don't initiate via startTabTransition. Cleared only when fresh props arrive.
   const [isNavigating, setIsNavigating] = useState(false)
   const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set()
@@ -167,13 +168,13 @@ export function ExploreClient({
     if (isWanderShell) {
       newParams.set('search', '1')
     }
-    startTransition(() => {
+    startTabTransition(() => {
       pushExploreUrl(router, basePath, `${basePath}?${newParams.toString()}`)
     })
   }
 
   // Show skeleton while any navigation is in-flight.
-  const isLoading = isPending || isNavigating
+  const isLoading = isTabPending || isNavigating
 
   const isTripsTab = activeTab === 'trips'
   const isServiceTab = !isTripsTab
@@ -286,7 +287,7 @@ export function ExploreClient({
                   <button
                     onClick={() => {
                       if (isMobile) {
-                        router.push(`/packages/${rv.slug}`)
+                        pushWithRouteProgress(router, `/packages/${rv.slug}`)
                         return
                       }
                       window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')
@@ -378,7 +379,7 @@ export function ExploreClient({
                     destName: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
                   })
                   if (isMobile) {
-                    router.push(`/packages/${pkg.slug}`)
+                    pushWithRouteProgress(router, `/packages/${pkg.slug}`)
                     return
                   }
                   window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')

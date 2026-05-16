@@ -6,6 +6,7 @@ import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { getInitials, timeAgo } from '@/lib/utils'
 import { MessageCircle, Search, UserPlus, ChevronDown, Loader2, Pin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -550,7 +551,7 @@ export function ChatSidebar({
                     const result = await startDirectMessage(u.id)
                     if (result.error) { toast.error(result.error); setStartingDm(null); return }
                     if (result.roomId) {
-                      router.push(`${basePath}/${result.roomId}`)
+                      pushWithRouteProgress(router, `${basePath}/${result.roomId}`)
                       setSearch('')
                     }
                     setStartingDm(null)

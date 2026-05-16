@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { useEffect, useState } from 'react'
 import { Home, Users } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -118,7 +119,7 @@ export function MobileChatBottomBar({
                   <button
                     key={r.id}
                     type="button"
-                    onClick={() => router.push(`${basePath}/${r.id}`)}
+                    onClick={() => pushWithRouteProgress(router, `${basePath}/${r.id}`)}
                     className="relative flex shrink-0 items-center justify-center outline-none"
                     aria-label={`Open chat with ${label}`}
                     aria-current={isCurrent ? 'page' : undefined}

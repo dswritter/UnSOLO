@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { joinRoom } from '@/actions/chat'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -29,7 +30,7 @@ export function JoinRoomButton({
       return
     }
     if (navigateAfterJoin) {
-      router.push(`${listBasePath}/${roomId}`)
+      pushWithRouteProgress(router, `${listBasePath}/${roomId}`)
     }
     router.refresh()
   }

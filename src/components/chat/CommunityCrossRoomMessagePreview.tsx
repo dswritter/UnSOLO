@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 
 type RoomLite = { id: string; name: string }
 
@@ -103,7 +104,7 @@ export function CommunityCrossRoomMessagePreview({
 
   function goToChat() {
     if (!preview) return
-    router.push(`${basePath}/${preview.roomId}`)
+    pushWithRouteProgress(router, `${basePath}/${preview.roomId}`)
     setPreview(null)
   }
 

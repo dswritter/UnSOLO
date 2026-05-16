@@ -47,24 +47,42 @@ export function NavigationProgress() {
     }
   }, [pathname, searchParams, completeProgress])
 
-  // Intercept clicks and pushState for navigation detection
+  // Intercept clicks and touch (mobile) + pushState for navigation detection
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      const target = e.target as HTMLElement
-
+    function maybeStartForAnchor(target: HTMLElement) {
       const anchor = target.closest('a')
       if (anchor) {
         const href = anchor.getAttribute('href')
-        if (href && !href.startsWith('#') && !href.startsWith('http') && !href.startsWith('mailto:') && href !== pathname) {
+        if (
+          href &&
+          !href.startsWith('#') &&
+          !href.startsWith('http') &&
+          !href.startsWith('mailto:') &&
+          href !== pathname
+        ) {
           startProgress()
-          return
+          return true
         }
       }
+      return false
+    }
+
+    function handleClick(e: MouseEvent) {
+      const target = e.target as HTMLElement
+
+      if (maybeStartForAnchor(target)) return
 
       const menuItem = target.closest('[role="menuitem"]')
       if (menuItem) {
         startProgress()
         return
+      }
+    }
+
+    function handleTouchStart(e: TouchEvent) {
+      const t = e.target
+      if (t instanceof HTMLElement) {
+        maybeStartForAnchor(t)
       }
     }
 
@@ -79,8 +97,10 @@ export function NavigationProgress() {
     window.addEventListener('unsolo:navigate', handleCustomNav)
 
     document.addEventListener('click', handleClick, true)
+    document.addEventListener('touchstart', handleTouchStart, { capture: true, passive: true })
     return () => {
       document.removeEventListener('click', handleClick, true)
+      document.removeEventListener('touchstart', handleTouchStart, { capture: true })
       window.removeEventListener('unsolo:navigate', handleCustomNav)
       history.pushState = origPush
     }

@@ -7,6 +7,7 @@ import Image from 'next/image'
 import type { ServiceListing } from '@/types'
 import { formatPrice, cn } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type CardItem = {
@@ -77,7 +78,9 @@ function PlainCard({
       target={isMobile ? undefined : '_blank'}
       rel={isMobile ? undefined : 'noopener noreferrer'}
       onClick={() => {
-        if (isMobile) router.prefetch(`/listings/${listing.type}/${listing.slug}`)
+        if (!isMobile) return
+        void router.prefetch(`/listings/${listing.type}/${listing.slug}`)
+        window.dispatchEvent(new CustomEvent('unsolo:navigate'))
       }}
     >
       <div className={cn(
@@ -205,7 +208,7 @@ function ItemsCarouselCard({
   const href = `/listings/${listing.type}/${listing.slug}`
   const openDetail = () => {
     if (isMobile) {
-      router.push(href)
+      pushWithRouteProgress(router, href)
       return
     }
     window.open(href, '_blank', 'noopener,noreferrer')

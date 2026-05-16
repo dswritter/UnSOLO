@@ -34,6 +34,7 @@ import { ChatPollCard } from '@/components/chat/ChatPollCard'
 import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
 import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 
 export type { ChatLinkTarget } from '@/lib/chat/chatHashTags'
 
@@ -1662,7 +1663,7 @@ export function ChatWindow({
             <div className="flex items-center gap-3 min-w-0">
               <button
                 type="button"
-                onClick={() => (onBack ? onBack() : router.push(chatListPath))}
+                onClick={() => (onBack ? onBack() : pushWithRouteProgress(router, chatListPath))}
                 className="text-muted-foreground hover:text-foreground transition-colors md:hidden shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />

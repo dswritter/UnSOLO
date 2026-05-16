@@ -2,15 +2,15 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { Package } from '@/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice, cn } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
-import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
+import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { hasTieredPricing } from '@/lib/package-pricing'
+import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { MapPin, Mountain, Heart } from 'lucide-react'
 
 // Frosted-glass difficulty chip, sitting on top of the card image. The text
@@ -54,7 +54,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds }: Pro
 
   const openPackage = useCallback(() => {
     if (isMobile) {
-      router.push(`/packages/${pkg.slug}`)
+      pushWithRouteProgress(router, `/packages/${pkg.slug}`)
       return
     }
     window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')
