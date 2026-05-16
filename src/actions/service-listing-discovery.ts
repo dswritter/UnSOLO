@@ -2,26 +2,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
-import { escapeIlikePattern, listingScheduleTodayISO, tokenizeLocationQuery } from '@/lib/utils'
+import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
 
-/**
- * Activities with an `event_schedule` are date-specific events. Once every
- * scheduled date is in the past, the listing is treated as expired and hidden
- * from public discovery until the host adds a new future date. Other
- * listings (or activities without a schedule) are always visible.
- */
-function isListingVisibleToPublic(
-  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
-  todayIso: string,
-): boolean {
-  if (listing.type !== 'activities') return true
-  const schedule = listing.event_schedule
-  if (!schedule || schedule.length === 0) return true
-  return schedule.some(entry => entry.date >= todayIso)
-}
-
-function todayIso(): string {
-  return listingScheduleTodayISO()
+/** All approved service listings are eligible for explore (past activity dates included). */
+export async function isServiceListingVisibleToPublic(
+  _listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
+): Promise<boolean> {
+  return true
 }
 
 export async function getServiceListingsByType(
@@ -106,15 +93,9 @@ export async function getServiceListingsByType(
 
   if (error) throw error
 
-  const today = todayIso()
-  const listings = ((data || []) as ServiceListing[])
-    .filter(l => isListingVisibleToPublic(l, today))
+  const listings = (data || []) as ServiceListing[]
 
-  // `count` from the SQL query ignores the in-app event-dates filter. For
-  // activities, adjust the total so pagination reflects what's actually visible.
-  const adjustedTotal = type === 'activities'
-    ? Math.max(0, (count || 0) - (((data || []).length) - listings.length))
-    : (count || 0)
+  const adjustedTotal = count || 0
 
   return {
     listings,
@@ -157,13 +138,6 @@ export async function getServiceListingDetail(slug: string) {
   }
 }
 
-/** Public visibility check for a single fetched listing (use in detail pages). */
-export async function isServiceListingVisibleToPublic(
-  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
-): Promise<boolean> {
-  return isListingVisibleToPublic(listing, todayIso())
-}
-
 export async function searchServiceListings(
   query: string,
   type: ServiceListingType,
@@ -196,9 +170,7 @@ export async function searchServiceListings(
   const { data, error } = await searchQuery.limit(limit)
 
   if (error) throw error
-  const today = todayIso()
-  return ((data || []) as Array<Pick<ServiceListing, 'id' | 'title' | 'slug' | 'location' | 'images' | 'price_paise' | 'type' | 'event_schedule'>>)
-    .filter(l => isListingVisibleToPublic({ type: l.type, event_schedule: l.event_schedule ?? null }, today))
+  return (data || []) as Array<Pick<ServiceListing, 'id' | 'title' | 'slug' | 'location' | 'images' | 'price_paise' | 'type' | 'event_schedule'>>
 }
 
 // ── Related Services for Trip Details ──────────────────────────────────────
@@ -250,10 +222,9 @@ export async function getRelatedServicesForPackage(
 
   const { data: nearby } = await nearbyQuery
 
-  const today = todayIso()
   return {
-    curated: (curated as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)),
-    nearbyAuto: ((nearby || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)),
+    curated: (curated as ServiceListing[]),
+    nearbyAuto: ((nearby || []) as ServiceListing[]),
     hasCuratedLinks: curatedLinks.length > 0,
   }
 }
@@ -284,8 +255,7 @@ export async function getServiceListingsByDestination(
   const { data, error } = await query
 
   if (error) throw error
-  const today = todayIso()
-  return ((data || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today))
+  return ((data || []) as ServiceListing[])
 }
 
 /** Find related listings for a given listing (same type, location, or tags). Excludes the current listing. */
@@ -318,8 +288,7 @@ export async function getRelatedListings(
       .order('average_rating', { ascending: false })
 
     if (byDest && byDest.length >= limit) {
-      const today = todayIso()
-      return (byDest as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+      return (byDest as ServiceListing[]).slice(0, limit)
     }
     filterApplied = true
   }
@@ -339,8 +308,7 @@ export async function getRelatedListings(
       .limit(limit)
 
     if (byTag && byTag.length >= limit / 2) {
-      const today = todayIso()
-      return (byTag as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+      return (byTag as ServiceListing[]).slice(0, limit)
     }
   }
 
@@ -356,6 +324,5 @@ export async function getRelatedListings(
     .order('average_rating', { ascending: false })
     .limit(limit)
 
-  const today = todayIso()
-  return ((data || []) as ServiceListing[]).filter(l => isListingVisibleToPublic(l, today)).slice(0, limit)
+  return ((data || []) as ServiceListing[]).slice(0, limit)
 }

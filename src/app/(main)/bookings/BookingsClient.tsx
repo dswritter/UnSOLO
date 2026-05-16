@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus, Loader2 } from 'lucide-react'
-import { formatPrice, formatDate, getTripCountdown } from '@/lib/utils'
+import { formatPrice, formatDate, getTripCountdown, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import {
   tripEndDateIsoForBooking,
@@ -51,6 +51,19 @@ function tripCalFromPackage(
     departure_dates: pkg?.departure_dates,
     return_dates: pkg?.return_dates,
   }
+}
+
+/** True after the last calendar day of the trip (uses package return/duration; India calendar for "today"). */
+function isPackageTripEnded(booking: Booking, todayIso: string): boolean {
+  const td = booking.travel_date
+  if (!td) return false
+  const endIso = tripEndDateIsoForBooking(td, tripCalFromPackage(booking.package))
+  return todayIso > endIso
+}
+
+function isGroupTripEnded(group: GroupBookingInfo, todayIso: string): boolean {
+  const endIso = tripEndDateIsoForBooking(group.travel_date, tripCalFromPackage(group.package))
+  return todayIso > endIso
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -171,8 +184,17 @@ export function BookingsClient({
     filteredIncompleteJoin = []
   }
 
-  const upcoming = filteredBookings.filter((b) => b.status === 'confirmed' || b.status === 'pending')
-  const past = filteredBookings.filter((b) => b.status === 'completed' || b.status === 'cancelled')
+  const scheduleToday = listingScheduleTodayISO()
+  const activeTripStatuses = new Set(['confirmed', 'pending', 'pending_approval'])
+
+  const upcoming = filteredBookings.filter((b) => activeTripStatuses.has(b.status) && !isPackageTripEnded(b, scheduleToday))
+  const past = filteredBookings.filter((b) => {
+    if (b.status === 'completed' || b.status === 'cancelled') return true
+    return activeTripStatuses.has(b.status) && isPackageTripEnded(b, scheduleToday)
+  })
+
+  const groupTripsUpcoming = filteredGroupBookings.filter((g) => !isGroupTripEnded(g, scheduleToday))
+  const groupTripsPast = filteredGroupBookings.filter((g) => isGroupTripEnded(g, scheduleToday))
 
   function openReview(bookingId: string) {
     setReviewingId(bookingId)
@@ -234,6 +256,150 @@ export function BookingsClient({
           ))}
         </div>
       </div>
+    )
+  }
+
+  function renderGroupBookingCard(group: GroupBookingInfo) {
+    const pkg = group.package
+    const myStatus = group.my_status
+    const needsPayment = myStatus === 'invited' || myStatus === 'accepted'
+
+    const isGroupExpanded = expandedId === `group-${group.id}`
+
+    return (
+      <Card key={group.id} className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={() => setExpandedId(isGroupExpanded ? null : `group-${group.id}`)}>
+        <CardContent className="p-5">
+          {/* Collapsed header — same layout as solo cards */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {pkg?.images?.[0] && (
+              <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
+                <Image src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Group Trip'}</h3>
+                <div className="flex flex-wrap gap-2 justify-end">
+                  {needsPayment && (
+                    <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+                      Payment pending
+                    </Badge>
+                  )}
+                  <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                    {group.total_paid}/{group.total_members} paid
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
+                {pkg?.destination && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
+                  </span>
+                )}
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />{' '}
+                  {pkg?.duration_days
+                    ? formatDateRangeFromEdges(
+                        group.travel_date,
+                        tripEndDateIsoForBooking(group.travel_date, tripCalFromPackage(pkg)),
+                      )
+                    : formatDate(group.travel_date)}
+                </span>
+                {group.status === 'confirmed' && (() => {
+                  const cal = tripCalFromPackage(pkg)
+                  const endIso = tripEndDateIsoForBooking(group.travel_date, cal)
+                  const countdown = getTripCountdown(
+                    group.travel_date,
+                    calendarInclusiveDaysForTravelDate(group.travel_date, cal),
+                    endIso,
+                  )
+                  return countdown ? (
+                    <span className="flex items-center gap-1 text-primary font-medium">
+                      {countdown.emoji} {countdown.text}
+                    </span>
+                  ) : null
+                })()}
+                <span className="flex items-center gap-1">
+                  <Users className="h-3 w-3" /> {group.total_members} member{group.total_members > 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
+                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                  <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                    <Link href="/community">
+                      <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
+                    </Link>
+                  </Button>
+                  {needsPayment && (
+                    <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
+                      <Link href={`/packages/${pkg?.slug}?group=${group.id}`}>
+                        <CreditCard className="mr-1 h-3 w-3" /> Pay Share
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded details */}
+          {isGroupExpanded && (
+            <div className="mt-4 pt-4 border-t border-border space-y-3" onClick={e => e.stopPropagation()}>
+              {/* Price breakdown */}
+              <div className="bg-secondary/50 rounded-lg p-3 text-xs space-y-1">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Total group ({group.total_members} × {formatPrice(group.per_person_paise)})</span>
+                  <span>{formatPrice(group.per_person_paise * group.total_members)}</span>
+                </div>
+                <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
+                  <span>Your share</span>
+                  <span className="text-primary">{formatPrice(group.per_person_paise)}</span>
+                </div>
+              </div>
+
+              {/* Members list */}
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground font-medium">Members:</span>
+                {group.members.map(m => (
+                  <div key={m.user_id} className="flex items-center justify-between text-xs">
+                    <span>
+                      {m.full_name || m.username}
+                      {m.user_id === group.organizer_id && <span className="text-primary ml-1">(organizer)</span>}
+                      {m.user_id === currentUserId && <span className="text-muted-foreground ml-1">(you)</span>}
+                    </span>
+                    <span className={m.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}>
+                      {m.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* 24hr policy note — hide when all paid */}
+              {group.total_paid < group.total_members && (
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
+                </p>
+              )}
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                {group.package?.slug && (
+                  <Button variant="outline" size="sm" className="border-border text-xs" asChild>
+                    <Link href={`/packages/${group.package.slug}`}>
+                      <ArrowRight className="mr-1 h-3 w-3" /> View Full Package
+                    </Link>
+                  </Button>
+                )}
+                {group.total_paid === group.total_members && (
+                  <GroupCancellationButton groupId={group.id} />
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     )
   }
 
@@ -337,158 +503,29 @@ export function BookingsClient({
         </form>
       </div>
 
-      {/* Group Bookings */}
-      {showGroup && filteredGroupBookings.length > 0 && (
-        <div>
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" /> Group Trips
-          </h2>
-          <div className="space-y-4">
-            {filteredGroupBookings.map(group => {
-              const pkg = group.package
-              const myStatus = group.my_status
-              const isOrganizer = currentUserId === group.organizer_id
-              const needsPayment = myStatus === 'invited' || myStatus === 'accepted'
-
-              const isGroupExpanded = expandedId === `group-${group.id}`
-
-              return (
-                <Card key={group.id} className="bg-card border-border hover:border-primary/20 transition-colors cursor-pointer" onClick={() => setExpandedId(isGroupExpanded ? null : `group-${group.id}`)}>
-                  <CardContent className="p-5">
-                    {/* Collapsed header — same layout as solo cards */}
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {pkg?.images?.[0] && (
-                        <div className="relative w-full sm:w-28 h-28 rounded-xl overflow-hidden bg-secondary flex-shrink-0">
-                          <Image src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt={pkg.title} fill className="object-cover" sizes="112px" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                          <h3 className="font-bold text-lg leading-tight">{pkg?.title || 'Group Trip'}</h3>
-                          <div className="flex flex-wrap gap-2 justify-end">
-                            {needsPayment && (
-                              <Badge className="bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
-                                Payment pending
-                              </Badge>
-                            )}
-                            <Badge className={group.total_paid === group.total_members ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}>
-                              {group.total_paid}/{group.total_members} paid
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground mb-3">
-                          {pkg?.destination && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" /> {pkg.destination.name}, {pkg.destination.state}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />{' '}
-                            {pkg?.duration_days
-                              ? formatDateRangeFromEdges(
-                                  group.travel_date,
-                                  tripEndDateIsoForBooking(group.travel_date, tripCalFromPackage(pkg)),
-                                )
-                              : formatDate(group.travel_date)}
-                          </span>
-                          {group.status === 'confirmed' && (() => {
-                            const cal = tripCalFromPackage(pkg)
-                            const endIso = tripEndDateIsoForBooking(group.travel_date, cal)
-                            const countdown = getTripCountdown(
-                              group.travel_date,
-                              calendarInclusiveDaysForTravelDate(group.travel_date, cal),
-                              endIso,
-                            )
-                            return countdown ? (
-                              <span className="flex items-center gap-1 text-primary font-medium">
-                                {countdown.emoji} {countdown.text}
-                              </span>
-                            ) : null
-                          })()}
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3 w-3" /> {group.total_members} member{group.total_members > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
-                          <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                            <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                              <Link href="/community">
-                                <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
-                              </Link>
-                            </Button>
-                            {needsPayment && (
-                              <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
-                                <Link href={`/packages/${pkg?.slug}?group=${group.id}`}>
-                                  <CreditCard className="mr-1 h-3 w-3" /> Pay Share
-                                </Link>
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expanded details */}
-                    {isGroupExpanded && (
-                      <div className="mt-4 pt-4 border-t border-border space-y-3" onClick={e => e.stopPropagation()}>
-                        {/* Price breakdown */}
-                        <div className="bg-secondary/50 rounded-lg p-3 text-xs space-y-1">
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Total group ({group.total_members} × {formatPrice(group.per_person_paise)})</span>
-                            <span>{formatPrice(group.per_person_paise * group.total_members)}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-foreground border-t border-border pt-1">
-                            <span>Your share</span>
-                            <span className="text-primary">{formatPrice(group.per_person_paise)}</span>
-                          </div>
-                        </div>
-
-                        {/* Members list */}
-                        <div className="space-y-1">
-                          <span className="text-xs text-muted-foreground font-medium">Members:</span>
-                          {group.members.map(m => (
-                            <div key={m.user_id} className="flex items-center justify-between text-xs">
-                              <span>
-                                {m.full_name || m.username}
-                                {m.user_id === group.organizer_id && <span className="text-primary ml-1">(organizer)</span>}
-                                {m.user_id === currentUserId && <span className="text-muted-foreground ml-1">(you)</span>}
-                              </span>
-                              <span className={m.status === 'paid' ? 'text-green-400' : 'text-yellow-400'}>
-                                {m.status === 'paid' ? '✅ Paid' : '⏳ Pending'}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* 24hr policy note — hide when all paid */}
-                        {group.total_paid < group.total_members && (
-                          <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            All members must pay within 24 hours of group creation or the trip will be auto-cancelled with full refund for those who paid.
-                          </p>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                          {group.package?.slug && (
-                            <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                              <Link href={`/packages/${group.package.slug}`}>
-                                <ArrowRight className="mr-1 h-3 w-3" /> View Full Package
-                              </Link>
-                            </Button>
-                          )}
-                          {group.total_paid === group.total_members && (
-                            <GroupCancellationButton groupId={group.id} />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+      {/* Group Bookings — split by trip end date so confirmed trips still move to Past after travel */}
+      {showGroup && (groupTripsUpcoming.length > 0 || groupTripsPast.length > 0) && (
+        <div className="space-y-10">
+          {groupTripsUpcoming.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" /> Group Trips
+              </h2>
+              <div className="space-y-4">
+                {groupTripsUpcoming.map(renderGroupBookingCard)}
+              </div>
+            </div>
+          )}
+          {groupTripsPast.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-muted-foreground">
+                <Users className="h-5 w-5" /> Past group trips
+              </h2>
+              <div className="space-y-4">
+                {groupTripsPast.map(renderGroupBookingCard)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

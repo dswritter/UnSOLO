@@ -76,15 +76,8 @@ export async function getPackages(searchParams: Record<string, string>) {
   const { data } = await query
   let packages = (data || []) as unknown as Package[]
 
-  const todayStr = new Date().toISOString().split('T')[0]
-  packages = packages.filter(pkg => {
-    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
-    const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
-    return pkg.departure_dates.some(d => {
-      const k = tripDepartureDateKey(d)
-      return k >= todayStr && !closed.has(k)
-    })
-  })
+  // Keep packages whose next bookable departure is in the past so the grid can
+  // show "Last departure …" (see packageNextDepartureLine) and link to reviews.
 
   if (searchParams.q) {
     const fullQ = searchParams.q.toLowerCase().trim()

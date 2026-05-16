@@ -1,11 +1,8 @@
 import { unstable_cache } from 'next/cache'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
-import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
-import { listingScheduleTodayISO } from '@/lib/utils'
 import type { Package, ServiceListing } from '@/types'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
-import type { ServiceEventScheduleEntry } from '@/types'
 import {
   DEFAULT_WANDER_HERO_LINE1,
   DEFAULT_WANDER_INSTAGRAM_LABEL,
@@ -258,19 +255,6 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
   return defaults()
 }
 
-function todayIso(): string {
-  return listingScheduleTodayISO()
-}
-
-function isActivityVisibleToPublic(
-  listing: Pick<ServiceListing, 'type' | 'event_schedule'>,
-): boolean {
-  if (listing.type !== 'activities') return true
-  const schedule = listing.event_schedule
-  if (!schedule || (schedule as ServiceEventScheduleEntry[]).length === 0) return true
-  const t = todayIso()
-  return (schedule as ServiceEventScheduleEntry[]).some(entry => entry.date >= t)
-}
 
 const DEFAULT_WANDER_HERO =
   'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=2400&q=85'
@@ -325,7 +309,6 @@ export const getListedActivityFilterOptions = unstable_cache(async function (): 
   if (error || !data?.length) return []
   const set = new Set<string>()
   for (const row of data) {
-    if (!isActivityVisibleToPublic(row as ServiceListing)) continue
     const r = row as { tags: string[] | null; metadata: { activity_category?: string } | null }
     for (const t of r.tags || []) {
       if (t?.trim()) set.add(t.trim())
@@ -457,18 +440,6 @@ export const getWanderRatingHero = unstable_cache(async function (): Promise<Wan
   return { overall, reviewCount: n, recentRaters }
 }, ['wander-rating-hero'], { revalidate: 120 })
 
-function filterPackagesWithFutureDepartures(packages: Package[]): Package[] {
-  const todayStr = new Date().toISOString().split('T')[0]
-  return packages.filter(pkg => {
-    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
-    const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
-    return pkg.departure_dates.some(d => {
-      const k = tripDepartureDateKey(d)
-      return k >= todayStr && !closed.has(k)
-    })
-  })
-}
-
 export type WanderTripRowResult = {
   packages: Package[]
   /** Counts for `package_interests` rows, keyed by package id (aligned with Explore). */
@@ -485,7 +456,7 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(120)
-  let packages = filterPackagesWithFutureDepartures((raw || []) as Package[])
+  let packages = (raw || []) as Package[]
   if (packages.length === 0) return { packages: [], interestCounts: {} }
 
   const ids = packages.map(p => p.id)
@@ -534,8 +505,7 @@ export const getWanderActivityRow = unstable_cache(async function (): Promise<Se
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  const visible = ((data || []) as ServiceListing[]).filter(l => isActivityVisibleToPublic(l))
-  return visible.slice(0, 4)
+  return ((data || []) as ServiceListing[]).slice(0, 4)
 }, ['wander-activity-row'], { revalidate: 60 })
 
 export const getWanderStayRow = unstable_cache(async function (): Promise<ServiceListing[]> {

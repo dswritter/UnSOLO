@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { Package, ServiceListingType } from '@/types'
-import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { fuzzyMatch } from '@/lib/utils'
 import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
 import { getServiceListingsByType } from '@/actions/service-listing-discovery'
@@ -42,16 +41,6 @@ async function fetchTripsPage(
 
   const { data } = await query
   let packages = (data || []) as unknown as Package[]
-
-  const todayStr = new Date().toISOString().split('T')[0]
-  packages = packages.filter(pkg => {
-    if (!pkg.departure_dates || pkg.departure_dates.length === 0) return true
-    const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
-    return pkg.departure_dates.some(d => {
-      const k = tripDepartureDateKey(d)
-      return k >= todayStr && !closed.has(k)
-    })
-  })
 
   if (search && search.trim()) {
     const q = search.trim().toLowerCase()
