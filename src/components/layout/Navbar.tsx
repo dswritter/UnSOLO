@@ -92,6 +92,7 @@ export function Navbar({ user }: NavbarProps) {
   // Previously: unfiltered messages INSERT + chat_room_members query on *every* message app-wide.
   useEffect(() => {
     if (!user) return
+    const viewerId = user.id
 
     const supabase = createClient()
     let channel: ReturnType<typeof supabase.channel> | null = null
@@ -110,7 +111,7 @@ export function Navbar({ user }: NavbarProps) {
           : `room_id=in.(${roomIds.join(',')})`
 
       channel = supabase
-        .channel(`navbar-unread:${user.id}`)
+        .channel(`navbar-unread:${viewerId}`)
         .on(
           'postgres_changes',
           {
@@ -121,7 +122,7 @@ export function Navbar({ user }: NavbarProps) {
           },
           (payload: { new: Record<string, unknown> }) => {
             const msg = payload.new as { user_id: string; message_type: string }
-            if (msg.user_id === user.id || msg.message_type === 'system') return
+            if (msg.user_id === viewerId || msg.message_type === 'system') return
             const p = pathnameRef.current
             if (!p?.startsWith('/community') && !p?.startsWith('/tribe')) {
               setUnreadChatCount(prev => prev + 1)
@@ -135,7 +136,7 @@ export function Navbar({ user }: NavbarProps) {
       const { data } = await supabase
         .from('chat_room_members')
         .select('room_id')
-        .eq('user_id', user.id)
+        .eq('user_id', viewerId)
       if (cancelled) return
       const roomIds = [...new Set((data ?? []).map(r => r.room_id).filter(Boolean))] as string[]
       subscribe(roomIds)
