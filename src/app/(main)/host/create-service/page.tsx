@@ -66,7 +66,7 @@ export default async function CreateServiceListingPage({
           <p className="text-sm text-muted-foreground">
             {type === 'stays' && 'List your property or room for travelers to book'}
             {type === 'activities' && 'Share your expertise by hosting guided tours or experiences'}
-            {type === 'rentals' && 'Rent out vehicles, equipment, or other items'}
+            {type === 'rentals' && 'List gear, sports equipment, vehicles, or anything travelers can rent'}
             {type === 'getting_around' && 'Offer transportation and getting around services'}
           </p>
         </div>

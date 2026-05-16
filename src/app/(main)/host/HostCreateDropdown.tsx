@@ -51,7 +51,7 @@ export function HostCreateDropdown() {
         {/* Rentals */}
         <DropdownMenuItem onClick={() => router.push('/host/create-service?type=rentals')} className="flex flex-col items-start cursor-pointer">
           <span className="font-semibold text-sm">Rentals</span>
-          <span className="text-xs text-muted-foreground">Rent vehicles or equipment</span>
+          <span className="text-xs text-muted-foreground">Rent gear, bikes, sports equipment, and more</span>
         </DropdownMenuItem>
 
         {/* Getting Around — hidden until inventory is sufficient */}

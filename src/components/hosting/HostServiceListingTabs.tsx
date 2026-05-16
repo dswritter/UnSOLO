@@ -121,11 +121,13 @@ const TYPE_CONFIG: Record<ServiceListingType, {
   rentals: {
     heading: 'Rental',
     titleLabel: 'Shop / business name',
-    titleHint: 'Your rental business name — not a single vehicle. Individual cars/bikes go in as items below.',
-    titlePlaceholder: 'e.g., Manali Car Rentals, Leh Bike Hub',
-    itemNamePlaceholder: 'e.g., Maruti Alto (white) / Royal Enfield Classic 350',
+    titleHint:
+      'Name your rental shop or business—not a single product title. Anything guests rent (gear, tents, bikes, scooters, cameras, skis, …) belongs in Items below.',
+    titlePlaceholder: 'e.g., Manali Camping Gear, Leh Bike Hub, Beach Equipment Rentals',
+    itemNamePlaceholder:
+      'e.g., Quechua 2-person tent / Sleeping bag −5°C / Yamaha R15 (silver)',
     defaultUnit: 'per_day',
-    suggestedAmenities: ['Insurance', 'Fuel', 'Free mileage', 'GPS'],
+    suggestedAmenities: ['Pickup available', 'Deposit or ID required', 'Includes accessories', 'Sizing or setup help'],
     unitOptions: [
       { value: 'per_day', label: 'Per day' },
       { value: 'per_hour', label: 'Per hour' },
