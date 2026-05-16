@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       { source: '/profile_v2/:username', destination: '/profile/:username', permanent: true },
     ]
   },
+  async headers() {
+    return [
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [{ key: 'Content-Type', value: 'application/json' }],
+      },
+    ]
+  },
   async rewrites() {
     return [
       { source: '/community', destination: '/tribe' },

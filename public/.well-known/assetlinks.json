@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.unsolo.app",
+      "sha256_cert_fingerprints": [
+        "FB:EB:6F:BD:FE:D8:CA:0E:1C:60:F3:74:E1:D6:3A:40:9E:73:86:C6:76:BD:9B:FF:B5:1D:DF:D8:C3:BE:40:73"
+      ]
+    }
+  }
+]
