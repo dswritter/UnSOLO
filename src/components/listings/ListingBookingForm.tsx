@@ -57,6 +57,20 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const upcomingSchedule = (listing.type === 'activities' && listing.event_schedule)
     ? listing.event_schedule.filter(e => e.date >= todayStr)
     : null
+  const pastSchedule = (listing.type === 'activities' && listing.event_schedule)
+    ? listing.event_schedule.filter(e => e.date < todayStr).sort((a, b) => b.date.localeCompare(a.date))
+    : []
+  function scrollToListingReviewsAnchor() {
+    const nodes = document.querySelectorAll<HTMLElement>('[data-listing-reviews]')
+    for (const el of nodes) {
+      if (el.offsetParent !== null || el.getClientRects().length > 0) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        return
+      }
+    }
+    nodes[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const singleScheduledDate = upcomingSchedule && upcomingSchedule.length === 1
     ? upcomingSchedule[0].date
     : ''
@@ -473,6 +487,36 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {listing.type === 'activities' && pastSchedule.length > 0 && (
+        <div className="space-y-2 border-t border-border/50 pt-3">
+          <span className="text-xs font-medium text-muted-foreground">Past dates (not bookable)</span>
+          <div className="grid grid-cols-2 gap-2">
+            {pastSchedule.map(entry => (
+              <button
+                key={entry.date}
+                type="button"
+                onClick={scrollToListingReviewsAnchor}
+                className="rounded-lg border border-border/60 bg-secondary/25 px-2.5 py-2 text-left text-xs text-muted-foreground transition-opacity hover:opacity-100 opacity-85"
+              >
+                <span className="font-medium">
+                  {new Date(entry.date).toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                </span>
+                {entry.slots && entry.slots.length > 0 && (
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground/90">
+                    {entry.slots.map(s => `${s.start}–${s.end}`).join(', ')}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">Tap to jump to ratings and details on the page.</p>
         </div>
       )}
 

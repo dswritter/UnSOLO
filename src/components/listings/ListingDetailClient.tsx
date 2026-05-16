@@ -160,37 +160,90 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
       )}
       {listing.type === 'activities' && listing.event_schedule && listing.event_schedule.length > 0 && (() => {
         const today = new Date().toISOString().slice(0, 10)
-        const upcoming = listing.event_schedule.filter(e => e.date >= today)
-        const source = upcoming.length > 0 ? upcoming : listing.event_schedule
+        const upcoming = listing.event_schedule
+          .filter(e => e.date >= today)
+          .sort((a, b) => a.date.localeCompare(b.date))
+        const past = listing.event_schedule
+          .filter(e => e.date < today)
+          .sort((a, b) => b.date.localeCompare(a.date))
+
+        function scrollToRatings() {
+          const nodes = document.querySelectorAll<HTMLElement>('[data-listing-reviews]')
+          for (const el of nodes) {
+            if (el.offsetParent !== null || el.getClientRects().length > 0) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              return
+            }
+          }
+          nodes[0]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+
         return (
-          <div className="mt-4 space-y-2">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              {upcoming.length > 0 ? 'Upcoming dates' : 'Event dates'}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {source.map(entry => (
-                <div
-                  key={entry.date}
-                  className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs"
-                >
-                  <span className="font-medium">
-                    {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                  {entry.slots && entry.slots.length > 0 ? (
-                    entry.slots.map(s => (
-                      <span key={`${s.start}-${s.end}`} className="text-muted-foreground">
-                        {s.start}–{s.end}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-muted-foreground">All day</span>
-                  )}
+          <div className="mt-4 space-y-4">
+            {upcoming.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Upcoming dates
                 </div>
-              ))}
-            </div>
-            {upcoming.length === 0 && (
+                <div className="flex flex-col gap-1.5">
+                  {upcoming.map(entry => (
+                    <div
+                      key={entry.date}
+                      className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs"
+                    >
+                      <span className="font-medium text-foreground">
+                        {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      {entry.slots && entry.slots.length > 0 ? (
+                        entry.slots.map(s => (
+                          <span key={`${s.start}-${s.end}`} className="text-muted-foreground">
+                            {s.start}–{s.end}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground">All day</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {past.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Past dates
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {past.map(entry => (
+                    <button
+                      key={entry.date}
+                      type="button"
+                      onClick={scrollToRatings}
+                      className="rounded-lg border border-border/70 bg-muted/20 px-2.5 py-1.5 text-left text-xs text-muted-foreground opacity-80 transition-opacity hover:border-primary/35 hover:opacity-100"
+                    >
+                      <span className="font-medium">
+                        {new Date(entry.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      {entry.slots && entry.slots.length > 0 ? (
+                        <span className="mt-0.5 block text-[10px] text-muted-foreground/90">
+                          {entry.slots.map(s => `${s.start}–${s.end}`).join(', ')}
+                        </span>
+                      ) : (
+                        <span className="mt-0.5 block text-[10px] text-muted-foreground/80">All day</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Past editions — tap a date to jump to ratings and booking details below.
+                </p>
+              </div>
+            )}
+
+            {upcoming.length === 0 && past.length > 0 && (
               <p className="text-xs text-amber-400/90">
-                All dates for this activity have passed.
+                No upcoming dates scheduled right now.
               </p>
             )}
           </div>
@@ -383,7 +436,9 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
         {rentalMulti && (
           <div className="lg:hidden space-y-4">
             {titleAndLocation}
-            {ratingRow}
+            <div data-listing-reviews className="scroll-mt-24">
+              {ratingRow}
+            </div>
             {items.length > 0 && (
               <div id="listing-items-picker">
                 <h2 className="text-xl font-bold mb-3">{itemsHeading}</h2>
@@ -407,8 +462,10 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
         {/* Title & location */}
         <div className={cn(rentalMulti && 'hidden lg:block')}>{titleAndLocation}</div>
 
-        {/* Rating & reviews */}
-        <div className={cn(rentalMulti && 'hidden lg:block')}>{ratingRow}</div>
+        {/* Rating & reviews — data-listing-reviews: scroll target from past activity dates */}
+        <div data-listing-reviews className={cn('scroll-mt-24', rentalMulti && 'hidden lg:block')}>
+          {ratingRow}
+        </div>
 
         {/* Rentals: choose items early on desktop (before long About / map) */}
         {rentalMulti && items.length > 0 && (

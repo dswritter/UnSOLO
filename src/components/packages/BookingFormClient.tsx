@@ -242,13 +242,17 @@ export function BookingFormClient({
   const payFullForTokenTrip = needsTokenVsFullChoice && tokenPayMode === 'full'
   const dueNowDisplayPaise = payFullForTokenTrip ? tripTotalAfterDiscounts : tokenFirstSlicePaise ?? tripTotalAfterDiscounts
   const balanceLaterDisplayPaise = Math.max(0, tripTotalAfterDiscounts - dueNowDisplayPaise)
+  // All departure dates; bookable subset is future only — past listed separately
+  const allDates = departureDates || []
   const today = new Date().toISOString().split('T')[0]
+  const futureDates = allDates.filter((d) => d >= today)
+  const pastDates = allDates.filter((d) => d < today).sort((a, b) => b.localeCompare(a))
+
   const maxDate = getMaxDate()
 
-  // All departure dates (past dates shown as disabled)
-  const allDates = departureDates || []
-  // Today and future dates are bookable
-  const futureDates = allDates.filter((d) => d >= today)
+  function scrollToTripReviews() {
+    document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   useEffect(() => {
     if (variantTiers && variantTiers.length >= 2) {
@@ -621,42 +625,69 @@ export function BookingFormClient({
               <p className="text-xs text-primary">Select one departure to continue.</p>
             )}
             {allDates.length > 0 ? (
-              <div className="grid gap-2">
-                {allDates.map((date) => {
-                  const isPast = date < today
-                  const slots = availableSlots[date] ?? maxGroupSize
-                  const soldOut = !isPast && slots <= 0
-                  const isDisabled = isPast || soldOut
-                  return (
-                  <button
-                    key={date}
-                    onClick={() => {
-                      if (isDisabled) return
-                      setSelectedDate(date)
-                      setMissingChoiceHint((current) => (current === 'date' ? null : current))
-                    }}
-                    disabled={isDisabled}
-                    className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
-                      isPast
-                        ? 'opacity-40 cursor-not-allowed border-border bg-secondary/20 line-through'
-                        : soldOut
-                        ? 'opacity-40 cursor-not-allowed border-border bg-secondary/30'
-                        : selectedDate === date
-                        ? 'border-primary bg-primary/15 text-foreground font-medium'
-                        : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                    }`}
-                  >
-                    <span className="flex items-center justify-between w-full">
-                      <span>{travelRangeLabel(date)}</span>
-                      <span className={`text-[10px] font-medium ${
-                        isPast ? 'text-muted-foreground' : soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'
-                      }`}>
-                        {isPast ? 'Passed' : soldOut ? 'Sold out' : `${slots} spots left`}
-                      </span>
-                    </span>
-                  </button>
-                  )
-                })}
+              <div className="space-y-4">
+                {futureDates.length > 0 ? (
+                  <div className="grid gap-2">
+                    {futureDates.map((date) => {
+                      const slots = availableSlots[date] ?? maxGroupSize
+                      const soldOut = slots <= 0
+                      const isDisabled = soldOut
+                      return (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => {
+                            if (isDisabled) return
+                            setSelectedDate(date)
+                            setMissingChoiceHint((current) => (current === 'date' ? null : current))
+                          }}
+                          disabled={isDisabled}
+                          className={`text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                            soldOut
+                              ? 'opacity-40 cursor-not-allowed border-border bg-secondary/30'
+                              : selectedDate === date
+                                ? 'border-primary bg-primary/15 text-foreground font-medium'
+                                : 'border-border bg-secondary/30 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between w-full">
+                            <span>{travelRangeLabel(date)}</span>
+                            <span
+                              className={`text-[10px] font-medium ${
+                                soldOut ? 'text-red-400' : slots <= 3 ? 'text-yellow-400' : 'text-green-400'
+                              }`}
+                            >
+                              {soldOut ? 'Sold out' : `${slots} spots left`}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground py-1">No upcoming departures.</p>
+                )}
+                {pastDates.length > 0 && (
+                  <div className="space-y-2 border-t border-border/50 pt-3">
+                    <span className="text-xs font-medium text-muted-foreground">Past departures</span>
+                    <div className="grid gap-2">
+                      {pastDates.map(date => (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={scrollToTripReviews}
+                          className="text-left px-3 py-2.5 rounded-lg border border-border/60 bg-secondary/25 text-sm text-muted-foreground opacity-85 transition-opacity hover:opacity-100"
+                        >
+                          <span className="flex items-center justify-between w-full">
+                            <span>{travelRangeLabel(date)}</span>
+                            <span className="text-[10px] font-medium text-muted-foreground">Ended</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">Tap a past departure to jump to reviews below.</p>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground py-2">
