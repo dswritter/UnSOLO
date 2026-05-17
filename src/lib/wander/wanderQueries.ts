@@ -140,7 +140,7 @@ function sanitizeHeroFontSize(raw: unknown): string | null {
 }
 
 /** Headline lines + subtitle from platform_settings; falsy fields fall back to product defaults. */
-export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
+export const getWanderHeroCopy = unstable_cache(async function (): Promise<WanderHeroCopy> {
   const defaults = (): WanderHeroCopy => ({
     line1: DEFAULT_WANDER_HERO_LINE1,
     line2Before: DEFAULT_WANDER_LINE2_BEFORE,
@@ -255,7 +255,7 @@ export async function getWanderHeroCopy(): Promise<WanderHeroCopy> {
     /* Supabase down */
   }
   return defaults()
-}
+}, ['wander-hero-copy'], { revalidate: 300 })
 
 
 const DEFAULT_WANDER_HERO =
@@ -268,7 +268,7 @@ function svc() {
 }
 
 /** Hero background for /wander — from Admin → platform_settings. */
-export async function getWanderHeroImageUrl(): Promise<string> {
+export const getWanderHeroImageUrl = unstable_cache(async function (): Promise<string> {
   try {
     const supabase = await createServerClient()
     const { data } = await supabase.from('platform_settings').select('value').eq('key', 'wander_hero_image_url').maybeSingle()
@@ -278,10 +278,10 @@ export async function getWanderHeroImageUrl(): Promise<string> {
     /* Supabase down */
   }
   return DEFAULT_WANDER_HERO
-}
+}, ['wander-hero-image-url'], { revalidate: 300 })
 
 /** Top-left pill on /wander — from platform_settings; empty = default copy. */
-export async function getWanderTrustBadgeText(): Promise<string> {
+export const getWanderTrustBadgeText = unstable_cache(async function (): Promise<string> {
   try {
     const supabase = await createServerClient()
     const { data } = await supabase
@@ -295,7 +295,7 @@ export async function getWanderTrustBadgeText(): Promise<string> {
     /* Supabase down */
   }
   return DEFAULT_WANDER_TRUST_BADGE_TEXT
-}
+}, ['wander-trust-badge-text'], { revalidate: 300 })
 
 /**
  * Distinct activity labels from live listings: tags + metadata.activity_category.

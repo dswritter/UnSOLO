@@ -11,13 +11,19 @@ import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListing
 import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 
-export async function WanderListingRowsServer({
-  profileAvatar,
-  userId,
-}: {
-  profileAvatar: string | null
-  userId: string | null
-}) {
+export async function WanderListingRowsServer() {
+  const { supabase, user } = await getRequestAuth()
+  let profileAvatar: string | null = null
+  if (user) {
+    const { data: p } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', user.id)
+      .single()
+    profileAvatar = p?.avatar_url ?? null
+  }
+  const userId = user?.id ?? null
+
   const [tp, stayListings, actListings, rentListings] = await Promise.all([
     getWanderTripRow(),
     getWanderStayRow(),
@@ -33,7 +39,6 @@ export async function WanderListingRowsServer({
 
   let landingInterestedPackageIds: string[] = []
   if (userId && tp.packages.length > 0) {
-    const { supabase } = await getRequestAuth()
     const { data: interests } = await supabase
       .from('package_interests')
       .select('package_id')
