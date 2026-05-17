@@ -243,49 +243,10 @@ export function Navbar({ user }: NavbarProps) {
     if (hasOwnHeader || !user) return null
 
     // For every other page (Leaderboard, Community list, Offers, Hosting…):
-    // a fixed overlay — no bar, no background, no UNSOLO text — just bell +
-    // avatar anchored to the top-right corner, identical to the Explore page.
+    // just the notification bell — Profile tab in bottom nav handles profile navigation.
     return (
       <div className="fixed top-3 right-3 z-50 flex items-center gap-1">
         <NotificationBell userId={user.id} wanderNav />
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger className="group inline-flex cursor-pointer items-center rounded-full border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/45">
-            <Avatar className="h-9 w-9 shrink-0 border-2 border-white/20">
-              <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                {getInitials(user.full_name || user.username)}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="glass-modal z-[200] w-60 rounded-xl p-0 text-white shadow-lg ring-0">
-            <div className="px-4 py-3">
-              <p className="text-base font-semibold truncate">{user.full_name || user.username}</p>
-              <p className="text-sm text-white/65">@{user.username}</p>
-            </div>
-            <DropdownMenuSeparator className="bg-white/15" />
-            <DropdownMenuItem className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white" onClick={() => router.push(`/profile/${user.username}`)}>
-              <User className="mr-3 h-4 w-4" /> My Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white" onClick={() => router.push('/profile')}>
-              <Pencil className="mr-3 h-4 w-4" /> Edit Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white" onClick={() => router.push('/bookings')}>
-              <BookOpen className="mr-3 h-4 w-4" /> My Bookings
-            </DropdownMenuItem>
-            <DropdownMenuItem className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white" onClick={() => router.push('/referrals')}>
-              <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
-            </DropdownMenuItem>
-            {user.role && user.role !== 'user' && (
-              <DropdownMenuItem className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white" onClick={() => router.push('/admin')}>
-                <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator className="bg-white/15" />
-            <DropdownMenuItem className="py-2.5 text-sm text-destructive focus:bg-red-500/15 focus:text-red-300" onClick={() => signOut()}>
-              <LogOut className="mr-3 h-4 w-4" /> Sign Out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     )
   }
