@@ -18,15 +18,13 @@ type NavItem = {
 export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; userId?: string | null }) {
   const pathname = usePathname()
 
-  // The Android WebView shell sets "UnsoloAndroid" in the UA and provides its
-  // own native bottom nav. useState(false) + useEffect avoids SSR mismatch:
-  // the nav mounts hidden-by-default on the server, then immediately hides on
-  // the client when the UA token is detected.
+  // ALL hooks must come before any conditional return (Rules of Hooks).
+  // isAndroidShell starts false so SSR and first hydration match; useEffect
+  // flips it true on the client when the UA token is present.
   const [isAndroidShell, setIsAndroidShell] = useState(false)
   useEffect(() => {
     if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
   }, [])
-  if (isAndroidShell) return null
 
   // Unread message badge + conditional label. We mirror the Navbar's realtime
   // subscription so the user sees a counter on the mobile nav even though the
@@ -36,7 +34,7 @@ export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; 
   const [hasRooms, setHasRooms] = useState(false)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId || isAndroidShell) return
     const supabase = createClient()
     let cancelled = false
 
@@ -82,7 +80,7 @@ export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; 
       cancelled = true
       supabase.removeChannel(channel)
     }
-  }, [userId, pathname])
+  }, [userId, pathname, isAndroidShell])
 
   // Clear the badge when the user actually walks into the chat section.
   useEffect(() => {
@@ -90,6 +88,9 @@ export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; 
       setUnreadCount(0)
     }
   }, [pathname])
+
+  // All early returns after all hooks.
+  if (isAndroidShell) return null
 
   // Chat + status routes render their own purpose-built bars. Suppress the
   // global one there so it doesn't overlap the typing input / status grid.
