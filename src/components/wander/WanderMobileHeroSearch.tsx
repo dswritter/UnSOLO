@@ -111,6 +111,7 @@ export function WanderMobileHeroSearch({
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isExplorePending, startExploreTransition] = useTransition()
+  const [isAndroidShell, setIsAndroidShell] = useState(false)
   const [tab, setTab] = useState<Tab | null>(initialTab)
   const [sheetOpen, setSheetOpen] = useState(false)
   const openSheet = useCallback(() => setSheetOpen(true), [])
@@ -129,6 +130,10 @@ export function WanderMobileHeroSearch({
   const [actType, setActType] = useState('')
   const [rentWhere, setRentWhere] = useState('')
   const [rentItem, setRentItem] = useState('')
+
+  useEffect(() => {
+    if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
+  }, [])
 
   useEffect(() => {
     const t = todayLocalIsoDate()
@@ -259,70 +264,72 @@ export function WanderMobileHeroSearch({
             </div>
             <div className="flex items-center gap-2">
               {userProfile ? <NotificationBell userId={userProfile.id} wanderNav /> : null}
-              {userProfile ? (
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger className="shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/45 rounded-full">
-                    <Avatar className="h-9 w-9 border-2 border-white/20">
-                      <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                        {getInitials(userProfile.full_name || userProfile.username)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="z-[200] glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0 min-w-[15rem]">
-                    <div className="px-4 py-3">
-                      <p className="text-base font-semibold truncate">{userProfile.full_name || userProfile.username}</p>
-                      <p className="text-sm text-white/65">@{userProfile.username}</p>
-                    </div>
-                    <DropdownMenuSeparator className="bg-white/15" />
-                    <DropdownMenuItem
-                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                      onClick={() => router.push(`/profile/${userProfile.username}`)}
-                    >
-                      <User className="mr-3 h-4 w-4" /> My Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                      onClick={() => router.push('/profile')}
-                    >
-                      <Pencil className="mr-3 h-4 w-4" /> Edit Profile
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                      onClick={() => router.push('/bookings')}
-                    >
-                      <BookOpen className="mr-3 h-4 w-4" /> My Bookings
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                      onClick={() => router.push('/referrals')}
-                    >
-                      <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
-                    </DropdownMenuItem>
-                    {userProfile.role && userProfile.role !== 'user' && (
+              {!isAndroidShell && (
+                userProfile ? (
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger className="shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/45 rounded-full">
+                      <Avatar className="h-9 w-9 border-2 border-white/20">
+                        <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                          {getInitials(userProfile.full_name || userProfile.username)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="z-[200] glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0 min-w-[15rem]">
+                      <div className="px-4 py-3">
+                        <p className="text-base font-semibold truncate">{userProfile.full_name || userProfile.username}</p>
+                        <p className="text-sm text-white/65">@{userProfile.username}</p>
+                      </div>
+                      <DropdownMenuSeparator className="bg-white/15" />
                       <DropdownMenuItem
                         className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                        onClick={() => router.push('/admin')}
+                        onClick={() => router.push(`/profile/${userProfile.username}`)}
                       >
-                        <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
+                        <User className="mr-3 h-4 w-4" /> My Profile
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator className="bg-white/15" />
-                    <DropdownMenuItem
-                      className="py-2.5 text-sm text-destructive focus:bg-red-500/15 focus:text-red-300"
-                      onClick={() => signOut()}
-                    >
-                      <LogOut className="mr-3 h-4 w-4" /> Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Link
-                  href={`/login?redirectTo=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`)}`}
-                  className="rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md"
-                >
-                  Sign in
-                </Link>
+                      <DropdownMenuItem
+                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                        onClick={() => router.push('/profile')}
+                      >
+                        <Pencil className="mr-3 h-4 w-4" /> Edit Profile
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                        onClick={() => router.push('/bookings')}
+                      >
+                        <BookOpen className="mr-3 h-4 w-4" /> My Bookings
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                        onClick={() => router.push('/referrals')}
+                      >
+                        <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
+                      </DropdownMenuItem>
+                      {userProfile.role && userProfile.role !== 'user' && (
+                        <DropdownMenuItem
+                          className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
+                          onClick={() => router.push('/admin')}
+                        >
+                          <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator className="bg-white/15" />
+                      <DropdownMenuItem
+                        className="py-2.5 text-sm text-destructive focus:bg-red-500/15 focus:text-red-300"
+                        onClick={() => signOut()}
+                      >
+                        <LogOut className="mr-3 h-4 w-4" /> Sign out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Link
+                    href={`/login?redirectTo=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`)}`}
+                    className="rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md"
+                  >
+                    Sign in
+                  </Link>
+                )
               )}
             </div>
           </div>

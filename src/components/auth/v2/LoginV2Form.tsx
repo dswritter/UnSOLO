@@ -69,7 +69,10 @@ function LoginV2FormInner() {
   }, [verified])
 
   useEffect(() => {
+    // Skip auto-focus on Android shell — programmatic focus suppresses the
+    // system autofill dropdown before the user can tap to trigger it.
     if (typeof window === 'undefined' || window.innerWidth >= 1024) return
+    if (navigator.userAgent.includes('UnsoloAndroid')) return
     const t = window.setTimeout(() => {
       const el = document.getElementById('auth-v2-email')
       el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
