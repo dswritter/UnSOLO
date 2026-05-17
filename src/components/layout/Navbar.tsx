@@ -29,6 +29,7 @@ export function Navbar({ user }: NavbarProps) {
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const [hasRooms, setHasRooms] = useState(false)
+  const [isAndroidShell, setIsAndroidShell] = useState(false)
   const mobileChatComposerActive = useMobileChatComposerActive()
   const router = useRouter()
   const pathname = usePathname()
@@ -226,6 +227,12 @@ export function Navbar({ user }: NavbarProps) {
       supabase.removeChannel(ch)
     }
   }, [user])
+
+  useEffect(() => {
+    if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
+  }, [])
+
+  if (isAndroidShell) return null
 
   const navLinks = [
     { href: '/', label: 'Explore', icon: Compass },
