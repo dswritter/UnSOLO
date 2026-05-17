@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
 import { Navbar } from '@/components/layout/Navbar'
@@ -10,6 +11,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { MainScrollContainer } from '@/components/layout/MainScrollContainer'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
+import { AndroidNavBadge } from '@/components/layout/AndroidNavBadge'
 import type { Profile } from '@/types'
 import { Suspense } from 'react'
 
@@ -18,6 +20,9 @@ export default async function MainLayout({
 }: {
   children: React.ReactNode
 }) {
+  const ua = (await headers()).get('user-agent') ?? ''
+  const isAndroidShell = ua.includes('UnsoloAndroid')
+
   let user: { id: string } | null = null
   let profile: Profile | null = null
   let wanderShellSeason: Awaited<ReturnType<typeof getResolvedWanderShellSeason>> = 'default'
@@ -52,7 +57,8 @@ export default async function MainLayout({
       {user && <PresenceTracker userId={user.id} />}
       {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
       {/* {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />} */}
-      <MobileBottomNav isHost={!!profile?.is_host} userId={user?.id ?? null} />
+      {!isAndroidShell && <MobileBottomNav isHost={!!profile?.is_host} userId={user?.id ?? null} />}
+      {isAndroidShell && user && <AndroidNavBadge userId={user.id} />}
       <Suspense fallback={null}>
         <SignInPrompt isAuthenticated={!!user} />
       </Suspense>
