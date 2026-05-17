@@ -6,11 +6,6 @@ import { WanderExploreSkeleton } from '@/components/wander/WanderExploreSkeleton
 import {
   getWanderStats,
   getWanderRatingHero,
-  getWanderTripRow,
-  getWanderStayRow,
-  getWanderActivityRow,
-  getWanderRentalRow,
-  getWanderServiceItemsForListings,
   getListedActivityFilterOptions,
   getWanderHeroImageUrl,
   getWanderTrustBadgeText,
@@ -20,10 +15,12 @@ import { WanderHero } from '@/components/wander/WanderHero'
 import { WanderMobileHeroCoordinator } from '@/components/wander/WanderMobileHeroCoordinator'
 import { WanderSearchBar } from '@/components/wander/WanderSearchBar'
 import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
-import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListingsSectionsWrapper'
-import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
+import {
+  WanderListingRowsServer,
+  WanderListingRowsSkeleton,
+} from '@/components/wander/WanderListingRowsServer'
 
 export async function WanderLandingPage({
   searchParams,
@@ -73,42 +70,6 @@ export async function WanderLandingPage({
       is_host: !!p.is_host,
       role: p.role ?? null,
     } : null
-  }
-
-  let tripRow: Awaited<ReturnType<typeof getWanderTripRow>> | null = null
-  let stays: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
-  let activities: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
-  let rentals: Awaited<ReturnType<typeof getWanderServiceItemsForListings>> | null = null
-  let landingInterestedPackageIds: string[] = []
-
-  if (!isSearchMode) {
-    const [tp, stayListings, actListings, rentListings] = await Promise.all([
-      getWanderTripRow(),
-      getWanderStayRow(),
-      getWanderActivityRow(),
-      getWanderRentalRow(),
-    ])
-    tripRow = tp
-    const [s, a, r] = await Promise.all([
-      getWanderServiceItemsForListings(stayListings),
-      getWanderServiceItemsForListings(actListings),
-      getWanderServiceItemsForListings(rentListings),
-    ])
-    stays = s
-    activities = a
-    rentals = r
-
-    if (user && tripRow.packages.length > 0) {
-      const { data: interests } = await supabase
-        .from('package_interests')
-        .select('package_id')
-        .eq('user_id', user.id)
-        .in(
-          'package_id',
-          tripRow.packages.map(p => p.id),
-        )
-      landingInterestedPackageIds = (interests || []).map(row => (row as { package_id: string }).package_id)
-    }
   }
 
   return (
@@ -170,58 +131,11 @@ export async function WanderLandingPage({
             <WanderExploreSection sp={sp} searchBasePath={searchBasePath} />
           </Suspense>
         </div>
-      ) : tripRow && stays && activities && rentals ? (
-        <div className="border-t border-border/50">
-          <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
-            <WanderRecentlyViewedStrip />
-            <WanderListingsSectionsWrapper
-              trips={tripRow.packages}
-              tripInterestCounts={tripRow.interestCounts}
-              interestedPackageIds={landingInterestedPackageIds}
-              stays={stays}
-              activities={activities}
-              rentals={rentals}
-              interludeSlot={
-                <div className="md:hidden">
-                  <div className="wander-frost-panel">
-                    {user ? (
-                      <WanderStatusRail avatarUrl={profileAvatar} />
-                    ) : (
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-bold">Traveler status</h3>
-                        <p className="mb-3 text-sm text-muted-foreground">
-                          Sign in to see recent stories from people you follow — unread first.
-                        </p>
-                        <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">
-                          Sign in
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              }
-            />
-            <div className="mt-6 grid gap-3 md:hidden">
-
-              <div className="rounded-2xl border border-white/14 bg-white/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>
-                <h3 className="mt-1 text-lg font-black text-white">Check deals and meet other travellers</h3>
-                <p className="mt-1 text-sm text-white/62">
-                  Save on bundles, or jump into communities while you shape the plan.
-                </p>
-                <div className="mt-4 flex gap-2">
-                  <Link href="/offers" className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">
-                    View Offers
-                  </Link>
-                  <Link href="/community" className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/14 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">
-                    Meet Travellers
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      ) : (
+        <Suspense fallback={<WanderListingRowsSkeleton />}>
+          <WanderListingRowsServer profileAvatar={profileAvatar} userId={user?.id ?? null} />
+        </Suspense>
+      )}
     </div>
   )
 }
