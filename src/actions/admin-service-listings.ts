@@ -3,21 +3,41 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
-import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry } from '@/types'
+import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry, AdminPermissionKey, UserRole } from '@/types'
+import { hasAdminPermission } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 
+/**
+ * Allow anyone whose role grants the `service_listings` permission.
+ * This includes: admin (all permissions), host_onboarding_staff (default),
+ * and custom-role users whose custom_permissions list includes it.
+ */
 async function requireAdmin() {
   const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    supabase
+      .from('team_members')
+      .select('custom_permissions, is_active')
+      .eq('user_id', user.id)
+      .maybeSingle(),
+  ])
 
-  if (profile?.role !== 'admin') throw new Error('Unauthorized — admin only')
+  const role = profile?.role as UserRole | undefined
+  if (!role) throw new Error('Unauthorized')
+
+  const customPermissions: AdminPermissionKey[] =
+    role === 'custom' && membership?.is_active
+      ? ((membership.custom_permissions as AdminPermissionKey[]) ?? [])
+      : []
+
+  if (!hasAdminPermission(role, customPermissions, 'service_listings')) {
+    throw new Error('Unauthorized — service listings permission required')
+  }
+
   return { supabase, user }
 }
 
