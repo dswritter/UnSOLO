@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lucide MessageSquare icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Bubble body -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M21,15 C21,15.53 20.789,16.039 20.414,16.414 C20.039,16.789 19.53,17 19,17 L7,17 L3,21 L3,5 C3,4.47 3.211,3.961 3.586,3.586 C3.961,3.211 4.47,3 5,3 L19,3 C19.53,3 20.039,3.211 20.414,3.586 C20.789,3.961 21,4.47 21,5 Z" />
+</vector>

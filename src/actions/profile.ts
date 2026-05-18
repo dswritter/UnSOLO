@@ -222,14 +222,29 @@ export async function updatePhoneSettings(phone: string, isPublic: boolean) {
   const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
-  const { error } = await supabase
+  // If the user is a verified host and is changing their phone number, we must
+  // revoke is_phone_verified so they go through OTP verification again on the
+  // new number before they can continue hosting.
+  const { data: current } = await supabase
     .from('profiles')
-    .update({ phone_number: phone || null, phone_public: isPublic })
+    .select('phone_number, is_host, is_phone_verified')
     .eq('id', user.id)
+    .single()
+
+  const phoneChanged = phone && current?.phone_number !== phone
+  const needsReverification = phoneChanged && current?.is_host && current?.is_phone_verified
+
+  const update: Record<string, unknown> = { phone_number: phone || null, phone_public: isPublic }
+  if (needsReverification) {
+    update.is_phone_verified = false
+  }
+
+  const { error } = await supabase.from('profiles').update(update).eq('id', user.id)
 
   if (error) return { error: error.message }
   revalidatePath('/profile')
-  return { success: true }
+  revalidatePath('/host')
+  return { success: true, needsReverification: needsReverification ?? false }
 }
 
 export async function requestPhoneAccess(targetUserId: string) {

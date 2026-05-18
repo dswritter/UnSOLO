@@ -1002,3 +1002,101 @@ export async function resubmitTrip(tripId: string) {
   revalidatePath('/admin/community-trips')
   return { success: true }
 }
+
+// ── De-host ──────────────────────────────────────────────────
+
+/**
+ * Check whether the current host has any active / upcoming bookings that would
+ * block them from stepping down. Returns `{ canDehost: true }` or
+ * `{ canDehost: false, reason: string, count: number }`.
+ */
+export async function checkCanDehost() {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { authenticated: false, canDehost: false, reason: 'Not authenticated', count: 0 }
+
+  const today = new Date().toISOString()
+
+  // Trip bookings: confirmed + departure date in the future
+  const { count: tripCount } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id) // bookings WHERE host owns the trip
+    .in('status', ['confirmed', 'pending', 'pending_approval'])
+    .gte('travel_date', today)
+
+  // Better: find bookings on trips hosted by this user
+  const { data: myTrips } = await supabase
+    .from('packages')
+    .select('id')
+    .eq('host_id', user.id)
+
+  const tripIds = (myTrips || []).map((t: { id: string }) => t.id)
+
+  let activeBookingCount = 0
+
+  if (tripIds.length > 0) {
+    const { count: hostedTripBookings } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .in('package_id', tripIds)
+      .in('status', ['confirmed', 'pending', 'pending_approval'])
+      .gte('travel_date', today)
+    activeBookingCount += hostedTripBookings ?? 0
+  }
+
+  // Service listing bookings: confirmed + future
+  const { data: myListings } = await supabase
+    .from('service_listings')
+    .select('id')
+    .eq('host_id', user.id)
+
+  const listingIds = (myListings || []).map((l: { id: string }) => l.id)
+
+  if (listingIds.length > 0) {
+    const { count: serviceBookings } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .in('service_listing_id', listingIds)
+      .in('status', ['confirmed', 'pending', 'pending_approval'])
+      .or(`check_in_date.gte.${today},booking_slot_start.gte.${today}`)
+    activeBookingCount += serviceBookings ?? 0
+  }
+
+  if (activeBookingCount > 0) {
+    return {
+      authenticated: true,
+      canDehost: false,
+      reason: `You have ${activeBookingCount} active or upcoming booking${activeBookingCount === 1 ? '' : 's'}. All bookings must be completed or cancelled before you can step down as a host.`,
+      count: activeBookingCount,
+    }
+  }
+
+  return { authenticated: true, canDehost: true, reason: '', count: 0 }
+}
+
+/**
+ * Remove host status. Only succeeds if there are no active bookings.
+ * `keepPhonePublic` controls whether phone_public is set to true or false.
+ */
+export async function deactivateHostStatus(keepPhonePublic: boolean) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Re-check bookings server-side (never trust client)
+  const guard = await checkCanDehost()
+  if (!guard.canDehost) return { error: guard.reason }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      is_host: false,
+      phone_public: keepPhonePublic,
+    })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/host')
+  revalidatePath('/profile')
+  return { success: true }
+}

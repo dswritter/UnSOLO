@@ -1,0 +1,78 @@
+[
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/xml_network_security_config.xml.flat",
+        "source": "com.unsolo.app-main-51:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/xml_data_extraction_rules.xml.flat",
+        "source": "com.unsolo.app-main-51:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_stat_unsolo.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_stat_unsolo.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_leaderboard.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_leaderboard.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_launcher_legacy.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_launcher_legacy.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_top_bar_back.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_top_bar_back.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/layout_activity_main.xml.flat",
+        "source": "com.unsolo.app-main-51:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/color_nav_icon_selector.xml.flat",
+        "source": "com.unsolo.app-main-51:/color/nav_icon_selector.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_hosting.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_hosting.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_explore.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_explore.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_offers.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_offers.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_community.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_community.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_warning.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_warning.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/layout_fragment_web_shell.xml.flat",
+        "source": "com.unsolo.app-main-51:/layout/fragment_web_shell.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_ic_nav_profile.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/ic_nav_profile.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/xml_backup_rules.xml.flat",
+        "source": "com.unsolo.app-main-51:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/menu_bottom_nav_menu.xml.flat",
+        "source": "com.unsolo.app-main-51:/menu/bottom_nav_menu.xml"
+    },
+    {
+        "merged": "com.unsolo.app-prodDebug-49:/drawable_bg_skeleton_block.xml.flat",
+        "source": "com.unsolo.app-main-51:/drawable/bg_skeleton_block.xml"
+    }
+]

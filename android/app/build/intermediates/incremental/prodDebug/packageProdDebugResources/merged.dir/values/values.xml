@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="nav_active">#FCD34D</color>
+    <color name="nav_inactive">#FFFFFF</color>
+    <color name="shimmer_base">#3F3F46</color>
+    <color name="shimmer_highlight">#71717A</color>
+    <color name="unsolo_accent">#FCD34D</color>
+    <color name="unsolo_launcher_bg">#134E4A</color>
+    <color name="unsolo_nav_bg">#09090B</color>
+    <color name="unsolo_on_primary">#022C22</color>
+    <color name="unsolo_text_primary">#FFFFFF</color>
+    <string name="app_name">UnSOLO</string>
+    <string name="blocked_navigation">Opening in browser…</string>
+    <string name="channel_push_desc">Booking alerts and trip notifications</string>
+    <string name="channel_push_name">Trips and updates</string>
+    <string name="download_started">Downloading…</string>
+    <string name="error_body">Check your connection and try again.</string>
+    <string name="error_retry">Try again</string>
+    <string name="error_title">Couldn\'t load page</string>
+    <string name="file_chooser_title">Choose files</string>
+    <string name="notifications_os_settings_hint">Enable notifications from Android settings for booking alerts.</string>
+    <string name="ssl_error">Secure connection error. Blocked load.</string>
+    <string name="tab_community">Community</string>
+    <string name="tab_explore">Explore</string>
+    <string name="tab_hosting">Hosting</string>
+    <string name="tab_leaderboard">Leaderboard</string>
+    <string name="tab_offers">Offers</string>
+    <string name="tab_profile">Profile</string>
+    <style name="NavLabelTextAppearance" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textSize">10sp</item>
+    </style>
+    <style name="Theme.Unsolo" parent="Theme.Material3.DayNight.NoActionBar">
+        
+        <item name="android:statusBarColor">@color/unsolo_launcher_bg</item>
+        
+        <item name="android:navigationBarColor">@color/unsolo_nav_bg</item>
+        <item name="colorPrimary">@color/unsolo_accent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <style name="Theme.Unsolo.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/unsolo_launcher_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Unsolo</item>
+    </style>
+</resources>

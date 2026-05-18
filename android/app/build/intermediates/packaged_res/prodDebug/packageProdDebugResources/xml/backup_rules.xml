@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Keep conservative defaults; WebView session lives in app storage. -->
+</resources>

@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.unsolo.app-mergeProdDebugResources-48:/layout/activity_main.xml",
+        "source": "com.unsolo.app-main-51:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.unsolo.app-mergeProdDebugResources-48:/layout/fragment_web_shell.xml",
+        "source": "com.unsolo.app-main-51:/layout/fragment_web_shell.xml"
+    }
+]

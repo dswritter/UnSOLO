@@ -14,6 +14,7 @@ import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
 import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
 import { ToggleServiceListingButton } from './ToggleServiceListingButton'
+import { StopHostingPanel } from '@/components/host/StopHostingPanel'
 import type { ServiceListing } from '@/types'
 import { Wallet, AlertTriangle } from 'lucide-react'
 
@@ -216,6 +217,7 @@ export default async function HostDashboardPage() {
             </div>
           </section>
         )}
+        <StopHostingPanel />
       </div>
   )
 }

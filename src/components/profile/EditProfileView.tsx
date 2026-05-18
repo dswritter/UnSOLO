@@ -14,7 +14,8 @@ import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getInitials } from '@/lib/utils'
-import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock } from 'lucide-react'
+import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { LocationSearch } from '@/components/profile/LocationSearch'
 import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
@@ -40,6 +41,7 @@ export function EditProfileView({
   profileBasePath = '/profile',
   initialProfile = null,
 }: EditProfileViewProps) {
+  const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(() => initialProfile ?? null)
   const [loading, setLoading] = useState(false)
   const [showAvatarPicker, setShowAvatarPicker] = useState(false)
@@ -53,6 +55,7 @@ export function EditProfileView({
 
   // Phone settings
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [originalPhoneNumber, setOriginalPhoneNumber] = useState('')
   const [phonePublic, setPhonePublic] = useState(false)
   const [phoneSaving, setPhoneSaving] = useState(false)
 
@@ -82,7 +85,9 @@ export function EditProfileView({
           if (p) setProfile(p)
           if (p) {
             setNewUsername(p.username)
-            setPhoneNumber((p as Record<string, unknown>).phone_number as string || '')
+            const savedPhone = (p as Record<string, unknown>).phone_number as string || ''
+            setPhoneNumber(savedPhone)
+            setOriginalPhoneNumber(savedPhone)
             setPhonePublic((p as Record<string, unknown>).phone_public as boolean || false)
             setTripsPrivate((p as Record<string, unknown>).trips_private as boolean || false)
             setStatesPrivate((p as Record<string, unknown>).states_private as boolean || false)
@@ -194,8 +199,16 @@ export function EditProfileView({
   async function handlePhoneSave() {
     setPhoneSaving(true)
     const result = await updatePhoneSettings(phoneNumber, phonePublic)
-    if (result.error) toast.error(result.error)
-    else toast.success('Phone settings saved!')
+    if (result.error) {
+      toast.error(result.error)
+    } else if (result.needsReverification) {
+      setOriginalPhoneNumber(phoneNumber)
+      toast.success('Phone number updated. Please re-verify your new number to keep your host status active.')
+      router.push('/host/verify')
+    } else {
+      setOriginalPhoneNumber(phoneNumber)
+      toast.success('Phone settings saved!')
+    }
     setPhoneSaving(false)
   }
 
@@ -408,6 +421,13 @@ export function EditProfileView({
                   </button>
                 </div>
               </div>
+              {/* Re-verification warning for hosts changing their number */}
+              {profile?.is_host && phoneNumber && phoneNumber !== originalPhoneNumber && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-300" />
+                  <span>As a host, changing your number will require re-verification via OTP before you can manage new bookings.</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
                   {phonePublic ? 'Everyone can see your phone number' : 'Others must request access to see your number'}

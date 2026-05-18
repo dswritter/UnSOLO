@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never" />
+
+    <!-- Shimmer skeleton: shown while the WebView renders its first paint.
+         Zinc-700 blocks on zinc-950 background with a zinc-500 sweep —
+         the same contrast ratio Facebook/Instagram use. Hides on onPageFinished. -->
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/shimmer_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/unsolo_nav_bg"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Hero / banner block -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:background="@drawable/bg_skeleton_block" />
+
+            <View android:layout_width="match_parent" android:layout_height="16dp" />
+
+            <!-- Page title line -->
+            <View
+                android:layout_width="200dp"
+                android:layout_height="18dp"
+                android:background="@drawable/bg_skeleton_block" />
+
+            <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+            <!-- Sub-title line -->
+            <View
+                android:layout_width="280dp"
+                android:layout_height="13dp"
+                android:background="@drawable/bg_skeleton_block" />
+
+            <View android:layout_width="match_parent" android:layout_height="20dp" />
+
+            <!-- Section label -->
+            <View
+                android:layout_width="130dp"
+                android:layout_height="14dp"
+                android:background="@drawable/bg_skeleton_block" />
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Horizontal card strip -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="110dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+                <View android:layout_width="10dp" android:layout_height="match_parent" />
+
+                <View
+                    android:layout_width="110dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+                <View android:layout_width="10dp" android:layout_height="match_parent" />
+
+                <View
+                    android:layout_width="110dp"
+                    android:layout_height="90dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="20dp" />
+
+            <!-- Section label 2 -->
+            <View
+                android:layout_width="160dp"
+                android:layout_height="14dp"
+                android:background="@drawable/bg_skeleton_block" />
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Content row 1 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+                <View android:layout_width="12dp" android:layout_height="match_parent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="14dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                    <View android:layout_width="match_parent" android:layout_height="6dp" />
+
+                    <View
+                        android:layout_width="140dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Content row 2 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+                <View android:layout_width="12dp" android:layout_height="match_parent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="14dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                    <View android:layout_width="match_parent" android:layout_height="6dp" />
+
+                    <View
+                        android:layout_width="160dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="12dp" />
+
+            <!-- Content row 3 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_skeleton_block" />
+
+                <View android:layout_width="12dp" android:layout_height="match_parent" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="14dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                    <View android:layout_width="match_parent" android:layout_height="6dp" />
+
+                    <View
+                        android:layout_width="120dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/bg_skeleton_block" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+    <!-- Native error view: replaces the browser's built-in "page could not be loaded"
+         message so the app feels native even when offline. Retry resets the shimmer. -->
+    <LinearLayout
+        android:id="@+id/error_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/unsolo_nav_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="40dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@drawable/ic_warning"
+            android:contentDescription="@null" />
+
+        <View android:layout_width="match_parent" android:layout_height="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/error_title"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <View android:layout_width="match_parent" android:layout_height="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/error_body"
+            android:textColor="#71717A"
+            android:textSize="15sp"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.4" />
+
+        <View android:layout_width="match_parent" android:layout_height="32dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_retry"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/error_retry"
+            android:textColor="@color/unsolo_accent"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            app:strokeColor="@color/unsolo_accent"
+            app:cornerRadius="24dp" />
+
+    </LinearLayout>
+
+    <!-- Gold progress bar: shown on navigations after first paint. -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/page_load_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:indicatorColor="@color/unsolo_accent"
+        app:trackColor="@android:color/transparent"
+        app:trackThickness="3dp" />
+
+</FrameLayout>

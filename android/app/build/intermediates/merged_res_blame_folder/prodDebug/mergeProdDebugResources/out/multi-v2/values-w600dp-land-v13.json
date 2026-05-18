@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.unsolo.app-mergeProdDebugResources-47:/values-w600dp-land-v13/values-w600dp-land-v13.xml",
+            "map": [
+                {
+                    "source": "/Users/dharmendras/.gradle/caches/8.10.2/transforms/06d21a6d550c646783349c94063d3fee/transformed/material-1.12.0/res/values-w600dp-land-v13/values-w600dp-land-v13.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "54",
+                        "endOffsets": "105"
+                    }
+                }
+            ]
+        }
+    ]
+}
