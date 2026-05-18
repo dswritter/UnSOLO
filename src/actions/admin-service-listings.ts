@@ -12,14 +12,19 @@ import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-book
  * Allow anyone whose role grants the `service_listings` permission.
  * This includes: admin (all permissions), host_onboarding_staff (default),
  * and custom-role users whose custom_permissions list includes it.
+ *
+ * Returns the SERVICE-ROLE client so queries bypass RLS — the permission
+ * check above is the app-level gate; we must not let Supabase RLS silently
+ * block non-admin staff who legitimately have this permission.
  */
 async function requireAdmin() {
-  const { supabase, user } = await getActionAuth()
+  const { supabase: userClient, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
+  // Use user client only for the permission check (reads own profile/membership)
   const [{ data: profile }, { data: membership }] = await Promise.all([
-    supabase.from('profiles').select('role').eq('id', user.id).single(),
-    supabase
+    userClient.from('profiles').select('role').eq('id', user.id).single(),
+    userClient
       .from('team_members')
       .select('custom_permissions, is_active')
       .eq('user_id', user.id)
@@ -38,6 +43,9 @@ async function requireAdmin() {
     throw new Error('Unauthorized — service listings permission required')
   }
 
+  // Return service-role client for all subsequent queries so RLS doesn't
+  // silently block staff members whose DB role isn't 'admin'.
+  const supabase = await createServiceClient()
   return { supabase, user }
 }
 
