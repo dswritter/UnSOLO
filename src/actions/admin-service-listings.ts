@@ -26,13 +26,23 @@ async function requireAdmin() {
     userClient.from('profiles').select('role').eq('id', user.id).single(),
     userClient
       .from('team_members')
-      .select('custom_permissions, is_active')
+      .select('role, custom_permissions, is_active')
       .eq('user_id', user.id)
       .maybeSingle(),
   ])
 
-  const role = profile?.role as UserRole | undefined
-  if (!role) throw new Error('Unauthorized')
+  // Resolve effective role the same way AdminShell does: profile.role first,
+  // fall back to team_members.role. This handles the case where the profile
+  // row hasn't been synced yet and still reads 'user'.
+  const STAFF: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom']
+  const profileRole = profile?.role as UserRole | undefined
+  const memberRole = membership?.is_active && membership.role ? (membership.role as UserRole) : undefined
+  const role: UserRole | undefined =
+    profileRole && STAFF.includes(profileRole) ? profileRole
+    : memberRole && STAFF.includes(memberRole) ? memberRole
+    : undefined
+
+  if (!role) throw new Error('Unauthorized — staff access required')
 
   const customPermissions: AdminPermissionKey[] =
     role === 'custom' && membership?.is_active
