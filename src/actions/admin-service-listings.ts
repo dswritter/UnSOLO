@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry, AdminPermissionKey, UserRole } from '@/types'
 import { hasAdminPermission } from '@/types'
@@ -18,13 +18,19 @@ import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-book
  * block non-admin staff who legitimately have this permission.
  */
 async function requireAdmin() {
-  const { supabase: userClient, user } = await getActionAuth()
+  const { user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
-  // Use user client only for the permission check (reads own profile/membership)
+  // CRITICAL: use service-role client even for the permission check itself.
+  // If team_members has restrictive RLS, the user's JWT can't read its own
+  // row, and our role-resolution falls back to profile.role which may still
+  // be 'user' if the profile sync hasn't happened. Service-role bypasses RLS
+  // entirely so we can authoritatively check the user's role.
+  const svc = createServiceRoleClient()
+
   const [{ data: profile }, { data: membership }] = await Promise.all([
-    userClient.from('profiles').select('role').eq('id', user.id).single(),
-    userClient
+    svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    svc
       .from('team_members')
       .select('role, custom_permissions, is_active')
       .eq('user_id', user.id)
@@ -42,7 +48,11 @@ async function requireAdmin() {
     : memberRole && STAFF.includes(memberRole) ? memberRole
     : undefined
 
-  if (!role) throw new Error('Unauthorized — staff access required')
+  if (!role) {
+    throw new Error(
+      `Unauthorized — no staff role found. profile.role=${profile?.role ?? 'null'}, membership=${membership ? `role=${membership.role},active=${membership.is_active}` : 'null'}`,
+    )
+  }
 
   const customPermissions: AdminPermissionKey[] =
     role === 'custom' && membership?.is_active
@@ -50,7 +60,7 @@ async function requireAdmin() {
       : []
 
   if (!hasAdminPermission(role, customPermissions, 'service_listings')) {
-    throw new Error('Unauthorized — service listings permission required')
+    throw new Error(`Unauthorized — role '${role}' does not have service_listings permission`)
   }
 
   // Return service-role client for all subsequent queries so RLS doesn't

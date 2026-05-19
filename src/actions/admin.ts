@@ -47,13 +47,12 @@ async function requireStaff() {
   const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
+  // Read profile + membership via service-role so RLS on team_members can't
+  // silently hide a staff member's own role from them.
+  const svc = createServiceRoleClient()
   const [{ data: profile }, { data: membership }] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single(),
-    supabase
+    svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    svc
       .from('team_members')
       .select('role, is_active')
       .eq('user_id', user.id)
@@ -68,7 +67,9 @@ async function requireStaff() {
         : null
 
   if (!effectiveRole) {
-    throw new Error('Unauthorized — staff only')
+    throw new Error(
+      `Unauthorized — no staff role found. profile.role=${profile?.role ?? 'null'}, membership=${membership ? `role=${membership.role},active=${membership.is_active}` : 'null'}`,
+    )
   }
   return { supabase, user, role: effectiveRole }
 }
@@ -588,8 +589,11 @@ export async function getAdminPackages() {
 }
 
 export async function getDestinations() {
-  const { supabase } = await requireStaff()
-  const { data } = await supabase.from('destinations').select('*').order('name')
+  await requireStaff()
+  // Service-role read — destinations are admin-managed reference data and RLS
+  // may not permit non-admin staff to read directly.
+  const svc = createServiceRoleClient()
+  const { data } = await svc.from('destinations').select('*').order('name')
   return data || []
 }
 
