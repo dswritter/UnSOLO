@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry, AdminPermissionKey, UserRole } from '@/types'
 import { hasAdminPermission } from '@/types'
@@ -13,24 +13,23 @@ import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-book
  * This includes: admin (all permissions), host_onboarding_staff (default),
  * and custom-role users whose custom_permissions list includes it.
  *
- * Returns the SERVICE-ROLE client so queries bypass RLS — the permission
- * check above is the app-level gate; we must not let Supabase RLS silently
- * block non-admin staff who legitimately have this permission.
+ * Returns the cookie-less SERVICE-ROLE client (`@supabase/supabase-js`
+ * directly, not the SSR helper). The SSR helper still attaches the user's
+ * JWT from cookies in the Authorization header, so PostgREST evaluates RLS
+ * under the user's role even though the apikey is service_role — which
+ * means service_listings (admin-only) silently fails for host_onboarding_staff.
+ * The cookie-less client carries only the service_role JWT and truly bypasses RLS.
  */
 async function requireAdmin() {
   const { user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
-  // CRITICAL: use service-role client even for the permission check itself.
-  // If team_members has restrictive RLS, the user's JWT can't read its own
-  // row, and our role-resolution falls back to profile.role which may still
-  // be 'user' if the profile sync hasn't happened. Service-role bypasses RLS
-  // entirely so we can authoritatively check the user's role.
-  const svc = createServiceRoleClient()
+  // Service-role client for both the role check and all subsequent queries.
+  const supabase = createServiceRoleClient()
 
   const [{ data: profile }, { data: membership }] = await Promise.all([
-    svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-    svc
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    supabase
       .from('team_members')
       .select('role, custom_permissions, is_active')
       .eq('user_id', user.id)
@@ -63,9 +62,6 @@ async function requireAdmin() {
     throw new Error(`Unauthorized — role '${role}' does not have service_listings permission`)
   }
 
-  // Return service-role client for all subsequent queries so RLS doesn't
-  // silently block staff members whose DB role isn't 'admin'.
-  const supabase = await createServiceClient()
   return { supabase, user }
 }
 
@@ -344,7 +340,7 @@ async function notifyHostOfModeration(opts: {
   approved: boolean
   reason?: string
 }) {
-  const svc = await createServiceClient()
+  const svc = createServiceRoleClient()
   const { data: listing } = await svc
     .from('service_listings')
     .select('host_id, title')
@@ -488,7 +484,7 @@ async function logAuditEvent(
   targetId: string,
   details?: Record<string, unknown>
 ) {
-  const supabase = await createServiceClient()
+  const supabase = createServiceRoleClient()
   await supabase.from('audit_logs').insert({
     admin_id: adminId,
     action,
