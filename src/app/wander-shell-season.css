@@ -52,7 +52,8 @@
   --wander-textured-vignette: oklch(0.04 0.03 152 / 0.55);
 }
 
-[data-wander-shell-season='default'] .wander-textured {
+[data-wander-shell-season='default'] .wander-textured,
+[data-wander-shell-season='default'].wander-textured {
   position: relative;
   background-color: oklch(0.1 0.04 152);
   background-image:
@@ -118,7 +119,8 @@
   --wander-textured-vignette: oklch(0.06 0.04 150 / 0.55);
 }
 
-[data-wander-shell-season='spring'] .wander-textured {
+[data-wander-shell-season='spring'] .wander-textured,
+[data-wander-shell-season='spring'].wander-textured {
   position: relative;
   background-color: #0f2418;
   background-image:
@@ -179,7 +181,8 @@
   --wander-textured-vignette: oklch(0.05 0.05 200 / 0.5);
 }
 
-[data-wander-shell-season='summer'] .wander-textured {
+[data-wander-shell-season='summer'] .wander-textured,
+[data-wander-shell-season='summer'].wander-textured {
   position: relative;
   background-color: #142828;
   background-image:
@@ -240,7 +243,8 @@
   --wander-textured-vignette: oklch(0.04 0.05 240 / 0.55);
 }
 
-[data-wander-shell-season='monsoon'] .wander-textured {
+[data-wander-shell-season='monsoon'] .wander-textured,
+[data-wander-shell-season='monsoon'].wander-textured {
   position: relative;
   background-color: #0c1820;
   background-image:
@@ -300,7 +304,8 @@
   --wander-textured-vignette: oklch(0.06 0.04 25 / 0.58);
 }
 
-[data-wander-shell-season='autumn'] .wander-textured {
+[data-wander-shell-season='autumn'] .wander-textured,
+[data-wander-shell-season='autumn'].wander-textured {
   position: relative;
   background-color: #1a1210;
   background-image:
@@ -360,7 +365,8 @@
   --wander-textured-vignette: oklch(0.05 0.03 280 / 0.55);
 }
 
-[data-wander-shell-season='prewinter'] .wander-textured {
+[data-wander-shell-season='prewinter'] .wander-textured,
+[data-wander-shell-season='prewinter'].wander-textured {
   position: relative;
   background-color: #141618;
   background-image:
@@ -420,7 +426,8 @@
   --wander-textured-vignette: oklch(0.05 0.03 268 / 0.52);
 }
 
-[data-wander-shell-season='winter'] .wander-textured {
+[data-wander-shell-season='winter'] .wander-textured,
+[data-wander-shell-season='winter'].wander-textured {
   position: relative;
   background-color: #14161c;
   background-image:

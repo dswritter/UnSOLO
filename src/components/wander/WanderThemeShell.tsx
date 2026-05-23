@@ -12,6 +12,14 @@ const wanderSans = Plus_Jakarta_Sans({
 /**
  * Forest + gold tokens + texture (see `wander-shell-season.css` via `data-wander-shell-season`).
  * Used by /wander, /packages/*, /listings/* so detail pages match the discovery surface.
+ *
+ * Note: `data-wander-shell-season` and `.wander-textured` are on the SAME element here.
+ * The textured-background rules in wander-shell-season.css were written with a descendant
+ * combinator (`[data-wander-shell-season='X'] .wander-textured`) — which silently fails
+ * when both live on one element. Each season block now also has a same-element
+ * selector (`[data-wander-shell-season='X'].wander-textured`) to support this layout.
+ * Without both, the body's `bg-background` shows through (cream in light mode → admin
+ * pages become unreadable).
  */
 export async function WanderThemeShell({
   children,
