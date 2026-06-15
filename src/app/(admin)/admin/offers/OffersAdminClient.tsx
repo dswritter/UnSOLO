@@ -28,6 +28,7 @@ type Offer = {
   discount_percent?: number | null
   discount_percent_cap_paise?: number | null
   free_guest_count?: number | null
+  free_guests_min_group?: number | null
   promo_code: string | null
   is_active: boolean
 }

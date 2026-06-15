@@ -17,6 +17,7 @@ interface Offer {
   discount_percent?: number | null
   discount_percent_cap_paise?: number | null
   free_guest_count?: number | null
+  free_guests_min_group?: number | null
   min_trips: number
   promo_code: string | null
   max_uses: number | null
@@ -61,12 +62,14 @@ function DiscountKindFields({
   defaultPercent,
   defaultCapRupees,
   defaultFreeCount,
+  defaultMinGroup,
 }: {
   defaultKind?: 'fixed' | 'percent' | 'free_guests'
   defaultRupees?: number | string
   defaultPercent?: number | string
   defaultCapRupees?: number | string
   defaultFreeCount?: number | string
+  defaultMinGroup?: number | string
 }) {
   const [kind, setKind] = useState<'fixed' | 'percent' | 'free_guests'>(defaultKind)
   return (
@@ -103,10 +106,16 @@ function DiscountKindFields({
         </>
       )}
       {kind === 'free_guests' && (
-        <div className="space-y-1">
-          <label className="text-xs font-medium">Free guests (pay for n − this)</label>
-          <Input name="freeGuestCount" type="number" min="1" defaultValue={defaultFreeCount ?? 1} placeholder="1" className="bg-secondary border-border text-sm" />
-        </div>
+        <>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Min total guests (n)</label>
+            <Input name="freeGuestsMinGroup" type="number" min="2" defaultValue={defaultMinGroup ?? 2} placeholder="4" className="bg-secondary border-border text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Free guests (k)</label>
+            <Input name="freeGuestCount" type="number" min="1" defaultValue={defaultFreeCount ?? 1} placeholder="1" className="bg-secondary border-border text-sm" />
+          </div>
+        </>
       )}
     </>
   )
@@ -358,6 +367,7 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                     defaultPercent={offer.discount_percent ?? undefined}
                     defaultCapRupees={offer.discount_percent_cap_paise != null ? Math.round(offer.discount_percent_cap_paise / 100) : undefined}
                     defaultFreeCount={offer.free_guest_count ?? undefined}
+                    defaultMinGroup={offer.free_guests_min_group ?? undefined}
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-3">

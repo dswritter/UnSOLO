@@ -961,6 +961,7 @@ function parseDiscountKindFields(formData: FormData):
       discount_percent: number | null
       discount_percent_cap_paise: number | null
       free_guest_count: number
+      free_guests_min_group: number
     }
   | { error: string } {
   const discountKind = ((formData.get('discountKind') as string) || 'fixed').trim()
@@ -974,6 +975,7 @@ function parseDiscountKindFields(formData: FormData):
     discount_percent: null as number | null,
     discount_percent_cap_paise: null as number | null,
     free_guest_count: 1,
+    free_guests_min_group: 1,
   }
 
   if (discountKind === 'fixed') {
@@ -1001,10 +1003,17 @@ function parseDiscountKindFields(formData: FormData):
 
   // free_guests
   const freeCount = parseInt(formData.get('freeGuestCount') as string) || 1
+  const minGroup = parseInt(formData.get('freeGuestsMinGroup') as string) || 1
   if (freeCount < 1) {
     return { error: 'Free guests must be at least 1.' }
   }
-  return { ...base, free_guest_count: freeCount }
+  if (minGroup < 1) {
+    return { error: 'Minimum total guests must be at least 1.' }
+  }
+  if (freeCount >= minGroup) {
+    return { error: 'Minimum total guests must be greater than the number of free guests.' }
+  }
+  return { ...base, free_guest_count: freeCount, free_guests_min_group: minGroup }
 }
 
 export async function createDiscountOffer(formData: FormData) {

@@ -17,7 +17,10 @@ export type PromoDiscountSpec = {
   fixedPaise: number | null
   percent: number | null
   percentCapPaise: number | null
+  /** free_guests: number of guests made free (k). */
   freeGuestCount: number
+  /** free_guests: minimum total guests (n) for the offer to apply. */
+  freeGuestsMinGroup: number
 }
 
 /** Booking amount a discount spec is applied against. */
@@ -46,6 +49,7 @@ type ScopedDiscountOfferRow = {
   discount_percent: number | null
   discount_percent_cap_paise: number | null
   free_guest_count: number | null
+  free_guests_min_group: number | null
   promo_code: string | null
   max_uses: number | null
   used_count: number | null
@@ -59,7 +63,7 @@ type ScopedDiscountOfferRow = {
 }
 
 const OFFER_SELECT =
-  'id, name, discount_paise, discount_kind, discount_percent, discount_percent_cap_paise, free_guest_count, promo_code, max_uses, used_count, valid_from, valid_until, checkout_visibility, scope_listing_type, scope_host_id, scope_package_id, scope_service_listing_id'
+  'id, name, discount_paise, discount_kind, discount_percent, discount_percent_cap_paise, free_guest_count, free_guests_min_group, promo_code, max_uses, used_count, valid_from, valid_until, checkout_visibility, scope_listing_type, scope_host_id, scope_package_id, scope_service_listing_id'
 
 /** Human-readable label for a discount offer (e.g. "₹500 off", "10% off (up to ₹2,000)", "1 guest free"). */
 export function formatDiscountLabel(offer: {
@@ -68,6 +72,7 @@ export function formatDiscountLabel(offer: {
   discount_percent?: number | null
   discount_percent_cap_paise?: number | null
   free_guest_count?: number | null
+  free_guests_min_group?: number | null
 }): string {
   const kind = offer.discount_kind ?? 'fixed'
   if (kind === 'percent') {
@@ -77,8 +82,10 @@ export function formatDiscountLabel(offer: {
     return `${offer.discount_percent ?? 0}% off${cap}`
   }
   if (kind === 'free_guests') {
-    const n = offer.free_guest_count ?? 1
-    return `${n} guest${n > 1 ? 's' : ''} free`
+    const k = offer.free_guest_count ?? 1
+    const n = offer.free_guests_min_group ?? 1
+    const minNote = n > 1 ? ` (min ${n} guests)` : ''
+    return `${k} guest${k > 1 ? 's' : ''} free${minNote}`
   }
   return `₹${((offer.discount_paise ?? 0) / 100).toLocaleString('en-IN')} off`
 }
@@ -90,6 +97,7 @@ export function specFromRow(offer: ScopedDiscountOfferRow): PromoDiscountSpec {
     percent: offer.discount_percent ?? null,
     percentCapPaise: offer.discount_percent_cap_paise ?? null,
     freeGuestCount: offer.free_guest_count ?? 1,
+    freeGuestsMinGroup: offer.free_guests_min_group ?? 1,
   }
 }
 
@@ -110,7 +118,9 @@ export function computeDiscountPaise(spec: PromoDiscountSpec, amount: PromoAmoun
   }
 
   if (spec.kind === 'free_guests') {
-    // Pay for (quantity − k); always leave at least one paid unit.
+    // Only applies once the booking reaches the minimum group size (n).
+    if (amount.quantity < spec.freeGuestsMinGroup) return 0
+    // Free k guests, but always leave at least one paid unit.
     const freeQty = Math.min(spec.freeGuestCount, Math.max(0, amount.quantity - 1))
     return Math.min(freeQty * Math.max(0, amount.unitPricePaise), gross)
   }
