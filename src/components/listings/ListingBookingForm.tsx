@@ -12,7 +12,13 @@ import Script from 'next/script'
 import { Calendar, Users, Gift, Tag, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
-import { fetchCheckoutPromoList, type PromoScopeContext } from '@/lib/checkout-promos'
+import {
+  fetchCheckoutPromoList,
+  computeDiscountPaise,
+  type PromoScopeContext,
+  type PromoDiscountSpec,
+  type CheckoutPromoRow,
+} from '@/lib/checkout-promos'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 
@@ -97,7 +103,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
 
   // Discounts
   const [promoCode, setPromoCode] = useState('')
-  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoSpec, setPromoSpec] = useState<PromoDiscountSpec | null>(null)
   const [promoName, setPromoName] = useState('')
   const [promoValidating, setPromoValidating] = useState(false)
   const [userCredits, setUserCredits] = useState<number | null>(null)
@@ -105,7 +111,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   const [isReferred, setIsReferred] = useState(false)
   const [isFirstBooking, setIsFirstBooking] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
-  const [availablePromos, setAvailablePromos] = useState<{ code: string; name: string; discountPaise: number }[]>([])
+  const [availablePromos, setAvailablePromos] = useState<CheckoutPromoRow[]>([])
   const [promosLoading, setPromosLoading] = useState(false)
 
   const router = useRouter()
@@ -176,10 +182,22 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
       basePrice = perRoom * quantity
     }
   }
+  // Promo discount is recomputed from the spec so percentage / pay-for-fewer
+  // offers track changes to quantity and rental days.
+  const promoDiscount = promoSpec
+    ? computeDiscountPaise(promoSpec, { grossPaise: basePrice, unitPricePaise, quantity })
+    : 0
+  const promoApplied = promoSpec != null
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
   const creditsToApply = applyCredits && userCredits ? Math.min(userCredits, basePrice) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
   const finalAmount = Math.max(0, basePrice - totalDiscount)
+
+  function clearPromo() {
+    setPromoSpec(null)
+    setPromoCode('')
+    setPromoName('')
+  }
 
   // Get valid date based on type
   const getSelectedDate = (): string => {
@@ -226,15 +244,19 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const result = await validatePromoCode(promoCode, promoScope)
+    const result = await validatePromoCode(promoCode, promoScope, {
+      grossPaise: basePrice,
+      unitPricePaise,
+      quantity,
+    })
     if ('error' in result) {
       toast.error(result.error)
-      setPromoDiscount(0)
+      setPromoSpec(null)
       setPromoName('')
     } else {
-      setPromoDiscount(result.discountPaise!)
+      setPromoSpec(result.spec!)
       setPromoName(result.name!)
-      toast.success(`Promo applied: ${result.name} — ₹${(result.discountPaise! / 100).toLocaleString('en-IN')} off!`)
+      toast.success(`Promo applied: ${result.name}!`)
     }
     setPromoValidating(false)
   }
@@ -282,7 +304,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         bookingData.service_listing_item_id = selectedItem.id
       }
 
-      if (promoDiscount > 0 && promoCode.trim()) {
+      if (promoApplied && promoCode.trim()) {
         bookingData.promoCode = promoCode.trim()
       }
 
@@ -615,7 +637,7 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
         )}
 
         {/* Promo code */}
-        {promoDiscount === 0 && (
+        {!promoApplied && (
           <>
             <button
               onClick={() => setShowPromoInput(!showPromoInput)}
@@ -630,20 +652,23 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
                 ) : availablePromos.length > 0 ? (
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground">Tap to apply:</span>
-                    {availablePromos.map(p => (
+                    {availablePromos.map(p => {
+                      const pDiscount = computeDiscountPaise(p.spec, { grossPaise: basePrice, unitPricePaise, quantity })
+                      return (
                       <button
                         key={p.code}
                         type="button"
-                        onClick={() => { setPromoCode(p.code); setPromoDiscount(p.discountPaise); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
+                        onClick={() => { setPromoCode(p.code); setPromoSpec(p.spec); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
                         className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:border-primary/40 transition-colors text-left"
                       >
                         <div>
                           <span className="text-xs font-medium">{p.name}</span>
                           <code className="text-[10px] text-muted-foreground ml-2 font-mono">{p.code}</code>
                         </div>
-                        <span className="text-xs text-green-500 font-medium">-{formatPrice(p.discountPaise)}</span>
+                        <span className="text-xs text-green-500 font-medium">-{formatPrice(pDiscount)}</span>
                       </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="text-[10px] text-muted-foreground">No featured codes right now — enter yours below.</p>
@@ -671,11 +696,11 @@ export function ListingBookingForm({ listing, selectedItem }: ListingBookingForm
             )}
           </>
         )}
-        {promoDiscount > 0 && (
+        {promoApplied && (
           <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs">
             <Tag className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
             <span className="text-blue-400 font-medium">{promoName}: -{formatPrice(promoDiscount)}</span>
-            <button onClick={() => { setPromoDiscount(0); setPromoCode(''); setPromoName('') }} className="ml-auto text-muted-foreground hover:text-foreground">
+            <button onClick={clearPromo} className="ml-auto text-muted-foreground hover:text-foreground">
               <X className="h-3 w-3" />
             </button>
           </div>

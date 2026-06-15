@@ -20,7 +20,11 @@ type DiscountOfferRow = {
   id: string
   name: string
   type: string
-  discount_paise: number
+  discount_paise: number | null
+  discount_kind?: 'fixed' | 'percent' | 'free_guests' | null
+  discount_percent?: number | null
+  discount_percent_cap_paise?: number | null
+  free_guest_count?: number | null
   promo_code: string | null
   valid_until: string | null
   is_active: boolean
@@ -206,7 +210,7 @@ export async function getPublicOfferSections(): Promise<PublicOfferSection[]> {
   const { data: sectionItems } = manualSectionIds.length
     ? await supabase
         .from('offer_page_section_items')
-        .select('section_id, position_order, offer:discount_offers(id, name, type, discount_paise, promo_code, valid_until, is_active)')
+        .select('section_id, position_order, offer:discount_offers(id, name, type, discount_paise, discount_kind, discount_percent, discount_percent_cap_paise, free_guest_count, promo_code, valid_until, is_active)')
         .in('section_id', manualSectionIds)
         .order('position_order', { ascending: true })
     : { data: [] }

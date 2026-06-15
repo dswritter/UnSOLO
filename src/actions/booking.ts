@@ -12,7 +12,12 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
-import { incrementPromoOfferUsed, validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
+import {
+  incrementPromoOfferUsed,
+  validateScopedPromoCode,
+  type PromoScopeContext,
+  type PromoAmountContext,
+} from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { z } from 'zod'
 
@@ -75,8 +80,9 @@ async function validatePromoForCheckout(
   supabase: SupabaseServer,
   code: string,
   context: PromoScopeContext,
+  amount: PromoAmountContext,
 ): Promise<{ discountPaise: number; offerId: string } | { error: string }> {
-  const result = await validateScopedPromoCode(supabase, code, context)
+  const result = await validateScopedPromoCode(supabase, code, context, amount)
   if ('error' in result) return result
   return { discountPaise: result.discountPaise, offerId: result.offerId }
 }
@@ -851,11 +857,16 @@ export async function createRazorpayOrder(
   let promoOfferId: string | null = null
   let promoDiscountPaise = 0
   if (options?.promoCode?.trim()) {
-    const pr = await validatePromoForCheckout(supabase, options.promoCode, {
-      listingType: 'trips',
-      packageId: pkg.id,
-      hostId: pkg.host_id,
-    })
+    const pr = await validatePromoForCheckout(
+      supabase,
+      options.promoCode,
+      {
+        listingType: 'trips',
+        packageId: pkg.id,
+        hostId: pkg.host_id,
+      },
+      { grossPaise: grossList, unitPricePaise: perPersonPaise, quantity: guests },
+    )
     if ('error' in pr) return { error: pr.error }
     promoDiscountPaise = Math.min(pr.discountPaise, grossList)
     promoOfferId = pr.offerId
@@ -2194,11 +2205,16 @@ export async function createCommunityTripOrder(
   let promoOfferId: string | null = null
   let promoDiscountPaise = 0
   if (options?.promoCode?.trim()) {
-    const pr = await validatePromoForCheckout(supabase, options.promoCode, {
-      listingType: 'trips',
-      packageId: trip.id,
-      hostId: trip.host_id,
-    })
+    const pr = await validatePromoForCheckout(
+      supabase,
+      options.promoCode,
+      {
+        listingType: 'trips',
+        packageId: trip.id,
+        hostId: trip.host_id,
+      },
+      { grossPaise: grossList, unitPricePaise: trip.price_paise, quantity: 1 },
+    )
     if ('error' in pr) return { error: pr.error }
     promoDiscountPaise = Math.min(pr.discountPaise, grossList)
     promoOfferId = pr.offerId

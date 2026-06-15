@@ -4,7 +4,11 @@ import { createClient, createServiceClient, createServiceRoleClient } from '@/li
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { ROLE_LABELS, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
-import { validateScopedPromoCode, type PromoScopeContext } from '@/lib/checkout-promos'
+import {
+  validateScopedPromoCode,
+  type PromoScopeContext,
+  type PromoAmountContext,
+} from '@/lib/checkout-promos'
 
 const STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom']
 
@@ -943,13 +947,71 @@ async function resolveDiscountScopeInput(
   }
 }
 
+/**
+ * Reads the discount-kind inputs from a discount-offer form and returns the
+ * column values to write, or an error. Shared by create + edit.
+ * - fixed       → discount_paise (₹ × 100)
+ * - percent     → discount_percent (1..100) + optional discount_percent_cap_paise
+ * - free_guests → free_guest_count (≥1); pay for (n − count)
+ */
+function parseDiscountKindFields(formData: FormData):
+  | {
+      discount_kind: 'fixed' | 'percent' | 'free_guests'
+      discount_paise: number | null
+      discount_percent: number | null
+      discount_percent_cap_paise: number | null
+      free_guest_count: number
+    }
+  | { error: string } {
+  const discountKind = ((formData.get('discountKind') as string) || 'fixed').trim()
+  if (!['fixed', 'percent', 'free_guests'].includes(discountKind)) {
+    return { error: 'Invalid discount kind.' }
+  }
+
+  const base = {
+    discount_kind: discountKind as 'fixed' | 'percent' | 'free_guests',
+    discount_paise: null as number | null,
+    discount_percent: null as number | null,
+    discount_percent_cap_paise: null as number | null,
+    free_guest_count: 1,
+  }
+
+  if (discountKind === 'fixed') {
+    const discountInput =
+      (formData.get('discountRupees') as string) || (formData.get('discountPaise') as string)
+    const discountPaise = parseInt(discountInput) * (formData.get('discountRupees') ? 100 : 1)
+    if (!discountPaise || discountPaise <= 0) {
+      return { error: 'Enter a discount amount in ₹.' }
+    }
+    return { ...base, discount_paise: discountPaise }
+  }
+
+  if (discountKind === 'percent') {
+    const percent = parseInt(formData.get('discountPercent') as string)
+    if (!percent || percent < 1 || percent > 100) {
+      return { error: 'Enter a percentage between 1 and 100.' }
+    }
+    const capInput = formData.get('discountPercentCap') as string
+    const capPaise = capInput ? parseInt(capInput) * 100 : null
+    if (capPaise != null && capPaise <= 0) {
+      return { error: 'Max cap must be greater than ₹0.' }
+    }
+    return { ...base, discount_percent: percent, discount_percent_cap_paise: capPaise }
+  }
+
+  // free_guests
+  const freeCount = parseInt(formData.get('freeGuestCount') as string) || 1
+  if (freeCount < 1) {
+    return { error: 'Free guests must be at least 1.' }
+  }
+  return { ...base, free_guest_count: freeCount }
+}
+
 export async function createDiscountOffer(formData: FormData) {
   const { supabase, user } = await requireAdmin()
 
   const name = formData.get('name') as string
   const type = formData.get('type') as string
-  const discountInput = (formData.get('discountRupees') as string) || (formData.get('discountPaise') as string)
-  const discountPaise = parseInt(discountInput) * (formData.get('discountRupees') ? 100 : 1)
   const minTrips = parseInt(formData.get('minTrips') as string) || 0
   const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim() || null
   const maxUses = formData.get('maxUses') ? parseInt(formData.get('maxUses') as string) : null
@@ -958,8 +1020,8 @@ export async function createDiscountOffer(formData: FormData) {
   const scopeListingType = ((formData.get('scopeListingType') as string) || 'all').trim()
   const scopeMode = ((formData.get('scopeMode') as string) || 'global').trim()
 
-  if (!name || !type || !discountPaise || discountPaise <= 0) {
-    return { error: 'Name, type, and discount amount are required' }
+  if (!name || !type) {
+    return { error: 'Name and type are required' }
   }
   if (!['auto', 'manual_only'].includes(checkoutVisibility)) {
     return { error: 'Invalid checkout visibility.' }
@@ -970,6 +1032,9 @@ export async function createDiscountOffer(formData: FormData) {
   if (!['global', 'host', 'package', 'service_listing'].includes(scopeMode)) {
     return { error: 'Invalid coupon scope.' }
   }
+
+  const discountFields = parseDiscountKindFields(formData)
+  if ('error' in discountFields) return discountFields
 
   const scopeResolution = await resolveDiscountScopeInput(
     supabase,
@@ -983,7 +1048,7 @@ export async function createDiscountOffer(formData: FormData) {
   const { error } = await supabase.from('discount_offers').insert({
     name,
     type,
-    discount_paise: discountPaise,
+    ...discountFields,
     min_trips: minTrips,
     promo_code: promoCode,
     max_uses: maxUses,
@@ -998,7 +1063,7 @@ export async function createDiscountOffer(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  await logAuditEvent(user.id, 'discount_created', 'discount_offer', name, { type, discountPaise })
+  await logAuditEvent(user.id, 'discount_created', 'discount_offer', name, { type, ...discountFields })
 
   const { revalidatePath } = await import('next/cache')
   revalidatePath('/admin/discounts')
@@ -1025,7 +1090,6 @@ export async function editDiscountOffer(offerId: string, formData: FormData) {
 
   const updates: Record<string, unknown> = {}
   const name = formData.get('name') as string
-  const discountRupees = formData.get('discountRupees') as string
   const promoCode = (formData.get('promoCode') as string)?.toUpperCase().trim()
   const maxUses = formData.get('maxUses') as string
   const validUntil = formData.get('validUntil') as string
@@ -1034,7 +1098,11 @@ export async function editDiscountOffer(offerId: string, formData: FormData) {
   const scopeMode = ((formData.get('scopeMode') as string) || 'global').trim()
 
   if (name) updates.name = name
-  if (discountRupees) updates.discount_paise = parseInt(discountRupees) * 100
+
+  const discountFields = parseDiscountKindFields(formData)
+  if ('error' in discountFields) return discountFields
+  Object.assign(updates, discountFields)
+
   updates.promo_code = promoCode || null
   updates.max_uses = maxUses ? parseInt(maxUses) : null
   updates.valid_until = validUntil || null
@@ -1099,15 +1167,20 @@ export async function grantUserCredits(username: string, amountPaise: number, re
 }
 
 // Validate promo code at checkout
-export async function validatePromoCode(code: string, context?: PromoScopeContext) {
+export async function validatePromoCode(
+  code: string,
+  context?: PromoScopeContext,
+  amount?: PromoAmountContext,
+) {
   const supabase = (await import('@/lib/supabase/server')).createClient
   const supa = await supabase()
   const effectiveContext = context ?? { listingType: 'trips' as const }
-  const result = await validateScopedPromoCode(supa, code, effectiveContext)
+  const result = await validateScopedPromoCode(supa, code, effectiveContext, amount)
   if ('error' in result) return result
   return {
     valid: true,
     discountPaise: result.discountPaise,
+    spec: result.spec,
     name: result.name,
     offerId: result.offerId,
   }

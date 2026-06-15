@@ -11,7 +11,13 @@ import { toast } from 'sonner'
 import Script from 'next/script'
 import { Calendar, Tag, X, ShoppingCart } from 'lucide-react'
 import { getUserCredits } from '@/actions/profile'
-import { fetchCheckoutPromoList, type PromoScopeContext } from '@/lib/checkout-promos'
+import {
+  fetchCheckoutPromoList,
+  computeDiscountPaise,
+  type PromoScopeContext,
+  type PromoDiscountSpec,
+  type CheckoutPromoRow,
+} from '@/lib/checkout-promos'
 import { createClient } from '@/lib/supabase/client'
 import type { ServiceListing, ServiceListingItem } from '@/types'
 
@@ -48,11 +54,11 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   const [applyCredits, setApplyCredits] = useState(false)
   const [userCredits, setUserCredits] = useState<number | null>(null)
   const [promoCode, setPromoCode] = useState('')
-  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoSpec, setPromoSpec] = useState<PromoDiscountSpec | null>(null)
   const [promoName, setPromoName] = useState('')
   const [promoValidating, setPromoValidating] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
-  const [availablePromos, setAvailablePromos] = useState<{ code: string; name: string; discountPaise: number }[]>([])
+  const [availablePromos, setAvailablePromos] = useState<CheckoutPromoRow[]>([])
 
   useEffect(() => {
     getUserCredits().then(data => setUserCredits(data.credits))
@@ -71,11 +77,24 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
     0,
   )
 
+  // Mixed cart: percent applies to the gross; free_guests frees one average-priced unit.
+  const cartTotalQty = cartItemDetails.reduce((sum, { qty }) => sum + qty, 0)
+  const cartAvgUnitPaise = cartTotalQty > 0 ? Math.round(grossPaise / cartTotalQty) : grossPaise
+  const promoAmount = { grossPaise, unitPricePaise: cartAvgUnitPaise, quantity: cartTotalQty }
+  const promoDiscount = promoSpec ? computeDiscountPaise(promoSpec, promoAmount) : 0
+  const promoApplied = promoSpec != null
+
   const creditsUsed = applyCredits && userCredits != null && userCredits > 0
     ? Math.min(userCredits, grossPaise - promoDiscount)
     : 0
 
   const finalAmount = Math.max(0, grossPaise - promoDiscount - creditsUsed)
+
+  function clearPromo() {
+    setPromoSpec(null)
+    setPromoCode('')
+    setPromoName('')
+  }
 
   const returnDate = (() => {
     if (!checkInDate || rentalDays < 1) return ''
@@ -89,11 +108,11 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const res = await validatePromoCode(promoCode.trim().toUpperCase(), promoScope)
+    const res = await validatePromoCode(promoCode.trim().toUpperCase(), promoScope, promoAmount)
     setPromoValidating(false)
     if ('error' in res) { toast.error(res.error as string); return }
-    if ('discountPaise' in res) {
-      setPromoDiscount(res.discountPaise as number)
+    if ('spec' in res) {
+      setPromoSpec(res.spec)
       setPromoName(res.name as string)
       toast.success(`${res.name} applied!`)
     }
@@ -222,7 +241,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
       )}
 
       {/* Promo */}
-      {promoDiscount === 0 && (
+      {!promoApplied && (
         <>
           <button onClick={() => setShowPromoInput(!showPromoInput)} className="text-xs text-primary hover:underline">
             {showPromoInput ? 'Hide promo codes' : 'Have a promo code?'}
@@ -232,20 +251,23 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
               {availablePromos.length > 0 ? (
                 <div className="space-y-1">
                   <span className="text-[10px] text-muted-foreground">Tap to apply:</span>
-                  {availablePromos.map(p => (
+                  {availablePromos.map(p => {
+                    const pDiscount = computeDiscountPaise(p.spec, promoAmount)
+                    return (
                     <button
                       key={p.code}
                       type="button"
-                      onClick={() => { setPromoCode(p.code); setPromoDiscount(p.discountPaise); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
+                      onClick={() => { setPromoCode(p.code); setPromoSpec(p.spec); setPromoName(p.name); toast.success(`${p.name} applied!`) }}
                       className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-border bg-secondary/30 hover:border-primary/40 transition-colors text-left"
                     >
                       <div>
                         <span className="text-xs font-medium">{p.name}</span>
                         <code className="text-[10px] text-muted-foreground ml-2 font-mono">{p.code}</code>
                       </div>
-                      <span className="text-xs text-green-500 font-medium">-{formatPrice(p.discountPaise)}</span>
+                      <span className="text-xs text-green-500 font-medium">-{formatPrice(pDiscount)}</span>
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : null}
               <div className="flex gap-2">
@@ -263,11 +285,11 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
           )}
         </>
       )}
-      {promoDiscount > 0 && (
+      {promoApplied && (
         <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs">
           <Tag className="h-3.5 w-3.5 text-blue-400 shrink-0" />
           <span className="text-blue-400 font-medium">{promoName}: -{formatPrice(promoDiscount)}</span>
-          <button onClick={() => { setPromoDiscount(0); setPromoCode(''); setPromoName('') }} className="ml-auto text-muted-foreground hover:text-foreground">
+          <button onClick={clearPromo} className="ml-auto text-muted-foreground hover:text-foreground">
             <X className="h-3 w-3" />
           </button>
         </div>

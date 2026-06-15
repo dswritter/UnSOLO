@@ -1,6 +1,7 @@
 import { Gift, Link2 } from 'lucide-react'
 import Link from 'next/link'
 import { getPublicOfferSections } from '@/actions/offers'
+import { formatDiscountLabel } from '@/lib/checkout-promos'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +47,7 @@ export default async function OffersPage() {
                     <div key={offer.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                       <p className="text-lg font-bold text-white">{offer.name}</p>
                       <p className="mt-1 text-sm text-primary">
-                        Save ₹{(offer.discount_paise / 100).toLocaleString('en-IN')}
+                        {formatDiscountLabel(offer)}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs text-white/60">
                         <span className="rounded-full border border-white/10 px-2 py-1 uppercase">{offer.type}</span>

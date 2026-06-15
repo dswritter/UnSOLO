@@ -13,7 +13,12 @@ import { createClient } from '@/lib/supabase/client'
 import { getUserCredits } from '@/actions/profile'
 import { validatePromoCode } from '@/actions/admin'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
-import { fetchCheckoutPromoList } from '@/lib/checkout-promos'
+import {
+  fetchCheckoutPromoList,
+  computeDiscountPaise,
+  type PromoDiscountSpec,
+  type CheckoutPromoRow,
+} from '@/lib/checkout-promos'
 import type { PromoScopeContext } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { isCommunityDirectCheckout } from '@/lib/join-preferences'
@@ -530,7 +535,7 @@ function ApprovedPaymentSection({
   const router = useRouter()
 
   const [promoCode, setPromoCode] = useState('')
-  const [promoDiscount, setPromoDiscount] = useState(0)
+  const [promoSpec, setPromoSpec] = useState<PromoDiscountSpec | null>(null)
   const [promoName, setPromoName] = useState('')
   const [promoValidating, setPromoValidating] = useState(false)
   const [userCredits, setUserCredits] = useState(0)
@@ -538,7 +543,7 @@ function ApprovedPaymentSection({
   const [isReferred, setIsReferred] = useState(false)
   const [isFirstBooking, setIsFirstBooking] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
-  const [availablePromos, setAvailablePromos] = useState<{ code: string; name: string; discountPaise: number }[]>([])
+  const [availablePromos, setAvailablePromos] = useState<CheckoutPromoRow[]>([])
   const [promosLoading, setPromosLoading] = useState(false)
 
   useEffect(() => {
@@ -565,22 +570,33 @@ function ApprovedPaymentSection({
     }
   }, [showPromoInput, promoScope.hostId, promoScope.packageId])
 
+  // Community join requests are per-person (quantity 1).
+  const promoAmount = { grossPaise: amountPaise, unitPricePaise: amountPaise, quantity: 1 }
+
   async function handleValidatePromo() {
     if (!promoCode.trim()) return
     setPromoValidating(true)
-    const result = await validatePromoCode(promoCode, promoScope)
+    const result = await validatePromoCode(promoCode, promoScope, promoAmount)
     if ('error' in result) {
       toast.error(result.error)
-      setPromoDiscount(0)
+      setPromoSpec(null)
       setPromoName('')
     } else {
-      setPromoDiscount(result.discountPaise!)
+      setPromoSpec(result.spec!)
       setPromoName(result.name!)
-      toast.success(`Promo applied: ${result.name} — ₹${(result.discountPaise! / 100).toLocaleString('en-IN')} off!`)
+      toast.success(`Promo applied: ${result.name}!`)
     }
     setPromoValidating(false)
   }
 
+  function clearPromo() {
+    setPromoSpec(null)
+    setPromoCode('')
+    setPromoName('')
+  }
+
+  const promoDiscount = promoSpec ? computeDiscountPaise(promoSpec, promoAmount) : 0
+  const promoApplied = promoSpec != null
   const referredDiscount = isReferred && isFirstBooking ? REFERRED_DISCOUNT_PAISE : 0
   const creditsToApply = applyCredits ? Math.min(userCredits, amountPaise) : 0
   const totalDiscount = promoDiscount + referredDiscount + creditsToApply
@@ -590,7 +606,7 @@ function ApprovedPaymentSection({
     setLoading(true)
     try {
       const result = await createCommunityTripOrder(existingRequest.id, {
-        promoCode: promoDiscount > 0 ? promoCode.trim() : undefined,
+        promoCode: promoApplied ? promoCode.trim() : undefined,
         useWalletCredits: applyCredits,
       })
 
@@ -734,7 +750,7 @@ function ApprovedPaymentSection({
           </div>
         )}
 
-        {promoDiscount === 0 && (
+        {!promoApplied && (
           <>
             <button
               type="button"
@@ -750,13 +766,15 @@ function ApprovedPaymentSection({
                 ) : availablePromos.length > 0 ? (
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground">Tap to apply:</span>
-                    {availablePromos.map(p => (
+                    {availablePromos.map(p => {
+                      const pDiscount = computeDiscountPaise(p.spec, promoAmount)
+                      return (
                       <button
                         key={p.code}
                         type="button"
                         onClick={() => {
                           setPromoCode(p.code)
-                          setPromoDiscount(p.discountPaise)
+                          setPromoSpec(p.spec)
                           setPromoName(p.name)
                           toast.success(`${p.name} applied!`)
                         }}
@@ -766,9 +784,10 @@ function ApprovedPaymentSection({
                           <span className="text-xs font-medium">{p.name}</span>
                           <code className="text-[10px] text-muted-foreground ml-2 font-mono">{p.code}</code>
                         </div>
-                        <span className="text-xs text-green-500 font-medium">-{formatPrice(p.discountPaise)}</span>
+                        <span className="text-xs text-green-500 font-medium">-{formatPrice(pDiscount)}</span>
                       </button>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <p className="text-[10px] text-muted-foreground">No featured codes right now — enter yours below.</p>
@@ -795,13 +814,13 @@ function ApprovedPaymentSection({
             )}
           </>
         )}
-        {promoDiscount > 0 && (
+        {promoApplied && (
           <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-2 text-xs">
             <Tag className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
             <span className="text-blue-400 font-medium">{promoName}: -{formatPrice(promoDiscount)}</span>
             <button
               type="button"
-              onClick={() => { setPromoDiscount(0); setPromoCode(''); setPromoName('') }}
+              onClick={clearPromo}
               className="ml-auto text-muted-foreground hover:text-foreground text-[10px]"
             >
               Clear

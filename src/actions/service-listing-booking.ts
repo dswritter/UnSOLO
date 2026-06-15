@@ -225,13 +225,18 @@ export async function createServiceListingOrder(
 
     // Apply promo code if provided
     if (bookingData.promoCode) {
-      const promo = await validateScopedPromoCode(supabase, bookingData.promoCode, {
-        listingType: listing.type as ServiceListingType,
-        serviceListingId: listingId,
-        hostId: listing.host_id,
-      })
+      const promo = await validateScopedPromoCode(
+        supabase,
+        bookingData.promoCode,
+        {
+          listingType: listing.type as ServiceListingType,
+          serviceListingId: listingId,
+          hostId: listing.host_id,
+        },
+        { grossPaise: totalPaise, unitPricePaise, quantity: bookingData.quantity },
+      )
       if ('error' in promo) return promo
-      discountPaise = promo.discountPaise
+      discountPaise = Math.min(promo.discountPaise, totalPaise)
       appliedPromoCode = bookingData.promoCode
       promoOfferId = promo.offerId
     }
@@ -615,13 +620,22 @@ export async function createRentalCartOrder(
     let appliedPromoCode = ''
     let promoOfferId: string | null = null
     if (bookingData.promoCode) {
-      const promo = await validateScopedPromoCode(supabase, bookingData.promoCode, {
-        listingType: listing.type as ServiceListingType,
-        serviceListingId: listingId,
-        hostId: listing.host_id,
-      })
+      // Mixed cart: percent applies to the gross; free_guests frees one
+      // average-priced unit across the total quantity in the cart.
+      const totalQty = validated.reduce((sum, v) => sum + v.quantity, 0)
+      const avgUnitPaise = totalQty > 0 ? Math.round(grossPaise / totalQty) : grossPaise
+      const promo = await validateScopedPromoCode(
+        supabase,
+        bookingData.promoCode,
+        {
+          listingType: listing.type as ServiceListingType,
+          serviceListingId: listingId,
+          hostId: listing.host_id,
+        },
+        { grossPaise, unitPricePaise: avgUnitPaise, quantity: totalQty },
+      )
       if ('error' in promo) return promo
-      discountPaise = promo.discountPaise
+      discountPaise = Math.min(promo.discountPaise, grossPaise)
       appliedPromoCode = bookingData.promoCode
       promoOfferId = promo.offerId
     }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createOfferPageSection, moveOfferPageSection, toggleOfferPageSection, updateOfferPageSectionDiscounts } from '@/actions/offers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { formatDiscountLabel } from '@/lib/checkout-promos'
 
 type Section = {
   id: string
@@ -22,7 +23,11 @@ type Offer = {
   id: string
   name: string
   type: string
-  discount_paise: number
+  discount_paise: number | null
+  discount_kind?: 'fixed' | 'percent' | 'free_guests' | null
+  discount_percent?: number | null
+  discount_percent_cap_paise?: number | null
+  free_guest_count?: number | null
   promo_code: string | null
   is_active: boolean
 }
@@ -197,7 +202,7 @@ export function OffersAdminClient({
                         />
                         <span>{offer.name}</span>
                         <span className="ml-auto text-xs text-muted-foreground">
-                          ₹{(offer.discount_paise / 100).toLocaleString('en-IN')}
+                          {formatDiscountLabel(offer)}
                         </span>
                       </label>
                     )

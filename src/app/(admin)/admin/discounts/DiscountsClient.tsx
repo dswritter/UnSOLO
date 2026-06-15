@@ -6,12 +6,17 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Gift, Tag, Trophy, Users, ToggleLeft, ToggleRight, CreditCard, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatDiscountLabel } from '@/lib/checkout-promos'
 
 interface Offer {
   id: string
   name: string
   type: string
-  discount_paise: number
+  discount_paise: number | null
+  discount_kind?: 'fixed' | 'percent' | 'free_guests' | null
+  discount_percent?: number | null
+  discount_percent_cap_paise?: number | null
+  free_guest_count?: number | null
   min_trips: number
   promo_code: string | null
   max_uses: number | null
@@ -48,6 +53,64 @@ const SCOPE_TYPE_OPTIONS = [
   { value: 'rentals', label: 'Rentals' },
   { value: 'getting_around', label: 'Getting Around' },
 ] as const
+
+/** Discount-kind selector + the inputs for the chosen kind. Used in create + edit forms. */
+function DiscountKindFields({
+  defaultKind = 'fixed',
+  defaultRupees,
+  defaultPercent,
+  defaultCapRupees,
+  defaultFreeCount,
+}: {
+  defaultKind?: 'fixed' | 'percent' | 'free_guests'
+  defaultRupees?: number | string
+  defaultPercent?: number | string
+  defaultCapRupees?: number | string
+  defaultFreeCount?: number | string
+}) {
+  const [kind, setKind] = useState<'fixed' | 'percent' | 'free_guests'>(defaultKind)
+  return (
+    <>
+      <div className="space-y-1">
+        <label className="text-xs font-medium">Discount kind</label>
+        <select
+          name="discountKind"
+          value={kind}
+          onChange={e => setKind(e.target.value as typeof kind)}
+          className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm"
+        >
+          <option value="fixed">Fixed (₹ off)</option>
+          <option value="percent">Percentage (% off)</option>
+          <option value="free_guests">Pay for fewer (free guests)</option>
+        </select>
+      </div>
+      {kind === 'fixed' && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Discount amount (₹)</label>
+          <Input name="discountRupees" type="number" min="1" defaultValue={defaultRupees} placeholder="500" className="bg-secondary border-border text-sm" />
+        </div>
+      )}
+      {kind === 'percent' && (
+        <>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Percent (%)</label>
+            <Input name="discountPercent" type="number" min="1" max="100" defaultValue={defaultPercent} placeholder="10" className="bg-secondary border-border text-sm" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Max cap ₹ (optional)</label>
+            <Input name="discountPercentCap" type="number" min="1" defaultValue={defaultCapRupees} placeholder="2000" className="bg-secondary border-border text-sm" />
+          </div>
+        </>
+      )}
+      {kind === 'free_guests' && (
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Free guests (pay for n − this)</label>
+          <Input name="freeGuestCount" type="number" min="1" defaultValue={defaultFreeCount ?? 1} placeholder="1" className="bg-secondary border-border text-sm" />
+        </div>
+      )}
+    </>
+  )
+}
 
 interface Props {
   offers: Offer[]
@@ -117,10 +180,7 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Discount Amount (₹)</label>
-              <Input name="discountRupees" type="number" min="1" placeholder="500" required className="bg-secondary border-border" />
-            </div>
+            <DiscountKindFields />
             <div className="space-y-1">
               <label className="text-xs font-medium">Promo Code (for promo type)</label>
               <Input name="promoCode" placeholder="SUMMER2026" className="bg-secondary border-border uppercase" />
@@ -235,7 +295,7 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                     {!offer.is_active && <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-[10px]">Inactive</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground flex items-center gap-3 mt-0.5">
-                    <span className="font-medium text-primary">₹{(offer.discount_paise / 100).toLocaleString('en-IN')} off</span>
+                    <span className="font-medium text-primary">{formatDiscountLabel(offer)}</span>
                     {offer.promo_code && <span>Code: <code className="font-mono bg-secondary px-1.5 py-0.5 rounded">{offer.promo_code}</code></span>}
                     <span>{offer.checkout_visibility === 'manual_only' ? 'Manual only' : 'Auto shown'}</span>
                     <span>{SCOPE_TYPE_OPTIONS.find(o => o.value === (offer.scope_listing_type || 'all'))?.label || 'All listings'}</span>
@@ -287,15 +347,18 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
                 }}
                 className="bg-card border border-border rounded-xl p-4 space-y-3"
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs font-medium">Name</label>
                     <Input name="name" defaultValue={offer.name} className="bg-secondary border-border text-sm" />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium">Discount (₹)</label>
-                    <Input name="discountRupees" type="number" min="1" defaultValue={Math.round(offer.discount_paise / 100)} className="bg-secondary border-border text-sm" />
-                  </div>
+                  <DiscountKindFields
+                    defaultKind={offer.discount_kind ?? 'fixed'}
+                    defaultRupees={offer.discount_paise != null ? Math.round(offer.discount_paise / 100) : undefined}
+                    defaultPercent={offer.discount_percent ?? undefined}
+                    defaultCapRupees={offer.discount_percent_cap_paise != null ? Math.round(offer.discount_percent_cap_paise / 100) : undefined}
+                    defaultFreeCount={offer.free_guest_count ?? undefined}
+                  />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1">
