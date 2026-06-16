@@ -292,6 +292,21 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>
                   </div>
 
+                  {/* Travellers */}
+                  {Array.isArray(booking.traveller_details) && booking.traveller_details.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs font-medium text-muted-foreground">Travellers</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {booking.traveller_details.map((t, i) => (
+                          <span key={i} className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border">
+                            <span className="font-medium">{t.name}</span>
+                            <span className="text-muted-foreground"> · {t.age} · {t.gender}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                     {/* Change status */}

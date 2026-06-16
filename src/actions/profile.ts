@@ -639,11 +639,11 @@ export async function getReferralDashboard() {
 
 export async function getUserCredits() {
   const { supabase, user } = await getActionAuth()
-  if (!user) return { credits: 0, isReferred: false, isFirstBooking: false }
+  if (!user) return { credits: 0, isReferred: false, isFirstBooking: false, fullName: '' }
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('referral_credits_paise, referred_by')
+    .select('referral_credits_paise, referred_by, full_name')
     .eq('id', user.id)
     .single()
 
@@ -658,5 +658,6 @@ export async function getUserCredits() {
     credits: profile?.referral_credits_paise || 0,
     isReferred: !!profile?.referred_by,
     isFirstBooking: (count || 0) === 0,
+    fullName: profile?.full_name || '',
   }
 }

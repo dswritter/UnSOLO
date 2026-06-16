@@ -1163,6 +1163,18 @@ function BookingItem({
                 <Users className="h-3 w-3" /> {booking.guests} guest{booking.guests > 1 ? 's' : ''}
               </span>
             </div>
+            {Array.isArray(booking.traveller_details) && booking.traveller_details.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {booking.traveller_details.map((t, i) => (
+                  <span
+                    key={i}
+                    className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground"
+                  >
+                    {t.name} · {t.age} · {t.gender}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
                 {showTokenBalance ? (

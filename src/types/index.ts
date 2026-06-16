@@ -230,6 +230,12 @@ export type CustomDateRequest = {
   package?: Package
 }
 
+export type TravellerDetail = {
+  name: string
+  age: number
+  gender: 'male' | 'female' | 'other'
+}
+
 export type Booking = {
   id: string
   user_id: string
@@ -241,6 +247,8 @@ export type Booking = {
   check_in_date?: string | null
   check_out_date?: string | null
   guests: number
+  /** Per-traveller name/age/gender captured at checkout (trip bookings). */
+  traveller_details?: TravellerDetail[] | null
   total_amount_paise: number
   /** Cumulative paid toward total (wallet + Razorpay); equals total when fully paid. */
   deposit_paise?: number

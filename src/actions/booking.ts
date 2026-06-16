@@ -76,6 +76,39 @@ async function tryEmailHostNewBooking(
   }
 }
 
+type TravellerDetailRow = { name: string; age: number; gender: 'male' | 'female' | 'other' }
+
+/**
+ * Validate per-traveller details against the guest count. Returns `null` when
+ * none were supplied (older clients / non-trip flows), the cleaned array when
+ * valid, or an error message.
+ */
+function sanitizeTravellerDetails(
+  input: { name: string; age: number; gender: string }[] | undefined,
+  guests: number,
+): { value: TravellerDetailRow[] | null } | { error: string } {
+  if (!input || input.length === 0) return { value: null }
+  if (input.length !== guests) {
+    return { error: 'Please fill details for every traveller' }
+  }
+  const cleaned: TravellerDetailRow[] = []
+  for (let i = 0; i < input.length; i++) {
+    const t = input[i]
+    const name = (t?.name ?? '').toString().trim().slice(0, 100)
+    const age = Number(t?.age)
+    const gender = (t?.gender ?? '').toString()
+    if (!name) return { error: `Enter the name for traveller ${i + 1}` }
+    if (!Number.isInteger(age) || age < 1 || age > 120) {
+      return { error: `Enter a valid age for traveller ${i + 1}` }
+    }
+    if (!['male', 'female', 'other'].includes(gender)) {
+      return { error: `Select gender for traveller ${i + 1}` }
+    }
+    cleaned.push({ name, age, gender: gender as 'male' | 'female' | 'other' })
+  }
+  return { value: cleaned }
+}
+
 async function validatePromoForCheckout(
   supabase: SupabaseServer,
   code: string,
@@ -713,11 +746,16 @@ export async function createRazorpayOrder(
     promoCode?: string
     /** On token_to_book trips: charge full trip total now instead of host token slice */
     payFullAmountForTokenTrip?: boolean
+    /** Per-traveller name/age/gender, one entry per guest. */
+    travellerDetails?: { name: string; age: number; gender: string }[]
   },
 ) {
   if (!Number.isInteger(guests) || guests < 1) {
     return { error: 'Number of guests must be at least 1' }
   }
+
+  const travellerDetails = sanitizeTravellerDetails(options?.travellerDetails, guests)
+  if ('error' in travellerDetails) return { error: travellerDetails.error }
 
   const { supabase, user } = await getActionAuth()
 
@@ -934,6 +972,7 @@ export async function createRazorpayOrder(
         stripe_payment_intent: null,
         confirmation_code: confirmationCode,
         price_variant_label: priceVariantLabel,
+        traveller_details: travellerDetails.value,
       })
       .select('*, package:packages(*, destination:destinations(*))')
       .single()
@@ -984,6 +1023,7 @@ export async function createRazorpayOrder(
       promo_offer_id: promoOfferId,
       stripe_session_id: order.id,
       price_variant_label: priceVariantLabel,
+      traveller_details: travellerDetails.value,
     })
     .select()
     .single()

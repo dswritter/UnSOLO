@@ -44,6 +44,9 @@ interface GroupInvite {
   per_person_paise: number
 }
 
+type TravellerInput = { name: string; age: string; gender: '' | 'male' | 'female' | 'other' }
+const emptyTraveller = (): TravellerInput => ({ name: '', age: '', gender: '' })
+
 interface BookingFormClientProps {
   packageId: string
   packageSlug: string
@@ -101,6 +104,12 @@ export function BookingFormClient({
   const [selectedDate, setSelectedDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [verifying, setVerifying] = useState(false)
+
+  // Per-traveller details (name / age / gender), kept in sync with guest count.
+  // Traveller 1 is the lead booker (prefilled from profile).
+  const [travellers, setTravellers] = useState<TravellerInput[]>([emptyTraveller()])
+  const updateTraveller = (i: number, field: keyof TravellerInput, value: string) =>
+    setTravellers((prev) => prev.map((t, idx) => (idx === i ? { ...t, [field]: value } : t)))
 
   // Discount state
   const [promoCode, setPromoCode] = useState('')
@@ -186,8 +195,24 @@ export function BookingFormClient({
       setUserCredits(data.credits)
       setIsReferred(data.isReferred)
       setIsFirstBooking(data.isFirstBooking)
+      // Prefill the lead traveller's name if the user hasn't typed one yet.
+      if (data.fullName) {
+        setTravellers((prev) =>
+          prev[0]?.name ? prev : prev.map((t, idx) => (idx === 0 ? { ...t, name: data.fullName } : t)),
+        )
+      }
     })
   }, [])
+
+  // Grow/shrink the traveller list as the guest count changes.
+  useEffect(() => {
+    setTravellers((prev) => {
+      if (prev.length === guests) return prev
+      const next = prev.slice(0, guests)
+      while (next.length < guests) next.push(emptyTraveller())
+      return next
+    })
+  }, [guests])
 
   useEffect(() => {
     if (!showPromoInput) return
@@ -317,6 +342,22 @@ export function BookingFormClient({
       toast.error('Travel date cannot be in the past')
       return
     }
+    for (let i = 0; i < travellers.length; i++) {
+      const t = travellers[i]
+      const age = parseInt(t.age, 10)
+      if (!t.name.trim()) {
+        toast.error(`Enter the name for traveller ${i + 1}`)
+        return
+      }
+      if (!t.age.trim() || Number.isNaN(age) || age < 1 || age > 120) {
+        toast.error(`Enter a valid age for traveller ${i + 1}`)
+        return
+      }
+      if (!t.gender) {
+        toast.error(`Select gender for traveller ${i + 1}`)
+        return
+      }
+    }
     setLoading(true)
 
     try {
@@ -329,6 +370,11 @@ export function BookingFormClient({
           ...(variantTiers && selectedVariantIndex != null ? { priceVariantIndex: selectedVariantIndex } : {}),
           ...(promoApplied && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
           ...(payFullForTokenTrip ? { payFullAmountForTokenTrip: true } : {}),
+          travellerDetails: travellers.map((t) => ({
+            name: t.name.trim(),
+            age: parseInt(t.age, 10),
+            gender: t.gender as 'male' | 'female' | 'other',
+          })),
         },
       )
 
@@ -746,6 +792,57 @@ export function BookingFormClient({
               )
             })()}
           </div>
+
+          {/* Traveller details — one row per guest, kept in sync with the stepper */}
+          {tab === 'fixed' && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" /> Traveller details
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({travellers.length} {travellers.length === 1 ? 'guest' : 'guests'})
+                </span>
+              </label>
+              {travellers.map((t, i) => (
+                <div key={i} className="rounded-lg border border-border bg-secondary/30 p-2.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium">Traveller {i + 1}</span>
+                    {i === 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                        You · lead booker
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+                    <Input
+                      placeholder="Full name"
+                      value={t.name}
+                      onChange={e => updateTraveller(i, 'name', e.target.value)}
+                      className="bg-secondary border-border text-sm h-9"
+                    />
+                    <Input
+                      type="number"
+                      min="1"
+                      max="120"
+                      placeholder="Age"
+                      value={t.age}
+                      onChange={e => updateTraveller(i, 'age', e.target.value)}
+                      className="bg-secondary border-border text-sm h-9"
+                    />
+                    <select
+                      value={t.gender}
+                      onChange={e => updateTraveller(i, 'gender', e.target.value)}
+                      className="bg-secondary border border-border rounded-lg px-2 text-sm h-9"
+                    >
+                      <option value="">Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Discounts & Promo */}
           <div className="space-y-2">
