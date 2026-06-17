@@ -525,6 +525,16 @@ export async function confirmServiceListingPayment(
           .eq('id', user.id)
           .single()
 
+        let itemName: string | null = null
+        if (booking.service_listing_item_id) {
+          const { data: item } = await supabase
+            .from('service_listing_items')
+            .select('name')
+            .eq('id', booking.service_listing_item_id)
+            .single()
+          itemName = item?.name ?? null
+        }
+
         await sendServiceBookingConfirmedEmail({
           customerEmail: user.email,
           customerName: profile?.full_name,
@@ -536,6 +546,7 @@ export async function confirmServiceListingPayment(
           quantity: booking.quantity ?? 1,
           amountPaise: booking.amount_paise ?? 0,
           bookingId: booking.id,
+          itemName,
         })
       }
     } catch (err) {

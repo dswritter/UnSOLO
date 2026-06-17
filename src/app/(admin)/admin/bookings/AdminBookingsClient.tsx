@@ -220,6 +220,9 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
         {filtered.filter(b => !deletedIds.has(b.id)).map((booking) => {
           const pkg = booking.package as (PackageDurationDisplay & { title?: string; destination?: { name?: string; state?: string } }) | null
           const sl = booking.service_listing as { id: string; title: string; type: string } | null
+          const slItem = (booking as { service_listing_item?: { name?: string } | null }).service_listing_item
+          const slQty = booking.quantity ?? booking.guests ?? 1
+          const slUnit = sl?.type === 'stays' ? 'room' : sl?.type === 'activities' ? 'guest' : 'unit'
           const displayTitle = sl?.title || pkg?.title || 'Unknown'
           const usr = booking.user as Profile | null
           const poc = booking.poc as Profile | null
@@ -247,7 +250,9 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {usr?.full_name || usr?.username || 'Unknown'} · {booking.guests} guest{booking.guests > 1 ? 's' : ''} · {booking.travel_date ? formatDate(booking.travel_date) : '—'}
+                      {usr?.full_name || usr?.username || 'Unknown'} · {sl
+                        ? `${slQty} ${slUnit}${slQty > 1 ? 's' : ''}${slItem?.name ? ` · ${slItem.name}` : ''}`
+                        : `${booking.guests} guest${booking.guests > 1 ? 's' : ''}`} · {booking.travel_date ? formatDate(booking.travel_date) : '—'}
                     </p>
                   </div>
                 </div>

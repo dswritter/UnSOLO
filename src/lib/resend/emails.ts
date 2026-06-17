@@ -429,6 +429,8 @@ export interface ServiceBookingConfirmedEmailInput {
   bookingId: string
   /** For rental cart: summary of all items booked */
   cartSummary?: { name: string; qty: number; pricePaise: number }[]
+  /** Specific item / variant chosen (single-item bookings). */
+  itemName?: string | null
   rentalDays?: number
 }
 
@@ -457,8 +459,12 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
   const {
     customerEmail, customerName, listingTitle, listingType,
     location, checkInDate, checkOutDate, quantity, amountPaise,
-    bookingId, cartSummary, rentalDays,
+    bookingId, cartSummary, itemName, rentalDays,
   } = input
+
+  const itemRow = itemName && !cartSummary
+    ? `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Item</td><td style="padding:10px 8px;">${escapeHtml(itemName)}</td></tr>`
+    : ''
 
   const greeting = (customerName?.trim()) || 'there'
   const typeLabel = TYPE_LABEL[listingType] ?? listingType
@@ -508,6 +514,7 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
               <td style="padding:10px 8px;font-weight:bold;">Location</td>
               <td style="padding:10px 8px;">${escapeHtml(location)}</td>
             </tr>
+            ${itemRow}
             ${dateRow}
             ${durationRow}
             ${qtyRow}

@@ -565,6 +565,18 @@ export function BookingsClient({
                           <div>
                             <h3 className="font-bold text-lg leading-tight">{listing?.title}</h3>
                             <p className="text-sm text-muted-foreground">{listing?.location}</p>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              {listing?.type && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20 capitalize">
+                                  {String(listing.type).replace('_', ' ')}
+                                </span>
+                              )}
+                              {(booking as { service_listing_item?: { name?: string } | null }).service_listing_item?.name && (
+                                <span className="text-xs text-muted-foreground">
+                                  {(booking as { service_listing_item?: { name?: string } | null }).service_listing_item!.name}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <Badge className={STATUS_COLORS[booking.status] || STATUS_COLORS.pending}>
@@ -1186,6 +1198,27 @@ function BookingItem({
                 ))}
               </div>
             )}
+            {booking.poc_shared_at && (() => {
+              const member = (booking as unknown as { poc?: { full_name?: string | null; username?: string | null; phone_number?: string | null } | null }).poc
+              const pocName = member?.full_name || booking.poc_external_name
+              if (!pocName) return null
+              const pocPhone = member ? member.phone_number : booking.poc_external_phone
+              const pocUsername = member?.username
+              const telHref = pocPhone ? `tel:${pocPhone.replace(/[^\d+]/g, '')}` : null
+              const waHref = pocPhone ? `https://wa.me/${pocPhone.replace(/\D/g, '')}` : null
+              return (
+                <div className="mb-2 rounded-lg border border-border bg-secondary/30 p-2.5 text-xs">
+                  <span className="text-muted-foreground">Your coordinator: </span>
+                  <span className="font-medium">{pocName}</span>
+                  {pocUsername ? <span className="text-muted-foreground"> @{pocUsername}</span> : null}
+                  <div className="flex flex-wrap gap-3 mt-1.5" onClick={e => e.stopPropagation()}>
+                    {telHref && <a href={telHref} className="text-primary hover:underline">Call</a>}
+                    {waHref && <a href={waHref} target="_blank" rel="noopener noreferrer" className="text-green-500 hover:underline">WhatsApp</a>}
+                    {pocUsername && <a href={`/profile/${pocUsername}`} className="text-primary hover:underline">Chat on UnSOLO</a>}
+                  </div>
+                </div>
+              )
+            })()}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm">
                 {showTokenBalance ? (

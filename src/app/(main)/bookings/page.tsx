@@ -60,7 +60,7 @@ export default async function BookingsPage() {
 
   const { data: bookingRows, error: bookingsError } = await supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*)), service_listings(*)')
+    .select('*, package:packages(*, destination:destinations(*)), service_listings(*), service_listing_item:service_listing_items(name), poc:profiles!bookings_assigned_poc_fkey(full_name, username, phone_number)')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

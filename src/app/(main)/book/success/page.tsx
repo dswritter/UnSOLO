@@ -106,6 +106,18 @@ export default async function BookingSuccessPage({
                 <span className="text-muted-foreground">Guests</span>
                 <span>{booking.guests}</span>
               </div>
+              {Array.isArray(booking.traveller_details) && booking.traveller_details.length > 0 && (
+                <div className="pt-1">
+                  <span className="text-muted-foreground text-xs">Travellers</span>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {booking.traveller_details.map((t, i) => (
+                      <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                        {t.name} · {t.age} · {t.gender}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {isToken ? (
                 <>
                   <div className="flex justify-between">
