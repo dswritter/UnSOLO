@@ -279,6 +279,8 @@ interface BookingConfirmationDetails {
   /** Trip coordinator (POC) name + phone. */
   pocName?: string | null
   pocContact?: string | null
+  /** Per-traveller details captured at checkout. */
+  travellers?: { name: string; age: number; gender: string }[] | null
 }
 
 export async function sendBookingConfirmation(details: BookingConfirmationDetails) {
@@ -287,8 +289,18 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
     travelDate, returnDateIso, guests, totalAmount, confirmationCode, durationSummary,
     receiptNo, amountPaidPaise, balanceDuePaise, payRemainingUrl,
     contactWhatsappNumber, contactWhatsappLabel, tripChatUrl,
-    tripUrl, hostName, hostContact, pocName, pocContact,
+    tripUrl, hostName, hostContact, pocName, pocContact, travellers,
   } = details
+
+  const travellersBlock = Array.isArray(travellers) && travellers.length > 0
+    ? `
+        <div style="background: #1a1a1a; border-radius: 8px; padding: 8px 12px; margin: 20px 0; border: 1px solid #333;">
+          <p style="color: #FFAA00; font-weight: bold; margin: 8px; font-size: 14px;">Travellers (${travellers.length})</p>
+          <table style="width: 100%; border-collapse: collapse; color: #ddd; font-size: 14px;">
+            ${travellers.map((t, i) => `<tr${i ? ' style="border-top: 1px solid #333;"' : ''}><td style="padding: 8px;">${escapeHtml(t.name)}</td><td style="padding: 8px; text-align: right; color: #aaa;">${t.age} · ${escapeHtml(t.gender)}</td></tr>`).join('')}
+          </table>
+        </div>`
+    : ''
 
   const fmtAmt = (paise: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100)
@@ -386,6 +398,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Guests</td><td style="padding: 10px 8px;">${guests}</td></tr>${paymentRows}
           </table>
         </div>
+        ${travellersBlock}
         ${actionButtons}
         ${payCta}
         ${teamBlock}

@@ -1100,3 +1100,51 @@ export async function deactivateHostStatus(keepPhonePublic: boolean) {
   revalidatePath('/profile')
   return { success: true }
 }
+
+export type TripRosterEntry = {
+  bookingId: string
+  status: string
+  travelDate: string | null
+  confirmationCode: string | null
+  guests: number
+  leadName: string
+  leadUsername: string | null
+  leadPhone: string | null
+  travellers: { name: string; age: number; gender: string }[] | null
+}
+
+/**
+ * Confirmed/active bookings for a host's trip — the traveller roster. Host (or
+ * admin) only. Uses the service role so booker profiles + traveller details
+ * resolve regardless of RLS.
+ */
+export async function getTripRosterForHost(tripId: string): Promise<TripRosterEntry[]> {
+  const { user, isAdmin } = await requireHostOrAdmin()
+  const svc = createServiceRoleClient()
+
+  const { data: pkg } = await svc.from('packages').select('host_id').eq('id', tripId).single()
+  if (!pkg) return []
+  if (!isAdmin && pkg.host_id !== user.id) throw new Error('Not your trip')
+
+  const { data: rows } = await svc
+    .from('bookings')
+    .select('id, status, travel_date, confirmation_code, guests, traveller_details, user:profiles!bookings_user_id_fkey(full_name, username, phone_number)')
+    .eq('package_id', tripId)
+    .in('status', ['confirmed', 'completed'])
+    .order('travel_date', { ascending: true })
+
+  return (rows || []).map((r) => {
+    const u = r.user as { full_name?: string | null; username?: string | null; phone_number?: string | null } | null
+    return {
+      bookingId: String(r.id),
+      status: String(r.status),
+      travelDate: (r.travel_date as string | null) ?? null,
+      confirmationCode: (r.confirmation_code as string | null) ?? null,
+      guests: Number(r.guests ?? 1),
+      leadName: u?.full_name || u?.username || 'Traveler',
+      leadUsername: u?.username ?? null,
+      leadPhone: u?.phone_number ?? null,
+      travellers: (r.traveller_details as { name: string; age: number; gender: string }[] | null) ?? null,
+    }
+  })
+}

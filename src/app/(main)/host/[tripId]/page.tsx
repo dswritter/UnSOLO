@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { checkIsHost, getHostTripDetail, getJoinRequestsForTrip } from '@/actions/hosting'
+import { checkIsHost, getHostTripDetail, getJoinRequestsForTrip, getTripRosterForHost } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { Badge } from '@/components/ui/badge'
@@ -33,9 +33,10 @@ export default async function ManageTripPage({
   if (!hostStatus.authenticated) redirect('/login')
   if (!hostStatus.isHost) redirect('/host/verify')
 
-  const [trip, requests] = await Promise.all([
+  const [trip, requests, roster] = await Promise.all([
     getHostTripDetail(tripId),
     getJoinRequestsForTrip(tripId),
+    getTripRosterForHost(tripId).catch(() => []),
   ])
 
   if (!trip) notFound()
@@ -154,6 +155,43 @@ export default async function ManageTripPage({
         )}
 
         {/* Join Requests */}
+        {roster.length > 0 && (
+          <div className="rounded-xl border border-border bg-card p-5 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4 text-primary" />
+              <h2 className="font-bold">Travellers ({roster.reduce((n, r) => n + r.guests, 0)})</h2>
+            </div>
+            <div className="space-y-3">
+              {roster.map((r) => (
+                <div key={r.bookingId} className="rounded-lg border border-border bg-secondary/30 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="font-medium">{r.leadName}{r.leadUsername ? <span className="text-muted-foreground"> @{r.leadUsername}</span> : null}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {r.guests} guest{r.guests > 1 ? 's' : ''}
+                      {r.travelDate ? ` · ${formatDate(r.travelDate)}` : ''}
+                      {r.confirmationCode ? ` · #${r.confirmationCode}` : ''}
+                    </span>
+                  </div>
+                  {r.leadPhone && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <a href={`tel:${r.leadPhone.replace(/[^\d+]/g, '')}`} className="text-primary hover:underline">{r.leadPhone}</a>
+                    </div>
+                  )}
+                  {Array.isArray(r.travellers) && r.travellers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {r.travellers.map((t, i) => (
+                        <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                          {t.name} · {t.age} · {t.gender}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <ManageRequestsClient
           tripId={tripId}
           pendingRequests={pendingRequests}
