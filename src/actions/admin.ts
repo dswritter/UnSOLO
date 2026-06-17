@@ -180,13 +180,52 @@ export async function getAdminBookings(status?: string) {
 export async function assignPOC(bookingId: string, pocUserId: string) {
   const { supabase } = await requireAdmin()
 
+  // Assigning a registered member clears any outsider POC.
   const { error } = await supabase
     .from('bookings')
-    .update({ assigned_poc: pocUserId })
+    .update({ assigned_poc: pocUserId, poc_external_name: null, poc_external_phone: null })
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
   return { success: true }
+}
+
+/** Assign any registered UnSOLO member as POC, by username. */
+export async function assignMemberPOC(bookingId: string, username: string) {
+  const { supabase } = await requireAdmin()
+  const handle = username.trim().replace(/^@/, '')
+  if (!handle) return { error: 'Enter a username' }
+
+  const svc = createServiceRoleClient()
+  const { data: member } = await svc
+    .from('profiles')
+    .select('id, username, full_name')
+    .ilike('username', handle)
+    .maybeSingle()
+  if (!member) return { error: `No UnSOLO member @${handle}` }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({ assigned_poc: member.id, poc_external_name: null, poc_external_phone: null })
+    .eq('id', bookingId)
+  if (error) return { error: error.message }
+  return { success: true, name: member.full_name || member.username }
+}
+
+/** Assign an outsider (no UnSOLO account) as POC — name + phone only. */
+export async function assignExternalPOC(bookingId: string, name: string, phone: string) {
+  const { supabase } = await requireAdmin()
+  const cleanName = name.trim()
+  const cleanPhone = phone.trim()
+  if (!cleanName) return { error: 'Enter the POC name' }
+  if (cleanPhone.replace(/\D/g, '').length < 10) return { error: 'Enter a valid phone number' }
+
+  const { error } = await supabase
+    .from('bookings')
+    .update({ assigned_poc: null, poc_external_name: cleanName, poc_external_phone: cleanPhone })
+    .eq('id', bookingId)
+  if (error) return { error: error.message }
+  return { success: true, name: cleanName }
 }
 
 export async function updateBookingStatus(bookingId: string, status: string) {
@@ -254,17 +293,24 @@ export async function sharePOCWithCustomer(bookingId: string) {
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('*, package:packages(title), user:profiles!bookings_user_id_fkey(full_name, username), poc:profiles!bookings_assigned_poc_fkey(full_name, username)')
+    .select('*, package:packages(title), user:profiles!bookings_user_id_fkey(full_name, username), poc:profiles!bookings_assigned_poc_fkey(full_name, username, phone_number)')
     .eq('id', bookingId)
     .single()
 
   if (!booking) return { error: 'Booking not found' }
-  if (!booking.poc) return { error: 'No POC assigned to this booking' }
+
+  const memberPoc = booking.poc as { full_name?: string; username?: string; phone_number?: string | null } | null
+  const externalName = booking.poc_external_name as string | null
+  const externalPhone = booking.poc_external_phone as string | null
+  if (!memberPoc && !externalName) return { error: 'No POC assigned to this booking' }
 
   // Get customer email from auth
   const serviceClient = await createServiceClient()
   const { data: authUser } = await serviceClient.auth.admin.getUserById(booking.user_id)
   if (!authUser?.user?.email) return { error: 'Customer email not found' }
+
+  const { APP_URL } = await import('@/lib/constants')
+  const pocUsername = memberPoc?.username || ''
 
   try {
     const { sendPOCDetails } = await import('@/lib/resend/emails')
@@ -274,8 +320,11 @@ export async function sharePOCWithCustomer(bookingId: string) {
       packageTitle: (booking.package as { title?: string })?.title || 'Trip',
       confirmationCode: booking.confirmation_code || '',
       travelDate: booking.travel_date,
-      pocName: (booking.poc as { full_name?: string })?.full_name || 'Team Member',
-      pocUsername: (booking.poc as { username?: string })?.username || '',
+      pocName: memberPoc?.full_name || externalName || 'Team Member',
+      pocUsername,
+      pocPhone: memberPoc ? memberPoc.phone_number ?? null : externalPhone,
+      // Outsiders have no UnSOLO account, so no in-app chat link.
+      unsoloChatUrl: pocUsername ? `${APP_URL}/profile/${pocUsername}` : null,
     })
 
     await supabase

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { formatPrice, formatDate, ROLE_LABELS, type Booking, type Profile } from '@/types'
-import { assignPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
+import { assignMemberPOC, assignExternalPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
 import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -102,14 +102,6 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
   function showFeedback(id: string, msg: string) {
     setFeedback(f => ({ ...f, [id]: msg }))
     setTimeout(() => setFeedback(f => { const next = { ...f }; delete next[id]; return next }), 3000)
-  }
-
-  function handleAssignPOC(bookingId: string, pocId: string) {
-    startTransition(async () => {
-      const res = await assignPOC(bookingId, pocId)
-      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
-      else showFeedback(bookingId, 'POC assigned! Reload to see changes.')
-    })
   }
 
   function handleStatusChange(bookingId: string, status: string) {
@@ -289,7 +281,7 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     <div><span className="text-muted-foreground">Duration:</span> {pkg ? packageDurationShortLabel(pkg) : 'N/A'}</div>
                     <div><span className="text-muted-foreground">Booked on:</span> {formatDate(booking.created_at)}</div>
                     <div><span className="text-muted-foreground">Payment ID:</span> <span className="text-xs text-muted-foreground font-mono">{booking.stripe_payment_intent || '—'}</span></div>
-                    <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : <span className="text-yellow-500">Not assigned</span>}</div>
+                    <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : booking.poc_external_name ? `${booking.poc_external_name} · ${booking.poc_external_phone || ''} (outsider)` : <span className="text-yellow-500">Not assigned</span>}</div>
                   </div>
 
                   {/* Travellers */}
@@ -322,20 +314,8 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                       <option value="cancelled">Cancelled</option>
                     </select>
 
-                    {/* Assign POC */}
-                    <select
-                      className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs"
-                      defaultValue=""
-                      onChange={(e) => { if (e.target.value) handleAssignPOC(booking.id, e.target.value) }}
-                      disabled={isPending}
-                    >
-                      <option value="" disabled>Assign POC...</option>
-                      {staffMembers.map(s => (
-                        <option key={s.id} value={s.id}>
-                          {s.full_name || s.username} ({ROLE_LABELS[s.role as keyof typeof ROLE_LABELS] || s.role})
-                        </option>
-                      ))}
-                    </select>
+                    {/* Assign POC — registered member or outsider */}
+                    <PocAssigner bookingId={booking.id} staffMembers={staffMembers} />
 
                     {/* Send confirmation email */}
                     {booking.status === 'confirmed' && (
@@ -491,6 +471,72 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function PocAssigner({
+  bookingId,
+  staffMembers,
+}: {
+  bookingId: string
+  staffMembers: Pick<Profile, 'id' | 'username' | 'full_name' | 'role'>[]
+}) {
+  const [mode, setMode] = useState<'member' | 'outsider'>('member')
+  const [username, setUsername] = useState('')
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [msg, setMsg] = useState('')
+  const [isPending, startTransition] = useTransition()
+
+  function assign() {
+    startTransition(async () => {
+      const res = mode === 'member'
+        ? await assignMemberPOC(bookingId, username)
+        : await assignExternalPOC(bookingId, name, phone)
+      if (res.error) setMsg(`Error: ${res.error}`)
+      else {
+        setMsg(`POC set to ${res.name}. Reload to see changes.`)
+        setUsername(''); setName(''); setPhone('')
+      }
+    })
+  }
+
+  const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1.5 text-xs'
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select value={mode} onChange={e => setMode(e.target.value as 'member' | 'outsider')} className={inputCls}>
+        <option value="member">Registered member</option>
+        <option value="outsider">Outsider</option>
+      </select>
+      {mode === 'member' ? (
+        <>
+          <input
+            list={`poc-staff-${bookingId}`}
+            value={username}
+            onChange={e => setUsername(e.target.value)}
+            placeholder="@username"
+            className={`${inputCls} w-40`}
+          />
+          <datalist id={`poc-staff-${bookingId}`}>
+            {staffMembers.map(s => (
+              <option key={s.id} value={s.username || ''}>
+                {s.full_name} ({ROLE_LABELS[s.role as keyof typeof ROLE_LABELS] || s.role})
+              </option>
+            ))}
+          </datalist>
+        </>
+      ) : (
+        <>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="POC name" className={`${inputCls} w-32`} />
+          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" className={`${inputCls} w-32`} />
+        </>
+      )}
+      <Button size="sm" variant="outline" className="text-xs gap-1 border-border" onClick={assign} disabled={isPending}>
+        <UserPlus className="h-3 w-3" /> Assign POC
+      </Button>
+      {msg && <span className="text-xs text-muted-foreground">{msg}</span>}
     </div>
   )
 }

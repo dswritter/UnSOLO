@@ -528,11 +528,26 @@ interface POCDetailsInput {
   confirmationCode: string
   travelDate: string
   pocName: string
+  /** Empty for outsider POCs. */
   pocUsername: string
+  /** POC phone (member's profile number or the outsider number admin entered). */
+  pocPhone?: string | null
+  /** Link to message the POC on UnSOLO — null for outsiders (no account). */
+  unsoloChatUrl?: string | null
 }
 
 export async function sendPOCDetails(details: POCDetailsInput) {
-  const { customerEmail, customerName, packageTitle, confirmationCode, travelDate, pocName, pocUsername } = details
+  const { customerEmail, customerName, packageTitle, confirmationCode, travelDate, pocName, pocUsername, pocPhone, unsoloChatUrl } = details
+
+  const phoneDigits = pocPhone ? pocPhone.replace(/[^\d+]/g, '') : ''
+  const waDigits = pocPhone ? pocPhone.replace(/\D/g, '') : ''
+  const waMsg = encodeURIComponent(`Hi ${pocName}, I'm reaching out about my UnSOLO trip ${confirmationCode} (${packageTitle}).`)
+
+  const contactButtons = [
+    phoneDigits ? `<a href="tel:${phoneDigits}" style="display: inline-block; margin: 4px; background: #FFAA00; color: #000; font-weight: bold; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;">Call ${escapeHtml(pocName)}</a>` : '',
+    waDigits ? `<a href="https://wa.me/${waDigits}?text=${waMsg}" style="display: inline-block; margin: 4px; background: #25D366; color: #fff; font-weight: bold; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;">WhatsApp</a>` : '',
+    unsoloChatUrl ? `<a href="${unsoloChatUrl.replace(/"/g, '&quot;')}" style="display: inline-block; margin: 4px; background: #1a1a1a; border: 1px solid #FFAA00; color: #FFAA00; font-weight: bold; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;">Chat on UnSOLO</a>` : '',
+  ].filter(Boolean).join('')
 
   await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
@@ -554,8 +569,10 @@ export async function sendPOCDetails(details: POCDetailsInput) {
 
         <div style="background: #1a1a2e; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #333; text-align: center;">
           <p style="color: #FFAA00; font-weight: bold; font-size: 16px; margin-bottom: 8px;">Your Point of Contact</p>
-          <p style="color: #fff; font-size: 20px; font-weight: bold; margin: 4px 0;">${pocName}</p>
-          <p style="color: #aaa; margin: 4px 0;">@${pocUsername}</p>
+          <p style="color: #fff; font-size: 20px; font-weight: bold; margin: 4px 0;">${escapeHtml(pocName)}</p>
+          ${pocUsername ? `<p style="color: #aaa; margin: 4px 0;">@${escapeHtml(pocUsername)}</p>` : ''}
+          ${pocPhone ? `<p style="color: #ccc; margin: 4px 0;">${escapeHtml(pocPhone)}</p>` : ''}
+          ${contactButtons ? `<div style="margin: 14px 0 4px;">${contactButtons}</div>` : ''}
           <p style="color: #ccc; margin-top: 12px; font-size: 14px;">They will reach out to you before your trip with all the details you need.</p>
         </div>
 

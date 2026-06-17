@@ -259,6 +259,9 @@ export type Booking = {
   confirmation_code: string | null
   special_requests: string | null
   assigned_poc: string | null
+  /** Outsider POC (no UnSOLO account) — name + phone only. */
+  poc_external_name?: string | null
+  poc_external_phone?: string | null
   poc_shared_at: string | null
   admin_notes: string | null
   cancellation_status?: 'requested' | 'approved' | 'denied' | 'self_service' | null
