@@ -320,10 +320,7 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                     </select>
 
                     {/* Assign POC — registered member or outsider */}
-                    <PocAssigner
-                      bookingId={booking.id}
-                      currentPoc={poc ? `${poc.full_name || poc.username}${poc.username ? ` @${poc.username}` : ''}` : booking.poc_external_name ? `${booking.poc_external_name} (outsider)` : null}
-                    />
+                    <PocAssigner bookingId={booking.id} />
 
                     {/* Send confirmation email */}
                     {booking.status === 'confirmed' && (
@@ -483,20 +480,14 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
   )
 }
 
-function PocAssigner({
-  bookingId,
-  currentPoc,
-}: {
-  bookingId: string
-  currentPoc: string | null
-}) {
+function PocAssigner({ bookingId }: { bookingId: string }) {
   const [mode, setMode] = useState<'member' | 'outsider'>('member')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<{ id: string; username: string | null; full_name: string | null }[]>([])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [msg, setMsg] = useState('')
-  const [assigned, setAssigned] = useState<string | null>(null)
+  const [isError, setIsError] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   // Live search as the admin types (debounced).
@@ -513,27 +504,23 @@ function PocAssigner({
   function pickMember(m: { id: string; username: string | null; full_name: string | null }) {
     startTransition(async () => {
       const res = await assignMemberPOC(bookingId, m.id)
-      if (res.error) setMsg(`Error: ${res.error}`)
-      else { setAssigned(res.name || m.username || 'member'); setMsg(''); setQuery(''); setResults([]) }
+      if (res.error) { setIsError(true); setMsg(`Error: ${res.error}`) }
+      else { setIsError(false); setMsg(`POC set to ${res.name}. Reload to see changes.`); setQuery(''); setResults([]) }
     })
   }
 
   function assignOutsider() {
     startTransition(async () => {
       const res = await assignExternalPOC(bookingId, name, phone)
-      if (res.error) setMsg(`Error: ${res.error}`)
-      else { setAssigned(`${res.name} (outsider)`); setMsg(''); setName(''); setPhone('') }
+      if (res.error) { setIsError(true); setMsg(`Error: ${res.error}`) }
+      else { setIsError(false); setMsg(`POC set to ${res.name}. Reload to see changes.`); setName(''); setPhone('') }
     })
   }
 
   const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1.5 text-xs'
-  const shownPoc = assigned || currentPoc
 
   return (
     <div className="flex flex-col gap-1.5">
-      {shownPoc && (
-        <span className="text-xs text-muted-foreground">POC: <span className="text-foreground font-medium">{shownPoc}</span></span>
-      )}
       <div className="flex flex-wrap items-center gap-2">
         <select value={mode} onChange={e => setMode(e.target.value as 'member' | 'outsider')} className={inputCls}>
           <option value="member">Registered member</option>
@@ -572,7 +559,7 @@ function PocAssigner({
             </Button>
           </>
         )}
-        {msg && <span className="text-xs text-red-400">{msg}</span>}
+        {msg && <span className={`text-xs ${isError ? 'text-red-400' : 'text-muted-foreground'}`}>{msg}</span>}
       </div>
     </div>
   )
