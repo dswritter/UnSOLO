@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ServiceListing, Destination, formatPrice } from '@/types'
-import { approveServiceListing, rejectServiceListing, hardDeleteServiceListing, deleteServiceListing } from '@/actions/admin-service-listings'
+import { approveServiceListing, rejectServiceListing, hardDeleteServiceListing } from '@/actions/admin-service-listings'
 import { cn } from '@/lib/utils'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'archived'
@@ -107,18 +107,6 @@ export function ServiceListingsClient({
     setLoading(id)
     try {
       await hardDeleteServiceListing(id)
-      window.location.assign('/admin/service-listings')
-    } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
-      setLoading(null)
-    }
-  }
-
-  async function handleArchiveDelete(id: string) {
-    if (!confirm('Delete this listing? It will be archived and hidden from travellers. Booking history is preserved.')) return
-    setLoading(id)
-    try {
-      await deleteServiceListing(id)
       window.location.assign('/admin/service-listings')
     } catch (e) {
       alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
@@ -280,27 +268,15 @@ export function ServiceListingsClient({
                         </button>
                       </>
                     )}
-                    {(listing.status === 'archived' || listing.status === 'rejected') ? (
-                      <button
-                        type="button"
-                        onClick={() => handleHardDelete(listing.id)}
-                        disabled={loading === listing.id}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                        title="Permanently delete — cannot be undone"
-                      >
-                        {loading === listing.id ? '…' : '🗑 Delete'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleArchiveDelete(listing.id)}
-                        disabled={loading === listing.id}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
-                        title="Delete (archive) this listing"
-                      >
-                        {loading === listing.id ? '…' : '🗑 Delete'}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleHardDelete(listing.id)}
+                      disabled={loading === listing.id}
+                      className="rounded-md px-2 py-1 text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                      title="Permanently delete — cannot be undone"
+                    >
+                      {loading === listing.id ? '…' : '🗑 Delete'}
+                    </button>
                   </div>
                 </td>
               </tr>

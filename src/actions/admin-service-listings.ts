@@ -327,7 +327,13 @@ export async function hardDeleteServiceListing(id: string) {
   const { supabase, user } = await requireAdmin()
 
   const { error } = await supabase.from('service_listings').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) {
+    // 23503 = foreign-key violation (the listing still has bookings).
+    if (error.code === '23503') {
+      throw new Error('This listing has bookings and cannot be permanently deleted.')
+    }
+    throw new Error(error.message)
+  }
 
   await logAuditEvent(user.id, 'HARD_DELETE_SERVICE_LISTING', 'service_listing', id)
 

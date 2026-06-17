@@ -36,7 +36,7 @@ export default async function EditServiceListingPage({ params }: { params: Promi
           >
             Admin preview
           </Link>
-          <DeleteListingButton id={listing.id} status={listing.status} />
+          <DeleteListingButton id={listing.id} />
         </div>
       </div>
 
