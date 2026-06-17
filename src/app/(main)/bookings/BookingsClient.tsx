@@ -27,6 +27,7 @@ import {
   createCommunityTripOrder,
   confirmPayment,
   dismissServiceBookingFromMyTrips,
+  openTripChat,
 } from '@/actions/booking'
 import { getTravelerCancellationPreview, type TravelerCancellationPreview } from '@/actions/cancellation-refund'
 import { withdrawJoinRequest } from '@/actions/hosting'
@@ -38,6 +39,17 @@ import { useRouter } from 'next/navigation'
 import type { Booking, JoinPreferences } from '@/types'
 import { HostRatingCard } from '@/components/hosting/HostRatingCard'
 import Script from 'next/script'
+
+/** Open (or create + join) this trip's group chat, then navigate to the room. */
+async function goToTripChat(
+  packageId: string | null | undefined,
+  router: ReturnType<typeof useRouter>,
+) {
+  if (!packageId) return
+  const res = await openTripChat(packageId)
+  if ('error' in res && res.error) { toast.error(res.error); return }
+  if ('roomId' in res && res.roomId) router.push(`/tribe/${res.roomId}`)
+}
 
 function tripCalFromPackage(
   pkg: {
@@ -326,10 +338,8 @@ export function BookingsClient({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-bold text-primary text-sm">{formatPrice(group.per_person_paise)}</span>
                 <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                  <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                    <Link href="/community">
-                      <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
-                    </Link>
+                  <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => goToTripChat(group.package_id, router)}>
+                    <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                   </Button>
                   {needsPayment && (
                     <Button size="sm" className="bg-primary text-primary-foreground text-xs" asChild>
@@ -1095,6 +1105,7 @@ function BookingItem({
   onRatingClose?: () => void
   onRatingSubmitted?: () => void
 }) {
+  const router = useRouter()
   const pkg = booking.package
   const jp = (pkg?.join_preferences ?? null) as JoinPreferences | null
   const isTokenTrip = !!pkg?.host_id && isTokenDepositEnabled(jp ?? undefined)
@@ -1210,10 +1221,8 @@ function BookingItem({
                   </Button>
                 )}
                 {booking.status !== 'pending' && (
-                  <Button variant="outline" size="sm" className="border-border text-xs" asChild>
-                    <Link href="/community">
-                      <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
-                    </Link>
+                  <Button variant="outline" size="sm" className="border-border text-xs" onClick={() => goToTripChat(booking.package_id, router)}>
+                    <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                   </Button>
                 )}
                 {showReview && onReview && (

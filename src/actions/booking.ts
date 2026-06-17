@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { razorpay } from '@/lib/razorpay/client'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
@@ -12,6 +12,7 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
+import { ensureTripChatRoom, addTripChatMember } from '@/lib/chat/tripChatMembership'
 import {
   incrementPromoOfferUsed,
   validateScopedPromoCode,
@@ -193,35 +194,11 @@ async function runPartialTokenFirstPaymentEffects(
     await supabase.from('profiles').update({ referral_credits_paise: newCredits }).eq('id', userId)
   }
 
-  const { data: existingRoom } = await supabase
-    .from('chat_rooms')
-    .select('id')
-    .eq('package_id', booking.package_id)
-    .eq('type', 'trip')
-    .single()
-
-  let roomId = existingRoom?.id
-
-  if (!roomId) {
-    const pkg = booking.package as { title?: string } | null
-    const { data: newRoom } = await supabase
-      .from('chat_rooms')
-      .insert({
-        name: pkg?.title ? `${pkg.title} - Trip Chat` : 'Trip Chat',
-        type: 'trip',
-        package_id: booking.package_id,
-        created_by: userId,
-      })
-      .select('id')
-      .single()
-    roomId = newRoom?.id
-  }
-
+  // Trip chat: named after the trip, trip photo as icon, host included.
+  const chatSvc = createServiceRoleClient()
+  const roomId = await ensureTripChatRoom(chatSvc, booking.package_id)
   if (roomId) {
-    await supabase.from('chat_room_members').upsert({
-      room_id: roomId,
-      user_id: userId,
-    })
+    await addTripChatMember(chatSvc, roomId, userId)
 
     const { data: joinerProfile } = await supabase
       .from('profiles')
@@ -230,7 +207,7 @@ async function runPartialTokenFirstPaymentEffects(
       .single()
     const displayName = joinerProfile?.full_name || joinerProfile?.username || 'A new traveler'
 
-    await supabase.from('messages').insert({
+    await chatSvc.from('messages').insert({
       room_id: roomId,
       user_id: null,
       content: `🎉 ${displayName} (@${joinerProfile?.username || 'traveler'}) has joined the trip!`,
@@ -451,35 +428,11 @@ async function runPostConfirmationPipeline(
     await incrementPromoOfferUsed(supabase, booking.promo_offer_id)
   }
 
-  const { data: existingRoom } = await supabase
-    .from('chat_rooms')
-    .select('id')
-    .eq('package_id', booking.package_id)
-    .eq('type', 'trip')
-    .single()
-
-  let roomId = existingRoom?.id
-
-  if (!roomId) {
-    const pkg = booking.package as { title?: string } | null
-    const { data: newRoom } = await supabase
-      .from('chat_rooms')
-      .insert({
-        name: pkg?.title ? `${pkg.title} - Trip Chat` : 'Trip Chat',
-        type: 'trip',
-        package_id: booking.package_id,
-        created_by: userId,
-      })
-      .select('id')
-      .single()
-    roomId = newRoom?.id
-  }
-
+  // Trip chat: named after the trip, trip photo as icon, host included.
+  const chatSvc = createServiceRoleClient()
+  const roomId = await ensureTripChatRoom(chatSvc, booking.package_id)
   if (roomId) {
-    await supabase.from('chat_room_members').upsert({
-      room_id: roomId,
-      user_id: userId,
-    })
+    await addTripChatMember(chatSvc, roomId, userId)
 
     const { data: joinerProfile } = await supabase
       .from('profiles')
@@ -488,7 +441,7 @@ async function runPostConfirmationPipeline(
       .single()
     const displayName = joinerProfile?.full_name || joinerProfile?.username || 'A new traveler'
 
-    await supabase.from('messages').insert({
+    await chatSvc.from('messages').insert({
       room_id: roomId,
       user_id: null,
       content: `🎉 ${displayName} (@${joinerProfile?.username || 'traveler'}) has joined the trip!`,
@@ -1212,6 +1165,33 @@ export async function confirmPayment(
 }
 
 /** Pay remaining balance for a community trip booked with token_to_book (second Razorpay order). */
+/**
+ * Open (creating if needed) the trip chat group for a package the caller has
+ * booked, join them to it, and return the room id. The first booker to open it
+ * effectively creates the group; later bookers join the same room. The host is
+ * always a member; the room is named after the trip with the trip photo icon.
+ */
+export async function openTripChat(packageId: string) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: bk } = await supabase
+    .from('bookings')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('package_id', packageId)
+    .in('status', ['pending', 'confirmed', 'completed'])
+    .limit(1)
+    .maybeSingle()
+  if (!bk) return { error: 'Book this trip to access its group chat.' }
+
+  const svc = createServiceRoleClient()
+  const roomId = await ensureTripChatRoom(svc, packageId)
+  if (!roomId) return { error: 'Could not open the trip chat. Please try again.' }
+  await addTripChatMember(svc, roomId, user.id)
+  return { roomId }
+}
+
 export async function createBookingBalanceOrder(bookingId: string) {
   const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }

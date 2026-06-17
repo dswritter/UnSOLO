@@ -80,6 +80,13 @@ const navItems: {
     permissionKey: 'community_trips',
   },
   {
+    href: '/admin/trip-groups',
+    label: 'Trip Groups',
+    icon: MessageCircle,
+    roles: ['admin', 'social_media_manager'],
+    permissionKey: 'community_trips',
+  },
+  {
     href: '/admin/community-chats',
     label: 'Community chats',
     icon: MessageCircle,

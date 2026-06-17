@@ -1536,3 +1536,64 @@ export async function recoverBookingFromRazorpayOrder(orderId: string) {
 
   return { success: true, bookingId: booking.id, fullyPaid, balanceDuePaise: Math.max(0, (total || paid) - deposit) }
 }
+
+// ── Trip group chats (staff visibility + membership management) ──────────────
+
+export type AdminTripGroup = {
+  roomId: string
+  name: string
+  image: string | null
+  packageId: string | null
+  packageSlug: string | null
+  memberCount: number
+  createdAt: string
+}
+
+/** Every trip group chat, for staff. Uses the service role so all rooms are visible. */
+export async function getAllTripChatGroups(): Promise<{ groups?: AdminTripGroup[]; error?: string }> {
+  await requireStaff()
+  const svc = createServiceRoleClient()
+  const { data, error } = await svc
+    .from('chat_rooms')
+    .select('id, name, image_url, package_id, created_at, package:packages(slug, title, images), members:chat_room_members(count)')
+    .eq('type', 'trip')
+    .order('created_at', { ascending: false })
+  if (error) return { error: error.message }
+
+  const groups: AdminTripGroup[] = (data || []).map((r) => {
+    const pkg = r.package as { slug?: string; title?: string; images?: string[] } | null
+    const memberCount = Array.isArray(r.members) ? Number((r.members[0] as { count?: number })?.count ?? 0) : 0
+    return {
+      roomId: String(r.id),
+      name: pkg?.title || String(r.name || 'Trip Chat'),
+      image: (r.image_url as string | null) || (pkg?.images?.[0] ?? null),
+      packageId: (r.package_id as string | null) ?? null,
+      packageSlug: pkg?.slug ?? null,
+      memberCount,
+      createdAt: String(r.created_at),
+    }
+  })
+  return { groups }
+}
+
+/** Add any user (by username) to a trip group chat. Allowed for any staff role. */
+export async function adminAddUserToTripChat(roomId: string, username: string) {
+  const { user } = await requireStaff()
+  const handle = username.trim().replace(/^@/, '')
+  if (!handle) return { error: 'Enter a username' }
+
+  const svc = createServiceRoleClient()
+  const { data: room } = await svc.from('chat_rooms').select('id, type').eq('id', roomId).eq('type', 'trip').maybeSingle()
+  if (!room) return { error: 'Trip group not found' }
+
+  const { data: target } = await svc.from('profiles').select('id, username').ilike('username', handle).maybeSingle()
+  if (!target) return { error: `User @${handle} not found` }
+
+  const { error } = await svc
+    .from('chat_room_members')
+    .upsert({ room_id: roomId, user_id: target.id }, { onConflict: 'room_id,user_id' })
+  if (error) return { error: error.message }
+
+  await logAuditEvent(user.id, 'add_user_to_trip_chat', 'chat_room', roomId, { username: target.username })
+  return { success: true, username: target.username }
+}
