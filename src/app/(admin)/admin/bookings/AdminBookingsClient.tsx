@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
-import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
+import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
 import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -134,6 +134,19 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
       const res = await adminDeleteBooking(bookingId)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else setDeletedIds(prev => new Set([...prev, bookingId]))
+    })
+  }
+
+  function handleSendMessage(bookingId: string, message: string) {
+    if (!message.trim()) return
+    startTransition(async () => {
+      const res = await sendBookingMessage(bookingId, message)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else {
+        showFeedback(bookingId, 'Message sent to customer!')
+        const el = document.getElementById(`msg-${bookingId}`) as HTMLTextAreaElement | null
+        if (el) el.value = ''
+      }
     })
   }
 
@@ -467,6 +480,33 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                         disabled={isPending}
                       >
                         Save
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Message the customer — a short update emailed to them (not a full receipt) */}
+                  <div className="pt-2">
+                    <label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                      <Mail className="h-3 w-3" /> Message customer
+                    </label>
+                    <div className="flex gap-2">
+                      <textarea
+                        className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-none"
+                        rows={2}
+                        placeholder="Send a short update to the traveller by email…"
+                        id={`msg-${booking.id}`}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-border self-end gap-1"
+                        onClick={() => {
+                          const el = document.getElementById(`msg-${booking.id}`) as HTMLTextAreaElement
+                          if (el) handleSendMessage(booking.id, el.value)
+                        }}
+                        disabled={isPending}
+                      >
+                        <Send className="h-3 w-3" /> Send
                       </Button>
                     </div>
                   </div>

@@ -252,6 +252,80 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
+
+  // Email the customer a status-appropriate note on completion / cancellation.
+  if (status === 'completed' || status === 'cancelled') {
+    try {
+      const svc = createServiceRoleClient()
+      const { data: b } = await svc
+        .from('bookings')
+        .select('user_id, confirmation_code, admin_cancellation_note, package:packages(title), service_listing:service_listings(title)')
+        .eq('id', bookingId)
+        .single()
+      if (b) {
+        const { data: authUser } = await svc.auth.admin.getUserById(b.user_id as string)
+        const email = authUser?.user?.email
+        if (email) {
+          const { data: prof } = await svc.from('profiles').select('full_name').eq('id', b.user_id).single()
+          const { APP_URL } = await import('@/lib/constants')
+          const title = (b.package as { title?: string } | null)?.title
+            || (b.service_listing as { title?: string } | null)?.title
+            || 'your trip'
+          const common = {
+            customerEmail: email,
+            customerName: prof?.full_name || 'there',
+            packageTitle: title,
+            confirmationCode: (b.confirmation_code as string | null) || '',
+            bookingsUrl: `${APP_URL}/bookings`,
+          }
+          const emails = await import('@/lib/resend/emails')
+          if (status === 'completed') await emails.sendBookingCompletedEmail(common)
+          else await emails.sendBookingCancelledEmail({ ...common, note: (b.admin_cancellation_note as string | null) ?? null })
+        }
+      }
+    } catch {
+      /* email is non-critical */
+    }
+  }
+
+  return { success: true }
+}
+
+/** Send a short custom message (a "minor update") to the customer — not a full receipt. */
+export async function sendBookingMessage(bookingId: string, message: string) {
+  await requireStaff()
+  const msg = message.trim()
+  if (!msg) return { error: 'Enter a message' }
+  if (msg.length > 2000) return { error: 'Message is too long' }
+
+  const svc = createServiceRoleClient()
+  const { data: b } = await svc
+    .from('bookings')
+    .select('user_id, confirmation_code, package:packages(title), service_listing:service_listings(title)')
+    .eq('id', bookingId)
+    .single()
+  if (!b) return { error: 'Booking not found' }
+
+  const { data: authUser } = await svc.auth.admin.getUserById(b.user_id as string)
+  const email = authUser?.user?.email
+  if (!email) return { error: 'Customer email not found' }
+  const { data: prof } = await svc.from('profiles').select('full_name').eq('id', b.user_id).single()
+  const title = (b.package as { title?: string } | null)?.title
+    || (b.service_listing as { title?: string } | null)?.title
+    || 'your trip'
+
+  try {
+    const { sendBookingMessageEmail } = await import('@/lib/resend/emails')
+    await sendBookingMessageEmail({
+      customerEmail: email,
+      customerName: prof?.full_name || 'there',
+      packageTitle: title,
+      confirmationCode: (b.confirmation_code as string | null) || '',
+      message: msg,
+    })
+  } catch {
+    return { error: 'Failed to send the message' }
+  }
   return { success: true }
 }
 

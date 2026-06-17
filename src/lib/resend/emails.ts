@@ -433,6 +433,86 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
   })
 }
 
+// ── Booking: custom message / status updates ─────────────────
+
+const EMAIL_SHELL = (inner: string) =>
+  `<div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
+     <div style="text-align: center; margin-bottom: 24px;"><h1 style="color: #FFAA00; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1></div>
+     ${inner}
+     <p style="color: #888; text-align: center; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
+     <p style="color: #555; text-align: center; margin-top: 16px; font-size: 11px;">— Team UnSOLO</p>
+   </div>`
+
+interface BookingMessageInput {
+  customerEmail: string
+  customerName: string
+  packageTitle: string
+  confirmationCode: string
+  message: string
+}
+
+/** A short, admin-written note to the traveler (a "minor update", not a full receipt). */
+export async function sendBookingMessageEmail(input: BookingMessageInput) {
+  const { customerEmail, customerName, packageTitle, confirmationCode, message } = input
+  const body = escapeHtml(message).replace(/\n/g, '<br>')
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: customerEmail.trim(),
+    subject: `Update on your trip — ${packageTitle}`,
+    html: EMAIL_SHELL(`
+      <h2 style="color: #FFAA00; text-align: center;">A note about your trip</h2>
+      <p style="color: #ccc;">Hi ${escapeHtml(customerName)},</p>
+      <div style="background: #1a1a1a; border-radius: 8px; padding: 16px 20px; margin: 16px 0; border: 1px solid #333; color: #ddd; line-height: 1.6;">${body}</div>
+      <p style="color: #888; font-size: 12px;">Trip: ${escapeHtml(packageTitle)} · Booking #${confirmationCode}</p>
+    `),
+  })
+}
+
+interface BookingStatusEmailInput {
+  customerEmail: string
+  customerName: string
+  packageTitle: string
+  confirmationCode: string
+  /** Optional admin note (e.g. cancellation reason). */
+  note?: string | null
+  bookingsUrl: string
+}
+
+/** Sent when a trip is marked completed. */
+export async function sendBookingCompletedEmail(input: BookingStatusEmailInput) {
+  const { customerEmail, customerName, packageTitle, confirmationCode, bookingsUrl } = input
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: customerEmail.trim(),
+    subject: `Thanks for travelling with UnSOLO — ${packageTitle}`,
+    html: EMAIL_SHELL(`
+      <h2 style="color: #FFAA00; text-align: center;">Trip complete! 🎉</h2>
+      <p style="color: #ccc; text-align: center;">Hey ${escapeHtml(customerName)}, we hope ${escapeHtml(packageTitle)} was unforgettable.</p>
+      <p style="color: #ccc; text-align: center;">Your story helps other solo travellers — could you share a quick review?</p>
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="${bookingsUrl.replace(/"/g, '&quot;')}" style="display: inline-block; background: #FFAA00; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">Write a review</a>
+      </div>
+      <p style="color: #888; font-size: 12px; text-align: center;">Booking #${confirmationCode}</p>
+    `),
+  })
+}
+
+/** Sent when a booking is cancelled by the team. */
+export async function sendBookingCancelledEmail(input: BookingStatusEmailInput) {
+  const { customerEmail, customerName, packageTitle, confirmationCode, note } = input
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: customerEmail.trim(),
+    subject: `Booking cancelled — ${packageTitle}`,
+    html: EMAIL_SHELL(`
+      <h2 style="color: #FFAA00; text-align: center;">Booking cancelled</h2>
+      <p style="color: #ccc;">Hi ${escapeHtml(customerName)}, your booking for <strong>${escapeHtml(packageTitle)}</strong> (#${confirmationCode}) has been cancelled.</p>
+      ${note ? `<div style="background: #1a1a1a; border-radius: 8px; padding: 14px 18px; margin: 14px 0; border: 1px solid #333; color: #ddd;">${escapeHtml(note).replace(/\n/g, '<br>')}</div>` : ''}
+      <p style="color: #ccc;">Any eligible refund will be processed to your original payment method. Reach out if you have any questions.</p>
+    `),
+  })
+}
+
 // ── Service listing booking confirmation ─────────────────────
 
 export interface ServiceBookingConfirmedEmailInput {
