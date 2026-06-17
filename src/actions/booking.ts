@@ -2124,6 +2124,8 @@ export type CommunityTripOrderOptions = {
   useWalletCredits?: boolean
   /** When trip uses token deposit: charge full trip amount instead of token slice */
   payFullAmountForTokenTrip?: boolean
+  /** The joiner's own name/age/gender (community joins are single-person). */
+  travellerDetails?: { name: string; age: number; gender: string }[]
 }
 
 export async function createCommunityTripOrder(
@@ -2132,6 +2134,9 @@ export async function createCommunityTripOrder(
 ) {
   const { supabase, user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
+
+  const communityTravellerDetails = sanitizeTravellerDetails(options?.travellerDetails, 1)
+  if ('error' in communityTravellerDetails) return { error: communityTravellerDetails.error }
 
   const orderRate = await assertBookingOrderRateLimit(supabase, user.id)
   if (orderRate.error) return { error: orderRate.error }
@@ -2284,6 +2289,7 @@ export async function createCommunityTripOrder(
         stripe_session_id: null,
         stripe_payment_intent: null,
         confirmation_code: confirmationCode,
+        traveller_details: communityTravellerDetails.value,
       })
       .select('*, package:packages(*, destination:destinations(*))')
       .single()
@@ -2327,6 +2333,7 @@ export async function createCommunityTripOrder(
       discount_paise: discountTotalPaise,
       promo_offer_id: promoOfferId,
       stripe_session_id: order.id,
+      traveller_details: communityTravellerDetails.value,
     })
     .select('id')
     .single()

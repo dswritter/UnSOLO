@@ -546,11 +546,17 @@ function ApprovedPaymentSection({
   const [availablePromos, setAvailablePromos] = useState<CheckoutPromoRow[]>([])
   const [promosLoading, setPromosLoading] = useState(false)
 
+  // Joiner's own details (community joins are single-person).
+  const [travellerName, setTravellerName] = useState('')
+  const [travellerAge, setTravellerAge] = useState('')
+  const [travellerGender, setTravellerGender] = useState<'' | 'male' | 'female' | 'other'>('')
+
   useEffect(() => {
     getUserCredits().then(data => {
       setUserCredits(data.credits)
       setIsReferred(data.isReferred)
       setIsFirstBooking(data.isFirstBooking)
+      if (data.fullName) setTravellerName((prev) => prev || data.fullName)
     })
   }, [])
 
@@ -603,11 +609,16 @@ function ApprovedPaymentSection({
   const youPay = Math.max(0, amountPaise - promoDiscount - referredDiscount - creditsToApply)
 
   async function handlePayment() {
+    const age = parseInt(travellerAge, 10)
+    if (!travellerName.trim()) { toast.error('Enter your name'); return }
+    if (!travellerAge.trim() || Number.isNaN(age) || age < 1 || age > 120) { toast.error('Enter a valid age'); return }
+    if (!travellerGender) { toast.error('Select your gender'); return }
     setLoading(true)
     try {
       const result = await createCommunityTripOrder(existingRequest.id, {
         promoCode: promoApplied ? promoCode.trim() : undefined,
         useWalletCredits: applyCredits,
+        travellerDetails: [{ name: travellerName.trim(), age, gender: travellerGender as 'male' | 'female' | 'other' }],
       })
 
       if ('error' in result) {
@@ -712,6 +723,38 @@ function ApprovedPaymentSection({
           <span className="font-medium text-foreground">Host message:</span> {existingRequest.host_response}
         </div>
       )}
+
+      {/* Your details — captured for the host roster + receipt */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-muted-foreground">Your details</label>
+        <div className="grid grid-cols-[1fr_60px_100px] gap-2">
+          <Input
+            placeholder="Full name"
+            value={travellerName}
+            onChange={e => setTravellerName(e.target.value)}
+            className="bg-secondary border-border text-sm h-9"
+          />
+          <Input
+            type="number"
+            min="1"
+            max="120"
+            placeholder="Age"
+            value={travellerAge}
+            onChange={e => setTravellerAge(e.target.value)}
+            className="bg-secondary border-border text-sm h-9"
+          />
+          <select
+            value={travellerGender}
+            onChange={e => setTravellerGender(e.target.value as '' | 'male' | 'female' | 'other')}
+            className="bg-secondary border border-border rounded-lg px-2 text-sm h-9"
+          >
+            <option value="">Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
 
       {/* Referral + promo (same patterns as UnSOLO package booking) */}
       <div className="space-y-2">

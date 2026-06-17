@@ -352,6 +352,7 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
       `*,
        package:packages(*, destination:destinations(*)),
        service_listing:service_listings(*),
+       service_listing_item:service_listing_items(name),
        user:profiles!bookings_user_id_fkey(*)`,
     )
     .eq('id', bookingId)
@@ -386,6 +387,7 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
         quantity: booking.quantity ?? 1,
         amountPaise: booking.amount_paise ?? booking.total_amount_paise ?? 0,
         bookingId: booking.id,
+        itemName: (booking.service_listing_item as { name?: string } | null)?.name ?? null,
       })
       return { success: true }
     }
