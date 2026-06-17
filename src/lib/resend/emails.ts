@@ -283,6 +283,8 @@ interface BookingConfirmationDetails {
   pocChatUrl?: string | null
   /** Per-traveller details captured at checkout. */
   travellers?: { name: string; age: number; gender: string }[] | null
+  /** Optional admin note included with the receipt. */
+  adminMessage?: string | null
 }
 
 export async function sendBookingConfirmation(details: BookingConfirmationDetails) {
@@ -291,7 +293,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
     travelDate, returnDateIso, guests, totalAmount, confirmationCode, durationSummary,
     receiptNo, amountPaidPaise, balanceDuePaise, payRemainingUrl,
     contactWhatsappNumber, contactWhatsappLabel, tripChatUrl,
-    tripUrl, hostName, hostContact, hostChatUrl, pocName, pocContact, pocChatUrl, travellers,
+    tripUrl, hostName, hostContact, hostChatUrl, pocName, pocContact, pocChatUrl, travellers, adminMessage,
   } = details
 
   const travellersBlock = Array.isArray(travellers) && travellers.length > 0
@@ -404,6 +406,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
         </div>
         <h2 style="color: #FFAA00; text-align: center;">${heading}</h2>
         <p style="color: #ccc; text-align: center;">${intro}</p>
+        ${adminMessage?.trim() ? `<div style="background: #1a1a1a; border-radius: 8px; padding: 16px 20px; margin: 16px 0; border: 1px solid #333; color: #ddd; line-height: 1.6;">${escapeHtml(adminMessage).replace(/\n/g, '<br>')}</div>` : ''}
 
         <div style="background: #1a1a1a; border-radius: 8px; padding: 20px; margin: 24px 0; border: 1px solid #333;">
           <table style="width: 100%; border-collapse: collapse; color: #ddd;">
@@ -475,12 +478,19 @@ interface BookingStatusEmailInput {
   confirmationCode: string
   /** Optional admin note (e.g. cancellation reason). */
   note?: string | null
+  /** Optional custom message included in the email. */
+  message?: string | null
   bookingsUrl: string
 }
 
+const messageCard = (message?: string | null) =>
+  message?.trim()
+    ? `<div style="background: #1a1a1a; border-radius: 8px; padding: 16px 20px; margin: 16px 0; border: 1px solid #333; color: #ddd; line-height: 1.6;">${escapeHtml(message).replace(/\n/g, '<br>')}</div>`
+    : ''
+
 /** Sent when a trip is marked completed. */
 export async function sendBookingCompletedEmail(input: BookingStatusEmailInput) {
-  const { customerEmail, customerName, packageTitle, confirmationCode, bookingsUrl } = input
+  const { customerEmail, customerName, packageTitle, confirmationCode, bookingsUrl, message } = input
   await getResend().emails.send({
     from: `UnSOLO <${FROM_EMAIL}>`,
     to: customerEmail.trim(),
@@ -488,6 +498,7 @@ export async function sendBookingCompletedEmail(input: BookingStatusEmailInput) 
     html: EMAIL_SHELL(`
       <h2 style="color: #FFAA00; text-align: center;">Trip complete! 🎉</h2>
       <p style="color: #ccc; text-align: center;">Hey ${escapeHtml(customerName)}, we hope ${escapeHtml(packageTitle)} was unforgettable.</p>
+      ${messageCard(message)}
       <p style="color: #ccc; text-align: center;">Your story helps other solo travellers — could you share a quick review?</p>
       <div style="text-align: center; margin: 24px 0;">
         <a href="${bookingsUrl.replace(/"/g, '&quot;')}" style="display: inline-block; background: #FFAA00; color: #000; font-weight: bold; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-size: 16px;">Write a review</a>
@@ -530,6 +541,8 @@ export interface ServiceBookingConfirmedEmailInput {
   cartSummary?: { name: string; qty: number; pricePaise: number }[]
   /** Specific item / variant chosen (single-item bookings). */
   itemName?: string | null
+  /** Optional custom message included in the email. */
+  message?: string | null
   rentalDays?: number
 }
 
@@ -558,7 +571,7 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
   const {
     customerEmail, customerName, listingTitle, listingType,
     location, checkInDate, checkOutDate, quantity, amountPaise,
-    bookingId, cartSummary, itemName, rentalDays,
+    bookingId, cartSummary, itemName, message, rentalDays,
   } = input
 
   const itemRow = itemName && !cartSummary
@@ -598,6 +611,7 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
 
         <h2 style="color:#FFC22E;text-align:center;margin-top:0;">You're all set! ✅</h2>
         <p style="color:#ccc;text-align:center;">Hey ${escapeHtml(greeting)}, your ${typeLabel.toLowerCase()} booking is confirmed.</p>
+        ${messageCard(message)}
 
         <div style="background:#1a1a1a;border-radius:8px;padding:20px;margin:24px 0;border:1px solid #333;">
           <table style="width:100%;border-collapse:collapse;color:#ddd;">

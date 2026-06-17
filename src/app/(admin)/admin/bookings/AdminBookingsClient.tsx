@@ -113,10 +113,15 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
   }
 
   function handleSendConfirmation(bookingId: string) {
+    const el = document.getElementById(`msg-${bookingId}`) as HTMLTextAreaElement | null
+    const message = el?.value?.trim() || undefined
     startTransition(async () => {
-      const res = await sendBookingConfirmationEmail(bookingId)
+      const res = await sendBookingConfirmationEmail(bookingId, message)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
-      else showFeedback(bookingId, 'Confirmation email sent!')
+      else {
+        showFeedback(bookingId, message ? 'Email sent with your message!' : 'Confirmation email sent!')
+        if (el) el.value = ''
+      }
     })
   }
 
@@ -335,8 +340,8 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                     {/* Assign POC — registered member or outsider */}
                     <PocAssigner bookingId={booking.id} />
 
-                    {/* Send confirmation email */}
-                    {booking.status === 'confirmed' && (
+                    {/* Send confirmation / status email (includes the message box if filled) */}
+                    {(booking.status === 'confirmed' || booking.status === 'completed' || booking.status === 'cancelled') && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -344,7 +349,8 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                         onClick={() => handleSendConfirmation(booking.id)}
                         disabled={isPending}
                       >
-                        <Mail className="h-3 w-3" /> Send Confirmation
+                        <Mail className="h-3 w-3" />
+                        {booking.status === 'completed' ? 'Email completion' : booking.status === 'cancelled' ? 'Email cancellation' : 'Send Confirmation'}
                       </Button>
                     )}
 
@@ -489,6 +495,9 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                     <label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
                       <Mail className="h-3 w-3" /> Message customer
                     </label>
+                    <p className="text-[11px] text-muted-foreground mb-1">
+                      <strong>Send</strong> emails just this message · use the <strong>Send Confirmation</strong> button above to include it with the full receipt.
+                    </p>
                     <div className="flex gap-2">
                       <textarea
                         className="flex-1 bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-none"

@@ -29,7 +29,7 @@ async function resolveTripReceiptContact(
  *
  * Plain server lib (not a server action) — must not be exposed to clients.
  */
-export async function sendTripBookingReceipt(bookingId: string): Promise<void> {
+export async function sendTripBookingReceipt(bookingId: string, opts?: { message?: string }): Promise<void> {
   try {
     const svc = createServiceRoleClient()
     const { data: booking } = await svc
@@ -138,6 +138,7 @@ export async function sendTripBookingReceipt(bookingId: string): Promise<void> {
       travellers:
         (booking.traveller_details as { name: string; age: number; gender: string }[] | null) ??
         (bookerProfile?.full_name ? [{ name: bookerProfile.full_name, age: 0, gender: '' }] : null),
+      adminMessage: opts?.message ?? null,
     })
   } catch {
     /* non-critical — booking is already confirmed */

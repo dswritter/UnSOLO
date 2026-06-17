@@ -252,42 +252,8 @@ export async function updateBookingStatus(bookingId: string, status: string) {
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
-
-  // Email the customer a status-appropriate note on completion / cancellation.
-  if (status === 'completed' || status === 'cancelled') {
-    try {
-      const svc = createServiceRoleClient()
-      const { data: b } = await svc
-        .from('bookings')
-        .select('user_id, confirmation_code, admin_cancellation_note, package:packages(title), service_listing:service_listings(title)')
-        .eq('id', bookingId)
-        .single()
-      if (b) {
-        const { data: authUser } = await svc.auth.admin.getUserById(b.user_id as string)
-        const email = authUser?.user?.email
-        if (email) {
-          const { data: prof } = await svc.from('profiles').select('full_name').eq('id', b.user_id).single()
-          const { APP_URL } = await import('@/lib/constants')
-          const title = (b.package as { title?: string } | null)?.title
-            || (b.service_listing as { title?: string } | null)?.title
-            || 'your trip'
-          const common = {
-            customerEmail: email,
-            customerName: prof?.full_name || 'there',
-            packageTitle: title,
-            confirmationCode: (b.confirmation_code as string | null) || '',
-            bookingsUrl: `${APP_URL}/bookings`,
-          }
-          const emails = await import('@/lib/resend/emails')
-          if (status === 'completed') await emails.sendBookingCompletedEmail(common)
-          else await emails.sendBookingCancelledEmail({ ...common, note: (b.admin_cancellation_note as string | null) ?? null })
-        }
-      }
-    } catch {
-      /* email is non-critical */
-    }
-  }
-
+  // No email here — status emails are sent only when the admin clicks
+  // "Send Confirmation" (which is status-aware).
   return { success: true }
 }
 
@@ -430,8 +396,9 @@ export async function sharePOCWithCustomer(bookingId: string) {
 
 // ── Send booking confirmation email ──────────────────────────
 
-export async function sendBookingConfirmationEmail(bookingId: string) {
+export async function sendBookingConfirmationEmail(bookingId: string, message?: string) {
   const { supabase } = await requireStaff()
+  const customMessage = message?.trim() || undefined
 
   // Pull both relationships — only one of them will resolve depending on
   // whether the booking is a package trip or a service listing.
@@ -457,6 +424,25 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
   const isServiceBooking = booking.booking_type === 'service' || !!booking.service_listing_id
 
   try {
+    // Status-appropriate email — only ever sent on this explicit action.
+    if (booking.status === 'completed' || booking.status === 'cancelled') {
+      const { APP_URL } = await import('@/lib/constants')
+      const title = (booking.package as { title?: string } | null)?.title
+        || (booking.service_listing as { title?: string } | null)?.title
+        || 'your trip'
+      const common = {
+        customerEmail: authUser.user.email,
+        customerName: usr?.full_name || 'there',
+        packageTitle: title,
+        confirmationCode: booking.confirmation_code || '',
+        bookingsUrl: `${APP_URL}/bookings`,
+      }
+      const emails = await import('@/lib/resend/emails')
+      if (booking.status === 'completed') await emails.sendBookingCompletedEmail({ ...common, message: customMessage })
+      else await emails.sendBookingCancelledEmail({ ...common, note: customMessage || (booking.admin_cancellation_note as string | null) })
+      return { success: true }
+    }
+
     if (isServiceBooking) {
       // Service-listing booking — route to the service email template.
       const listing = booking.service_listing as
@@ -477,6 +463,7 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
         amountPaise: booking.amount_paise ?? booking.total_amount_paise ?? 0,
         bookingId: booking.id,
         itemName: (booking.service_listing_item as { name?: string } | null)?.name ?? null,
+        message: customMessage,
       })
       return { success: true }
     }
@@ -484,7 +471,7 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
     // Package (trip) booking — send the full receipt (host/POC, trip + chat
     // links, WhatsApp, pay-remaining) via the shared builder.
     const { sendTripBookingReceipt } = await import('@/lib/email/tripReceipt')
-    await sendTripBookingReceipt(booking.id)
+    await sendTripBookingReceipt(booking.id, { message: customMessage })
 
     return { success: true }
   } catch (err) {
