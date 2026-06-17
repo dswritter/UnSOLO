@@ -228,8 +228,17 @@ export async function adminDeleteBooking(bookingId: string) {
     return { error: 'Only cancelled or pending bookings can be deleted' }
   }
 
-  const { error } = await supabase.from('bookings').delete().eq('id', bookingId)
+  // Bookings have no DELETE RLS policy, so the session client silently deletes
+  // 0 rows (the row reappears on refresh). Use the service-role client and
+  // confirm a row was actually removed before reporting success.
+  const svc = createServiceRoleClient()
+  const { data: deleted, error } = await svc
+    .from('bookings')
+    .delete()
+    .eq('id', bookingId)
+    .select('id')
   if (error) return { error: error.message }
+  if (!deleted?.length) return { error: 'Delete failed — the booking could not be removed.' }
 
   await logAuditEvent(user.id, 'DELETE_BOOKING', 'booking', bookingId, {
     status: booking.status,
