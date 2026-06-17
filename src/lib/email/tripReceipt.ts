@@ -56,22 +56,32 @@ export async function sendTripBookingReceipt(bookingId: string): Promise<void> {
     const { data: bookerProfile } = await svc
       .from('profiles').select('full_name').eq('id', booking.user_id).single()
 
+    const appUrl = APP_URL
     let hostName: string | null = null
     let hostContact: string | null = null
+    let hostChatUrl: string | null = null
     if (pkg.host_id) {
       const { data: host } = await svc
-        .from('profiles').select('full_name, phone_number').eq('id', pkg.host_id).single()
+        .from('profiles').select('full_name, phone_number, username').eq('id', pkg.host_id).single()
       hostName = host?.full_name ?? null
       hostContact = host?.phone_number ?? null
+      hostChatUrl = host?.username ? `${appUrl}/profile/${host.username}` : null
     }
 
     let pocName: string | null = null
     let pocContact: string | null = null
-    if (booking.assigned_poc) {
+    let pocChatUrl: string | null = null
+    // Skip the coordinator entry when it's the same person as the host.
+    const pocIsHost = !!booking.assigned_poc && booking.assigned_poc === pkg.host_id
+    if (booking.assigned_poc && !pocIsHost) {
       const { data: poc } = await svc
-        .from('profiles').select('full_name, phone_number').eq('id', booking.assigned_poc).single()
+        .from('profiles').select('full_name, phone_number, username').eq('id', booking.assigned_poc).single()
       pocName = poc?.full_name ?? null
       pocContact = poc?.phone_number ?? null
+      pocChatUrl = poc?.username ? `${appUrl}/profile/${poc.username}` : null
+    } else if (!booking.assigned_poc && (booking.poc_external_name as string | null)) {
+      pocName = booking.poc_external_name as string
+      pocContact = (booking.poc_external_phone as string | null) ?? null
     }
 
     const total = booking.total_amount_paise as number
@@ -119,8 +129,10 @@ export async function sendTripBookingReceipt(bookingId: string): Promise<void> {
       tripUrl,
       hostName,
       hostContact,
+      hostChatUrl,
       pocName,
       pocContact,
+      pocChatUrl,
       // Always show at least one traveller name. Fall back to the booker's
       // name for legacy bookings that never captured per-member details.
       travellers:

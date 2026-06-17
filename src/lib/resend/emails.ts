@@ -273,12 +273,14 @@ interface BookingConfirmationDetails {
   tripChatUrl?: string
   /** Public trip details page. */
   tripUrl?: string
-  /** Host (community trips) name + phone. */
+  /** Host (community trips) name + phone + UnSOLO chat link. */
   hostName?: string | null
   hostContact?: string | null
-  /** Trip coordinator (POC) name + phone. */
+  hostChatUrl?: string | null
+  /** Trip coordinator (POC) name + phone + UnSOLO chat link (null for outsiders). */
   pocName?: string | null
   pocContact?: string | null
+  pocChatUrl?: string | null
   /** Per-traveller details captured at checkout. */
   travellers?: { name: string; age: number; gender: string }[] | null
 }
@@ -289,7 +291,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
     travelDate, returnDateIso, guests, totalAmount, confirmationCode, durationSummary,
     receiptNo, amountPaidPaise, balanceDuePaise, payRemainingUrl,
     contactWhatsappNumber, contactWhatsappLabel, tripChatUrl,
-    tripUrl, hostName, hostContact, pocName, pocContact, travellers,
+    tripUrl, hostName, hostContact, hostChatUrl, pocName, pocContact, pocChatUrl, travellers,
   } = details
 
   const travellersBlock = Array.isArray(travellers) && travellers.length > 0
@@ -352,24 +354,36 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
         </div>`
     : ''
 
-  const teamRows: string[] = []
-  if (hostName || hostContact) {
-    teamRows.push(`<tr><td style="padding: 8px; color: #888;">Host</td><td style="padding: 8px;">${escapeHtml(hostName || 'Your host')}${hostContact ? ` · <a href="tel:${tel(hostContact)}" style="color: #FFAA00; text-decoration: none;">${escapeHtml(hostContact)}</a>` : ''}</td></tr>`)
+  // Per-person contact: Call + WhatsApp + Chat on UnSOLO for the host and the
+  // coordinator. Caller already de-duplicates when they're the same person.
+  const waMsg = encodeURIComponent(`Hi! Regarding my booking ${confirmationCode} for ${packageTitle}.`)
+  const contactBtns = (phone?: string | null, chatUrl?: string | null) => {
+    const waDigits = phone ? phone.replace(/\D/g, '') : ''
+    return [
+      phone ? `<a href="tel:${tel(phone)}" style="display:inline-block;margin:4px 6px 0 0;background:#FFAA00;color:#000;font-weight:bold;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;">Call</a>` : '',
+      waDigits ? `<a href="https://wa.me/${waDigits}?text=${waMsg}" style="display:inline-block;margin:4px 6px 0 0;background:#25D366;color:#fff;font-weight:bold;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;">WhatsApp</a>` : '',
+      chatUrl ? `<a href="${chatUrl.replace(/"/g, '&quot;')}" style="display:inline-block;margin:4px 6px 0 0;background:#1a1a1a;border:1px solid #FFAA00;color:#FFAA00;font-weight:bold;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;">Chat on UnSOLO</a>` : '',
+    ].filter(Boolean).join('')
   }
-  if (pocName || pocContact) {
-    teamRows.push(`<tr${teamRows.length ? ' style="border-top: 1px solid #333;"' : ''}><td style="padding: 8px; color: #888;">Trip coordinator</td><td style="padding: 8px;">${escapeHtml(pocName || 'Coordinator')}${pocContact ? ` · <a href="tel:${tel(pocContact)}" style="color: #FFAA00; text-decoration: none;">${escapeHtml(pocContact)}</a>` : ''}</td></tr>`)
+
+  const teamCards: string[] = []
+  if (hostName) {
+    teamCards.push(`<div style="padding: 12px 8px;"><div style="color: #888; font-size: 12px;">Host</div><div style="color: #fff; font-weight: 500; margin: 2px 0;">${escapeHtml(hostName)}</div>${contactBtns(hostContact, hostChatUrl)}</div>`)
   }
-  const teamBlock = teamRows.length
+  if (pocName) {
+    teamCards.push(`<div style="padding: 12px 8px;${teamCards.length ? ' border-top: 1px solid #333;' : ''}"><div style="color: #888; font-size: 12px;">Trip coordinator</div><div style="color: #fff; font-weight: 500; margin: 2px 0;">${escapeHtml(pocName)}</div>${contactBtns(pocContact, pocChatUrl)}</div>`)
+  }
+  const teamBlock = teamCards.length
     ? `
-        <div style="background: #1a1a1a; border-radius: 8px; padding: 8px 12px; margin: 20px 0; border: 1px solid #333;">
-          <p style="color: #FFAA00; font-weight: bold; margin: 8px; font-size: 14px;">Your trip team</p>
-          <table style="width: 100%; border-collapse: collapse; color: #ddd; font-size: 14px;">${teamRows.join('')}</table>
+        <div style="background: #1a1a1a; border-radius: 8px; padding: 4px 12px; margin: 20px 0; border: 1px solid #333;">
+          <p style="color: #FFAA00; font-weight: bold; margin: 12px 8px 4px; font-size: 14px;">Your trip team</p>
+          ${teamCards.join('')}
         </div>`
     : ''
 
+  // Fallback UnSOLO/host WhatsApp only when there's no named team member to contact.
   let contactBlock = ''
-  if (contactWhatsappNumber) {
-    const waMsg = encodeURIComponent(`Hi! Regarding my booking ${confirmationCode} for ${packageTitle}.`)
+  if (!teamCards.length && contactWhatsappNumber) {
     const waUrl = `https://wa.me/${contactWhatsappNumber}?text=${waMsg}`
     contactBlock = `
         <div style="text-align: center; margin: 24px 0; padding-top: 20px; border-top: 1px solid #333;">
