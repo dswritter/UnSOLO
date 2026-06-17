@@ -269,8 +269,16 @@ interface BookingConfirmationDetails {
   /** Contact block — WhatsApp number (digits only) + label. */
   contactWhatsappNumber?: string
   contactWhatsappLabel?: string
-  /** In-app Trip Chat link. */
+  /** In-app Trip group chat link. */
   tripChatUrl?: string
+  /** Public trip details page. */
+  tripUrl?: string
+  /** Host (community trips) name + phone. */
+  hostName?: string | null
+  hostContact?: string | null
+  /** Trip coordinator (POC) name + phone. */
+  pocName?: string | null
+  pocContact?: string | null
 }
 
 export async function sendBookingConfirmation(details: BookingConfirmationDetails) {
@@ -279,6 +287,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
     travelDate, returnDateIso, guests, totalAmount, confirmationCode, durationSummary,
     receiptNo, amountPaidPaise, balanceDuePaise, payRemainingUrl,
     contactWhatsappNumber, contactWhatsappLabel, tripChatUrl,
+    tripUrl, hostName, hostContact, pocName, pocContact,
   } = details
 
   const fmtAmt = (paise: number) =>
@@ -317,18 +326,39 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
         </div>`
     : ''
 
+  const tel = (phone?: string | null) => (phone ? phone.replace(/[^\d+]/g, '') : '')
+
+  const actionButtons = (tripUrl || tripChatUrl)
+    ? `
+        <div style="text-align: center; margin: 20px 0;">
+          ${tripUrl ? `<a href="${tripUrl.replace(/"/g, '&quot;')}" style="display: inline-block; margin: 4px; background: #1a1a1a; border: 1px solid #FFAA00; color: #FFAA00; font-weight: bold; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;">View trip details</a>` : ''}
+          ${tripChatUrl ? `<a href="${tripChatUrl.replace(/"/g, '&quot;')}" style="display: inline-block; margin: 4px; background: #1a1a1a; border: 1px solid #333; color: #fff; font-weight: bold; padding: 11px 20px; border-radius: 8px; text-decoration: none; font-size: 14px;">Open trip group chat</a>` : ''}
+        </div>`
+    : ''
+
+  const teamRows: string[] = []
+  if (hostName || hostContact) {
+    teamRows.push(`<tr><td style="padding: 8px; color: #888;">Host</td><td style="padding: 8px;">${escapeHtml(hostName || 'Your host')}${hostContact ? ` · <a href="tel:${tel(hostContact)}" style="color: #FFAA00; text-decoration: none;">${escapeHtml(hostContact)}</a>` : ''}</td></tr>`)
+  }
+  if (pocName || pocContact) {
+    teamRows.push(`<tr${teamRows.length ? ' style="border-top: 1px solid #333;"' : ''}><td style="padding: 8px; color: #888;">Trip coordinator</td><td style="padding: 8px;">${escapeHtml(pocName || 'Coordinator')}${pocContact ? ` · <a href="tel:${tel(pocContact)}" style="color: #FFAA00; text-decoration: none;">${escapeHtml(pocContact)}</a>` : ''}</td></tr>`)
+  }
+  const teamBlock = teamRows.length
+    ? `
+        <div style="background: #1a1a1a; border-radius: 8px; padding: 8px 12px; margin: 20px 0; border: 1px solid #333;">
+          <p style="color: #FFAA00; font-weight: bold; margin: 8px; font-size: 14px;">Your trip team</p>
+          <table style="width: 100%; border-collapse: collapse; color: #ddd; font-size: 14px;">${teamRows.join('')}</table>
+        </div>`
+    : ''
+
   let contactBlock = ''
   if (contactWhatsappNumber) {
     const waMsg = encodeURIComponent(`Hi! Regarding my booking ${confirmationCode} for ${packageTitle}.`)
     const waUrl = `https://wa.me/${contactWhatsappNumber}?text=${waMsg}`
-    const chatLink = tripChatUrl
-      ? `<a href="${tripChatUrl.replace(/"/g, '&quot;')}" style="color: #FFAA00; text-decoration: none;">Open Trip Chat →</a>`
-      : ''
     contactBlock = `
         <div style="text-align: center; margin: 24px 0; padding-top: 20px; border-top: 1px solid #333;">
           <p style="color: #ccc; margin: 0 0 12px;">${escapeHtml(contactWhatsappLabel || 'Questions about your trip?')}</p>
           <a href="${waUrl}" style="display: inline-block; background: #25D366; color: #fff; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-size: 15px;">Chat on WhatsApp</a>
-          ${chatLink ? `<p style="margin: 14px 0 0; font-size: 14px;">${chatLink}</p>` : ''}
         </div>`
   }
 
@@ -356,11 +386,13 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
             <tr style="border-top: 1px solid #333;"><td style="padding: 10px 8px; font-weight: bold;">Guests</td><td style="padding: 10px 8px;">${guests}</td></tr>${paymentRows}
           </table>
         </div>
+        ${actionButtons}
         ${payCta}
+        ${teamBlock}
         ${contactBlock}
 
         <div style="text-align: center; margin-top: 24px;">
-          <p style="color: #ccc;">A trip coordinator will be assigned shortly and will reach out to you with next steps.</p>
+          <p style="color: #ccc;">${pocName ? `Your trip coordinator ${escapeHtml(pocName)} will reach out with next steps.` : 'A trip coordinator will be assigned shortly and will reach out to you with next steps.'}</p>
           <p style="color: #888; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
         </div>
         <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>

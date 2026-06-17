@@ -341,33 +341,10 @@ export async function sendBookingConfirmationEmail(bookingId: string) {
       return { success: true }
     }
 
-    // Package (trip) booking — original path.
-    const { sendBookingConfirmation } = await import('@/lib/resend/emails')
-    const { tripEndDateIsoForBooking, packageDurationShortLabel } = await import(
-      '@/lib/package-trip-calendar'
-    )
-    const pkg = booking.package as import('@/types').Package | null
-    if (!pkg) return { error: 'Package not found for this booking' }
-
-    const cal = {
-      duration_days: Math.max(1, Number(pkg.duration_days) || 1),
-      departure_dates: pkg.departure_dates,
-      return_dates: pkg.return_dates,
-    }
-    const returnDateIso = tripEndDateIsoForBooking(booking.travel_date, cal)
-
-    await sendBookingConfirmation({
-      customerEmail: authUser.user.email,
-      customerName: usr?.full_name || 'Traveler',
-      packageTitle: pkg.title,
-      destination: pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : '',
-      travelDate: booking.travel_date,
-      returnDateIso,
-      guests: booking.guests,
-      totalAmount: booking.total_amount_paise,
-      confirmationCode: booking.confirmation_code || '',
-      durationSummary: packageDurationShortLabel(pkg),
-    })
+    // Package (trip) booking — send the full receipt (host/POC, trip + chat
+    // links, WhatsApp, pay-remaining) via the shared builder.
+    const { sendTripBookingReceipt } = await import('@/lib/email/tripReceipt')
+    await sendTripBookingReceipt(booking.id)
 
     return { success: true }
   } catch (err) {
@@ -1533,6 +1510,10 @@ export async function recoverBookingFromRazorpayOrder(orderId: string) {
   await logAuditEvent(admin.id, 'recover_booking_from_payment', 'booking', booking.id, {
     orderId, paymentId: String(captured.id), paid, total, fullyPaid,
   })
+
+  // Send the recovered traveler the full receipt too.
+  const { sendTripBookingReceipt } = await import('@/lib/email/tripReceipt')
+  await sendTripBookingReceipt(booking.id)
 
   return { success: true, bookingId: booking.id, fullyPaid, balanceDuePaise: Math.max(0, (total || paid) - deposit) }
 }

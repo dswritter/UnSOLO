@@ -37,7 +37,7 @@ export async function getPlatformFeePercent(): Promise<number> {
 }
 
 /** Fallback used if the setting row exists but is blank or missing. */
-export const DEFAULT_SUPPORT_WHATSAPP_NUMBER = '919760778373'
+export const DEFAULT_SUPPORT_WHATSAPP_NUMBER = '919211451355'
 
 function normaliseWhatsappDigits(raw: unknown): string | null {
   const s = String(raw ?? '').replace(/\D/g, '')

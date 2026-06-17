@@ -13,6 +13,7 @@ import { assertBookingOrderRateLimit } from '@/lib/server-rate-limit'
 import { REFERRED_DISCOUNT_PAISE } from '@/lib/constants'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 import { ensureTripChatRoom, addTripChatMember } from '@/lib/chat/tripChatMembership'
+import { sendTripBookingReceipt } from '@/lib/email/tripReceipt'
 import {
   incrementPromoOfferUsed,
   validateScopedPromoCode,
@@ -389,11 +390,7 @@ async function runBalanceCompletionEffects(
   }
 
   // Second receipt — balance settled, booking now fully paid.
-  const { user: authUser } = await getActionAuth()
-  await sendTripReceiptEmail(supabase, userId, authUser?.email, booking as never, confirmationCode, {
-    amountPaidPaise: booking.total_amount_paise,
-    balanceDuePaise: 0,
-  })
+  await sendTripBookingReceipt(booking.id)
 }
 
 /** Shared: chat, wallet deduction, host earnings, referral — after booking row is confirmed. */
@@ -599,11 +596,7 @@ async function runPostConfirmationPipeline(
   }
 
   // Send booking confirmation / receipt email to customer (fully paid).
-  const { user: authUser } = await getActionAuth()
-  await sendTripReceiptEmail(supabase, userId, authUser?.email, booking as never, confirmationCode, {
-    amountPaidPaise: booking.total_amount_paise,
-    balanceDuePaise: 0,
-  })
+  await sendTripBookingReceipt(booking.id)
 }
 
 async function notifyTokenBalanceDue(
@@ -633,116 +626,7 @@ async function notifyTokenBalanceDue(
   } catch {
     /* non-critical */
   }
-  const { APP_URL } = await import('@/lib/constants')
-  await sendTripReceiptEmail(supabase, user.id, user.email, booking as never, booking.confirmation_code || '', {
-    amountPaidPaise: depositAfterPayment,
-    balanceDuePaise: balance,
-    payRemainingUrl: `${APP_URL}/bookings`,
-  })
-}
-
-/** Contact details shown on a trip receipt: host's WhatsApp for community trips, else UnSOLO support. */
-async function resolveTripReceiptContact(
-  supabase: SupabaseServer,
-  pkg: { host_id?: string | null; whatsapp_number?: string | null } | null,
-): Promise<{ whatsappNumber: string; whatsappLabel: string; tripChatUrl: string }> {
-  const { APP_URL } = await import('@/lib/constants')
-  const { getSupportWhatsappNumber, resolveWhatsappNumber } = await import('@/lib/platform-settings')
-  const tripChatUrl = `${APP_URL}/bookings`
-  const support = await getSupportWhatsappNumber()
-
-  if (pkg?.host_id) {
-    const { data: host } = await supabase
-      .from('profiles')
-      .select('phone_number')
-      .eq('id', pkg.host_id)
-      .single()
-    // Prefer the host's own number, then a per-listing override, then platform support.
-    const number = resolveWhatsappNumber(host?.phone_number, resolveWhatsappNumber(pkg.whatsapp_number, support))
-    return { whatsappNumber: number, whatsappLabel: 'Message your host on WhatsApp', tripChatUrl }
-  }
-
-  const number = resolveWhatsappNumber(pkg?.whatsapp_number, support)
-  return { whatsappNumber: number, whatsappLabel: 'Chat with UnSOLO on WhatsApp', tripChatUrl }
-}
-
-/**
- * Send a trip booking receipt to the customer. Used for full payment, the first
- * token payment (balanceDuePaise > 0 → adds a pay-remaining CTA), and again when
- * the balance completes the booking.
- */
-async function sendTripReceiptEmail(
-  supabase: SupabaseServer,
-  userId: string,
-  customerEmail: string | null | undefined,
-  booking: Record<string, unknown> & {
-    travel_date?: string | null
-    guests?: number | null
-    total_amount_paise: number
-    stripe_payment_intent?: string | null
-    package?: unknown
-  },
-  confirmationCode: string,
-  opts: { amountPaidPaise: number; balanceDuePaise: number; payRemainingUrl?: string },
-) {
-  const email = customerEmail?.trim()
-  if (!email) return
-  const pkg = booking.package as {
-    title?: string
-    duration_days?: number
-    duration_nights?: number
-    host_id?: string | null
-    whatsapp_number?: string | null
-    destination?: { name?: string; state?: string }
-  } | null
-  if (!pkg) return
-
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', userId)
-      .single()
-
-    const travelDate = (booking.travel_date as string | null) || ''
-    const durationDays = pkg.duration_days ?? 1
-    const returnDateIso = travelDate
-      ? (() => {
-          const d = new Date(travelDate + 'T12:00:00')
-          d.setDate(d.getDate() + durationDays - 1)
-          return d.toISOString().slice(0, 10)
-        })()
-      : ''
-    const durationSummary = [
-      pkg.duration_days ? `${pkg.duration_days} day${pkg.duration_days !== 1 ? 's' : ''}` : null,
-      pkg.duration_nights ? `${pkg.duration_nights} night${pkg.duration_nights !== 1 ? 's' : ''}` : null,
-    ].filter(Boolean).join(' · ')
-    const destination = [pkg.destination?.name, pkg.destination?.state].filter(Boolean).join(', ')
-
-    const contact = await resolveTripReceiptContact(supabase, pkg)
-    const { sendBookingConfirmation } = await import('@/lib/resend/emails')
-    await sendBookingConfirmation({
-      customerEmail: email,
-      customerName: profile?.full_name || 'there',
-      packageTitle: pkg.title || 'your trip',
-      destination: destination || 'India',
-      travelDate,
-      returnDateIso,
-      guests: (booking.guests as number | null) ?? 1,
-      totalAmount: booking.total_amount_paise,
-      confirmationCode,
-      durationSummary: durationSummary || `${durationDays} days`,
-      receiptNo: (booking.stripe_payment_intent as string | null) || confirmationCode,
-      amountPaidPaise: opts.amountPaidPaise,
-      balanceDuePaise: opts.balanceDuePaise,
-      payRemainingUrl: opts.payRemainingUrl,
-      contactWhatsappNumber: contact.whatsappNumber,
-      contactWhatsappLabel: contact.whatsappLabel,
-      tripChatUrl: contact.tripChatUrl,
-    })
-  } catch {
-    /* non-critical — booking is already confirmed */
-  }
+  await sendTripBookingReceipt(booking.id)
 }
 
 export async function createRazorpayOrder(
