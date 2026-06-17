@@ -19,6 +19,7 @@ import {
   X,
   MessageCircle,
   Sparkles,
+  LifeBuoy,
   Store,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -44,6 +45,13 @@ const navItems: {
     icon: BookOpen,
     roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'],
     badgeKey: 'bookings',
+    permissionKey: 'bookings',
+  },
+  {
+    href: '/admin/recover-payments',
+    label: 'Recover payments',
+    icon: LifeBuoy,
+    roles: ['admin'],
     permissionKey: 'bookings',
   },
   {

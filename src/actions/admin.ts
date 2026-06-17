@@ -1378,3 +1378,152 @@ export async function deleteCommunityChatRoomAdmin(roomId: string) {
     return { error: e instanceof Error ? e.message : 'Unauthorized' }
   }
 }
+
+// ── Recover bookings paid on Razorpay but missing in the DB ──────────────────
+// During a window where the bookings insert failed (e.g. a migration not yet
+// applied), travelers were charged but no booking row was written — invisible
+// to them and the host. scan reports those orphaned captured payments; recover
+// rebuilds a confirmed booking from the Razorpay order notes (idempotent).
+
+export type OrphanedPayment = {
+  paymentId: string
+  orderId: string
+  amountPaise: number
+  email: string | null
+  contact: string | null
+  capturedAt: number
+  notes: Record<string, string>
+}
+
+export async function scanOrphanedRazorpayPayments(sinceDays = 14) {
+  await requireAdmin()
+  const { razorpay } = await import('@/lib/razorpay/client')
+  const svc = createServiceRoleClient()
+  const from = Math.floor((Date.now() - sinceDays * 86400000) / 1000)
+
+  let items: Record<string, unknown>[]
+  try {
+    const res = (await razorpay.payments.all({ from, count: 100 })) as unknown as { items?: Record<string, unknown>[] }
+    items = res.items || []
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Could not list Razorpay payments' }
+  }
+
+  const orphans: OrphanedPayment[] = []
+  for (const p of items) {
+    if (p.status !== 'captured' || !p.order_id) continue
+    const orderId = String(p.order_id)
+    const { data: existing } = await svc
+      .from('bookings')
+      .select('id')
+      .or(`stripe_session_id.eq.${orderId},balance_razorpay_order_id.eq.${orderId}`)
+      .maybeSingle()
+    if (existing) continue
+
+    let notes: Record<string, string> = {}
+    try {
+      const order = await razorpay.orders.fetch(orderId)
+      notes = (order.notes as Record<string, string>) || {}
+    } catch {
+      /* notes are best-effort */
+    }
+    orphans.push({
+      paymentId: String(p.id),
+      orderId,
+      amountPaise: Number(p.amount),
+      email: p.email ? String(p.email) : null,
+      contact: p.contact ? String(p.contact) : null,
+      capturedAt: Number(p.created_at),
+      notes,
+    })
+  }
+  return { orphans }
+}
+
+export async function recoverBookingFromRazorpayOrder(orderId: string) {
+  const { user: admin } = await requireAdmin()
+  const { razorpay } = await import('@/lib/razorpay/client')
+  const svc = createServiceRoleClient()
+
+  // Idempotent — skip if a booking already exists for this order.
+  const { data: existing } = await svc
+    .from('bookings')
+    .select('id')
+    .or(`stripe_session_id.eq.${orderId},balance_razorpay_order_id.eq.${orderId}`)
+    .maybeSingle()
+  if (existing) return { info: 'A booking already exists for this order', bookingId: existing.id }
+
+  let order: { notes?: Record<string, string> | null }
+  let paymentItems: Record<string, unknown>[]
+  try {
+    order = (await razorpay.orders.fetch(orderId)) as unknown as { notes?: Record<string, string> | null }
+    const pays = (await razorpay.orders.fetchPayments(orderId)) as unknown as { items?: Record<string, unknown>[] }
+    paymentItems = pays.items || []
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Could not fetch the Razorpay order' }
+  }
+
+  const captured = paymentItems.find((p) => p.status === 'captured')
+  if (!captured) return { error: 'No captured payment found for this order' }
+
+  const notes = order.notes || {}
+  if (notes.balance === 'true') {
+    return { error: 'This is a balance payment for an existing booking — recover the original booking order instead.' }
+  }
+  const userId = notes.userId
+  const packageId = notes.packageId
+  const travelDate = notes.travelDate
+  const guests = Math.max(1, parseInt(notes.guests || '1', 10) || 1)
+  if (!userId || !packageId || !travelDate) {
+    return { error: 'Order notes are missing user/package/date — rebuild this booking manually.' }
+  }
+
+  const { data: pkg } = await svc
+    .from('packages')
+    .select('price_paise, title')
+    .eq('id', packageId)
+    .single()
+  if (!pkg) return { error: 'Package not found for this order' }
+
+  const total = (pkg.price_paise || 0) * guests
+  const paid = Number(captured.amount)
+  const deposit = Math.min(paid, total || paid)
+  const fullyPaid = total > 0 ? paid >= total : true
+
+  const { generateConfirmationCode } = await import('@/lib/utils')
+  const confirmationCode = generateConfirmationCode()
+
+  const { data: booking, error } = await svc
+    .from('bookings')
+    .insert({
+      user_id: userId,
+      package_id: packageId,
+      status: 'confirmed',
+      travel_date: travelDate,
+      guests,
+      total_amount_paise: total || paid,
+      gross_paise: total || paid,
+      deposit_paise: deposit,
+      discount_paise: 0,
+      stripe_session_id: orderId,
+      stripe_payment_intent: String(captured.id),
+      confirmation_code: confirmationCode,
+    })
+    .select('id')
+    .single()
+  if (error || !booking) return { error: error?.message || 'Could not create booking' }
+
+  await svc.from('notifications').insert({
+    user_id: userId,
+    type: 'booking',
+    title: 'Your booking is confirmed',
+    body: `We've restored your booking for ${pkg.title || 'your trip'} (#${confirmationCode}).${fullyPaid ? '' : ' Pay the remaining balance anytime from My Trips.'}`,
+    link: '/bookings',
+  })
+
+  await logAuditEvent(admin.id, 'recover_booking_from_payment', 'booking', booking.id, {
+    orderId, paymentId: String(captured.id), paid, total, fullyPaid,
+  })
+
+  return { success: true, bookingId: booking.id, fullyPaid, balanceDuePaise: Math.max(0, (total || paid) - deposit) }
+}

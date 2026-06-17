@@ -1064,7 +1064,7 @@ export async function createRazorpayOrder(
     },
   })
 
-  const { data: booking } = await supabase
+  const { data: booking, error: bookingError } = await supabase
     .from('bookings')
     .insert({
       user_id: user.id,
@@ -1085,11 +1085,18 @@ export async function createRazorpayOrder(
     .select()
     .single()
 
+  // Never expose a payable order without a persisted booking row — otherwise the
+  // traveler can pay and end up with no booking (invisible to them and the host).
+  if (bookingError || !booking) {
+    console.error('[createRazorpayOrder] booking insert failed:', bookingError?.message)
+    return { error: "We couldn't start your booking and you have NOT been charged. Please try again or contact support." }
+  }
+
   return {
     orderId: order.id,
     amount: razorpayAmount,
     currency: 'INR',
-    bookingId: booking?.id,
+    bookingId: booking.id,
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
       email: user.email || '',
@@ -2441,20 +2448,30 @@ export async function createCommunityTripOrder(
     notes: { userId: user.id, packageId: trip.id, joinRequestId: request.id, type: 'community_trip' },
   })
 
-  await supabase.from('bookings').insert({
-    user_id: user.id,
-    package_id: trip.id,
-    status: 'pending',
-    travel_date: travelDate,
-    guests: 1,
-    total_amount_paise: afterDiscounts,
-    gross_paise: grossList,
-    deposit_paise: 0,
-    wallet_deducted_paise: walletDeducted,
-    discount_paise: discountTotalPaise,
-    promo_offer_id: promoOfferId,
-    stripe_session_id: order.id,
-  })
+  const { data: communityBooking, error: communityBookingError } = await supabase
+    .from('bookings')
+    .insert({
+      user_id: user.id,
+      package_id: trip.id,
+      status: 'pending',
+      travel_date: travelDate,
+      guests: 1,
+      total_amount_paise: afterDiscounts,
+      gross_paise: grossList,
+      deposit_paise: 0,
+      wallet_deducted_paise: walletDeducted,
+      discount_paise: discountTotalPaise,
+      promo_offer_id: promoOfferId,
+      stripe_session_id: order.id,
+    })
+    .select('id')
+    .single()
+
+  // Abort before the traveler can pay if the booking row didn't persist.
+  if (communityBookingError || !communityBooking) {
+    console.error('[createCommunityTripOrder] booking insert failed:', communityBookingError?.message)
+    return { error: "We couldn't start your booking and you have NOT been charged. Please try again or contact support." }
+  }
 
   return {
     orderId: order.id,
