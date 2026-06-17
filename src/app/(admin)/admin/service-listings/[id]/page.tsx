@@ -3,6 +3,7 @@ import { getDestinations } from '@/actions/admin'
 import { getServiceListingDetail } from '@/actions/admin-service-listings'
 import { ServiceListingForm } from '../ServiceListingForm'
 import { AdminListingReviewView } from '../AdminListingReviewView'
+import { DeleteListingButton } from '../DeleteListingButton'
 
 // Next.js 15: params is a Promise — must be awaited before use.
 export default async function EditServiceListingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -35,6 +36,7 @@ export default async function EditServiceListingPage({ params }: { params: Promi
           >
             Admin preview
           </Link>
+          <DeleteListingButton id={listing.id} status={listing.status} />
         </div>
       </div>
 

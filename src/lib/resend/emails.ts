@@ -302,16 +302,16 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
         </div>`
     : ''
 
-  const preheader = isPartial
-    ? `Spot secured for ${packageTitle} — ${fmtAmt(balanceDue)} balance due. Receipt ${receiptNo || confirmationCode}.`
-    : `Booking confirmed for ${packageTitle}. Receipt ${receiptNo || confirmationCode}.`
-
   const fmtAmt = (paise: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100)
 
   const paid = amountPaidPaise ?? totalAmount
   const balanceDue = balanceDuePaise ?? 0
   const isPartial = balanceDue > 0
+
+  const preheader = isPartial
+    ? `Spot secured for ${packageTitle} — ${fmtAmt(balanceDue)} balance due. Receipt ${receiptNo || confirmationCode}.`
+    : `Booking confirmed for ${packageTitle}. Receipt ${receiptNo || confirmationCode}.`
 
   const departDate = new Date(travelDate + 'T12:00:00')
   const returnDate = new Date(returnDateIso + 'T12:00:00')
