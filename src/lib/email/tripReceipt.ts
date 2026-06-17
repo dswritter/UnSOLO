@@ -121,7 +121,11 @@ export async function sendTripBookingReceipt(bookingId: string): Promise<void> {
       hostContact,
       pocName,
       pocContact,
-      travellers: (booking.traveller_details as { name: string; age: number; gender: string }[] | null) ?? null,
+      // Always show at least one traveller name. Fall back to the booker's
+      // name for legacy bookings that never captured per-member details.
+      travellers:
+        (booking.traveller_details as { name: string; age: number; gender: string }[] | null) ??
+        (bookerProfile?.full_name ? [{ name: bookerProfile.full_name, age: 0, gender: '' }] : null),
     })
   } catch {
     /* non-critical — booking is already confirmed */

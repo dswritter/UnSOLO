@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { formatPrice, formatDate, ROLE_LABELS, type Booking, type Profile } from '@/types'
-import { assignMemberPOC, assignExternalPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
+import { useState, useEffect, useTransition } from 'react'
+import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
+import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
 import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-blue-900/50 text-blue-300 border-blue-700',
 }
 
-export function AdminBookingsClient({ bookings: initialBookings, staffMembers }: Props) {
+export function AdminBookingsClient({ bookings: initialBookings }: Props) {
   // Read initial filter from URL params
   const [filter, setFilter] = useState(() => {
     if (typeof window === 'undefined') return 'all'
@@ -320,7 +320,10 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
                     </select>
 
                     {/* Assign POC — registered member or outsider */}
-                    <PocAssigner bookingId={booking.id} staffMembers={staffMembers} />
+                    <PocAssigner
+                      bookingId={booking.id}
+                      currentPoc={poc ? `${poc.full_name || poc.username}${poc.username ? ` @${poc.username}` : ''}` : booking.poc_external_name ? `${booking.poc_external_name} (outsider)` : null}
+                    />
 
                     {/* Send confirmation email */}
                     {booking.status === 'confirmed' && (
@@ -482,66 +485,95 @@ export function AdminBookingsClient({ bookings: initialBookings, staffMembers }:
 
 function PocAssigner({
   bookingId,
-  staffMembers,
+  currentPoc,
 }: {
   bookingId: string
-  staffMembers: Pick<Profile, 'id' | 'username' | 'full_name' | 'role'>[]
+  currentPoc: string | null
 }) {
   const [mode, setMode] = useState<'member' | 'outsider'>('member')
-  const [username, setUsername] = useState('')
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<{ id: string; username: string | null; full_name: string | null }[]>([])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [msg, setMsg] = useState('')
+  const [assigned, setAssigned] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  function assign() {
+  // Live search as the admin types (debounced).
+  useEffect(() => {
+    if (mode !== 'member' || query.trim().length < 2) { setResults([]); return }
+    let cancelled = false
+    const t = setTimeout(async () => {
+      const res = await searchMembersForPOC(query)
+      if (!cancelled) setResults(res.members || [])
+    }, 250)
+    return () => { cancelled = true; clearTimeout(t) }
+  }, [query, mode])
+
+  function pickMember(m: { id: string; username: string | null; full_name: string | null }) {
     startTransition(async () => {
-      const res = mode === 'member'
-        ? await assignMemberPOC(bookingId, username)
-        : await assignExternalPOC(bookingId, name, phone)
+      const res = await assignMemberPOC(bookingId, m.id)
       if (res.error) setMsg(`Error: ${res.error}`)
-      else {
-        setMsg(`POC set to ${res.name}. Reload to see changes.`)
-        setUsername(''); setName(''); setPhone('')
-      }
+      else { setAssigned(res.name || m.username || 'member'); setMsg(''); setQuery(''); setResults([]) }
+    })
+  }
+
+  function assignOutsider() {
+    startTransition(async () => {
+      const res = await assignExternalPOC(bookingId, name, phone)
+      if (res.error) setMsg(`Error: ${res.error}`)
+      else { setAssigned(`${res.name} (outsider)`); setMsg(''); setName(''); setPhone('') }
     })
   }
 
   const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1.5 text-xs'
+  const shownPoc = assigned || currentPoc
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <select value={mode} onChange={e => setMode(e.target.value as 'member' | 'outsider')} className={inputCls}>
-        <option value="member">Registered member</option>
-        <option value="outsider">Outsider</option>
-      </select>
-      {mode === 'member' ? (
-        <>
-          <input
-            list={`poc-staff-${bookingId}`}
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            placeholder="@username"
-            className={`${inputCls} w-40`}
-          />
-          <datalist id={`poc-staff-${bookingId}`}>
-            {staffMembers.map(s => (
-              <option key={s.id} value={s.username || ''}>
-                {s.full_name} ({ROLE_LABELS[s.role as keyof typeof ROLE_LABELS] || s.role})
-              </option>
-            ))}
-          </datalist>
-        </>
-      ) : (
-        <>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="POC name" className={`${inputCls} w-32`} />
-          <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" className={`${inputCls} w-32`} />
-        </>
+    <div className="flex flex-col gap-1.5">
+      {shownPoc && (
+        <span className="text-xs text-muted-foreground">POC: <span className="text-foreground font-medium">{shownPoc}</span></span>
       )}
-      <Button size="sm" variant="outline" className="text-xs gap-1 border-border" onClick={assign} disabled={isPending}>
-        <UserPlus className="h-3 w-3" /> Assign POC
-      </Button>
-      {msg && <span className="text-xs text-muted-foreground">{msg}</span>}
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={mode} onChange={e => setMode(e.target.value as 'member' | 'outsider')} className={inputCls}>
+          <option value="member">Registered member</option>
+          <option value="outsider">Outsider</option>
+        </select>
+        {mode === 'member' ? (
+          <div className="relative">
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Type name or @username"
+              className={`${inputCls} w-52`}
+            />
+            {results.length > 0 && (
+              <div className="absolute z-20 mt-1 w-60 max-h-56 overflow-auto rounded-lg border border-border bg-card shadow-lg">
+                {results.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => pickMember(m)}
+                    className="block w-full text-left px-3 py-1.5 text-xs hover:bg-secondary disabled:opacity-50"
+                  >
+                    {m.full_name || m.username}{m.username ? <span className="text-muted-foreground"> @{m.username}</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="POC name" className={`${inputCls} w-32`} />
+            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" className={`${inputCls} w-32`} />
+            <Button size="sm" variant="outline" className="text-xs gap-1 border-border" onClick={assignOutsider} disabled={isPending}>
+              <UserPlus className="h-3 w-3" /> Assign
+            </Button>
+          </>
+        )}
+        {msg && <span className="text-xs text-red-400">{msg}</span>}
+      </div>
     </div>
   )
 }

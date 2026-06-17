@@ -190,18 +190,17 @@ export async function assignPOC(bookingId: string, pocUserId: string) {
   return { success: true }
 }
 
-/** Assign any registered UnSOLO member as POC, by username. */
-export async function assignMemberPOC(bookingId: string, username: string) {
-  const { supabase } = await requireAdmin()
-  const handle = username.trim().replace(/^@/, '')
+/** Assign any registered UnSOLO member as POC, by username or id. */
+export async function assignMemberPOC(bookingId: string, usernameOrId: string) {
+  const { supabase, user } = await requireAdmin()
+  const handle = usernameOrId.trim().replace(/^@/, '')
   if (!handle) return { error: 'Enter a username' }
 
   const svc = createServiceRoleClient()
-  const { data: member } = await svc
-    .from('profiles')
-    .select('id, username, full_name')
-    .ilike('username', handle)
-    .maybeSingle()
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(handle)
+  const { data: member } = isUuid
+    ? await svc.from('profiles').select('id, username, full_name').eq('id', handle).maybeSingle()
+    : await svc.from('profiles').select('id, username, full_name').ilike('username', handle).maybeSingle()
   if (!member) return { error: `No UnSOLO member @${handle}` }
 
   const { error } = await supabase
@@ -209,12 +208,27 @@ export async function assignMemberPOC(bookingId: string, username: string) {
     .update({ assigned_poc: member.id, poc_external_name: null, poc_external_phone: null })
     .eq('id', bookingId)
   if (error) return { error: error.message }
+  await logAuditEvent(user.id, 'assign_poc', 'booking', bookingId, { poc: member.username, pocId: member.id })
   return { success: true, name: member.full_name || member.username }
+}
+
+/** Live search for any registered member (POC autocomplete). */
+export async function searchMembersForPOC(query: string) {
+  await requireAdmin()
+  const q = query.trim().replace(/^@/, '')
+  if (q.length < 2) return { members: [] as { id: string; username: string | null; full_name: string | null }[] }
+  const svc = createServiceRoleClient()
+  const { data } = await svc
+    .from('profiles')
+    .select('id, username, full_name')
+    .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
+    .limit(8)
+  return { members: (data || []) as { id: string; username: string | null; full_name: string | null }[] }
 }
 
 /** Assign an outsider (no UnSOLO account) as POC — name + phone only. */
 export async function assignExternalPOC(bookingId: string, name: string, phone: string) {
-  const { supabase } = await requireAdmin()
+  const { supabase, user } = await requireAdmin()
   const cleanName = name.trim()
   const cleanPhone = phone.trim()
   if (!cleanName) return { error: 'Enter the POC name' }
@@ -225,6 +239,7 @@ export async function assignExternalPOC(bookingId: string, name: string, phone: 
     .update({ assigned_poc: null, poc_external_name: cleanName, poc_external_phone: cleanPhone })
     .eq('id', bookingId)
   if (error) return { error: error.message }
+  await logAuditEvent(user.id, 'assign_poc_external', 'booking', bookingId, { name: cleanName, phone: cleanPhone })
   return { success: true, name: cleanName }
 }
 

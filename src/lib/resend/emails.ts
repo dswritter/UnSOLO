@@ -295,12 +295,16 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
   const travellersBlock = Array.isArray(travellers) && travellers.length > 0
     ? `
         <div style="background: #1a1a1a; border-radius: 8px; padding: 8px 12px; margin: 20px 0; border: 1px solid #333;">
-          <p style="color: #FFAA00; font-weight: bold; margin: 8px; font-size: 14px;">Travellers (${travellers.length})</p>
+          <p style="color: #FFAA00; font-weight: bold; margin: 8px; font-size: 14px;">Traveller${travellers.length > 1 ? `s (${travellers.length})` : ''}</p>
           <table style="width: 100%; border-collapse: collapse; color: #ddd; font-size: 14px;">
-            ${travellers.map((t, i) => `<tr${i ? ' style="border-top: 1px solid #333;"' : ''}><td style="padding: 8px;">${escapeHtml(t.name)}</td><td style="padding: 8px; text-align: right; color: #aaa;">${t.age} · ${escapeHtml(t.gender)}</td></tr>`).join('')}
+            ${travellers.map((t, i) => `<tr${i ? ' style="border-top: 1px solid #333;"' : ''}><td style="padding: 8px;">${escapeHtml(t.name)}</td><td style="padding: 8px; text-align: right; color: #aaa;">${t.age && t.gender ? `${t.age} · ${escapeHtml(t.gender)}` : ''}</td></tr>`).join('')}
           </table>
         </div>`
     : ''
+
+  const preheader = isPartial
+    ? `Spot secured for ${packageTitle} — ${fmtAmt(balanceDue)} balance due. Receipt ${receiptNo || confirmationCode}.`
+    : `Booking confirmed for ${packageTitle}. Receipt ${receiptNo || confirmationCode}.`
 
   const fmtAmt = (paise: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100)
@@ -379,6 +383,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
     to: customerEmail,
     subject,
     html: `
+      <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${escapeHtml(preheader)}</div>
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #fff; padding: 32px; border-radius: 12px;">
         <div style="text-align: center; margin-bottom: 24px;">
           <h1 style="color: #FFAA00; margin: 0; font-size: 28px;">UN<span style="color: #fff;">SOLO</span></h1>
