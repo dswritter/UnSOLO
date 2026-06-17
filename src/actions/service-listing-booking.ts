@@ -503,6 +503,29 @@ export async function confirmServiceListingPayment(
             body: `A traveller booked "${listing.title}". Your earnings: ${hostAmountFmt} (list price includes a ${feePercent}% platform fee).`,
             link: '/host',
           })
+
+          // Email the host about the new booking too.
+          try {
+            const [{ data: hostProfile }, { data: hostAuth }, { data: travelerProfile }] = await Promise.all([
+              svc.from('profiles').select('full_name').eq('id', listing.host_id).single(),
+              svc.auth.admin.getUserById(listing.host_id),
+              svc.from('profiles').select('full_name').eq('id', booking.user_id).single(),
+            ])
+            const hostEmail = hostAuth?.user?.email
+            if (hostEmail) {
+              const { sendHostNewBookingEmail } = await import('@/lib/resend/emails')
+              const { APP_URL } = await import('@/lib/constants')
+              await sendHostNewBookingEmail({
+                to: hostEmail,
+                hostName: hostProfile?.full_name ?? null,
+                travelerName: travelerProfile?.full_name || 'A traveller',
+                tripTitle: listing.title,
+                hostEarningsFormatted: hostAmountFmt,
+                feePercent,
+                hostDashboardUrl: `${APP_URL}/host`,
+              })
+            }
+          } catch { /* email is non-critical */ }
         }
       } catch (err) {
         console.error('Failed to record host earnings for service booking:', err)
@@ -840,6 +863,29 @@ export async function confirmRentalCartPayment(
             body: `A traveller booked multiple rentals from "${listing.title}". Your earnings: ₹${(hostPaise / 100).toLocaleString('en-IN')} (${feePercent}% platform fee).`,
             link: '/host',
           })
+
+          // Email the host too.
+          try {
+            const [{ data: hostProfile }, { data: hostAuth }, { data: travelerProfile }] = await Promise.all([
+              svc.from('profiles').select('full_name').eq('id', listing.host_id).single(),
+              svc.auth.admin.getUserById(listing.host_id),
+              svc.from('profiles').select('full_name').eq('id', user.id).single(),
+            ])
+            const hostEmail = hostAuth?.user?.email
+            if (hostEmail) {
+              const { sendHostNewBookingEmail } = await import('@/lib/resend/emails')
+              const { APP_URL } = await import('@/lib/constants')
+              await sendHostNewBookingEmail({
+                to: hostEmail,
+                hostName: hostProfile?.full_name ?? null,
+                travelerName: travelerProfile?.full_name || 'A traveller',
+                tripTitle: listing.title,
+                hostEarningsFormatted: '₹' + (hostPaise / 100).toLocaleString('en-IN'),
+                feePercent,
+                hostDashboardUrl: `${APP_URL}/host`,
+              })
+            }
+          } catch { /* email is non-critical */ }
         }
       }
     } catch (err) {
