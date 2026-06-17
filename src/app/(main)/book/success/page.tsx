@@ -37,6 +37,30 @@ export default async function BookingSuccessPage({
     booking = data as Booking | null
   }
 
+  const paidToward = booking?.deposit_paise ?? booking?.total_amount_paise ?? 0
+  const balanceDue = booking ? Math.max(0, booking.total_amount_paise - paidToward) : 0
+  const isToken = balanceDue > 0
+
+  // Contact: host's WhatsApp for community trips, else UnSOLO support.
+  let whatsappUrl = ''
+  let whatsappLabel = ''
+  if (booking?.package) {
+    const { getSupportWhatsappNumber, resolveWhatsappNumber } = await import('@/lib/platform-settings')
+    const support = await getSupportWhatsappNumber()
+    const p = booking.package as { host_id?: string | null; whatsapp_number?: string | null }
+    let number = ''
+    if (p.host_id) {
+      const { data: host } = await supabase.from('profiles').select('phone_number').eq('id', p.host_id).single()
+      number = resolveWhatsappNumber(host?.phone_number, resolveWhatsappNumber(p.whatsapp_number, support))
+      whatsappLabel = 'Message your host on WhatsApp'
+    } else {
+      number = resolveWhatsappNumber(p.whatsapp_number, support)
+      whatsappLabel = 'Chat with UnSOLO on WhatsApp'
+    }
+    const msg = encodeURIComponent(`Hi! Regarding my booking ${booking.confirmation_code ?? ''}.`)
+    whatsappUrl = `https://wa.me/${number}?text=${msg}`
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
       <div className="max-w-lg w-full text-center space-y-6">
@@ -46,8 +70,10 @@ export default async function BookingSuccessPage({
         </div>
 
         <div>
-          <h1 className="text-3xl font-black mb-2 text-foreground">Booking Confirmed!</h1>
-          <p className="text-muted-foreground">Your adventure is officially on the books.</p>
+          <h1 className="text-3xl font-black mb-2 text-foreground">{isToken ? 'Spot Secured!' : 'Booking Confirmed!'}</h1>
+          <p className="text-muted-foreground">
+            {isToken ? 'Your spot is secured with a token payment.' : 'Your adventure is officially on the books.'}
+          </p>
         </div>
 
         {booking ? (
@@ -80,13 +106,49 @@ export default async function BookingSuccessPage({
                 <span className="text-muted-foreground">Guests</span>
                 <span>{booking.guests}</span>
               </div>
-              <div className="flex justify-between font-bold">
-                <span>Total Paid</span>
-                <span className="text-primary">
-                  ₹{(booking.total_amount_paise / 100).toLocaleString('en-IN')}
-                </span>
-              </div>
+              {isToken ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Trip total</span>
+                    <span>₹{(booking.total_amount_paise / 100).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>Token paid</span>
+                    <span className="text-primary">₹{(paidToward / 100).toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span>Balance due</span>
+                    <span className="text-amber-600 dark:text-amber-400">₹{(balanceDue / 100).toLocaleString('en-IN')}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between font-bold">
+                  <span>Total Paid</span>
+                  <span className="text-primary">
+                    ₹{(booking.total_amount_paise / 100).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
             </div>
+
+            {isToken && (
+              <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
+                <Link href="/bookings">
+                  Pay remaining ₹{(balanceDue / 100).toLocaleString('en-IN')}
+                </Link>
+              </Button>
+            )}
+
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-secondary/40 py-2.5 text-sm font-medium hover:border-primary/40 transition-colors"
+              >
+                <MessageCircle className="h-4 w-4 text-green-500" /> {whatsappLabel}
+              </a>
+            )}
           </div>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-6">
@@ -97,7 +159,9 @@ export default async function BookingSuccessPage({
         )}
 
         <p className="text-sm text-muted-foreground">
-          A confirmation email has been sent to your email address.
+          {isToken
+            ? 'A receipt with your balance due has been emailed to you. Pay the rest anytime from My Trips.'
+            : 'A confirmation email with your receipt has been sent to your email address.'}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
