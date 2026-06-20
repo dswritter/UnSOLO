@@ -638,7 +638,7 @@ export function BookingsClient({
           <h2 className="text-xl font-bold mb-4">Upcoming Trips</h2>
           <div className="space-y-4">
             {upcoming.map((booking) => (
-              <BookingItem key={booking.id} booking={booking} expanded={expandedId === booking.id} onToggle={() => setExpandedId(expandedId === booking.id ? null : booking.id)} />
+              <BookingItem key={booking.id} booking={booking} expanded={expandedId === booking.id} onToggle={() => setExpandedId(expandedId === booking.id ? null : booking.id)} existingPartialCancellations={partialCancellationsByBooking[booking.id] || []} />
             ))}
           </div>
         </div>
@@ -666,6 +666,7 @@ export function BookingsClient({
                     setRatedHosts(prev => new Set([...prev, booking.id]))
                     setRatingBookingId(null)
                   }}
+                  existingPartialCancellations={partialCancellationsByBooking[booking.id] || []}
                 />
 
                 {/* Review form */}
@@ -1106,6 +1107,7 @@ function BookingItem({
   ratingOpen,
   onRatingClose,
   onRatingSubmitted,
+  existingPartialCancellations = [],
 }: {
   booking: Booking
   expanded: boolean
@@ -1119,6 +1121,7 @@ function BookingItem({
   ratingOpen?: boolean
   onRatingClose?: () => void
   onRatingSubmitted?: () => void
+  existingPartialCancellations?: PartialCancellationRow[]
 }) {
   const router = useRouter()
   const pkg = booking.package
@@ -1204,7 +1207,7 @@ function BookingItem({
             <div className="mb-2">
               <TravellerPartialCancel
                 booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
-                existing={partialCancellationsByBooking[booking.id] || []}
+                existing={existingPartialCancellations}
               />
             </div>
             {booking.poc_shared_at && (() => {
