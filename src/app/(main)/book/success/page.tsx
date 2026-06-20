@@ -112,7 +112,7 @@ export default async function BookingSuccessPage({
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     {booking.traveller_details.map((t, i) => (
                       <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                        {t.name} · {t.age} · {t.gender}
+                        {t.name}{t.age || t.gender ? ` · ${[t.age || null, t.gender || null].filter(Boolean).join(' · ')}` : ''}
                       </span>
                     ))}
                   </div>

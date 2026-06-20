@@ -1919,6 +1919,100 @@ export async function confirmTravelerCancellation(
 }
 
 // ── Admin: Process Cancellation ─────────────────────────────
+/**
+ * Admin/staff records an offline payment (cash, bank transfer, etc.) against a
+ * specific booking. Bumps deposit_paise — the cash-collected figure the dashboard
+ * now reports as earnings — capped at the trip total. When the offline payment
+ * completes the balance, it runs the same effects as an online balance payment
+ * (host earnings + the "fully paid" receipt) and a pending booking is confirmed.
+ */
+export async function recordManualPayment(
+  bookingId: string,
+  amountPaise: number,
+  note?: string,
+) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  if (!Number.isFinite(amountPaise) || amountPaise <= 0) {
+    return { error: 'Enter a valid amount.' }
+  }
+
+  const svc = createServiceRoleClient()
+
+  const { data: bookingBefore } = await svc
+    .from('bookings')
+    .select('*, package:packages(*, destination:destinations(*))')
+    .eq('id', bookingId)
+    .single()
+  if (!bookingBefore) return { error: 'Booking not found' }
+  if (bookingBefore.status === 'cancelled') {
+    return { error: 'Cannot record a payment on a cancelled booking.' }
+  }
+
+  const total = bookingBefore.total_amount_paise || 0
+  const wasDeposit = bookingBefore.deposit_paise || 0
+  const balanceDue = Math.max(0, total - wasDeposit)
+  if (balanceDue <= 0) return { error: 'This booking is already fully paid.' }
+
+  // Never let recorded payments exceed the trip total.
+  const applied = Math.min(amountPaise, balanceDue)
+  const newDeposit = wasDeposit + applied
+  const fullyPaid = newDeposit >= total
+
+  const { generateConfirmationCode } = await import('@/lib/utils')
+  const confirmationCode = bookingBefore.confirmation_code || generateConfirmationCode()
+
+  const update: Record<string, unknown> = {
+    deposit_paise: newDeposit,
+    confirmation_code: confirmationCode,
+    updated_at: new Date().toISOString(),
+  }
+  if (bookingBefore.status === 'pending') update.status = 'confirmed'
+  if (fullyPaid) update.payment_status = 'paid'
+
+  const { data: booking, error } = await svc
+    .from('bookings')
+    .update(update)
+    .eq('id', bookingId)
+    .select('*, package:packages(*, destination:destinations(*))')
+    .single()
+  if (error || !booking) return { error: error?.message || 'Could not record payment' }
+
+  // Run completion effects only on the transition to fully paid (creates host
+  // earnings + sends the fully-paid receipt exactly once).
+  if (fullyPaid && wasDeposit < total) {
+    try {
+      await runBalanceCompletionEffects(svc as never, bookingBefore.user_id, booking as never, confirmationCode)
+    } catch { /* non-critical */ }
+  }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'RECORD_MANUAL_PAYMENT', 'booking', bookingId, {
+      amountPaise: applied,
+      newDepositPaise: newDeposit,
+      fullyPaid,
+      note: note || '',
+    })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/bookings')
+  revalidatePath('/admin/bookings')
+  return {
+    success: true,
+    appliedPaise: applied,
+    depositPaise: newDeposit,
+    fullyPaid,
+    balanceDuePaise: Math.max(0, total - newDeposit),
+  }
+}
+
 export async function processCancellation(
   bookingId: string,
   approve: boolean,

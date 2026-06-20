@@ -18,8 +18,9 @@ import {
   Heart,
 } from 'lucide-react'
 import { ManageRequestsClient } from './ManageRequestsClient'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import type { Package } from '@/types'
 
 export default async function ManageTripPage({
@@ -40,6 +41,21 @@ export default async function ManageTripPage({
   ])
 
   if (!trip) notFound()
+
+  // Partial (per-traveller) cancellations for this trip's roster bookings.
+  const partialByBooking: Record<string, PartialCancellationRow[]> = {}
+  const rosterIds = roster.map((r) => r.bookingId)
+  if (rosterIds.length) {
+    const svc = createServiceRoleClient()
+    const { data: pcRows } = await svc
+      .from('booking_partial_cancellations')
+      .select('id, booking_id, travellers, guests_cancelled, refund_amount_paise, refund_status, status, created_at')
+      .in('booking_id', rosterIds)
+      .order('created_at', { ascending: false })
+    for (const r of (pcRows || []) as PartialCancellationRow[]) {
+      ;(partialByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
 
   // Get interest data
   const supabase = await createClient()
@@ -181,9 +197,17 @@ export default async function ManageTripPage({
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {r.travellers.map((t, i) => (
                         <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                          {t.name} · {t.age} · {t.gender}
+                          {t.name}{t.age || t.gender ? ` · ${[t.age || null, t.gender || null].filter(Boolean).join(' · ')}` : ''}
                         </span>
                       ))}
+                    </div>
+                  )}
+                  {((partialByBooking[r.bookingId]?.length) || (r.guests > 1)) && (
+                    <div className="mt-2 pt-2 border-t border-border/60">
+                      <PartialCancelManager
+                        booking={{ id: r.bookingId, status: r.status, guests: r.guests, traveller_details: r.travellers || [] }}
+                        existing={partialByBooking[r.bookingId] || []}
+                      />
                     </div>
                   )}
                 </div>

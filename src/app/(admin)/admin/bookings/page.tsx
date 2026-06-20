@@ -1,5 +1,7 @@
 import { getAdminBookings, getStaffMembers } from '@/actions/admin'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { AdminBookingsClient } from './AdminBookingsClient'
+import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 
 export default async function AdminBookingsPage() {
   const [bookings, staffMembers] = await Promise.all([
@@ -7,10 +9,29 @@ export default async function AdminBookingsPage() {
     getStaffMembers(),
   ])
 
+  // Partial (per-traveller) cancellations for these bookings, keyed by booking.
+  const partialCancellationsByBooking: Record<string, PartialCancellationRow[]> = {}
+  const bookingIds = bookings.map((b: { id: string }) => b.id)
+  if (bookingIds.length) {
+    const svc = createServiceRoleClient()
+    const { data: pcRows } = await svc
+      .from('booking_partial_cancellations')
+      .select('id, booking_id, travellers, guests_cancelled, refund_amount_paise, refund_status, status, created_at')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false })
+    for (const r of (pcRows || []) as PartialCancellationRow[]) {
+      ;(partialCancellationsByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Manage Bookings</h1>
-      <AdminBookingsClient bookings={bookings} staffMembers={staffMembers} />
+      <AdminBookingsClient
+        bookings={bookings}
+        staffMembers={staffMembers}
+        partialCancellationsByBooking={partialCancellationsByBooking}
+      />
     </div>
   )
 }

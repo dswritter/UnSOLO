@@ -5,6 +5,7 @@ import { getRequestAuth } from '@/lib/auth/request-session'
 import { BookOpen } from 'lucide-react'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
+import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
@@ -77,6 +78,20 @@ export default async function BookingsPage() {
     .from('reviews')
     .select('booking_id')
     .eq('user_id', user.id)
+
+  // Partial (per-traveller) cancellations on the user's bookings, keyed by booking.
+  const bookingIds = (bookingRows || []).map(b => b.id)
+  const partialCancellationsByBooking: Record<string, PartialCancellationRow[]> = {}
+  if (bookingIds.length) {
+    const { data: pcRows } = await supabase
+      .from('booking_partial_cancellations')
+      .select('id, booking_id, travellers, guests_cancelled, refund_amount_paise, refund_status, status, created_at')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false })
+    for (const r of (pcRows || []) as PartialCancellationRow[]) {
+      ;(partialCancellationsByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
 
   const reviewedBookingIds = new Set((reviews || []).map(r => r.booking_id))
 
@@ -249,6 +264,7 @@ export default async function BookingsPage() {
             groupBookings={groupBookings}
             incompleteJoinTrips={incompleteJoinTrips}
             currentUserId={user.id}
+            partialCancellationsByBooking={partialCancellationsByBooking}
           />
         )}
       </div>

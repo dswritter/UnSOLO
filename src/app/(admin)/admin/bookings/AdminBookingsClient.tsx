@@ -3,16 +3,18 @@
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2 } from 'lucide-react'
+import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
+import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
 interface Props {
   bookings: Booking[]
   staffMembers: Pick<Profile, 'id' | 'username' | 'full_name' | 'role'>[]
+  partialCancellationsByBooking?: Record<string, PartialCancellationRow[]>
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -22,7 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-blue-900/50 text-blue-300 border-blue-700',
 }
 
-export function AdminBookingsClient({ bookings: initialBookings }: Props) {
+export function AdminBookingsClient({ bookings: initialBookings, partialCancellationsByBooking = {} }: Props) {
   // Read initial filter from URL params
   const [filter, setFilter] = useState(() => {
     if (typeof window === 'undefined') return 'all'
@@ -152,6 +154,22 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
         const el = document.getElementById(`msg-${bookingId}`) as HTMLTextAreaElement | null
         if (el) el.value = ''
       }
+    })
+  }
+
+  function handleRecordPayment(bookingId: string) {
+    const el = document.getElementById(`pay-${bookingId}`) as HTMLInputElement | null
+    const rupees = parseFloat(el?.value || '')
+    if (!rupees || rupees <= 0) { showFeedback(bookingId, 'Error: Enter a valid amount'); return }
+    startTransition(async () => {
+      const res = await recordManualPayment(bookingId, Math.round(rupees * 100))
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(
+        bookingId,
+        res.fullyPaid
+          ? 'Payment recorded — booking now fully paid! Reload to see changes.'
+          : `₹${((res.appliedPaise || 0) / 100).toLocaleString('en-IN')} recorded · balance ₹${((res.balanceDuePaise || 0) / 100).toLocaleString('en-IN')}. Reload to see changes.`,
+      )
     })
   }
 
@@ -315,12 +333,57 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                         {booking.traveller_details.map((t, i) => (
                           <span key={i} className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border">
                             <span className="font-medium">{t.name}</span>
-                            <span className="text-muted-foreground"> · {t.age} · {t.gender}</span>
+                            {(t.age || t.gender) && (
+                              <span className="text-muted-foreground"> · {[t.age || null, t.gender || null].filter(Boolean).join(' · ')}</span>
+                            )}
                           </span>
                         ))}
                       </div>
                     </div>
                   )}
+
+                  {/* Payment — cash collected vs balance; record offline payments here */}
+                  {(() => {
+                    const total = booking.total_amount_paise || 0
+                    const collected = (booking as { deposit_paise?: number | null }).deposit_paise || 0
+                    const balance = Math.max(0, total - collected)
+                    const isCancelled = booking.status === 'cancelled'
+                    return (
+                      <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                          <span><span className="text-muted-foreground">Trip total:</span> <span className="font-medium">{formatPrice(total)}</span></span>
+                          <span><span className="text-muted-foreground">Collected:</span> <span className="font-medium text-green-500">{formatPrice(collected)}</span></span>
+                          <span><span className="text-muted-foreground">Balance:</span> <span className={`font-medium ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>{formatPrice(balance)}</span></span>
+                        </div>
+                        {!isCancelled && balance > 0 && (
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div>
+                              <label className="text-[11px] text-muted-foreground block mb-0.5">Record offline payment (₹)</label>
+                              <input
+                                type="number"
+                                min="1"
+                                defaultValue={Math.round(balance / 100)}
+                                id={`pay-${booking.id}`}
+                                className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm w-36"
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1 border-border"
+                              onClick={() => handleRecordPayment(booking.id)}
+                              disabled={isPending}
+                            >
+                              <IndianRupee className="h-3 w-3" /> Record payment
+                            </Button>
+                            <p className="text-[10px] text-muted-foreground w-full">
+                              Cash / bank transfer collected outside the app. Adds to earnings; marks the booking fully paid when the balance reaches zero (sends the paid-in-full receipt).
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
@@ -368,6 +431,19 @@ export function AdminBookingsClient({ bookings: initialBookings }: Props) {
                       </Button>
                     )}
                   </div>
+
+                  {/* Partial (per-traveller) cancellations — review requests, or cancel some travellers directly */}
+                  {!sl && (
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Per-traveller cancellation
+                      </p>
+                      <PartialCancelManager
+                        booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
+                        existing={partialCancellationsByBooking[booking.id] || []}
+                      />
+                    </div>
+                  )}
 
                   {/* Cancellation Review */}
                   {booking.cancellation_status === 'requested' && (

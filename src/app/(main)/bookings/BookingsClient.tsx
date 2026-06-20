@@ -18,6 +18,7 @@ import {
   type TripPackageCalendar,
 } from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
+import { TravellerPartialCancel, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import {
   cancelPendingBooking,
@@ -124,6 +125,7 @@ interface Props {
   groupBookings?: GroupBookingInfo[]
   incompleteJoinTrips?: IncompleteJoinTrip[]
   currentUserId?: string
+  partialCancellationsByBooking?: Record<string, PartialCancellationRow[]>
 }
 
 export function BookingsClient({
@@ -134,6 +136,7 @@ export function BookingsClient({
   groupBookings = [],
   incompleteJoinTrips = [],
   currentUserId,
+  partialCancellationsByBooking = {},
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -1193,11 +1196,17 @@ function BookingItem({
                     key={i}
                     className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground"
                   >
-                    {t.name} · {t.age} · {t.gender}
+                    {t.name}{t.age || t.gender ? ` · ${[t.age || null, t.gender || null].filter(Boolean).join(' · ')}` : ''}
                   </span>
                 ))}
               </div>
             )}
+            <div className="mb-2">
+              <TravellerPartialCancel
+                booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
+                existing={partialCancellationsByBooking[booking.id] || []}
+              />
+            </div>
             {booking.poc_shared_at && (() => {
               const member = (booking as unknown as { poc?: { full_name?: string | null; username?: string | null; phone_number?: string | null } | null }).poc
               const pocName = member?.full_name || booking.poc_external_name

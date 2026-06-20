@@ -18,10 +18,11 @@ export default async function AdminRevenuePage() {
   // Use service client to bypass RLS
   const svc = createSvcClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
-  // Revenue by package
+  // Revenue by package — based on cash actually collected (deposit_paise), so
+  // token bookings only count what's been paid, not the full trip value.
   const { data: bookings } = await svc
     .from('bookings')
-    .select('total_amount_paise, refund_amount_paise, cancellation_status, status, user_id, package:packages(title, slug), user:profiles!bookings_user_id_fkey(username, full_name)')
+    .select('deposit_paise, total_amount_paise, refund_amount_paise, cancellation_status, status, user_id, package:packages(title, slug), user:profiles!bookings_user_id_fkey(username, full_name)')
     .in('status', ['confirmed', 'completed'])
 
   // Per-package breakdown
@@ -33,7 +34,7 @@ export default async function AdminRevenuePage() {
   for (const b of bookings || []) {
     const pkg = b.package as unknown as { title: string; slug: string } | null
     const usr = b.user as unknown as { username: string; full_name: string | null } | null
-    const amount = b.total_amount_paise || 0
+    const amount = b.deposit_paise && b.deposit_paise > 0 ? b.deposit_paise : (b.total_amount_paise || 0)
     const refund = b.cancellation_status === 'approved' ? (b.refund_amount_paise || 0) : 0
 
     grossRevenue += amount

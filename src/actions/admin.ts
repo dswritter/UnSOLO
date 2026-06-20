@@ -129,10 +129,14 @@ export async function getAdminDashboardStats() {
       .eq('moderation_status', 'pending'),
   ])
 
-  // Revenue from confirmed + completed bookings minus refunds
+  // Revenue = cash actually collected (deposit_paise), NOT the full booking value.
+  // A token booking only counts the token paid so far; the balance counts once it's
+  // paid online or recorded manually by an admin. deposit_paise is 0 only for legacy
+  // rows we never tracked, so fall back to the total there (token bookings always
+  // have deposit_paise > 0, so they're never affected by the fallback).
   const { data: revenueData } = await supabase
     .from('bookings')
-    .select('total_amount_paise, refund_amount_paise')
+    .select('deposit_paise, total_amount_paise, refund_amount_paise')
     .in('status', ['confirmed', 'completed'])
 
   const { data: refundedBookings } = await supabase
@@ -140,7 +144,10 @@ export async function getAdminDashboardStats() {
     .select('refund_amount_paise')
     .eq('cancellation_status', 'approved')
 
-  const grossRevenue = (revenueData || []).reduce((sum, b) => sum + b.total_amount_paise, 0)
+  const grossRevenue = (revenueData || []).reduce((sum, b) => {
+    const collected = b.deposit_paise && b.deposit_paise > 0 ? b.deposit_paise : (b.total_amount_paise || 0)
+    return sum + collected
+  }, 0)
   const totalRefunds = (refundedBookings || []).reduce((sum, b) => sum + (b.refund_amount_paise || 0), 0)
   const totalRevenue = grossRevenue - totalRefunds
 
