@@ -211,7 +211,7 @@ function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCan
 
   async function loadQuote() {
     const res = await quotePartialRefund(booking.id, indexes)
-    if ('error' in res) { setErr(true); setMsg(res.error); return }
+    if ('error' in res) { setErr(true); setMsg(res.error || 'Could not calculate refund.'); return }
     setQuote(res)
     setRefund(String(Math.round(res.autoRefundPaise / 100)))
   }
