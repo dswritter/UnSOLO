@@ -1766,6 +1766,18 @@ export async function confirmTravelerCancellation(
     return { error: 'Could not cancel — booking may have changed. Refresh and try again.' }
   }
 
+  // The whole booking is now cancelled — supersede any still-pending partial
+  // cancellation requests so they can't later be approved against a dead booking.
+  // (Uses the service-role client: the booker has no UPDATE right under RLS.)
+  try {
+    const svcRole = createServiceRoleClient()
+    await svcRole
+      .from('booking_partial_cancellations')
+      .update({ status: 'denied', admin_note: 'Superseded by full booking cancellation', processed_at: new Date().toISOString() })
+      .eq('booking_id', bookingId)
+      .eq('status', 'requested')
+  } catch { /* non-critical */ }
+
   if (refundPaise > 0) {
     const splitRes = await applyRefundSplitToEarningSystem(bookingId, tierPercent, refundPaise)
     if (!splitRes.ok) {
@@ -2066,6 +2078,19 @@ export async function processCancellation(
     .eq('id', bookingId)
 
   if (error) return { error: error.message }
+
+  // A full cancellation supersedes any still-pending partial cancellation requests
+  // on this booking, so they can't later be approved against a cancelled booking.
+  if (approve) {
+    try {
+      const svcRole = createServiceRoleClient()
+      await svcRole
+        .from('booking_partial_cancellations')
+        .update({ status: 'denied', admin_note: 'Superseded by full booking cancellation', processed_at: new Date().toISOString() })
+        .eq('booking_id', bookingId)
+        .eq('status', 'requested')
+    } catch { /* non-critical */ }
+  }
 
   // Pro-rata split: write host/platform refund shares to host_earnings so the
   // host sees exactly which portion came out of their earnings.

@@ -282,6 +282,7 @@ type PartialRow = {
 type BookingRow = {
   id: string
   user_id: string
+  status: string
   guests: number
   total_amount_paise: number
   deposit_paise?: number | null
@@ -297,12 +298,40 @@ async function applyApprovedPartialCancellation(
   adminNote: string | undefined,
   processedBy: string,
 ) {
+  // Only an active (confirmed) booking can be partially cancelled. This blocks a
+  // lingering 'requested' partial from being approved AFTER the whole booking was
+  // already cancelled/refunded — which would otherwise reduce it again and issue a
+  // second refund (double refund).
+  if (booking.status !== 'confirmed') {
+    return { error: 'This booking is no longer active — it may already have been cancelled or completed.' }
+  }
+
   const count = pc.guests_cancelled
   const newGuests = Math.max(1, (booking.guests || 1) - count)
   if (newGuests >= (booking.guests || 1)) return { error: 'Nothing to cancel.' }
 
   const fig = perPersonFigures(booking, count)
   const refund = Math.max(0, Math.min(refundAmountPaise ?? 0, fig.collectedForCancelled))
+  const nowIso = new Date().toISOString()
+
+  // Atomically claim the request (requested -> approved) BEFORE touching the
+  // booking, so two concurrent approvals — or an approval racing a one-step admin
+  // cancel — can't both apply and reduce the booking twice.
+  const { data: claimed } = await svc
+    .from('booking_partial_cancellations')
+    .update({
+      status: 'approved',
+      refund_amount_paise: refund,
+      refund_status: refund > 0 ? 'pending' : 'none',
+      admin_note: adminNote?.trim() || null,
+      processed_by: processedBy,
+      processed_at: nowIso,
+    })
+    .eq('id', pc.id)
+    .eq('status', 'requested')
+    .select('id')
+    .maybeSingle()
+  if (!claimed) return { error: 'This request has already been processed.' }
 
   const current: Traveller[] = Array.isArray(booking.traveller_details) ? booking.traveller_details : []
   const newTravellers = current.length ? removeTravellers(current, pc.travellers) : current
@@ -318,22 +347,18 @@ async function applyApprovedPartialCancellation(
       traveller_details: newTravellers,
       total_amount_paise: newTotal,
       deposit_paise: newDeposit,
-      updated_at: new Date().toISOString(),
+      updated_at: nowIso,
     })
     .eq('id', booking.id)
-  if (upErr) return { error: upErr.message }
-
-  await svc
-    .from('booking_partial_cancellations')
-    .update({
-      status: 'approved',
-      refund_amount_paise: refund,
-      refund_status: refund > 0 ? 'pending' : 'none',
-      admin_note: adminNote?.trim() || null,
-      processed_by: processedBy,
-      processed_at: new Date().toISOString(),
-    })
-    .eq('id', pc.id)
+  if (upErr) {
+    // Booking update failed after we claimed the request — release the claim so it
+    // can be retried rather than being stuck 'approved' with no booking change.
+    await svc
+      .from('booking_partial_cancellations')
+      .update({ status: 'requested', refund_amount_paise: 0, refund_status: 'none', processed_by: null, processed_at: null })
+      .eq('id', pc.id)
+    return { error: upErr.message }
+  }
 
   // Community trips: the host bears their fee-proportional share of the refund.
   if (refund > 0) {
