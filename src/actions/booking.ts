@@ -2203,8 +2203,9 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
     updated_at: new Date().toISOString(),
   }
   // Keep payment_status coherent with the new balance.
+  // (Allowed values: 'pending' | 'paid' | 'failed' | 'refunded' — there is no 'partial'.)
   if (res.balanceDuePaise <= 0) update.payment_status = 'paid'
-  else if ((booking.deposit_paise || 0) > 0) update.payment_status = 'partial'
+  else update.payment_status = 'pending'
 
   const { error: upErr } = await svc.from('bookings').update(update).eq('id', bookingId)
   if (upErr) return { error: upErr.message }
