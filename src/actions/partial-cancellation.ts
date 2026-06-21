@@ -185,12 +185,27 @@ async function notifyPartialRequest(
 /** Remove the first occurrence of each snapshot traveller from the current list. */
 function removeTravellers(current: Traveller[], toRemove: Traveller[]): Traveller[] {
   const remaining = [...current]
+  const norm = (s?: string | null) => (s || '').trim().toLowerCase()
+  const ageEq = (a: Traveller['age'], b: Traveller['age']) => String(a ?? '') === String(b ?? '')
+
   for (const r of toRemove) {
-    const idx = remaining.findIndex(
-      (t) => (t?.name || '') === (r?.name || '') && (t?.age ?? null) === (r?.age ?? null) && (t?.gender ?? null) === (r?.gender ?? null),
+    // 1) Exact identity, tolerant of case/whitespace.
+    let idx = remaining.findIndex(
+      (t) => norm(t?.name) === norm(r?.name) && ageEq(t?.age, r?.age) && norm(t?.gender) === norm(r?.gender),
     )
-    if (idx >= 0) remaining.splice(idx, 1)
-    else remaining.pop() // fall back: drop one seat so the count still matches
+    // 2) Name-only match (age/gender may have been edited since the snapshot).
+    if (idx < 0 && norm(r?.name)) {
+      idx = remaining.findIndex((t) => norm(t?.name) === norm(r?.name))
+    }
+    // 3) No match — the traveller list was edited after this request was made.
+    // Drop a trailing traveller but NEVER index 0 (the lead booker). This keeps the
+    // seat count correct without silently deleting the organiser or an arbitrary
+    // wrong person from the front of the list. (PC11)
+    if (idx < 0) {
+      idx = remaining.length - 1
+      if (idx < 1) continue // only the lead remains — leave it intact
+    }
+    remaining.splice(idx, 1)
   }
   return remaining
 }
@@ -429,6 +444,39 @@ async function notifyTravellerOutcome(
   } catch { /* non-critical */ }
 }
 
+/**
+ * Refund a total across one or more captured Razorpay payments (token + balance
+ * are separate payments, each refundable only up to its own capture). Internal —
+ * deliberately not exported as a server action so it can't be invoked directly.
+ */
+async function refundAcrossPayments(
+  payments: Array<{ id: string; amount: number }>,
+  totalRefundPaise: number,
+  notes: Record<string, string>,
+): Promise<{ ok: true; refundIds: string[] } | { ok: false; error: string }> {
+  const auth = `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`
+  const refundIds: string[] = []
+  let remaining = totalRefundPaise
+  for (const p of payments) {
+    if (remaining <= 0) break
+    const amount = Math.min(remaining, p.amount || 0)
+    if (amount <= 0) continue
+    const resp = await fetch(`https://api.razorpay.com/v1/payments/${p.id}/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: auth },
+      body: JSON.stringify({ amount, notes }),
+    })
+    const result = (await resp.json()) as { id?: string; error?: { description?: string } }
+    if (!resp.ok) return { ok: false, error: result.error?.description || 'Razorpay refund failed' }
+    if (result.id) refundIds.push(result.id)
+    remaining -= amount
+  }
+  if (remaining > 0) {
+    return { ok: false, error: `Refund exceeds captured payments by ₹${(remaining / 100).toLocaleString('en-IN')}.` }
+  }
+  return { ok: true, refundIds }
+}
+
 /** Initiate a Razorpay refund for an approved partial cancellation. */
 export async function initiatePartialRefund(partialId: string) {
   const { user } = await getActionAuth()
@@ -451,31 +499,46 @@ export async function initiatePartialRefund(partialId: string) {
   if ('error' in actor) return { error: actor.error }
   if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
 
+  const paymentsRaw = (actor.booking as { razorpay_payment_ids?: unknown }).razorpay_payment_ids
+  const payments = Array.isArray(paymentsRaw) ? (paymentsRaw as Array<{ id: string; amount: number }>) : []
   const paymentId = actor.booking.stripe_payment_intent as string | null
-  if (!paymentId) {
+  if (!paymentId && payments.length === 0) {
     // No captured online payment to refund against — mark for manual handling.
     await svc.from('booking_partial_cancellations').update({ refund_status: 'processing' }).eq('id', partialId)
     return { success: true, manual: true }
   }
 
   try {
-    const response = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
-      },
-      body: JSON.stringify({
-        amount: pc.refund_amount_paise,
-        notes: { booking_id: pc.booking_id, partial_cancellation_id: partialId, reason: 'Partial cancellation refund' },
-      }),
-    })
-    const result = (await response.json()) as { id?: string; error?: { description?: string } }
-    if (!response.ok) return { error: result.error?.description || 'Razorpay refund failed' }
+    let primaryRefundId: string | null = null
+    if (payments.length > 0) {
+      // Spread the partial refund across the captured payments (token + balance). (BP3)
+      const alloc = await refundAcrossPayments(payments, pc.refund_amount_paise, {
+        booking_id: pc.booking_id,
+        partial_cancellation_id: partialId,
+        reason: 'Partial cancellation refund',
+      })
+      if (!alloc.ok) return { error: alloc.error }
+      primaryRefundId = alloc.refundIds[0] ?? null
+    } else {
+      const response = await fetch(`https://api.razorpay.com/v1/payments/${paymentId}/refund`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
+        },
+        body: JSON.stringify({
+          amount: pc.refund_amount_paise,
+          notes: { booking_id: pc.booking_id, partial_cancellation_id: partialId, reason: 'Partial cancellation refund' },
+        }),
+      })
+      const result = (await response.json()) as { id?: string; error?: { description?: string } }
+      if (!response.ok) return { error: result.error?.description || 'Razorpay refund failed' }
+      primaryRefundId = result.id ?? null
+    }
 
     await svc
       .from('booking_partial_cancellations')
-      .update({ refund_status: 'processing', refund_razorpay_id: result.id ?? null })
+      .update({ refund_status: 'processing', refund_razorpay_id: primaryRefundId })
       .eq('id', partialId)
 
     await svc.from('notifications').insert({
@@ -485,7 +548,7 @@ export async function initiatePartialRefund(partialId: string) {
     })
 
     revalidatePath('/admin/bookings'); revalidatePath('/bookings')
-    return { success: true, refundId: result.id }
+    return { success: true, refundId: primaryRefundId ?? undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     return { error: `Refund failed: ${msg}` }

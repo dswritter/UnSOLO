@@ -1031,6 +1031,19 @@ async function applyCapturedPaymentToBooking(
     }
   }
 
+  // Best-effort: record this capture (id + amount) so refunds can later be spread
+  // across token + balance payments (BP3). Kept as a SEPARATE update so that a
+  // not-yet-applied migration (the razorpay_payment_ids column) can never block the
+  // critical deposit crediting above — if the column is missing this just no-ops.
+  const existingPayments = Array.isArray(before.razorpay_payment_ids) ? before.razorpay_payment_ids : []
+  const alreadyListed = (existingPayments as Array<{ id?: string }>).some((p) => p?.id === paymentId)
+  if (!alreadyListed) {
+    await client
+      .from('bookings')
+      .update({ razorpay_payment_ids: [...existingPayments, { id: paymentId, amount: paidAmountPaise }] })
+      .eq('id', before.id)
+  }
+
   if (wasDeposit === 0 && !fullyPaid) {
     await runPartialTokenFirstPaymentEffects(client, before.user_id, booking as never, confirmationCode)
     if (authUser) await notifyTokenBalanceDue(client, authUser, booking as never, newDeposit)
@@ -1190,7 +1203,7 @@ export async function createBookingBalanceOrder(bookingId: string) {
 
   const { data: booking } = await supabase
     .from('bookings')
-    .select('id, user_id, total_amount_paise, deposit_paise, status, package:packages(host_id, join_preferences)')
+    .select('id, user_id, total_amount_paise, deposit_paise, status, balance_razorpay_order_id, package:packages(host_id, join_preferences)')
     .eq('id', bookingId)
     .eq('user_id', user.id)
     .single()
@@ -1220,6 +1233,36 @@ export async function createBookingBalanceOrder(bookingId: string) {
     .eq('id', user.id)
     .single()
 
+  const prefill = {
+    email: user.email || '',
+    ...(profile?.phone_number ? {
+      contact: profile.phone_number.startsWith('+91')
+        ? profile.phone_number
+        : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}`
+    } : {}),
+    name: profile?.full_name || '',
+  }
+
+  // Reuse an existing, still-unpaid balance order for the same amount so a
+  // double-click or page re-open doesn't create (and risk charging) two orders. (BP4)
+  if (booking.balance_razorpay_order_id) {
+    try {
+      const existing = await razorpay.orders.fetch(booking.balance_razorpay_order_id)
+      if (existing && existing.status !== 'paid' && Number(existing.amount) === balance) {
+        return {
+          orderId: existing.id,
+          amount: balance,
+          currency: 'INR' as const,
+          keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          prefill,
+          notes: { userId: user.id, bookingId },
+        }
+      }
+    } catch {
+      /* couldn't fetch the previous order — fall through and create a fresh one */
+    }
+  }
+
   const order = await razorpay.orders.create({
     amount: balance,
     currency: 'INR',
@@ -1238,15 +1281,7 @@ export async function createBookingBalanceOrder(bookingId: string) {
     amount: balance,
     currency: 'INR' as const,
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-    prefill: {
-      email: user.email || '',
-      ...(profile?.phone_number ? {
-        contact: profile.phone_number.startsWith('+91')
-          ? profile.phone_number
-          : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}`
-      } : {}),
-      name: profile?.full_name || '',
-    },
+    prefill,
     notes: {
       userId: user.id,
       bookingId,
@@ -1703,14 +1738,52 @@ export type RazorpayRefundBookingResult =
  * Call Razorpay refund API and mark booking refund as processing. Uses service role (no user session required).
  * Idempotent when refund_status is already processing or completed.
  */
+/**
+ * Refund a total amount across one or more captured Razorpay payments. Each
+ * payment can only be refunded up to the amount it captured, so a token + balance
+ * booking must refund each payment separately. Allocates greedily in capture order.
+ */
+async function refundAcrossPayments(
+  payments: Array<{ id: string; amount: number }>,
+  totalRefundPaise: number,
+  notes: Record<string, string>,
+): Promise<{ ok: true; refundIds: string[] } | { ok: false; error: string; refundIds: string[] }> {
+  const auth = `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`
+  const refundIds: string[] = []
+  let remaining = totalRefundPaise
+  for (const p of payments) {
+    if (remaining <= 0) break
+    const amount = Math.min(remaining, p.amount || 0)
+    if (amount <= 0) continue
+    const resp = await fetch(`https://api.razorpay.com/v1/payments/${p.id}/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: auth },
+      body: JSON.stringify({ amount, notes }),
+    })
+    const result = (await resp.json()) as { id?: string; error?: { description?: string } }
+    if (!resp.ok) {
+      return { ok: false, error: result.error?.description || 'Razorpay refund failed', refundIds }
+    }
+    if (result.id) refundIds.push(result.id)
+    remaining -= amount
+  }
+  if (remaining > 0) {
+    return { ok: false, error: `Refund exceeds captured payments by ₹${(remaining / 100).toLocaleString('en-IN')}.`, refundIds }
+  }
+  return { ok: true, refundIds }
+}
+
 export async function initiateRazorpayRefundForBooking(
   bookingId: string,
   options?: { skipCustomerNotification?: boolean },
 ): Promise<RazorpayRefundBookingResult> {
   const svc = await createServiceClient()
+  // select('*') (not an explicit column list) so this stays resilient if the
+  // razorpay_payment_ids column (migration 090) hasn't been applied yet — it just
+  // reads as undefined and the legacy single-payment path is used.
   const { data: booking } = await svc
     .from('bookings')
-    .select('stripe_payment_intent, refund_amount_paise, refund_status, user_id, package:packages(title)')
+    .select('*, package:packages(title)')
     .eq('id', bookingId)
     .single()
 
@@ -1723,40 +1796,67 @@ export async function initiateRazorpayRefundForBooking(
   }
 
   try {
-    const response = await fetch(
-      `https://api.razorpay.com/v1/payments/${booking.stripe_payment_intent}/refund`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
-        },
-        body: JSON.stringify({
-          amount: booking.refund_amount_paise,
-          notes: { booking_id: bookingId, reason: 'Cancellation refund' },
-        }),
-      },
-    )
+    const payments = Array.isArray(booking.razorpay_payment_ids)
+      ? (booking.razorpay_payment_ids as Array<{ id: string; amount: number }>)
+      : []
+    let primaryRefundId: string | null = null
 
-    const result = (await response.json()) as { id?: string; error?: { description?: string } }
-
-    if (!response.ok) {
-      const errMsg = result.error?.description || 'Razorpay refund failed'
-      const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
-      await notifyAdminsRazorpayRefundFailed(svc, {
-        bookingId,
-        tripTitle: pkgTitle,
-        refundAmountPaise: booking.refund_amount_paise,
-        errorDescription: errMsg,
+    if (payments.length > 0) {
+      // Multi-payment booking (token + balance): allocate the refund across the
+      // captured payments, since each can only be refunded against its own capture. (BP3)
+      const alloc = await refundAcrossPayments(payments, booking.refund_amount_paise, {
+        booking_id: bookingId,
+        reason: 'Cancellation refund',
       })
-      return { ok: false, error: errMsg }
+      if (!alloc.ok) {
+        const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
+        await notifyAdminsRazorpayRefundFailed(svc, {
+          bookingId,
+          tripTitle: pkgTitle,
+          refundAmountPaise: booking.refund_amount_paise,
+          errorDescription: alloc.error,
+        })
+        return { ok: false, error: alloc.error }
+      }
+      primaryRefundId = alloc.refundIds[0] ?? null
+    } else {
+      // Legacy single-payment path (unchanged behaviour).
+      const response = await fetch(
+        `https://api.razorpay.com/v1/payments/${booking.stripe_payment_intent}/refund`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`,
+          },
+          body: JSON.stringify({
+            amount: booking.refund_amount_paise,
+            notes: { booking_id: bookingId, reason: 'Cancellation refund' },
+          }),
+        },
+      )
+
+      const result = (await response.json()) as { id?: string; error?: { description?: string } }
+
+      if (!response.ok) {
+        const errMsg = result.error?.description || 'Razorpay refund failed'
+        const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
+        await notifyAdminsRazorpayRefundFailed(svc, {
+          bookingId,
+          tripTitle: pkgTitle,
+          refundAmountPaise: booking.refund_amount_paise,
+          errorDescription: errMsg,
+        })
+        return { ok: false, error: errMsg }
+      }
+      primaryRefundId = result.id ?? null
     }
 
     await svc
       .from('bookings')
       .update({
         refund_status: 'processing',
-        refund_razorpay_id: result.id ?? null,
+        refund_razorpay_id: primaryRefundId,
         refund_initiated_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -1776,7 +1876,7 @@ export async function initiateRazorpayRefundForBooking(
 
     revalidatePath('/admin/bookings')
     revalidatePath('/bookings')
-    return { ok: true, refundId: result.id }
+    return { ok: true, refundId: primaryRefundId ?? undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     const pkgTitle = (booking.package as unknown as { title: string })?.title || 'Booking'
