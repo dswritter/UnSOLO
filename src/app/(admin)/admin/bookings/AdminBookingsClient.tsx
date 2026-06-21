@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
@@ -169,6 +169,17 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
         res.fullyPaid
           ? 'Payment recorded — booking now fully paid! Reload to see changes.'
           : `₹${((res.appliedPaise || 0) / 100).toLocaleString('en-IN')} recorded · balance ₹${((res.balanceDuePaise || 0) / 100).toLocaleString('en-IN')}. Reload to see changes.`,
+      )
+    })
+  }
+
+  function handleRefundOverpayment(bookingId: string) {
+    startTransition(async () => {
+      const res = await refundBookingOverpayment(bookingId)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(
+        bookingId,
+        `Refund of ₹${((res.refundedPaise || 0) / 100).toLocaleString('en-IN')} ${res.manual ? 'recorded — process it offline to the customer' : 'initiated to the original payment method'}. Reload to see changes.`,
       )
     })
   }
@@ -367,6 +378,7 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                     const total = booking.total_amount_paise || 0
                     const collected = (booking as { deposit_paise?: number | null }).deposit_paise || 0
                     const balance = Math.max(0, total - collected)
+                    const overpaid = Math.max(0, collected - total)
                     const isCancelled = booking.status === 'cancelled'
                     return (
                       <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
@@ -374,7 +386,26 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                           <span><span className="text-muted-foreground">Trip total:</span> <span className="font-medium">{formatPrice(total)}</span></span>
                           <span><span className="text-muted-foreground">Collected:</span> <span className="font-medium text-green-500">{formatPrice(collected)}</span></span>
                           <span><span className="text-muted-foreground">Balance:</span> <span className={`font-medium ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>{formatPrice(balance)}</span></span>
+                          {overpaid > 0 && (
+                            <span><span className="text-muted-foreground">Overpaid:</span> <span className="font-medium text-amber-500">{formatPrice(overpaid)}</span></span>
+                          )}
                         </div>
+                        {!isCancelled && overpaid > 0 && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1 border-amber-500/40 text-amber-500 hover:bg-amber-500/10"
+                              onClick={() => handleRefundOverpayment(booking.id)}
+                              disabled={isPending}
+                            >
+                              <IndianRupee className="h-3 w-3" /> Refund overpayment ({formatPrice(overpaid)})
+                            </Button>
+                            <p className="text-[10px] text-muted-foreground w-full">
+                              The customer has paid more than the current total (e.g. after a price-tier change). Refunds {formatPrice(overpaid)} to their original payment method and reduces collected to match — the booking stays active.
+                            </p>
+                          </div>
+                        )}
                         {!isCancelled && balance > 0 && (
                           <div className="flex flex-wrap items-end gap-2">
                             <div>

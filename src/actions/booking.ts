@@ -2247,6 +2247,111 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
   }
 }
 
+/**
+ * Refund an overpayment on an ACTIVE booking (e.g. after an admin lowered the price
+ * tier so the customer has paid more than the new total). Refunds `deposit − total`
+ * across the captured payments and reduces deposit to match — the booking stays
+ * active. Deliberately does NOT touch the cancellation fields
+ * (refund_status / refund_amount_paise / refund_razorpay_id) so it can't be confused
+ * with a cancellation refund.
+ */
+export async function refundBookingOverpayment(bookingId: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const svc = createServiceRoleClient()
+  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('*, package:packages(title), service_listing:service_listings(title)')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+
+  const total = booking.total_amount_paise || 0
+  const deposit = booking.deposit_paise || 0
+  const overpaid = Math.max(0, deposit - total)
+  if (overpaid <= 0) return { error: 'This booking has no overpayment to refund.' }
+
+  const title = ((booking.package as { title?: string } | null)?.title)
+    || ((booking.service_listing as { title?: string } | null)?.title)
+    || 'your booking'
+  const payments = Array.isArray(booking.razorpay_payment_ids)
+    ? (booking.razorpay_payment_ids as Array<{ id: string; amount: number }>)
+    : []
+
+  // Optimistic lock on deposit so a double-click can't refund twice.
+  const settle = async () => {
+    const { data: updated } = await svc
+      .from('bookings')
+      .update({ deposit_paise: total, updated_at: new Date().toISOString() })
+      .eq('id', bookingId)
+      .eq('deposit_paise', deposit)
+      .select('id')
+      .maybeSingle()
+    return !!updated
+  }
+
+  // No online payment to refund against → record the adjustment; team refunds offline.
+  if (payments.length === 0 && !booking.stripe_payment_intent) {
+    if (!(await settle())) return { error: 'Booking changed — refresh and try again.' }
+    await svc.from('notifications').insert({
+      user_id: booking.user_id,
+      type: 'booking',
+      title: 'Refund being processed',
+      body: `A refund of ₹${(overpaid / 100).toLocaleString('en-IN')} for "${title}" will be processed to your original payment method.`,
+      link: '/bookings',
+    })
+    revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
+    return { success: true, manual: true, refundedPaise: overpaid }
+  }
+
+  const refundList = payments.length > 0 ? payments : [{ id: booking.stripe_payment_intent as string, amount: overpaid }]
+  const alloc = await refundAcrossPayments(refundList, overpaid, {
+    booking_id: bookingId,
+    reason: 'Overpayment refund (price tier change)',
+  })
+  if (!alloc.ok) return { error: alloc.error }
+
+  if (!(await settle())) return { error: 'Refund issued but the booking changed meanwhile — verify the deposit and adjust manually if needed.' }
+
+  await svc.from('notifications').insert({
+    user_id: booking.user_id,
+    type: 'booking',
+    title: 'Refund initiated',
+    body: `A refund of ₹${(overpaid / 100).toLocaleString('en-IN')} for "${title}" has been initiated to your original payment method. It reaches your account in 5–7 business days.`,
+    link: '/bookings',
+  })
+
+  // Receipt email — call the builder directly (not the recorder) so this doesn't
+  // touch the cancellation refund_email_sent_at tracking.
+  try {
+    const { data: prof } = await svc.from('profiles').select('email, full_name').eq('id', booking.user_id).maybeSingle()
+    if (prof?.email?.trim()) {
+      const { sendRefundProcessedEmail } = await import('@/lib/resend/emails')
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
+      await sendRefundProcessedEmail({
+        to: prof.email,
+        travelerName: prof.full_name || 'there',
+        tripTitle: title,
+        netRefundPaise: overpaid,
+        bookingsUrl: `${site}/bookings`,
+      })
+    }
+  } catch { /* email optional */ }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'REFUND_BOOKING_OVERPAYMENT', 'booking', bookingId, { refundedPaise: overpaid })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
+  return { success: true, refundedPaise: overpaid }
+}
+
 // ── Admin: Process Cancellation ─────────────────────────────
 /**
  * Admin/staff records an offline payment (cash, bank transfer, etc.) against a

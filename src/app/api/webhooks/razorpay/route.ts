@@ -244,13 +244,23 @@ export async function POST(request: Request) {
         .maybeSingle()
     ).data
     if (!booking) {
-      booking = (
+      // Payment-id fallback (legacy cancellation refunds with no stored refund id).
+      // Only treat it as a cancellation refund when the booking is actually in a
+      // cancellation state — otherwise this is an overpayment / non-cancellation
+      // refund against the same payment and must NOT cancel the booking.
+      const cand = (
         await supabase
           .from('bookings')
           .select('*, package:packages(title)')
           .eq('stripe_payment_intent', paymentId)
           .maybeSingle()
       ).data
+      const inCancelState = !!cand && (
+        cand.status === 'cancelled' ||
+        ['approved', 'self_service', 'requested'].includes(cand.cancellation_status as string) ||
+        ['pending', 'processing'].includes(cand.refund_status as string)
+      )
+      if (inCancelState) booking = cand
     }
 
     if (booking) {
