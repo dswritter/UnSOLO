@@ -4,6 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { splitRefundPaise } from '@/lib/community-payment'
+import { computeGatewayFeeDeduction, type CapturedPayment } from '@/lib/refund-math'
+import { loadGatewayFeeSettings } from '@/lib/refund-settings'
 import {
   REFUND_TIER_SETTING_KEYS,
   currentRefundPercent,
@@ -17,11 +19,14 @@ type BookingCore = {
   id: string
   total_amount_paise: number
   gross_paise: number | null
+  deposit_paise: number | null
+  cancellation_requested_at: string | null
   travel_date: string | null
   check_in_date: string | null
   package_id: string | null
   service_listing_id: string | null
   booking_type: string | null
+  razorpay_payment_ids?: CapturedPayment[] | null
   package?: { host_id: string | null } | null
   service_listing?: { type: string | null } | null
 }
@@ -48,6 +53,14 @@ export type CancellationQuote = {
   alreadyReleasedPaise: number
   hostClawbackPaise: number
   platformWriteOffPaise: number
+  /** Cash actually collected toward the booking (refund is capped at this). */
+  amountPaidPaise: number
+  /** Tier refund capped at amount paid, before gateway charges. */
+  grossRefundPaise: number
+  /** Non-refundable payment-gateway charge deducted from the refund. */
+  gatewayFeePaise: number
+  /** Final amount refunded to the customer = grossRefundPaise − gatewayFeePaise. */
+  netRefundPaise: number
 }
 
 async function loadTiers(category: RefundTierCategory) {
@@ -64,13 +77,14 @@ async function loadTiers(category: RefundTierCategory) {
 export async function quoteCancellationRefund(
   bookingId: string,
   overrideTierPercent?: number,
+  opts?: { asOfIso?: string },
 ): Promise<CancellationQuote | { error: string }> {
   const svc = await createServiceClient()
+  // select('*') so this is resilient to columns (deposit_paise, razorpay_payment_ids)
+  // whose migrations may not be applied yet — they just read as undefined.
   const { data: booking } = (await svc
     .from('bookings')
-    .select(
-      'id, total_amount_paise, gross_paise, travel_date, check_in_date, package_id, service_listing_id, booking_type, package:packages(host_id), service_listing:service_listings(type)',
-    )
+    .select('*, package:packages(host_id), service_listing:service_listings(type)')
     .eq('id', bookingId)
     .single()) as unknown as { data: BookingCore | null }
   if (!booking) return { error: 'Booking not found' }
@@ -83,9 +97,31 @@ export async function quoteCancellationRefund(
 
   const tiers = await loadTiers(category)
   const travelDateIso = booking.travel_date ?? booking.check_in_date ?? null
+  // Tier % is measured from the cancellation REQUEST date (explicit asOfIso, else
+  // the booking's own cancellation_requested_at) so a slow admin approval can't
+  // quietly drop the refund into a lower tier; falls back to "now".
+  const asOfIso = opts?.asOfIso ?? booking.cancellation_requested_at ?? undefined
   const tierPercent = Number.isFinite(overrideTierPercent as number)
     ? Math.max(0, Math.min(100, overrideTierPercent as number))
-    : currentRefundPercent(travelDateIso, tiers)
+    : currentRefundPercent(travelDateIso, tiers, asOfIso ? new Date(asOfIso) : undefined)
+
+  // Gateway-fee inputs (cash collected + captured payments) — used to deduct the
+  // non-refundable transaction charge from whatever gross refund we land on.
+  const amountPaidPaise = (booking.deposit_paise ?? booking.total_amount_paise) || 0
+  const payments = Array.isArray(booking.razorpay_payment_ids) ? booking.razorpay_payment_ids : []
+  const feeSettings = await loadGatewayFeeSettings()
+  const finalize = (
+    base: Omit<CancellationQuote, 'amountPaidPaise' | 'grossRefundPaise' | 'gatewayFeePaise' | 'netRefundPaise'>,
+  ): CancellationQuote => {
+    const grossRefundPaise = Math.min(base.totalRefundPaise, Math.max(0, amountPaidPaise))
+    const ded = computeGatewayFeeDeduction({
+      payments,
+      grossRefundPaise,
+      deductEnabled: feeSettings.deductEnabled,
+      fallbackPercent: feeSettings.fallbackPercent,
+    })
+    return { ...base, amountPaidPaise, grossRefundPaise, gatewayFeePaise: ded.gatewayFeePaise, netRefundPaise: ded.netRefundPaise }
+  }
 
   const { data: earning } = (await svc
     .from('host_earnings')
@@ -100,7 +136,7 @@ export async function quoteCancellationRefund(
       tierPercent,
       alreadyReleasedPaise: earning.released_paise ?? 0,
     })
-    return {
+    return finalize({
       bookingId,
       category,
       tierPercent,
@@ -114,13 +150,13 @@ export async function quoteCancellationRefund(
       alreadyReleasedPaise: earning.released_paise ?? 0,
       hostClawbackPaise: split.hostClawbackPaise,
       platformWriteOffPaise: split.platformWriteOffPaise,
-    }
+    })
   }
 
   // No host_earnings row → UnSOLO-owned trip. Platform absorbs the refund alone.
   const gross = booking.gross_paise ?? booking.total_amount_paise ?? 0
   const total = Math.round(gross * (tierPercent / 100))
-  return {
+  return finalize({
     bookingId,
     category,
     tierPercent,
@@ -134,7 +170,7 @@ export async function quoteCancellationRefund(
     alreadyReleasedPaise: 0,
     hostClawbackPaise: 0,
     platformWriteOffPaise: 0,
-  }
+  })
 }
 
 async function applyRefundSplitCore(
@@ -185,10 +221,15 @@ async function applyRefundSplitCore(
 
 export type TravelerCancellationPreview = {
   bookingId: string
+  /** Final amount credited after gateway charges (= what the customer receives). */
   estimatedRefundPaise: number
   tierPercent: number
   travelDateIso: string | null
   amountPaidPaise: number
+  /** Tier refund before gateway charges. */
+  grossRefundPaise: number
+  /** Non-refundable payment-gateway charge deducted. */
+  gatewayFeePaise: number
   /** Razorpay can refund to the original payment method when this is true */
   canAutoRefund: boolean
 }
@@ -223,17 +264,18 @@ export async function getTravelerCancellationPreview(
   const quote = await quoteCancellationRefund(bookingId)
   if ('error' in quote) return { error: quote.error }
 
-  const amountPaid = row.deposit_paise ?? row.total_amount_paise ?? 0
-  const estimatedRefundPaise = Math.min(quote.totalRefundPaise, Math.max(0, amountPaid))
-
+  // estimatedRefundPaise is the NET amount the customer actually receives
+  // (gross tier refund, capped at amount paid, minus gateway charges).
   return {
     preview: {
       bookingId,
-      estimatedRefundPaise,
+      estimatedRefundPaise: quote.netRefundPaise,
       tierPercent: quote.tierPercent,
       travelDateIso: quote.travelDateIso,
-      amountPaidPaise: amountPaid,
-      canAutoRefund: Boolean(row.stripe_payment_intent) && estimatedRefundPaise > 0,
+      amountPaidPaise: quote.amountPaidPaise,
+      grossRefundPaise: quote.grossRefundPaise,
+      gatewayFeePaise: quote.gatewayFeePaise,
+      canAutoRefund: Boolean(row.stripe_payment_intent) && quote.netRefundPaise > 0,
     },
   }
 }

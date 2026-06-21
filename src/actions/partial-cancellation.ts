@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { computeGatewayFeeDeduction, type CapturedPayment } from '@/lib/refund-math'
+import { loadGatewayFeeSettings } from '@/lib/refund-settings'
 
 type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
 
@@ -45,7 +47,11 @@ function perPersonFigures(booking: { total_amount_paise: number; deposit_paise?:
  * Default refund = collected share of the cancelled seats × the current refund
  * tier %, capped at what those seats actually paid. Editable by admin/host.
  */
-export async function quotePartialRefund(bookingId: string, travellerIndexes: number[]) {
+export async function quotePartialRefund(
+  bookingId: string,
+  travellerIndexes: number[],
+  opts?: { tierPercentOverride?: number },
+) {
   const { user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
   const svc = createServiceRoleClient()
@@ -61,18 +67,35 @@ export async function quotePartialRefund(bookingId: string, travellerIndexes: nu
 
   const fig = perPersonFigures(actor.booking, count)
 
-  // Tier % from the existing refund-tier logic (based on days to travel + category).
+  // Tier %: honour a snapshot from request time when given (request-date fairness),
+  // else the live tier (days to travel + category).
   let tierPercent = 100
-  try {
-    const { quoteCancellationRefund } = await import('@/actions/cancellation-refund')
-    const q = await quoteCancellationRefund(bookingId)
-    if (!('error' in q)) tierPercent = q.tierPercent
-  } catch { /* fall back to 100% */ }
+  if (typeof opts?.tierPercentOverride === 'number' && Number.isFinite(opts.tierPercentOverride)) {
+    tierPercent = Math.max(0, Math.min(100, opts.tierPercentOverride))
+  } else {
+    try {
+      const { quoteCancellationRefund } = await import('@/actions/cancellation-refund')
+      const q = await quoteCancellationRefund(bookingId)
+      if (!('error' in q)) tierPercent = q.tierPercent
+    } catch { /* fall back to 100% */ }
+  }
 
-  const autoRefundPaise = Math.min(
+  const grossRefundPaise = Math.min(
     fig.collectedForCancelled,
     Math.round(fig.collectedForCancelled * (tierPercent / 100)),
   )
+
+  // Deduct the cancelled seats' proportional share of the gateway fee.
+  const payments = Array.isArray((actor.booking as { razorpay_payment_ids?: unknown }).razorpay_payment_ids)
+    ? ((actor.booking as { razorpay_payment_ids?: CapturedPayment[] }).razorpay_payment_ids as CapturedPayment[])
+    : []
+  const feeSettings = await loadGatewayFeeSettings()
+  const ded = computeGatewayFeeDeduction({
+    payments,
+    grossRefundPaise,
+    deductEnabled: feeSettings.deductEnabled,
+    fallbackPercent: feeSettings.fallbackPercent,
+  })
 
   return {
     guestsCancelled: count,
@@ -81,7 +104,10 @@ export async function quotePartialRefund(bookingId: string, travellerIndexes: nu
     collectedForCancelledPaise: fig.collectedForCancelled,
     maxRefundPaise: fig.collectedForCancelled,
     tierPercent,
-    autoRefundPaise,
+    grossRefundPaise,
+    gatewayFeePaise: ded.gatewayFeePaise,
+    // Suggested refund = net of gateway charges.
+    autoRefundPaise: ded.netRefundPaise,
   }
 }
 
@@ -146,6 +172,17 @@ export async function requestPartialCancellation(
     .select('id')
     .single()
   if (error || !row) return { error: error?.message || 'Could not submit request' }
+
+  // Snapshot the tier % the customer qualifies for AT REQUEST TIME, so a slow
+  // approval can't drop them into a lower tier. Best-effort (column from migration
+  // 092) — never blocks the request if it isn't applied yet.
+  try {
+    const { quoteCancellationRefund } = await import('@/actions/cancellation-refund')
+    const q = await quoteCancellationRefund(bookingId)
+    if (!('error' in q)) {
+      await svc.from('booking_partial_cancellations').update({ requested_tier_percent: q.tierPercent }).eq('id', row.id)
+    }
+  } catch { /* tier snapshot optional */ }
 
   // Notify staff + host.
   await notifyPartialRequest(svc, booking, travellers, reason?.trim() || '')

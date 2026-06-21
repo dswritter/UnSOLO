@@ -1038,9 +1038,19 @@ async function applyCapturedPaymentToBooking(
   const existingPayments = Array.isArray(before.razorpay_payment_ids) ? before.razorpay_payment_ids : []
   const alreadyListed = (existingPayments as Array<{ id?: string }>).some((p) => p?.id === paymentId)
   if (!alreadyListed) {
+    // Record the real gateway fee (method-specific: UPI ~0, cards ~2%) so refunds
+    // can deduct the actual non-refundable charge rather than a flat estimate.
+    let fee: number | undefined
+    try {
+      const pay = await razorpay.payments.fetch(paymentId)
+      const f = Number((pay as { fee?: number | string | null }).fee)
+      if (Number.isFinite(f) && f >= 0) fee = Math.round(f)
+    } catch { /* fee optional — falls back to the configured % at refund time */ }
+    const entry: { id: string; amount: number; fee?: number } = { id: paymentId, amount: paidAmountPaise }
+    if (typeof fee === 'number') entry.fee = fee
     await client
       .from('bookings')
-      .update({ razorpay_payment_ids: [...existingPayments, { id: paymentId, amount: paidAmountPaise }] })
+      .update({ razorpay_payment_ids: [...existingPayments, entry] })
       .eq('id', before.id)
   }
 
@@ -1947,8 +1957,8 @@ export async function confirmTravelerCancellation(
   const quote = await quoteCancellationRefund(bookingId)
   if ('error' in quote) return { error: quote.error }
 
-  const amountPaid = booking.deposit_paise ?? booking.total_amount_paise ?? 0
-  const refundPaise = Math.min(quote.totalRefundPaise, Math.max(0, amountPaid))
+  // Net refund = tier amount (capped at paid) minus non-refundable gateway charges.
+  const refundPaise = quote.netRefundPaise
   const tierPercent = quote.tierPercent
 
   const { data: updated, error: upError } = await svc

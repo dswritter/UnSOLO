@@ -1111,7 +1111,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                   if (!window.confirm(`Delete "${pkg.title}"? This cannot be undone.`)) return
                   startTransition(async () => {
                     const res = await deletePackage(pkg.id)
-                    if (res.error) setMessage({ type: 'error', text: res.error })
+                    if ('error' in res && res.error) setMessage({ type: 'error', text: res.error })
                     else {
                       setPackages(prev => prev.filter(p => p.id !== pkg.id))
                       setMessage({ type: 'success', text: 'archived' in res && res.archived ? 'Package archived because booking history exists' : 'Package deleted' })
