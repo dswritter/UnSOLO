@@ -48,7 +48,8 @@ export function CancellationReviewPanel({
       }
       setQuote(res)
       setTierPercent(res.tierPercent)
-      setRefundRupees((res.totalRefundPaise / 100).toFixed(2))
+      // Suggest the NET amount (after gateway charges) the customer receives.
+      setRefundRupees((res.netRefundPaise / 100).toFixed(2))
     })
     return () => { cancelled = true }
   }, [bookingId, totalAmountPaise])
@@ -59,7 +60,7 @@ export function CancellationReviewPanel({
     const res = await quoteCancellationRefund(bookingId, pct)
     if (!('error' in res)) {
       setQuote(res)
-      setRefundRupees((res.totalRefundPaise / 100).toFixed(2))
+      setRefundRupees((res.netRefundPaise / 100).toFixed(2))
     }
   }
 
@@ -112,6 +113,14 @@ export function CancellationReviewPanel({
               Note: Host was already paid {formatPrice(quote.alreadyReleasedPaise)} in advance — platform absorbs {formatPrice(quote.platformWriteOffPaise)} write-off (host is not clawed back).
             </p>
           )}
+          <div className="border-t border-border/60 pt-2 space-y-0.5 text-[11px]">
+            <div className="flex justify-between"><span className="text-muted-foreground">Amount paid</span><span className="tabular-nums">{formatPrice(quote.amountPaidPaise)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Refund @ {quote.tierPercent}% (before charges)</span><span className="tabular-nums">{formatPrice(quote.grossRefundPaise)}</span></div>
+            {quote.gatewayFeePaise > 0 && (
+              <div className="flex justify-between text-amber-500"><span>Less: gateway / transaction charges</span><span className="tabular-nums">− {formatPrice(quote.gatewayFeePaise)}</span></div>
+            )}
+            <div className="flex justify-between font-bold text-primary"><span>Net refund (suggested)</span><span className="tabular-nums">{formatPrice(quote.netRefundPaise)}</span></div>
+          </div>
         </div>
       )}
       {quoteError && <p className="text-xs text-red-400">Preview unavailable: {quoteError}</p>}

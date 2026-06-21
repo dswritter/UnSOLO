@@ -1639,20 +1639,21 @@ function CancelRequester({
             <>
               <p className="text-xs font-medium text-red-400">Cancel this booking</p>
               <div className="text-[11px] text-muted-foreground leading-snug space-y-1 rounded-md bg-secondary/50 border border-border/60 p-2">
-                <p>
-                  <span className="text-foreground font-medium">Estimated refund: </span>
-                  {preview.estimatedRefundPaise > 0 ? (
-                    <span className="text-primary font-semibold tabular-nums">
-                      {formatPrice(preview.estimatedRefundPaise)}
-                    </span>
-                  ) : (
-                    <span className="text-foreground">No refund under the current policy window</span>
-                  )}
-                </p>
-                <p>
-                  Policy tier applied: <span className="text-foreground">{preview.tierPercent}%</span> of eligible
-                  amount (based on your trip dates).
-                </p>
+                {preview.estimatedRefundPaise > 0 ? (
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between"><span>Amount paid</span><span className="tabular-nums text-foreground">{formatPrice(preview.amountPaidPaise)}</span></div>
+                    <div className="flex justify-between"><span>Refund @ {preview.tierPercent}% (per policy)</span><span className="tabular-nums text-foreground">{formatPrice(preview.grossRefundPaise)}</span></div>
+                    {preview.gatewayFeePaise > 0 && (
+                      <div className="flex justify-between text-amber-500"><span>Less: gateway / transaction charges</span><span className="tabular-nums">− {formatPrice(preview.gatewayFeePaise)}</span></div>
+                    )}
+                    <div className="flex justify-between font-semibold pt-0.5 border-t border-border/60"><span className="text-foreground">You receive</span><span className="text-primary tabular-nums">{formatPrice(preview.estimatedRefundPaise)}</span></div>
+                  </div>
+                ) : (
+                  <p>
+                    <span className="text-foreground font-medium">Estimated refund: </span>
+                    <span className="text-foreground">No refund under the current policy window ({preview.tierPercent}% tier)</span>
+                  </p>
+                )}
                 {preview.canAutoRefund ? (
                   <p>If you continue, we will cancel immediately and start a refund to your original payment method.</p>
                 ) : preview.estimatedRefundPaise > 0 ? (

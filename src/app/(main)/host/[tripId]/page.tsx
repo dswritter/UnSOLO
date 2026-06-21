@@ -49,7 +49,7 @@ export default async function ManageTripPage({
     const svc = createServiceRoleClient()
     const { data: pcRows } = await svc
       .from('booking_partial_cancellations')
-      .select('id, booking_id, travellers, guests_cancelled, refund_amount_paise, refund_status, status, created_at')
+      .select('*')
       .in('booking_id', rosterIds)
       .order('created_at', { ascending: false })
     for (const r of (pcRows || []) as PartialCancellationRow[]) {

@@ -23,6 +23,8 @@ export type PartialCancellationRow = {
   refund_status: string
   status: string
   created_at: string
+  /** Tier % snapshotted when the request was made (request-date fairness). */
+  requested_tier_percent?: number | null
 }
 
 type BookingLite = {
@@ -183,7 +185,7 @@ export function PartialCancelManager({
   )
 }
 
-type QuoteResult = { autoRefundPaise: number; maxRefundPaise: number; tierPercent: number; guestsCancelled: number }
+type QuoteResult = { autoRefundPaise: number; maxRefundPaise: number; tierPercent: number; guestsCancelled: number; grossRefundPaise?: number; gatewayFeePaise?: number }
 
 function useQuote(bookingId: string) {
   const [quote, setQuote] = useState<QuoteResult | null>(null)
@@ -202,7 +204,7 @@ function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCan
   const [note, setNote] = useState('')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState(false)
-  const [quote, setQuote] = useState<{ autoRefundPaise: number; maxRefundPaise: number; tierPercent: number } | null>(null)
+  const [quote, setQuote] = useState<QuoteResult | null>(null)
   const [isPending, start] = useTransition()
 
   // Resolve the snapshot travellers back to indexes in the current list for the quote.
@@ -210,7 +212,9 @@ function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCan
   const indexes = resolveIndexes(current, row.travellers, row.guests_cancelled)
 
   async function loadQuote() {
-    const res = await quotePartialRefund(booking.id, indexes)
+    // Honour the tier % snapshotted at request time, if we have it.
+    const override = typeof row.requested_tier_percent === 'number' ? { tierPercentOverride: row.requested_tier_percent } : undefined
+    const res = await quotePartialRefund(booking.id, indexes, override)
     if ('error' in res) { setErr(true); setMsg(res.error || 'Could not calculate refund.'); return }
     setQuote(res)
     setRefund(String(Math.round(res.autoRefundPaise / 100)))
@@ -246,7 +250,7 @@ function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCan
       ) : (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            Suggested refund {fmt(quote.autoRefundPaise)} (tier {quote.tierPercent}% · max {fmt(quote.maxRefundPaise)}). Edit if needed.
+            Suggested refund {fmt(quote.autoRefundPaise)} (tier {quote.tierPercent}%{quote.gatewayFeePaise ? ` · less ${fmt(quote.gatewayFeePaise)} gateway charges` : ''} · max {fmt(quote.maxRefundPaise)}). Edit if needed.
           </p>
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground">Refund ₹</label>
@@ -365,7 +369,7 @@ function DirectCancel({ booking, travellers }: { booking: BookingLite; traveller
       </div>
       {quote && (
         <p className="text-[11px] text-muted-foreground">
-          Suggested {fmt(quote.autoRefundPaise)} (tier {quote.tierPercent}% · max {fmt(quote.maxRefundPaise)})
+          Suggested {fmt(quote.autoRefundPaise)} (tier {quote.tierPercent}%{quote.gatewayFeePaise ? ` · less ${fmt(quote.gatewayFeePaise)} gateway charges` : ''} · max {fmt(quote.maxRefundPaise)})
         </p>
       )}
       <div className="flex items-center gap-2">
