@@ -44,6 +44,11 @@ function TierTable({ tiers }: { tiers: RefundTier[] }) {
           ))}
         </tbody>
       </table>
+      <p className="text-[11px] text-muted-foreground mt-1.5">
+        The refund percentage applies to the amount you actually paid towards the booking. Non-refundable
+        payment-gateway / transaction charges incurred on the original payment are deducted from the amount
+        returned to you.
+      </p>
     </div>
   )
 }
@@ -57,17 +62,32 @@ export default async function RefundPolicyPage() {
         <h1 className="text-3xl font-black mb-2">
           Refund &amp; Cancellation <span className="text-primary">Policy</span>
         </h1>
-        <p className="text-sm text-muted-foreground mb-6">
+        <p className="text-sm text-muted-foreground mb-1">
           Tier schedules are maintained live by UnSOLO admins; the tables below reflect the current values.
         </p>
+        <p className="text-xs text-muted-foreground mb-6">Last updated: 21 June 2026</p>
 
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-8">
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-4">
           <h2 className="text-sm font-bold text-foreground">Fair-split refunds</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
             When a traveler cancels, UnSOLO and the host share the refund <strong>proportionally</strong> to our
             earnings on the booking. Platform fees, promos, and referral credits never come out of the host&apos;s
             share. If a host was already paid an advance, any clawback stops at their unpaid balance — the platform
             absorbs the rest.
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-border bg-secondary/30 p-4 mb-8 space-y-2">
+          <h2 className="text-sm font-bold text-foreground">How the refund amount is calculated</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Every refund percentage in the tables below applies to the amount you have <strong>actually paid</strong>
+            towards the booking. For trips booked with a token deposit, the refund is calculated on what you have paid
+            so far (token, and balance if already paid) and can never exceed it.
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong>Transaction charges:</strong> payment-gateway and transaction fees levied on the original payment
+            are non-refundable. These charges are deducted from the amount returned to you, so the credited refund will
+            be the tier percentage <em>minus</em> applicable transaction charges.
           </p>
         </div>
 
@@ -127,27 +147,44 @@ export default async function RefundPolicyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-foreground">7. Refund Process</h2>
+            <h2 className="text-lg font-bold text-foreground">7. Partial Cancellations (cancelling some travellers)</h2>
+            <p className="text-sm text-muted-foreground">
+              If you booked for more than one traveller, you can cancel a part of your party without cancelling the whole
+              booking.
+            </p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>You select the traveller(s) to cancel and submit a request; an UnSOLO admin or the trip host reviews and approves it.</li>
+              <li>The refund for the cancelled traveller(s) is calculated <strong>pro-rata</strong> (their share of the amount you paid) and then the same cancellation-timeline tier percentage above is applied.</li>
+              <li>As with any refund, applicable payment-gateway / transaction charges are non-refundable and are deducted from the amount returned.</li>
+              <li>The remaining travellers&apos; booking stays confirmed, and your trip total is reduced to reflect the smaller party.</li>
+              <li>To cancel everyone, please use a full cancellation instead.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-bold text-foreground">8. Refund Process</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>Refunds are processed to the original payment method (UPI, card, or netbanking).</li>
               <li>UPI refunds: 1–3 business days.</li>
               <li>Card refunds: 5–7 business days.</li>
               <li>Netbanking refunds: 5–10 business days.</li>
+              <li>Where a payment was collected offline (e.g. cash or direct bank transfer recorded by our team), the corresponding refund is returned by the same offline method.</li>
+              <li>For trips paid in two parts (token + balance), the refund is issued across the actual payments captured.</li>
               <li>You will receive a notification when the refund is initiated and when it is processed.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-foreground">8. Non-Refundable Items</h2>
+            <h2 className="text-lg font-bold text-foreground">9. Non-Refundable Items</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>Bookings cancelled inside the &quot;no refund&quot; window of the schedule above.</li>
               <li>No-shows (failure to show up without prior cancellation).</li>
-              <li>Payment-gateway fees charged by the card/UPI network (typically ~2% of the booking, passed through).</li>
+              <li>Payment-gateway / transaction charges levied on the original payment (typically ~2% of the booking) — these are deducted from every refund.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-lg font-bold text-foreground">9. Disputes &amp; Contact</h2>
+            <h2 className="text-lg font-bold text-foreground">10. Disputes &amp; Contact</h2>
             <p>
               If you disagree with a refund decision, email us at{' '}
               <a href="mailto:hello@unsolo.in" className="text-primary hover:underline">hello@unsolo.in</a>{' '}

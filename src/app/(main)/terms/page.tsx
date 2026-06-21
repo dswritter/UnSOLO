@@ -5,7 +5,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-black mb-2">Terms of <span className="text-primary">Service</span></h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: 17 April 2026</p>
+        <p className="text-sm text-muted-foreground mb-8">Last updated: 21 June 2026</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
           <section>
@@ -42,9 +42,12 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-bold text-foreground">5. Bookings &amp; Payments</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li>All payments are processed through Razorpay in Indian Rupees (INR).</li>
+              <li>All online payments are processed through Razorpay in Indian Rupees (INR).</li>
               <li>Booking confirmation is subject to availability and payment verification.</li>
+              <li>Some community trips can be booked with a <strong>token deposit</strong>: you pay a smaller amount to reserve your spot and pay the remaining balance later (you will be reminded before departure). Your spot is confirmed only once the token is paid, and the trip is fully confirmed once the balance is settled.</li>
+              <li>For offline payments (e.g. cash or direct bank transfer), our team may record the amount against your booking; such entries reflect money actually received.</li>
               <li>For group bookings, all members must complete payment within 24 hours of group creation, or the booking will be auto-cancelled with full refund.</li>
+              <li>Payment-gateway / transaction charges levied on a payment are non-refundable and are deducted from any refund (see the Refund &amp; Cancellation Policy).</li>
               <li>Prices displayed include applicable taxes unless stated otherwise.</li>
             </ul>
           </section>
@@ -63,7 +66,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-lg font-bold text-foreground">7. Cancellations &amp; Refunds</h2>
-            <p>Please refer to our <a href="/refund-policy" className="text-primary hover:underline">Refund &amp; Cancellation Policy</a> for detailed information.</p>
+            <p>Cancellation windows, refund tiers, and how refunds are calculated (including the deduction of non-refundable transaction charges) are set out in our <a href="/refund-policy" className="text-primary hover:underline">Refund &amp; Cancellation Policy</a>. Where a booking covers multiple travellers, you may also request a <strong>partial cancellation</strong> of one or more travellers; the rest of the booking stays confirmed and a pro-rata refund (per the applicable tier) is issued for those cancelled.</p>
           </section>
 
           <section>

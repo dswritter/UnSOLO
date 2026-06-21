@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-black mb-2">Privacy <span className="text-primary">Policy</span></h1>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: 17 April 2026</p>
+        <p className="text-sm text-muted-foreground mb-8">Last updated: 21 June 2026</p>
 
         <div className="prose prose-sm dark:prose-invert max-w-none space-y-6 text-foreground/90">
           <section>
@@ -22,6 +22,7 @@ export default function PrivacyPage() {
               <li>Date of birth (for age-based trip preferences)</li>
               <li>UPI ID or bank details (for host payouts only)</li>
               <li>Booking details, travel preferences, and reviews</li>
+              <li>Co-traveller details you add to a booking (such as name, age, and gender of others in your party)</li>
               <li>Messages sent through our chat system</li>
             </ul>
             <h3 className="text-sm font-semibold mt-3">Information collected automatically:</h3>
@@ -64,7 +65,7 @@ export default function PrivacyPage() {
               <li><strong>Razorpay:</strong> Payment processing (name, email, phone for transaction completion).</li>
               <li><strong>Resend:</strong> Email delivery service (email address for notifications).</li>
               <li><strong>MSG91:</strong> SMS delivery for OTP verification (phone number).</li>
-              <li><strong>Trip Hosts:</strong> Your name and approved profile information when you join a community trip.</li>
+              <li><strong>Trip Hosts:</strong> Your name and approved profile information — and the co-traveller details you enter for your party (name, age, gender) — when you join a community trip, so the host can manage the roster.</li>
               <li><strong>Law Enforcement:</strong> When required by law or court order.</li>
             </ul>
           </section>
