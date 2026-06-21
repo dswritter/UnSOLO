@@ -292,7 +292,7 @@ export async function POST(request: Request) {
     // Full-cancellation refunds.
     const { data: stuckBookings } = await supabase
       .from('bookings')
-      .select('id, user_id, package_id, refund_razorpay_id, package:packages(title)')
+      .select('*, package:packages(title)')
       .eq('refund_status', 'processing')
       .not('refund_razorpay_id', 'is', null)
       .lt('refund_initiated_at', refundStuckCutoff)
@@ -319,6 +319,17 @@ export async function POST(request: Request) {
             body: `Your refund for ${t} has been processed. It will reflect in your account within 5-7 business days.`,
             link: '/bookings',
           })
+          if (!b.refund_email_sent_at) {
+            const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+            await sendRefundReceiptAndRecord(supabase as never, {
+              table: 'bookings',
+              id: b.id,
+              userId: b.user_id,
+              tripTitle: t,
+              netRefundPaise: info.amount ?? 0,
+              amountPaidPaise: typeof b.deposit_paise === 'number' ? b.deposit_paise : undefined,
+            })
+          }
         }
         results.refundsReconciled++
       } else if (info.status === 'failed') {
@@ -330,7 +341,7 @@ export async function POST(request: Request) {
     // Partial-cancellation refunds.
     const { data: stuckPartials } = await supabase
       .from('booking_partial_cancellations')
-      .select('id, refund_razorpay_id')
+      .select('*')
       .eq('refund_status', 'processing')
       .not('refund_razorpay_id', 'is', null)
       .limit(50)
@@ -341,6 +352,22 @@ export async function POST(request: Request) {
       if (info.status === 'processed') {
         await supabase.from('booking_partial_cancellations').update({ refund_status: 'completed' }).eq('id', pc.id)
         await supabase.from('booking_partial_cancellations').update({ refund_completed_paise: info.amount ?? null }).eq('id', pc.id) // best-effort (091)
+        if (!pc.refund_email_sent_at) {
+          const { data: pcb } = await supabase.from('bookings').select('user_id, package:packages(title)').eq('id', pc.booking_id).maybeSingle()
+          if (pcb?.user_id) {
+            const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Array<{ name?: string }>) : []
+            const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+            await sendRefundReceiptAndRecord(supabase as never, {
+              table: 'booking_partial_cancellations',
+              id: pc.id,
+              userId: pcb.user_id,
+              tripTitle: (pcb.package as unknown as { title?: string })?.title || 'your trip',
+              netRefundPaise: info.amount ?? 0,
+              partial: true,
+              travellersLabel: travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined,
+            })
+          }
+        }
         results.refundsReconciled++
       } else if (info.status === 'failed') {
         await supabase.from('booking_partial_cancellations').update({ refund_status: 'failed' }).eq('id', pc.id)

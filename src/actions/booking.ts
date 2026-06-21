@@ -2461,26 +2461,19 @@ export async function markRefundComplete(bookingId: string) {
     link: '/bookings',
   })
 
-  // Email the customer a refund receipt with the amount breakdown (best-effort).
-  try {
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('email, full_name')
-      .eq('id', booking.user_id)
-      .maybeSingle()
-    if (prof?.email?.trim()) {
-      const { sendRefundProcessedEmail } = await import('@/lib/resend/emails')
-      const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
-      await sendRefundProcessedEmail({
-        to: prof.email,
-        travelerName: prof.full_name || 'there',
-        tripTitle: pkgTitle,
-        netRefundPaise: creditedPaise,
-        amountPaidPaise: typeof booking.deposit_paise === 'number' ? booking.deposit_paise : undefined,
-        bookingsUrl: `${site}/bookings`,
-      })
-    }
-  } catch { /* email optional */ }
+  // Email the customer a refund receipt with the amount breakdown + record that it
+  // was sent (skip if already emailed for this booking).
+  if (!booking.refund_email_sent_at) {
+    const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+    await sendRefundReceiptAndRecord(supabase, {
+      table: 'bookings',
+      id: bookingId,
+      userId: booking.user_id,
+      tripTitle: pkgTitle,
+      netRefundPaise: creditedPaise,
+      amountPaidPaise: typeof booking.deposit_paise === 'number' ? booking.deposit_paise : undefined,
+    })
+  }
 
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')

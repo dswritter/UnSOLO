@@ -90,6 +90,8 @@ const SETTING_LABELS: Record<
   platform_fee_percent_rentals: { label: 'Commission % — Rentals', type: 'number' },
   platform_fee_percent_getting_around: { label: 'Commission % — Getting Around', type: 'number' },
   join_payment_deadline_hours: { label: 'Payment deadline (hours)', type: 'number' },
+  deduct_gateway_fee_on_refund: { label: 'Deduct gateway charges from refunds (true / false)', type: 'text' },
+  gateway_fee_fallback_percent: { label: 'Gateway fee fallback % (used when a payment’s real fee is unknown)', type: 'number' },
   refund_tiers_unsolo: {
     label: 'Refund tiers — UnSOLO trips',
     type: 'refund_tiers',

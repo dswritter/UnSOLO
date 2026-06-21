@@ -482,6 +482,9 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                            '⏸ Pending'}
                         </Badge>
                       </div>
+                      {(booking as { refund_email_sent_at?: string | null }).refund_email_sent_at && (
+                        <p className="text-[11px] text-green-500">✉️ Refund receipt emailed to customer</p>
+                      )}
 
                       {(!booking.refund_status || booking.refund_status === 'pending') && (
                         <Button

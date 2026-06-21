@@ -25,6 +25,8 @@ export type PartialCancellationRow = {
   created_at: string
   /** Tier % snapshotted when the request was made (request-date fairness). */
   requested_tier_percent?: number | null
+  /** Set when the refund-processed receipt email was sent to the customer. */
+  refund_email_sent_at?: string | null
 }
 
 type BookingLite = {
@@ -298,6 +300,9 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
         <span className="text-muted-foreground"> · {row.guests_cancelled} traveller(s){names ? ` (${names})` : ''}</span>
         {row.status === 'approved' && row.refund_amount_paise > 0 && (
           <span className="text-muted-foreground"> · refund {fmt(row.refund_amount_paise)} ({row.refund_status})</span>
+        )}
+        {row.refund_email_sent_at && (
+          <span className="text-green-500"> · ✉️ receipt emailed</span>
         )}
       </p>
       {row.status === 'approved' && row.refund_amount_paise > 0 && (

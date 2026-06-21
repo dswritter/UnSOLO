@@ -620,26 +620,22 @@ export async function markPartialRefundComplete(partialId: string) {
     link: '/bookings',
   })
 
-  // Email a refund receipt with breakdown (best-effort).
-  try {
-    const { data: prof } = await svc.from('profiles').select('email, full_name').eq('id', actor.booking.user_id).maybeSingle()
-    if (prof?.email?.trim()) {
-      const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Traveller[]) : []
-      const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
-      const pkgTitle = (actor.booking.package as { title?: string } | null)?.title || 'your trip'
-      const { sendRefundProcessedEmail } = await import('@/lib/resend/emails')
-      const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
-      await sendRefundProcessedEmail({
-        to: prof.email,
-        travelerName: prof.full_name || 'there',
-        tripTitle: pkgTitle,
-        netRefundPaise: creditedPaise,
-        partial: true,
-        travellersLabel,
-        bookingsUrl: `${site}/bookings`,
-      })
-    }
-  } catch { /* email optional */ }
+  // Email a refund receipt with breakdown + record that it was sent.
+  if (!pc.refund_email_sent_at) {
+    const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Traveller[]) : []
+    const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
+    const pkgTitle = (actor.booking.package as { title?: string } | null)?.title || 'your trip'
+    const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+    await sendRefundReceiptAndRecord(svc, {
+      table: 'booking_partial_cancellations',
+      id: partialId,
+      userId: actor.booking.user_id,
+      tripTitle: pkgTitle,
+      netRefundPaise: creditedPaise,
+      partial: true,
+      travellersLabel,
+    })
+  }
 
   revalidatePath('/admin/bookings'); revalidatePath('/bookings')
   return { success: true }

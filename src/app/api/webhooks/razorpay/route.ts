@@ -180,11 +180,12 @@ export async function POST(request: Request) {
     // 1) Partial-cancellation refund (matched by the refund's own id).
     const { data: pc } = await supabase
       .from('booking_partial_cancellations')
-      .select('id, booking_id, refund_amount_paise')
+      .select('*')
       .eq('refund_razorpay_id', refundId)
       .maybeSingle()
 
     if (pc) {
+      const pcWasCompleted = pc.refund_status === 'completed'
       await supabase
         .from('booking_partial_cancellations')
         .update({ refund_status: isProcessed ? 'completed' : 'failed' })
@@ -214,14 +215,31 @@ export async function POST(request: Request) {
       else if (actualPaise < (pc.refund_amount_paise || 0)) {
         await notifyAdmins('Partial Refund Short', `Razorpay refunded ₹${(actualPaise / 100).toLocaleString('en-IN')} for ${pcTitle}, less than the ₹${((pc.refund_amount_paise || 0) / 100).toLocaleString('en-IN')} requested. Check and top up manually if needed.`)
       }
+      // Auto-send the refund receipt (once) now that it's confirmed credited.
+      if (isProcessed && !pcWasCompleted && !pc.refund_email_sent_at && pcBooking?.user_id) {
+        const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Array<{ name?: string }>) : []
+        const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
+        const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+        await sendRefundReceiptAndRecord(supabase, {
+          table: 'booking_partial_cancellations',
+          id: pc.id,
+          userId: pcBooking.user_id,
+          tripTitle: pcTitle,
+          netRefundPaise: actualPaise,
+          partial: true,
+          travellersLabel,
+        })
+      }
       return NextResponse.json({ received: true })
     }
 
     // 2) Full-cancellation refund — prefer the refund id, fall back to payment id.
+    // select('*') keeps deposit_paise / refund_email_sent_at resilient if their
+    // migrations aren't applied yet.
     let booking = (
       await supabase
         .from('bookings')
-        .select('id, user_id, package_id, refund_amount_paise, package:packages(title)')
+        .select('*, package:packages(title)')
         .eq('refund_razorpay_id', refundId)
         .maybeSingle()
     ).data
@@ -229,7 +247,7 @@ export async function POST(request: Request) {
       booking = (
         await supabase
           .from('bookings')
-          .select('id, user_id, package_id, refund_amount_paise, package:packages(title)')
+          .select('*, package:packages(title)')
           .eq('stripe_payment_intent', paymentId)
           .maybeSingle()
       ).data
@@ -237,6 +255,7 @@ export async function POST(request: Request) {
 
     if (booking) {
       const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+      const wasCompleted = booking.refund_status === 'completed'
       if (isProcessed) {
         await supabase
           .from('bookings')
@@ -258,6 +277,18 @@ export async function POST(request: Request) {
         await notifyAdmins('Refund Processed', `Razorpay processed refund for ${pkgTitle} (₹${(actualPaise / 100).toLocaleString('en-IN')})`)
         if (actualPaise < (booking.refund_amount_paise || 0)) {
           await notifyAdmins('Refund Short', `Razorpay refunded ₹${(actualPaise / 100).toLocaleString('en-IN')} for ${pkgTitle}, less than the ₹${((booking.refund_amount_paise || 0) / 100).toLocaleString('en-IN')} requested. Check and top up manually if needed.`)
+        }
+        // Auto-send the refund receipt (once) now that it's confirmed credited.
+        if (!wasCompleted && !booking.refund_email_sent_at && booking.user_id) {
+          const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+          await sendRefundReceiptAndRecord(supabase, {
+            table: 'bookings',
+            id: booking.id,
+            userId: booking.user_id,
+            tripTitle: pkgTitle,
+            netRefundPaise: actualPaise,
+            amountPaidPaise: typeof booking.deposit_paise === 'number' ? booking.deposit_paise : undefined,
+          })
         }
       } else {
         await supabase.from('bookings').update({ refund_status: 'failed', updated_at: now }).eq('id', booking.id)
