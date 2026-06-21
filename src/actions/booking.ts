@@ -2422,13 +2422,17 @@ export async function markRefundComplete(bookingId: string) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
 
+  // select('*') keeps this resilient to refund_completed_paise (migration 091)
+  // not being applied yet — it just reads as undefined.
   const { data: booking } = await supabase
     .from('bookings')
-    .select('user_id, refund_amount_paise, package:packages(title)')
+    .select('*, package:packages(title)')
     .eq('id', bookingId)
     .single()
 
   if (!booking) return { error: 'Booking not found' }
+  // Already credited — don't re-notify / re-email.
+  if (booking.refund_status === 'completed') return { success: true, alreadyComplete: true }
 
   await supabase
     .from('bookings')
@@ -2437,7 +2441,8 @@ export async function markRefundComplete(bookingId: string) {
 
   // Notify customer
   const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
-  const refundFormatted = booking.refund_amount_paise ? `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}` : ''
+  const creditedPaise = (booking.refund_completed_paise ?? booking.refund_amount_paise) || 0
+  const refundFormatted = creditedPaise ? `₹${(creditedPaise / 100).toLocaleString('en-IN')}` : ''
   await supabase.from('notifications').insert({
     user_id: booking.user_id,
     type: 'booking',
@@ -2445,6 +2450,27 @@ export async function markRefundComplete(bookingId: string) {
     body: `Your refund of ${refundFormatted} for ${pkgTitle} has been credited to your account.`,
     link: '/bookings',
   })
+
+  // Email the customer a refund receipt with the amount breakdown (best-effort).
+  try {
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', booking.user_id)
+      .maybeSingle()
+    if (prof?.email?.trim()) {
+      const { sendRefundProcessedEmail } = await import('@/lib/resend/emails')
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
+      await sendRefundProcessedEmail({
+        to: prof.email,
+        travelerName: prof.full_name || 'there',
+        tripTitle: pkgTitle,
+        netRefundPaise: creditedPaise,
+        amountPaidPaise: typeof booking.deposit_paise === 'number' ? booking.deposit_paise : undefined,
+        bookingsUrl: `${site}/bookings`,
+      })
+    }
+  } catch { /* email optional */ }
 
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')

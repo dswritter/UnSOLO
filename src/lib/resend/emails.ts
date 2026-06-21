@@ -429,6 +429,7 @@ export async function sendBookingConfirmation(details: BookingConfirmationDetail
         <div style="text-align: center; margin-top: 24px;">
           <p style="color: #ccc;">${pocName ? `Your trip coordinator ${escapeHtml(pocName)} will reach out with next steps.` : 'A trip coordinator will be assigned shortly and will reach out to you with next steps.'}</p>
           <p style="color: #888; font-size: 12px; margin-top: 32px;">Need help? Contact us at <a href="mailto:hello@unsolo.in" style="color: #FFAA00;">hello@unsolo.in</a></p>
+          <p style="color: #777; font-size: 11px; margin-top: 8px;">Plans change? See how refunds work in our <a href="${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in').replace(/\/$/, '')}/refund-policy" style="color: #FFAA00;">refund &amp; cancellation policy</a>.</p>
         </div>
         <p style="color: #555; text-align: center; margin-top: 24px; font-size: 11px;">— Team UnSOLO</p>
       </div>
@@ -968,6 +969,81 @@ export async function sendTravelerSelfCancellationEmail(input: TravelerSelfCance
           <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">View my bookings</a>
         </div>
         <p style="color:#555;text-align:center;margin-top:24px;font-size:11px;">— Team UnSOLO</p>
+      </div>
+    `,
+  })
+}
+
+// ── Refund processed (credited) — receipt with breakdown ──────
+
+export interface RefundProcessedEmailInput {
+  to: string
+  travelerName: string
+  tripTitle: string
+  /** The amount actually refunded to the customer (net of any charges). */
+  netRefundPaise: number
+  /** Optional breakdown lines — shown only when provided. */
+  amountPaidPaise?: number
+  tierPercent?: number
+  grossRefundPaise?: number
+  gatewayFeePaise?: number
+  /** Partial (per-traveller) cancellation refund. */
+  partial?: boolean
+  travellersLabel?: string
+  bookingsUrl: string
+}
+
+/** Sent when a refund is confirmed credited — shows the full amount breakdown. */
+export async function sendRefundProcessedEmail(input: RefundProcessedEmailInput) {
+  const {
+    to, travelerName, tripTitle, netRefundPaise, amountPaidPaise, tierPercent,
+    grossRefundPaise, gatewayFeePaise, partial, travellersLabel, bookingsUrl,
+  } = input
+  const greeting = travelerName?.trim() || 'there'
+  const safeTitle = escapeHtml(tripTitle)
+  const safeUrl = bookingsUrl.replace(/"/g, '&quot;')
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in').replace(/\/$/, '')
+  const policyUrl = `${siteBase}${REFUND_POLICY_PATH}`.replace(/"/g, '&quot;')
+
+  const row = (label: string, val: string, strong = false) =>
+    `<tr style="border-top:1px solid #333;"><td style="padding:8px;color:#aaa;font-size:14px;">${label}</td><td style="padding:8px;text-align:right;color:#fff;font-size:14px;${strong ? 'font-weight:bold;' : ''}">${val}</td></tr>`
+  const rows = [
+    travellersLabel ? row('Travellers', escapeHtml(travellersLabel)) : '',
+    typeof amountPaidPaise === 'number' ? row('Amount paid', formatInrPaise(amountPaidPaise)) : '',
+    typeof tierPercent === 'number' ? row('Refund tier (per policy)', `${tierPercent}%`) : '',
+    typeof grossRefundPaise === 'number' ? row('Refund before charges', formatInrPaise(grossRefundPaise)) : '',
+    gatewayFeePaise && gatewayFeePaise > 0 ? row('Less: payment-gateway / transaction charges', `– ${formatInrPaise(gatewayFeePaise)}`) : '',
+    row('Refund credited', formatInrPaise(netRefundPaise), true),
+  ].join('')
+
+  await getResend().emails.send({
+    from: `UnSOLO <${FROM_EMAIL}>`,
+    to: to.trim(),
+    subject: `Refund processed — ${tripTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0a0a0a;color:#fff;padding:32px;border-radius:12px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <h1 style="color:#FFC22E;margin:0;font-size:28px;">UN<span style="color:#fff;">SOLO</span></h1>
+        </div>
+        <h2 style="color:#4ade80;text-align:center;">Refund processed</h2>
+        <p style="color:#ccc;text-align:center;">Hi ${escapeHtml(greeting)},</p>
+        <p style="color:#ddd;text-align:center;line-height:1.5;">
+          Your ${partial ? 'partial ' : ''}refund for <strong style="color:#FFC22E;">${safeTitle}</strong> has been processed
+          and credited to your original payment method.
+        </p>
+        <div style="background:#1a1a1a;border-radius:8px;padding:8px 16px;margin:24px 0;border:1px solid #333;">
+          <table style="width:100%;border-collapse:collapse;">${rows}</table>
+        </div>
+        <p style="color:#888;font-size:12px;line-height:1.5;text-align:center;">
+          Payment-gateway / transaction charges on the original payment are non-refundable. See our
+          <a href="${policyUrl}" style="color:#FFC22E;">refund &amp; cancellation policy</a> for how this is calculated.
+          Bank credit timelines: UPI 1–3 days, cards/netbanking 5–7 business days.
+        </p>
+        <div style="text-align:center;margin:28px 0;">
+          <a href="${safeUrl}" style="display:inline-block;background:#FFC22E;color:#000;font-weight:bold;padding:14px 28px;border-radius:8px;text-decoration:none;font-size:16px;">View my bookings</a>
+        </div>
+        <p style="color:#888;font-size:12px;text-align:center;margin-top:24px;">Questions? <a href="mailto:hello@unsolo.in" style="color:#FFC22E;">hello@unsolo.in</a></p>
+        <p style="color:#555;text-align:center;margin-top:16px;font-size:11px;">— Team UnSOLO</p>
       </div>
     `,
   })

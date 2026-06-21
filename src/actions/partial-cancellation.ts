@@ -561,23 +561,49 @@ export async function markPartialRefundComplete(partialId: string) {
   if (!user) return { error: 'Not authenticated' }
   const svc = createServiceRoleClient()
 
+  // select('*') keeps this resilient to refund_completed_paise (migration 091).
   const { data: pc } = await svc
     .from('booking_partial_cancellations')
-    .select('id, booking_id, refund_amount_paise')
+    .select('*')
     .eq('id', partialId)
     .single()
   if (!pc) return { error: 'Request not found' }
+  if (pc.refund_status === 'completed') return { success: true, alreadyComplete: true }
 
   const actor = await resolveActor(svc, pc.booking_id, user.id)
   if ('error' in actor) return { error: actor.error }
   if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
 
   await svc.from('booking_partial_cancellations').update({ refund_status: 'completed' }).eq('id', partialId)
+
+  const creditedPaise = (pc.refund_completed_paise ?? pc.refund_amount_paise) || 0
   await svc.from('notifications').insert({
     user_id: actor.booking.user_id, type: 'booking', title: 'Refund completed',
-    body: `Your refund of ₹${((pc.refund_amount_paise || 0) / 100).toLocaleString('en-IN')} has been credited.`,
+    body: `Your refund of ₹${(creditedPaise / 100).toLocaleString('en-IN')} has been credited.`,
     link: '/bookings',
   })
+
+  // Email a refund receipt with breakdown (best-effort).
+  try {
+    const { data: prof } = await svc.from('profiles').select('email, full_name').eq('id', actor.booking.user_id).maybeSingle()
+    if (prof?.email?.trim()) {
+      const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Traveller[]) : []
+      const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
+      const pkgTitle = (actor.booking.package as { title?: string } | null)?.title || 'your trip'
+      const { sendRefundProcessedEmail } = await import('@/lib/resend/emails')
+      const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://unsolo.in'
+      await sendRefundProcessedEmail({
+        to: prof.email,
+        travelerName: prof.full_name || 'there',
+        tripTitle: pkgTitle,
+        netRefundPaise: creditedPaise,
+        partial: true,
+        travellersLabel,
+        bookingsUrl: `${site}/bookings`,
+      })
+    }
+  } catch { /* email optional */ }
+
   revalidatePath('/admin/bookings'); revalidatePath('/bookings')
   return { success: true }
 }
