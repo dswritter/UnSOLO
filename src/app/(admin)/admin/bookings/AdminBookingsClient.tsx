@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier } from '@/actions/booking'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
@@ -169,6 +169,26 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
         res.fullyPaid
           ? 'Payment recorded — booking now fully paid! Reload to see changes.'
           : `₹${((res.appliedPaise || 0) / 100).toLocaleString('en-IN')} recorded · balance ₹${((res.balanceDuePaise || 0) / 100).toLocaleString('en-IN')}. Reload to see changes.`,
+      )
+    })
+  }
+
+  function handleUpdateTier(bookingId: string) {
+    const el = document.getElementById(`tier-${bookingId}`) as HTMLSelectElement | null
+    const idx = parseInt(el?.value ?? '', 10)
+    if (Number.isNaN(idx) || idx < 0) { showFeedback(bookingId, 'Error: pick a price tier'); return }
+    startTransition(async () => {
+      const res = await adminUpdateBookingPriceTier(bookingId, idx)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(
+        bookingId,
+        `Updated to “${res.label}” · new total ₹${((res.newTotalPaise || 0) / 100).toLocaleString('en-IN')}`
+        + (res.overpaidPaise && res.overpaidPaise > 0
+            ? ` · overpaid ₹${(res.overpaidPaise / 100).toLocaleString('en-IN')} (refund due)`
+            : res.balanceDuePaise && res.balanceDuePaise > 0
+              ? ` · balance ₹${(res.balanceDuePaise / 100).toLocaleString('en-IN')}`
+              : ' · fully paid')
+        + '. Reload to see changes.',
       )
     })
   }
@@ -381,6 +401,52 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                             </p>
                           </div>
                         )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Price tier — admin can re-tier the booking; net payable recomputes, offer kept */}
+                  {(() => {
+                    const src = booking.package_id
+                      ? (booking.package as { price_variants?: unknown } | null)
+                      : (booking.service_listing as { price_variants?: unknown } | null)
+                    const variants = Array.isArray(src?.price_variants)
+                      ? (src!.price_variants as Array<{ description?: string; price_paise?: number }>).filter((v) => v && typeof v.description === 'string')
+                      : []
+                    if (variants.length < 2 || booking.status === 'cancelled') return null
+                    const currentLabel = (booking as { price_variant_label?: string | null }).price_variant_label || null
+                    const currentIdx = Math.max(0, variants.findIndex((v) => v.description === currentLabel))
+                    return (
+                      <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Price tier:</span>{' '}
+                          <span className="font-medium">{currentLabel || '—'}</span>
+                        </div>
+                        <div className="flex flex-wrap items-end gap-2">
+                          <select
+                            id={`tier-${booking.id}`}
+                            defaultValue={String(currentIdx)}
+                            className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm"
+                          >
+                            {variants.map((v, i) => (
+                              <option key={i} value={i}>
+                                {v.description} — {formatPrice(v.price_paise || 0)}
+                              </option>
+                            ))}
+                          </select>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs border-border"
+                            onClick={() => handleUpdateTier(booking.id)}
+                            disabled={isPending}
+                          >
+                            Update tier
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground w-full">
+                            Recomputes the net payable (gross rescaled by the new tier). The customer’s offer/discount is kept; deposit is unchanged, so the balance — or any overpayment — updates accordingly.
+                          </p>
+                        </div>
                       </div>
                     )
                   })()}

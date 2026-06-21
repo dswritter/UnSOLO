@@ -8,6 +8,40 @@ export type PriceVariant = {
 
 const MIN_PRICE_PAISE = 100 // ₹1
 
+/**
+ * Recompute a booking's totals when an admin switches its price tier.
+ *
+ * Rescales the gross by the per-unit price ratio (new tier / old tier), which
+ * preserves the booking's guests/quantity/days/weekend structure without
+ * re-deriving it. The customer's existing discount (offer) is kept as a fixed
+ * rupee amount, capped so the total never goes negative. Pure & side-effect-free.
+ */
+export function recalcBookingTierTotals(input: {
+  oldGrossPaise: number
+  discountPaise: number
+  oldUnitPaise: number
+  newUnitPaise: number
+  depositPaise: number
+}): {
+  newGrossPaise: number
+  discountKeptPaise: number
+  newTotalPaise: number
+  balanceDuePaise: number
+  overpaidPaise: number
+} {
+  const oldGross = Math.max(0, Math.round(input.oldGrossPaise))
+  const oldUnit = Math.max(1, Math.round(input.oldUnitPaise)) // avoid /0
+  const newUnit = Math.max(0, Math.round(input.newUnitPaise))
+  const deposit = Math.max(0, Math.round(input.depositPaise))
+
+  const newGrossPaise = Math.round(oldGross * (newUnit / oldUnit))
+  const discountKeptPaise = Math.max(0, Math.min(Math.round(input.discountPaise), newGrossPaise))
+  const newTotalPaise = Math.max(0, newGrossPaise - discountKeptPaise)
+  const balanceDuePaise = Math.max(0, newTotalPaise - deposit)
+  const overpaidPaise = Math.max(0, deposit - newTotalPaise)
+  return { newGrossPaise, discountKeptPaise, newTotalPaise, balanceDuePaise, overpaidPaise }
+}
+
 /** Parse DB jsonb into validated tiers (2+ rows), or null for single-tier packages. */
 export function parsePriceVariants(raw: unknown): PriceVariant[] | null {
   if (raw == null) return null

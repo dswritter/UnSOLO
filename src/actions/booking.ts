@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { razorpay } from '@/lib/razorpay/client'
-import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
+import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -2145,6 +2145,105 @@ export async function confirmTravelerCancellation(
     autoRefundInitiated,
     needsManualRefund,
     refundError,
+  }
+}
+
+/**
+ * Admin/staff changes the price tier (variant) of a booking — for package trips or
+ * service listings — and recomputes the net payable. The customer's existing offer
+ * (discount_paise / promo_offer_id) is kept intact as a fixed rupee amount. The
+ * gross is rescaled by the per-unit price ratio so guests/quantity/nights are
+ * preserved. Does not move money: deposit stays; the balance (or overpayment) is
+ * recomputed and shown to customer + admin/host on refresh.
+ */
+export async function adminUpdateBookingPriceTier(bookingId: string, variantIndex: number) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const svc = createServiceRoleClient()
+  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('*, package:packages(id, title, price_paise, price_variants), service_listing:service_listings(id, title, price_paise, price_variants)')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'Cannot re-tier a cancelled booking.' }
+
+  const source = booking.package_id
+    ? (booking.package as { price_paise?: number; price_variants?: unknown } | null)
+    : (booking.service_listing as { price_paise?: number; price_variants?: unknown } | null)
+  const variants = parsePriceVariants(source?.price_variants)
+  if (!variants) return { error: 'This booking has no selectable price tiers.' }
+  if (variantIndex < 0 || variantIndex >= variants.length) return { error: 'Invalid price tier.' }
+
+  const newVariant = variants[variantIndex]
+  // The current tier's per-unit price: match the stored label, else the base price.
+  const matched = variants.find((v) => v.description === booking.price_variant_label)
+  const oldUnit = matched?.price_paise ?? source?.price_paise ?? 0
+  const oldGross = (booking.gross_paise ?? (booking.total_amount_paise || 0) + (booking.discount_paise || 0)) || 0
+
+  const res = recalcBookingTierTotals({
+    oldGrossPaise: oldGross,
+    discountPaise: booking.discount_paise || 0,
+    oldUnitPaise: oldUnit,
+    newUnitPaise: newVariant.price_paise,
+    depositPaise: booking.deposit_paise || 0,
+  })
+
+  const update: Record<string, unknown> = {
+    price_variant_label: newVariant.description,
+    gross_paise: res.newGrossPaise,
+    discount_paise: res.discountKeptPaise,
+    total_amount_paise: res.newTotalPaise,
+    updated_at: new Date().toISOString(),
+  }
+  // Keep payment_status coherent with the new balance.
+  if (res.balanceDuePaise <= 0) update.payment_status = 'paid'
+  else if ((booking.deposit_paise || 0) > 0) update.payment_status = 'partial'
+
+  const { error: upErr } = await svc.from('bookings').update(update).eq('id', bookingId)
+  if (upErr) return { error: upErr.message }
+
+  const pkgTitle = ((booking.package as { title?: string } | null)?.title)
+    || ((booking.service_listing as { title?: string } | null)?.title)
+    || 'your booking'
+
+  await svc.from('notifications').insert({
+    user_id: booking.user_id,
+    type: 'booking',
+    title: 'Booking updated',
+    body: res.overpaidPaise > 0
+      ? `Your "${pkgTitle}" was changed to "${newVariant.description}". New total ₹${(res.newTotalPaise / 100).toLocaleString('en-IN')}. You have overpaid ₹${(res.overpaidPaise / 100).toLocaleString('en-IN')} — our team will arrange a refund.`
+      : `Your "${pkgTitle}" was changed to "${newVariant.description}". New total ₹${(res.newTotalPaise / 100).toLocaleString('en-IN')}${res.balanceDuePaise > 0 ? `, balance due ₹${(res.balanceDuePaise / 100).toLocaleString('en-IN')}` : ' (fully paid)'}.`,
+    link: '/bookings',
+  })
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'UPDATE_BOOKING_PRICE_TIER', 'booking', bookingId, {
+      tier: newVariant.description,
+      newGrossPaise: res.newGrossPaise,
+      newTotalPaise: res.newTotalPaise,
+      balanceDuePaise: res.balanceDuePaise,
+      overpaidPaise: res.overpaidPaise,
+    })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/bookings')
+  revalidatePath('/admin/bookings')
+  revalidatePath('/host')
+  return {
+    success: true,
+    label: newVariant.description,
+    newGrossPaise: res.newGrossPaise,
+    newTotalPaise: res.newTotalPaise,
+    balanceDuePaise: res.balanceDuePaise,
+    overpaidPaise: res.overpaidPaise,
   }
 }
 

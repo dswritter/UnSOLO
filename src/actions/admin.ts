@@ -172,7 +172,7 @@ export async function getAdminBookings(status?: string) {
 
   let query = supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*)), service_listing:service_listings(id, title, type), service_listing_item:service_listing_items(name), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)')
+    .select('*, package:packages(*, destination:destinations(*)), service_listing:service_listings(id, title, type, price_paise, price_variants), service_listing_item:service_listing_items(name), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)')
     .order('created_at', { ascending: false })
 
   if (status && status !== 'all') {
