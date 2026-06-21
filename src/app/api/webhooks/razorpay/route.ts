@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import crypto from 'crypto'
 import { createServiceClient } from '@/lib/supabase/server'
-import { generateConfirmationCode } from '@/lib/utils'
+import { completeBookingFromWebhook } from '@/actions/booking'
 import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
 
 export async function POST(request: Request) {
@@ -109,30 +109,17 @@ export async function POST(request: Request) {
     const payment = event.payload.payment.entity
     const orderId = payment.order_id
 
-    // Check if booking already confirmed (by client-side flow)
-    const { data: existing } = await supabase
-      .from('bookings')
-      .select('status')
-      .eq('stripe_session_id', orderId)
-      .single()
-
-    if (existing?.status === 'confirmed') {
-      // Already handled by client-side confirmPayment
-      return NextResponse.json({ received: true })
+    // Idempotent fallback: credit the deposit, confirm the booking, and run the
+    // post-payment effects (host earnings, receipt, etc.). If the client-side
+    // confirmPayment already ran, the shared apply step short-circuits, so this is
+    // safe to call unconditionally. Handles both initial and balance orders.
+    try {
+      await completeBookingFromWebhook(orderId, payment.id, Number(payment.amount) || 0)
+    } catch (err) {
+      console.error('completeBookingFromWebhook failed', err)
     }
 
-    // Fallback: confirm booking via webhook
-    const confirmationCode = generateConfirmationCode()
-    await supabase
-      .from('bookings')
-      .update({
-        status: 'confirmed',
-        stripe_payment_intent: payment.id,
-        confirmation_code: confirmationCode,
-      })
-      .eq('stripe_session_id', orderId)
-
-    console.log(`Webhook confirmed booking for order ${orderId}: ${confirmationCode}`)
+    return NextResponse.json({ received: true })
   }
 
   if (event.event === 'payment.failed') {

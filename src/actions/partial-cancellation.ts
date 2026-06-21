@@ -113,6 +113,18 @@ export async function requestPartialCancellation(
     return { error: 'You cannot cancel everyone — please request a full cancellation instead.' }
   }
 
+  // Account for other still-pending requests so queued partials can't sum past the
+  // party size (each would individually pass the check above).
+  const { data: pendingRows } = await svc
+    .from('booking_partial_cancellations')
+    .select('guests_cancelled')
+    .eq('booking_id', bookingId)
+    .eq('status', 'requested')
+  const alreadyRequested = (pendingRows || []).reduce((n, r) => n + (r.guests_cancelled || 0), 0)
+  if (count + alreadyRequested >= (booking.guests || 1)) {
+    return { error: 'Combined with your pending request(s) this would cancel everyone — please request a full cancellation instead.' }
+  }
+
   // Snapshot the selected travellers (fall back to a generic label if unnamed).
   const snapshot = travellerIndexes
     .map((i) => current[i])
@@ -306,9 +318,17 @@ async function applyApprovedPartialCancellation(
     return { error: 'This booking is no longer active — it may already have been cancelled or completed.' }
   }
 
+  const guestsNow = booking.guests || 1
   const count = pc.guests_cancelled
-  const newGuests = Math.max(1, (booking.guests || 1) - count)
-  if (newGuests >= (booking.guests || 1)) return { error: 'Nothing to cancel.' }
+  if (count <= 0) return { error: 'Nothing to cancel.' }
+  // Must always leave at least one traveller, and never cancel more seats than
+  // currently remain. Because each approval reduces booking.guests, this also caps
+  // the TOTAL cancelled across stacked partial cancellations at the party size —
+  // a request snapshotted when the party was larger is rejected here, not applied.
+  if (count >= guestsNow) {
+    return { error: `Only ${guestsNow - 1} of the ${guestsNow} remaining travellers can be partially cancelled — use a full cancellation instead.` }
+  }
+  const newGuests = guestsNow - count
 
   const fig = perPersonFigures(booking, count)
   const refund = Math.max(0, Math.min(refundAmountPaise ?? 0, fig.collectedForCancelled))

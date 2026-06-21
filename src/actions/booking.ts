@@ -953,6 +953,137 @@ export async function createRazorpayOrder(
   }
 }
 
+/**
+ * Shared, idempotent application of a captured Razorpay payment to a booking.
+ * Credits the deposit (capped at the trip total), advances status to confirmed,
+ * and dispatches the right side effects EXACTLY once.
+ *
+ * Safety properties:
+ *  - B7: deposit is clamped to total_amount_paise, so a wrong/stale order amount
+ *    can never over-credit a booking.
+ *  - B8/W3: the booking update is conditional on deposit_paise being unchanged
+ *    since we read it, so concurrent callers (client confirmPayment + the webhook
+ *    fallback) cannot both apply the payment or both run effects — the first to
+ *    land wins; everyone else returns success without re-running effects. The
+ *    `stripe_payment_intent === paymentId` short-circuit handles plain duplicates.
+ */
+async function applyCapturedPaymentToBooking(
+  client: SupabaseServer,
+  before: Record<string, unknown> & {
+    id: string
+    user_id: string
+    status: string
+    total_amount_paise: number
+    deposit_paise?: number | null
+    wallet_deducted_paise?: number | null
+    stripe_payment_intent?: string | null
+    confirmation_code?: string | null
+  },
+  paymentId: string,
+  paidAmountPaise: number,
+  authUser: { id: string; email?: string | null } | null,
+) {
+  const { generateConfirmationCode } = await import('@/lib/utils')
+  const total = before.total_amount_paise || 0
+  const wasDeposit = before.deposit_paise || 0
+
+  // Plain duplicate — this exact payment was already applied. Don't re-credit.
+  if (before.stripe_payment_intent === paymentId && before.status === 'confirmed') {
+    return {
+      applied: false,
+      confirmationCode: before.confirmation_code || '',
+      bookingId: before.id,
+      fullyPaid: wasDeposit >= total,
+      balanceDuePaise: Math.max(0, total - wasDeposit),
+    }
+  }
+
+  const rawNewDeposit =
+    wasDeposit === 0
+      ? (before.wallet_deducted_paise || 0) + paidAmountPaise
+      : wasDeposit + paidAmountPaise
+  const newDeposit = Math.min(rawNewDeposit, total) // B7: never over-credit
+  const fullyPaid = newDeposit >= total
+  const confirmationCode = before.confirmation_code || generateConfirmationCode()
+
+  // Conditional update — only the first caller (deposit still at wasDeposit) wins.
+  const { data: booking } = await client
+    .from('bookings')
+    .update({
+      status: 'confirmed',
+      stripe_payment_intent: paymentId,
+      confirmation_code: confirmationCode,
+      deposit_paise: newDeposit,
+    })
+    .eq('id', before.id)
+    .eq('deposit_paise', wasDeposit)
+    .select('*, package:packages(*, destination:destinations(*))')
+    .maybeSingle()
+
+  if (!booking) {
+    // Another caller already applied this payment — do not double-run effects.
+    return {
+      applied: false,
+      confirmationCode,
+      bookingId: before.id,
+      fullyPaid,
+      balanceDuePaise: Math.max(0, total - newDeposit),
+    }
+  }
+
+  if (wasDeposit === 0 && !fullyPaid) {
+    await runPartialTokenFirstPaymentEffects(client, before.user_id, booking as never, confirmationCode)
+    if (authUser) await notifyTokenBalanceDue(client, authUser, booking as never, newDeposit)
+  } else if (wasDeposit === 0 && fullyPaid) {
+    await runPostConfirmationPipeline(client, before.user_id, booking as never, confirmationCode)
+  } else if (wasDeposit > 0 && fullyPaid) {
+    await runBalanceCompletionEffects(client, before.user_id, booking as never, confirmationCode)
+  }
+
+  return {
+    applied: true,
+    confirmationCode,
+    bookingId: booking.id,
+    fullyPaid,
+    balanceDuePaise: fullyPaid ? 0 : Math.max(0, total - newDeposit),
+  }
+}
+
+/**
+ * Webhook fallback for a captured payment: when the client-side confirmPayment
+ * never ran (tab closed, network drop), finalize the booking server-side. Uses a
+ * service-role client and the shared idempotent apply step, so it is safe even if
+ * the client also confirmed. Handles both the initial order and balance orders.
+ */
+export async function completeBookingFromWebhook(
+  orderId: string,
+  paymentId: string,
+  paidAmountPaise: number,
+) {
+  const svc = createServiceRoleClient()
+  let before = (
+    await svc
+      .from('bookings')
+      .select('*, package:packages(*, destination:destinations(*))')
+      .eq('stripe_session_id', orderId)
+      .maybeSingle()
+  ).data
+  if (!before) {
+    before = (
+      await svc
+        .from('bookings')
+        .select('*, package:packages(*, destination:destinations(*))')
+        .eq('balance_razorpay_order_id', orderId)
+        .maybeSingle()
+    ).data
+  }
+  if (!before) return { error: 'Booking not found' }
+
+  const res = await applyCapturedPaymentToBooking(svc as never, before, paymentId, paidAmountPaise, null)
+  revalidatePath('/bookings')
+  return { success: true, applied: res.applied, fullyPaid: res.fullyPaid }
+}
+
 export async function confirmPayment(
   razorpayOrderId: string,
   razorpayPaymentId: string,
@@ -971,8 +1102,6 @@ export async function confirmPayment(
   if (expectedSignature !== razorpaySignature) {
     return { error: 'Payment verification failed' }
   }
-
-  const { generateConfirmationCode } = await import('@/lib/utils')
 
   // Look up the booking by its initial order ID or, for balance payments, by
   // balance_razorpay_order_id (avoids UNIQUE conflict on stripe_session_id).
@@ -1002,49 +1131,28 @@ export async function confirmPayment(
   }
 
   const order = await razorpay.orders.fetch(razorpayOrderId)
-  const orderAmount = order.amount
-  const wasDeposit = bookingBefore.deposit_paise || 0
-  const newDeposit =
-    wasDeposit === 0
-      ? (bookingBefore.wallet_deducted_paise || 0) + orderAmount
-      : wasDeposit + orderAmount
-  const fullyPaid = newDeposit >= bookingBefore.total_amount_paise
-
-  const confirmationCode = bookingBefore.confirmation_code || generateConfirmationCode()
-
-  const { data: booking } = await supabase
-    .from('bookings')
-    .update({
-      status: 'confirmed',
-      stripe_payment_intent: razorpayPaymentId,
-      confirmation_code: confirmationCode,
-      deposit_paise: newDeposit,
-    })
-    .eq('id', bookingBefore.id)
-    .eq('user_id', user.id)
-    .select('*, package:packages(*, destination:destinations(*))')
-    .single()
-
-  if (!booking) {
-    return { error: 'Booking not found' }
+  // Only credit a genuinely paid order — guards against confirming an order that
+  // wasn't actually captured.
+  if (order.status !== 'paid') {
+    return { error: 'Payment not captured yet. Please wait a moment and refresh.' }
   }
+  const paidAmount = Number(order.amount_paid ?? order.amount) || 0
 
-  if (wasDeposit === 0 && !fullyPaid) {
-    await runPartialTokenFirstPaymentEffects(supabase, user.id, booking as never, confirmationCode)
-    await notifyTokenBalanceDue(supabase, user, booking as never, newDeposit)
-  } else if (wasDeposit === 0 && fullyPaid) {
-    await runPostConfirmationPipeline(supabase, user.id, booking as never, confirmationCode)
-  } else if (wasDeposit > 0 && fullyPaid) {
-    await runBalanceCompletionEffects(supabase, user.id, booking as never, confirmationCode)
-  }
+  const res = await applyCapturedPaymentToBooking(
+    supabase,
+    bookingBefore,
+    razorpayPaymentId,
+    paidAmount,
+    user,
+  )
 
   revalidatePath('/bookings')
   return {
     success: true,
-    confirmationCode,
-    bookingId: booking.id,
-    fullyPaid,
-    balanceDuePaise: fullyPaid ? 0 : Math.max(0, booking.total_amount_paise - newDeposit),
+    confirmationCode: res.confirmationCode,
+    bookingId: res.bookingId,
+    fullyPaid: res.fullyPaid,
+    balanceDuePaise: res.balanceDuePaise,
   }
 }
 
@@ -1988,13 +2096,20 @@ export async function recordManualPayment(
   if (bookingBefore.status === 'pending') update.status = 'confirmed'
   if (fullyPaid) update.payment_status = 'paid'
 
+  // Optimistic lock on deposit_paise: only apply if the deposit hasn't moved since
+  // we read it. Blocks a double-click recording the same payment twice and a race
+  // with an online balance payment landing at the same moment.
   const { data: booking, error } = await svc
     .from('bookings')
     .update(update)
     .eq('id', bookingId)
+    .eq('deposit_paise', wasDeposit)
     .select('*, package:packages(*, destination:destinations(*))')
-    .single()
-  if (error || !booking) return { error: error?.message || 'Could not record payment' }
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (!booking) {
+    return { error: 'This booking changed while recording the payment (it may have just been paid online, or this payment was already recorded). Refresh and check the balance before retrying.' }
+  }
 
   // Run completion effects only on the transition to fully paid (creates host
   // earnings + sends the fully-paid receipt exactly once).
