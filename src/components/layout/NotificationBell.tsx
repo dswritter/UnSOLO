@@ -50,6 +50,8 @@ export function NotificationBell({
   const router = useRouter()
   /** Viewport-fixed coords so the sheet stays under the bell (not anchored to scaled/clipped portals). */
   const [belowPanelStyle, setBelowPanelStyle] = useState<CSSProperties | undefined>(undefined)
+  /** Viewport-fixed coords for the upward (admin sidebar) sheet — portaled to body so the sidebar's overflow-hidden can't clip it. */
+  const [abovePanelStyle, setAbovePanelStyle] = useState<CSSProperties | undefined>(undefined)
 
   // Dom-only portal container under the wander shell subtree (inherits season tokens). ESLint suppresses needed for setState syncing portal node.
   /* eslint-disable react-hooks/set-state-in-effect -- mounting portal container is an external DOM subtree */
@@ -162,6 +164,42 @@ export function NotificationBell({
     }
   }, [open, portalWanderBelow])
 
+  // Position the upward sheet (admin sidebar bell): portaled to body, opening
+  // above the bell and anchored to the bell's LEFT edge, clamped to the viewport so
+  // it never runs off-screen or gets clipped by the sidebar's overflow-hidden.
+  useLayoutEffect(() => {
+    if (!(open && placement === 'above')) {
+      setAbovePanelStyle(undefined)
+      return
+    }
+    function place() {
+      const el = rootRef.current
+      if (!el || typeof window === 'undefined') return
+      const r = el.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const margin = 8
+      const width = Math.min(320, vw - margin * 2)
+      let left = r.left
+      if (left + width > vw - margin) left = vw - margin - width
+      if (left < margin) left = margin
+      setAbovePanelStyle({
+        position: 'fixed',
+        bottom: Math.round(vh - r.top + 8),
+        left: Math.round(left),
+        width: Math.round(width),
+        zIndex: 9999,
+      })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, placement])
+
   // Close on outside click (trigger lives in rootRef; panel is portaled)
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -235,7 +273,13 @@ export function NotificationBell({
     <div
       ref={panelRef}
       data-notif-panel
-      style={portalWanderBelow && placement === 'below' ? belowPanelStyle : undefined}
+      style={
+        placement === 'above'
+          ? abovePanelStyle
+          : portalWanderBelow && placement === 'below'
+            ? belowPanelStyle
+            : undefined
+      }
       className={cn(
         'overflow-hidden shadow-2xl transform-gpu',
         wanderNav
@@ -245,7 +289,8 @@ export function NotificationBell({
           ? undefined
           : placement === 'below'
             ? belowPlacementClassNonWander
-            : 'absolute right-0 bottom-full mb-2 w-[min(20rem,calc(100vw-1rem))] sm:w-80 max-h-[min(85vh,calc(100vh-2rem))] flex flex-col z-[200]',
+            : // 'above' (admin sidebar): position comes from abovePanelStyle (fixed, portaled to body)
+              'max-h-[min(85vh,calc(100vh-2rem))] flex flex-col',
       )}
     >
       <div
@@ -426,7 +471,13 @@ export function NotificationBell({
         )}
       </button>
 
-      {open && (portalWanderBelow ? (wanderShellPortalParent ? createPortal(panel!, wanderShellPortalParent) : null) : panel)}
+      {open && (
+        placement === 'above'
+          ? (typeof document !== 'undefined' ? createPortal(panel!, document.body) : null)
+          : portalWanderBelow
+            ? (wanderShellPortalParent ? createPortal(panel!, wanderShellPortalParent) : null)
+            : panel
+      )}
     </div>
   )
 }
