@@ -17,6 +17,8 @@ import { sendTripBookingReceipt } from '@/lib/email/tripReceipt'
 import {
   incrementPromoOfferUsed,
   validateScopedPromoCode,
+  computeDiscountPaise,
+  specFromRow,
   type PromoScopeContext,
   type PromoAmountContext,
 } from '@/lib/checkout-promos'
@@ -2148,13 +2150,124 @@ export async function confirmTravelerCancellation(
   }
 }
 
+/** Recompute the coupon portion of a discount for a given booking amount. 0 if no offer. */
+async function couponDiscountForOffer(
+  svc: ReturnType<typeof createServiceRoleClient>,
+  offerId: string | null | undefined,
+  amount: PromoAmountContext,
+): Promise<number> {
+  if (!offerId) return 0
+  const { data: offer } = await svc
+    .from('discount_offers')
+    .select('discount_kind, discount_paise, discount_percent, discount_percent_cap_paise, free_guest_count, free_guests_min_group')
+    .eq('id', offerId)
+    .maybeSingle()
+  if (!offer) return 0
+  return computeDiscountPaise(specFromRow(offer as never), amount)
+}
+
+/**
+ * Admin/staff changes (or removes) the coupon/offer on a booking. Re-derives the
+ * discount against the booking's CURRENT gross/per-unit/guests — so a free-guests or
+ * percent coupon is sized correctly — preserves any non-coupon discount (e.g.
+ * referral), and recomputes the total / balance. Does not move money. Pass an empty
+ * code to remove the coupon.
+ */
+export async function adminSetBookingCoupon(bookingId: string, promoCode: string | null) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const svc = createServiceRoleClient()
+  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('*, package:packages(id, title, price_paise, price_variants, host_id), service_listing:service_listings(id, title, type, price_paise, price_variants, host_id)')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'Cannot change the coupon on a cancelled booking.' }
+
+  const isPackage = !!booking.package_id
+  const source = isPackage
+    ? (booking.package as { price_paise?: number; price_variants?: unknown; host_id?: string | null; type?: string } | null)
+    : (booking.service_listing as { price_paise?: number; price_variants?: unknown; host_id?: string | null; type?: string } | null)
+
+  const gross = (booking.gross_paise ?? (booking.total_amount_paise || 0) + (booking.discount_paise || 0)) || 0
+  const qty = booking.guests || booking.quantity || 1
+  const variants = parsePriceVariants(source?.price_variants)
+  const matched = variants?.find((v) => v.description === booking.price_variant_label)
+  const unit = matched?.price_paise ?? source?.price_paise ?? Math.round(gross / Math.max(1, qty))
+  const amount: PromoAmountContext = { grossPaise: gross, unitPricePaise: unit, quantity: qty }
+
+  // The non-coupon part of the existing discount (e.g. referral) is kept.
+  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, amount)
+  const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
+
+  let newOfferId: string | null = null
+  let newCoupon = 0
+  let label = ''
+  const code = (promoCode || '').trim()
+  if (code) {
+    const context: PromoScopeContext = isPackage
+      ? { listingType: 'trips', packageId: booking.package_id, hostId: source?.host_id ?? null }
+      : { listingType: (source?.type as PromoScopeContext['listingType']) || 'stays', serviceListingId: booking.service_listing_id, hostId: source?.host_id ?? null }
+    const res = await validateScopedPromoCode(svc, code, context, amount)
+    if ('error' in res) return { error: res.error }
+    newOfferId = res.offerId
+    newCoupon = res.discountPaise
+    label = res.name
+  }
+
+  const newDiscount = Math.min(gross, newCoupon + nonCoupon)
+  const newTotal = Math.max(0, gross - newDiscount)
+  const deposit = booking.deposit_paise || 0
+  const balanceDuePaise = Math.max(0, newTotal - deposit)
+  const overpaidPaise = Math.max(0, deposit - newTotal)
+
+  const { error: upErr } = await svc
+    .from('bookings')
+    .update({
+      promo_offer_id: newOfferId,
+      discount_paise: newDiscount,
+      total_amount_paise: newTotal,
+      payment_status: balanceDuePaise <= 0 ? 'paid' : 'pending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+  if (upErr) return { error: upErr.message }
+
+  const pkgTitle = ((booking.package as { title?: string } | null)?.title)
+    || ((booking.service_listing as { title?: string } | null)?.title)
+    || 'your booking'
+  await svc.from('notifications').insert({
+    user_id: booking.user_id,
+    type: 'booking',
+    title: 'Booking updated',
+    body: code
+      ? `An offer (${label || code}) was applied to "${pkgTitle}". New total ₹${(newTotal / 100).toLocaleString('en-IN')}${balanceDuePaise > 0 ? `, balance ₹${(balanceDuePaise / 100).toLocaleString('en-IN')}` : ' (fully paid)'}${overpaidPaise > 0 ? `, ₹${(overpaidPaise / 100).toLocaleString('en-IN')} overpaid — refund due` : ''}.`
+      : `The offer on "${pkgTitle}" was removed. New total ₹${(newTotal / 100).toLocaleString('en-IN')}${balanceDuePaise > 0 ? `, balance ₹${(balanceDuePaise / 100).toLocaleString('en-IN')}` : ''}.`,
+    link: '/bookings',
+  })
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'UPDATE_BOOKING_COUPON', 'booking', bookingId, { promoCode: code || null, offerId: newOfferId, discountPaise: newDiscount, newTotalPaise: newTotal })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
+  return { success: true, discountPaise: newDiscount, totalPaise: newTotal, balanceDuePaise, overpaidPaise, label: label || null }
+}
+
 /**
  * Admin/staff changes the price tier (variant) of a booking — for package trips or
- * service listings — and recomputes the net payable. The customer's existing offer
- * (discount_paise / promo_offer_id) is kept intact as a fixed rupee amount. The
- * gross is rescaled by the per-unit price ratio so guests/quantity/nights are
- * preserved. Does not move money: deposit stays; the balance (or overpayment) is
- * recomputed and shown to customer + admin/host on refresh.
+ * service listings — and recomputes the net payable. The customer's coupon/offer is
+ * re-derived against the new price (a free-guests/percent coupon resizes correctly);
+ * any non-coupon discount is preserved. The gross is rescaled by the per-unit price
+ * ratio so guests/quantity/nights are preserved. Does not move money: deposit stays;
+ * the balance (or overpayment) is recomputed and shown to customer + admin/host.
  */
 export async function adminUpdateBookingPriceTier(bookingId: string, variantIndex: number) {
   const { user } = await getActionAuth()
@@ -2187,9 +2300,18 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
   const oldUnit = matched?.price_paise ?? source?.price_paise ?? 0
   const oldGross = (booking.gross_paise ?? (booking.total_amount_paise || 0) + (booking.discount_paise || 0)) || 0
 
+  // Re-derive the coupon discount against the NEW price. A free-guests / percent
+  // coupon is worth more at a higher tier, so it must be recomputed (not kept as a
+  // fixed rupee amount); any non-coupon discount (e.g. referral) is preserved.
+  const qty = booking.guests || booking.quantity || 1
+  const newGross = Math.round(oldGross * (newVariant.price_paise / Math.max(1, oldUnit)))
+  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: oldGross, unitPricePaise: oldUnit, quantity: qty })
+  const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
+  const newCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: newGross, unitPricePaise: newVariant.price_paise, quantity: qty })
+
   const res = recalcBookingTierTotals({
     oldGrossPaise: oldGross,
-    discountPaise: booking.discount_paise || 0,
+    discountPaise: newCoupon + nonCoupon,
     oldUnitPaise: oldUnit,
     newUnitPaise: newVariant.price_paise,
     depositPaise: booking.deposit_paise || 0,

@@ -1111,6 +1111,9 @@ export type TripRosterEntry = {
   leadUsername: string | null
   leadPhone: string | null
   travellers: { name: string; age: number; gender: string }[] | null
+  /** Applied coupon/offer label (read-only) + the discount amount, if any. */
+  couponLabel: string | null
+  discountPaise: number
 }
 
 /**
@@ -1128,13 +1131,29 @@ export async function getTripRosterForHost(tripId: string): Promise<TripRosterEn
 
   const { data: rows } = await svc
     .from('bookings')
-    .select('id, status, travel_date, confirmation_code, guests, traveller_details, user:profiles!bookings_user_id_fkey(full_name, username, phone_number)')
+    .select('id, status, travel_date, confirmation_code, guests, traveller_details, promo_offer_id, discount_paise, user:profiles!bookings_user_id_fkey(full_name, username, phone_number)')
     .eq('package_id', tripId)
     .in('status', ['confirmed', 'completed'])
     .order('travel_date', { ascending: true })
 
+  // Resolve applied offers (batched) into a read-only label for the host.
+  const offerIds = [...new Set((rows || []).map((r) => (r as { promo_offer_id?: string | null }).promo_offer_id).filter(Boolean))] as string[]
+  const offerLabelById = new Map<string, string>()
+  if (offerIds.length) {
+    const { formatDiscountLabel } = await import('@/lib/checkout-promos')
+    const { data: offers } = await svc
+      .from('discount_offers')
+      .select('id, name, promo_code, discount_kind, discount_paise, discount_percent, discount_percent_cap_paise, free_guest_count, free_guests_min_group')
+      .in('id', offerIds)
+    for (const o of (offers || []) as Array<{ id: string; name?: string | null; promo_code?: string | null }>) {
+      const label = formatDiscountLabel(o as never)
+      offerLabelById.set(o.id, `${o.name || o.promo_code?.toUpperCase() || 'Offer'} (${label})`)
+    }
+  }
+
   return (rows || []).map((r) => {
     const u = r.user as { full_name?: string | null; username?: string | null; phone_number?: string | null } | null
+    const offerId = (r as { promo_offer_id?: string | null }).promo_offer_id
     return {
       bookingId: String(r.id),
       status: String(r.status),
@@ -1145,6 +1164,8 @@ export async function getTripRosterForHost(tripId: string): Promise<TripRosterEn
       leadUsername: u?.username ?? null,
       leadPhone: u?.phone_number ?? null,
       travellers: (r.traveller_details as { name: string; age: number; gender: string }[] | null) ?? null,
+      couponLabel: offerId ? offerLabelById.get(offerId) ?? null : null,
+      discountPaise: Number((r as { discount_paise?: number | null }).discount_paise ?? 0),
     }
   })
 }

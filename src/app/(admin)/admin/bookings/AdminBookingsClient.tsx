@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon } from '@/actions/booking'
+import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
@@ -171,6 +172,29 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
           : `₹${((res.appliedPaise || 0) / 100).toLocaleString('en-IN')} recorded · balance ₹${((res.balanceDuePaise || 0) / 100).toLocaleString('en-IN')}. Reload to see changes.`,
       )
     })
+  }
+
+  function handleSetCoupon(bookingId: string, code: string | null) {
+    startTransition(async () => {
+      const res = await adminSetBookingCoupon(bookingId, code)
+      if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
+      const tail = res.overpaidPaise && res.overpaidPaise > 0
+        ? ` · overpaid ₹${(res.overpaidPaise / 100).toLocaleString('en-IN')} (refund due)`
+        : res.balanceDuePaise && res.balanceDuePaise > 0
+          ? ` · balance ₹${(res.balanceDuePaise / 100).toLocaleString('en-IN')}`
+          : ' · fully paid'
+      showFeedback(
+        bookingId,
+        `${code ? `Applied ${res.label || code}` : 'Offer removed'} · new total ₹${((res.totalPaise || 0) / 100).toLocaleString('en-IN')}${tail}. Reload to see changes.`,
+      )
+    })
+  }
+
+  function handleApplyCouponInput(bookingId: string) {
+    const el = document.getElementById(`coupon-${bookingId}`) as HTMLInputElement | null
+    const code = (el?.value || '').trim()
+    if (!code) { showFeedback(bookingId, 'Error: enter a promo code'); return }
+    handleSetCoupon(bookingId, code)
   }
 
   function handleRefundOverpayment(bookingId: string) {
@@ -478,6 +502,59 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                             Recomputes the net payable (gross rescaled by the new tier). The customer’s offer/discount is kept; deposit is unchanged, so the balance — or any overpayment — updates accordingly.
                           </p>
                         </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Offer / coupon — applied at checkout; admin can change or remove it */}
+                  {(() => {
+                    const offer = (booking as { promo_offer?: {
+                      name?: string | null; promo_code?: string | null; discount_kind?: 'fixed' | 'percent' | 'free_guests' | null
+                      discount_paise?: number | null; discount_percent?: number | null; discount_percent_cap_paise?: number | null
+                      free_guest_count?: number | null; free_guests_min_group?: number | null
+                    } | null }).promo_offer || null
+                    const discount = (booking as { discount_paise?: number | null }).discount_paise || 0
+                    const isCancelled = booking.status === 'cancelled'
+                    const hover = offer
+                      ? `${offer.promo_code ? offer.promo_code.toUpperCase() + ' · ' : ''}${formatDiscountLabel(offer)}${offer.name ? ` · ${offer.name}` : ''}`
+                      : undefined
+                    return (
+                      <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                          <span className="text-muted-foreground">Offer applied:</span>
+                          {offer ? (
+                            <span className="font-medium cursor-help underline decoration-dotted underline-offset-2" title={hover}>
+                              {offer.name || offer.promo_code?.toUpperCase() || 'Offer'}{' '}
+                              <span className="text-muted-foreground">({formatDiscountLabel(offer)})</span>
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">None</span>
+                          )}
+                          {discount > 0 && (
+                            <span className="text-green-500 text-xs">− {formatPrice(discount)} off</span>
+                          )}
+                        </div>
+                        {!isCancelled && (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <input
+                              id={`coupon-${booking.id}`}
+                              defaultValue={offer?.promo_code?.toUpperCase() || ''}
+                              placeholder="Promo code"
+                              className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-sm w-40 uppercase"
+                            />
+                            <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => handleApplyCouponInput(booking.id)} disabled={isPending}>
+                              Apply offer
+                            </Button>
+                            {offer && (
+                              <Button size="sm" variant="outline" className="text-xs border-border text-muted-foreground" onClick={() => handleSetCoupon(booking.id, null)} disabled={isPending}>
+                                Remove
+                              </Button>
+                            )}
+                            <p className="text-[10px] text-muted-foreground w-full">
+                              Re-derives the discount against the current price (free-guests / percent coupons resize accordingly) and recomputes the balance. Any non-coupon discount (e.g. referral) is preserved.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )
                   })()}

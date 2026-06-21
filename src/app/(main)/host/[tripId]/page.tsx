@@ -193,6 +193,12 @@ export default async function ManageTripPage({
                       <a href={`tel:${r.leadPhone.replace(/[^\d+]/g, '')}`} className="text-primary hover:underline">{r.leadPhone}</a>
                     </div>
                   )}
+                  {r.couponLabel && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Offer: <span className="text-foreground">{r.couponLabel}</span>
+                      {r.discountPaise > 0 ? <span className="text-green-500"> · −{formatPrice(r.discountPaise)}</span> : null}
+                    </div>
+                  )}
                   {Array.isArray(r.travellers) && r.travellers.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {r.travellers.map((t, i) => (

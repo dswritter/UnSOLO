@@ -181,7 +181,21 @@ export async function getAdminBookings(status?: string) {
 
   const { data, error } = await query
   if (error) console.error('getAdminBookings error:', error)
-  return data || []
+  const rows = data || []
+
+  // Attach the applied coupon/offer (batched) so the UI can show it + edit it.
+  const offerIds = [...new Set(rows.map((b: { promo_offer_id?: string | null }) => b.promo_offer_id).filter(Boolean))] as string[]
+  if (offerIds.length) {
+    const { data: offers } = await supabase
+      .from('discount_offers')
+      .select('id, name, promo_code, discount_kind, discount_paise, discount_percent, discount_percent_cap_paise, free_guest_count, free_guests_min_group')
+      .in('id', offerIds)
+    const byId = new Map((offers || []).map((o: { id: string }) => [o.id, o]))
+    for (const b of rows as Array<{ promo_offer_id?: string | null; promo_offer?: unknown }>) {
+      b.promo_offer = b.promo_offer_id ? byId.get(b.promo_offer_id) ?? null : null
+    }
+  }
+  return rows
 }
 
 export async function assignPOC(bookingId: string, pocUserId: string) {
