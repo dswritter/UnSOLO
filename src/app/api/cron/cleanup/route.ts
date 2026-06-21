@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     reviewReminders: 0,
     statusStoriesPurged: 0,
     tokenBalanceReminders: 0,
+    refundsReconciled: 0,
   }
 
   try {
@@ -271,6 +272,80 @@ export async function POST(request: Request) {
         /* email optional */
       }
       results.tokenBalanceReminders++
+    }
+
+    // 5. Reconcile refunds stuck in 'processing' — a refund.processed/failed webhook
+    // may have been missed, leaving them stuck forever. Ask Razorpay for the
+    // authoritative status and settle them. (C7)
+    const rzpAuth = `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`
+    const fetchRefund = async (refundId: string): Promise<{ status?: string; amount?: number } | null> => {
+      try {
+        const r = await fetch(`https://api.razorpay.com/v1/refunds/${refundId}`, { headers: { Authorization: rzpAuth } })
+        if (!r.ok) return null
+        return (await r.json()) as { status?: string; amount?: number }
+      } catch {
+        return null
+      }
+    }
+    const refundStuckCutoff = new Date(Date.now() - 6 * 3600000).toISOString()
+
+    // Full-cancellation refunds.
+    const { data: stuckBookings } = await supabase
+      .from('bookings')
+      .select('id, user_id, package_id, refund_razorpay_id, package:packages(title)')
+      .eq('refund_status', 'processing')
+      .not('refund_razorpay_id', 'is', null)
+      .lt('refund_initiated_at', refundStuckCutoff)
+      .limit(50)
+
+    for (const b of stuckBookings || []) {
+      const info = await fetchRefund(b.refund_razorpay_id as string)
+      if (!info?.status) continue
+      if (info.status === 'processed') {
+        await supabase
+          .from('bookings')
+          .update({ refund_status: 'completed', status: 'cancelled', updated_at: new Date().toISOString() })
+          .eq('id', b.id)
+        await supabase.from('bookings').update({ refund_completed_paise: info.amount ?? null }).eq('id', b.id) // best-effort (091)
+        if (b.user_id && b.package_id) {
+          await removeUserFromPackageTripChat(supabase, b.user_id, b.package_id)
+        }
+        const t = (b.package as unknown as { title: string })?.title || 'your trip'
+        if (b.user_id) {
+          await supabase.from('notifications').insert({
+            user_id: b.user_id,
+            type: 'booking',
+            title: 'Refund Completed',
+            body: `Your refund for ${t} has been processed. It will reflect in your account within 5-7 business days.`,
+            link: '/bookings',
+          })
+        }
+        results.refundsReconciled++
+      } else if (info.status === 'failed') {
+        await supabase.from('bookings').update({ refund_status: 'failed', updated_at: new Date().toISOString() }).eq('id', b.id)
+        results.refundsReconciled++
+      }
+    }
+
+    // Partial-cancellation refunds.
+    const { data: stuckPartials } = await supabase
+      .from('booking_partial_cancellations')
+      .select('id, refund_razorpay_id')
+      .eq('refund_status', 'processing')
+      .not('refund_razorpay_id', 'is', null)
+      .limit(50)
+
+    for (const pc of stuckPartials || []) {
+      const info = await fetchRefund(pc.refund_razorpay_id as string)
+      if (!info?.status) continue
+      if (info.status === 'processed') {
+        await supabase.from('booking_partial_cancellations').update({ refund_status: 'completed' }).eq('id', pc.id)
+        await supabase.from('booking_partial_cancellations').update({ refund_completed_paise: info.amount ?? null }).eq('id', pc.id) // best-effort (091)
+        results.refundsReconciled++
+      } else if (info.status === 'failed') {
+        await supabase.from('booking_partial_cancellations').update({ refund_status: 'failed' }).eq('id', pc.id)
+        results.refundsReconciled++
+      }
     }
   } catch (err) {
     return NextResponse.json({ error: String(err), results }, { status: 500 })

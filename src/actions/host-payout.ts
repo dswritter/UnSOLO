@@ -212,7 +212,9 @@ export async function releaseHostPayout(input: PayoutInput) {
       amount_paise: amount,
       mode: fa.mode,
       purpose: 'vendor advance',
-      reference_id: `he_${input.earningId}`,
+      // Unique per attempt: RazorpayX enforces idempotency on reference_id, so a
+      // retry after a failed/reversed payout would otherwise be silently blocked. (H5)
+      reference_id: `he_${input.earningId}_${Date.now()}`,
       narration: 'UnSOLO host payout',
     })
 

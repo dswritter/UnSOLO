@@ -69,12 +69,15 @@ export async function POST(request: Request) {
       } else if (event.event === 'payout.failed') {
         patch.payout_status = 'failed'
         patch.failure_reason = payout.failure_reason || 'Payout failed'
-        // Reverse the optimistic released counter so admin can retry.
+        // Reverse the optimistic released counter and drop the dead payout id so the
+        // earning shows as unpaid and the admin can cleanly re-release it. (H5)
         patch.released_paise = Math.max(0, releasedPaise - payout.amount)
+        patch.razorpay_payout_id = null
       } else if (event.event === 'payout.reversed') {
         patch.payout_status = 'reversed'
         patch.failure_reason = payout.failure_reason || 'Payout reversed'
         patch.released_paise = Math.max(0, releasedPaise - payout.amount)
+        patch.razorpay_payout_id = null
       }
 
       await supabase.from('host_earnings').update(patch).eq('id', earning.id)
@@ -155,93 +158,114 @@ export async function POST(request: Request) {
     }
   }
 
-  // Handle failed refund — notify admins for manual intervention
-  if (event.event === 'refund.failed') {
-    const refund = event.payload.refund.entity
+  // Refund settled (processed or failed). Route by the refund's OWN id so a
+  // partial-cancellation refund updates only that partial record — it must NOT
+  // cancel the whole booking the way a full-cancellation refund does. Falls back to
+  // matching the booking by payment id for legacy refunds with no stored refund id.
+  if (event.event === 'refund.processed' || event.event === 'refund.failed') {
+    const refund = event.payload.refund.entity as { id: string; payment_id: string; amount: number }
+    const refundId = refund.id
     const paymentId = refund.payment_id
+    const actualPaise = Number(refund.amount) || 0
+    const isProcessed = event.event === 'refund.processed'
+    const now = new Date().toISOString()
 
-    const { data: refundBooking } = await supabase
-      .from('bookings')
-      .select('id, user_id, package:packages(title)')
-      .eq('stripe_payment_intent', paymentId)
-      .single()
-
-    if (refundBooking) {
-      // Update refund status
-      await supabase
-        .from('bookings')
-        .update({ refund_status: 'failed', updated_at: new Date().toISOString() })
-        .eq('id', refundBooking.id)
-
-      const pkgTitle = (refundBooking.package as unknown as { title: string })?.title || 'a booking'
-
-      // Notify all admins
+    const notifyAdmins = async (title: string, body: string) => {
       const { data: admins } = await supabase.from('profiles').select('id').in('role', ['admin'])
       for (const admin of admins || []) {
-        await supabase.from('notifications').insert({
-          user_id: admin.id,
-          type: 'booking',
-          title: 'Refund Failed!',
-          body: `Razorpay refund failed for ${pkgTitle}. Manual intervention needed.`,
-          link: '/admin/bookings',
-        })
+        await supabase.from('notifications').insert({ user_id: admin.id, type: 'booking', title, body, link: '/admin/bookings' })
       }
     }
-  }
 
-  // Auto-update refund status when Razorpay processes refund
-  if (event.event === 'refund.processed') {
-    const refund = event.payload.refund.entity
-    const paymentId = refund.payment_id
+    // 1) Partial-cancellation refund (matched by the refund's own id).
+    const { data: pc } = await supabase
+      .from('booking_partial_cancellations')
+      .select('id, booking_id, refund_amount_paise')
+      .eq('refund_razorpay_id', refundId)
+      .maybeSingle()
 
-    // Find booking by payment ID
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('id, user_id, package_id, package:packages(title)')
-      .eq('stripe_payment_intent', paymentId)
-      .single()
+    if (pc) {
+      await supabase
+        .from('booking_partial_cancellations')
+        .update({ refund_status: isProcessed ? 'completed' : 'failed' })
+        .eq('id', pc.id)
+      if (isProcessed) {
+        // Best-effort (column from migration 091) — never blocks the status update.
+        await supabase.from('booking_partial_cancellations').update({ refund_completed_paise: actualPaise }).eq('id', pc.id)
+      }
+      const { data: pcBooking } = await supabase
+        .from('bookings')
+        .select('user_id, package:packages(title)')
+        .eq('id', pc.booking_id)
+        .maybeSingle()
+      const pcTitle = (pcBooking?.package as unknown as { title: string })?.title || 'your trip'
+      if (pcBooking?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: pcBooking.user_id,
+          type: 'booking',
+          title: isProcessed ? 'Refund Completed' : 'Refund Failed',
+          body: isProcessed
+            ? `Your partial refund for ${pcTitle} has been processed. It will reflect in your account within 5-7 business days.`
+            : `A partial refund for ${pcTitle} could not be processed. Our team will follow up.`,
+          link: '/bookings',
+        })
+      }
+      if (!isProcessed) await notifyAdmins('Partial Refund Failed!', `Razorpay partial refund failed for ${pcTitle}. Manual intervention needed.`)
+      else if (actualPaise < (pc.refund_amount_paise || 0)) {
+        await notifyAdmins('Partial Refund Short', `Razorpay refunded ₹${(actualPaise / 100).toLocaleString('en-IN')} for ${pcTitle}, less than the ₹${((pc.refund_amount_paise || 0) / 100).toLocaleString('en-IN')} requested. Check and top up manually if needed.`)
+      }
+      return NextResponse.json({ received: true })
+    }
 
-    if (booking) {
-      // Mark refund as completed
+    // 2) Full-cancellation refund — prefer the refund id, fall back to payment id.
+    let booking = (
       await supabase
         .from('bookings')
-        .update({
-          refund_status: 'completed',
-          status: 'cancelled',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', booking.id)
+        .select('id, user_id, package_id, refund_amount_paise, package:packages(title)')
+        .eq('refund_razorpay_id', refundId)
+        .maybeSingle()
+    ).data
+    if (!booking) {
+      booking = (
+        await supabase
+          .from('bookings')
+          .select('id, user_id, package_id, refund_amount_paise, package:packages(title)')
+          .eq('stripe_payment_intent', paymentId)
+          .maybeSingle()
+      ).data
+    }
 
-      if (booking.user_id && booking.package_id) {
-        await removeUserFromPackageTripChat(supabase, booking.user_id, booking.package_id)
-      }
-
+    if (booking) {
       const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
-
-      // Notify customer
-      await supabase.from('notifications').insert({
-        user_id: booking.user_id,
-        type: 'booking',
-        title: 'Refund Completed',
-        body: `Your refund for ${pkgTitle} has been processed. It will reflect in your account within 5-7 business days.`,
-        link: '/bookings',
-      })
-
-      // Notify admins
-      const { data: admins } = await supabase
-        .from('profiles')
-        .select('id')
-        .in('role', ['admin'])
-      for (const admin of admins || []) {
-        await supabase.from('notifications').insert({
-          user_id: admin.id,
-          type: 'booking',
-          title: 'Refund Processed',
-          body: `Razorpay processed refund for ${pkgTitle} (₹${(refund.amount / 100).toLocaleString('en-IN')})`,
-          link: '/admin/bookings',
-        })
+      if (isProcessed) {
+        await supabase
+          .from('bookings')
+          .update({ refund_status: 'completed', status: 'cancelled', updated_at: now })
+          .eq('id', booking.id)
+        await supabase.from('bookings').update({ refund_completed_paise: actualPaise }).eq('id', booking.id) // best-effort (091)
+        if (booking.user_id && booking.package_id) {
+          await removeUserFromPackageTripChat(supabase, booking.user_id, booking.package_id)
+        }
+        if (booking.user_id) {
+          await supabase.from('notifications').insert({
+            user_id: booking.user_id,
+            type: 'booking',
+            title: 'Refund Completed',
+            body: `Your refund for ${pkgTitle} has been processed. It will reflect in your account within 5-7 business days.`,
+            link: '/bookings',
+          })
+        }
+        await notifyAdmins('Refund Processed', `Razorpay processed refund for ${pkgTitle} (₹${(actualPaise / 100).toLocaleString('en-IN')})`)
+        if (actualPaise < (booking.refund_amount_paise || 0)) {
+          await notifyAdmins('Refund Short', `Razorpay refunded ₹${(actualPaise / 100).toLocaleString('en-IN')} for ${pkgTitle}, less than the ₹${((booking.refund_amount_paise || 0) / 100).toLocaleString('en-IN')} requested. Check and top up manually if needed.`)
+        }
+      } else {
+        await supabase.from('bookings').update({ refund_status: 'failed', updated_at: now }).eq('id', booking.id)
+        await notifyAdmins('Refund Failed!', `Razorpay refund failed for ${pkgTitle}. Manual intervention needed.`)
       }
     }
+
+    return NextResponse.json({ received: true })
   }
 
   return NextResponse.json({ received: true })
