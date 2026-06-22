@@ -2,7 +2,7 @@
 
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
-import { ROLE_LABELS, type JoinPreferences, type UserRole } from '@/types'
+import { ROLE_LABELS, hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import {
   validateScopedPromoCode,
@@ -45,6 +45,36 @@ async function requireAdmin() {
 
   if (profile?.role !== 'admin') throw new Error('Unauthorized — admin only')
   return { supabase, user }
+}
+
+/**
+ * Gate an action on a specific admin permission (not just "admin only"), so
+ * permissioned staff — e.g. host_onboarding_staff with 'community_trips' — can use
+ * it. Returns a SERVICE-ROLE client so non-admin staff writes aren't blocked by RLS.
+ */
+async function requirePermission(key: AdminPermissionKey) {
+  const { user } = await getActionAuth()
+  if (!user) throw new Error('Not authenticated')
+  const svc = createServiceRoleClient()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle(),
+  ])
+  const role: UserRole | null =
+    profile?.role && STAFF_ROLES.includes(profile.role as UserRole)
+      ? (profile.role as UserRole)
+      : membership?.is_active && membership.role && STAFF_ROLES.includes(membership.role as UserRole)
+        ? (membership.role as UserRole)
+        : null
+  if (!role) throw new Error('Unauthorized — no staff role found')
+  const perms: AdminPermissionKey[] =
+    role === 'custom' && membership?.is_active && Array.isArray(membership.custom_permissions)
+      ? (membership.custom_permissions as AdminPermissionKey[])
+      : []
+  if (!hasAdminPermission(role, perms, key)) {
+    throw new Error(`Unauthorized — role '${role}' lacks the '${key}' permission`)
+  }
+  return { supabase: svc, user, role }
 }
 
 async function requireStaff() {
@@ -805,7 +835,11 @@ export async function updatePackage(
     join_preferences?: JoinPreferences | null
   },
 ) {
-  const { supabase } = await requireAdmin()
+  // Host (community) trips can be edited by 'community_trips' staff (e.g. host
+  // onboarding); curated UnSOLO packages still require the 'packages' permission.
+  const probe = createServiceRoleClient()
+  const { data: pkgRow } = await probe.from('packages').select('host_id').eq('id', packageId).maybeSingle()
+  const { supabase } = await requirePermission(pkgRow?.host_id ? 'community_trips' : 'packages')
 
   const payload = { ...updates }
   if (updates.price_variants !== undefined) {
