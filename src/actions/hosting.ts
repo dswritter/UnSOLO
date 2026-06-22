@@ -9,7 +9,7 @@ import {
   type PriceVariant,
 } from '@/lib/package-pricing'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
-import type { JoinPreferences } from '@/types'
+import { hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { getEmailFromAuthUser } from '@/lib/auth-email'
 import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
 
@@ -102,16 +102,73 @@ async function requireHost() {
   return { supabase, user }
 }
 
+const HOSTING_STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom']
+
+/**
+ * Host (owns the trip) OR a "manage any trip" staffer — admins and staff with the
+ * `community_trips` permission (e.g. host onboarding). The returned client is the
+ * SERVICE-ROLE client for the manage-any path so non-admin staff writes aren't
+ * blocked by RLS; a host editing their own trip keeps their own client.
+ */
 async function requireHostOrAdmin() {
-  const { supabase, user } = await getActionAuth()
+  const { supabase: userClient, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_host, role')
-    .eq('id', user.id)
-    .single()
-  if (!profile?.is_host && profile?.role !== 'admin') throw new Error('Host verification required')
-  return { supabase, user, isAdmin: profile?.role === 'admin' }
+  const svc = createServiceRoleClient()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    svc.from('profiles').select('is_host, role').eq('id', user.id).maybeSingle(),
+    svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle(),
+  ])
+
+  let canManageAnyTrip = profile?.role === 'admin'
+  if (!canManageAnyTrip) {
+    const effRole: UserRole | undefined =
+      profile?.role && HOSTING_STAFF_ROLES.includes(profile.role as UserRole)
+        ? (profile.role as UserRole)
+        : membership?.is_active && membership.role && HOSTING_STAFF_ROLES.includes(membership.role as UserRole)
+          ? (membership.role as UserRole)
+          : undefined
+    if (effRole) {
+      const perms: AdminPermissionKey[] =
+        effRole === 'custom' && Array.isArray(membership?.custom_permissions)
+          ? (membership!.custom_permissions as AdminPermissionKey[])
+          : []
+      canManageAnyTrip = hasAdminPermission(effRole, perms, 'community_trips')
+    }
+  }
+
+  if (!profile?.is_host && !canManageAnyTrip) throw new Error('Host verification required')
+  return { supabase: canManageAnyTrip ? svc : userClient, user, isAdmin: canManageAnyTrip }
+}
+
+/**
+ * Non-throwing check: may the current user manage ANY host trip (admin or staff with
+ * the community_trips permission)? Used by the edit form to admit onboarding staff.
+ */
+export async function canManageAnyHostTrip(): Promise<boolean> {
+  try {
+    const { user } = await getActionAuth()
+    if (!user) return false
+    const svc = createServiceRoleClient()
+    const [{ data: profile }, { data: membership }] = await Promise.all([
+      svc.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+      svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle(),
+    ])
+    if (profile?.role === 'admin') return true
+    const effRole: UserRole | undefined =
+      profile?.role && HOSTING_STAFF_ROLES.includes(profile.role as UserRole)
+        ? (profile.role as UserRole)
+        : membership?.is_active && membership.role && HOSTING_STAFF_ROLES.includes(membership.role as UserRole)
+          ? (membership.role as UserRole)
+          : undefined
+    if (!effRole) return false
+    const perms: AdminPermissionKey[] =
+      effRole === 'custom' && Array.isArray(membership?.custom_permissions)
+        ? (membership!.custom_permissions as AdminPermissionKey[])
+        : []
+    return hasAdminPermission(effRole, perms, 'community_trips')
+  } catch {
+    return false
+  }
 }
 
 function generateSlug(title: string): string {

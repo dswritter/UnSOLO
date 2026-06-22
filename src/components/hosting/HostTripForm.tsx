@@ -19,6 +19,7 @@ import {
   getIncludesOptionsPublic,
   getHostTripDetail,
   checkIsHost,
+  canManageAnyHostTrip,
 } from '@/actions/hosting'
 import type { JoinPreferences } from '@/types'
 import {
@@ -40,7 +41,7 @@ import {
   upsertHostTripDraft,
   type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
-import { saveListingDraft } from '@/actions/listing-drafts'
+import { saveListingDraft, markListingDraftSubmitted } from '@/actions/listing-drafts'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -227,13 +228,10 @@ export function HostTripForm({
       const { createClient: cc } = await import('@/lib/supabase/client')
       const sb = cc()
       if (!hostStatus.isHost) {
-        const { data: authUser } = await sb.auth.getUser()
-        const userId = authUser.user?.id
-        const { data: profileRow } = userId
-          ? await sb.from('profiles').select('role').eq('id', userId).single()
-          : { data: null }
-        const isAdmin = profileRow?.role === 'admin'
-        if (!isAdmin || !editTripId) {
+        // Admins and community_trips staff (e.g. host onboarding) may edit an
+        // existing trip to help the host — but can't create one from scratch.
+        const canManage = await canManageAnyHostTrip()
+        if (!canManage || !editTripId) {
           router.push('/host/verify')
           return
         }
@@ -1241,7 +1239,10 @@ export function HostTripForm({
           toast.error(result.error)
         } else {
           toast.success('Trip created! It will be reviewed by our team before going live.')
-          if (draftSessionId) deleteHostTripDraft(draftSessionId)
+          if (draftSessionId) {
+            deleteHostTripDraft(draftSessionId)
+            void markListingDraftSubmitted('trip', draftSessionId)
+          }
           router.push('/host')
         }
       } finally {

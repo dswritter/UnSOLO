@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+import { saveListingDraft, markListingDraftSubmitted } from '@/actions/listing-drafts'
 
 const DraggablePinMap = dynamic(
   () => import('@/components/ui/DraggablePinMap').then(m => ({ default: m.DraggablePinMap })),
@@ -9,7 +10,7 @@ const DraggablePinMap = dynamic(
 )
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Check, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostSubmittingOverlay } from '@/components/host/HostSubmittingOverlay'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
@@ -911,9 +912,9 @@ export function HostServiceListingTabs(props: Props) {
     updateDraft(draft.localKey, { images: [...draft.images, ...uploaded] })
   }
 
-  /** Open the public-style preview in a new tab using the current in-memory
-   *  form state — works in both create and edit mode, no persistence required. */
-  function openPreview() {
+  /** Build a snapshot of the current in-memory form state (used for both the
+   *  public preview and the cloud draft). */
+  const buildPreviewPayload = useCallback((): HostServiceListingPreviewPayload => {
     const primaryDest = destinations.find(d => d.id === (destinationIds[0] || ''))
     const pricedItems = items.filter(i => i.priceRupees != null && i.priceRupees > 0)
     const cheapest =
@@ -922,7 +923,7 @@ export function HostServiceListingTabs(props: Props) {
         : null
     const previewUnit =
       isRental || isStay ? (cheapest?.unit ?? config.defaultUnit) : unit
-    const payload: HostServiceListingPreviewPayload = {
+    return {
       type,
       title,
       shortDescription,
@@ -948,14 +949,88 @@ export function HostServiceListingTabs(props: Props) {
         amenities: (isRental || isStay) ? (it.amenities ?? []) : null,
       })),
     }
+  }, [destinations, destinationIds, items, isRental, isStay, isActivity, config, unit, type, title, shortDescription, description, location, pinLatLon, amenities, tagsInput])
+
+  /** Open the public-style preview in a new tab using the current in-memory
+   *  form state — works in both create and edit mode, no persistence required. */
+  function openPreview() {
     try {
-      localStorage.setItem(SERVICE_LISTING_PREVIEW_HANDOFF_KEY, JSON.stringify(payload))
+      localStorage.setItem(SERVICE_LISTING_PREVIEW_HANDOFF_KEY, JSON.stringify(buildPreviewPayload()))
     } catch {
       toast.error('Could not open preview (storage blocked).')
       return
     }
     window.open('/host/service-listing-preview', '_blank', 'noopener,noreferrer')
   }
+
+  // ── Cloud draft sync (create mode) so the onboarding team can see in-progress
+  // service listings. Saved on stage transitions + tab-hide, not per keystroke.
+  const [serviceDraftId] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const KEY = 'unsolo_service_draft_id'
+      let id = window.sessionStorage.getItem(KEY) || ''
+      if (!id) {
+        id = window.crypto?.randomUUID?.() ?? `svc_${Date.now()}_${Math.random().toString(36).slice(2)}`
+        window.sessionStorage.setItem(KEY, id)
+      }
+      return id
+    } catch {
+      return `svc_${Date.now()}`
+    }
+  })
+  const [cloudStatus, setCloudStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const buildPayloadRef = useRef(buildPreviewPayload)
+  buildPayloadRef.current = buildPreviewPayload
+  const cloudStepRef = useRef(step)
+  cloudStepRef.current = step
+  const cloudInFlightRef = useRef(false)
+
+  const saveServiceDraftToCloud = useCallback(async () => {
+    if (mode === 'edit' || !serviceDraftId) return
+    const payload = buildPayloadRef.current()
+    if (!payload.title.trim() && !payload.destinationId) return // nothing meaningful yet
+    if (cloudInFlightRef.current) return
+    cloudInFlightRef.current = true
+    setCloudStatus('saving')
+    try {
+      const res = await saveListingDraft({
+        kind: 'service',
+        localId: serviceDraftId,
+        title: payload.title || null,
+        destinationLabel: payload.destinationName || null,
+        step: cloudStepRef.current,
+        payload,
+      })
+      setCloudStatus(res && 'success' in res ? 'saved' : 'idle')
+    } catch {
+      setCloudStatus('idle')
+    } finally {
+      cloudInFlightRef.current = false
+    }
+  }, [mode, serviceDraftId])
+
+  const clearServiceCloudDraft = useCallback(async () => {
+    if (mode === 'edit' || !serviceDraftId) return
+    try { await markListingDraftSubmitted('service', serviceDraftId) } catch { /* best-effort */ }
+    try { window.sessionStorage.removeItem('unsolo_service_draft_id') } catch { /* ignore */ }
+  }, [mode, serviceDraftId])
+
+  const prevCloudStepRef = useRef(step)
+  useEffect(() => {
+    if (mode === 'edit') return
+    if (prevCloudStepRef.current !== step) {
+      prevCloudStepRef.current = step
+      void saveServiceDraftToCloud()
+    }
+  }, [step, mode, saveServiceDraftToCloud])
+
+  useEffect(() => {
+    if (mode === 'edit') return
+    const onHide = () => { if (document.visibilityState === 'hidden') void saveServiceDraftToCloud() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [mode, saveServiceDraftToCloud])
 
   // ── Save handlers ─────────────────────────────────────────────────────
   async function submitCreate() {
@@ -1018,6 +1093,7 @@ export function HostServiceListingTabs(props: Props) {
         if (!('error' in result && result.error)) {
           toast.success('Your listing was submitted for review.')
           setSavedSnapshot(serializeFormState())
+          await clearServiceCloudDraft()
           window.location.replace(`${window.location.origin}/host`)
         }
         return
@@ -1029,6 +1105,7 @@ export function HostServiceListingTabs(props: Props) {
       }
       toast.success('Listing submitted for review!')
       setSavedSnapshot(serializeFormState())
+      await clearServiceCloudDraft()
       window.location.replace(`${window.location.origin}/host`)
     } finally {
       submitCreateInFlightRef.current = false
@@ -2357,6 +2434,14 @@ export function HostServiceListingTabs(props: Props) {
                 ))}
               </div>
             </div>
+          )}
+
+          {mode === 'create' && cloudStatus !== 'idle' && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-2">
+              {cloudStatus === 'saving'
+                ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving progress to cloud…</>
+                : <><Check className="h-3 w-3 text-green-500" /> Progress saved to cloud</>}
+            </p>
           )}
 
           {mode === 'create' && (
