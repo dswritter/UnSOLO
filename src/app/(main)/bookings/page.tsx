@@ -6,6 +6,7 @@ import { BookOpen } from 'lucide-react'
 import type { Booking } from '@/types'
 import { BookingsClient } from './BookingsClient'
 import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import type { ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
@@ -90,6 +91,19 @@ export default async function BookingsPage() {
       .order('created_at', { ascending: false })
     for (const r of (pcRows || []) as PartialCancellationRow[]) {
       ;(partialCancellationsByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
+
+  // Pending/processed change requests (traveller edits + tier changes) per booking.
+  const changeRequestsByBooking: Record<string, ChangeRequestRow[]> = {}
+  if (bookingIds.length) {
+    const { data: crRows } = await supabase
+      .from('booking_change_requests')
+      .select('id, booking_id, kind, payload, status, note, admin_note, created_at')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false })
+    for (const r of (crRows || []) as ChangeRequestRow[]) {
+      ;(changeRequestsByBooking[r.booking_id] ||= []).push(r)
     }
   }
 
@@ -265,6 +279,7 @@ export default async function BookingsPage() {
             incompleteJoinTrips={incompleteJoinTrips}
             currentUserId={user.id}
             partialCancellationsByBooking={partialCancellationsByBooking}
+            changeRequestsByBooking={changeRequestsByBooking}
           />
         )}
       </div>

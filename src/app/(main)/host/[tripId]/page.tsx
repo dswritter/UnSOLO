@@ -21,6 +21,7 @@ import { ManageRequestsClient } from './ManageRequestsClient'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import type { Package } from '@/types'
 
 export default async function ManageTripPage({
@@ -56,6 +57,23 @@ export default async function ManageTripPage({
       ;(partialByBooking[r.booking_id] ||= []).push(r)
     }
   }
+
+  // Change requests (traveller edits + tier changes) on this trip's bookings.
+  const changesByBooking: Record<string, ChangeRequestRow[]> = {}
+  if (rosterIds.length) {
+    const svc = createServiceRoleClient()
+    const { data: crRows } = await svc
+      .from('booking_change_requests')
+      .select('*')
+      .in('booking_id', rosterIds)
+      .order('created_at', { ascending: false })
+    for (const r of (crRows || []) as ChangeRequestRow[]) {
+      ;(changesByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
+  const tripVariantLabels = Array.isArray((trip as { price_variants?: unknown }).price_variants)
+    ? ((trip as { price_variants: Array<{ description?: string }> }).price_variants).map((v) => String(v?.description ?? ''))
+    : []
 
   // Get interest data
   const supabase = await createClient()
@@ -214,6 +232,11 @@ export default async function ManageTripPage({
                         booking={{ id: r.bookingId, status: r.status, guests: r.guests, traveller_details: r.travellers || [] }}
                         existing={partialByBooking[r.bookingId] || []}
                       />
+                    </div>
+                  )}
+                  {(changesByBooking[r.bookingId]?.length || 0) > 0 && (
+                    <div className="mt-2 pt-2 border-t border-border/60">
+                      <BookingChangeRequestManager existing={changesByBooking[r.bookingId] || []} variantLabels={tripVariantLabels} />
                     </div>
                   )}
                 </div>

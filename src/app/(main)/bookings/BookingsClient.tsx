@@ -19,6 +19,7 @@ import {
 } from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
 import { TravellerPartialCancel, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { BookingChangeRequest, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import {
   cancelPendingBooking,
@@ -126,6 +127,7 @@ interface Props {
   incompleteJoinTrips?: IncompleteJoinTrip[]
   currentUserId?: string
   partialCancellationsByBooking?: Record<string, PartialCancellationRow[]>
+  changeRequestsByBooking?: Record<string, ChangeRequestRow[]>
 }
 
 export function BookingsClient({
@@ -137,6 +139,7 @@ export function BookingsClient({
   incompleteJoinTrips = [],
   currentUserId,
   partialCancellationsByBooking = {},
+  changeRequestsByBooking = {},
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -638,7 +641,7 @@ export function BookingsClient({
           <h2 className="text-xl font-bold mb-4">Upcoming Trips</h2>
           <div className="space-y-4">
             {upcoming.map((booking) => (
-              <BookingItem key={booking.id} booking={booking} expanded={expandedId === booking.id} onToggle={() => setExpandedId(expandedId === booking.id ? null : booking.id)} existingPartialCancellations={partialCancellationsByBooking[booking.id] || []} />
+              <BookingItem key={booking.id} booking={booking} expanded={expandedId === booking.id} onToggle={() => setExpandedId(expandedId === booking.id ? null : booking.id)} existingPartialCancellations={partialCancellationsByBooking[booking.id] || []} existingChangeRequests={changeRequestsByBooking[booking.id] || []} />
             ))}
           </div>
         </div>
@@ -667,6 +670,7 @@ export function BookingsClient({
                     setRatingBookingId(null)
                   }}
                   existingPartialCancellations={partialCancellationsByBooking[booking.id] || []}
+                  existingChangeRequests={changeRequestsByBooking[booking.id] || []}
                 />
 
                 {/* Review form */}
@@ -1108,6 +1112,7 @@ function BookingItem({
   onRatingClose,
   onRatingSubmitted,
   existingPartialCancellations = [],
+  existingChangeRequests = [],
 }: {
   booking: Booking
   expanded: boolean
@@ -1122,6 +1127,7 @@ function BookingItem({
   onRatingClose?: () => void
   onRatingSubmitted?: () => void
   existingPartialCancellations?: PartialCancellationRow[]
+  existingChangeRequests?: ChangeRequestRow[]
 }) {
   const router = useRouter()
   const pkg = booking.package
@@ -1209,6 +1215,12 @@ function BookingItem({
                 booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
                 existing={existingPartialCancellations}
               />
+              <div className="mt-2">
+                <BookingChangeRequest
+                  booking={booking as unknown as { id: string; status: string; guests: number; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null; price_variant_label?: string | null; package?: { price_variants?: unknown } | null; service_listings?: { price_variants?: unknown } | null }}
+                  existing={existingChangeRequests}
+                />
+              </div>
             </div>
             {booking.poc_shared_at && (() => {
               const member = (booking as unknown as { poc?: { full_name?: string | null; username?: string | null; phone_number?: string | null } | null }).poc

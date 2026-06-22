@@ -2,6 +2,7 @@ import { getAdminBookings, getStaffMembers } from '@/actions/admin'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { AdminBookingsClient } from './AdminBookingsClient'
 import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import type { ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 
 export default async function AdminBookingsPage() {
   const [bookings, staffMembers] = await Promise.all([
@@ -24,6 +25,20 @@ export default async function AdminBookingsPage() {
     }
   }
 
+  // Change requests (traveller edits + tier changes) for these bookings.
+  const changeRequestsByBooking: Record<string, ChangeRequestRow[]> = {}
+  if (bookingIds.length) {
+    const svc = createServiceRoleClient()
+    const { data: crRows } = await svc
+      .from('booking_change_requests')
+      .select('*')
+      .in('booking_id', bookingIds)
+      .order('created_at', { ascending: false })
+    for (const r of (crRows || []) as ChangeRequestRow[]) {
+      ;(changeRequestsByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Manage Bookings</h1>
@@ -31,6 +46,7 @@ export default async function AdminBookingsPage() {
         bookings={bookings}
         staffMembers={staffMembers}
         partialCancellationsByBooking={partialCancellationsByBooking}
+        changeRequestsByBooking={changeRequestsByBooking}
       />
     </div>
   )

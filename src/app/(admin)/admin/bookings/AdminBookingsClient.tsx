@@ -10,12 +10,14 @@ import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
 interface Props {
   bookings: Booking[]
   staffMembers: Pick<Profile, 'id' | 'username' | 'full_name' | 'role'>[]
   partialCancellationsByBooking?: Record<string, PartialCancellationRow[]>
+  changeRequestsByBooking?: Record<string, ChangeRequestRow[]>
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -25,7 +27,7 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-blue-900/50 text-blue-300 border-blue-700',
 }
 
-export function AdminBookingsClient({ bookings: initialBookings, partialCancellationsByBooking = {} }: Props) {
+export function AdminBookingsClient({ bookings: initialBookings, partialCancellationsByBooking = {}, changeRequestsByBooking = {} }: Props) {
   // Read initial filter from URL params
   const [filter, setFilter] = useState(() => {
     if (typeof window === 'undefined') return 'all'
@@ -618,6 +620,21 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                       />
                     </div>
                   )}
+
+                  {/* Change requests (traveller edits / tier change) — approve or deny */}
+                  {(changeRequestsByBooking[booking.id]?.length || 0) > 0 && (() => {
+                    const src = booking.package_id
+                      ? (booking.package as { price_variants?: unknown } | null)
+                      : (booking.service_listing as { price_variants?: unknown } | null)
+                    const variantLabels = Array.isArray(src?.price_variants)
+                      ? (src!.price_variants as Array<{ description?: string }>).map((v) => String(v?.description ?? ''))
+                      : []
+                    return (
+                      <div className="pt-2 border-t border-border">
+                        <BookingChangeRequestManager existing={changeRequestsByBooking[booking.id] || []} variantLabels={variantLabels} />
+                      </div>
+                    )
+                  })()}
 
                   {/* Cancellation Review */}
                   {booking.cancellation_status === 'requested' && (

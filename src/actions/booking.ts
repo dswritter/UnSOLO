@@ -2311,17 +2311,24 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
   if (!user) return { error: 'Not authenticated' }
 
   const svc = createServiceRoleClient()
-  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
-  if (!profile || !['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
-    return { error: 'Unauthorized' }
-  }
 
   const { data: booking } = await svc
     .from('bookings')
-    .select('*, package:packages(id, title, price_paise, price_variants), service_listing:service_listings(id, title, price_paise, price_variants)')
+    .select('*, package:packages(id, title, host_id, price_paise, price_variants), service_listing:service_listings(id, title, host_id, price_paise, price_variants)')
     .eq('id', bookingId)
     .single()
   if (!booking) return { error: 'Booking not found' }
+
+  // Staff may re-tier any booking; the trip/service host may re-tier their own
+  // (so the change-request approval can run as either).
+  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  const isStaff = !!profile && ['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)
+  const hostId = ((booking.package as { host_id?: string | null } | null)?.host_id)
+    ?? ((booking.service_listing as { host_id?: string | null } | null)?.host_id)
+    ?? null
+  const isHost = !!hostId && hostId === user.id
+  if (!isStaff && !isHost) return { error: 'Unauthorized' }
+
   if (booking.status === 'cancelled') return { error: 'Cannot re-tier a cancelled booking.' }
 
   const source = booking.package_id
