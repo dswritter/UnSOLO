@@ -41,7 +41,7 @@ import {
   upsertHostTripDraft,
   type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
-import { saveListingDraft, markListingDraftSubmitted } from '@/actions/listing-drafts'
+import { saveListingDraft, markListingDraftSubmitted, getMyListingDraft } from '@/actions/listing-drafts'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -344,9 +344,21 @@ export function HostTripForm({
         const sessionId = resuming ? resuming.id : newId
         setDraftSessionId(sessionId)
 
-        if (resuming && isHostTripCreateDraftNonEmpty(resuming.payload)) {
+        // Prefer a newer CLOUD version of this draft (e.g. the onboarding team
+        // edited it to help) over the local copy, and mirror it back to the device.
+        let draftPayload: HostTripDraftPayload | null = resuming?.payload ?? null
+        try {
+          const cloud = await getMyListingDraft('trip', sessionId)
+          if (cloud?.payload && (!resuming || new Date(cloud.updatedAt).getTime() > resuming.updatedAt)) {
+            draftPayload = cloud.payload as unknown as HostTripDraftPayload
+            upsertHostTripDraft(sessionId, draftPayload)
+            toast.message('Loaded the latest version of your draft (updated by our team).')
+          }
+        } catch { /* offline / no cloud draft — use local */ }
+
+        if (draftPayload && isHostTripCreateDraftNonEmpty(draftPayload)) {
           draftSaveNotifiedRef.current = true
-          const draft = resuming.payload
+          const draft = draftPayload
           if (draft.destination && !dests.some((d) => d.id === draft.destination!.id)) {
             setDestinations([...dests, draft.destination].sort((a, b) => a.name.localeCompare(b.name)))
           }

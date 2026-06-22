@@ -43,6 +43,25 @@ export async function saveListingDraft(input: {
   return { success: true, savedAt }
 }
 
+/** The current host's own cloud draft for a given local id (to pick up staff edits). */
+export async function getMyListingDraft(
+  kind: 'trip' | 'service',
+  localId: string,
+): Promise<{ payload: Record<string, unknown>; updatedAt: string } | null> {
+  const { user } = await getActionAuth()
+  if (!user || !localId) return null
+  const svc = createServiceRoleClient()
+  const { data } = await svc
+    .from('listing_drafts')
+    .select('payload, updated_at')
+    .eq('host_id', user.id)
+    .eq('kind', kind)
+    .eq('local_id', localId)
+    .maybeSingle()
+  if (!data) return null
+  return { payload: (data.payload as Record<string, unknown>) || {}, updatedAt: data.updated_at as string }
+}
+
 /** Mark a draft submitted (so it drops off the "needs help" list) — best-effort. */
 export async function markListingDraftSubmitted(kind: 'trip' | 'service', localId: string) {
   const { user } = await getActionAuth()
@@ -54,6 +73,91 @@ export async function markListingDraftSubmitted(kind: 'trip' | 'service', localI
     .eq('host_id', user.id)
     .eq('kind', kind)
     .eq('local_id', localId)
+  return { success: true }
+}
+
+async function resolveDraftStaff(userId: string): Promise<boolean> {
+  const svc = createServiceRoleClient()
+  const [{ data: profile }, { data: membership }] = await Promise.all([
+    svc.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', userId).maybeSingle(),
+  ])
+  const role: UserRole | null =
+    profile?.role && STAFF_ROLES.includes(profile.role as UserRole)
+      ? (profile.role as UserRole)
+      : membership?.is_active && membership.role && STAFF_ROLES.includes(membership.role as UserRole)
+        ? (membership.role as UserRole)
+        : null
+  if (!role) return false
+  const perms: AdminPermissionKey[] =
+    role === 'custom' && membership?.is_active && Array.isArray(membership.custom_permissions)
+      ? (membership.custom_permissions as AdminPermissionKey[])
+      : []
+  return hasAdminPermission(role, perms, 'community_trips') || hasAdminPermission(role, perms, 'service_listings')
+}
+
+export type StaffDraftDetail = {
+  id: string
+  host_id: string
+  kind: 'trip' | 'service'
+  local_id: string
+  title: string | null
+  destination_label: string | null
+  step: number
+  payload: Record<string, unknown>
+  updated_at: string
+  host: { full_name: string | null; username: string | null } | null
+}
+
+/** Load one draft for staff editing. */
+export async function getListingDraftForStaff(id: string): Promise<{ draft: StaffDraftDetail } | { error: string }> {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await resolveDraftStaff(user.id))) return { error: 'Unauthorized' }
+  const svc = createServiceRoleClient()
+  const { data } = await svc
+    .from('listing_drafts')
+    .select('id, host_id, kind, local_id, title, destination_label, step, payload, updated_at, host:profiles!listing_drafts_host_id_fkey(full_name, username)')
+    .eq('id', id)
+    .maybeSingle()
+  if (!data) return { error: 'Draft not found' }
+  return { draft: data as unknown as StaffDraftDetail }
+}
+
+/**
+ * Staff updates a host's draft (host onboarding help). Writes to the row by id —
+ * the row's host_id is left unchanged — and notifies the host so they reload.
+ */
+export async function saveListingDraftAsStaff(
+  id: string,
+  input: { title?: string | null; destinationLabel?: string | null; step?: number; payload: unknown },
+): Promise<{ success: true } | { error: string }> {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  if (!(await resolveDraftStaff(user.id))) return { error: 'Unauthorized' }
+  const svc = createServiceRoleClient()
+  const { data: existing } = await svc.from('listing_drafts').select('host_id, kind').eq('id', id).maybeSingle()
+  if (!existing) return { error: 'Draft not found' }
+
+  const { error } = await svc
+    .from('listing_drafts')
+    .update({
+      title: (input.title || '').slice(0, 200) || null,
+      destination_label: (input.destinationLabel || '').slice(0, 200) || null,
+      step: Number.isFinite(input.step as number) ? (input.step as number) : undefined,
+      payload: input.payload ?? {},
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+  if (error) return { error: error.message }
+
+  await svc.from('notifications').insert({
+    user_id: existing.host_id,
+    type: 'system',
+    title: 'Our team updated your draft',
+    body: 'The UnSOLO team made changes to your in-progress listing. Reopen it to see the updates and continue.',
+    link: '/host',
+  })
   return { success: true }
 }
 

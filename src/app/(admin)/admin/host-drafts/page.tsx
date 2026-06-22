@@ -22,7 +22,7 @@ export default async function HostDraftsPage() {
 
       <div className="space-y-2">
         {drafts.map((d) => (
-          <div key={d.id} className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center justify-between gap-2">
+          <a key={d.id} href={`/admin/host-drafts/${d.id}`} className="rounded-lg border border-border bg-card p-3 flex flex-wrap items-center justify-between gap-2 hover:border-primary/40 transition-colors">
             <div className="min-w-0">
               <div className="font-medium truncate">
                 {d.title || 'Untitled draft'}{' '}
@@ -36,7 +36,8 @@ export default async function HostDraftsPage() {
                 {' · '}updated {timeAgo(d.updated_at)}
               </div>
             </div>
-          </div>
+            <span className="text-xs text-primary shrink-0">Edit →</span>
+          </a>
         ))}
       </div>
     </div>
