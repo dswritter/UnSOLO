@@ -62,6 +62,27 @@ export async function getMyListingDraft(
   return { payload: (data.payload as Record<string, unknown>) || {}, updatedAt: data.updated_at as string }
 }
 
+/** The host's most-recent unsubmitted service draft of a given type, to resume it
+ *  (and pick up any staff edits). Service listings have no local draft store. */
+export async function getMyLatestServiceDraft(
+  type: string,
+): Promise<{ localId: string; payload: Record<string, unknown>; updatedAt: string } | null> {
+  const { user } = await getActionAuth()
+  if (!user) return null
+  const svc = createServiceRoleClient()
+  const { data } = await svc
+    .from('listing_drafts')
+    .select('local_id, payload, updated_at')
+    .eq('host_id', user.id)
+    .eq('kind', 'service')
+    .eq('submitted', false)
+    .order('updated_at', { ascending: false })
+    .limit(20)
+  const row = (data || []).find((r) => (r.payload as { type?: string } | null)?.type === type)
+  if (!row) return null
+  return { localId: row.local_id as string, payload: (row.payload as Record<string, unknown>) || {}, updatedAt: row.updated_at as string }
+}
+
 /** Mark a draft submitted (so it drops off the "needs help" list) — best-effort. */
 export async function markListingDraftSubmitted(kind: 'trip' | 'service', localId: string) {
   const { user } = await getActionAuth()

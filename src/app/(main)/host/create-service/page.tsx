@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation'
 import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
+import { getMyLatestServiceDraft } from '@/actions/listing-drafts'
 import { hasPayoutConfigured } from '@/actions/payout'
+import type { HostServiceListingPreviewPayload } from '@/lib/host-service-listing-preview-session'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { ServiceListingType } from '@/types'
@@ -47,6 +49,10 @@ export default async function CreateServiceListingPage({
   // Fetch destinations
   const destinations = await getDestinationsPublic()
 
+  // Resume the host's most recent in-progress draft of this type (also picks up any
+  // edits our onboarding team made to it).
+  const resume = await getMyLatestServiceDraft(type)
+
   const typeLabels: Record<ServiceListingType, string> = {
     stays: 'Stay',
     activities: 'Activity',
@@ -77,6 +83,8 @@ export default async function CreateServiceListingPage({
           type={type}
           destinations={destinations}
           userId={user.id}
+          resumeLocalId={resume?.localId}
+          resumePayload={resume ? (resume.payload as unknown as HostServiceListingPreviewPayload) : undefined}
         />
     </div>
   )

@@ -62,6 +62,9 @@ interface CreateProps extends BaseProps {
   /** Admin/onboarding staff editing a host's cloud draft via the full form. */
   staffDraftId?: string
   staffDraftPayload?: HostServiceListingPreviewPayload
+  /** Host resuming their own cloud draft (picks up any staff edits). */
+  resumeLocalId?: string
+  resumePayload?: HostServiceListingPreviewPayload
 }
 
 interface EditProps extends BaseProps {
@@ -292,9 +295,11 @@ export function HostServiceListingTabs(props: Props) {
   const router = useRouter()
   const config = TYPE_CONFIG[type]
 
-  // Admin/onboarding staff editing a host's cloud draft via the full form.
+  // Admin/onboarding staff editing a host's cloud draft, OR a host resuming their
+  // own cloud draft — both seed the full form from the saved payload.
   const staffDraftId = mode === 'create' ? props.staffDraftId : undefined
-  const cloudPayload = mode === 'create' ? props.staffDraftPayload : undefined
+  const resumeLocalId = mode === 'create' ? props.resumeLocalId : undefined
+  const cloudPayload = mode === 'create' ? (props.staffDraftPayload ?? props.resumePayload) : undefined
   const isStaffDraft = !!staffDraftId
 
   const initialListing = mode === 'edit' ? props.listing : null
@@ -1000,6 +1005,9 @@ export function HostServiceListingTabs(props: Props) {
   // ── Cloud draft sync (create mode) so the onboarding team can see in-progress
   // service listings. Saved on stage transitions + tab-hide, not per keystroke.
   const [serviceDraftId] = useState(() => {
+    // Resuming an existing cloud draft → keep its id so saves update the same row
+    // (and the same row staff may have edited).
+    if (resumeLocalId) return resumeLocalId
     if (typeof window === 'undefined') return ''
     try {
       const KEY = 'unsolo_service_draft_id'
