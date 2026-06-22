@@ -361,22 +361,32 @@ export function BookingFormClient({
     setLoading(true)
 
     try {
-      const result = await createRazorpayOrder(
-        packageId,
-        selectedDate,
-        guests,
-        applyCredits,
-        {
-          ...(variantTiers && selectedVariantIndex != null ? { priceVariantIndex: selectedVariantIndex } : {}),
-          ...(promoApplied && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
-          ...(payFullForTokenTrip ? { payFullAmountForTokenTrip: true } : {}),
-          travellerDetails: travellers.map((t) => ({
-            name: t.name.trim(),
-            age: parseInt(t.age, 10),
-            gender: t.gender as 'male' | 'female' | 'other',
-          })),
-        },
-      )
+      const orderOptions = {
+        ...(variantTiers && selectedVariantIndex != null ? { priceVariantIndex: selectedVariantIndex } : {}),
+        ...(promoApplied && promoCode.trim() ? { promoCode: promoCode.trim() } : {}),
+        ...(payFullForTokenTrip ? { payFullAmountForTokenTrip: true } : {}),
+        travellerDetails: travellers.map((t) => ({
+          name: t.name.trim(),
+          age: parseInt(t.age, 10),
+          gender: t.gender as 'male' | 'female' | 'other',
+        })),
+      }
+      let result = await createRazorpayOrder(packageId, selectedDate, guests, applyCredits, orderOptions)
+
+      // Soft conflict warnings (e.g. overlapping travellers / dates): confirm, then retry.
+      if ('warnings' in result && Array.isArray(result.warnings) && result.warnings.length > 0) {
+        const proceed =
+          typeof window !== 'undefined' &&
+          window.confirm(`${result.warnings.join('\n\n')}\n\nDo you still want to continue with this booking?`)
+        if (!proceed) {
+          setLoading(false)
+          return
+        }
+        result = await createRazorpayOrder(packageId, selectedDate, guests, applyCredits, {
+          ...orderOptions,
+          acknowledgeWarnings: true,
+        })
+      }
 
       if ('error' in result) {
         toast.error(result.error)
@@ -533,6 +543,7 @@ export function BookingFormClient({
             setLoading(true)
             const result = await createRazorpayOrder(packageId, groupInvite.travel_date, 1, false, {
               groupBookingId: groupInvite.id,
+              acknowledgeWarnings: true, // accepting a specific group invite is deliberate
             })
             if ('error' in result) {
               toast.error(result.error)

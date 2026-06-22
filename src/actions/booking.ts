@@ -644,6 +644,8 @@ export async function createRazorpayOrder(
     payFullAmountForTokenTrip?: boolean
     /** Per-traveller name/age/gender, one entry per guest. */
     travellerDetails?: { name: string; age: number; gender: string }[]
+    /** Proceed past soft conflict warnings (duplicate-booking ruleset). */
+    acknowledgeWarnings?: boolean
   },
 ) {
   if (!Number.isInteger(guests) || guests < 1) {
@@ -721,24 +723,59 @@ export async function createRazorpayOrder(
     return { error: 'No spots left for this date' }
   }
 
-  // Duplicate booking prevention — only block if already confirmed
-  // Allow retry if previous booking is pending (failed/abandoned payment)
-  const { data: existingBooking } = await supabase
-    .from('bookings')
-    .select('id, status')
-    .eq('user_id', user.id)
-    .eq('package_id', packageId)
-    .eq('travel_date', travelDate)
-    .in('status', ['pending', 'confirmed'])
-    .maybeSingle()
+  // Multi-booking conflict rules (allow / warn / prevent). A user may book a trip
+  // more than once (themselves vs friends/family), so instead of hard-blocking we
+  // prevent only true duplicates / self-rebooks and warn on overlaps + date clashes.
+  {
+    const { evaluateBookingConflicts } = await import('@/lib/booking-conflicts')
+    const dayMs = 86400000
+    const [{ data: prof }, { data: actives }] = await Promise.all([
+      supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('bookings')
+        .select('id, status, package_id, travel_date, traveller_details, package:packages(duration_days)')
+        .eq('user_id', user.id)
+        .not('package_id', 'is', null)
+        .in('status', ['pending', 'confirmed']),
+    ])
+    const attemptNames = (options?.travellerDetails || []).map((t) => t.name).filter(Boolean)
+    const attemptStart = selectedDate.getTime()
+    const attemptEnd = attemptStart + Math.max(1, pkg.duration_days || 1) * dayMs
+    const existingForConflict = (actives || []).map((b) => {
+      const dur = Math.max(1, (b.package as { duration_days?: number } | null)?.duration_days || 1)
+      const s = b.travel_date ? new Date(b.travel_date as string).getTime() : 0
+      const names = Array.isArray(b.traveller_details)
+        ? (b.traveller_details as { name?: string }[]).map((t) => t?.name || '')
+        : []
+      return { packageId: String(b.package_id), travelDate: b.travel_date as string | null, travellerNames: names, startMs: s, endMs: s ? s + dur * dayMs : 0 }
+    })
+    const conflict = evaluateBookingConflicts(
+      { packageId, travelDate, travellerNames: attemptNames, selfName: prof?.full_name ?? null, startMs: attemptStart, endMs: attemptEnd },
+      existingForConflict,
+    )
+    if (conflict.prevent) return { error: conflict.prevent }
+    if (conflict.warnings.length > 0 && !options?.acknowledgeWarnings) {
+      return { warnings: conflict.warnings }
+    }
 
-  if (existingBooking?.status === 'confirmed') {
-    return { error: 'You already have a confirmed booking for this trip on this date' }
-  }
-
-  // Cancel stale pending booking so user can retry
-  if (existingBooking?.status === 'pending') {
-    await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', existingBooking.id)
+    // True-retry cleanup: cancel an abandoned PENDING booking for the same trip +
+    // date + identical travellers (so we don't orphan it). Other pending bookings
+    // (different people) are left intact — they're legitimate separate bookings.
+    const normSet = (names: string[]) => {
+      const set = new Set(names.map((n) => n.trim().toLowerCase()).filter(Boolean))
+      const attempt = new Set(attemptNames.map((n) => n.trim().toLowerCase()).filter(Boolean))
+      return set.size === attempt.size && [...set].every((n) => attempt.has(n))
+    }
+    const staleRetry = (actives || []).find(
+      (b) =>
+        b.status === 'pending' &&
+        b.package_id === packageId &&
+        b.travel_date === travelDate &&
+        normSet(Array.isArray(b.traveller_details) ? (b.traveller_details as { name?: string }[]).map((t) => t?.name || '') : []),
+    )
+    if (staleRetry) {
+      await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', staleRetry.id)
+    }
   }
 
   // Check if max spots reached for this date (sum of guests, not count of bookings)
