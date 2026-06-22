@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
-import { saveListingDraft, markListingDraftSubmitted } from '@/actions/listing-drafts'
+import { saveListingDraft, saveListingDraftAsStaff, markListingDraftSubmitted } from '@/actions/listing-drafts'
 
 const DraggablePinMap = dynamic(
   () => import('@/components/ui/DraggablePinMap').then(m => ({ default: m.DraggablePinMap })),
@@ -59,6 +59,9 @@ interface BaseProps {
 
 interface CreateProps extends BaseProps {
   mode: 'create'
+  /** Admin/onboarding staff editing a host's cloud draft via the full form. */
+  staffDraftId?: string
+  staffDraftPayload?: HostServiceListingPreviewPayload
 }
 
 interface EditProps extends BaseProps {
@@ -198,6 +201,22 @@ function emptyDraft(type: ServiceListingType): DraftItem {
   return base
 }
 
+/** Map a cloud-draft payload item to a form DraftItem (staff editing / resume). */
+function draftFromPayloadItem(it: HostServiceListingPreviewPayload['items'][number], type: ServiceListingType): DraftItem {
+  const base = emptyDraft(type)
+  return {
+    ...base,
+    name: it.name || '',
+    description: it.description || '',
+    priceRupees: typeof it.priceRupees === 'number' ? it.priceRupees : null,
+    quantity: typeof it.quantity === 'number' ? it.quantity : base.quantity,
+    maxPerBooking: typeof it.maxPerBooking === 'number' ? it.maxPerBooking : base.maxPerBooking,
+    images: Array.isArray(it.images) ? it.images : [],
+    unit: (it.unit as Unit) ?? base.unit,
+    amenities: Array.isArray(it.amenities) ? it.amenities : base.amenities,
+  }
+}
+
 function itemFromRow(
   row: ServiceListingItem,
   type: ServiceListingType,
@@ -272,6 +291,11 @@ export function HostServiceListingTabs(props: Props) {
   const { type, destinations, userId, mode } = props
   const router = useRouter()
   const config = TYPE_CONFIG[type]
+
+  // Admin/onboarding staff editing a host's cloud draft via the full form.
+  const staffDraftId = mode === 'create' ? props.staffDraftId : undefined
+  const cloudPayload = mode === 'create' ? props.staffDraftPayload : undefined
+  const isStaffDraft = !!staffDraftId
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
@@ -514,15 +538,20 @@ export function HostServiceListingTabs(props: Props) {
   // ── Business tab state ────────────────────────────────────────────────
   const [knownDestinations, setKnownDestinations] = useState<Destination[]>(destinations)
   const [addingLocation, setAddingLocation] = useState(false)
-  const [title, setTitle] = useState(initialListing?.title || '')
-  const [destinationIds, setDestinationIds] = useState<string[]>(
-    initialListing?.destination_ids || (initialListing?.destination_id ? [initialListing.destination_id] : []),
-  )
-  const [location, setLocation] = useState(initialListing?.location || '')
+  const [title, setTitle] = useState(initialListing?.title || cloudPayload?.title || '')
+  const [destinationIds, setDestinationIds] = useState<string[]>(() => {
+    if (initialListing?.destination_ids?.length) return initialListing.destination_ids
+    if (initialListing?.destination_id) return [initialListing.destination_id]
+    if (cloudPayload?.destinationId) return [cloudPayload.destinationId]
+    return []
+  })
+  const [location, setLocation] = useState(initialListing?.location || cloudPayload?.location || '')
   const [pinLatLon, setPinLatLon] = useState<{ lat: number; lon: number } | null>(
     initialListing?.latitude && initialListing?.longitude
       ? { lat: initialListing.latitude as number, lon: initialListing.longitude as number }
-      : null,
+      : cloudPayload?.pinLat != null && cloudPayload?.pinLon != null
+        ? { lat: cloudPayload.pinLat, lon: cloudPayload.pinLon }
+        : null,
   )
   const [pinDisplayName, setPinDisplayName] = useState<string | null>(null)
 
@@ -539,17 +568,20 @@ export function HostServiceListingTabs(props: Props) {
     // Run once on mount — we don't want to re-fetch when pinDisplayName changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const [shortDescription, setShortDescription] = useState(initialListing?.short_description || '')
-  const [description, setDescription] = useState(initialListing?.description || '')
-  const [unit, setUnit] = useState<Unit>((initialListing?.unit as Unit) || config.defaultUnit)
+  const [shortDescription, setShortDescription] = useState(initialListing?.short_description || cloudPayload?.shortDescription || '')
+  const [description, setDescription] = useState(initialListing?.description || cloudPayload?.description || '')
+  const [unit, setUnit] = useState<Unit>((initialListing?.unit as Unit) || (cloudPayload?.unit as Unit) || config.defaultUnit)
   const [amenities, setAmenities] = useState<string[]>(() => {
     if (type === 'stays') return []
     if (initialListing?.amenities && initialListing.amenities.length > 0) {
       return [...initialListing.amenities]
     }
+    if (cloudPayload?.amenities && cloudPayload.amenities.length > 0) {
+      return [...cloudPayload.amenities]
+    }
     return [...config.suggestedAmenities]
   })
-  const [tagsInput, setTagsInput] = useState((initialListing?.tags || []).join(', '))
+  const [tagsInput, setTagsInput] = useState((initialListing?.tags || cloudPayload?.tags || []).join(', '))
   const [customAmenity, setCustomAmenity] = useState('')
   // Activities only: host-scheduled event schedule. Null = ongoing.
   const initialSchedule = initialListing?.event_schedule || null
@@ -571,7 +603,9 @@ export function HostServiceListingTabs(props: Props) {
   const [items, setItems] = useState<DraftItem[]>(
     initialItems.length > 0
       ? initialItems.map(row => itemFromRow(row, type, stayLegacyForItems))
-      : [emptyDraft(type)],
+      : cloudPayload?.items?.length
+        ? cloudPayload.items.map(it => draftFromPayloadItem(it, type))
+        : [emptyDraft(type)],
   )
   const [itemUnavailability, setItemUnavailability] = useState<ServiceListingItemUnavailability[]>(initialItemUnavailability)
   const [availabilityDrafts, setAvailabilityDrafts] = useState<Record<string, { start: string; end: string }>>({})
@@ -994,21 +1028,30 @@ export function HostServiceListingTabs(props: Props) {
     cloudInFlightRef.current = true
     setCloudStatus('saving')
     try {
-      const res = await saveListingDraft({
-        kind: 'service',
-        localId: serviceDraftId,
-        title: payload.title || null,
-        destinationLabel: payload.destinationName || null,
-        step: cloudStepRef.current,
-        payload,
-      })
+      // Staff editing a host's draft writes to THAT draft row; otherwise the host
+      // saves their own.
+      const res = isStaffDraft
+        ? await saveListingDraftAsStaff(staffDraftId!, {
+            title: payload.title || null,
+            destinationLabel: payload.destinationName || null,
+            step: cloudStepRef.current,
+            payload,
+          })
+        : await saveListingDraft({
+            kind: 'service',
+            localId: serviceDraftId,
+            title: payload.title || null,
+            destinationLabel: payload.destinationName || null,
+            step: cloudStepRef.current,
+            payload,
+          })
       setCloudStatus(res && 'success' in res ? 'saved' : 'idle')
     } catch {
       setCloudStatus('idle')
     } finally {
       cloudInFlightRef.current = false
     }
-  }, [mode, serviceDraftId])
+  }, [mode, serviceDraftId, isStaffDraft, staffDraftId])
 
   const clearServiceCloudDraft = useCallback(async () => {
     if (mode === 'edit' || !serviceDraftId) return
@@ -2456,12 +2499,25 @@ export function HostServiceListingTabs(props: Props) {
                   <Eye className="h-4 w-4" />
                   Preview
                 </Button>
-                <Button type="button" onClick={() => void submitCreate()} disabled={saving} className="flex-1">
-                  {saving ? 'Submitting…' : 'Submit for review'}
-                </Button>
+                {isStaffDraft ? (
+                  <Button
+                    type="button"
+                    onClick={async () => { await saveServiceDraftToCloud(); toast.success('Saved to the host’s draft. They’ll see it when they reopen.') }}
+                    disabled={cloudStatus === 'saving'}
+                    className="flex-1"
+                  >
+                    {cloudStatus === 'saving' ? 'Saving…' : 'Save draft'}
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => void submitCreate()} disabled={saving} className="flex-1">
+                    {saving ? 'Submitting…' : 'Submit for review'}
+                  </Button>
+                )}
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                An admin will review your listing and notify you on approval.
+                {isStaffDraft
+                  ? 'Your edits save to the host’s draft; they finish and submit it for review.'
+                  : 'An admin will review your listing and notify you on approval.'}
               </p>
             </div>
           )}
