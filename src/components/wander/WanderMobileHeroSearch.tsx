@@ -253,7 +253,7 @@ export function WanderMobileHeroSearch({
       <section className="relative overflow-hidden border-b border-white/10 bg-background">
         <div className="absolute inset-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroImageUrl} alt="" className="h-full w-full object-cover opacity-60" />
+          <img src={heroImageUrl} alt="" fetchPriority="high" decoding="async" className="h-full w-full object-cover opacity-60" />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,20,0.18),rgba(6,12,20,0.84)_52%,rgba(6,12,20,0.98)_100%)]" />
         </div>
         <div className="relative z-[1] px-4 pb-4 pt-4">

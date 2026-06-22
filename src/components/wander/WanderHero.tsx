@@ -116,6 +116,9 @@ export function WanderHero({
         <img
           src={heroImageUrl}
           alt=""
+          // LCP image — fetch it ahead of below-the-fold work.
+          fetchPriority="high"
+          decoding="async"
           className="absolute inset-0 h-full w-full object-cover object-center opacity-95"
         />
         {/*

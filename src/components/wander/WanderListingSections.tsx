@@ -14,6 +14,10 @@ type ActivityWithItems = ServiceListing & {
 type RentalWithItems = ActivityWithItems
 
 const MOBILE_MAX = 5
+// Home rows are a *preview*; the full set lives on the "View all" / search page.
+// Without this cap the desktop grid rendered every row item (up to 120 trip
+// cards = 120 images), which dominated landing load. 12 = three 4-up rows.
+const DESKTOP_MAX = 12
 
 /** Mirrors explore: dated activities with every date before today-only are “past”. */
 function activityHasUpcomingOnExploreCalendar(listing: ServiceListing, todayStr: string): boolean {
@@ -50,6 +54,7 @@ function ScrollRow({ children, viewAllHref, viewAllLabel }: { children: ReactNod
   // Mobile shows up to MOBILE_MAX cards in the scroll row, then a "View all" tile at the end.
   // Desktop falls back to the existing 4-up grid (no scroll).
   const mobileChildren = children.slice(0, MOBILE_MAX)
+  const desktopChildren = children.slice(0, DESKTOP_MAX)
   const overflow = children.length > MOBILE_MAX
   return (
     <>
@@ -77,9 +82,9 @@ function ScrollRow({ children, viewAllHref, viewAllLabel }: { children: ReactNod
         </div>
       </div>
 
-      {/* Desktop: 4-up grid (unchanged) */}
+      {/* Desktop: 4-up grid, capped to a preview (full set on "View all"). */}
       <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {children}
+        {desktopChildren}
       </div>
     </>
   )

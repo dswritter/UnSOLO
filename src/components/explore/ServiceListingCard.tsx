@@ -103,6 +103,7 @@ function PlainCard({
             src={imageUrl}
             alt={listing.title}
             fill
+            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 80vw"
             className={cn(
               'object-cover transition-transform group-hover:scale-110',
               muted && 'brightness-[0.9] saturate-90 group-hover:scale-[1.02]',
