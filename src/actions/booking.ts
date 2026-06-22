@@ -2295,25 +2295,37 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
   if (variantIndex < 0 || variantIndex >= variants.length) return { error: 'Invalid price tier.' }
 
   const newVariant = variants[variantIndex]
-  // The current tier's per-unit price: match the stored label, else the base price.
+  const newUnit = newVariant.price_paise
   const matched = variants.find((v) => v.description === booking.price_variant_label)
-  const oldUnit = matched?.price_paise ?? source?.price_paise ?? 0
   const oldGross = (booking.gross_paise ?? (booking.total_amount_paise || 0) + (booking.discount_paise || 0)) || 0
-
-  // Re-derive the coupon discount against the NEW price. A free-guests / percent
-  // coupon is worth more at a higher tier, so it must be recomputed (not kept as a
-  // fixed rupee amount); any non-coupon discount (e.g. referral) is preserved.
   const qty = booking.guests || booking.quantity || 1
-  const newGross = Math.round(oldGross * (newVariant.price_paise / Math.max(1, oldUnit)))
-  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: oldGross, unitPricePaise: oldUnit, quantity: qty })
+
+  // New gross:
+  //  - Package trips: per-person × guests, computed DIRECTLY from the chosen tier.
+  //    (The old ratio approach inflated totals when the prior per-unit price was
+  //    misresolved — e.g. 9,600 × 10,100/8,500 = 11,407. This is exact.)
+  //  - Service listings: rescale by the per-unit price ratio so quantity / nights /
+  //    weekend structure is preserved.
+  let newGross: number
+  let oldUnitForCoupon: number
+  if (booking.package_id) {
+    newGross = newUnit * (booking.guests || 1)
+    oldUnitForCoupon = matched?.price_paise ?? source?.price_paise ?? (qty > 0 ? Math.round(oldGross / qty) : oldGross)
+  } else {
+    const oldUnit = matched?.price_paise ?? source?.price_paise ?? (qty > 0 ? Math.round(oldGross / qty) : oldGross)
+    newGross = Math.round(oldGross * (newUnit / Math.max(1, oldUnit)))
+    oldUnitForCoupon = oldUnit
+  }
+
+  // Re-derive the coupon discount against the NEW price (a free-guests / percent
+  // coupon resizes with the tier); any non-coupon discount (e.g. referral) is kept.
+  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: oldGross, unitPricePaise: oldUnitForCoupon, quantity: qty })
   const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
-  const newCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: newGross, unitPricePaise: newVariant.price_paise, quantity: qty })
+  const newCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: newGross, unitPricePaise: newUnit, quantity: qty })
 
   const res = recalcBookingTierTotals({
-    oldGrossPaise: oldGross,
+    newGrossPaise: newGross,
     discountPaise: newCoupon + nonCoupon,
-    oldUnitPaise: oldUnit,
-    newUnitPaise: newVariant.price_paise,
     depositPaise: booking.deposit_paise || 0,
   })
 

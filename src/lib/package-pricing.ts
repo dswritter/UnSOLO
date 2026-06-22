@@ -11,16 +11,17 @@ const MIN_PRICE_PAISE = 100 // ₹1
 /**
  * Recompute a booking's totals when an admin switches its price tier.
  *
- * Rescales the gross by the per-unit price ratio (new tier / old tier), which
- * preserves the booking's guests/quantity/days/weekend structure without
- * re-deriving it. The customer's existing discount (offer) is kept as a fixed
- * rupee amount, capped so the total never goes negative. Pure & side-effect-free.
+ * The caller computes the new gross for the booking type (packages: per-person ×
+ * guests; service listings: rescaled by the per-unit price ratio to preserve
+ * quantity/nights). This function just applies the discount and derives the
+ * total / balance / overpayment. Pure & side-effect-free.
+ *
+ * `discountPaise` is the (re-derived) discount to keep, capped so the total never
+ * goes negative.
  */
 export function recalcBookingTierTotals(input: {
-  oldGrossPaise: number
+  newGrossPaise: number
   discountPaise: number
-  oldUnitPaise: number
-  newUnitPaise: number
   depositPaise: number
 }): {
   newGrossPaise: number
@@ -29,12 +30,8 @@ export function recalcBookingTierTotals(input: {
   balanceDuePaise: number
   overpaidPaise: number
 } {
-  const oldGross = Math.max(0, Math.round(input.oldGrossPaise))
-  const oldUnit = Math.max(1, Math.round(input.oldUnitPaise)) // avoid /0
-  const newUnit = Math.max(0, Math.round(input.newUnitPaise))
+  const newGrossPaise = Math.max(0, Math.round(input.newGrossPaise))
   const deposit = Math.max(0, Math.round(input.depositPaise))
-
-  const newGrossPaise = Math.round(oldGross * (newUnit / oldUnit))
   const discountKeptPaise = Math.max(0, Math.min(Math.round(input.discountPaise), newGrossPaise))
   const newTotalPaise = Math.max(0, newGrossPaise - discountKeptPaise)
   const balanceDuePaise = Math.max(0, newTotalPaise - deposit)

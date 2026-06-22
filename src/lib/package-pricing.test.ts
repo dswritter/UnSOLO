@@ -1,65 +1,58 @@
 import { describe, it, expect } from 'vitest'
 import { recalcBookingTierTotals } from './package-pricing'
 
+// Helper mirroring adminUpdateBookingPriceTier's package path: gross = unit × guests.
+const pkgGross = (unitPaise: number, guests: number) => unitPaise * guests
+
 describe('recalcBookingTierTotals', () => {
-  it('upgrades the tier and keeps the offer (fixed rupee amount) intact', () => {
-    // 2 guests, old tier ₹1000pp → gross 2000; ₹300 offer → total 1700; paid 1700.
-    // New tier ₹1500pp → gross 3000, offer still 300 → total 2700, balance 1000.
-    const r = recalcBookingTierTotals({
-      oldGrossPaise: 200000,
-      discountPaise: 30000,
-      oldUnitPaise: 100000,
-      newUnitPaise: 150000,
-      depositPaise: 170000,
-    })
+  it('packages: total = new gross − kept discount; balance/overpaid follow', () => {
+    const r = recalcBookingTierTotals({ newGrossPaise: 300000, discountPaise: 30000, depositPaise: 170000 })
     expect(r.newGrossPaise).toBe(300000)
-    expect(r.discountKeptPaise).toBe(30000)
     expect(r.newTotalPaise).toBe(270000)
     expect(r.balanceDuePaise).toBe(100000)
     expect(r.overpaidPaise).toBe(0)
   })
 
-  it('downgrades below what was paid → flags an overpayment, no negative balance', () => {
-    // gross 200000 paid in full (total 170000 after 30000 offer, paid 170000).
-    // New cheaper tier ₹500pp → gross 100000, offer 30000 → total 70000.
-    // Paid 170000 → overpaid 100000, balance 0.
-    const r = recalcBookingTierTotals({
-      oldGrossPaise: 200000,
-      discountPaise: 30000,
-      oldUnitPaise: 100000,
-      newUnitPaise: 50000,
-      depositPaise: 170000,
-    })
-    expect(r.newGrossPaise).toBe(100000)
-    expect(r.newTotalPaise).toBe(70000)
+  it('flags overpayment when the new total is below what was paid', () => {
+    const r = recalcBookingTierTotals({ newGrossPaise: 70000, discountPaise: 30000, depositPaise: 170000 })
+    expect(r.newTotalPaise).toBe(40000)
     expect(r.balanceDuePaise).toBe(0)
-    expect(r.overpaidPaise).toBe(100000)
-  })
-
-  it('preserves a multi-night/quantity structure via the price ratio', () => {
-    // Stay: ₹2000/night × 3 nights = gross 600000, no discount, nothing paid.
-    // Switch to ₹2500/night tier → gross 750000 (ratio 1.25 keeps the 3 nights).
-    const r = recalcBookingTierTotals({
-      oldGrossPaise: 600000,
-      discountPaise: 0,
-      oldUnitPaise: 200000,
-      newUnitPaise: 250000,
-      depositPaise: 0,
-    })
-    expect(r.newGrossPaise).toBe(750000)
-    expect(r.newTotalPaise).toBe(750000)
+    expect(r.overpaidPaise).toBe(130000)
   })
 
   it('caps the kept discount at the new gross (never negative total)', () => {
-    const r = recalcBookingTierTotals({
-      oldGrossPaise: 200000,
-      discountPaise: 50000,
-      oldUnitPaise: 100000,
-      newUnitPaise: 20000, // new gross 40000 < 50000 discount
-      depositPaise: 0,
-    })
-    expect(r.newGrossPaise).toBe(40000)
+    const r = recalcBookingTierTotals({ newGrossPaise: 40000, discountPaise: 50000, depositPaise: 0 })
     expect(r.discountKeptPaise).toBe(40000)
     expect(r.newTotalPaise).toBe(0)
+  })
+})
+
+// Regression: the exact numbers from the reported inflated-price bug. With the
+// direct package formula (unit × guests) there is no ratio inflation.
+describe('tier change — package gross (no ratio inflation)', () => {
+  it('1 guest, 9,600 → 8,500 ⇒ total ₹8,500 (was wrongly unchanged)', () => {
+    const r = recalcBookingTierTotals({ newGrossPaise: pkgGross(850000, 1), discountPaise: 0, depositPaise: 200000 })
+    expect(r.newTotalPaise).toBe(850000)
+    expect(r.balanceDuePaise).toBe(650000)
+  })
+
+  it('1 guest, 9,600 → 10,100 ⇒ total ₹10,100 (was wrongly ₹11,407)', () => {
+    const r = recalcBookingTierTotals({ newGrossPaise: pkgGross(1010000, 1), discountPaise: 0, depositPaise: 200000 })
+    expect(r.newTotalPaise).toBe(1010000)
+    expect(r.balanceDuePaise).toBe(810000)
+  })
+
+  it('2 guests, 9,600pp → 8,500pp ⇒ total ₹17,000', () => {
+    const r = recalcBookingTierTotals({ newGrossPaise: pkgGross(850000, 2), discountPaise: 0, depositPaise: 0 })
+    expect(r.newTotalPaise).toBe(1700000)
+  })
+
+  it('6 guests, 1-free-guest coupon, ₹10,100pp ⇒ gross 60,600, discount 10,100, total 50,500', () => {
+    const gross = pkgGross(1010000, 6) // 6,060,000 paise
+    const freeGuestDiscount = 1010000 // 1 free guest at the new per-person price
+    const r = recalcBookingTierTotals({ newGrossPaise: gross, discountPaise: freeGuestDiscount, depositPaise: 200000 })
+    expect(r.newGrossPaise).toBe(6060000)
+    expect(r.discountKeptPaise).toBe(1010000)
+    expect(r.newTotalPaise).toBe(5050000)
   })
 })
