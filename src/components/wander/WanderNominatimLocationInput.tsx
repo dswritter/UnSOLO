@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
@@ -54,10 +55,17 @@ export function WanderNominatimLocationInput({
   const reqIdRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLElement | null>(null)
+  // The suggestions panel is portaled to <body> with fixed coords so it can't be
+  // clipped or covered by sibling cards' stacking contexts (backdrop-blur panels).
+  const [panelStyle, setPanelStyle] = useState<CSSProperties | undefined>(undefined)
 
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (rootRef.current?.contains(t)) return
+      if (panelRef.current?.contains(t)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', onDocDown)
     return () => {
@@ -66,6 +74,27 @@ export function WanderNominatimLocationInput({
       abortRef.current?.abort()
     }
   }, [])
+
+  // Keep the portaled panel pinned under the input.
+  useEffect(() => {
+    if (!open) {
+      setPanelStyle(undefined)
+      return
+    }
+    function place() {
+      const el = rootRef.current
+      if (!el || typeof window === 'undefined') return
+      const r = el.getBoundingClientRect()
+      setPanelStyle({ position: 'fixed', top: Math.round(r.bottom + 4), left: Math.round(r.left), width: Math.round(r.width), zIndex: 9999 })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
 
   const runSearch = useCallback(
     (q: string) => {
@@ -152,12 +181,14 @@ export function WanderNominatimLocationInput({
         </span>
       )}
 
-      {open && results.length > 0 && (
+      {open && results.length > 0 && typeof document !== 'undefined' && createPortal(
         <ul
+          ref={(el) => { panelRef.current = el }}
+          style={panelStyle}
           id={listId}
           role="listbox"
           className={cn(
-            'absolute z-[100] top-full left-0 right-0 mt-1 rounded-lg border shadow-xl max-h-56 overflow-y-auto',
+            'rounded-lg border shadow-2xl max-h-56 overflow-y-auto',
             wander
               ? 'border-white/20 bg-zinc-950/98 text-white [color-scheme:dark]'
               : 'border-border bg-card text-foreground',
@@ -200,18 +231,22 @@ export function WanderNominatimLocationInput({
               </button>
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
 
-      {open && !searching && value.trim().length >= 3 && results.length === 0 && (
+      {open && !searching && value.trim().length >= 3 && results.length === 0 && typeof document !== 'undefined' && createPortal(
         <div
+          ref={(el) => { panelRef.current = el }}
+          style={panelStyle}
           className={cn(
-            'absolute z-[100] top-full left-0 right-0 mt-1 rounded-lg border shadow-xl px-3 py-3 text-sm',
+            'rounded-lg border shadow-2xl px-3 py-3 text-sm',
             wander ? 'border-white/20 bg-zinc-950/98 text-white/60' : 'border-border bg-card text-muted-foreground',
           )}
         >
           No places found — try a nearby city or district
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )
