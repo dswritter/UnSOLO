@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo, type ComponentProps } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, type ComponentProps } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,7 @@ import {
   upsertHostTripDraft,
   type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
+import { saveListingDraft } from '@/actions/listing-drafts'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -561,6 +562,63 @@ export function HostTripForm({
     }, 900)
     return () => clearTimeout(t)
   }, [isEdit, loading, draftSessionId, createDraftBody])
+
+  // ── Cloud sync (so the onboarding team can see in-progress drafts) ──────────
+  // Saved on STAGE TRANSITIONS + when leaving the page — not on every keystroke.
+  const [cloudStatus, setCloudStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const cloudLatestRef = useRef({ draftSessionId, body: createDraftBody, step })
+  cloudLatestRef.current = { draftSessionId, body: createDraftBody, step }
+  const cloudInFlightRef = useRef(false)
+
+  const saveDraftToCloud = useCallback(async () => {
+    if (isEdit) return
+    const { draftSessionId: id, body, step: s } = cloudLatestRef.current
+    if (!id || !isHostTripCreateDraftNonEmpty(body) || cloudInFlightRef.current) return
+    cloudInFlightRef.current = true
+    setCloudStatus('saving')
+    try {
+      const res = await saveListingDraft({
+        kind: 'trip',
+        localId: id,
+        title: body.title || null,
+        destinationLabel: body.destination?.name || null,
+        step: body.step ?? s,
+        payload: body,
+      })
+      setCloudStatus(res && 'success' in res ? 'saved' : 'idle')
+    } catch {
+      setCloudStatus('idle')
+    } finally {
+      cloudInFlightRef.current = false
+    }
+  }, [isEdit])
+
+  // Save once the local draft has loaded (covers existing drafts re-opened after
+  // deploy, and the first/last steps that have no adjacent step to trigger on).
+  const cloudMigratedRef = useRef(false)
+  useEffect(() => {
+    if (loading || isEdit || cloudMigratedRef.current) return
+    cloudMigratedRef.current = true
+    void saveDraftToCloud()
+  }, [loading, isEdit, saveDraftToCloud])
+
+  // Save when the host moves between steps.
+  const prevCloudStepRef = useRef(step)
+  useEffect(() => {
+    if (loading || isEdit) return
+    if (prevCloudStepRef.current !== step) {
+      prevCloudStepRef.current = step
+      void saveDraftToCloud()
+    }
+  }, [step, loading, isEdit, saveDraftToCloud])
+
+  // Best-effort save when switching tabs / hiding the page.
+  useEffect(() => {
+    if (isEdit) return
+    const onHide = () => { if (document.visibilityState === 'hidden') void saveDraftToCloud() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [isEdit, saveDraftToCloud])
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -2246,6 +2304,17 @@ export function HostTripForm({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Cloud-save indicator (drafts the onboarding team can see) */}
+          {!isEdit && cloudStatus !== 'idle' && (
+            <p className="mt-6 text-[11px] text-muted-foreground flex items-center gap-1.5">
+              {cloudStatus === 'saving' ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Saving progress to cloud…</>
+              ) : (
+                <><Check className="h-3 w-3 text-green-500" /> Progress saved to cloud</>
+              )}
+            </p>
           )}
 
           {/* Navigation Buttons */}

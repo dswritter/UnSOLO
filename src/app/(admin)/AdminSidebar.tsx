@@ -80,6 +80,13 @@ const navItems: {
     permissionKey: 'community_trips',
   },
   {
+    href: '/admin/host-drafts',
+    label: 'Listings in progress',
+    icon: Mountain,
+    roles: ['admin', 'host_onboarding_staff'],
+    permissionKey: 'community_trips',
+  },
+  {
     href: '/admin/trip-groups',
     label: 'Trip Groups',
     icon: MessageCircle,
