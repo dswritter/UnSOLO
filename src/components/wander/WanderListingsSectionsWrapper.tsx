@@ -19,6 +19,7 @@ type RentalWithItems = ActivityWithItems
 export function WanderListingsSectionsWrapper({
   trips,
   tripInterestCounts,
+  spotsBookedByTrip,
   interestedPackageIds,
   stays,
   activities,
@@ -27,6 +28,7 @@ export function WanderListingsSectionsWrapper({
 }: {
   trips: Package[]
   tripInterestCounts?: Record<string, number>
+  spotsBookedByTrip?: Record<string, number>
   interestedPackageIds?: string[]
   stays: ActivityWithItems[]
   activities: ActivityWithItems[]
@@ -64,6 +66,7 @@ export function WanderListingsSectionsWrapper({
     <WanderListingSections
       trips={trips}
       tripInterestCounts={tripInterestCounts}
+      spotsBookedByTrip={spotsBookedByTrip}
       interestedPackageIds={interestedPackageIds}
       stays={stays}
       activities={activities}

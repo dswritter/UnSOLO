@@ -7,6 +7,7 @@ import {
   getWanderRentalRow,
   getWanderServiceItemsForListings,
 } from '@/lib/wander/wanderQueries'
+import { fetchPackagePopularityMaps } from '@/lib/explore-package-popularity'
 import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListingsSectionsWrapper'
 import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
@@ -54,6 +55,13 @@ export async function WanderListingRowsServer() {
 
   if (!stays || !activities || !rentals) return null
 
+  // Booked-guests per trip → "Only N left" badge on the home cards (same source as Explore).
+  let spotsBookedByTrip: Record<string, number> = {}
+  if (tp.packages.length > 0) {
+    const { bookedGuests } = await fetchPackagePopularityMaps(supabase, tp.packages.map((p) => p.id))
+    spotsBookedByTrip = Object.fromEntries(bookedGuests)
+  }
+
   return (
     <div className="border-t border-border/50">
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
@@ -61,6 +69,7 @@ export async function WanderListingRowsServer() {
         <WanderListingsSectionsWrapper
           trips={tp.packages}
           tripInterestCounts={tp.interestCounts}
+          spotsBookedByTrip={spotsBookedByTrip}
           interestedPackageIds={landingInterestedPackageIds}
           stays={stays}
           activities={activities}

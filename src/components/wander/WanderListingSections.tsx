@@ -88,6 +88,7 @@ function ScrollRow({ children, viewAllHref, viewAllLabel }: { children: ReactNod
 export function WanderListingSections({
   trips,
   tripInterestCounts = {},
+  spotsBookedByTrip = {},
   interestedPackageIds = [],
   stays,
   activities,
@@ -102,6 +103,7 @@ export function WanderListingSections({
 }: {
   trips: Package[]
   tripInterestCounts?: Record<string, number>
+  spotsBookedByTrip?: Record<string, number>
   interestedPackageIds?: string[]
   stays: ActivityWithItems[]
   activities: ActivityWithItems[]
@@ -149,6 +151,7 @@ export function WanderListingSections({
                 pastEdition={pastTripIds.has(p.id)}
                 interestCount={tripInterestCounts[p.id] ?? 0}
                 interestedPackageIds={interestedPackageIds}
+                spotsBooked={spotsBookedByTrip[p.id] ?? 0}
               />
             ))}
           </ScrollRow>

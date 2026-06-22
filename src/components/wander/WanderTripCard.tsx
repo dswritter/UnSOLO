@@ -30,9 +30,12 @@ type Props = {
   interestedPackageIds: string[]
   /** Render like explore “past” editions: subdued card + Past trip badge. */
   pastEdition?: boolean
+  /** Guests already booked across this package's departures (for "Only N left"). */
+  spotsBooked?: number
 }
 
-export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastEdition = false }: Props) {
+export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastEdition = false, spotsBooked = 0 }: Props) {
+  const spotsLeft = pkg.max_group_size ? pkg.max_group_size - spotsBooked : null
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
   const interestedSet = new Set(interestedPackageIds)
@@ -127,6 +130,9 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
             <Badge variant="outline" className={cn('text-[10px] capitalize border', DIFF[pkg.difficulty] || '')}>
               {pkg.difficulty}
             </Badge>
+            {!pastEdition && spotsLeft != null && spotsLeft > 0 && spotsLeft <= 5 ? (
+              <Badge className="text-[10px] border-none bg-red-500/85 text-white">Only {spotsLeft} left!</Badge>
+            ) : null}
           </div>
           <button
             type="button"
