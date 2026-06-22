@@ -41,7 +41,7 @@ import {
   upsertHostTripDraft,
   type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
-import { saveListingDraft, markListingDraftSubmitted, getMyListingDraft } from '@/actions/listing-drafts'
+import { saveListingDraft, saveListingDraftAsStaff, markListingDraftSubmitted, getMyListingDraft } from '@/actions/listing-drafts'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -122,13 +122,20 @@ const STEPS = [
 export function HostTripForm({
   editTripId,
   resumeDraftId,
+  staffDraftId,
+  staffDraftPayload,
 }: {
   editTripId?: string
   /** When set, load this draft from local storage; plain `/host/create` always starts blank. */
   resumeDraftId?: string
+  /** Admin/onboarding staff editing a host's cloud draft via the full form. Saves go
+   *  to that draft (not a new package); the host completes & submits later. */
+  staffDraftId?: string
+  staffDraftPayload?: HostTripDraftPayload
 }) {
   const router = useRouter()
   const isEdit = !!editTripId
+  const isStaffDraft = !!staffDraftId
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -209,8 +216,90 @@ export function HostTripForm({
     }
   }, [])
 
+  // Hydrate all form fields from a draft payload (used by local resume, the host's
+  // cloud-resume, and staff cloud-draft editing).
+  const hydrateTripDraft = useCallback((draft: HostTripDraftPayload, dests: Destination[]) => {
+    if (draft.destination && !dests.some((d) => d.id === draft.destination!.id)) {
+      setDestinations([...dests, draft.destination].sort((a, b) => a.name.localeCompare(b.name)))
+    }
+    const maxStep = STEPS.length - 1
+    setStep(Math.min(Math.max(0, draft.step), maxStep))
+    setTitle(draft.title ?? '')
+    setDestinationId(draft.destinationId ?? '')
+    setDescription(draft.description ?? '')
+    setShortDescription(draft.shortDescription ?? '')
+    setPriceRows(
+      Array.isArray(draft.priceRows) && draft.priceRows.length > 0
+        ? draft.priceRows.map((r) => ({
+            rupees: r.rupees ?? '',
+            compareRupees: r.compareRupees ?? '',
+            facilities: r.facilities ?? '',
+          }))
+        : [{ rupees: '', compareRupees: '', facilities: '' }],
+    )
+    setTripDays(draft.tripDays ?? '')
+    setTripNights(draft.tripNights ?? '')
+    setExcludeFirstTravel(draft.excludeFirstTravel !== false)
+    setDepartureTime(draft.departureTime === 'evening' ? 'evening' : 'morning')
+    setReturnTime(draft.returnTime === 'evening' ? 'evening' : 'morning')
+    setMaxGroupSize(draft.maxGroupSize ?? '12')
+    if (draft.standardFlow === 'pay_on_booking' || draft.standardFlow === 'after_host_approval') {
+      setStandardFlow(draft.standardFlow)
+      setTokenDepositEnabled(!!draft.tokenDepositEnabled)
+      if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
+    } else if (draft.paymentTiming === 'pay_on_booking') {
+      setStandardFlow('pay_on_booking')
+      setTokenDepositEnabled(!!draft.tokenDepositEnabled)
+      if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
+    } else if (draft.paymentTiming === 'token_to_book') {
+      setStandardFlow('pay_on_booking')
+      setTokenDepositEnabled(true)
+      if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
+    } else {
+      setStandardFlow('after_host_approval')
+      setTokenDepositEnabled(!!draft.tokenDepositEnabled)
+      if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
+    }
+    setDifficulty(draft.difficulty || 'moderate')
+    setScheduleRows(
+      Array.isArray(draft.scheduleRows) && draft.scheduleRows.length > 0
+        ? draft.scheduleRows.map((r) => ({ dep: r.dep ?? '', ret: r.ret ?? '' }))
+        : [{ dep: '', ret: '' }],
+    )
+    setSelectedIncludes(Array.isArray(draft.selectedIncludes) ? [...draft.selectedIncludes] : [])
+    setImages(Array.isArray(draft.images) ? [...draft.images] : [])
+    setMinAge(draft.minAge ?? '')
+    setMaxAge(draft.maxAge ?? '')
+    setGenderPreference(
+      draft.genderPreference === 'men' || draft.genderPreference === 'women' ? draft.genderPreference : 'all',
+    )
+    setMinTripsCompleted(draft.minTripsCompleted ?? '')
+    setInterestTags(Array.isArray(draft.interestTags) ? [...draft.interestTags] : [])
+  }, [])
+
   useEffect(() => {
     async function load() {
+      // Staff editing a host's cloud draft via the full form: hydrate from the
+      // passed payload, skip the host-verify flow, and don't touch local storage.
+      if (isStaffDraft && staffDraftPayload) {
+        const [dests, includes] = await Promise.all([getDestinationsPublic(), getIncludesOptionsPublic()])
+        setDestinations(dests)
+        setIncludesOptions(includes)
+        const { createClient: cc } = await import('@/lib/supabase/client')
+        const sb = cc()
+        const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
+        if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 50)
+        const { data: feeSetting } = await sb.from('platform_settings').select('value').eq('key', 'platform_fee_percent').single()
+        if (feeSetting?.value != null) {
+          const f = parseFloat(String(feeSetting.value).trim())
+          if (Number.isFinite(f) && f >= 0 && f <= 100) setPlatformFeePercent(Math.round(f * 100) / 100)
+        }
+        setDraftSessionId(staffDraftId!)
+        hydrateTripDraft(staffDraftPayload, dests)
+        setLoading(false)
+        return
+      }
+
       const hostStatus = await checkIsHost()
       if (!hostStatus.authenticated) {
         router.push('/login')
@@ -358,63 +447,7 @@ export function HostTripForm({
 
         if (draftPayload && isHostTripCreateDraftNonEmpty(draftPayload)) {
           draftSaveNotifiedRef.current = true
-          const draft = draftPayload
-          if (draft.destination && !dests.some((d) => d.id === draft.destination!.id)) {
-            setDestinations([...dests, draft.destination].sort((a, b) => a.name.localeCompare(b.name)))
-          }
-          const maxStep = STEPS.length - 1
-          setStep(Math.min(Math.max(0, draft.step), maxStep))
-          setTitle(draft.title ?? '')
-          setDestinationId(draft.destinationId ?? '')
-          setDescription(draft.description ?? '')
-          setShortDescription(draft.shortDescription ?? '')
-          setPriceRows(
-            Array.isArray(draft.priceRows) && draft.priceRows.length > 0
-              ? draft.priceRows.map((r) => ({
-                  rupees: r.rupees ?? '',
-                  compareRupees: r.compareRupees ?? '',
-                  facilities: r.facilities ?? '',
-                }))
-              : [{ rupees: '', compareRupees: '', facilities: '' }],
-          )
-          setTripDays(draft.tripDays ?? '')
-          setTripNights(draft.tripNights ?? '')
-          setExcludeFirstTravel(draft.excludeFirstTravel !== false)
-          setDepartureTime(draft.departureTime === 'evening' ? 'evening' : 'morning')
-          setReturnTime(draft.returnTime === 'evening' ? 'evening' : 'morning')
-          setMaxGroupSize(draft.maxGroupSize ?? '12')
-          if (draft.standardFlow === 'pay_on_booking' || draft.standardFlow === 'after_host_approval') {
-            setStandardFlow(draft.standardFlow)
-            setTokenDepositEnabled(!!draft.tokenDepositEnabled)
-            if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
-          } else if (draft.paymentTiming === 'pay_on_booking') {
-            setStandardFlow('pay_on_booking')
-            setTokenDepositEnabled(!!draft.tokenDepositEnabled)
-            if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
-          } else if (draft.paymentTiming === 'token_to_book') {
-            setStandardFlow('pay_on_booking')
-            setTokenDepositEnabled(true)
-            if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
-          } else {
-            setStandardFlow('after_host_approval')
-            setTokenDepositEnabled(!!draft.tokenDepositEnabled)
-            if (draft.tokenAmountRupees) setTokenAmountRupees(draft.tokenAmountRupees)
-          }
-          setDifficulty(draft.difficulty || 'moderate')
-          setScheduleRows(
-            Array.isArray(draft.scheduleRows) && draft.scheduleRows.length > 0
-              ? draft.scheduleRows.map((r) => ({ dep: r.dep ?? '', ret: r.ret ?? '' }))
-              : [{ dep: '', ret: '' }],
-          )
-          setSelectedIncludes(Array.isArray(draft.selectedIncludes) ? [...draft.selectedIncludes] : [])
-          setImages(Array.isArray(draft.images) ? [...draft.images] : [])
-          setMinAge(draft.minAge ?? '')
-          setMaxAge(draft.maxAge ?? '')
-          setGenderPreference(
-            draft.genderPreference === 'men' || draft.genderPreference === 'women' ? draft.genderPreference : 'all',
-          )
-          setMinTripsCompleted(draft.minTripsCompleted ?? '')
-          setInterestTags(Array.isArray(draft.interestTags) ? [...draft.interestTags] : [])
+          hydrateTripDraft(draftPayload, dests)
           toast.message('Continuing from your saved draft')
         } else if (resumeDraftId && !resuming) {
           toast.message('That draft was not found or may have expired. Starting a new trip.')
@@ -424,7 +457,7 @@ export function HostTripForm({
       setLoading(false)
     }
     load()
-  }, [router, editTripId, resumeDraftId])
+  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft])
 
   const today = (() => {
     const d = new Date()
@@ -554,7 +587,8 @@ export function HostTripForm({
   createDraftRiskyRef.current = createDraftRisky
 
   useEffect(() => {
-    if (isEdit || loading || !draftSessionId) return
+    // No local-storage draft when staff are editing a host's cloud draft.
+    if (isEdit || isStaffDraft || loading || !draftSessionId) return
     const t = window.setTimeout(() => {
       if (isHostTripCreateDraftNonEmpty(createDraftBody)) {
         upsertHostTripDraft(draftSessionId, createDraftBody)
@@ -587,21 +621,30 @@ export function HostTripForm({
     cloudInFlightRef.current = true
     setCloudStatus('saving')
     try {
-      const res = await saveListingDraft({
-        kind: 'trip',
-        localId: id,
-        title: body.title || null,
-        destinationLabel: body.destination?.name || null,
-        step: body.step ?? s,
-        payload: body,
-      })
+      // Staff editing a host's draft writes to THAT draft row; otherwise the host
+      // saves their own.
+      const res = isStaffDraft
+        ? await saveListingDraftAsStaff(staffDraftId!, {
+            title: body.title || null,
+            destinationLabel: body.destination?.name || null,
+            step: body.step ?? s,
+            payload: body,
+          })
+        : await saveListingDraft({
+            kind: 'trip',
+            localId: id,
+            title: body.title || null,
+            destinationLabel: body.destination?.name || null,
+            step: body.step ?? s,
+            payload: body,
+          })
       setCloudStatus(res && 'success' in res ? 'saved' : 'idle')
     } catch {
       setCloudStatus('idle')
     } finally {
       cloudInFlightRef.current = false
     }
-  }, [isEdit])
+  }, [isEdit, isStaffDraft, staffDraftId])
 
   // Save once the local draft has loaded (covers existing drafts re-opened after
   // deploy, and the first/last steps that have no adjacent step to trigger on).
@@ -2396,23 +2439,34 @@ export function HostTripForm({
                   <Eye className="h-4 w-4" />
                   Preview
                 </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="bg-primary text-primary-foreground font-bold gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      {isEdit ? 'Saving...' : 'Submitting...'}
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      {isEdit ? 'Save changes' : 'Submit for Review'}
-                    </>
-                  )}
-                </Button>
+                {isStaffDraft ? (
+                  <Button
+                    onClick={async () => { await saveDraftToCloud(); toast.success('Saved to the host’s draft. They’ll see it when they reopen.') }}
+                    disabled={cloudStatus === 'saving'}
+                    className="bg-primary text-primary-foreground font-bold gap-1.5"
+                  >
+                    <Check className="h-4 w-4" />
+                    {cloudStatus === 'saving' ? 'Saving…' : 'Save draft'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="bg-primary text-primary-foreground font-bold gap-1.5"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {isEdit ? 'Saving...' : 'Submitting...'}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        {isEdit ? 'Save changes' : 'Submit for Review'}
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             )}
           </div>
