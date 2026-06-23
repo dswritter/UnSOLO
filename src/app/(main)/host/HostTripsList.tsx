@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { toggleHostTripActive, toggleHostTripDateClosed, getJoinRequestsForTrip, approveJoinRequest, rejectJoinRequest } from '@/actions/hosting'
+import { toggleHostTripActive, toggleHostTripDateClosed, setDepartureCutoffDate, toggleTripBookingsPaused, getJoinRequestsForTrip, approveJoinRequest, rejectJoinRequest } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -44,6 +44,8 @@ interface Trip {
   trip_nights?: number | null
   departure_dates: string[] | null
   departure_dates_closed?: string[] | null
+  booking_cutoff_dates?: Record<string, string> | null
+  bookings_paused?: boolean | null
   images: string[] | null
   max_group_size: number
   pending_requests: number
@@ -214,6 +216,28 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
         t.id === tripId ? { ...t, departure_dates_closed: res.departure_dates_closed } : t,
       ))
       toast.success(closed ? 'Marked full for that date' : 'Reopened spots for that date')
+    })
+  }
+
+  function handleSetCutoff(tripId: string, date: string, cutoff: string | null) {
+    startTransition(async () => {
+      const res = await setDepartureCutoffDate(tripId, date, cutoff)
+      if ('error' in res) { toast.error(res.error); return }
+      setTrips(prev => prev.map(t =>
+        t.id === tripId ? { ...t, booking_cutoff_dates: res.booking_cutoff_dates } : t,
+      ))
+      toast.success(cutoff ? `Bookings for that date close on ${formatDate(cutoff)}` : 'Booking deadline removed')
+    })
+  }
+
+  function handleTogglePause(tripId: string) {
+    startTransition(async () => {
+      const res = await toggleTripBookingsPaused(tripId)
+      if ('error' in res) { toast.error(res.error); return }
+      setTrips(prev => prev.map(t =>
+        t.id === tripId ? { ...t, bookings_paused: res.bookings_paused } : t,
+      ))
+      toast.success(res.bookings_paused ? 'Bookings paused — trip still visible' : 'Bookings re-opened')
     })
   }
 
@@ -473,43 +497,77 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                             w ? 'text-white/80' : 'text-muted-foreground',
                           )}
                         >
-                          Mark seats full (per date)
+                          Manage slots per date
                         </p>
                         {[...trip.departure_dates!].sort().map((date) => {
+                          const dateKey = tripDepartureDateKey(date)
                           const isClosed = new Set((trip.departure_dates_closed || []).map(tripDepartureDateKey))
-                            .has(tripDepartureDateKey(date))
+                            .has(dateKey)
+                          const cutoffs = (trip.booking_cutoff_dates || {}) as Record<string, string>
+                          const currentCutoff = cutoffs[dateKey] ?? ''
                           return (
                             <div
                               key={date}
                               className={cn(
-                                'flex items-center justify-between gap-2 flex-wrap text-[11px]',
+                                'space-y-1.5 text-[11px]',
                                 w && 'text-white/85',
                               )}
                             >
-                              <span className={cn(!w && 'text-muted-foreground')}>{formatDate(date)}</span>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <Badge
-                                  className={cn(
-                                    'text-[9px] font-medium border',
-                                    w ? hostSeatDateBadgeClassForest(isClosed) : hostSeatDateBadgeClass(isClosed),
-                                  )}
-                                >
-                                  {isClosed ? 'Full' : 'Open'}
-                                </Badge>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className={cn(
-                                    'h-7 text-[10px] px-2',
-                                    w &&
-                                      'border-white/35 bg-white/[0.08] text-white hover:bg-white/15 hover:text-white',
-                                  )}
+                              {/* Row: date + full/open badge + mark-full button */}
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                                <span className={cn('font-medium', !w && 'text-muted-foreground')}>{formatDate(date)}</span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Badge
+                                    className={cn(
+                                      'text-[9px] font-medium border',
+                                      w ? hostSeatDateBadgeClassForest(isClosed) : hostSeatDateBadgeClass(isClosed),
+                                    )}
+                                  >
+                                    {isClosed ? 'Full' : 'Open'}
+                                  </Badge>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className={cn(
+                                      'h-7 text-[10px] px-2',
+                                      w && 'border-white/35 bg-white/[0.08] text-white hover:bg-white/15 hover:text-white',
+                                    )}
+                                    disabled={isPending}
+                                    onClick={() => handleToggleDateClosed(trip.id, date, !isClosed)}
+                                  >
+                                    {isClosed ? 'Reopen' : 'Mark full'}
+                                  </Button>
+                                </div>
+                              </div>
+                              {/* Row: booking deadline input */}
+                              <div className="flex items-center gap-1.5 pl-0.5">
+                                <span className={cn('shrink-0', w ? 'text-white/55' : 'text-muted-foreground/80')}>
+                                  Last day to book:
+                                </span>
+                                <input
+                                  type="date"
+                                  max={date}
+                                  value={currentCutoff}
                                   disabled={isPending}
-                                  onClick={() => handleToggleDateClosed(trip.id, date, !isClosed)}
-                                >
-                                  {isClosed ? 'Reopen' : 'Mark full'}
-                                </Button>
+                                  onChange={(e) => handleSetCutoff(trip.id, date, e.target.value || null)}
+                                  className={cn(
+                                    'flex-1 min-w-0 rounded border px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50',
+                                    w
+                                      ? 'bg-white/[0.08] border-white/25 text-white'
+                                      : 'bg-secondary border-border text-foreground',
+                                  )}
+                                />
+                                {currentCutoff && (
+                                  <button
+                                    type="button"
+                                    disabled={isPending}
+                                    onClick={() => handleSetCutoff(trip.id, date, null)}
+                                    className={cn('text-[10px] shrink-0 hover:underline', w ? 'text-white/55' : 'text-muted-foreground')}
+                                  >
+                                    Clear
+                                  </button>
+                                )}
                               </div>
                             </div>
                           )
@@ -548,6 +606,23 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     <Users className={cn('h-3.5 w-3.5', w && 'text-[#fcba03]')} />
                     {trip.approved_requests}
                   </span>
+                  {/* Pause bookings — trip stays visible but can't be booked */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={cn(
+                      'gap-1 text-xs',
+                      w && 'hover:bg-white/10',
+                      trip.bookings_paused
+                        ? w ? 'text-amber-300 hover:text-amber-200' : 'text-amber-600 dark:text-amber-400'
+                        : w ? 'text-white/60 hover:text-white/90' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => handleTogglePause(trip.id)}
+                    disabled={isPending}
+                    title={trip.bookings_paused ? 'Bookings paused — click to re-open' : 'Pause new bookings (trip stays visible)'}
+                  >
+                    {trip.bookings_paused ? '⏸ Paused' : '⏸'}
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"

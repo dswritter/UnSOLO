@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { moderateCommunityTrip, updatePackage, hardDeletePackage } from '@/actions/admin'
 import { releaseHostPayout } from '@/actions/host-payout'
+import { toggleTripBookingsPaused } from '@/actions/hosting'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
@@ -82,6 +83,16 @@ export default function CommunityTripsClient({
       }
       toast.success(!currentlyFeatured ? 'Trip is now featured on Explore' : 'Removed from featured')
       setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, is_featured: !currentlyFeatured } : t)))
+    })
+  }
+
+  function handleTogglePause(tripId: string) {
+    startTransition(async () => {
+      const res = await toggleTripBookingsPaused(tripId)
+      if ('error' in res) { toast.error(res.error as string); return }
+      const paused = res.bookings_paused
+      toast.success(paused ? 'Bookings paused — trip is still visible but cannot be booked.' : 'Bookings resumed.')
+      setTrips((prev) => prev.map((t) => (t.id === tripId ? { ...t, bookings_paused: paused } : t)))
     })
   }
 
@@ -474,6 +485,11 @@ export default function CommunityTripsClient({
                       <Star className="h-3 w-3 mr-0.5 inline fill-primary" /> Featured
                     </Badge>
                   )}
+                  {trip.bookings_paused && (
+                    <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px]">
+                      ⏸ Paused
+                    </Badge>
+                  )}
                   <span className="text-primary font-bold text-sm ml-auto">{formatPrice(trip.price_paise)}</span>
                 </div>
               </button>
@@ -625,6 +641,15 @@ export default function CommunityTripsClient({
                         <Eye className="h-3 w-3 mr-1" /> Preview
                       </Button>
                     </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleTogglePause(trip.id)}
+                      disabled={isPending}
+                      className={`text-xs ${trip.bookings_paused ? 'border-amber-500/50 text-amber-400 hover:bg-amber-500/10' : 'border-border text-muted-foreground'}`}
+                    >
+                      {trip.bookings_paused ? '▶ Resume bookings' : '⏸ Pause bookings'}
+                    </Button>
                     {trip.moderation_status === 'approved' && (
                       <label className="flex items-center gap-2 text-xs cursor-pointer border border-border rounded-lg px-3 py-2 bg-secondary/30">
                         <input

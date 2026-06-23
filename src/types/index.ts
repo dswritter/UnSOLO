@@ -200,6 +200,10 @@ export type Package = {
   departure_dates: string[] | null
   /** Departure start dates the host marked full (no new bookings). */
   departure_dates_closed?: string[] | null
+  /** Last day bookings are accepted per departure date key. */
+  booking_cutoff_dates?: Record<string, string> | null
+  /** When true the trip is visible but not accepting new bookings. */
+  bookings_paused?: boolean | null
   host_id: string | null
   /** Per-listing WhatsApp number override (digits only, country code first). NULL = use platform default. */
   whatsapp_number?: string | null

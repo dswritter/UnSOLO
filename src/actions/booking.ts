@@ -718,9 +718,25 @@ export async function createRazorpayOrder(
     return { error: 'Travel date cannot be in the past' }
   }
 
+  if (pkg.bookings_paused) {
+    return { error: 'This trip is not accepting new bookings right now.' }
+  }
+
   const closedDates = (pkg.departure_dates_closed || []).map(tripDepartureDateKey)
   if (closedDates.includes(tripDepartureDateKey(travelDate))) {
     return { error: 'No spots left for this date' }
+  }
+
+  {
+    const cutoffs = (pkg.booking_cutoff_dates || {}) as Record<string, string>
+    const cutoffIso = cutoffs[tripDepartureDateKey(travelDate)]
+    if (cutoffIso) {
+      const cutoff = new Date(cutoffIso)
+      cutoff.setHours(23, 59, 59, 999)
+      if (new Date() > cutoff) {
+        return { error: 'Bookings for this departure date are no longer being accepted.' }
+      }
+    }
   }
 
   // Multi-booking conflict rules (allow / warn / prevent). A user may book a trip
@@ -2896,7 +2912,7 @@ export async function createCommunityTripOrder(
   const { data: request } = await supabase
     .from('join_requests')
     .select(
-      '*, trip:packages(id, title, price_paise, host_id, departure_dates, departure_dates_closed, duration_days, join_preferences)',
+      '*, trip:packages(id, title, price_paise, host_id, departure_dates, departure_dates_closed, booking_cutoff_dates, bookings_paused, duration_days, join_preferences)',
     )
     .eq('id', joinRequestId)
     .eq('user_id', user.id)
@@ -2916,6 +2932,8 @@ export async function createCommunityTripOrder(
     host_id: string
     departure_dates?: string[] | null
     departure_dates_closed?: string[] | null
+    booking_cutoff_dates?: Record<string, string> | null
+    bookings_paused?: boolean | null
     duration_days?: number
     join_preferences?: unknown
   }
@@ -2979,9 +2997,23 @@ export async function createCommunityTripOrder(
   const discountTotalPaise = grossList - afterDiscounts
 
   const today = new Date().toISOString().split('T')[0]
+  if (trip.bookings_paused) {
+    return { error: 'This trip is not accepting new bookings right now.' }
+  }
+
+  const cutoffs = (trip.booking_cutoff_dates || {}) as Record<string, string>
   const closedSet = new Set((trip.departure_dates_closed || []).map(tripDepartureDateKey))
   const depKeys = (trip.departure_dates || []).map(tripDepartureDateKey)
-  const travelDate = depKeys.find(d => d >= today && !closedSet.has(d)) ?? null
+  const travelDate = depKeys.find((d) => {
+    if (d < today || closedSet.has(d)) return false
+    const cutoffIso = cutoffs[d]
+    if (cutoffIso) {
+      const cutoff = new Date(cutoffIso)
+      cutoff.setHours(23, 59, 59, 999)
+      if (new Date() > cutoff) return false
+    }
+    return true
+  }) ?? null
   if (!travelDate) {
     return { error: 'This trip has no open departure dates right now. Contact the host or try again later.' }
   }

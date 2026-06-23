@@ -276,13 +276,25 @@ export default async function PackageDetailPage({
     const closedDates = new Set(
       (package_.departure_dates_closed || []).map(tripDepartureDateKey),
     )
+    const cutoffs = (package_.booking_cutoff_dates || {}) as Record<string, string>
+    const nowMs = Date.now()
     for (const { date, rows } of dateBookingResults) {
       const totalBooked = rows.reduce((sum, b) => sum + (b.guests || 1), 0)
       let slots = Math.max(0, package_.max_group_size - totalBooked)
-      if (closedDates.has(tripDepartureDateKey(date))) slots = 0
+      const dateKey = tripDepartureDateKey(date)
+      if (closedDates.has(dateKey)) slots = 0
+      const cutoffIso = cutoffs[dateKey]
+      if (cutoffIso) {
+        const cutoffEnd = new Date(cutoffIso)
+        cutoffEnd.setHours(23, 59, 59, 999)
+        if (nowMs > cutoffEnd.getTime()) slots = 0
+      }
       availableSlotsMap[date] = slots
     }
   }
+
+  // Trip-level pause: still visible but not bookable.
+  const bookingsPaused = !!package_.bookings_paused
 
   // Lowest non-zero spot count across open dates — useful as a "filling fast"
   // nudge next to the interest heart. Only show if genuinely scarce (1–3).
@@ -568,6 +580,12 @@ export default async function PackageDetailPage({
                 )}
               >
                 <CardContent className="p-6 space-y-4">
+                  {bookingsPaused && !isHost && (
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm text-amber-200 space-y-1">
+                      <p className="font-semibold text-amber-300">Not accepting bookings right now</p>
+                      <p className="text-xs text-amber-200/80">The host has temporarily paused new bookings. Check back later or contact the host for details.</p>
+                    </div>
+                  )}
                   {isCommunityTrip ? (
                     communityDirectCheckout ? (
                       isHost ? (

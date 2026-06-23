@@ -1226,3 +1226,89 @@ export async function getTripRosterForHost(tripId: string): Promise<TripRosterEn
     }
   })
 }
+
+// ── Booking controls (cutoff + pause) ───────────────────────
+
+/**
+ * Set or clear the booking cutoff date for a specific departure slot.
+ * cutoffDateIso = null → remove cutoff (accept until the departure day).
+ * cutoffDateIso = "YYYY-MM-DD" → last day bookings are accepted for that slot.
+ * Available to both the trip host and admin/onboarding staff.
+ */
+export async function setDepartureCutoffDate(
+  tripId: string,
+  departureDateIso: string,
+  cutoffDateIso: string | null,
+) {
+  const { user, isAdmin } = await requireHostOrAdmin()
+  const svc = createServiceRoleClient()
+
+  const query = svc
+    .from('packages')
+    .select('id, slug, host_id, departure_dates, booking_cutoff_dates')
+    .eq('id', tripId)
+  if (!isAdmin) query.eq('host_id', user.id)
+  const { data: trip } = await query.single()
+  if (!trip) return { error: 'Trip not found' }
+
+  const depKey = tripDepartureDateKey(departureDateIso)
+  const depKeys = new Set(((trip as { departure_dates?: string[] | null }).departure_dates || []).map(tripDepartureDateKey))
+  if (!depKeys.has(depKey)) return { error: 'That date is not a departure for this trip' }
+
+  if (cutoffDateIso !== null) {
+    const cutoff = new Date(cutoffDateIso)
+    const dep = new Date(departureDateIso)
+    if (isNaN(cutoff.getTime())) return { error: 'Invalid cutoff date' }
+    if (cutoff > dep) return { error: 'Cutoff date must be on or before the departure date' }
+  }
+
+  const prev = ((trip as { booking_cutoff_dates?: Record<string, string> | null }).booking_cutoff_dates || {}) as Record<string, string>
+  const next = { ...prev }
+  if (cutoffDateIso === null) {
+    delete next[depKey]
+  } else {
+    next[depKey] = cutoffDateIso
+  }
+
+  const { error } = await svc.from('packages').update({ booking_cutoff_dates: next }).eq('id', tripId)
+  if (error) return { error: error.message }
+
+  const slug = (trip as { slug?: string | null }).slug
+  revalidatePath('/host')
+  revalidatePath('/')
+  if (slug) revalidatePath(`/packages/${slug}`)
+  revalidatePath(`/host/${tripId}`)
+
+  return { success: true, booking_cutoff_dates: next }
+}
+
+/**
+ * Toggle whether a trip is paused from accepting new bookings.
+ * The listing stays visible on Explore / the landing — only the booking
+ * button is disabled and shows "Not accepting bookings".
+ * Available to both the trip host and admin/onboarding staff.
+ */
+export async function toggleTripBookingsPaused(tripId: string) {
+  const { user, isAdmin } = await requireHostOrAdmin()
+  const svc = createServiceRoleClient()
+
+  const query = svc
+    .from('packages')
+    .select('id, slug, host_id, bookings_paused')
+    .eq('id', tripId)
+  if (!isAdmin) query.eq('host_id', user.id)
+  const { data: trip } = await query.single()
+  if (!trip) return { error: 'Trip not found' }
+
+  const next = !((trip as { bookings_paused?: boolean | null }).bookings_paused)
+  const { error } = await svc.from('packages').update({ bookings_paused: next }).eq('id', tripId)
+  if (error) return { error: error.message }
+
+  const slug = (trip as { slug?: string | null }).slug
+  revalidatePath('/host')
+  revalidatePath('/')
+  if (slug) revalidatePath(`/packages/${slug}`)
+  revalidatePath(`/host/${tripId}`)
+
+  return { success: true, bookings_paused: next }
+}
