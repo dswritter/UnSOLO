@@ -156,10 +156,9 @@ export default function CommunityTripsClient({
     })
   }
 
-  return (
-    <div className="space-y-8">
-      {/* Host payouts — always visible so admins find settlement workflow */}
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5 space-y-4">
+  // Payouts panel — extracted so it can be rendered at the bottom.
+  const payoutsPanel = (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 sm:p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
@@ -374,8 +373,11 @@ export default function CommunityTripsClient({
             </div>
           </div>
         )}
-      </div>
+    </div>
+  )
 
+  return (
+    <div className="space-y-6">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-1">
         <input
@@ -431,42 +433,35 @@ export default function CommunityTripsClient({
                 deemphasized ? 'opacity-[0.55] grayscale-[0.35] hover:opacity-100 hover:grayscale-0' : ''
               }`}
             >
-              {/* Header */}
+              {/* Header — two-row layout on mobile, single row on sm+ */}
               <button
                 onClick={() => setExpandedId(expanded ? null : trip.id)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-secondary/30 transition-colors"
+                className="w-full px-3 py-3 sm:px-4 text-left hover:bg-secondary/30 transition-colors"
               >
+                {/* Row 1: thumbnail + title + chevron */}
                 <div className="flex items-center gap-3">
-                  {trip.images?.[0] && (
-                    <img src={storageThumbnailUrl(trip.images[0]) || trip.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  {trip.images?.[0] ? (
+                    <img
+                      src={storageThumbnailUrl(trip.images[0]) || trip.images[0]}
+                      alt=""
+                      className="w-10 h-10 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 shrink-0 rounded-lg bg-secondary" />
                   )}
-                  <div className="text-left">
-                    <div className="font-bold text-sm">{trip.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {dest?.name}, {dest?.state} · {packageDurationShortLabel(trip)} · Max {trip.max_group_size}
-                      {' · '}
-                      <span className="tabular-nums text-foreground/90">
-                        {bookingCount} booking{bookingCount === 1 ? '' : 's'}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                      First published:{' '}
-                      {trip.first_approved_at
-                        ? formatDate(String(trip.first_approved_at))
-                        : '—'}
-                      {' · '}
-                      Last edited:{' '}
-                      {trip.updated_at ? formatDate(String(trip.updated_at)) : '—'}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm leading-snug truncate pr-2">{trip.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {dest?.name}, {dest?.state} · {packageDurationShortLabel(trip)} · Max {trip.max_group_size} · {bookingCount} booking{bookingCount === 1 ? '' : 's'}
                     </div>
                   </div>
+                  <div className="shrink-0 text-muted-foreground">
+                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {trip.is_featured && (
-                    <Badge className="bg-primary/20 text-primary border-primary/40 text-[10px]">
-                      <Star className="h-3 w-3 mr-0.5 inline fill-primary" /> Featured
-                    </Badge>
-                  )}
-                  <Badge className={MOD_COLORS[trip.moderation_status] || ''}>
+                {/* Row 2: badges + price (clear of title, no overlap) */}
+                <div className="mt-2 ml-[52px] flex flex-wrap items-center gap-1.5">
+                  <Badge className={`${MOD_COLORS[trip.moderation_status] || ''} text-[10px]`}>
                     {trip.moderation_status}
                   </Badge>
                   {!trip.is_active && (
@@ -474,8 +469,12 @@ export default function CommunityTripsClient({
                       Hidden by Host
                     </Badge>
                   )}
-                  <span className="text-primary font-bold text-sm">{formatPrice(trip.price_paise)}</span>
-                  {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  {trip.is_featured && (
+                    <Badge className="bg-primary/20 text-primary border-primary/40 text-[10px]">
+                      <Star className="h-3 w-3 mr-0.5 inline fill-primary" /> Featured
+                    </Badge>
+                  )}
+                  <span className="text-primary font-bold text-sm ml-auto">{formatPrice(trip.price_paise)}</span>
                 </div>
               </button>
 
@@ -716,6 +715,9 @@ export default function CommunityTripsClient({
           )
         })}
       </div>
+
+      {/* Host payouts — at the bottom so the trip list is the primary view */}
+      {payoutsPanel}
     </div>
   )
 }
