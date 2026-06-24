@@ -943,7 +943,7 @@ export async function deletePackage(packageId: string) {
 
 /** Permanently removes a package / community trip row regardless of bookings. */
 export async function hardDeletePackage(packageId: string) {
-  const { supabase, user } = await requireAdmin()
+  const { supabase, user } = await requirePermission('community_trips')
 
   // Null out package_id on existing bookings first so FK doesn't block
   await supabase.from('bookings').update({ package_id: null }).eq('package_id', packageId)
@@ -1366,7 +1366,7 @@ export async function validatePromoCode(
 // ── Community Trip Moderation ────────────────────────────────
 
 export async function moderateCommunityTrip(tripId: string, approve: boolean, reason?: string) {
-  const { supabase, user } = await requireAdmin()
+  const { supabase, user } = await requirePermission('community_trips')
 
   const { data: trip } = await supabase
     .from('packages')
