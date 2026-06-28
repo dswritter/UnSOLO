@@ -51,6 +51,10 @@ export default function HostVerifyPage() {
   const [resendCooldown, setResendCooldown] = useState(0)
   const [payout, setPayout] = useState<PayoutDetails | null>(null)
 
+  // Country code selector visibility (collapsed by default — India is the 99% case)
+  const [showCountrySelector, setShowCountrySelector] = useState(false)
+  const [showChangeCountrySelector, setShowChangeCountrySelector] = useState(false)
+
   // Phone change request (for already-verified hosts)
   const [showChangeForm, setShowChangeForm] = useState(false)
   const [changePhone, setChangePhone] = useState('')
@@ -322,15 +326,32 @@ export default function HostVerifyPage() {
                 Your current number stays visible until our team approves the change.
               </p>
               <div className="flex gap-2">
-                <select
-                  value={changeCountryCode}
-                  onChange={(e) => { setChangeCountryCode(e.target.value as SupportedCountryCode); setChangePhone('') }}
-                  className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {COUNTRY_OPTIONS.map((c) => (
-                    <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                  ))}
-                </select>
+                {showChangeCountrySelector ? (
+                  <select
+                    value={changeCountryCode}
+                    autoFocus
+                    onChange={(e) => {
+                      setChangeCountryCode(e.target.value as SupportedCountryCode)
+                      setChangePhone('')
+                      if (e.target.value === '+91') setShowChangeCountrySelector(false)
+                    }}
+                    className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowChangeCountrySelector(true)}
+                    title="Change country code"
+                    className="flex items-center gap-1 px-3 bg-secondary rounded-lg text-sm font-medium shrink-0 border border-border hover:border-primary/50 transition-colors"
+                  >
+                    {PHONE_COUNTRY_CODES[changeCountryCode].flag} {changeCountryCode}
+                    <span className="text-muted-foreground text-[10px] ml-0.5">▾</span>
+                  </button>
+                )}
                 <Input
                   type="tel"
                   placeholder={`${PHONE_COUNTRY_CODES[changeCountryCode].digits}-digit number`}
@@ -484,17 +505,34 @@ export default function HostVerifyPage() {
 
           {!phoneVerified && emailVerified && step === 'enter_phone' && (
             <div className="space-y-3">
-              {/* Country code selector */}
+              {/* Phone input — country code collapsed to a chip unless user expands it */}
               <div className="flex gap-2">
-                <select
-                  value={countryCode}
-                  onChange={(e) => { setCountryCode(e.target.value as SupportedCountryCode); setPhone('') }}
-                  className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                >
-                  {COUNTRY_OPTIONS.map((c) => (
-                    <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
-                  ))}
-                </select>
+                {showCountrySelector ? (
+                  <select
+                    value={countryCode}
+                    autoFocus
+                    onChange={(e) => {
+                      setCountryCode(e.target.value as SupportedCountryCode)
+                      setPhone('')
+                      if (e.target.value === '+91') setShowCountrySelector(false)
+                    }}
+                    className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCountrySelector(true)}
+                    title="Change country code"
+                    className="flex items-center gap-1 px-3 bg-secondary rounded-lg text-sm font-medium shrink-0 border border-border hover:border-primary/50 transition-colors"
+                  >
+                    {PHONE_COUNTRY_CODES[countryCode].flag} {countryCode}
+                    <span className="text-muted-foreground text-[10px] ml-0.5">▾</span>
+                  </button>
+                )}
                 <Input
                   type="tel"
                   placeholder={`${rule.digits}-digit number`}
@@ -507,15 +545,28 @@ export default function HostVerifyPage() {
                 />
               </div>
 
+              {!showCountrySelector && isIndian && (
+                <p className="text-[11px] text-muted-foreground">
+                  Not from India?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowCountrySelector(true)}
+                    className="text-primary hover:underline"
+                  >
+                    Change country code
+                  </button>
+                </p>
+              )}
+
               {!isIndian && (
                 <p className="text-xs text-amber-200/80 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
-                  Indian OTP verification is not available for {rule.name} numbers. Our team will manually verify your number via call or message — usually within 1–2 business days.
+                  OTP is only available for Indian numbers. Our team will manually verify your {rule.name} number via call or message — usually within 1–2 business days.
                 </p>
               )}
 
               <Button
                 onClick={isIndian ? handleSendOTP : handleForeignSubmit}
-                disabled={sending || phone.length !== rule.digits || (!isIndian ? false : resendCooldown > 0)}
+                disabled={sending || phone.length !== rule.digits || (isIndian && resendCooldown > 0)}
                 className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
               >
                 {sending
