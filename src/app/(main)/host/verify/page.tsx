@@ -16,7 +16,7 @@ import {
 import { getPayoutDetails, type PayoutDetails } from '@/actions/payout'
 import { PayoutDetailsForm } from '@/components/hosting/PayoutDetailsForm'
 import { toast } from 'sonner'
-import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2, Wallet, RefreshCw, X } from 'lucide-react'
+import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2, Wallet, RefreshCw, X, Clock, Compass } from 'lucide-react'
 import { cn, PHONE_COUNTRY_CODES, type SupportedCountryCode } from '@/lib/utils'
 
 function isLocalDevHostname(): boolean {
@@ -29,6 +29,34 @@ const COUNTRY_OPTIONS = Object.entries(PHONE_COUNTRY_CODES).map(([code, info]) =
   code: code as SupportedCountryCode,
   ...info,
 }))
+
+/** Country code chip with an invisible overlaid <select> — one click opens native dropdown */
+function CountryCodeChip({
+  value,
+  onChange,
+}: {
+  value: SupportedCountryCode
+  onChange: (code: SupportedCountryCode) => void
+}) {
+  const rule = PHONE_COUNTRY_CODES[value]
+  return (
+    <div className="relative inline-flex items-center shrink-0">
+      <span className="flex items-center gap-1 px-3 py-[9px] bg-secondary rounded-lg text-sm font-medium border border-border select-none pointer-events-none whitespace-nowrap">
+        {rule.flag} {value} <span className="text-muted-foreground text-[10px]">▾</span>
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as SupportedCountryCode)}
+        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+        aria-label="Country code"
+      >
+        {COUNTRY_OPTIONS.map((c) => (
+          <option key={c.code} value={c.code}>{c.flag} {c.code} — {c.name}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
 export default function HostVerifyPage() {
   const router = useRouter()
@@ -50,10 +78,6 @@ export default function HostVerifyPage() {
   const [sending, setSending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const [payout, setPayout] = useState<PayoutDetails | null>(null)
-
-  // Country code selector visibility (collapsed by default — India is the 99% case)
-  const [showCountrySelector, setShowCountrySelector] = useState(false)
-  const [showChangeCountrySelector, setShowChangeCountrySelector] = useState(false)
 
   // Phone change request (for already-verified hosts)
   const [showChangeForm, setShowChangeForm] = useState(false)
@@ -90,11 +114,9 @@ export default function HostVerifyPage() {
 
         if (status.phoneNumber) setPhone(status.phoneNumber)
         if (status.phoneCountryCode) setCountryCode(status.phoneCountryCode as SupportedCountryCode)
-
         if (status.otpSendCooldownUntil) syncCooldownFromServer(status.otpSendCooldownUntil)
 
         if (status.isEmailVerified && !status.isPhoneVerified) {
-          // If they have a foreign phone pending review, show that state
           if (status.phoneNumber && status.phoneCountryCode && status.phoneCountryCode !== '+91') {
             setStep('foreign_submitted')
           } else {
@@ -133,10 +155,7 @@ export default function HostVerifyPage() {
 
   async function handleSendOTP() {
     const rule = PHONE_COUNTRY_CODES[countryCode]
-    if (phone.length !== rule.digits) {
-      toast.error(`Enter ${rule.digits}-digit phone number`)
-      return
-    }
+    if (phone.length !== rule.digits) { toast.error(`Enter ${rule.digits}-digit phone number`); return }
     setSending(true)
     const result = await sendPhoneOTP(phone)
     if (result.error) {
@@ -144,9 +163,8 @@ export default function HostVerifyPage() {
       if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
     } else if ('devConsoleOnly' in result && result.devConsoleOnly) {
       if (isLocalDevHostname()) {
-        toast.success('OTP generated (local dev: check your server terminal for the code).')
-        setOtp('')
-        setStep('enter_otp')
+        toast.success('OTP generated (local dev: check server terminal).')
+        setOtp(''); setStep('enter_otp')
         if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
       } else {
         toast.error('SMS sending failed. Please try again.')
@@ -154,8 +172,7 @@ export default function HostVerifyPage() {
       }
     } else {
       toast.success(`OTP sent to ${countryCode} ${phone}`)
-      setOtp('')
-      setStep('enter_otp')
+      setOtp(''); setStep('enter_otp')
       if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
     }
     setSending(false)
@@ -167,7 +184,7 @@ export default function HostVerifyPage() {
     if (result.error) {
       toast.error(result.error)
     } else {
-      toast.success('Submitted! Our team will verify your number and notify you.')
+      toast.success('Number submitted. You\'ll be notified once our team verifies it.')
       setStep('foreign_submitted')
       setExistingPhone(phone)
       setExistingCountryCode(countryCode)
@@ -186,10 +203,7 @@ export default function HostVerifyPage() {
       setPhoneVerified(true)
       setExistingPhone(phone)
       setStep('idle')
-      if (result.isHost) {
-        setIsHost(true)
-        toast.success('You are now a verified host!')
-      }
+      if (result.isHost) { setIsHost(true); toast.success('You are now a verified host!') }
     }
     setSending(false)
   }
@@ -214,10 +228,7 @@ export default function HostVerifyPage() {
       toast.error(result.error)
     } else {
       toast.success('Change request submitted. Our team will verify and update your number.')
-      setShowChangeForm(false)
-      setChangePhone('')
-      setChangeNote('')
-      // Refresh status to show pending request
+      setShowChangeForm(false); setChangePhone(''); setChangeNote('')
       const status = await checkVerificationStatus()
       if (status) setPendingChangeRequest(status.pendingChangeRequest)
     }
@@ -228,10 +239,7 @@ export default function HostVerifyPage() {
     setSending(true)
     const result = await cancelPhoneChangeRequest()
     if (result.error) toast.error(result.error)
-    else {
-      toast.success('Change request cancelled.')
-      setPendingChangeRequest(null)
-    }
+    else { toast.success('Change request cancelled.'); setPendingChangeRequest(null) }
     setSending(false)
   }
 
@@ -246,6 +254,7 @@ export default function HostVerifyPage() {
   const rule = PHONE_COUNTRY_CODES[countryCode]
   const isIndian = countryCode === '+91'
 
+  // ── Verified host screen ─────────────────────────────────────────────────────
   if (isHost) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16">
@@ -276,7 +285,7 @@ export default function HostVerifyPage() {
           </div>
         )}
 
-        {/* Phone change request section */}
+        {/* Phone change section */}
         <div className="rounded-xl border border-border bg-card p-4 mb-6 space-y-3">
           <div className="flex items-center justify-between">
             <div>
@@ -289,14 +298,8 @@ export default function HostVerifyPage() {
               </p>
             </div>
             {!pendingChangeRequest && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => setShowChangeForm(!showChangeForm)}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                Change number
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowChangeForm(!showChangeForm)}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Change number
               </Button>
             )}
           </div>
@@ -306,15 +309,10 @@ export default function HostVerifyPage() {
               <p className="text-xs font-semibold text-amber-300">Phone change pending approval</p>
               <p className="text-xs text-muted-foreground">
                 New number: <span className="text-foreground font-medium">{pendingChangeRequest.newCountryCode} {pendingChangeRequest.newPhone}</span>
-                {' '}&mdash; our team will verify and update your profile.
+                {' '}— our team will verify and update your profile.
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
-                onClick={handleCancelChangeRequest}
-                disabled={sending}
-              >
+              <Button variant="outline" size="sm" className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
+                onClick={handleCancelChangeRequest} disabled={sending}>
                 <X className="h-3 w-3 mr-1" /> Cancel request
               </Button>
             </div>
@@ -322,36 +320,9 @@ export default function HostVerifyPage() {
 
           {showChangeForm && !pendingChangeRequest && (
             <div className="space-y-3 pt-1">
-              <p className="text-xs text-muted-foreground">
-                Your current number stays visible until our team approves the change.
-              </p>
+              <p className="text-xs text-muted-foreground">Your current number stays visible until our team approves the change.</p>
               <div className="flex gap-2">
-                {showChangeCountrySelector ? (
-                  <select
-                    value={changeCountryCode}
-                    autoFocus
-                    onChange={(e) => {
-                      setChangeCountryCode(e.target.value as SupportedCountryCode)
-                      setChangePhone('')
-                      if (e.target.value === '+91') setShowChangeCountrySelector(false)
-                    }}
-                    className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowChangeCountrySelector(true)}
-                    title="Change country code"
-                    className="flex items-center gap-1 px-3 bg-secondary rounded-lg text-sm font-medium shrink-0 border border-border hover:border-primary/50 transition-colors"
-                  >
-                    {PHONE_COUNTRY_CODES[changeCountryCode].flag} {changeCountryCode}
-                    <span className="text-muted-foreground text-[10px] ml-0.5">▾</span>
-                  </button>
-                )}
+                <CountryCodeChip value={changeCountryCode} onChange={(c) => { setChangeCountryCode(c); setChangePhone('') }} />
                 <Input
                   type="tel"
                   placeholder={`${PHONE_COUNTRY_CODES[changeCountryCode].digits}-digit number`}
@@ -362,47 +333,113 @@ export default function HostVerifyPage() {
                   className="bg-secondary border-border"
                 />
               </div>
-              <Input
-                type="text"
-                placeholder="Note for staff (optional)"
-                value={changeNote}
-                onChange={(e) => setChangeNote(e.target.value)}
-                className="bg-secondary border-border text-sm"
-              />
+              <Input type="text" placeholder="Note for staff (optional)" value={changeNote}
+                onChange={(e) => setChangeNote(e.target.value)} className="bg-secondary border-border text-sm" />
               <div className="flex gap-2">
-                <Button
-                  onClick={handleRequestChange}
-                  disabled={sending}
-                  size="sm"
-                  className="bg-primary text-primary-foreground font-bold text-xs"
-                >
+                <Button onClick={handleRequestChange} disabled={sending} size="sm" className="bg-primary text-primary-foreground font-bold text-xs">
                   {sending ? 'Submitting…' : 'Submit change request'}
                 </Button>
-                <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowChangeForm(false)}>
-                  Cancel
-                </Button>
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowChangeForm(false)}>Cancel</Button>
               </div>
             </div>
           )}
         </div>
 
         <div className="flex flex-wrap gap-3 justify-center">
-          <Button
-            onClick={() => router.push('/host/create')}
-            className="bg-primary text-primary-foreground font-bold"
-            size="lg"
-            disabled={!payoutSaved}
-          >
+          <Button onClick={() => router.push('/host/create')} className="bg-primary text-primary-foreground font-bold" size="lg" disabled={!payoutSaved}>
             <ArrowRight className="mr-2 h-4 w-4" /> Create Your First Trip
           </Button>
-          <Button onClick={() => router.push('/host')} variant="outline" size="lg">
-            Host Dashboard
-          </Button>
+          <Button onClick={() => router.push('/host')} variant="outline" size="lg">Host Dashboard</Button>
         </div>
       </div>
     )
   }
 
+  // ── Foreign phone pending screen ─────────────────────────────────────────────
+  // Phone submitted for manual review but not yet verified (and not a full host yet).
+  // Show payout form now so they can fill it while waiting.
+  if (step === 'foreign_submitted') {
+    const foreignRule = PHONE_COUNTRY_CODES[existingCountryCode as SupportedCountryCode] || PHONE_COUNTRY_CODES['+977']
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16">
+        <div className="text-center mb-8">
+          <div className="h-20 w-20 rounded-full bg-amber-500/15 flex items-center justify-center mx-auto mb-6">
+            <Clock className="h-10 w-10 text-amber-400" />
+          </div>
+          <h1 className="text-2xl font-black mb-2">Verification in Progress</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Our team will contact you on{' '}
+            <span className="text-foreground font-medium">{existingCountryCode} {existingPhone}</span>{' '}
+            to verify your identity.
+          </p>
+        </div>
+
+        {/* Status steps */}
+        <div className="rounded-xl border border-border bg-card p-4 mb-6 space-y-3 text-sm">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-400 shrink-0" />
+            <span>Email verified</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-5 w-5 rounded-full border-2 border-amber-400 flex items-center justify-center shrink-0">
+              <div className="h-2 w-2 rounded-full bg-amber-400" />
+            </div>
+            <span>
+              {foreignRule.flag} Phone verification pending
+              <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                In review
+              </span>
+            </span>
+          </div>
+          <div className="flex items-center gap-3 opacity-40">
+            <Circle className="h-5 w-5 shrink-0" />
+            <span>Host access unlocked</span>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center mb-6">
+          You&apos;ll receive a notification as soon as your number is verified. Until then, fill in your payout details below so you&apos;re ready to go.
+        </p>
+
+        {/* Payout form — available now so they don't have to wait */}
+        {payout && (
+          <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/30 bg-primary/5'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              {payoutSaved ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" /> : <Wallet className="h-6 w-6 text-primary" />}
+              <div>
+                <h3 className="font-bold">Payout Details</h3>
+                <p className="text-xs text-muted-foreground">
+                  {payoutSaved ? 'Saved — you\'re all set for when verification completes.' : 'Add these now so your earnings are ready to go after verification.'}
+                </p>
+              </div>
+            </div>
+            <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+          </div>
+        )}
+
+        {payoutSaved && (
+          <div className="rounded-xl border border-border bg-card/60 p-4 mb-6 text-center space-y-1">
+            <p className="text-sm font-semibold">All set!</p>
+            <p className="text-xs text-muted-foreground">Once our team verifies your phone, you&apos;ll be able to create trips and listings. We&apos;ll notify you the moment it&apos;s done.</p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-3 justify-center">
+          <Button onClick={() => router.push('/wander')} variant="outline" size="lg">
+            <Compass className="mr-2 h-4 w-4" /> Browse Trips
+          </Button>
+          <button
+            className="text-xs text-muted-foreground hover:text-foreground underline self-center"
+            onClick={() => { setStep('enter_phone'); setPhone('') }}
+          >
+            Wrong number? Change it
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main verify screen (not yet a host, phone not submitted) ─────────────────
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
       <div className="text-center mb-10">
@@ -416,18 +453,12 @@ export default function HostVerifyPage() {
         {/* Email Verification */}
         <div className={`p-5 rounded-xl border ${emailVerified ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-border bg-card'}`}>
           <div className="flex items-center gap-3 mb-3">
-            {emailVerified ? (
-              <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            ) : (
-              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-            )}
+            {emailVerified
+              ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              : <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />}
             <div>
-              <h3 className="font-bold flex items-center gap-2">
-                <Mail className="h-4 w-4 text-primary" /> Email Verification
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {emailVerified ? 'Email verified' : 'Check your inbox for the verification link'}
-              </p>
+              <h3 className="font-bold flex items-center gap-2"><Mail className="h-4 w-4 text-primary" /> Email Verification</h3>
+              <p className="text-xs text-muted-foreground">{emailVerified ? 'Email verified' : 'Check your inbox for the verification link'}</p>
             </div>
           </div>
           {!emailVerified && (
@@ -438,101 +469,44 @@ export default function HostVerifyPage() {
         </div>
 
         {/* Phone Verification */}
-        <div
-          className={cn(
-            'p-5 rounded-xl border transition-all duration-300',
-            phoneVerified && 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10',
-            !phoneVerified && emailVerified && 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
-            !phoneVerified && !emailVerified && 'border-border bg-card opacity-90',
-          )}
-        >
+        <div className={cn(
+          'p-5 rounded-xl border transition-all duration-300',
+          phoneVerified && 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10',
+          !phoneVerified && emailVerified && 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
+          !phoneVerified && !emailVerified && 'border-border bg-card opacity-90',
+        )}>
           <div className="flex items-start gap-3 mb-3">
-            {phoneVerified ? (
-              <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-            ) : step === 'foreign_submitted' ? (
-              <Loader2 className="h-6 w-6 text-amber-400 flex-shrink-0 mt-0.5 animate-spin" />
-            ) : (
-              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />
-            )}
+            {phoneVerified
+              ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+              : <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-bold flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" /> Phone Verification
-                </h3>
-                {!phoneVerified && emailVerified && step !== 'foreign_submitted' && (
+                <h3 className="font-bold flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> Phone Verification</h3>
+                {!phoneVerified && emailVerified && (
                   <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
                     Next step
-                  </span>
-                )}
-                {step === 'foreign_submitted' && (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    Pending review
                   </span>
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {phoneVerified
                   ? `Verified: ${existingCountryCode} ${existingPhone}`
-                  : step === 'foreign_submitted'
-                  ? `${PHONE_COUNTRY_CODES[countryCode]?.name} number ${countryCode} ${existingPhone} submitted — our team will call or message to confirm.`
                   : 'Verify your mobile number to start hosting trips.'}
               </p>
             </div>
           </div>
 
           {!phoneVerified && !emailVerified && (
-            <p className="text-xs text-muted-foreground pl-9">
-              Complete email verification above, then enter your mobile number here.
-            </p>
-          )}
-
-          {step === 'foreign_submitted' && (
-            <div className="pl-9 space-y-2">
-              <p className="text-xs text-amber-200/80">
-                We&apos;ll contact you on <span className="font-medium text-amber-300">{countryCode} {existingPhone}</span> within 1–2 business days. You&apos;ll receive a notification once verified.
-              </p>
-              <button
-                className="text-xs text-muted-foreground hover:text-foreground underline"
-                onClick={() => {
-                  setStep('enter_phone')
-                  setPhone('')
-                }}
-              >
-                Use a different number
-              </button>
-            </div>
+            <p className="text-xs text-muted-foreground pl-9">Complete email verification above, then enter your mobile number here.</p>
           )}
 
           {!phoneVerified && emailVerified && step === 'enter_phone' && (
             <div className="space-y-3">
-              {/* Phone input — country code collapsed to a chip unless user expands it */}
               <div className="flex gap-2">
-                {showCountrySelector ? (
-                  <select
-                    value={countryCode}
-                    autoFocus
-                    onChange={(e) => {
-                      setCountryCode(e.target.value as SupportedCountryCode)
-                      setPhone('')
-                      if (e.target.value === '+91') setShowCountrySelector(false)
-                    }}
-                    className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {COUNTRY_OPTIONS.map((c) => (
-                      <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowCountrySelector(true)}
-                    title="Change country code"
-                    className="flex items-center gap-1 px-3 bg-secondary rounded-lg text-sm font-medium shrink-0 border border-border hover:border-primary/50 transition-colors"
-                  >
-                    {PHONE_COUNTRY_CODES[countryCode].flag} {countryCode}
-                    <span className="text-muted-foreground text-[10px] ml-0.5">▾</span>
-                  </button>
-                )}
+                <CountryCodeChip
+                  value={countryCode}
+                  onChange={(c) => { setCountryCode(c); setPhone('') }}
+                />
                 <Input
                   type="tel"
                   placeholder={`${rule.digits}-digit number`}
@@ -545,22 +519,9 @@ export default function HostVerifyPage() {
                 />
               </div>
 
-              {!showCountrySelector && isIndian && (
-                <p className="text-[11px] text-muted-foreground">
-                  Not from India?{' '}
-                  <button
-                    type="button"
-                    onClick={() => setShowCountrySelector(true)}
-                    className="text-primary hover:underline"
-                  >
-                    Change country code
-                  </button>
-                </p>
-              )}
-
               {!isIndian && (
-                <p className="text-xs text-amber-200/80 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
-                  OTP is only available for Indian numbers. Our team will manually verify your {rule.name} number via call or message — usually within 1–2 business days.
+                <p className="text-xs text-muted-foreground">
+                  Enter your number and wait for the verification call or message from our team.
                 </p>
               )}
 
@@ -573,16 +534,14 @@ export default function HostVerifyPage() {
                   ? isIndian ? 'Sending OTP…' : 'Submitting…'
                   : isIndian
                   ? resendCooldown > 0 ? `Wait ${resendCooldown}s` : 'Send OTP'
-                  : 'Submit for manual verification'}
+                  : 'Submit for verification'}
               </Button>
             </div>
           )}
 
           {!phoneVerified && emailVerified && step === 'enter_otp' && (
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                OTP sent to +91 {phone}. Enter the 6-digit code:
-              </p>
+              <p className="text-xs text-muted-foreground">OTP sent to +91 {phone}. Enter the 6-digit code:</p>
               <Input
                 type="text"
                 name="one-time-code"
@@ -596,19 +555,12 @@ export default function HostVerifyPage() {
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button
-                  onClick={handleVerifyOTP}
-                  disabled={sending || otp.length !== 6}
-                  className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90"
-                >
+                <Button onClick={handleVerifyOTP} disabled={sending || otp.length !== 6}
+                  className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90">
                   {sending ? 'Verifying...' : 'Verify OTP'}
                 </Button>
-                <Button
-                  onClick={() => { setStep('enter_phone'); setOtp(''); setResendCooldown(0) }}
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0"
-                >
+                <Button onClick={() => { setStep('enter_phone'); setOtp(''); setResendCooldown(0) }}
+                  variant="outline" size="sm" className="shrink-0">
                   Change number
                 </Button>
               </div>
@@ -616,10 +568,8 @@ export default function HostVerifyPage() {
                 type="button"
                 onClick={handleSendOTP}
                 disabled={sending || resendCooldown > 0 || phone.length !== 10}
-                className={cn(
-                  'text-xs w-full text-center',
-                  resendCooldown > 0 || sending ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:underline',
-                )}
+                className={cn('text-xs w-full text-center',
+                  resendCooldown > 0 || sending ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:underline')}
               >
                 {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
               </button>
@@ -627,15 +577,13 @@ export default function HostVerifyPage() {
           )}
         </div>
 
-        {/* Payout Details */}
+        {/* Payout Details — shown after both verifications complete */}
         {emailVerified && phoneVerified && payout && (
           <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/30 bg-primary/5'}`}>
             <div className="flex items-center gap-3 mb-4">
-              {payoutSaved ? (
-                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              ) : (
-                <Wallet className="h-6 w-6 text-primary flex-shrink-0" />
-              )}
+              {payoutSaved
+                ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                : <Wallet className="h-6 w-6 text-primary flex-shrink-0" />}
               <div>
                 <h3 className="font-bold">Payout Details</h3>
                 <p className="text-xs text-muted-foreground">
@@ -648,15 +596,11 @@ export default function HostVerifyPage() {
         )}
 
         <div className="text-center text-sm text-muted-foreground pt-4">
-          {emailVerified && phoneVerified && payoutSaved ? (
-            <p className="text-emerald-800 dark:text-emerald-300 font-medium">All set! You&apos;re ready to host.</p>
-          ) : emailVerified && phoneVerified ? (
-            <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
-          ) : step === 'foreign_submitted' ? (
-            <p className="text-amber-400">Phone verification pending — we&apos;ll notify you once confirmed.</p>
-          ) : (
-            <p>Complete both verifications to start hosting trips.</p>
-          )}
+          {emailVerified && phoneVerified && payoutSaved
+            ? <p className="text-emerald-800 dark:text-emerald-300 font-medium">All set! You&apos;re ready to host.</p>
+            : emailVerified && phoneVerified
+            ? <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
+            : <p>Complete both verifications to start hosting trips.</p>}
         </div>
       </div>
     </div>

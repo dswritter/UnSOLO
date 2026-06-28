@@ -278,10 +278,10 @@ export async function submitForeignPhoneForReview(phone: string, countryCode: st
     .maybeSingle()
   if (taken) return { error: 'This phone number is already registered to another account.' }
 
-  // Store on profile — is_phone_verified stays false until staff manually verifies
+  // Store on profile — explicitly keep is_phone_verified false (guard against any DB trigger)
   const { error: updateErr } = await svc
     .from('profiles')
-    .update({ phone_number: clean, phone_country_code: countryCode })
+    .update({ phone_number: clean, phone_country_code: countryCode, is_phone_verified: false, is_host: false })
     .eq('id', user.id)
   if (updateErr) return { error: updateErr.message }
 
@@ -472,9 +472,9 @@ export async function manuallyVerifyPhone(userId: string, staffNote?: string) {
   await svc.from('notifications').insert({
     user_id: userId,
     type: 'booking',
-    title: 'Phone number verified!',
-    body: `Your ${rule?.name || ''} number (${profile.phone_country_code} ${profile.phone_number}) has been verified by the UnSOLO team.${staffNote ? ` Note: ${staffNote}` : ''}`,
-    link: '/host/verify',
+    title: 'Phone verified — you can now host!',
+    body: `Your ${rule?.name || ''} number (${profile.phone_country_code} ${profile.phone_number}) has been verified. Head to your host dashboard to create your first trip.${staffNote ? ` Note: ${staffNote}` : ''}`,
+    link: '/host',
   })
 
   revalidatePath('/admin/phone-verifications')
