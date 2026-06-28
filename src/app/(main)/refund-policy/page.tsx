@@ -32,22 +32,28 @@ function TierTable({ tiers }: { tiers: RefundTier[] }) {
         <thead>
           <tr className="bg-secondary">
             <th className="text-left px-4 py-2 border-b border-border">Cancellation timeline</th>
-            <th className="text-left px-4 py-2 border-b border-border">Refund</th>
+            <th className="text-left px-4 py-2 border-b border-border">
+              Refund <span className="text-amber-400 font-normal text-xs">*</span>
+            </th>
           </tr>
         </thead>
         <tbody>
           {tiers.map((t, i) => (
             <tr key={i}>
               <td className="px-4 py-2 border-b border-border">{tierTimelineLabel(t)}</td>
-              <td className="px-4 py-2 border-b border-border">{tierRefundLabel(t.percent)}</td>
+              <td className="px-4 py-2 border-b border-border">
+                {tierRefundLabel(t.percent)}
+                {t.percent > 0 && (
+                  <span className="text-amber-400 ml-0.5 text-xs align-super leading-none">*</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-[11px] text-muted-foreground mt-1.5">
-        The refund percentage applies to the amount you actually paid towards the booking. Non-refundable
-        payment-gateway / transaction charges incurred on the original payment are deducted from the amount
-        returned to you.
+      <p className="text-[11px] text-amber-400/80 mt-1.5">
+        * Payment gateway / transaction charges (~2%) are non-refundable and deducted from the amount
+        returned — so even a 100% tier refund will be slightly less than the original payment.
       </p>
     </div>
   )
@@ -85,9 +91,10 @@ export default async function RefundPolicyPage() {
             so far (token, and balance if already paid) and can never exceed it.
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            <strong>Transaction charges:</strong> payment-gateway and transaction fees levied on the original payment
-            are non-refundable. These charges are deducted from the amount returned to you, so the credited refund will
-            be the tier percentage <em>minus</em> applicable transaction charges.
+            <strong>Transaction charges (marked <span className="text-amber-400">*</span> in the tables below):</strong>{' '}
+            payment-gateway fees on the original payment are non-refundable, so the amount you receive will always be
+            the tier percentage <em>minus</em> those charges — typically ~2%. A ₹1,000 payment in a 100% window would
+            return roughly ₹980, not ₹1,000.
           </p>
         </div>
 
