@@ -1,9 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { sendSMS, generateOTP } from '@/lib/sms/client'
-import { validateIndianPhone } from '@/lib/utils'
+import { validateIndianPhone, validatePhone, PHONE_COUNTRY_CODES, type SupportedCountryCode } from '@/lib/utils'
 import {
   MAX_OTP_PER_HOUR,
   MAX_OTP_VERIFY_ATTEMPTS,
@@ -196,16 +197,24 @@ export async function checkVerificationStatus() {
   const { supabase, user } = await getActionAuth()
   if (!user) return null
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_phone_verified, is_email_verified, is_host, phone_number')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: pendingChange }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('is_phone_verified, is_email_verified, is_host, phone_number, phone_country_code, phone_verified_method')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('phone_change_requests')
+      .select('id, new_phone, new_country_code, status, requested_at')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
-  // Check email verification from auth
   const isEmailVerified = !!user.email_confirmed_at
 
-  // Sync email verification to profile if needed
   if (isEmailVerified && !profile?.is_email_verified) {
     await supabase
       .from('profiles')
@@ -220,6 +229,16 @@ export async function checkVerificationStatus() {
     isEmailVerified,
     isHost: profile?.is_host || false,
     phoneNumber: profile?.phone_number || null,
+    phoneCountryCode: (profile?.phone_country_code as string | null) || '+91',
+    phoneVerifiedMethod: (profile?.phone_verified_method as string | null) || null,
+    pendingChangeRequest: pendingChange
+      ? {
+          id: pendingChange.id as string,
+          newPhone: pendingChange.new_phone as string,
+          newCountryCode: pendingChange.new_country_code as string,
+          requestedAt: pendingChange.requested_at as string,
+        }
+      : null,
     otpSendCooldownUntil: otpCooldownUntil?.toISOString() ?? null,
   }
 }
@@ -231,6 +250,368 @@ export async function resendEmailVerification() {
   const { error } = await supabase.auth.resend({ type: 'signup', email: user.email })
   if (error) return { error: error.message }
   return { success: true }
+}
+
+// ── Foreign phone (manual review) ───────────────────────────
+
+/** Submit a non-Indian phone number for manual review by staff. */
+export async function submitForeignPhoneForReview(phone: string, countryCode: string) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const rule = PHONE_COUNTRY_CODES[countryCode as SupportedCountryCode]
+  if (!rule || rule.otp) return { error: 'Use OTP verification for Indian numbers.' }
+
+  const clean = validatePhone(phone, countryCode)
+  if (!clean) {
+    return { error: `Enter a valid ${rule.digits}-digit ${rule.name} mobile number.` }
+  }
+
+  // Check uniqueness against already-verified phones
+  const svc = createServiceRoleClient()
+  const { data: taken } = await svc
+    .from('profiles')
+    .select('id')
+    .eq('phone_number', clean)
+    .eq('is_phone_verified', true)
+    .neq('id', user.id)
+    .maybeSingle()
+  if (taken) return { error: 'This phone number is already registered to another account.' }
+
+  // Store on profile — is_phone_verified stays false until staff manually verifies
+  const { error: updateErr } = await svc
+    .from('profiles')
+    .update({ phone_number: clean, phone_country_code: countryCode })
+    .eq('id', user.id)
+  if (updateErr) return { error: updateErr.message }
+
+  // Notify all admin + host_onboarding_staff
+  const { data: staffProfiles } = await svc
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'host_onboarding_staff'])
+  const { data: staffMembers } = await svc
+    .from('team_members')
+    .select('user_id')
+    .in('role', ['admin', 'host_onboarding_staff'])
+    .eq('is_active', true)
+
+  const { data: selfProfile } = await svc.from('profiles').select('full_name, username').eq('id', user.id).single()
+  const displayName = (selfProfile?.full_name as string | null) || (selfProfile?.username as string | null) || 'A host'
+  const staffIds = [
+    ...new Set([
+      ...(staffProfiles || []).map((p) => p.id as string),
+      ...(staffMembers || []).map((m) => m.user_id as string),
+    ]),
+  ].filter((id) => id !== user.id)
+
+  if (staffIds.length > 0) {
+    await svc.from('notifications').insert(
+      staffIds.map((staffId) => ({
+        user_id: staffId,
+        type: 'booking',
+        title: 'Foreign host phone — manual verification needed',
+        body: `${displayName} submitted a ${rule.name} number (${countryCode} ${clean}) for manual verification.`,
+        link: '/admin/phone-verifications',
+      })),
+    )
+  }
+
+  revalidatePath('/host/verify')
+  return { success: true }
+}
+
+// ── Phone change requests ────────────────────────────────────
+
+/** Verified host requests a phone number change. Staff must approve before it takes effect. */
+export async function requestPhoneChange(newPhone: string, newCountryCode: string, note?: string) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const rule = PHONE_COUNTRY_CODES[newCountryCode as SupportedCountryCode]
+  if (!rule) return { error: 'Unsupported country code.' }
+
+  const clean = validatePhone(newPhone, newCountryCode)
+  if (!clean) {
+    return { error: `Enter a valid ${rule.digits}-digit ${rule.name} mobile number.` }
+  }
+
+  const svc = createServiceRoleClient()
+
+  const { data: profile } = await svc
+    .from('profiles')
+    .select('is_phone_verified, phone_number, phone_country_code')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.is_phone_verified) return { error: 'Your current number must be verified first.' }
+
+  if (profile.phone_number === clean && profile.phone_country_code === newCountryCode) {
+    return { error: 'That is already your verified phone number.' }
+  }
+
+  // Cancel any existing pending request
+  await svc
+    .from('phone_change_requests')
+    .update({ status: 'denied', staff_note: 'Superseded by a new request.' })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+
+  // Check new number not already taken
+  const { data: taken } = await svc
+    .from('profiles')
+    .select('id')
+    .eq('phone_number', clean)
+    .eq('is_phone_verified', true)
+    .neq('id', user.id)
+    .maybeSingle()
+  if (taken) return { error: 'This phone number is already registered to another account.' }
+
+  const { error: insertErr } = await supabase.from('phone_change_requests').insert({
+    user_id: user.id,
+    current_phone: profile.phone_number as string | null,
+    current_country_code: (profile.phone_country_code as string | null) || '+91',
+    new_phone: clean,
+    new_country_code: newCountryCode,
+    note: note?.trim() || null,
+  })
+  if (insertErr) return { error: insertErr.message }
+
+  // Notify staff
+  const { data: staffProfiles } = await svc
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'host_onboarding_staff'])
+  const { data: staffMembers } = await svc
+    .from('team_members')
+    .select('user_id')
+    .in('role', ['admin', 'host_onboarding_staff'])
+    .eq('is_active', true)
+
+  const { data: selfProfile } = await svc.from('profiles').select('full_name, username').eq('id', user.id).single()
+  const displayName = (selfProfile?.full_name as string | null) || (selfProfile?.username as string | null) || 'A host'
+  const staffIds = [
+    ...new Set([
+      ...(staffProfiles || []).map((p) => p.id as string),
+      ...(staffMembers || []).map((m) => m.user_id as string),
+    ]),
+  ].filter((id) => id !== user.id)
+
+  if (staffIds.length > 0) {
+    await svc.from('notifications').insert(
+      staffIds.map((staffId) => ({
+        user_id: staffId,
+        type: 'booking',
+        title: 'Phone number change request',
+        body: `${displayName} wants to change their phone to ${newCountryCode} ${clean}.`,
+        link: '/admin/phone-verifications',
+      })),
+    )
+  }
+
+  revalidatePath('/host/verify')
+  return { success: true }
+}
+
+/** Cancel own pending phone change request. */
+export async function cancelPhoneChangeRequest() {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  await supabase
+    .from('phone_change_requests')
+    .update({ status: 'denied', staff_note: 'Cancelled by host.' })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+  revalidatePath('/host/verify')
+  return { success: true }
+}
+
+// ── Staff actions ────────────────────────────────────────────
+
+/** Staff: approve a foreign host's pending manual phone verification. */
+export async function manuallyVerifyPhone(userId: string, staffNote?: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const svc = createServiceRoleClient()
+  const { data: staff } = await svc
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  const { data: membership } = await svc
+    .from('team_members')
+    .select('role, is_active, custom_permissions')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } = await import('@/types')
+  const effRole = (staff?.role as string | undefined) || (membership?.is_active ? (membership.role as string | undefined) : undefined)
+  const perms = effRole === 'custom' ? (membership?.custom_permissions as string[] || []) : (ROLE_DEFAULT_PERMISSIONS[effRole as keyof typeof ROLE_DEFAULT_PERMISSIONS] || [])
+  if (!hasAdminPermission(effRole as never, perms as never, 'phone_verifications')) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: profile } = await svc
+    .from('profiles')
+    .select('phone_number, phone_country_code, is_email_verified')
+    .eq('id', userId)
+    .single()
+  if (!profile?.phone_number) return { error: 'No pending phone found for this user.' }
+
+  await svc
+    .from('profiles')
+    .update({ is_phone_verified: true, phone_verified_method: 'manual' })
+    .eq('id', userId)
+
+  // Grant host status if email also verified
+  if (profile.is_email_verified) {
+    await svc.from('profiles').update({ is_host: true }).eq('id', userId)
+  }
+
+  const rule = PHONE_COUNTRY_CODES[(profile.phone_country_code as SupportedCountryCode) || '+91']
+  await svc.from('notifications').insert({
+    user_id: userId,
+    type: 'booking',
+    title: 'Phone number verified!',
+    body: `Your ${rule?.name || ''} number (${profile.phone_country_code} ${profile.phone_number}) has been verified by the UnSOLO team.${staffNote ? ` Note: ${staffNote}` : ''}`,
+    link: '/host/verify',
+  })
+
+  revalidatePath('/admin/phone-verifications')
+  return { success: true }
+}
+
+/** Staff: deny / clear a pending foreign phone submission. */
+export async function denyForeignPhone(userId: string, staffNote?: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const svc = createServiceRoleClient()
+  const { data: staff } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  const { data: membership } = await svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle()
+  const { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } = await import('@/types')
+  const effRole = (staff?.role as string | undefined) || (membership?.is_active ? (membership.role as string | undefined) : undefined)
+  const perms = effRole === 'custom' ? (membership?.custom_permissions as string[] || []) : (ROLE_DEFAULT_PERMISSIONS[effRole as keyof typeof ROLE_DEFAULT_PERMISSIONS] || [])
+  if (!hasAdminPermission(effRole as never, perms as never, 'phone_verifications')) {
+    return { error: 'Unauthorized' }
+  }
+
+  await svc
+    .from('profiles')
+    .update({ phone_number: null, phone_country_code: '+91' })
+    .eq('id', userId)
+
+  await svc.from('notifications').insert({
+    user_id: userId,
+    type: 'booking',
+    title: 'Phone verification not approved',
+    body: `We could not verify your phone number.${staffNote ? ` Reason: ${staffNote}` : ' Please re-submit or contact support.'}`,
+    link: '/host/verify',
+  })
+
+  revalidatePath('/admin/phone-verifications')
+  return { success: true }
+}
+
+/** Staff: approve or deny a phone change request. */
+export async function processPhoneChangeRequest(
+  requestId: string,
+  approve: boolean,
+  staffNote?: string,
+) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const svc = createServiceRoleClient()
+  const { data: staff } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  const { data: membership } = await svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle()
+  const { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } = await import('@/types')
+  const effRole = (staff?.role as string | undefined) || (membership?.is_active ? (membership.role as string | undefined) : undefined)
+  const perms = effRole === 'custom' ? (membership?.custom_permissions as string[] || []) : (ROLE_DEFAULT_PERMISSIONS[effRole as keyof typeof ROLE_DEFAULT_PERMISSIONS] || [])
+  if (!hasAdminPermission(effRole as never, perms as never, 'phone_verifications')) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: req } = await svc
+    .from('phone_change_requests')
+    .select('*')
+    .eq('id', requestId)
+    .eq('status', 'pending')
+    .single()
+  if (!req) return { error: 'Request not found or already processed.' }
+
+  await svc
+    .from('phone_change_requests')
+    .update({
+      status: approve ? 'approved' : 'denied',
+      staff_note: staffNote?.trim() || null,
+      processed_at: new Date().toISOString(),
+      processed_by: user.id,
+    })
+    .eq('id', requestId)
+
+  if (approve) {
+    await svc
+      .from('profiles')
+      .update({
+        phone_number: req.new_phone,
+        phone_country_code: req.new_country_code,
+        is_phone_verified: true,
+      })
+      .eq('id', req.user_id)
+  }
+
+  const rule = PHONE_COUNTRY_CODES[(req.new_country_code as SupportedCountryCode) || '+91']
+  await svc.from('notifications').insert({
+    user_id: req.user_id as string,
+    type: 'booking',
+    title: approve ? 'Phone number updated' : 'Phone change not approved',
+    body: approve
+      ? `Your phone has been updated to ${req.new_country_code} ${req.new_phone}.`
+      : `Your request to change to ${rule?.name || ''} number ${req.new_country_code} ${req.new_phone} was not approved.${staffNote ? ` Reason: ${staffNote}` : ''}`,
+    link: '/host/verify',
+  })
+
+  revalidatePath('/admin/phone-verifications')
+  return { success: true }
+}
+
+/** Staff: fetch pending foreign phone verifications + pending change requests. */
+export async function getPendingPhoneVerifications() {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const svc = createServiceRoleClient()
+  const { data: staff } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  const { data: membership } = await svc.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle()
+  const { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } = await import('@/types')
+  const effRole = (staff?.role as string | undefined) || (membership?.is_active ? (membership.role as string | undefined) : undefined)
+  const perms = effRole === 'custom' ? (membership?.custom_permissions as string[] || []) : (ROLE_DEFAULT_PERMISSIONS[effRole as keyof typeof ROLE_DEFAULT_PERMISSIONS] || [])
+  if (!hasAdminPermission(effRole as never, perms as never, 'phone_verifications')) {
+    return { error: 'Unauthorized' }
+  }
+
+  const [{ data: foreignPending }, { data: changeRequests }] = await Promise.all([
+    // Profiles with a foreign phone submitted but not yet verified
+    svc
+      .from('profiles')
+      .select('id, full_name, username, avatar_url, phone_number, phone_country_code, created_at, is_email_verified')
+      .not('phone_number', 'is', null)
+      .eq('is_phone_verified', false)
+      .neq('phone_country_code', '+91')
+      .order('created_at', { ascending: false }),
+    // All pending phone change requests with requester info
+    svc
+      .from('phone_change_requests')
+      .select('*, user:profiles!phone_change_requests_user_id_fkey(id, full_name, username, avatar_url, phone_number, phone_country_code)')
+      .eq('status', 'pending')
+      .order('requested_at', { ascending: false }),
+  ])
+
+  return {
+    foreignPending: foreignPending || [],
+    changeRequests: changeRequests || [],
+  }
 }
 
 // ── Helper ──────────────────────────────────────────────────

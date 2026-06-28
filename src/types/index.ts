@@ -44,6 +44,7 @@ export type AdminPermissionKey =
   | 'whatsapp'
   | 'settings'
   | 'team'
+  | 'phone_verifications'
 
 export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   users: 'Manage Users',
@@ -60,6 +61,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   whatsapp: 'WhatsApp Settings',
   settings: 'Platform Settings',
   team: 'Team Management',
+  phone_verifications: 'Phone Verifications (Foreign hosts)',
 }
 
 /** Default permissions for each non-admin staff role. Admin always gets all. */
@@ -67,7 +69,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Partial<Record<UserRole, AdminPermissionK
   social_media_manager: ['bookings', 'requests', 'community_chats'],
   field_person: ['bookings', 'requests'],
   chat_responder: ['bookings', 'community_chats'],
-  host_onboarding_staff: ['service_listings', 'community_trips'],
+  host_onboarding_staff: ['service_listings', 'community_trips', 'phone_verifications'],
   user: [],
   // 'custom' resolved at runtime from team_members.custom_permissions
 }

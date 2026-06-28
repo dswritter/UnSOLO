@@ -66,6 +66,24 @@ export function validateIndianPhone(raw: string): string | null {
   return phone
 }
 
+export const PHONE_COUNTRY_CODES = {
+  '+91':  { name: 'India',     flag: '🇮🇳', digits: 10, regex: /^[6-9]\d{9}$/,  otp: true  },
+  '+977': { name: 'Nepal',     flag: '🇳🇵', digits: 10, regex: /^9\d{9}$/,       otp: false },
+  '+94':  { name: 'Sri Lanka', flag: '🇱🇰', digits: 9,  regex: /^7\d{8}$/,       otp: false },
+  '+975': { name: 'Bhutan',    flag: '🇧🇹', digits: 8,  regex: /^[17]\d{7}$/,    otp: false },
+} as const
+
+export type SupportedCountryCode = keyof typeof PHONE_COUNTRY_CODES
+
+export function validatePhone(raw: string, countryCode: string): string | null {
+  const rule = PHONE_COUNTRY_CODES[countryCode as SupportedCountryCode]
+  if (!rule) return null
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length !== rule.digits) return null
+  if (!rule.regex.test(digits)) return null
+  return digits
+}
+
 export function formatDateRange(departureDateStr: string, durationDays: number): string {
   const dep = new Date(departureDateStr + 'T00:00:00')
   const ret = new Date(dep)

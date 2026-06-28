@@ -4,18 +4,31 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { sendPhoneOTP, verifyPhoneOTP, checkVerificationStatus, resendEmailVerification } from '@/actions/verification'
+import {
+  sendPhoneOTP,
+  verifyPhoneOTP,
+  checkVerificationStatus,
+  resendEmailVerification,
+  submitForeignPhoneForReview,
+  requestPhoneChange,
+  cancelPhoneChangeRequest,
+} from '@/actions/verification'
 import { getPayoutDetails, type PayoutDetails } from '@/actions/payout'
 import { PayoutDetailsForm } from '@/components/hosting/PayoutDetailsForm'
 import { toast } from 'sonner'
-import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2, Wallet } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Loader2, Wallet, RefreshCw, X } from 'lucide-react'
+import { cn, PHONE_COUNTRY_CODES, type SupportedCountryCode } from '@/lib/utils'
 
 function isLocalDevHostname(): boolean {
   if (typeof window === 'undefined') return false
   const h = window.location.hostname
   return h === 'localhost' || h === '127.0.0.1'
 }
+
+const COUNTRY_OPTIONS = Object.entries(PHONE_COUNTRY_CODES).map(([code, info]) => ({
+  code: code as SupportedCountryCode,
+  ...info,
+}))
 
 export default function HostVerifyPage() {
   const router = useRouter()
@@ -24,14 +37,26 @@ export default function HostVerifyPage() {
   const [emailVerified, setEmailVerified] = useState(false)
   const [isHost, setIsHost] = useState(false)
   const [existingPhone, setExistingPhone] = useState<string | null>(null)
+  const [existingCountryCode, setExistingCountryCode] = useState('+91')
+  const [pendingChangeRequest, setPendingChangeRequest] = useState<{
+    id: string; newPhone: string; newCountryCode: string; requestedAt: string
+  } | null>(null)
 
-  // Phone OTP flow
-  const [step, setStep] = useState<'idle' | 'enter_phone' | 'enter_otp'>('idle')
+  // Phone flow
+  const [countryCode, setCountryCode] = useState<SupportedCountryCode>('+91')
+  const [step, setStep] = useState<'idle' | 'enter_phone' | 'enter_otp' | 'foreign_submitted'>('idle')
   const [phone, setPhone] = useState('')
   const [otp, setOtp] = useState('')
   const [sending, setSending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0)
   const [payout, setPayout] = useState<PayoutDetails | null>(null)
+
+  // Phone change request (for already-verified hosts)
+  const [showChangeForm, setShowChangeForm] = useState(false)
+  const [changePhone, setChangePhone] = useState('')
+  const [changeCountryCode, setChangeCountryCode] = useState<SupportedCountryCode>('+91')
+  const [changeNote, setChangeNote] = useState('')
+
   const payoutSaved = !!(payout && ((payout.upi_id && payout.upi_id.includes('@')) || (payout.bank_account_number && payout.bank_ifsc)))
 
   const syncCooldownFromServer = useCallback((iso: string | undefined | null) => {
@@ -56,13 +81,21 @@ export default function HostVerifyPage() {
         setEmailVerified(status.isEmailVerified)
         setIsHost(status.isHost)
         setExistingPhone(status.phoneNumber)
+        setExistingCountryCode(status.phoneCountryCode || '+91')
+        setPendingChangeRequest(status.pendingChangeRequest)
+
         if (status.phoneNumber) setPhone(status.phoneNumber)
-        if (status.otpSendCooldownUntil) {
-          const sec = Math.ceil((new Date(status.otpSendCooldownUntil).getTime() - Date.now()) / 1000)
-          if (sec > 0) setResendCooldown(sec)
-        }
+        if (status.phoneCountryCode) setCountryCode(status.phoneCountryCode as SupportedCountryCode)
+
+        if (status.otpSendCooldownUntil) syncCooldownFromServer(status.otpSendCooldownUntil)
+
         if (status.isEmailVerified && !status.isPhoneVerified) {
-          setStep('enter_phone')
+          // If they have a foreign phone pending review, show that state
+          if (status.phoneNumber && status.phoneCountryCode && status.phoneCountryCode !== '+91') {
+            setStep('foreign_submitted')
+          } else {
+            setStep('enter_phone')
+          }
         }
       }
       const p = await getPayoutDetails()
@@ -71,25 +104,21 @@ export default function HostVerifyPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [syncCooldownFromServer])
 
   async function refreshPayout() {
     const p = await getPayoutDetails()
     if (p && !('error' in p)) setPayout(p)
   }
 
-  // Web OTP (Chrome/Android): SMS must include app origin (configure your 2factor template accordingly).
+  // Web OTP autofill (Chrome/Android)
   useEffect(() => {
     if (step !== 'enter_otp' || typeof window === 'undefined') return
     type OtpCred = { code?: string }
     if (!('OTPCredential' in window)) return
     const ac = new AbortController()
-    const opts = {
-      otp: { transport: ['sms'] as const },
-      signal: ac.signal,
-    } as CredentialRequestOptions
     navigator.credentials
-      .get(opts)
+      .get({ otp: { transport: ['sms'] as const }, signal: ac.signal } as CredentialRequestOptions)
       .then((cred) => {
         const code = (cred as OtpCred)?.code
         if (code && /^\d{4,8}$/.test(code)) setOtp(code.replace(/\D/g, '').slice(0, 6))
@@ -99,38 +128,45 @@ export default function HostVerifyPage() {
   }, [step])
 
   async function handleSendOTP() {
-    if (phone.length !== 10) {
-      toast.error('Enter 10-digit phone number')
+    const rule = PHONE_COUNTRY_CODES[countryCode]
+    if (phone.length !== rule.digits) {
+      toast.error(`Enter ${rule.digits}-digit phone number`)
       return
     }
     setSending(true)
     const result = await sendPhoneOTP(phone)
     if (result.error) {
       toast.error(result.error)
-      if ('cooldownUntil' in result && result.cooldownUntil) {
-        syncCooldownFromServer(result.cooldownUntil)
-      }
+      if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
     } else if ('devConsoleOnly' in result && result.devConsoleOnly) {
       if (isLocalDevHostname()) {
         toast.success('OTP generated (local dev: check your server terminal for the code).')
         setOtp('')
         setStep('enter_otp')
-        if ('cooldownUntil' in result && result.cooldownUntil) {
-          syncCooldownFromServer(result.cooldownUntil)
-        }
+        if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
       } else {
         toast.error('SMS sending failed. Please try again.')
-        if ('cooldownUntil' in result && result.cooldownUntil) {
-          syncCooldownFromServer(result.cooldownUntil)
-        }
+        if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
       }
     } else {
-      toast.success('OTP sent to +91 ' + phone)
+      toast.success(`OTP sent to ${countryCode} ${phone}`)
       setOtp('')
       setStep('enter_otp')
-      if ('cooldownUntil' in result && result.cooldownUntil) {
-        syncCooldownFromServer(result.cooldownUntil)
-      }
+      if ('cooldownUntil' in result && result.cooldownUntil) syncCooldownFromServer(result.cooldownUntil)
+    }
+    setSending(false)
+  }
+
+  async function handleForeignSubmit() {
+    setSending(true)
+    const result = await submitForeignPhoneForReview(phone, countryCode)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Submitted! Our team will verify your number and notify you.')
+      setStep('foreign_submitted')
+      setExistingPhone(phone)
+      setExistingCountryCode(countryCode)
     }
     setSending(false)
   }
@@ -144,6 +180,7 @@ export default function HostVerifyPage() {
     } else {
       toast.success('Phone verified!')
       setPhoneVerified(true)
+      setExistingPhone(phone)
       setStep('idle')
       if (result.isHost) {
         setIsHost(true)
@@ -161,6 +198,39 @@ export default function HostVerifyPage() {
     setSending(false)
   }
 
+  async function handleRequestChange() {
+    const rule = PHONE_COUNTRY_CODES[changeCountryCode]
+    if (changePhone.replace(/\D/g, '').length !== rule.digits) {
+      toast.error(`Enter a valid ${rule.digits}-digit ${rule.name} number`)
+      return
+    }
+    setSending(true)
+    const result = await requestPhoneChange(changePhone, changeCountryCode, changeNote)
+    if (result.error) {
+      toast.error(result.error)
+    } else {
+      toast.success('Change request submitted. Our team will verify and update your number.')
+      setShowChangeForm(false)
+      setChangePhone('')
+      setChangeNote('')
+      // Refresh status to show pending request
+      const status = await checkVerificationStatus()
+      if (status) setPendingChangeRequest(status.pendingChangeRequest)
+    }
+    setSending(false)
+  }
+
+  async function handleCancelChangeRequest() {
+    setSending(true)
+    const result = await cancelPhoneChangeRequest()
+    if (result.error) toast.error(result.error)
+    else {
+      toast.success('Change request cancelled.')
+      setPendingChangeRequest(null)
+    }
+    setSending(false)
+  }
+
   if (loading) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center">
@@ -169,240 +239,375 @@ export default function HostVerifyPage() {
     )
   }
 
+  const rule = PHONE_COUNTRY_CODES[countryCode]
+  const isIndian = countryCode === '+91'
+
   if (isHost) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16">
-          <div className="text-center mb-8">
-            <div className="h-20 w-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-6">
-              <Shield className="h-10 w-10 text-emerald-700 dark:text-emerald-400" />
+        <div className="text-center mb-8">
+          <div className="h-20 w-20 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-6">
+            <Shield className="h-10 w-10 text-emerald-700 dark:text-emerald-400" />
+          </div>
+          <h1 className="text-3xl font-black mb-2">You&apos;re a Verified Host!</h1>
+          <p className="text-muted-foreground">
+            {payoutSaved
+              ? 'Phone and email verified. You can now create and host trips on UnSOLO.'
+              : 'One last step — add where we should send your earnings.'}
+          </p>
+        </div>
+
+        {payout && (
+          <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              {payoutSaved ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" /> : <Wallet className="h-6 w-6 text-primary" />}
+              <div>
+                <h3 className="font-bold">Payout Details</h3>
+                <p className="text-xs text-muted-foreground">
+                  {payoutSaved ? 'Saved — update anytime from the host dashboard.' : 'Required before you can publish listings.'}
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl font-black mb-2">You&apos;re a Verified Host!</h1>
-            <p className="text-muted-foreground">
-              {payoutSaved
-                ? 'Phone and email verified. You can now create and host trips on UnSOLO.'
-                : 'One last step — add where we should send your earnings.'}
-            </p>
+            <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+          </div>
+        )}
+
+        {/* Phone change request section */}
+        <div className="rounded-xl border border-border bg-card p-4 mb-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Verified phone</p>
+              <p className="text-xs text-muted-foreground">
+                {existingCountryCode} {existingPhone}
+                {existingCountryCode !== '+91' && (
+                  <span className="ml-1.5 text-amber-400">(manually verified)</span>
+                )}
+              </p>
+            </div>
+            {!pendingChangeRequest && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setShowChangeForm(!showChangeForm)}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Change number
+              </Button>
+            )}
           </div>
 
-          {payout && (
-            <div className={`p-5 rounded-xl border mb-6 ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35'}`}>
-              <div className="flex items-center gap-3 mb-4">
-                {payoutSaved ? <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" /> : <Wallet className="h-6 w-6 text-primary" />}
-                <div>
-                  <h3 className="font-bold">Payout Details</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {payoutSaved ? 'Saved — update anytime from the host dashboard.' : 'Required before you can publish listings.'}
-                  </p>
-                </div>
-              </div>
-              <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+          {pendingChangeRequest && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+              <p className="text-xs font-semibold text-amber-300">Phone change pending approval</p>
+              <p className="text-xs text-muted-foreground">
+                New number: <span className="text-foreground font-medium">{pendingChangeRequest.newCountryCode} {pendingChangeRequest.newPhone}</span>
+                {' '}&mdash; our team will verify and update your profile.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
+                onClick={handleCancelChangeRequest}
+                disabled={sending}
+              >
+                <X className="h-3 w-3 mr-1" /> Cancel request
+              </Button>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Button
-              onClick={() => router.push('/host/create')}
-              className="bg-primary text-primary-foreground font-bold"
-              size="lg"
-              disabled={!payoutSaved}
-            >
-              <ArrowRight className="mr-2 h-4 w-4" /> Create Your First Trip
-            </Button>
-            <Button onClick={() => router.push('/host')} variant="outline" size="lg">
-              Host Dashboard
-            </Button>
-          </div>
+          {showChangeForm && !pendingChangeRequest && (
+            <div className="space-y-3 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Your current number stays visible until our team approves the change.
+              </p>
+              <div className="flex gap-2">
+                <select
+                  value={changeCountryCode}
+                  onChange={(e) => { setChangeCountryCode(e.target.value as SupportedCountryCode); setChangePhone('') }}
+                  className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
+                  ))}
+                </select>
+                <Input
+                  type="tel"
+                  placeholder={`${PHONE_COUNTRY_CODES[changeCountryCode].digits}-digit number`}
+                  value={changePhone}
+                  onChange={(e) => setChangePhone(e.target.value.replace(/\D/g, '').slice(0, PHONE_COUNTRY_CODES[changeCountryCode].digits))}
+                  maxLength={PHONE_COUNTRY_CODES[changeCountryCode].digits}
+                  inputMode="numeric"
+                  className="bg-secondary border-border"
+                />
+              </div>
+              <Input
+                type="text"
+                placeholder="Note for staff (optional)"
+                value={changeNote}
+                onChange={(e) => setChangeNote(e.target.value)}
+                className="bg-secondary border-border text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleRequestChange}
+                  disabled={sending}
+                  size="sm"
+                  className="bg-primary text-primary-foreground font-bold text-xs"
+                >
+                  {sending ? 'Submitting…' : 'Submit change request'}
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowChangeForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-3 justify-center">
+          <Button
+            onClick={() => router.push('/host/create')}
+            className="bg-primary text-primary-foreground font-bold"
+            size="lg"
+            disabled={!payoutSaved}
+          >
+            <ArrowRight className="mr-2 h-4 w-4" /> Create Your First Trip
+          </Button>
+          <Button onClick={() => router.push('/host')} variant="outline" size="lg">
+            Host Dashboard
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="mx-auto max-w-lg px-4 py-16">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-black">Become a <span className="text-primary">Host</span></h1>
-          <p className="text-muted-foreground mt-2">
-            Verify your identity to create and host trips on UnSOLO. Both phone and email verification are required.
-          </p>
+      <div className="text-center mb-10">
+        <h1 className="text-3xl font-black">Become a <span className="text-primary">Host</span></h1>
+        <p className="text-muted-foreground mt-2">
+          Verify your identity to create and host trips on UnSOLO. Both phone and email verification are required.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Email Verification */}
+        <div className={`p-5 rounded-xl border ${emailVerified ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-border bg-card'}`}>
+          <div className="flex items-center gap-3 mb-3">
+            {emailVerified ? (
+              <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            ) : (
+              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+            )}
+            <div>
+              <h3 className="font-bold flex items-center gap-2">
+                <Mail className="h-4 w-4 text-primary" /> Email Verification
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {emailVerified ? 'Email verified' : 'Check your inbox for the verification link'}
+              </p>
+            </div>
+          </div>
+          {!emailVerified && (
+            <Button onClick={handleResendEmail} disabled={sending} variant="outline" size="sm" className="w-full">
+              {sending ? 'Sending...' : 'Resend Verification Email'}
+            </Button>
+          )}
         </div>
 
-        <div className="space-y-6">
-          {/* Email Verification */}
-          <div className={`p-5 rounded-xl border ${emailVerified ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-border bg-card'}`}>
-            <div className="flex items-center gap-3 mb-3">
-              {emailVerified ? (
-                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-              ) : (
-                <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-              )}
-              <div>
+        {/* Phone Verification */}
+        <div
+          className={cn(
+            'p-5 rounded-xl border transition-all duration-300',
+            phoneVerified && 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10',
+            !phoneVerified && emailVerified && 'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
+            !phoneVerified && !emailVerified && 'border-border bg-card opacity-90',
+          )}
+        >
+          <div className="flex items-start gap-3 mb-3">
+            {phoneVerified ? (
+              <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+            ) : step === 'foreign_submitted' ? (
+              <Loader2 className="h-6 w-6 text-amber-400 flex-shrink-0 mt-0.5 animate-spin" />
+            ) : (
+              <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-bold flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" /> Email Verification
+                  <Phone className="h-4 w-4 text-primary" /> Phone Verification
                 </h3>
-                <p className="text-xs text-muted-foreground">
-                  {emailVerified ? 'Email verified' : 'Check your inbox for the verification link'}
-                </p>
-              </div>
-            </div>
-            {!emailVerified && (
-              <Button onClick={handleResendEmail} disabled={sending} variant="outline" size="sm" className="w-full">
-                {sending ? 'Sending...' : 'Resend Verification Email'}
-              </Button>
-            )}
-          </div>
-
-          {/* Phone Verification */}
-          <div
-            className={cn(
-              'p-5 rounded-xl border transition-all duration-300',
-              phoneVerified && 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10',
-              !phoneVerified &&
-                emailVerified &&
-                'border-primary/50 bg-primary/[0.08] ring-2 ring-primary/35 shadow-[0_0_32px_-8px_hsl(var(--primary)/0.35)]',
-              !phoneVerified && !emailVerified && 'border-border bg-card opacity-90',
-            )}
-          >
-            <div className="flex items-start gap-3 mb-3">
-              {phoneVerified ? (
-                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-              ) : (
-                <Circle className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-0.5" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-bold flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-primary" /> Phone Verification
-                  </h3>
-                  {!phoneVerified && emailVerified && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
-                      Next step
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {phoneVerified
-                    ? `Verified: +91 ${existingPhone || phone}`
-                    : 'Verify your Indian mobile number via OTP — required to host trips.'}
-                </p>
-              </div>
-            </div>
-
-            {!phoneVerified && !emailVerified && (
-              <p className="text-xs text-muted-foreground pl-9">
-                Complete email verification above, then enter your mobile number here.
-              </p>
-            )}
-
-            {!phoneVerified && emailVerified && step === 'enter_phone' && (
-              <div className="space-y-3 pl-0 sm:pl-0">
-                <div className="flex gap-2">
-                  <span className="flex items-center px-3 bg-secondary rounded-lg text-sm font-medium shrink-0">+91</span>
-                  <Input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    maxLength={10}
-                    inputMode="numeric"
-                    autoComplete="tel-national"
-                    className="bg-secondary border-border"
-                  />
-                </div>
-                <Button
-                  onClick={handleSendOTP}
-                  disabled={sending || phone.length !== 10 || resendCooldown > 0}
-                  className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
-                >
-                  {sending ? 'Sending OTP...' : resendCooldown > 0 ? `Wait ${resendCooldown}s to resend` : 'Send OTP'}
-                </Button>
-              </div>
-            )}
-
-            {!phoneVerified && emailVerified && step === 'enter_otp' && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  OTP sent to +91 {phone}. Enter the 6-digit code (supported browsers can fill it automatically from SMS):
-                </p>
-                <Input
-                  type="text"
-                  name="one-time-code"
-                  placeholder="6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className="bg-secondary border-border text-center text-lg tracking-widest font-mono"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleVerifyOTP}
-                    disabled={sending || otp.length !== 6}
-                    className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90"
-                  >
-                    {sending ? 'Verifying...' : 'Verify OTP'}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setStep('enter_phone')
-                      setOtp('')
-                      setResendCooldown(0)
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0"
-                  >
-                    Change number
-                  </Button>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSendOTP}
-                  disabled={sending || resendCooldown > 0 || phone.length !== 10}
-                  className={cn(
-                    'text-xs w-full text-center',
-                    resendCooldown > 0 || sending
-                      ? 'text-muted-foreground cursor-not-allowed'
-                      : 'text-primary hover:underline',
-                  )}
-                >
-                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Payout Details — shown after both verifications */}
-          {emailVerified && phoneVerified && payout && (
-            <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/30 bg-primary/5'}`}>
-              <div className="flex items-center gap-3 mb-4">
-                {payoutSaved ? (
-                  <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                ) : (
-                  <Wallet className="h-6 w-6 text-primary flex-shrink-0" />
+                {!phoneVerified && emailVerified && step !== 'foreign_submitted' && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                    Next step
+                  </span>
                 )}
-                <div>
-                  <h3 className="font-bold">Payout Details</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {payoutSaved ? 'Saved — you can update these anytime.' : 'Where should we send your host earnings?'}
-                  </p>
-                </div>
+                {step === 'foreign_submitted' && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    Pending review
+                  </span>
+                )}
               </div>
-              <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+              <p className="text-xs text-muted-foreground mt-1">
+                {phoneVerified
+                  ? `Verified: ${existingCountryCode} ${existingPhone}`
+                  : step === 'foreign_submitted'
+                  ? `${PHONE_COUNTRY_CODES[countryCode]?.name} number ${countryCode} ${existingPhone} submitted — our team will call or message to confirm.`
+                  : 'Verify your mobile number to start hosting trips.'}
+              </p>
+            </div>
+          </div>
+
+          {!phoneVerified && !emailVerified && (
+            <p className="text-xs text-muted-foreground pl-9">
+              Complete email verification above, then enter your mobile number here.
+            </p>
+          )}
+
+          {step === 'foreign_submitted' && (
+            <div className="pl-9 space-y-2">
+              <p className="text-xs text-amber-200/80">
+                We&apos;ll contact you on <span className="font-medium text-amber-300">{countryCode} {existingPhone}</span> within 1–2 business days. You&apos;ll receive a notification once verified.
+              </p>
+              <button
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => {
+                  setStep('enter_phone')
+                  setPhone('')
+                }}
+              >
+                Use a different number
+              </button>
             </div>
           )}
 
-          {/* Status summary */}
-          <div className="text-center text-sm text-muted-foreground pt-4">
-            {emailVerified && phoneVerified && payoutSaved ? (
-              <p className="text-emerald-800 dark:text-emerald-300 font-medium">All set! You&apos;re ready to host.</p>
-            ) : emailVerified && phoneVerified ? (
-              <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
-            ) : (
-              <p>Complete both verifications to start hosting trips.</p>
-            )}
-          </div>
+          {!phoneVerified && emailVerified && step === 'enter_phone' && (
+            <div className="space-y-3">
+              {/* Country code selector */}
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={(e) => { setCountryCode(e.target.value as SupportedCountryCode); setPhone('') }}
+                  className="bg-secondary border border-border rounded-lg px-2 py-2 text-sm shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c.code} value={c.code}>{c.flag} {c.code} {c.name}</option>
+                  ))}
+                </select>
+                <Input
+                  type="tel"
+                  placeholder={`${rule.digits}-digit number`}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, rule.digits))}
+                  maxLength={rule.digits}
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  className="bg-secondary border-border"
+                />
+              </div>
+
+              {!isIndian && (
+                <p className="text-xs text-amber-200/80 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2">
+                  Indian OTP verification is not available for {rule.name} numbers. Our team will manually verify your number via call or message — usually within 1–2 business days.
+                </p>
+              )}
+
+              <Button
+                onClick={isIndian ? handleSendOTP : handleForeignSubmit}
+                disabled={sending || phone.length !== rule.digits || (!isIndian ? false : resendCooldown > 0)}
+                className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+              >
+                {sending
+                  ? isIndian ? 'Sending OTP…' : 'Submitting…'
+                  : isIndian
+                  ? resendCooldown > 0 ? `Wait ${resendCooldown}s` : 'Send OTP'
+                  : 'Submit for manual verification'}
+              </Button>
+            </div>
+          )}
+
+          {!phoneVerified && emailVerified && step === 'enter_otp' && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                OTP sent to +91 {phone}. Enter the 6-digit code:
+              </p>
+              <Input
+                type="text"
+                name="one-time-code"
+                placeholder="6-digit OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                maxLength={6}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                className="bg-secondary border-border text-center text-lg tracking-widest font-mono"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleVerifyOTP}
+                  disabled={sending || otp.length !== 6}
+                  className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90"
+                >
+                  {sending ? 'Verifying...' : 'Verify OTP'}
+                </Button>
+                <Button
+                  onClick={() => { setStep('enter_phone'); setOtp(''); setResendCooldown(0) }}
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                >
+                  Change number
+                </Button>
+              </div>
+              <button
+                type="button"
+                onClick={handleSendOTP}
+                disabled={sending || resendCooldown > 0 || phone.length !== 10}
+                className={cn(
+                  'text-xs w-full text-center',
+                  resendCooldown > 0 || sending ? 'text-muted-foreground cursor-not-allowed' : 'text-primary hover:underline',
+                )}
+              >
+                {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Payout Details */}
+        {emailVerified && phoneVerified && payout && (
+          <div className={`p-5 rounded-xl border ${payoutSaved ? 'border-emerald-600/30 bg-emerald-500/8 dark:bg-emerald-500/10' : 'border-primary/30 bg-primary/5'}`}>
+            <div className="flex items-center gap-3 mb-4">
+              {payoutSaved ? (
+                <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              ) : (
+                <Wallet className="h-6 w-6 text-primary flex-shrink-0" />
+              )}
+              <div>
+                <h3 className="font-bold">Payout Details</h3>
+                <p className="text-xs text-muted-foreground">
+                  {payoutSaved ? 'Saved — you can update these anytime.' : 'Where should we send your host earnings?'}
+                </p>
+              </div>
+            </div>
+            <PayoutDetailsForm initial={payout} onSaved={refreshPayout} compact />
+          </div>
+        )}
+
+        <div className="text-center text-sm text-muted-foreground pt-4">
+          {emailVerified && phoneVerified && payoutSaved ? (
+            <p className="text-emerald-800 dark:text-emerald-300 font-medium">All set! You&apos;re ready to host.</p>
+          ) : emailVerified && phoneVerified ? (
+            <p className="text-primary font-medium">Almost there! Add your payout details above.</p>
+          ) : step === 'foreign_submitted' ? (
+            <p className="text-amber-400">Phone verification pending — we&apos;ll notify you once confirmed.</p>
+          ) : (
+            <p>Complete both verifications to start hosting trips.</p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
