@@ -3,11 +3,11 @@
 import { useState, useEffect, useTransition } from 'react'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails } from '@/actions/booking'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee } from 'lucide-react'
+import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee, Pencil } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
@@ -101,6 +101,17 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
       const res = await markRefundComplete(bookingId)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else showFeedback(bookingId, 'Refund marked complete — customer notified!')
+    })
+  }
+
+  function handleRecordOfflineRefund(bookingId: string) {
+    const el = document.getElementById(`offline-refund-note-${bookingId}`) as HTMLInputElement | null
+    const note = el?.value?.trim() || undefined
+    if (!confirm('Record this refund as settled offline (cash / bank transfer)? The customer will be notified and emailed a receipt.')) return
+    startTransition(async () => {
+      const res = await recordOfflineRefund(bookingId, note)
+      if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
+      else showFeedback(bookingId, 'Offline refund recorded — customer notified & emailed!')
     })
   }
 
@@ -382,21 +393,9 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                     <div><span className="text-muted-foreground">POC:</span> {poc ? `${poc.full_name} (@${poc.username})` : booking.poc_external_name ? `${booking.poc_external_name} · ${booking.poc_external_phone || ''} (outsider)` : <span className="text-yellow-500">Not assigned</span>}</div>
                   </div>
 
-                  {/* Travellers */}
+                  {/* Travellers — view, and edit names/ages/genders of independent travellers */}
                   {Array.isArray(booking.traveller_details) && booking.traveller_details.length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-muted-foreground">Travellers</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {booking.traveller_details.map((t, i) => (
-                          <span key={i} className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border">
-                            <span className="font-medium">{t.name}</span>
-                            {(t.age || t.gender) && (
-                              <span className="text-muted-foreground"> · {[t.age || null, t.gender || null].filter(Boolean).join(' · ')}</span>
-                            )}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <TravellerEditor bookingId={booking.id} initial={booking.traveller_details} />
                   )}
 
                   {/* Payment — cash collected vs balance; record offline payments here */}
@@ -678,14 +677,37 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                       )}
 
                       {(!booking.refund_status || booking.refund_status === 'pending') && (
-                        <Button
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                          onClick={() => handleInitiateRefund(booking.id)}
-                          disabled={isPending}
-                        >
-                          💳 Initiate Razorpay Refund
-                        </Button>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                              onClick={() => handleInitiateRefund(booking.id)}
+                              disabled={isPending}
+                            >
+                              💳 Initiate Razorpay Refund
+                            </Button>
+                            <span className="text-[11px] text-muted-foreground">or</span>
+                            <input
+                              type="text"
+                              id={`offline-refund-note-${booking.id}`}
+                              placeholder="Offline note (e.g. UPI ref)"
+                              className="bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs w-44"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1 border-border"
+                              onClick={() => handleRecordOfflineRefund(booking.id)}
+                              disabled={isPending}
+                            >
+                              <IndianRupee className="h-3 w-3" /> Record offline refund
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Use <strong>Record offline refund</strong> when you settle the refund outside the app (cash / bank transfer). It marks the refund completed in one step and emails the customer a receipt — no Razorpay involved.
+                          </p>
+                        </div>
                       )}
 
                       {booking.refund_status === 'processing' && (
@@ -795,6 +817,102 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
           )
         })}
       </div>
+    </div>
+  )
+}
+
+type EditableTraveller = { name: string; age: number | string; gender: string }
+
+function TravellerEditor({ bookingId, initial }: { bookingId: string; initial: { name: string; age: number; gender: string }[] }) {
+  const [travellers, setTravellers] = useState<EditableTraveller[]>(() => initial.map((t) => ({ name: t.name, age: t.age, gender: t.gender })))
+  const [draft, setDraft] = useState<EditableTraveller[]>(travellers)
+  const [editing, setEditing] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState(false)
+  const [isPending, start] = useTransition()
+
+  function open() {
+    setDraft(travellers.map((t) => ({ ...t }))); setMsg(''); setErr(false); setEditing(true)
+  }
+
+  function setField(i: number, key: keyof EditableTraveller, value: string) {
+    setDraft((d) => d.map((t, idx) => (idx === i ? { ...t, [key]: value } : t)))
+  }
+
+  function save() {
+    const payload = draft.map((t) => ({ name: t.name.trim(), age: Number(t.age), gender: t.gender }))
+    start(async () => {
+      const res = await adminUpdateTravellerDetails(bookingId, payload)
+      if (res.error) { setErr(true); setMsg(res.error) }
+      else {
+        setErr(false); setMsg('Traveller details updated.')
+        setTravellers((res.travellers as EditableTraveller[]) || payload)
+        setEditing(false)
+      }
+    })
+  }
+
+  const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1 text-xs'
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-medium text-muted-foreground">Travellers</p>
+        {!editing && (
+          <button onClick={open} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+            <Pencil className="h-3 w-3" /> Edit
+          </button>
+        )}
+      </div>
+
+      {!editing ? (
+        <div className="flex flex-wrap gap-1.5">
+          {travellers.map((t, i) => (
+            <span key={i} className="text-xs px-2 py-1 rounded-lg bg-secondary border border-border">
+              <span className="font-medium">{t.name}</span>
+              {(t.age || t.gender) && (
+                <span className="text-muted-foreground"> · {[t.age || null, t.gender || null].filter(Boolean).join(' · ')}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
+          {draft.map((t, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] text-muted-foreground w-4">{i + 1}.</span>
+              <input
+                value={t.name}
+                onChange={(e) => setField(i, 'name', e.target.value)}
+                placeholder="Name"
+                className={`${inputCls} w-40`}
+              />
+              <input
+                type="number"
+                min="1"
+                max="120"
+                value={t.age}
+                onChange={(e) => setField(i, 'age', e.target.value)}
+                placeholder="Age"
+                className={`${inputCls} w-16`}
+              />
+              <select value={t.gender} onChange={(e) => setField(i, 'gender', e.target.value)} className={inputCls}>
+                <option value="male">male</option>
+                <option value="female">female</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+          ))}
+          <p className="text-[10px] text-muted-foreground">
+            Corrects existing travellers only. To add or remove a traveller use the booking / per-traveller cancellation flows.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" className="text-xs" onClick={save} disabled={isPending}>Save travellers</Button>
+            <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => setEditing(false)} disabled={isPending}>Cancel</Button>
+          </div>
+        </div>
+      )}
+      {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
     </div>
   )
 }

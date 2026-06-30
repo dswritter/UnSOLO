@@ -2547,6 +2547,59 @@ export async function refundBookingOverpayment(bookingId: string) {
   return { success: true, refundedPaise: overpaid }
 }
 
+// ── Admin: Edit traveller details ───────────────────────────
+/**
+ * Admin/staff edit the per-traveller details (name, age, gender) on a booking.
+ * Useful for correcting independent travellers' info — the travellers are stored
+ * as plain { name, age, gender } records with no account of their own.
+ *
+ * Editing only corrects the existing entries; it never changes the guest count.
+ * To remove travellers use the per-traveller cancellation flow instead.
+ */
+export async function adminUpdateTravellerDetails(
+  bookingId: string,
+  travellers: { name: string; age: number; gender: string }[],
+) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const svc = createServiceRoleClient()
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('id, guests, traveller_details')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+
+  // Edits must cover every seat exactly — adding/removing travellers goes through
+  // the booking/cancellation flows so money and guest counts stay consistent.
+  const existingCount = Array.isArray(booking.traveller_details) ? booking.traveller_details.length : 0
+  const guests = booking.guests || existingCount || travellers.length
+  const sanitized = sanitizeTravellerDetails(travellers, guests)
+  if ('error' in sanitized) return { error: sanitized.error }
+  if (!sanitized.value) return { error: 'Enter details for each traveller.' }
+
+  const { error } = await svc
+    .from('bookings')
+    .update({ traveller_details: sanitized.value, updated_at: new Date().toISOString() })
+    .eq('id', bookingId)
+  if (error) return { error: error.message }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'UPDATE_TRAVELLER_DETAILS', 'booking', bookingId, { guests })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/admin/bookings')
+  revalidatePath('/bookings')
+  return { success: true, travellers: sanitized.value }
+}
+
 // ── Admin: Process Cancellation ─────────────────────────────
 /**
  * Admin/staff records an offline payment (cash, bank transfer, etc.) against a
@@ -2877,6 +2930,92 @@ export async function markRefundComplete(bookingId: string) {
   revalidatePath('/admin/bookings')
   revalidatePath('/bookings')
   return { success: true }
+}
+
+// ── Admin: Record Offline Refund ────────────────────────────
+/**
+ * Admin records a cancellation refund that was settled OUTSIDE the app (cash or
+ * bank transfer) — an alternative to the Razorpay "Initiate refund" flow. Marks
+ * the refund completed in one step, notifies + emails the customer a receipt,
+ * and tags the method as 'offline' for the record.
+ *
+ * Blocked while a Razorpay refund is already processing (use "Mark refund as
+ * credited" for that), so the two paths can't double-credit a customer.
+ */
+export async function recordOfflineRefund(bookingId: string, note?: string) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'admin') return { error: 'Unauthorized' }
+
+  const { data: booking } = await supabase
+    .from('bookings')
+    .select('*, package:packages(title)')
+    .eq('id', bookingId)
+    .single()
+
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status !== 'cancelled') return { error: 'Record an offline refund only on a cancelled booking.' }
+  if (!booking.refund_amount_paise || booking.refund_amount_paise <= 0) return { error: 'No refund amount set.' }
+  if (booking.refund_status === 'completed') return { success: true, alreadyComplete: true }
+  if (booking.refund_status === 'processing') {
+    return { error: 'A Razorpay refund is already processing — use "Mark refund as credited" instead.' }
+  }
+
+  const creditedPaise = booking.refund_amount_paise
+
+  // Core columns first (always present). refund_method is best-effort below so
+  // this still works if migration 098 hasn't been applied yet.
+  await supabase
+    .from('bookings')
+    .update({
+      refund_status: 'completed',
+      refund_completed_paise: creditedPaise,
+      refund_note: note?.trim() || booking.refund_note || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+
+  try {
+    await supabase.from('bookings').update({ refund_method: 'offline' }).eq('id', bookingId)
+  } catch { /* refund_method column optional until migration 098 */ }
+
+  // Notify customer
+  const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
+  const refundFormatted = creditedPaise ? `₹${(creditedPaise / 100).toLocaleString('en-IN')}` : ''
+  await supabase.from('notifications').insert({
+    user_id: booking.user_id,
+    type: 'booking',
+    title: 'Refund Completed!',
+    body: `Your refund of ${refundFormatted} for ${pkgTitle} has been settled.${note?.trim() ? ` ${note.trim()}` : ''}`,
+    link: '/bookings',
+  })
+
+  // Email the customer a refund receipt (skip if already emailed for this booking).
+  if (!booking.refund_email_sent_at) {
+    const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+    await sendRefundReceiptAndRecord(supabase, {
+      table: 'bookings',
+      id: bookingId,
+      userId: booking.user_id,
+      tripTitle: pkgTitle,
+      netRefundPaise: creditedPaise,
+      amountPaidPaise: typeof booking.deposit_paise === 'number' ? booking.deposit_paise : undefined,
+    })
+  }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'RECORD_OFFLINE_REFUND', 'booking', bookingId, {
+      refundPaise: creditedPaise,
+      note: note?.trim() || '',
+    })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/admin/bookings')
+  revalidatePath('/bookings')
+  return { success: true, refundedPaise: creditedPaise }
 }
 
 // ── Community Trip Payment (after host approves join request) ──

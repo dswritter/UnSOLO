@@ -10,6 +10,7 @@ import {
   adminPartialCancel,
   initiatePartialRefund,
   markPartialRefundComplete,
+  recordOfflinePartialRefund,
 } from '@/actions/partial-cancellation'
 
 export type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
@@ -290,6 +291,14 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
       else { setErr(false); setMsg('Marked complete — traveller notified.') }
     })
   }
+  function recordOffline() {
+    if (!confirm('Record this refund as settled offline (cash / bank transfer)? The traveller will be notified and emailed a receipt.')) return
+    start(async () => {
+      const res = await recordOfflinePartialRefund(row.id)
+      if ('error' in res && res.error) { setErr(true); setMsg(res.error) }
+      else { setErr(false); setMsg('Offline refund recorded — traveller notified & emailed.') }
+    })
+  }
 
   return (
     <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
@@ -306,9 +315,13 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
         )}
       </p>
       {row.status === 'approved' && row.refund_amount_paise > 0 && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(row.refund_status === 'pending') && (
-            <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={initiate} disabled={isPending}>💳 Initiate refund</Button>
+            <>
+              <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700 text-white" onClick={initiate} disabled={isPending}>💳 Initiate refund</Button>
+              <span className="text-[11px] text-muted-foreground">or</span>
+              <Button size="sm" variant="outline" className="text-xs border-border" onClick={recordOffline} disabled={isPending}>Record offline refund</Button>
+            </>
           )}
           {row.refund_status === 'processing' && (
             <Button size="sm" variant="outline" className="text-xs border-border" onClick={complete} disabled={isPending}>Mark refund complete</Button>

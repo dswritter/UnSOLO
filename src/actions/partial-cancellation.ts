@@ -592,6 +592,37 @@ export async function initiatePartialRefund(partialId: string) {
   }
 }
 
+/** Notify + email the customer that a partial refund has been credited. */
+async function finalizePartialRefundReceipt(
+  svc: Svc,
+  pc: { id: string; travellers?: unknown; refund_completed_paise?: number | null; refund_amount_paise?: number | null; refund_email_sent_at?: string | null },
+  booking: { user_id: string; package?: unknown },
+) {
+  const creditedPaise = (pc.refund_completed_paise ?? pc.refund_amount_paise) || 0
+  await svc.from('notifications').insert({
+    user_id: booking.user_id, type: 'booking', title: 'Refund completed',
+    body: `Your refund of ₹${(creditedPaise / 100).toLocaleString('en-IN')} has been credited.`,
+    link: '/bookings',
+  })
+
+  // Email a refund receipt with breakdown + record that it was sent.
+  if (!pc.refund_email_sent_at) {
+    const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Traveller[]) : []
+    const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
+    const pkgTitle = (booking.package as { title?: string } | null)?.title || 'your trip'
+    const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
+    await sendRefundReceiptAndRecord(svc, {
+      table: 'booking_partial_cancellations',
+      id: pc.id,
+      userId: booking.user_id,
+      tripTitle: pkgTitle,
+      netRefundPaise: creditedPaise,
+      partial: true,
+      travellersLabel,
+    })
+  }
+}
+
 /** Mark a partial refund as credited to the customer. */
 export async function markPartialRefundComplete(partialId: string) {
   const { user } = await getActionAuth()
@@ -613,29 +644,57 @@ export async function markPartialRefundComplete(partialId: string) {
 
   await svc.from('booking_partial_cancellations').update({ refund_status: 'completed' }).eq('id', partialId)
 
-  const creditedPaise = (pc.refund_completed_paise ?? pc.refund_amount_paise) || 0
-  await svc.from('notifications').insert({
-    user_id: actor.booking.user_id, type: 'booking', title: 'Refund completed',
-    body: `Your refund of ₹${(creditedPaise / 100).toLocaleString('en-IN')} has been credited.`,
-    link: '/bookings',
-  })
+  await finalizePartialRefundReceipt(svc, pc, actor.booking)
 
-  // Email a refund receipt with breakdown + record that it was sent.
-  if (!pc.refund_email_sent_at) {
-    const travellers = Array.isArray(pc.travellers) ? (pc.travellers as Traveller[]) : []
-    const travellersLabel = travellers.map((t) => t?.name).filter(Boolean).join(', ') || undefined
-    const pkgTitle = (actor.booking.package as { title?: string } | null)?.title || 'your trip'
-    const { sendRefundReceiptAndRecord } = await import('@/lib/email/refundReceipt')
-    await sendRefundReceiptAndRecord(svc, {
-      table: 'booking_partial_cancellations',
-      id: partialId,
-      userId: actor.booking.user_id,
-      tripTitle: pkgTitle,
-      netRefundPaise: creditedPaise,
-      partial: true,
-      travellersLabel,
-    })
+  revalidatePath('/admin/bookings'); revalidatePath('/bookings')
+  return { success: true }
+}
+
+/**
+ * Record a partial-cancellation refund settled OFFLINE (cash / bank transfer) —
+ * an alternative to the Razorpay "Initiate refund" flow. Marks it completed in
+ * one step, emails the receipt, and tags the method as 'offline'.
+ *
+ * Blocked while a Razorpay refund is already processing, so the offline and
+ * gateway paths can't double-credit the customer.
+ */
+export async function recordOfflinePartialRefund(partialId: string, note?: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const svc = createServiceRoleClient()
+
+  const { data: pc } = await svc
+    .from('booking_partial_cancellations')
+    .select('*')
+    .eq('id', partialId)
+    .single()
+  if (!pc) return { error: 'Request not found' }
+  if (pc.status !== 'approved') return { error: 'Approve the cancellation first.' }
+  if (!pc.refund_amount_paise || pc.refund_amount_paise <= 0) return { error: 'No refund amount set.' }
+  if (pc.refund_status === 'completed') return { success: true, alreadyComplete: true }
+  if (pc.refund_status === 'processing') {
+    return { error: 'A Razorpay refund is already processing — mark it complete instead.' }
   }
+
+  const actor = await resolveActor(svc, pc.booking_id, user.id)
+  if ('error' in actor) return { error: actor.error }
+  if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
+
+  await svc
+    .from('booking_partial_cancellations')
+    .update({
+      refund_status: 'completed',
+      refund_completed_paise: pc.refund_amount_paise,
+      admin_note: note?.trim() || pc.admin_note || null,
+    })
+    .eq('id', partialId)
+
+  // Best-effort tag — refund_method column lands in migration 098.
+  try {
+    await svc.from('booking_partial_cancellations').update({ refund_method: 'offline' }).eq('id', partialId)
+  } catch { /* column optional until migration 098 */ }
+
+  await finalizePartialRefundReceipt(svc, pc, actor.booking)
 
   revalidatePath('/admin/bookings'); revalidatePath('/bookings')
   return { success: true }
