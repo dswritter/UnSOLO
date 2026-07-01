@@ -203,6 +203,39 @@ export async function getAdminDashboardStats() {
   }
 }
 
+/**
+ * Lightweight sidebar badge counts — just the four pending counts the admin
+ * shell needs on EVERY admin navigation. Four `head:true` counts, no revenue
+ * scans (unlike getAdminDashboardStats, which is for the dashboard page only).
+ */
+export async function getAdminSidebarCounts() {
+  await requireStaff()
+  const { createClient: createSvc } = await import('@supabase/supabase-js')
+  const supabase = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+  const [
+    { count: pendingBookings },
+    { count: pendingDateRequests },
+    { count: pendingServiceListings },
+    { count: pendingCommunityTrips },
+  ] = await Promise.all([
+    supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('custom_date_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('service_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('packages').select('*', { count: 'exact', head: true })
+      .not('host_id', 'is', null)
+      .is('archived_at', null)
+      .eq('moderation_status', 'pending'),
+  ])
+
+  return {
+    bookings: pendingBookings || 0,
+    requests: pendingDateRequests || 0,
+    serviceListings: pendingServiceListings || 0,
+    communityTrips: pendingCommunityTrips || 0,
+  }
+}
+
 // ── Bookings Management ──────────────────────────────────────
 
 export async function getAdminBookings(status?: string) {

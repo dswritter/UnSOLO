@@ -3,7 +3,7 @@ import { getRequestAuth } from '@/lib/auth/request-session'
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
-import { getAdminDashboardStats } from '@/actions/admin'
+import { getAdminSidebarCounts } from '@/actions/admin'
 
 export async function AdminShell({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await getRequestAuth()
@@ -41,13 +41,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
 
   let pendingCounts = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
   try {
-    const stats = await getAdminDashboardStats()
-    pendingCounts = {
-      bookings: stats.pendingBookings,
-      requests: stats.pendingDateRequests,
-      serviceListings: stats.pendingServiceListings,
-      communityTrips: stats.pendingCommunityTrips,
-    }
+    pendingCounts = await getAdminSidebarCounts()
   } catch {
     /* non-fatal */
   }
