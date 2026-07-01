@@ -23,9 +23,16 @@ import { SearchBar } from './SearchBar'
 
 interface NavbarProps {
   user?: Profile | null
+  /**
+   * True while the signed-in user's profile is still streaming in (the layout
+   * renders this Navbar as a Suspense fallback with `user` not yet resolved).
+   * Shows a neutral avatar skeleton instead of the Sign In / Join buttons so
+   * an authenticated user never sees a logged-out flash.
+   */
+  authPending?: boolean
 }
 
-export function Navbar({ user }: NavbarProps) {
+export function Navbar({ user, authPending = false }: NavbarProps) {
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const [hasRooms, setHasRooms] = useState(false)
@@ -426,6 +433,12 @@ export function Navbar({ user }: NavbarProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
+            ) : authPending ? (
+              // Profile still streaming — placeholder avatar, no logged-out flash.
+              <div
+                className="h-10 w-10 rounded-full bg-foreground/10 animate-pulse"
+                aria-hidden
+              />
             ) : (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>

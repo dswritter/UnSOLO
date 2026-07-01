@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Compass, Gift, MessageSquare, Tent, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -33,54 +33,74 @@ export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; 
   const [unreadCount, setUnreadCount] = useState(0)
   const [hasRooms, setHasRooms] = useState(false)
 
+  // Read current pathname inside the realtime handler without re-subscribing the
+  // channel on every navigation (pathname is NOT in the effect deps below).
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
+
   useEffect(() => {
     if (!userId || isAndroidShell) return
+    const viewerId = userId
     const supabase = createClient()
+    let channel: ReturnType<typeof supabase.channel> | null = null
     let cancelled = false
 
-    async function loadState() {
-      // Count rooms the user is a member of — drives the label switch
-      // ("Meet Travellers" → "Community" once they have any chat at all).
-      const { count: roomCount } = await supabase
-        .from('chat_room_members')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', userId!)
-      if (cancelled) return
-      setHasRooms((roomCount ?? 0) > 0)
+    // Subscribe filtered to the user's own rooms — avoids receiving (and running
+    // a membership query for) every message inserted anywhere on the platform.
+    function subscribe(roomIds: string[]) {
+      if (channel) {
+        supabase.removeChannel(channel)
+        channel = null
+      }
+      if (roomIds.length === 0) return
+      const filter =
+        roomIds.length === 1
+          ? `room_id=eq.${roomIds[0]}`
+          : `room_id=in.(${roomIds.join(',')})`
+      channel = supabase
+        .channel(`mobile-nav-unread:${viewerId}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages', filter },
+          (payload: { new: Record<string, unknown> }) => {
+            const msg = payload.new as { user_id: string; message_type: string }
+            if (msg.user_id === viewerId || msg.message_type === 'system') return
+            // Don't bump while the user is actively in the chat section.
+            const p = pathnameRef.current
+            if (!p?.startsWith('/community') && !p?.startsWith('/tribe')) {
+              setUnreadCount(prev => prev + 1)
+              setHasRooms(true)
+            }
+          },
+        )
+        .subscribe()
     }
 
-    loadState()
+    async function loadRoomsAndSubscribe() {
+      const { data } = await supabase
+        .from('chat_room_members')
+        .select('room_id')
+        .eq('user_id', viewerId)
+      if (cancelled) return
+      const roomIds = [...new Set((data ?? []).map(r => r.room_id).filter(Boolean))] as string[]
+      setHasRooms(roomIds.length > 0)
+      subscribe(roomIds)
+    }
 
-    const channel = supabase
-      .channel('mobile-nav-unread')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        async (payload: { new: Record<string, unknown> }) => {
-          const msg = payload.new as { user_id: string; room_id: string; message_type: string }
-          if (msg.user_id === userId || msg.message_type === 'system') return
-          // Only count messages from rooms the user is in.
-          const { data: membership } = await supabase
-            .from('chat_room_members')
-            .select('id')
-            .eq('room_id', msg.room_id)
-            .eq('user_id', userId!)
-            .maybeSingle()
-          if (!membership) return
-          // Don't bump while the user is actively in the chat section.
-          const onChat = pathname?.startsWith('/community') || pathname?.startsWith('/tribe')
-          if (onChat) return
-          setUnreadCount(prev => prev + 1)
-          setHasRooms(true)
-        },
-      )
-      .subscribe()
+    void loadRoomsAndSubscribe()
+    // Re-check room membership periodically / on refocus so newly-joined rooms
+    // start counting without a full reload.
+    const interval = setInterval(() => void loadRoomsAndSubscribe(), 120_000)
+    const onFocus = () => void loadRoomsAndSubscribe()
+    window.addEventListener('focus', onFocus)
 
     return () => {
       cancelled = true
-      supabase.removeChannel(channel)
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      if (channel) supabase.removeChannel(channel)
     }
-  }, [userId, pathname, isAndroidShell])
+  }, [userId, isAndroidShell])
 
   // Clear the badge when the user actually walks into the chat section.
   useEffect(() => {
