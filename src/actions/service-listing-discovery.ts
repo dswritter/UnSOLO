@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public-client'
 import type { ServiceListing, ServiceListingType } from '@/types'
 import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
 
@@ -107,7 +108,8 @@ export async function getServiceListingsByType(
 }
 
 export async function getServiceListingDetail(slug: string) {
-  const supabase = await createClient()
+  // Cookieless: public content, cacheable via getCachedServiceListingDetail.
+  const supabase = createPublicClient()
 
   const { data, error } = await supabase
     .from('service_listings')
@@ -264,7 +266,8 @@ export async function getRelatedListings(
   currentListing: { type: ServiceListingType; destination_ids?: string[] | null; tags?: string[] | null },
   limit: number = 8
 ) {
-  const supabase = await createClient()
+  // Cookieless: public content, cacheable via getCachedRelatedListings.
+  const supabase = createPublicClient()
 
   const destinationIds = currentListing.destination_ids?.filter(Boolean) || []
 

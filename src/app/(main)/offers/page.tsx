@@ -1,12 +1,12 @@
 import { Gift, Link2 } from 'lucide-react'
 import Link from 'next/link'
-import { getPublicOfferSections } from '@/actions/offers'
+import { getCachedPublicOfferSections } from '@/lib/offers/public-offers-cache'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 
 export const dynamic = 'force-dynamic'
 
 export default async function OffersPage() {
-  const sections = await getPublicOfferSections()
+  const sections = await getCachedPublicOfferSections()
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">

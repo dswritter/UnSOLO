@@ -1,8 +1,11 @@
 'use server'
 
+import { revalidateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public-client'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
 import type { ServiceListingItem } from '@/types'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
@@ -12,6 +15,8 @@ async function touchServiceListingUpdatedAt(supabase: SupabaseServerClient, list
     .from('service_listings')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', listingId)
+  // Item CRUD all funnels through here — bust the public detail cache.
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 }
 
 /**
@@ -352,8 +357,9 @@ export async function deleteServiceListingItem(itemId: string) {
 }
 
 // Public: for detail pages. RLS ensures only approved+active listings' active items are returned.
+// Cookieless: cacheable via getCachedPublicServiceListingItems.
 export async function getPublicServiceListingItems(listingId: string) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   const { data, error } = await supabase
     .from('service_listing_items')
     .select('*')

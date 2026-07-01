@@ -1,8 +1,10 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public-client'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { OFFER_SECTIONS_TAG } from '@/lib/cache-tags'
 
 type OfferPageSectionRow = {
   id: string
@@ -195,7 +197,8 @@ async function getAutoBundleCombos(bundleKind: NonNullable<OfferPageSectionRow['
 }
 
 export async function getPublicOfferSections(): Promise<PublicOfferSection[]> {
-  const supabase = await createClient()
+  // Cookieless: public content, cacheable via getCachedPublicOfferSections.
+  const supabase = createPublicClient()
 
   const { data: sections } = await supabase
     .from('offer_page_sections')
@@ -296,6 +299,7 @@ export async function createOfferPageSection(input: {
   if (error) return { error: error.message }
   revalidatePath('/offers')
   revalidatePath('/admin/offers')
+  revalidateTag(OFFER_SECTIONS_TAG, 'max')
   return { success: true as const }
 }
 
@@ -323,6 +327,7 @@ export async function moveOfferPageSection(sectionId: string, direction: 'up' | 
 
   revalidatePath('/offers')
   revalidatePath('/admin/offers')
+  revalidateTag(OFFER_SECTIONS_TAG, 'max')
   return { success: true as const }
 }
 
@@ -333,6 +338,7 @@ export async function toggleOfferPageSection(sectionId: string, isActive: boolea
   if (error) return { error: error.message }
   revalidatePath('/offers')
   revalidatePath('/admin/offers')
+  revalidateTag(OFFER_SECTIONS_TAG, 'max')
   return { success: true as const }
 }
 
@@ -353,5 +359,6 @@ export async function updateOfferPageSectionDiscounts(sectionId: string, offerId
 
   revalidatePath('/offers')
   revalidatePath('/admin/offers')
+  revalidateTag(OFFER_SECTIONS_TAG, 'max')
   return { success: true as const }
 }

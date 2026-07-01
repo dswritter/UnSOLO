@@ -1,8 +1,9 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
 import type { ServiceListing, ServiceListingType, ServiceListingMetadata, ServiceEventScheduleEntry, AdminPermissionKey, UserRole } from '@/types'
 import { hasAdminPermission } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
@@ -304,6 +305,7 @@ export async function updateServiceListing(
   revalidatePath(`/admin/service-listings/${id}`)
   revalidatePath('/')
   revalidatePath('/host')
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 
   return data as ServiceListing
 }
@@ -321,6 +323,7 @@ export async function deleteServiceListing(id: string) {
 
   // Log audit event
   await logAuditEvent(user.id, 'DELETE_SERVICE_LISTING', 'service_listing', id)
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 }
 
 export async function hardDeleteServiceListing(id: string) {
@@ -339,6 +342,7 @@ export async function hardDeleteServiceListing(id: string) {
 
   revalidatePath('/admin/service-listings')
   revalidatePath('/')
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 }
 
 async function notifyHostOfModeration(opts: {
@@ -389,6 +393,7 @@ export async function approveServiceListing(id: string) {
 
   await logAuditEvent(user.id, 'APPROVE_SERVICE_LISTING', 'service_listing', id)
   await notifyHostOfModeration({ listingId: id, approved: true })
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 }
 
 export async function rejectServiceListing(id: string, reason: string) {
@@ -403,6 +408,7 @@ export async function rejectServiceListing(id: string, reason: string) {
 
   await logAuditEvent(user.id, 'REJECT_SERVICE_LISTING', 'service_listing', id, { reason })
   await notifyHostOfModeration({ listingId: id, approved: false, reason })
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 }
 
 // ── Service-Package Links (Cross-Sell) ─────────────────────────────────────

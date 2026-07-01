@@ -1,9 +1,10 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
 import type {
   ServiceEventScheduleEntry,
   ServiceListingType,
@@ -418,6 +419,7 @@ export async function resubmitServiceListing(listingId: string) {
     revalidatePath('/admin/service-listings')
     revalidatePath('/host')
     revalidatePath(`/host/service-listings/${listingId}/edit`)
+    revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 
     return { success: true }
   } catch (error) {
@@ -524,6 +526,7 @@ export async function updateHostServiceListing(
       })
     }
 
+    revalidateTag(SERVICE_LISTINGS_TAG, 'max')
     // Let callers distinguish "saved quietly" from "saved and back in
     // admin queue" so hosts see an appropriate confirmation toast.
     return { success: true, statusChangedToPending: wasApproved }
@@ -557,6 +560,7 @@ export async function toggleHostServiceListingActive(listingId: string) {
       const detail = updateError.message || updateError.code || 'unknown'
       return { error: `Failed to update listing: ${detail}` }
     }
+    revalidateTag(SERVICE_LISTINGS_TAG, 'max')
     return { success: true, isActive: !listing.is_active }
   } catch (error) {
     console.error('toggleHostServiceListingActive:', error)

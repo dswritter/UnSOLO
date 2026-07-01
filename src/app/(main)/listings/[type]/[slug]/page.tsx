@@ -4,8 +4,12 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
-import { getServiceListingDetail, getRelatedListings, getServiceListingsByType } from '@/actions/service-listing-discovery'
-import { getPublicServiceListingItems } from '@/actions/host-service-listing-items'
+import { getServiceListingsByType } from '@/actions/service-listing-discovery'
+import {
+  getCachedServiceListingDetail,
+  getCachedRelatedListings,
+  getCachedPublicServiceListingItems,
+} from '@/lib/listings/public-listing-cache'
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
 import { createClient } from '@/lib/supabase/server'
@@ -96,7 +100,7 @@ export default async function ServiceListingDetailPage({
   const type = typeParam as ServiceListingType
 
   try {
-    const listing = await getServiceListingDetail(slug)
+    const listing = await getCachedServiceListingDetail(slug)
 
     if (!listing || listing.type !== type) {
       notFound()
@@ -105,8 +109,8 @@ export default async function ServiceListingDetailPage({
     // `service_listing_items` may not exist yet if migration 049 hasn't been
     // applied. The action swallows the error and returns [] in that case.
     const [items, relatedListings, hostListings] = await Promise.all([
-      getPublicServiceListingItems(listing.id),
-      getRelatedListings(listing.id, {
+      getCachedPublicServiceListingItems(listing.id),
+      getCachedRelatedListings(listing.id, {
         type: listing.type,
         destination_ids: listing.destination_ids,
         tags: listing.tags,
