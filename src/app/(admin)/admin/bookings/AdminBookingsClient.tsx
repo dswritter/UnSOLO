@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
-import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking } from '@/actions/admin'
+import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking, getAdminBookings } from '@/actions/admin'
 import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails } from '@/actions/booking'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,14 @@ interface Props {
   staffMembers: Pick<Profile, 'id' | 'username' | 'full_name' | 'role'>[]
   partialCancellationsByBooking?: Record<string, PartialCancellationRow[]>
   changeRequestsByBooking?: Record<string, ChangeRequestRow[]>
+  /** Server-authoritative status filter (from ?status= / ?cancellation=). */
+  activeStatus?: string
+  /** Whether more pages exist beyond the initial server page. */
+  initialHasMore?: boolean
+  pageSize?: number
 }
+
+const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'cancellation_requested', 'cancelled', 'completed'] as const
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
@@ -27,17 +35,23 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-blue-900/50 text-blue-300 border-blue-700',
 }
 
-export function AdminBookingsClient({ bookings: initialBookings, partialCancellationsByBooking = {}, changeRequestsByBooking = {} }: Props) {
-  // Read initial filter from URL params
-  const [filter, setFilter] = useState(() => {
-    if (typeof window === 'undefined') return 'all'
-    const params = new URLSearchParams(window.location.search)
-    const s = params.get('status')
-    const c = params.get('cancellation')
-    if (c === 'requested') return 'cancellation_requested'
-    if (s && ['pending', 'confirmed', 'completed', 'cancelled'].includes(s)) return s
-    return 'all'
-  })
+export function AdminBookingsClient({
+  bookings: initialBookings,
+  partialCancellationsByBooking = {},
+  changeRequestsByBooking = {},
+  activeStatus = 'all',
+  initialHasMore = false,
+  pageSize = 25,
+}: Props) {
+  const router = useRouter()
+  // Status is filtered server-side; the component is remounted (key=activeStatus)
+  // when it changes, so these init fresh from props each time.
+  const [rows, setRows] = useState<Booking[]>(initialBookings)
+  const [pcMap, setPcMap] = useState<Record<string, PartialCancellationRow[]>>(partialCancellationsByBooking)
+  const [crMap, setCrMap] = useState<Record<string, ChangeRequestRow[]>>(changeRequestsByBooking)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [isLoadingMore, startLoadMore] = useTransition()
+
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Record<string, string>>({})
@@ -46,12 +60,32 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
   const [filterYear, setFilterYear] = useState('')
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
-  // Apply all filters
-  let filtered = filter === 'all'
-    ? initialBookings
-    : filter === 'cancellation_requested'
-    ? initialBookings.filter(b => b.cancellation_status === 'requested')
-    : initialBookings.filter(b => b.status === filter)
+  // Switch the server-side status filter via the URL (re-runs the page).
+  function selectStatus(next: string) {
+    if (next === activeStatus) return
+    if (next === 'all') router.push('/admin/bookings')
+    else if (next === 'cancellation_requested') router.push('/admin/bookings?cancellation=requested')
+    else router.push(`/admin/bookings?status=${next}`)
+  }
+
+  function loadMore() {
+    startLoadMore(async () => {
+      const res = await getAdminBookings({
+        status: activeStatus === 'cancellation_requested' ? undefined : activeStatus === 'all' ? undefined : activeStatus,
+        cancellation: activeStatus === 'cancellation_requested' ? 'requested' : undefined,
+        offset: rows.length,
+        limit: pageSize,
+      })
+      setRows(prev => [...prev, ...(res.rows as Booking[])])
+      setPcMap(prev => ({ ...prev, ...res.partialCancellationsByBooking }))
+      setCrMap(prev => ({ ...prev, ...res.changeRequestsByBooking }))
+      setHasMore(res.hasMore)
+    })
+  }
+
+  // Status is already applied server-side; refine the loaded rows client-side
+  // by search / month / year.
+  let filtered = rows
 
   // Username/name search
   if (searchUser.trim()) {
@@ -251,26 +285,20 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
 
   return (
     <div>
-      {/* Filters */}
+      {/* Status filter — server-side (navigates + refetches the first page) */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {['all', 'pending', 'confirmed', 'cancellation_requested', 'cancelled', 'completed'].map(s => (
+        {STATUS_FILTERS.map(s => (
           <button
             key={s}
-            onClick={() => setFilter(s)}
+            onClick={() => selectStatus(s)}
+            disabled={isLoadingMore}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              filter === s
+              activeStatus === s
                 ? 'bg-primary text-black border-primary'
                 : 'bg-card text-muted-foreground border-border hover:border-primary/35'
             }`}
           >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-            {s !== 'all' && (
-              <span className="ml-1 opacity-70">
-                ({s === 'cancellation_requested'
-                  ? initialBookings.filter(b => b.cancellation_status === 'requested').length
-                  : initialBookings.filter(b => b.status === s).length})
-              </span>
-            )}
+            {s === 'cancellation_requested' ? 'Cancellation requested' : s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
       </div>
@@ -312,8 +340,15 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
             Clear filters
           </button>
         )}
-        <span className="text-xs text-muted-foreground self-center ml-auto">{filtered.length} results</span>
+        <span className="text-xs text-muted-foreground self-center ml-auto">
+          {filtered.length} shown{hasMore ? ' (load more below)' : ''}
+        </span>
       </div>
+      {(searchUser || filterMonth || filterYear) && hasMore && (
+        <p className="text-[11px] text-amber-400/80 mb-3 -mt-1">
+          Search/month/year filter only the loaded bookings — use “Load more” to include older ones.
+        </p>
+      )}
 
       {/* Bookings list */}
       <div className="space-y-3">
@@ -615,13 +650,13 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                       </p>
                       <PartialCancelManager
                         booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
-                        existing={partialCancellationsByBooking[booking.id] || []}
+                        existing={pcMap[booking.id] || []}
                       />
                     </div>
                   )}
 
                   {/* Change requests (traveller edits / tier change) — approve or deny */}
-                  {(changeRequestsByBooking[booking.id]?.length || 0) > 0 && (() => {
+                  {(crMap[booking.id]?.length || 0) > 0 && (() => {
                     const src = booking.package_id
                       ? (booking.package as { price_variants?: unknown } | null)
                       : (booking.service_listing as { price_variants?: unknown } | null)
@@ -630,7 +665,7 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
                       : []
                     return (
                       <div className="pt-2 border-t border-border">
-                        <BookingChangeRequestManager existing={changeRequestsByBooking[booking.id] || []} variantLabels={variantLabels} />
+                        <BookingChangeRequestManager existing={crMap[booking.id] || []} variantLabels={variantLabels} />
                       </div>
                     )
                   })()}
@@ -816,6 +851,19 @@ export function AdminBookingsClient({ bookings: initialBookings, partialCancella
             </div>
           )
         })}
+
+        {hasMore && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              className="border-border"
+              onClick={loadMore}
+              disabled={isLoadingMore}
+            >
+              {isLoadingMore ? 'Loading…' : 'Load more bookings'}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

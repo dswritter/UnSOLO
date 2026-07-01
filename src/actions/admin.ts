@@ -4,6 +4,8 @@ import { createClient, createServiceClient, createServiceRoleClient } from '@/li
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { ROLE_LABELS, hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
+import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import type { ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import {
   validateScopedPromoCode,
   type PromoScopeContext,
@@ -238,19 +240,44 @@ export async function getAdminSidebarCounts() {
 
 // ── Bookings Management ──────────────────────────────────────
 
-export async function getAdminBookings(status?: string) {
+// Note: not exported — a 'use server' module may only export async functions.
+const ADMIN_BOOKINGS_PAGE_SIZE = 25
+
+/**
+ * Paginated admin bookings. Status is filtered server-side (deep-linked from
+ * the dashboard via ?status= / ?cancellation=), rows are fetched a page at a
+ * time with `.range()`, and each page's per-booking side data (partial
+ * cancellations + change requests) is returned alongside so "load more" stays
+ * coherent. Previously this fetched the ENTIRE bookings table with 6 joins on
+ * every visit and rendered every row.
+ */
+export async function getAdminBookings(opts?: {
+  status?: string
+  cancellation?: string
+  limit?: number
+  offset?: number
+}) {
   const { supabase } = await requireStaff()
+  const limit = opts?.limit ?? ADMIN_BOOKINGS_PAGE_SIZE
+  const offset = opts?.offset ?? 0
 
   let query = supabase
     .from('bookings')
-    .select('*, package:packages(*, destination:destinations(*)), service_listing:service_listings(id, title, type, price_paise, price_variants), service_listing_item:service_listing_items(name), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)')
+    .select(
+      '*, package:packages(*, destination:destinations(*)), service_listing:service_listings(id, title, type, price_paise, price_variants), service_listing_item:service_listing_items(name), user:profiles!bookings_user_id_fkey(*), poc:profiles!bookings_assigned_poc_fkey(*)',
+      { count: 'exact' },
+    )
     .order('created_at', { ascending: false })
 
-  if (status && status !== 'all') {
-    query = query.eq('status', status)
+  if (opts?.cancellation === 'requested') {
+    query = query.eq('cancellation_status', 'requested')
+  } else if (opts?.status && opts.status !== 'all') {
+    query = query.eq('status', opts.status)
   }
 
-  const { data, error } = await query
+  query = query.range(offset, offset + limit - 1)
+
+  const { data, error, count } = await query
   if (error) console.error('getAdminBookings error:', error)
   const rows = data || []
 
@@ -266,7 +293,29 @@ export async function getAdminBookings(status?: string) {
       b.promo_offer = b.promo_offer_id ? byId.get(b.promo_offer_id) ?? null : null
     }
   }
-  return rows
+
+  // Per-booking side data for just this page's rows.
+  const bookingIds = rows.map((b: { id: string }) => b.id)
+  const partialCancellationsByBooking: Record<string, PartialCancellationRow[]> = {}
+  const changeRequestsByBooking: Record<string, ChangeRequestRow[]> = {}
+  if (bookingIds.length) {
+    const svc = createServiceRoleClient()
+    const [{ data: pcRows }, { data: crRows }] = await Promise.all([
+      svc.from('booking_partial_cancellations').select('*').in('booking_id', bookingIds).order('created_at', { ascending: false }),
+      svc.from('booking_change_requests').select('*').in('booking_id', bookingIds).order('created_at', { ascending: false }),
+    ])
+    for (const r of (pcRows || []) as PartialCancellationRow[]) {
+      ;(partialCancellationsByBooking[r.booking_id] ||= []).push(r)
+    }
+    for (const r of (crRows || []) as ChangeRequestRow[]) {
+      ;(changeRequestsByBooking[r.booking_id] ||= []).push(r)
+    }
+  }
+
+  const total = count ?? rows.length
+  const hasMore = offset + rows.length < total
+
+  return { rows, total, hasMore, partialCancellationsByBooking, changeRequestsByBooking }
 }
 
 export async function assignPOC(bookingId: string, pocUserId: string) {
