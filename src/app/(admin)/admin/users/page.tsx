@@ -24,18 +24,27 @@ export default async function AdminUsersPage() {
   // Debug: log if query failed
   if (usersError) console.error('Users query error:', usersError.message)
 
-  // Get booking stats per user
-  const { data: bookingStats } = await svc
-    .from('bookings')
-    .select('user_id, status')
-
+  // Per-user booking counts. Prefer the SQL grouped aggregate (migration 099);
+  // fall back to the full-table scan if that migration hasn't been applied yet.
   const userBookings = new Map<string, { confirmed: number; completed: number; cancelled: number }>()
-  for (const b of bookingStats || []) {
-    const entry = userBookings.get(b.user_id) || { confirmed: 0, completed: 0, cancelled: 0 }
-    if (b.status === 'confirmed') entry.confirmed++
-    else if (b.status === 'completed') entry.completed++
-    else if (b.status === 'cancelled') entry.cancelled++
-    userBookings.set(b.user_id, entry)
+  const { data: counts, error: countsErr } = await svc.rpc('admin_user_booking_counts')
+  if (!countsErr && Array.isArray(counts)) {
+    for (const c of counts as Array<{ user_id: string; confirmed: number; completed: number; cancelled: number }>) {
+      userBookings.set(c.user_id, {
+        confirmed: Number(c.confirmed) || 0,
+        completed: Number(c.completed) || 0,
+        cancelled: Number(c.cancelled) || 0,
+      })
+    }
+  } else {
+    const { data: bookingStats } = await svc.from('bookings').select('user_id, status')
+    for (const b of bookingStats || []) {
+      const entry = userBookings.get(b.user_id) || { confirmed: 0, completed: 0, cancelled: 0 }
+      if (b.status === 'confirmed') entry.confirmed++
+      else if (b.status === 'completed') entry.completed++
+      else if (b.status === 'cancelled') entry.cancelled++
+      userBookings.set(b.user_id, entry)
+    }
   }
 
   const enrichedUsers = (users || []).map(u => ({

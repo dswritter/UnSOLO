@@ -168,26 +168,30 @@ export async function getAdminDashboardStats() {
     supabase.from('phone_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
 
-  // Revenue = cash actually collected (deposit_paise), NOT the full booking value.
-  // A token booking only counts the token paid so far; the balance counts once it's
-  // paid online or recorded manually by an admin. deposit_paise is 0 only for legacy
-  // rows we never tracked, so fall back to the total there (token bookings always
-  // have deposit_paise > 0, so they're never affected by the fallback).
-  const { data: revenueData } = await supabase
-    .from('bookings')
-    .select('deposit_paise, total_amount_paise, refund_amount_paise')
-    .in('status', ['confirmed', 'completed'])
-
-  const { data: refundedBookings } = await supabase
-    .from('bookings')
-    .select('refund_amount_paise')
-    .eq('cancellation_status', 'approved')
-
-  const grossRevenue = (revenueData || []).reduce((sum, b) => {
-    const collected = b.deposit_paise && b.deposit_paise > 0 ? b.deposit_paise : (b.total_amount_paise || 0)
-    return sum + collected
-  }, 0)
-  const totalRefunds = (refundedBookings || []).reduce((sum, b) => sum + (b.refund_amount_paise || 0), 0)
+  // Revenue = cash actually collected (deposit_paise, falling back to total for
+  // legacy rows) minus approved refunds. Prefer the SQL aggregate (migration 099);
+  // fall back to the in-JS scan if that migration hasn't been applied yet.
+  let grossRevenue = 0
+  let totalRefunds = 0
+  const { data: revSummary, error: revErr } = await supabase.rpc('admin_revenue_summary')
+  if (!revErr && Array.isArray(revSummary) && revSummary[0]) {
+    grossRevenue = Number(revSummary[0].gross_revenue) || 0
+    totalRefunds = Number(revSummary[0].total_refunds) || 0
+  } else {
+    const { data: revenueData } = await supabase
+      .from('bookings')
+      .select('deposit_paise, total_amount_paise, refund_amount_paise')
+      .in('status', ['confirmed', 'completed'])
+    const { data: refundedBookings } = await supabase
+      .from('bookings')
+      .select('refund_amount_paise')
+      .eq('cancellation_status', 'approved')
+    grossRevenue = (revenueData || []).reduce((sum, b) => {
+      const collected = b.deposit_paise && b.deposit_paise > 0 ? b.deposit_paise : (b.total_amount_paise || 0)
+      return sum + collected
+    }, 0)
+    totalRefunds = (refundedBookings || []).reduce((sum, b) => sum + (b.refund_amount_paise || 0), 0)
+  }
   const totalRevenue = grossRevenue - totalRefunds
 
   return {
