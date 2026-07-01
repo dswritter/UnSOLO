@@ -12,7 +12,7 @@ import {
 } from '@/lib/listings/public-listing-cache'
 import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
-import { createClient } from '@/lib/supabase/server'
+import { createPublicClient } from '@/lib/supabase/public-client'
 import { APP_URL } from '@/lib/constants'
 
 const CATEGORY_LABELS: Record<ServiceListingType, string> = {
@@ -20,6 +20,25 @@ const CATEGORY_LABELS: Record<ServiceListingType, string> = {
   activities: 'Activities',
   rentals: 'Rentals',
   getting_around: 'Getting Around',
+}
+
+// Opt this dynamic-param route into ISR: prebuild the currently-public listings
+// so they're served as static docs; anything not listed (new listings) renders
+// on-demand and is then cached per `revalidate`. Cookieless — runs at build.
+export async function generateStaticParams() {
+  try {
+    const supabase = createPublicClient()
+    const { data } = await supabase
+      .from('service_listings')
+      .select('type, slug')
+      .eq('is_active', true)
+      .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    return (data ?? [])
+      .filter((l): l is { type: ServiceListingType; slug: string } => !!l?.type && !!l?.slug)
+      .map((l) => ({ type: l.type, slug: l.slug }))
+  } catch {
+    return []
+  }
 }
 
 function toAbsoluteUrl(value: string | null | undefined) {
@@ -43,7 +62,7 @@ export async function generateMetadata({
     return {}
   }
 
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   const { data: listing } = await supabase
     .from('service_listings')
     .select('title, slug, type, location, short_description, description, images')
@@ -116,7 +135,7 @@ export default async function ServiceListingDetailPage({
         tags: listing.tags,
       }, 6),
       listing.host_id ? (async () => {
-        const supabase = await createClient()
+        const supabase = createPublicClient()
         // Fetch both service listings and packages from the host
         const [serviceListingsRes, packagesRes] = await Promise.all([
           supabase
