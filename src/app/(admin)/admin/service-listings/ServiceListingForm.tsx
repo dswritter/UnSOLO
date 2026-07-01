@@ -345,7 +345,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 type="number"
                 required
                 min="0"
-                step="100"
+                step="1"
                 value={formData.price_paise / 100}
                 onChange={(e) =>
                   setFormData({ ...formData, price_paise: Math.round(parseFloat(e.target.value) * 100) })
@@ -398,7 +398,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                   type="number"
                   placeholder="Price (₹)"
                   min="0"
-                  step="100"
+                  step="1"
                   value={variant.price_paise / 100}
                   onChange={(e) => {
                     const newVariants = [...formData.price_variants]
