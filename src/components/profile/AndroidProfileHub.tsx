@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { User, Pencil, BookOpen, Gift, Shield, LogOut, ChevronRight } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { signOut } from '@/actions/auth'
+import { useSignOut } from '@/hooks/useSignOut'
 import { getInitials } from '@/lib/utils'
 import type { Profile } from '@/types'
 
@@ -23,6 +23,7 @@ interface MenuItem {
 
 export function AndroidProfileHub({ profile }: AndroidProfileHubProps) {
   const router = useRouter()
+  const signOut = useSignOut()
 
   const menuItems: MenuItem[] = [
     {

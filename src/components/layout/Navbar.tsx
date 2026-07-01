@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { signOut } from '@/actions/auth'
+import { useSignOut } from '@/hooks/useSignOut'
 import { getInitials, cn } from '@/lib/utils'
 import { useState, useEffect, useTransition, useCallback, useRef, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -34,6 +34,7 @@ export function Navbar() {
   const mobileChatComposerActive = useMobileChatComposerActive()
   const router = useRouter()
   const pathname = usePathname()
+  const signOut = useSignOut()
   const [isTribeNavPending, startTribeNavTransition] = useTransition()
   const prefetchTribeRoutes = useCallback(() => {
     router.prefetch('/community')

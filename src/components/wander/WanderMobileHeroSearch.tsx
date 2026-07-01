@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { signOut } from '@/actions/auth'
+import { useSignOut } from '@/hooks/useSignOut'
 import type { WanderHeroCopy, WanderHeroMobileTabCopy, WanderStats } from '@/lib/wander/wanderQueries'
 import { cn, getInitials } from '@/lib/utils'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
@@ -108,6 +108,7 @@ export function WanderMobileHeroSearch({
   onCardState?: (state: { tab: Tab; summaryLines: [string, string]; openSheet: () => void } | null) => void
 }) {
   const router = useRouter()
+  const signOut = useSignOut()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isExplorePending, startExploreTransition] = useTransition()
