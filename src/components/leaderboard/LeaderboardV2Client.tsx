@@ -1,11 +1,13 @@
 'use client'
 
-import { useLayoutEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Check, Luggage, MapPin, Search, Star, Trophy } from 'lucide-react'
 import { getInitials, cn } from '@/lib/utils'
 import { LeaderboardRankBadge } from '@/components/leaderboard/RankDisplay'
+import { useAuth } from '@/components/layout/AuthProvider'
+import { getMyLeaderboardStanding } from '@/actions/leaderboard'
 import type { LeaderboardEntryRow, MonthlyLeaderboardEntry } from '@/lib/leaderboard/leaderboardSnapshot'
 
 const GOLD = '#fcba03'
@@ -28,7 +30,7 @@ function PodiumSlot({
   rank: number
   isMonthly: boolean
   emphasis: 'tall' | 'short'
-  currentUserId?: string
+  currentUserId?: string | null
 }) {
   const isMe = currentUserId === entry.user_id
   const name = entry.profile?.full_name || entry.profile?.username || 'Traveller'
@@ -90,19 +92,42 @@ function PodiumSlot({
 
 type Props = {
   entries: LeaderboardEntryRow[]
-  currentUserId?: string
-  myRank: number | null
-  myEntry: LeaderboardEntryRow | null
   monthlyEntries: MonthlyLeaderboardEntry[]
 }
 
 export function LeaderboardV2Client({
   entries,
-  currentUserId,
-  myRank,
-  myEntry,
   monthlyEntries,
 }: Props) {
+  // The board is static; the viewer's identity + rank resolve on the client.
+  const { userId: currentUserId } = useAuth()
+  const [myRank, setMyRank] = useState<number | null>(null)
+  const [myEntry, setMyEntry] = useState<LeaderboardEntryRow | null>(null)
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setMyRank(null)
+      setMyEntry(null)
+      return
+    }
+    // If the viewer is already in the loaded top-100, derive everything locally
+    // (no round-trip). The sticky "your rank" card only shows outside the top 50.
+    const idx = entries.findIndex(e => e.user_id === currentUserId)
+    if (idx >= 0) {
+      setMyEntry(entries[idx] ?? null)
+      setMyRank(idx < 50 ? null : idx + 1)
+      return
+    }
+    // Otherwise fetch the viewer's standing (they're outside the top 100).
+    let cancelled = false
+    getMyLeaderboardStanding().then(res => {
+      if (cancelled || !res) return
+      setMyEntry(res.myEntry)
+      setMyRank(res.myRank)
+    })
+    return () => { cancelled = true }
+  }, [currentUserId, entries])
+
   const PAGE_SIZE = 50
   const [view, setView] = useState<'alltime' | 'monthly'>('alltime')
   const [search, setSearch] = useState('')

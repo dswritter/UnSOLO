@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
-import { getRequestAuth } from '@/lib/auth/request-session'
-import { getLeaderboardSnapshot } from '@/lib/leaderboard/leaderboardSnapshot'
+import { getCachedLeaderboardBoard } from '@/lib/leaderboard/leaderboardBoard'
 import { LeaderboardV2Client } from '@/components/leaderboard/LeaderboardV2Client'
 
 export const revalidate = 600
@@ -10,20 +9,10 @@ export const metadata: Metadata = {
   description: 'Top solo travellers in India. Compete, explore, and earn your way to the top.',
 }
 
+// Static/ISR: the shared board is served to everyone from cache; the viewer's
+// own rank is filled in client-side (LeaderboardV2Client → getMyLeaderboardStanding).
 export default async function LeaderboardPage() {
-  const { supabase, user } = await getRequestAuth()
-  const { entries, myRank, myEntry, monthlyEntries, inTop50 } = await getLeaderboardSnapshot(
-    supabase,
-    user?.id ?? null,
-  )
+  const { entries, monthlyEntries } = await getCachedLeaderboardBoard()
 
-  return (
-    <LeaderboardV2Client
-      entries={entries}
-      currentUserId={user?.id}
-      myRank={!inTop50 ? myRank : null}
-      myEntry={myEntry}
-      monthlyEntries={monthlyEntries}
-    />
-  )
+  return <LeaderboardV2Client entries={entries} monthlyEntries={monthlyEntries} />
 }
