@@ -3,6 +3,11 @@ import Link from 'next/link'
 import { getCachedPublicOfferSections } from '@/lib/offers/public-offers-cache'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 
+// NOTE: Offers are currently public + cached (cookieless). If we later want
+// per-user offers (targeted discounts for the signed-in user), keep this
+// switchable: either overlay a client-fill personalized widget on top of the
+// cached base sections, or drop the cached wrapper and read the user here.
+// Don't hard-couple other code to offers being permanently static.
 export const dynamic = 'force-dynamic'
 
 export default async function OffersPage() {

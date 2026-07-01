@@ -1,78 +1,64 @@
-import { headers } from 'next/headers'
-import { getRequestAuth } from '@/lib/auth/request-session'
 import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
-import { NavbarIsland, NavbarFallback } from '@/components/layout/NavbarIsland'
+import { AuthProvider } from '@/components/layout/AuthProvider'
+import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
 // Sticky chat button temporarily hidden — re-enable with imports below if/when needed
 // import { DeferredChatNotificationWidget } from '@/components/layout/DeferredChatNotificationWidget'
 // import { MobileChatButton } from '@/components/layout/MobileChatButton'
-import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
-import { MobileBottomNavIsland } from '@/components/layout/MobileBottomNavIsland'
+import { BottomShellNav } from '@/components/layout/BottomShellNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { MainScrollContainer } from '@/components/layout/MainScrollContainer'
 import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
-import { AndroidNavBadge } from '@/components/layout/AndroidNavBadge'
 import { Suspense } from 'react'
+
+/**
+ * Static app shell. This layout deliberately reads NO cookies or headers, so it
+ * no longer forces every child route into dynamic rendering — pages under
+ * (main) are now free to be static/ISR (or stay dynamic) on their own terms.
+ *
+ * Auth and Android-shell detection resolve client-side (AuthProvider +
+ * BottomShellNav). Revalidate hourly so the date-based wander season theme
+ * (getResolvedWanderShellSeason uses `new Date()` in auto mode) stays current.
+ */
+export const revalidate = 3600
 
 export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const ua = (await headers()).get('user-agent') ?? ''
-  const isAndroidShell = ua.includes('UnsoloAndroid')
-
-  let user: { id: string } | null = null
   let wanderShellSeason: Awaited<ReturnType<typeof getResolvedWanderShellSeason>> = 'default'
-
-  try {
-    // getSession() only — a local cookie/JWT decode, no Supabase round-trip.
-    // The profile row (a network SELECT) is fetched inside the Suspense islands
-    // below so it never blocks the shell + page children from streaming.
-    const { user: u } = await getRequestAuth()
-    user = u
-  } catch {
-    // If Supabase is down, render page without auth
-  }
-
   try {
     wanderShellSeason = await getResolvedWanderShellSeason()
   } catch {
     wanderShellSeason = 'default'
   }
 
-  const userId = user?.id ?? null
-
   return (
     <div
       data-wander-shell-season={wanderShellSeason}
       className="flex min-h-dvh flex-col bg-background text-foreground"
     >
-      <Suspense fallback={<NavbarFallback authPending={!!user} />}>
-        <NavbarIsland userId={userId} />
-      </Suspense>
-      {/*
-        h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
-        use min-h-0 and scroll only the inner list instead of growing the page.
-      */}
-      <MainScrollContainer>
-        {children}
-      </MainScrollContainer>
-      {user && <PresenceTracker userId={user.id} />}
-      {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
-      {/* {user ? <DeferredChatNotificationWidget userId={user.id} /> : <MobileChatButton isAuthenticated={false} />} */}
-      {!isAndroidShell && (
-        <Suspense fallback={<MobileBottomNav isHost={false} userId={userId} />}>
-          <MobileBottomNavIsland userId={userId} />
+      <AuthProvider>
+        <Navbar />
+        {/*
+          h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
+          use min-h-0 and scroll only the inner list instead of growing the page.
+        */}
+        <MainScrollContainer>
+          {children}
+        </MainScrollContainer>
+        <PresenceTracker />
+        {/* Sticky chat button temporarily hidden — Meet Travellers is reachable from the bottom nav */}
+        <BottomShellNav />
+        <Suspense fallback={null}>
+          {/* SignInPrompt uses useSearchParams → needs a Suspense boundary under static rendering. */}
+          <SignInPrompt />
         </Suspense>
-      )}
-      {isAndroidShell && user && <AndroidNavBadge userId={user.id} />}
-      <Suspense fallback={null}>
-        <SignInPrompt isAuthenticated={!!user} />
-      </Suspense>
-      <WanderThemeCrossTabSync />
-      <FooterWrapper />
+        <WanderThemeCrossTabSync />
+        <FooterWrapper />
+      </AuthProvider>
     </div>
   )
 }

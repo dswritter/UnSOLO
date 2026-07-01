@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Compass, Gift, MessageSquare, Tent, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from './AuthProvider'
 
 type NavItem = {
   href: string
@@ -15,7 +16,9 @@ type NavItem = {
   active: (pathname: string | null) => boolean
 }
 
-export function MobileBottomNav({ isHost = false, userId }: { isHost?: boolean; userId?: string | null }) {
+export function MobileBottomNav() {
+  const { userId, profile } = useAuth()
+  const isHost = !!profile?.is_host
   const pathname = usePathname()
 
   // ALL hooks must come before any conditional return (Rules of Hooks).

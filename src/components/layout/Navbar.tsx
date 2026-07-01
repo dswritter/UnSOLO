@@ -17,22 +17,16 @@ import { getInitials, cn } from '@/lib/utils'
 import { useState, useEffect, useTransition, useCallback, useRef, type MouseEvent } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
-import type { Profile } from '@/types'
+import { useAuth } from './AuthProvider'
 import { NotificationBell } from './NotificationBell'
 import { SearchBar } from './SearchBar'
 
-interface NavbarProps {
-  user?: Profile | null
-  /**
-   * True while the signed-in user's profile is still streaming in (the layout
-   * renders this Navbar as a Suspense fallback with `user` not yet resolved).
-   * Shows a neutral avatar skeleton instead of the Sign In / Join buttons so
-   * an authenticated user never sees a logged-out flash.
-   */
-  authPending?: boolean
-}
-
-export function Navbar({ user, authPending = false }: NavbarProps) {
+export function Navbar() {
+  // Auth resolves client-side (the shell is statically rendered). `authPending`
+  // shows a neutral avatar skeleton — instead of Sign In / Join — until the
+  // first resolution completes, so a signed-in user never flashes logged-out.
+  const { profile: user, loading } = useAuth()
+  const authPending = loading && !user
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const [hasRooms, setHasRooms] = useState(false)

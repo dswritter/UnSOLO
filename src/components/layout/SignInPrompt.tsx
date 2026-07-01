@@ -5,11 +5,14 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { X, Mountain } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { signInWithGoogle } from '@/actions/auth'
+import { useAuth } from './AuthProvider'
 
 const SESSION_KEY = 'unsolo_signin_prompt_shown'
 const DELAY_MS = 5000
 
-export function SignInPrompt({ isAuthenticated }: { isAuthenticated: boolean }) {
+export function SignInPrompt() {
+  const { userId, loading: authLoading } = useAuth()
+  const isAuthenticated = !!userId
   const [visible, setVisible] = useState(false)
   const [loading, startTransition] = useTransition()
   const pathname = usePathname()
@@ -17,7 +20,8 @@ export function SignInPrompt({ isAuthenticated }: { isAuthenticated: boolean }) 
   const redirectTo = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
 
   useEffect(() => {
-    if (isAuthenticated) return
+    // Wait until auth has resolved — never nudge a user who's actually signed in.
+    if (authLoading || isAuthenticated) return
     if (typeof window === 'undefined') return
     if (sessionStorage.getItem(SESSION_KEY)) return
 
@@ -27,7 +31,7 @@ export function SignInPrompt({ isAuthenticated }: { isAuthenticated: boolean }) 
     }, DELAY_MS)
 
     return () => clearTimeout(t)
-  }, [isAuthenticated])
+  }, [authLoading, isAuthenticated])
 
   if (!visible) return null
 

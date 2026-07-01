@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from './AuthProvider'
 
 declare global {
   interface Window {
@@ -12,11 +13,12 @@ declare global {
   }
 }
 
-export function AndroidNavBadge({ userId }: { userId: string }) {
+export function AndroidNavBadge() {
+  const { userId } = useAuth()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!window.UnsoloNative?.setTabBadge) return
+    if (!userId || !window.UnsoloNative?.setTabBadge) return
     const supabase = createClient()
     let cancelled = false
     let unread = 0

@@ -2,8 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from './AuthProvider'
 
-export function PresenceTracker({ userId }: { userId: string }) {
+export function PresenceTracker() {
+  const { userId } = useAuth()
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const initializedRef = useRef(false)
 
