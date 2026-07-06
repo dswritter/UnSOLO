@@ -160,12 +160,18 @@ export function TravellerPartialCancel({
  * refund, or deny), initiate the refund, mark it complete, or directly cancel
  * some travellers without a prior request.
  */
+/** Figures the caller can use to update its displayed booking after a partial cancel. */
+export type PartialApplied = { guests: number; total_amount_paise: number; deposit_paise: number }
+
 export function PartialCancelManager({
   booking,
   existing = [],
+  onApplied,
 }: {
   booking: BookingLite
   existing?: PartialCancellationRow[]
+  /** Called after a partial cancellation is applied, with the booking's new figures. */
+  onApplied?: (fig: PartialApplied) => void
 }) {
   const travellers = Array.isArray(booking.traveller_details) ? booking.traveller_details : []
   const requests = existing.filter((r) => r.status === 'requested')
@@ -174,7 +180,7 @@ export function PartialCancelManager({
   return (
     <div className="space-y-3">
       {requests.map((r) => (
-        <RequestReview key={r.id} booking={booking} row={r} />
+        <RequestReview key={r.id} booking={booking} row={r} onApplied={onApplied} />
       ))}
 
       {processed.map((r) => (
@@ -182,7 +188,7 @@ export function PartialCancelManager({
       ))}
 
       {booking.status === 'confirmed' && (booking.guests || 1) >= 2 && (
-        <DirectCancel booking={booking} travellers={travellers} />
+        <DirectCancel booking={booking} travellers={travellers} onApplied={onApplied} />
       )}
     </div>
   )
@@ -202,7 +208,7 @@ function useQuote(bookingId: string) {
   return { quote, load, setQuote }
 }
 
-function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCancellationRow }) {
+function RequestReview({ booking, row, onApplied }: { booking: BookingLite; row: PartialCancellationRow; onApplied?: (fig: PartialApplied) => void }) {
   const [refund, setRefund] = useState('')
   const [note, setNote] = useState('')
   const [msg, setMsg] = useState('')
@@ -228,7 +234,15 @@ function RequestReview({ booking, row }: { booking: BookingLite; row: PartialCan
     start(async () => {
       const res = await processPartialCancellation(row.id, true, paise, note)
       if ('error' in res && res.error) { setErr(true); setMsg(res.error) }
-      else { setErr(false); setMsg('Approved — booking updated. Initiate the refund below if due.') }
+      else {
+        setErr(false)
+        if ('newTotalPaise' in res && typeof res.newTotalPaise === 'number') {
+          onApplied?.({ guests: res.newGuests ?? booking.guests, total_amount_paise: res.newTotalPaise, deposit_paise: res.newDepositPaise ?? 0 })
+          setMsg(`Approved — new trip total ${fmt(res.newTotalPaise)}. Initiate the refund below if due.`)
+        } else {
+          setMsg('Approved — booking updated. Initiate the refund below if due.')
+        }
+      }
     })
   }
   function deny() {
@@ -333,7 +347,7 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
   )
 }
 
-function DirectCancel({ booking, travellers }: { booking: BookingLite; travellers: Traveller[] }) {
+function DirectCancel({ booking, travellers, onApplied }: { booking: BookingLite; travellers: Traveller[]; onApplied?: (fig: PartialApplied) => void }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<number[]>([])
   const [refund, setRefund] = useState('')
@@ -362,7 +376,16 @@ function DirectCancel({ booking, travellers }: { booking: BookingLite; traveller
     start(async () => {
       const res = await adminPartialCancel(booking.id, selected, paise, note)
       if ('error' in res && res.error) { setErr(true); setMsg(res.error) }
-      else { setErr(false); setMsg('Cancelled — initiate the refund from the record above if due.'); setOpen(false); setSelected([]); setRefund(''); setNote('') }
+      else {
+        setErr(false)
+        if ('newTotalPaise' in res && typeof res.newTotalPaise === 'number') {
+          onApplied?.({ guests: res.newGuests ?? booking.guests, total_amount_paise: res.newTotalPaise, deposit_paise: res.newDepositPaise ?? 0 })
+          setMsg(`Cancelled — new trip total ${fmt(res.newTotalPaise)}. Initiate the refund from the record above if due.`)
+        } else {
+          setMsg('Cancelled — initiate the refund from the record above if due.')
+        }
+        setOpen(false); setSelected([]); setRefund(''); setNote('')
+      }
     })
   }
 

@@ -676,6 +676,11 @@ export function AdminBookingsClient({
                       <PartialCancelManager
                         booking={booking as unknown as { id: string; status: string; guests: number; total_amount_paise: number; deposit_paise?: number | null; traveller_details?: { name?: string; age?: number | string | null; gender?: string | null }[] | null }}
                         existing={pcMap[booking.id] || []}
+                        onApplied={(fig) =>
+                          setRows(prev => prev.map(b => b.id === booking.id
+                            ? { ...b, guests: fig.guests, total_amount_paise: fig.total_amount_paise, deposit_paise: fig.deposit_paise } as Booking
+                            : b))
+                        }
                       />
                     </div>
                   )}

@@ -349,6 +349,8 @@ type BookingRow = {
   status: string
   guests: number
   total_amount_paise: number
+  gross_paise?: number | null
+  discount_paise?: number | null
   deposit_paise?: number | null
   traveller_details?: Traveller[] | null
   package?: unknown
@@ -408,8 +410,24 @@ async function applyApprovedPartialCancellation(
   const current: Traveller[] = Array.isArray(booking.traveller_details) ? booking.traveller_details : []
   const newTravellers = current.length ? removeTravellers(current, pc.travellers) : current
 
-  // Proportional new total for the remaining guests; collected drops by the refund.
-  const newTotal = Math.round((booking.total_amount_paise || 0) * (newGuests / Math.max(1, booking.guests || 1)))
+  // Rescale the money for the remaining guests. Scale gross + discount by the
+  // same factor and keep total = gross − discount, so the booking stays
+  // consistent with the coupon/tier recompute model (which reads gross_paise) —
+  // otherwise a later offer edit would recompute from a stale gross and
+  // resurrect the cancelled travellers' amount. Collected drops by the refund.
+  const factor = newGuests / Math.max(1, booking.guests || 1)
+  const moneyUpdate: Record<string, number> = {}
+  let newTotal: number
+  if (typeof booking.gross_paise === 'number') {
+    const newGross = Math.round(booking.gross_paise * factor)
+    const newDiscount = Math.round((booking.discount_paise ?? 0) * factor)
+    newTotal = Math.max(0, newGross - newDiscount)
+    moneyUpdate.gross_paise = newGross
+    moneyUpdate.discount_paise = newDiscount
+  } else {
+    // Legacy rows without gross tracking: fall back to scaling the total directly.
+    newTotal = Math.round((booking.total_amount_paise || 0) * factor)
+  }
   const newDeposit = Math.max(0, Math.min((booking.deposit_paise || 0) - refund, newTotal))
 
   const { error: upErr } = await svc
@@ -419,6 +437,7 @@ async function applyApprovedPartialCancellation(
       traveller_details: newTravellers,
       total_amount_paise: newTotal,
       deposit_paise: newDeposit,
+      ...moneyUpdate,
       updated_at: nowIso,
     })
     .eq('id', booking.id)
@@ -459,7 +478,13 @@ async function applyApprovedPartialCancellation(
   await notifyTravellerOutcome(svc, booking, true, refund)
 
   revalidatePath('/bookings'); revalidatePath('/admin/bookings')
-  return { success: true, refundPaise: refund, newGuests }
+  return {
+    success: true,
+    refundPaise: refund,
+    newGuests,
+    newTotalPaise: newTotal,
+    newDepositPaise: newDeposit,
+  }
 }
 
 async function notifyTravellerOutcome(
