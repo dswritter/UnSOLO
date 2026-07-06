@@ -59,6 +59,7 @@ export function AdminBookingsClient({
   const [filterMonth, setFilterMonth] = useState('')
   const [filterYear, setFilterYear] = useState('')
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [fullCancelOpenId, setFullCancelOpenId] = useState<string | null>(null)
 
   // Switch the server-side status filter via the URL (re-runs the page).
   function selectStatus(next: string) {
@@ -119,6 +120,30 @@ export function AdminBookingsClient({
       const res = await processCancellation(bookingId, approve, refundPaise, note, tierPercent)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else showFeedback(bookingId, approve ? 'Cancellation approved — user notified. Now initiate refund.' : 'Cancellation denied & user notified')
+    })
+  }
+
+  // Admin/host-initiated full cancellation of a confirmed booking (single or
+  // multi-traveller). Reuses processCancellation; optimistically flips the local
+  // row to cancelled/approved so the refund options (Razorpay / offline) appear
+  // inline without a reload.
+  function handleFullCancel(bookingId: string, refundPaise: number, note: string, tierPercent: number) {
+    startTransition(async () => {
+      const res = await processCancellation(bookingId, true, refundPaise, note, tierPercent)
+      if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
+      setRows(prev => prev.map(b => b.id === bookingId
+        ? {
+            ...b,
+            status: 'cancelled',
+            cancellation_status: 'approved',
+            refund_amount_paise: refundPaise,
+            refund_status: refundPaise > 0 ? 'pending' : null,
+          } as Booking
+        : b))
+      setFullCancelOpenId(null)
+      showFeedback(bookingId, refundPaise > 0
+        ? 'Booking cancelled — traveller notified. Now issue the refund below (Razorpay or offline).'
+        : 'Booking cancelled — traveller notified. No refund due.')
     })
   }
 
@@ -682,6 +707,56 @@ export function AdminBookingsClient({
                       }
                       onDeny={(note) => handleProcessCancellation(booking.id, false, undefined, note)}
                     />
+                  )}
+
+                  {/* Cancel entire booking — admin/host-initiated (single or multi-traveller).
+                      Only for a confirmed booking that isn't already in a cancellation flow. */}
+                  {booking.status === 'confirmed' &&
+                    booking.cancellation_status !== 'requested' &&
+                    booking.cancellation_status !== 'approved' &&
+                    booking.cancellation_status !== 'self_service' && (
+                    <div className="pt-2 border-t border-border">
+                      {fullCancelOpenId === booking.id ? (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-medium text-red-400 flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> Cancel entire booking
+                            </p>
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => setFullCancelOpenId(null)}
+                            >
+                              Close
+                            </button>
+                          </div>
+                          <CancellationReviewPanel
+                            mode="initiate"
+                            bookingId={booking.id}
+                            totalAmountPaise={booking.total_amount_paise}
+                            disabled={isPending}
+                            onApprove={(refundPaise, tierPercent, note) =>
+                              handleFullCancel(booking.id, refundPaise, note, tierPercent)
+                            }
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-300"
+                            onClick={() => setFullCancelOpenId(booking.id)}
+                            disabled={isPending}
+                          >
+                            <AlertTriangle className="h-3 w-3" /> Cancel entire booking
+                          </Button>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            Cancels the whole booking ({booking.guests} traveller{booking.guests > 1 ? 's' : ''}) and queues a refund (Razorpay or offline). To cancel only some travellers, use per-traveller cancellation above.
+                          </p>
+                        </>
+                      )}
+                    </div>
                   )}
 
                   {/* Refund Tracking — admin-approved or traveler self-service */}

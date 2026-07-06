@@ -12,7 +12,13 @@ type Props = {
   cancellationReason?: string | null
   disabled: boolean
   onApprove: (refundPaise: number, tierPercent: number, note: string) => void
-  onDeny: (note: string) => void
+  onDeny?: (note: string) => void
+  /**
+   * 'review' (default): reviewing a customer-requested cancellation (Approve / Deny).
+   * 'initiate': admin/host cancelling the whole booking directly (single "Cancel
+   * booking & refund", no Deny).
+   */
+  mode?: 'review' | 'initiate'
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -30,6 +36,7 @@ export function CancellationReviewPanel({
   disabled,
   onApprove,
   onDeny,
+  mode = 'review',
 }: Props) {
   const [quote, setQuote] = useState<CancellationQuote | null>(null)
   const [quoteError, setQuoteError] = useState<string | null>(null)
@@ -71,7 +78,9 @@ export function CancellationReviewPanel({
     <div className="p-3 rounded-lg border border-orange-500/30 bg-orange-500/5 space-y-3">
       <div className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-orange-400" />
-        <span className="text-sm font-bold text-orange-400">Cancellation Requested</span>
+        <span className="text-sm font-bold text-orange-400">
+          {mode === 'initiate' ? 'Cancel entire booking' : 'Cancellation Requested'}
+        </span>
       </div>
       {cancellationReason && (
         <p className="text-sm text-muted-foreground">
@@ -159,23 +168,40 @@ export function CancellationReviewPanel({
         placeholder="Note to customer (reason for refund amount, deductions etc.)..."
       />
       <div className="flex gap-2">
-        <Button
-          size="sm"
-          className="bg-green-600 hover:bg-green-700 text-white text-xs"
-          onClick={() => onApprove(refundPaise, tierPercent, note)}
-          disabled={disabled}
-        >
-          Approve &amp; Refund
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
-          onClick={() => onDeny(note)}
-          disabled={disabled}
-        >
-          Deny
-        </Button>
+        {mode === 'initiate' ? (
+          <Button
+            size="sm"
+            className="bg-red-600 hover:bg-red-700 text-white text-xs"
+            onClick={() => {
+              if (confirm('Cancel this entire booking? The traveller is notified and the refund below is queued.')) {
+                onApprove(refundPaise, tierPercent, note)
+              }
+            }}
+            disabled={disabled}
+          >
+            Cancel booking &amp; refund
+          </Button>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs"
+              onClick={() => onApprove(refundPaise, tierPercent, note)}
+              disabled={disabled}
+            >
+              Approve &amp; Refund
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
+              onClick={() => onDeny?.(note)}
+              disabled={disabled}
+            >
+              Deny
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )
