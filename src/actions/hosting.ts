@@ -1171,6 +1171,10 @@ export type TripRosterEntry = {
   /** Applied coupon/offer label (read-only) + the discount amount, if any. */
   couponLabel: string | null
   discountPaise: number
+  /** Fully-cancelled bookings are included so the host can see what happened + the refund. */
+  cancelled: boolean
+  refundAmountPaise: number
+  refundStatus: string | null
 }
 
 /**
@@ -1188,9 +1192,9 @@ export async function getTripRosterForHost(tripId: string): Promise<TripRosterEn
 
   const { data: rows } = await svc
     .from('bookings')
-    .select('id, status, travel_date, confirmation_code, guests, traveller_details, promo_offer_id, discount_paise, user:profiles!bookings_user_id_fkey(full_name, username, phone_number)')
+    .select('id, status, travel_date, confirmation_code, guests, traveller_details, promo_offer_id, discount_paise, refund_amount_paise, refund_status, user:profiles!bookings_user_id_fkey(full_name, username, phone_number)')
     .eq('package_id', tripId)
-    .in('status', ['confirmed', 'completed'])
+    .in('status', ['confirmed', 'completed', 'cancelled'])
     .order('travel_date', { ascending: true })
 
   // Resolve applied offers (batched) into a read-only label for the host.
@@ -1223,6 +1227,9 @@ export async function getTripRosterForHost(tripId: string): Promise<TripRosterEn
       travellers: (r.traveller_details as { name: string; age: number; gender: string }[] | null) ?? null,
       couponLabel: offerId ? offerLabelById.get(offerId) ?? null : null,
       discountPaise: Number((r as { discount_paise?: number | null }).discount_paise ?? 0),
+      cancelled: String(r.status) === 'cancelled',
+      refundAmountPaise: Number((r as { refund_amount_paise?: number | null }).refund_amount_paise ?? 0),
+      refundStatus: (r as { refund_status?: string | null }).refund_status ?? null,
     }
   })
 }

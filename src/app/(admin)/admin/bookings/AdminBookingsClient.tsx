@@ -4,13 +4,13 @@ import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking, getAdminBookings } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails, adminAddTravellersToBooking } from '@/actions/booking'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee, Pencil } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
-import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { PartialCancelManager, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 
@@ -458,6 +458,16 @@ export function AdminBookingsClient({
                     <TravellerEditor bookingId={booking.id} initial={booking.traveller_details} />
                   )}
 
+                  {/* Add traveller(s) to a trip booking — with optional new total / collected */}
+                  {!sl && (booking.status === 'confirmed' || booking.status === 'pending') && (
+                    <TravellerAdder
+                      bookingId={booking.id}
+                      totalPaise={booking.total_amount_paise || 0}
+                      collectedPaise={(booking as { deposit_paise?: number | null }).deposit_paise ?? 0}
+                      onAdded={(f) => setRows(prev => prev.map(b => b.id === booking.id ? ({ ...b, ...f } as Booking) : b))}
+                    />
+                  )}
+
                   {/* Payment — cash collected vs balance; record offline payments here */}
                   {(() => {
                     const total = booking.total_amount_paise || 0
@@ -764,6 +774,15 @@ export function AdminBookingsClient({
                     </div>
                   )}
 
+                  {/* Cancelled-booking summary — who was cancelled + refund */}
+                  {booking.status === 'cancelled' && (
+                    <FullCancellationSummary
+                      travellers={booking.traveller_details as { name?: string | null }[] | undefined}
+                      refundAmountPaise={booking.refund_amount_paise || 0}
+                      refundStatus={booking.refund_status}
+                    />
+                  )}
+
                   {/* Refund Tracking — admin-approved or traveler self-service */}
                   {(booking.cancellation_status === 'approved' ||
                     booking.cancellation_status === 'self_service') &&
@@ -1040,6 +1059,114 @@ function TravellerEditor({ bookingId, initial }: { bookingId: string; initial: {
           </div>
         </div>
       )}
+      {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
+    </div>
+  )
+}
+
+function TravellerAdder({
+  bookingId,
+  totalPaise,
+  collectedPaise,
+  onAdded,
+}: {
+  bookingId: string
+  totalPaise: number
+  collectedPaise: number
+  onAdded: (fields: { guests: number; total_amount_paise: number; deposit_paise: number; traveller_details: EditableTraveller[] }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState<EditableTraveller[]>([{ name: '', age: '', gender: 'male' }])
+  const [newTotal, setNewTotal] = useState('')
+  const [newCollected, setNewCollected] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState(false)
+  const [isPending, start] = useTransition()
+
+  const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1 text-xs'
+
+  function setField(i: number, key: keyof EditableTraveller, value: string) {
+    setDraft((d) => d.map((t, idx) => (idx === i ? { ...t, [key]: value } : t)))
+  }
+
+  function submit() {
+    const payload = draft.map((t) => ({ name: t.name.trim(), age: Number(t.age), gender: t.gender }))
+    const opts = {
+      newTotalPaise: newTotal.trim() ? Math.round(parseFloat(newTotal) * 100) : undefined,
+      newCollectedPaise: newCollected.trim() ? Math.round(parseFloat(newCollected) * 100) : undefined,
+    }
+    start(async () => {
+      const res = await adminAddTravellersToBooking(bookingId, payload, opts)
+      if (res.error) { setErr(true); setMsg(res.error); return }
+      setErr(false)
+      setMsg(`Added ${payload.length} traveller${payload.length > 1 ? 's' : ''}.`)
+      onAdded({
+        guests: res.guests!,
+        total_amount_paise: res.total_amount_paise!,
+        deposit_paise: res.deposit_paise!,
+        traveller_details: (res.travellers as EditableTraveller[]) || [],
+      })
+      setOpen(false)
+      setDraft([{ name: '', age: '', gender: 'male' }])
+      setNewTotal('')
+      setNewCollected('')
+    })
+  }
+
+  if (!open) {
+    return (
+      <div className="space-y-1">
+        <button
+          onClick={() => { setOpen(true); setMsg('') }}
+          className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+        >
+          <UserPlus className="h-3 w-3" /> Add traveller
+        </button>
+        {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/[0.04] p-3 space-y-2">
+      <p className="text-xs font-medium flex items-center gap-1"><UserPlus className="h-3 w-3 text-primary" /> Add traveller(s)</p>
+      {draft.map((t, i) => (
+        <div key={i} className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-muted-foreground w-4">{i + 1}.</span>
+          <input value={t.name} onChange={(e) => setField(i, 'name', e.target.value)} placeholder="Name" className={`${inputCls} w-40`} />
+          <input type="number" min="1" max="120" value={t.age} onChange={(e) => setField(i, 'age', e.target.value)} placeholder="Age" className={`${inputCls} w-16`} />
+          <select value={t.gender} onChange={(e) => setField(i, 'gender', e.target.value)} className={inputCls}>
+            <option value="male">male</option>
+            <option value="female">female</option>
+            <option value="other">other</option>
+          </select>
+          {draft.length > 1 && (
+            <button onClick={() => setDraft((d) => d.filter((_, idx) => idx !== i))} className="text-[11px] text-red-400 hover:text-red-300">Remove</button>
+          )}
+        </div>
+      ))}
+      <button onClick={() => setDraft((d) => [...d, { name: '', age: '', gender: 'male' }])} className="text-[11px] text-primary hover:underline">+ Another traveller</button>
+
+      <div className="flex flex-wrap items-end gap-3 pt-1">
+        <div>
+          <label className="text-[11px] text-muted-foreground block mb-0.5">New trip total (₹) — optional</label>
+          <input type="number" min="0" value={newTotal} onChange={(e) => setNewTotal(e.target.value)} placeholder={`Now ${(totalPaise / 100).toLocaleString('en-IN')}`} className={`${inputCls} w-36`} />
+        </div>
+        <div>
+          <label className="text-[11px] text-muted-foreground block mb-0.5">New collected (₹) — optional</label>
+          <input type="number" min="0" value={newCollected} onChange={(e) => setNewCollected(e.target.value)} placeholder={`Now ${(collectedPaise / 100).toLocaleString('en-IN')}`} className={`${inputCls} w-36`} />
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Leave amounts blank to keep them unchanged. Both are admin-set totals for the whole booking (not per-person).
+      </p>
+
+      <div className="flex gap-2">
+        <Button size="sm" className="text-xs" onClick={submit} disabled={isPending || draft.every(t => !t.name.trim())}>
+          {isPending ? 'Adding…' : 'Add to booking'}
+        </Button>
+        <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+      </div>
       {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
     </div>
   )

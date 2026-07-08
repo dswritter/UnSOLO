@@ -20,7 +20,7 @@ import {
 import { ManageRequestsClient } from './ManageRequestsClient'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
-import { PartialCancelManager, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { PartialCancelManager, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import type { Package } from '@/types'
 
@@ -193,11 +193,11 @@ export default async function ManageTripPage({
           <div className="rounded-xl border border-border bg-card p-5 mb-8">
             <div className="flex items-center gap-2 mb-4">
               <Users className="h-4 w-4 text-primary" />
-              <h2 className="font-bold">Travellers ({roster.reduce((n, r) => n + r.guests, 0)})</h2>
+              <h2 className="font-bold">Travellers ({roster.reduce((n, r) => n + (r.cancelled ? 0 : r.guests), 0)})</h2>
             </div>
             <div className="space-y-3">
               {roster.map((r) => (
-                <div key={r.bookingId} className="rounded-lg border border-border bg-secondary/30 p-3">
+                <div key={r.bookingId} className={cn('rounded-lg border border-border bg-secondary/30 p-3', r.cancelled && 'opacity-70')}>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="font-medium">{r.leadName}{r.leadUsername ? <span className="text-muted-foreground"> @{r.leadUsername}</span> : null}</span>
                     <span className="text-xs text-muted-foreground">
@@ -206,6 +206,15 @@ export default async function ManageTripPage({
                       {r.confirmationCode ? ` · #${r.confirmationCode}` : ''}
                     </span>
                   </div>
+                  {r.cancelled && (
+                    <div className="mt-2">
+                      <FullCancellationSummary
+                        travellers={r.travellers || undefined}
+                        refundAmountPaise={r.refundAmountPaise}
+                        refundStatus={r.refundStatus}
+                      />
+                    </div>
+                  )}
                   {r.leadPhone && (
                     <div className="text-xs text-muted-foreground mt-1">
                       <a href={`tel:${r.leadPhone.replace(/[^\d+]/g, '')}`} className="text-primary hover:underline">{r.leadPhone}</a>
@@ -217,7 +226,7 @@ export default async function ManageTripPage({
                       {r.discountPaise > 0 ? <span className="text-green-500"> · −{formatPrice(r.discountPaise)}</span> : null}
                     </div>
                   )}
-                  {Array.isArray(r.travellers) && r.travellers.length > 0 && (
+                  {!r.cancelled && Array.isArray(r.travellers) && r.travellers.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {r.travellers.map((t, i) => (
                         <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
@@ -226,7 +235,7 @@ export default async function ManageTripPage({
                       ))}
                     </div>
                   )}
-                  {((partialByBooking[r.bookingId]?.length) || (r.guests > 1)) && (
+                  {!r.cancelled && ((partialByBooking[r.bookingId]?.length) || (r.guests > 1)) && (
                     <div className="mt-2 pt-2 border-t border-border/60">
                       <PartialCancelManager
                         booking={{ id: r.bookingId, status: r.status, guests: r.guests, traveller_details: r.travellers || [] }}
@@ -234,7 +243,7 @@ export default async function ManageTripPage({
                       />
                     </div>
                   )}
-                  {(changesByBooking[r.bookingId]?.length || 0) > 0 && (
+                  {!r.cancelled && (changesByBooking[r.bookingId]?.length || 0) > 0 && (
                     <div className="mt-2 pt-2 border-t border-border/60">
                       <BookingChangeRequestManager existing={changesByBooking[r.bookingId] || []} variantLabels={tripVariantLabels} />
                     </div>

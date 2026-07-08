@@ -2600,6 +2600,98 @@ export async function adminUpdateTravellerDetails(
   return { success: true, travellers: sanitized.value }
 }
 
+/**
+ * Admin/staff adds new traveller(s) to an existing (non-cancelled) booking and
+ * may optionally set the new trip total and the new collected amount. Amounts
+ * are admin-authoritative (like the price-tier / coupon flows) — left unchanged
+ * when omitted. The booker is notified.
+ */
+export async function adminAddTravellersToBooking(
+  bookingId: string,
+  newTravellers: { name: string; age: number; gender: string }[],
+  opts?: { newTotalPaise?: number | null; newCollectedPaise?: number | null },
+) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  if (!Array.isArray(newTravellers) || newTravellers.length === 0) {
+    return { error: 'Add at least one traveller.' }
+  }
+  const sanitized = sanitizeTravellerDetails(newTravellers, newTravellers.length)
+  if ('error' in sanitized) return { error: sanitized.error }
+  if (!sanitized.value) return { error: 'Enter details for each new traveller.' }
+  const added = sanitized.value
+
+  const svc = createServiceRoleClient()
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('id, user_id, guests, traveller_details, total_amount_paise, deposit_paise, status, package:packages(title)')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled' || booking.status === 'completed') {
+    return { error: `Cannot add travellers to a ${booking.status} booking.` }
+  }
+
+  const existing = (Array.isArray(booking.traveller_details) ? booking.traveller_details : []) as TravellerDetailRow[]
+  const merged = [...existing, ...added]
+  const newGuests = (booking.guests || existing.length) + added.length
+
+  const curTotal = booking.total_amount_paise || 0
+  const update: Record<string, unknown> = {
+    traveller_details: merged,
+    guests: newGuests,
+    updated_at: new Date().toISOString(),
+  }
+
+  let effectiveTotal = curTotal
+  if (typeof opts?.newTotalPaise === 'number' && Number.isFinite(opts.newTotalPaise)) {
+    if (opts.newTotalPaise < 0) return { error: 'Trip total cannot be negative.' }
+    effectiveTotal = Math.round(opts.newTotalPaise)
+    update.total_amount_paise = effectiveTotal
+  }
+  if (typeof opts?.newCollectedPaise === 'number' && Number.isFinite(opts.newCollectedPaise)) {
+    if (opts.newCollectedPaise < 0) return { error: 'Collected amount cannot be negative.' }
+    // Never let collected exceed the (effective) trip total.
+    update.deposit_paise = Math.min(Math.round(opts.newCollectedPaise), effectiveTotal)
+  }
+
+  const { error } = await svc.from('bookings').update(update).eq('id', bookingId)
+  if (error) return { error: error.message }
+
+  try {
+    const pkgTitle = (booking.package as unknown as { title?: string } | null)?.title || 'your trip'
+    const names = added.map(t => t.name).join(', ')
+    await svc.from('notifications').insert({
+      user_id: booking.user_id,
+      type: 'booking',
+      title: 'Travellers added to your booking',
+      body: `An UnSOLO admin added ${added.length} traveller${added.length > 1 ? 's' : ''} (${names}) to your booking for "${pkgTitle}".`,
+      link: '/bookings',
+    })
+  } catch { /* non-critical */ }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'ADD_TRAVELLERS', 'booking', bookingId, { added: added.length, newGuests })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/admin/bookings')
+  revalidatePath('/bookings')
+  return {
+    success: true as const,
+    travellers: merged,
+    guests: newGuests,
+    total_amount_paise: (update.total_amount_paise as number | undefined) ?? curTotal,
+    deposit_paise: (update.deposit_paise as number | undefined) ?? (booking.deposit_paise || 0),
+  }
+}
+
 // ── Admin: Process Cancellation ─────────────────────────────
 /**
  * Admin/staff records an offline payment (cash, bank transfer, etc.) against a

@@ -18,7 +18,7 @@ import {
   type TripPackageCalendar,
 } from '@/lib/package-trip-calendar'
 import { submitReview } from '@/actions/profile'
-import { TravellerPartialCancel, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
+import { TravellerPartialCancel, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequest, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { joinGroupByInvite } from '@/actions/group-booking'
 import {
@@ -1208,6 +1208,16 @@ function BookingItem({
                     {t.name}{t.age || t.gender ? ` · ${[t.age || null, t.gender || null].filter(Boolean).join(' · ')}` : ''}
                   </span>
                 ))}
+              </div>
+            )}
+            {booking.status === 'cancelled' && (
+              <div className="mb-2">
+                <FullCancellationSummary
+                  travellers={booking.traveller_details as { name?: string | null }[] | undefined}
+                  refundAmountPaise={booking.refund_amount_paise || 0}
+                  refundStatus={booking.refund_status}
+                  noRefundText="No refund was issued for this cancellation."
+                />
               </div>
             )}
             <div className="mb-2">

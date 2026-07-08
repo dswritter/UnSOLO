@@ -41,6 +41,41 @@ type BookingLite = {
 
 const fmt = (paise: number) => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`
 
+/**
+ * Summary shown when an ENTIRE booking was cancelled (vs a partial cancellation,
+ * which uses StatusChips). Lists who was on the booking + the refund. Rendered to
+ * the booker, admin, and host.
+ */
+export function FullCancellationSummary({
+  travellers,
+  refundAmountPaise,
+  refundStatus,
+  noRefundText = 'No refund due.',
+}: {
+  travellers?: { name?: string | null }[]
+  refundAmountPaise: number
+  refundStatus?: string | null
+  noRefundText?: string
+}) {
+  const names = (travellers || []).map((t) => t?.name).filter(Boolean).join(', ')
+  return (
+    <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-2.5 py-2 text-xs space-y-0.5">
+      <p className="font-semibold text-red-400">Entire booking cancelled</p>
+      {names && (
+        <p className="text-muted-foreground">Cancelled travellers: <span className="text-foreground">{names}</span></p>
+      )}
+      {refundAmountPaise > 0 ? (
+        <p className="text-muted-foreground">
+          Refund: <span className="text-foreground font-medium">{fmt(refundAmountPaise)}</span>
+          {refundStatus ? ` · ${refundStatus}` : ''}
+        </p>
+      ) : (
+        <p className="text-muted-foreground">{noRefundText}</p>
+      )}
+    </div>
+  )
+}
+
 function travellerLabel(t: Traveller, i: number) {
   const name = t?.name || `Guest ${i + 1}`
   const extra = [t?.age || null, t?.gender || null].filter(Boolean).join(' · ')
