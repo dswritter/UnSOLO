@@ -646,6 +646,98 @@ async function finalizePartialRefundReceipt(
   }
 }
 
+/**
+ * Retroactively attach a refund to an already-approved partial cancellation that
+ * was recorded with no refund (e.g. the amount was left blank at cancel time).
+ * Sets the amount + note; if `alreadyPaidOffline`, immediately finalizes it via
+ * the same path as recordOfflinePartialRefund (receipt + ledger). Otherwise
+ * leaves it `pending` so the normal Initiate/Record-offline buttons take over.
+ *
+ * Blocked once a refund is already in flight (pending/processing/completed) —
+ * use the existing controls for those instead of clobbering an active refund.
+ */
+export async function setPartialCancellationRefund(
+  partialId: string,
+  amountPaise: number,
+  alreadyPaidOffline: boolean,
+  note?: string,
+) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  if (!Number.isFinite(amountPaise) || amountPaise <= 0) return { error: 'Enter a valid refund amount.' }
+  const svc = createServiceRoleClient()
+
+  const { data: pc } = await svc.from('booking_partial_cancellations').select('*').eq('id', partialId).single()
+  if (!pc) return { error: 'Record not found' }
+  if (pc.status !== 'approved') return { error: 'Only an approved cancellation can have a refund added.' }
+  if (pc.refund_status && pc.refund_status !== 'none') {
+    return { error: 'This record already has a refund in progress — use the existing refund controls instead.' }
+  }
+
+  const actor = await resolveActor(svc, pc.booking_id, user.id)
+  if ('error' in actor) return { error: actor.error }
+  if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
+
+  const { error } = await svc
+    .from('booking_partial_cancellations')
+    .update({
+      refund_amount_paise: Math.round(amountPaise),
+      refund_status: 'pending',
+      admin_note: note?.trim() || pc.admin_note || null,
+    })
+    .eq('id', partialId)
+  if (error) return { error: error.message }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'PARTIAL_REFUND_AMOUNT_ADDED', 'booking', pc.booking_id, {
+      partialId, amountPaise: Math.round(amountPaise), alreadyPaidOffline,
+    })
+  } catch { /* non-critical */ }
+
+  // Already settled outside the system (e.g. cash handed over earlier) — finalize now.
+  if (alreadyPaidOffline) return recordOfflinePartialRefund(partialId, note)
+
+  revalidatePath('/admin/bookings'); revalidatePath('/bookings'); revalidatePath('/host')
+  return { success: true }
+}
+
+/**
+ * Delete a partial-cancellation HISTORY record — for corrections/test entries
+ * only. Blocked if any money moved (a positive refund amount or any refund
+ * status beyond 'none'), so real financial history can never be erased. Does
+ * NOT restore the traveller or touch guests/total — it only removes the stray
+ * record (the guest count reduction from the original cancellation stands).
+ */
+export async function deletePartialCancellationRecord(partialId: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const svc = createServiceRoleClient()
+
+  const { data: pc } = await svc.from('booking_partial_cancellations').select('*').eq('id', partialId).single()
+  if (!pc) return { error: 'Record not found' }
+  if (pc.status === 'requested') return { error: 'Deny the request instead of deleting a pending one.' }
+  const hasMoney = (pc.refund_amount_paise || 0) > 0 || (!!pc.refund_status && pc.refund_status !== 'none')
+  if (hasMoney) {
+    return { error: 'This record has a refund attached — it cannot be deleted (financial history). Use the refund controls instead.' }
+  }
+
+  const actor = await resolveActor(svc, pc.booking_id, user.id)
+  if ('error' in actor) return { error: actor.error }
+  if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
+
+  const { error } = await svc.from('booking_partial_cancellations').delete().eq('id', partialId)
+  if (error) return { error: error.message }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'DELETE_PARTIAL_CANCELLATION_RECORD', 'booking', pc.booking_id, { partialId })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/admin/bookings'); revalidatePath('/bookings'); revalidatePath('/host')
+  return { success: true }
+}
+
 /** Mark a partial refund as credited to the customer. */
 export async function markPartialRefundComplete(partialId: string) {
   const { user } = await getActionAuth()

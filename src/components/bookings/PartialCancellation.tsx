@@ -11,6 +11,8 @@ import {
   initiatePartialRefund,
   markPartialRefundComplete,
   recordOfflinePartialRefund,
+  setPartialCancellationRefund,
+  deletePartialCancellationRecord,
 } from '@/actions/partial-cancellation'
 
 export type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
@@ -320,10 +322,13 @@ function RequestReview({ booking, row, onApplied }: { booking: BookingLite; row:
   )
 }
 
-function ProcessedRow({ row }: { row: PartialCancellationRow }) {
+function ProcessedRow({ row: initialRow }: { row: PartialCancellationRow }) {
+  const [row, setRow] = useState(initialRow)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState(false)
   const [isPending, start] = useTransition()
+  const [addingRefund, setAddingRefund] = useState(false)
+  const [deleted, setDeleted] = useState(false)
   const names = (row.travellers || []).map((t) => t?.name).filter(Boolean).join(', ')
 
   function initiate() {
@@ -348,6 +353,19 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
       else { setErr(false); setMsg('Offline refund recorded — traveller notified & emailed.') }
     })
   }
+  function deleteRecord() {
+    if (!confirm('Delete this cancellation record? This is only for corrections (e.g. a test entry) — it does not restore the traveller or change the trip total.')) return
+    start(async () => {
+      const res = await deletePartialCancellationRecord(row.id)
+      if ('error' in res && res.error) { setErr(true); setMsg(res.error) }
+      else { setDeleted(true) }
+    })
+  }
+
+  if (deleted) return null
+
+  const canAddRefund = row.status === 'approved' && !(row.refund_amount_paise > 0) && (!row.refund_status || row.refund_status === 'none')
+  const canDelete = row.status !== 'requested' && !(row.refund_amount_paise > 0) && (!row.refund_status || row.refund_status === 'none')
 
   return (
     <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-2">
@@ -377,6 +395,86 @@ function ProcessedRow({ row }: { row: PartialCancellationRow }) {
           )}
         </div>
       )}
+
+      {canAddRefund && !addingRefund && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => setAddingRefund(true)} className="text-[11px] text-primary hover:underline">
+            + Add refund (none recorded)
+          </button>
+          {canDelete && (
+            <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-300">
+              Delete this record
+            </button>
+          )}
+        </div>
+      )}
+      {canAddRefund && addingRefund && (
+        <AddRefundForm
+          partialId={row.id}
+          onDone={(amountPaise, status) => {
+            setRow((r) => ({ ...r, refund_amount_paise: amountPaise, refund_status: status }))
+            setAddingRefund(false)
+          }}
+          onCancel={() => setAddingRefund(false)}
+        />
+      )}
+      {!canAddRefund && canDelete && (
+        <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-300">
+          Delete this record
+        </button>
+      )}
+      {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
+    </div>
+  )
+}
+
+/** Retroactively record a refund on an already-approved cancellation that has none. */
+function AddRefundForm({
+  partialId,
+  onDone,
+  onCancel,
+}: {
+  partialId: string
+  onDone: (amountPaise: number, status: string) => void
+  onCancel: () => void
+}) {
+  const [amount, setAmount] = useState('')
+  const [alreadyPaid, setAlreadyPaid] = useState(true)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState(false)
+  const [isPending, start] = useTransition()
+
+  function submit() {
+    const paise = Math.round(parseFloat(amount || '0') * 100)
+    if (!paise || paise <= 0) { setErr(true); setMsg('Enter a valid amount.'); return }
+    start(async () => {
+      const res = await setPartialCancellationRefund(partialId, paise, alreadyPaid)
+      if ('error' in res && res.error) { setErr(true); setMsg(res.error); return }
+      setErr(false)
+      onDone(paise, alreadyPaid ? 'completed' : 'pending')
+    })
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/25 bg-primary/[0.03] p-2.5 space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        Record a refund that wasn&apos;t captured when this was cancelled (e.g. handed over in cash separately).
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs text-muted-foreground">Refund ₹</label>
+        <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-sm w-28" />
+      </div>
+      <label className="flex items-center gap-2 text-xs cursor-pointer">
+        <input type="checkbox" checked={alreadyPaid} onChange={(e) => setAlreadyPaid(e.target.checked)} className="rounded border-border" />
+        Already paid to the traveller offline (mark completed now)
+      </label>
+      {!alreadyPaid && (
+        <p className="text-[10px] text-muted-foreground">Not yet paid — this sets it to &quot;pending&quot; so you can Initiate (Razorpay) or Record offline refund afterward.</p>
+      )}
+      <div className="flex gap-2">
+        <Button size="sm" className="text-xs" onClick={submit} disabled={isPending}>{isPending ? 'Saving…' : 'Save refund'}</Button>
+        <Button size="sm" variant="outline" className="text-xs border-border" onClick={onCancel} disabled={isPending}>Cancel</Button>
+      </div>
       {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
     </div>
   )
