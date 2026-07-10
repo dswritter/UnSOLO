@@ -8,6 +8,8 @@ import { loadGatewayFeeSettings } from '@/lib/refund-settings'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { computeBookingTotals } from '@/lib/booking/pricing'
 import { upsertBookingRefund } from '@/lib/booking/ledger'
+import { rederiveBookingDiscount } from '@/lib/booking/coupon'
+import { parsePriceVariants } from '@/lib/package-pricing'
 
 type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
 
@@ -19,7 +21,7 @@ type Svc = ReturnType<typeof createServiceRoleClient>
 async function resolveActor(svc: Svc, bookingId: string, userId: string) {
   const { data: booking } = await svc
     .from('bookings')
-    .select('*, package:packages(id, title, host_id)')
+    .select('*, package:packages(id, title, host_id, price_paise, price_variants), service_listing:service_listings(id, title, host_id, price_paise, price_variants)')
     .eq('id', bookingId)
     .single()
   if (!booking) return { error: 'Booking not found' as const }
@@ -360,7 +362,11 @@ type BookingRow = {
   discount_paise?: number | null
   deposit_paise?: number | null
   traveller_details?: Traveller[] | null
+  package_id?: string | null
+  promo_offer_id?: string | null
+  price_variant_label?: string | null
   package?: unknown
+  service_listing?: unknown
 }
 
 async function applyApprovedPartialCancellation(
@@ -417,21 +423,36 @@ async function applyApprovedPartialCancellation(
   const current: Traveller[] = Array.isArray(booking.traveller_details) ? booking.traveller_details : []
   const newTravellers = current.length ? removeTravellers(current, pc.travellers) : current
 
-  // Rescale the money for the remaining guests. Scale gross + discount by the
-  // same factor and keep total = gross − discount, so the booking stays
-  // consistent with the coupon/tier recompute model (which reads gross_paise) —
-  // otherwise a later offer edit would recompute from a stale gross and
-  // resurrect the cancelled travellers' amount. Collected drops by the refund.
+  // Shrink gross proportionally to the remaining guests (exact for a flat
+  // per-person/per-unit price — the same price applies whether the party is 6 or
+  // 4). The DISCOUNT is then RE-DERIVED (not proportionally scaled) against the
+  // new gross/guest-count, isolating any non-coupon portion first — mirrors
+  // adminSetBookingCoupon / adminUpdateBookingPriceTier via rederiveBookingDiscount
+  // (@/lib/booking/coupon). This matters for eligibility-gated coupons (e.g. "1
+  // free of 6"): once the party drops below the minimum group size the coupon
+  // must drop to 0, not just shrink proportionally and keep partially applying.
   const factor = newGuests / Math.max(1, booking.guests || 1)
   const moneyUpdate: Record<string, number> = {}
   let newTotal: number
   if (typeof booking.gross_paise === 'number') {
-    // Shrink gross + discount proportionally to the remaining guests, then run the
-    // gross→total identity through the shared pricing engine (@/lib/booking/pricing).
-    const t = computeBookingTotals({
-      grossPaise: Math.round(booking.gross_paise * factor),
-      discountPaise: Math.round((booking.discount_paise ?? 0) * factor),
+    const newGrossPaise = Math.round(booking.gross_paise * factor)
+    const isPackage = !!booking.package_id
+    const source = (isPackage ? booking.package : booking.service_listing) as
+      { price_paise?: number; price_variants?: unknown } | null
+    const variants = parsePriceVariants(source?.price_variants)
+    const matched = variants?.find((v) => v.description === booking.price_variant_label)
+    // Flat per-person/unit price — same before and after (partial-cancel never
+    // changes the tier, only the headcount), so old/new unit price is identical.
+    const unit = matched?.price_paise ?? source?.price_paise ?? Math.round(booking.gross_paise / Math.max(1, booking.guests || 1))
+
+    const newDiscountPaise = await rederiveBookingDiscount(svc, {
+      promoOfferId: booking.promo_offer_id,
+      currentDiscountPaise: booking.discount_paise || 0,
+      oldGrossPaise: booking.gross_paise, oldQuantity: booking.guests || 1, oldUnitPricePaise: unit,
+      newGrossPaise, newQuantity: newGuests, newUnitPricePaise: unit,
     })
+
+    const t = computeBookingTotals({ grossPaise: newGrossPaise, discountPaise: newDiscountPaise })
     newTotal = t.totalPaise
     moneyUpdate.gross_paise = t.grossPaise
     moneyUpdate.discount_paise = t.discountPaise

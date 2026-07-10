@@ -9,6 +9,7 @@ import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
 import { computeBookingTotals } from '@/lib/booking/pricing'
 import { recordPaymentLedger, upsertBookingRefund } from '@/lib/booking/ledger'
+import { couponDiscountForOffer, rederiveBookingDiscount } from '@/lib/booking/coupon'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -20,8 +21,6 @@ import { sendTripBookingReceipt } from '@/lib/email/tripReceipt'
 import {
   incrementPromoOfferUsed,
   validateScopedPromoCode,
-  computeDiscountPaise,
-  specFromRow,
   type PromoScopeContext,
   type PromoAmountContext,
 } from '@/lib/checkout-promos'
@@ -2188,22 +2187,6 @@ export async function confirmTravelerCancellation(
   }
 }
 
-/** Recompute the coupon portion of a discount for a given booking amount. 0 if no offer. */
-async function couponDiscountForOffer(
-  svc: ReturnType<typeof createServiceRoleClient>,
-  offerId: string | null | undefined,
-  amount: PromoAmountContext,
-): Promise<number> {
-  if (!offerId) return 0
-  const { data: offer } = await svc
-    .from('discount_offers')
-    .select('discount_kind, discount_paise, discount_percent, discount_percent_cap_paise, free_guest_count, free_guests_min_group')
-    .eq('id', offerId)
-    .maybeSingle()
-  if (!offer) return 0
-  return computeDiscountPaise(specFromRow(offer as never), amount)
-}
-
 /**
  * Admin/staff changes (or removes) the coupon/offer on a booking. Re-derives the
  * discount against the booking's CURRENT gross/per-unit/guests — so a free-guests or
@@ -2240,10 +2223,6 @@ export async function adminSetBookingCoupon(bookingId: string, promoCode: string
   const unit = matched?.price_paise ?? source?.price_paise ?? Math.round(gross / Math.max(1, qty))
   const amount: PromoAmountContext = { grossPaise: gross, unitPricePaise: unit, quantity: qty }
 
-  // The non-coupon part of the existing discount (e.g. referral) is kept.
-  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, amount)
-  const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
-
   let newOfferId: string | null = null
   let newCoupon = 0
   let label = ''
@@ -2258,6 +2237,12 @@ export async function adminSetBookingCoupon(bookingId: string, promoCode: string
     newCoupon = res.discountPaise
     label = res.name
   }
+
+  // The non-coupon part of the existing discount (e.g. referral) is kept — new
+  // coupon amount above already reflects the NEW code (or 0 if removed), so we
+  // only need the non-coupon portion of the OLD discount here.
+  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, amount)
+  const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
 
   const deposit = booking.deposit_paise || 0
   const { discountPaise: newDiscount, totalPaise: newTotal, balanceDuePaise, overpaidPaise } =
@@ -2295,6 +2280,90 @@ export async function adminSetBookingCoupon(bookingId: string, promoCode: string
 
   revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
   return { success: true, discountPaise: newDiscount, totalPaise: newTotal, balanceDuePaise, overpaidPaise, label: label || null }
+}
+
+/**
+ * Admin/staff "recompute" — re-derive gross/discount/total from scratch at the
+ * booking's CURRENT guest count and price tier. For correcting a booking whose
+ * numbers drifted from an earlier bug (e.g. a partial cancellation that
+ * proportionally rescaled the discount instead of re-checking eligibility).
+ *
+ * IMPORTANT CAVEAT: this assumes the ENTIRE current discount is coupon-derived
+ * and re-derives it fresh (0 if the linked offer is no longer eligible at the
+ * current guest count) — it does NOT attempt to preserve a separate non-coupon
+ * component (e.g. referral), because once a discount has been proportionally
+ * rescaled by a prior bug there is no reliable way to recover what portion was
+ * ever non-coupon. If this booking also had a genuine referral/manual discount
+ * stacked on top of the coupon, re-add it afterward via Manual Override.
+ *
+ * Gross is computed fresh as unit(current tier) × current guests — not
+ * rescaled from the (possibly already-wrong) stored gross_paise.
+ */
+export async function adminRecomputeBookingTotals(bookingId: string) {
+  const { user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const svc = createServiceRoleClient()
+  const { data: profile } = await svc.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const { data: booking } = await svc
+    .from('bookings')
+    .select('*, package:packages(id, title, price_paise, price_variants, host_id), service_listing:service_listings(id, title, type, price_paise, price_variants, host_id)')
+    .eq('id', bookingId)
+    .single()
+  if (!booking) return { error: 'Booking not found' }
+  if (booking.status === 'cancelled') return { error: 'Cannot recompute a cancelled booking.' }
+
+  const isPackage = !!booking.package_id
+  const source = isPackage
+    ? (booking.package as { price_paise?: number; price_variants?: unknown } | null)
+    : (booking.service_listing as { price_paise?: number; price_variants?: unknown } | null)
+  const guests = booking.guests || booking.quantity || 1
+  const variants = parsePriceVariants(source?.price_variants)
+  const matched = variants?.find((v) => v.description === booking.price_variant_label)
+  const oldGross = (booking.gross_paise ?? (booking.total_amount_paise || 0) + (booking.discount_paise || 0)) || 0
+  const unit = matched?.price_paise ?? source?.price_paise ?? Math.round(oldGross / Math.max(1, guests))
+
+  const freshGross = unit * guests
+  const freshCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, {
+    grossPaise: freshGross, unitPricePaise: unit, quantity: guests,
+  })
+
+  const deposit = booking.deposit_paise || 0
+  const oldDiscount = booking.discount_paise || 0
+  const oldTotal = booking.total_amount_paise || 0
+  const { discountPaise: newDiscount, totalPaise: newTotal, balanceDuePaise, overpaidPaise } =
+    computeBookingTotals({ grossPaise: freshGross, discountPaise: freshCoupon, collectedPaise: deposit })
+
+  const { error: upErr } = await svc
+    .from('bookings')
+    .update({
+      gross_paise: freshGross,
+      discount_paise: newDiscount,
+      total_amount_paise: newTotal,
+      payment_status: balanceDuePaise <= 0 ? 'paid' : 'pending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', bookingId)
+  if (upErr) return { error: upErr.message }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'ADMIN_RECOMPUTE_BOOKING_TOTALS', 'booking', bookingId, {
+      oldGross, oldDiscount, oldTotal, newGross: freshGross, newDiscount, newTotal,
+    })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
+  return {
+    success: true as const,
+    oldGrossPaise: oldGross, oldDiscountPaise: oldDiscount, oldTotalPaise: oldTotal,
+    newGrossPaise: freshGross, newDiscountPaise: newDiscount, newTotalPaise: newTotal,
+    balanceDuePaise, overpaidPaise,
+    offerStillEligible: !booking.promo_offer_id ? null : freshCoupon > 0,
+  }
 }
 
 /**
@@ -2362,13 +2431,16 @@ export async function adminUpdateBookingPriceTier(bookingId: string, variantInde
 
   // Re-derive the coupon discount against the NEW price (a free-guests / percent
   // coupon resizes with the tier); any non-coupon discount (e.g. referral) is kept.
-  const oldCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: oldGross, unitPricePaise: oldUnitForCoupon, quantity: qty })
-  const nonCoupon = Math.max(0, (booking.discount_paise || 0) - oldCoupon)
-  const newCoupon = await couponDiscountForOffer(svc, booking.promo_offer_id, { grossPaise: newGross, unitPricePaise: newUnit, quantity: qty })
+  const newDiscountPaise = await rederiveBookingDiscount(svc, {
+    promoOfferId: booking.promo_offer_id,
+    currentDiscountPaise: booking.discount_paise || 0,
+    oldGrossPaise: oldGross, oldQuantity: qty, oldUnitPricePaise: oldUnitForCoupon,
+    newGrossPaise: newGross, newQuantity: qty, newUnitPricePaise: newUnit,
+  })
 
   const res = recalcBookingTierTotals({
     newGrossPaise: newGross,
-    discountPaise: newCoupon + nonCoupon,
+    discountPaise: newDiscountPaise,
     depositPaise: booking.deposit_paise || 0,
   })
 

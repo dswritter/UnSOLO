@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking, getAdminBookings } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails, adminAddTravellersToBooking, adminOverrideBooking } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails, adminAddTravellersToBooking, adminOverrideBooking, adminRecomputeBookingTotals } from '@/actions/booking'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -214,6 +214,25 @@ export function AdminBookingsClient({
       const res = await adminDeleteBooking(bookingId)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else setDeletedIds(prev => new Set([...prev, bookingId]))
+    })
+  }
+
+  function handleRecomputeTotals(bookingId: string) {
+    if (!confirm(
+      'Recompute this booking\'s gross/discount/total from scratch, based on its current guest count and price tier?\n\n' +
+      'This assumes the ENTIRE current discount is coupon-derived and re-checks the offer\'s eligibility fresh ' +
+      '(it will drop to ₹0 if the group no longer qualifies, e.g. a "1 free of 6" offer with fewer than 6 left). ' +
+      'It does NOT try to preserve a separate referral/manual discount stacked on the coupon — re-add that ' +
+      'afterward via Manual Override if this booking has one.'
+    )) return
+    startTransition(async () => {
+      const res = await adminRecomputeBookingTotals(bookingId)
+      if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
+      setRows(prev => prev.map(b => b.id === bookingId
+        ? ({ ...b, discount_paise: res.newDiscountPaise, total_amount_paise: res.newTotalPaise } as unknown as Booking)
+        : b))
+      const eligibility = res.offerStillEligible === false ? ' — the linked offer is no longer eligible, discount cleared.' : ''
+      showFeedback(bookingId, `Recomputed: total ${formatPrice(res.oldTotalPaise || 0)} → ${formatPrice(res.newTotalPaise || 0)}${eligibility}`)
     })
   }
 
@@ -642,8 +661,11 @@ export function AdminBookingsClient({
                                 Clear all discount ({formatPrice(discount)})
                               </Button>
                             )}
+                            <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => handleRecomputeTotals(booking.id)} disabled={isPending}>
+                              Recompute (re-check offer eligibility)
+                            </Button>
                             <p className="text-[10px] text-muted-foreground w-full">
-                              &quot;Remove coupon&quot; re-derives against the current price but keeps any non-coupon discount (e.g. referral). &quot;Clear all discount&quot; zeroes the entire discount — including a referral/legacy discount with no promo code — so the total becomes the full gross.
+                              &quot;Remove coupon&quot; re-derives against the current price but keeps any non-coupon discount (e.g. referral). &quot;Clear all discount&quot; zeroes the entire discount. &quot;Recompute&quot; re-derives gross + discount fresh from the current guest count/tier — e.g. after several traveller cancellations dropped the group below a &quot;free 1 of 6&quot; offer&apos;s minimum. It assumes the whole discount is coupon-derived (doesn&apos;t preserve a stacked referral).
                             </p>
                           </div>
                         )}
