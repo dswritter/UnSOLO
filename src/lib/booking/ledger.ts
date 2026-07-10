@@ -58,6 +58,49 @@ export async function recordPaymentLedger(
   } catch { /* best-effort dual-write */ }
 }
 
+/**
+ * Dual-write a refund into the ledger, shared by the full-booking and partial
+ * flows (best-effort — never blocks the live refund). Correlates by
+ * (booking_id, partial_cancellation_id): full-cancel refunds use a null
+ * partial id, partial refunds use the partial-cancellation row's id, so a
+ * refund's initiate→complete transitions update the SAME ledger row (also the
+ * one seeded by the 101 backfill). Inserts only when amount is known (>0).
+ */
+export async function upsertBookingRefund(
+  svc: Svc,
+  input: {
+    bookingId: string
+    partialCancellationId?: string | null
+    amountPaise?: number
+    method: 'razorpay' | 'offline' | 'wallet'
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    gatewayRefundId?: string | null
+    initiatedBy?: string | null
+    completedAt?: string | null
+  },
+): Promise<void> {
+  try {
+    const pcId = input.partialCancellationId ?? null
+    let sel = svc.from('booking_refunds').select('id').eq('booking_id', input.bookingId)
+    sel = pcId ? sel.eq('partial_cancellation_id', pcId) : sel.is('partial_cancellation_id', null)
+    const { data: existing } = await sel.order('created_at', { ascending: false }).limit(1).maybeSingle()
+
+    const fields: Record<string, unknown> = { method: input.method, status: input.status }
+    if (typeof input.amountPaise === 'number' && input.amountPaise > 0) fields.amount_paise = Math.round(input.amountPaise)
+    if (input.gatewayRefundId != null) fields.gateway_refund_id = input.gatewayRefundId
+    if (input.initiatedBy != null) fields.initiated_by = input.initiatedBy
+    if (input.status === 'processing') fields.initiated_at = new Date().toISOString()
+    if (input.status === 'completed') fields.completed_at = input.completedAt ?? new Date().toISOString()
+
+    if (existing?.id) {
+      await svc.from('booking_refunds').update(fields).eq('id', existing.id)
+    } else {
+      if (!fields.amount_paise) return // can't insert without a positive amount
+      await svc.from('booking_refunds').insert({ booking_id: input.bookingId, partial_cancellation_id: pcId, ...fields })
+    }
+  } catch { /* best-effort dual-write */ }
+}
+
 /** Read + summarize a booking's ledger (for verification / Phase 2b reads). */
 export async function getBookingLedgerSummary(
   svc: Svc,

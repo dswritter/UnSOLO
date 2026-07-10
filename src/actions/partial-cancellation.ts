@@ -7,6 +7,7 @@ import { computeGatewayFeeDeduction, type CapturedPayment } from '@/lib/refund-m
 import { loadGatewayFeeSettings } from '@/lib/refund-settings'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { computeBookingTotals } from '@/lib/booking/pricing'
+import { upsertBookingRefund } from '@/lib/booking/ledger'
 
 type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
 
@@ -554,6 +555,10 @@ export async function initiatePartialRefund(partialId: string) {
   if (!paymentId && payments.length === 0) {
     // No captured online payment to refund against — mark for manual handling.
     await svc.from('booking_partial_cancellations').update({ refund_status: 'processing' }).eq('id', partialId)
+    await upsertBookingRefund(svc, {
+      bookingId: pc.booking_id, partialCancellationId: partialId,
+      amountPaise: pc.refund_amount_paise, method: 'offline', status: 'processing',
+    })
     return { success: true, manual: true }
   }
 
@@ -589,6 +594,12 @@ export async function initiatePartialRefund(partialId: string) {
       .from('booking_partial_cancellations')
       .update({ refund_status: 'processing', refund_razorpay_id: primaryRefundId })
       .eq('id', partialId)
+
+    await upsertBookingRefund(svc, {
+      bookingId: pc.booking_id, partialCancellationId: partialId,
+      amountPaise: pc.refund_amount_paise, method: 'razorpay', status: 'processing',
+      gatewayRefundId: primaryRefundId,
+    })
 
     await svc.from('notifications').insert({
       user_id: actor.booking.user_id, type: 'booking', title: 'Refund initiated',
@@ -655,6 +666,11 @@ export async function markPartialRefundComplete(partialId: string) {
   if (!actor.isStaff && !actor.isHost) return { error: 'Only an admin or the host can do this.' }
 
   await svc.from('booking_partial_cancellations').update({ refund_status: 'completed' }).eq('id', partialId)
+  await upsertBookingRefund(svc, {
+    bookingId: pc.booking_id, partialCancellationId: partialId,
+    amountPaise: (pc.refund_completed_paise ?? pc.refund_amount_paise) || 0,
+    method: 'razorpay', status: 'completed',
+  })
 
   await finalizePartialRefundReceipt(svc, pc, actor.booking)
 
@@ -700,6 +716,11 @@ export async function recordOfflinePartialRefund(partialId: string, note?: strin
       admin_note: note?.trim() || pc.admin_note || null,
     })
     .eq('id', partialId)
+
+  await upsertBookingRefund(svc, {
+    bookingId: pc.booking_id, partialCancellationId: partialId,
+    amountPaise: pc.refund_amount_paise, method: 'offline', status: 'completed',
+  })
 
   // Best-effort tag — refund_method column lands in migration 098.
   try {

@@ -8,7 +8,7 @@ import { razorpay } from '@/lib/razorpay/client'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
 import { computeBookingTotals } from '@/lib/booking/pricing'
-import { recordPaymentLedger } from '@/lib/booking/ledger'
+import { recordPaymentLedger, upsertBookingRefund } from '@/lib/booking/ledger'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -1904,6 +1904,14 @@ export async function initiateRazorpayRefundForBooking(
       })
       .eq('id', bookingId)
 
+    await upsertBookingRefund(svc, {
+      bookingId,
+      amountPaise: booking.refund_amount_paise,
+      method: 'razorpay',
+      status: 'processing',
+      gatewayRefundId: primaryRefundId,
+    })
+
     if (!options?.skipCustomerNotification) {
       const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
       const refundFormatted = `₹${(booking.refund_amount_paise / 100).toLocaleString('en-IN')}`
@@ -2987,6 +2995,13 @@ export async function markRefundComplete(bookingId: string) {
   const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
   const creditedPaise = (booking.refund_completed_paise ?? booking.refund_amount_paise) || 0
   const refundFormatted = creditedPaise ? `₹${(creditedPaise / 100).toLocaleString('en-IN')}` : ''
+
+  await upsertBookingRefund(createServiceRoleClient(), {
+    bookingId,
+    amountPaise: creditedPaise,
+    method: 'razorpay',
+    status: 'completed',
+  })
   await supabase.from('notifications').insert({
     user_id: booking.user_id,
     type: 'booking',
@@ -3062,6 +3077,13 @@ export async function recordOfflineRefund(bookingId: string, note?: string) {
   try {
     await supabase.from('bookings').update({ refund_method: 'offline' }).eq('id', bookingId)
   } catch { /* refund_method column optional until migration 098 */ }
+
+  await upsertBookingRefund(createServiceRoleClient(), {
+    bookingId,
+    amountPaise: creditedPaise,
+    method: 'offline',
+    status: 'completed',
+  })
 
   // Notify customer
   const pkgTitle = (booking.package as unknown as { title: string })?.title || 'your trip'
