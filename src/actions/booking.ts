@@ -2530,6 +2530,117 @@ export async function refundBookingOverpayment(bookingId: string) {
   return { success: true, refundedPaise: overpaid }
 }
 
+// ── Admin: Manual override ──────────────────────────────────
+/**
+ * Admin/staff free-form correction of a booking, for cases the structured flows
+ * don't cover: clear ALL discount (incl. a non-coupon/referral discount that the
+ * coupon-remove keeps), set the trip total directly, set the collected amount
+ * directly, and/or remove a traveller as a correction (guest count drops, no
+ * refund is issued — unlike a partial cancellation).
+ *
+ * Amounts are admin-authoritative but still routed through the pricing engine so
+ * the gross/discount/total identity and balance stay consistent. Omitted fields
+ * are left unchanged.
+ */
+export async function adminOverrideBooking(
+  bookingId: string,
+  patch: {
+    totalPaise?: number | null
+    collectedPaise?: number | null
+    clearDiscount?: boolean
+    travellerDetails?: { name: string; age: number; gender: string }[]
+  },
+) {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { error: 'Not authenticated' }
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) {
+    return { error: 'Unauthorized' }
+  }
+
+  const svc = createServiceRoleClient()
+  const { data: b } = await svc
+    .from('bookings')
+    .select('id, gross_paise, discount_paise, total_amount_paise, deposit_paise, promo_offer_id, guests, status')
+    .eq('id', bookingId)
+    .single()
+  if (!b) return { error: 'Booking not found' }
+  if (b.status === 'cancelled') return { error: 'Cannot override a cancelled booking.' }
+
+  const curGross = (b.gross_paise ?? (b.total_amount_paise || 0) + (b.discount_paise || 0)) || 0
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+
+  // Traveller roster correction (removal / edit) — money is NOT changed here.
+  if (Array.isArray(patch.travellerDetails)) {
+    const sanitized = sanitizeTravellerDetails(patch.travellerDetails, patch.travellerDetails.length)
+    if ('error' in sanitized) return { error: sanitized.error }
+    if (!sanitized.value || sanitized.value.length < 1) return { error: 'A booking needs at least one traveller.' }
+    update.traveller_details = sanitized.value
+    update.guests = sanitized.value.length
+  }
+
+  // Discount: clear all of it (coupon + non-coupon).
+  let discount = b.discount_paise || 0
+  if (patch.clearDiscount) {
+    discount = 0
+    update.discount_paise = 0
+    update.promo_offer_id = null
+  }
+
+  // Total: explicit override wins; else recompute from the (possibly cleared) discount.
+  let gross = curGross
+  let total = b.total_amount_paise || 0
+  if (typeof patch.totalPaise === 'number' && Number.isFinite(patch.totalPaise)) {
+    if (patch.totalPaise < 0) return { error: 'Total cannot be negative.' }
+    total = Math.round(patch.totalPaise)
+    gross = total + discount // preserve gross = total + discount
+    update.gross_paise = gross
+    update.total_amount_paise = total
+    if (!('discount_paise' in update)) update.discount_paise = discount
+  } else if (patch.clearDiscount) {
+    const t = computeBookingTotals({ grossPaise: gross, discountPaise: 0 })
+    total = t.totalPaise
+    update.gross_paise = gross
+    update.total_amount_paise = total
+  }
+
+  // Collected: set directly.
+  let deposit = b.deposit_paise || 0
+  if (typeof patch.collectedPaise === 'number' && Number.isFinite(patch.collectedPaise)) {
+    if (patch.collectedPaise < 0) return { error: 'Collected cannot be negative.' }
+    deposit = Math.round(patch.collectedPaise)
+    update.deposit_paise = deposit
+  }
+
+  const t = computeBookingTotals({ grossPaise: gross, discountPaise: discount, collectedPaise: deposit })
+  update.payment_status = t.balanceDuePaise <= 0 ? 'paid' : 'pending'
+
+  const { error } = await svc.from('bookings').update(update).eq('id', bookingId)
+  if (error) return { error: error.message }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'ADMIN_OVERRIDE_BOOKING', 'booking', bookingId, {
+      totalPaise: patch.totalPaise ?? null,
+      collectedPaise: patch.collectedPaise ?? null,
+      clearDiscount: !!patch.clearDiscount,
+      travellersSet: Array.isArray(patch.travellerDetails) ? patch.travellerDetails.length : null,
+    })
+  } catch { /* non-critical */ }
+
+  revalidatePath('/admin/bookings'); revalidatePath('/bookings'); revalidatePath('/host')
+  return {
+    success: true as const,
+    totalPaise: total,
+    collectedPaise: deposit,
+    discountPaise: discount,
+    balanceDuePaise: t.balanceDuePaise,
+    overpaidPaise: t.overpaidPaise,
+    guests: (update.guests as number | undefined) ?? b.guests,
+    travellers: update.traveller_details as { name: string; age: number; gender: string }[] | undefined,
+  }
+}
+
 // ── Admin: Edit traveller details ───────────────────────────
 /**
  * Admin/staff edit the per-traveller details (name, age, gender) on a booking.

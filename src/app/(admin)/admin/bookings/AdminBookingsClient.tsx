@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking, getAdminBookings } from '@/actions/admin'
-import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails, adminAddTravellersToBooking } from '@/actions/booking'
+import { processCancellation, initiateRefund, markRefundComplete, recordOfflineRefund, recordManualPayment, adminUpdateBookingPriceTier, refundBookingOverpayment, adminSetBookingCoupon, adminUpdateTravellerDetails, adminAddTravellersToBooking, adminOverrideBooking } from '@/actions/booking'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -214,6 +214,18 @@ export function AdminBookingsClient({
       const res = await adminDeleteBooking(bookingId)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
       else setDeletedIds(prev => new Set([...prev, bookingId]))
+    })
+  }
+
+  function handleClearDiscount(bookingId: string) {
+    if (!confirm('Clear the entire discount (including any referral / non-coupon amount)? The total becomes the full gross.')) return
+    startTransition(async () => {
+      const res = await adminOverrideBooking(bookingId, { clearDiscount: true })
+      if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
+      setRows(prev => prev.map(b => b.id === bookingId
+        ? ({ ...b, discount_paise: res.discountPaise, total_amount_paise: res.totalPaise, promo_offer_id: null, promo_offer: null } as unknown as Booking)
+        : b))
+      showFeedback(bookingId, `Discount cleared — new total ${formatPrice(res.totalPaise || 0)}.`)
     })
   }
 
@@ -455,7 +467,11 @@ export function AdminBookingsClient({
 
                   {/* Travellers — view, and edit names/ages/genders of independent travellers */}
                   {Array.isArray(booking.traveller_details) && booking.traveller_details.length > 0 && (
-                    <TravellerEditor bookingId={booking.id} initial={booking.traveller_details} />
+                    <TravellerEditor
+                      bookingId={booking.id}
+                      initial={booking.traveller_details}
+                      onSaved={(f) => setRows(prev => prev.map(b => b.id === booking.id ? ({ ...b, ...f } as Booking) : b))}
+                    />
                   )}
 
                   {/* Add traveller(s) to a trip booking — with optional new total / collected */}
@@ -618,17 +634,32 @@ export function AdminBookingsClient({
                             </Button>
                             {offer && (
                               <Button size="sm" variant="outline" className="text-xs border-border text-muted-foreground" onClick={() => handleSetCoupon(booking.id, null)} disabled={isPending}>
-                                Remove
+                                Remove coupon
+                              </Button>
+                            )}
+                            {discount > 0 && (
+                              <Button size="sm" variant="outline" className="text-xs border-amber-500/40 text-amber-500 hover:bg-amber-500/10" onClick={() => handleClearDiscount(booking.id)} disabled={isPending}>
+                                Clear all discount ({formatPrice(discount)})
                               </Button>
                             )}
                             <p className="text-[10px] text-muted-foreground w-full">
-                              Re-derives the discount against the current price (free-guests / percent coupons resize accordingly) and recomputes the balance. Any non-coupon discount (e.g. referral) is preserved.
+                              &quot;Remove coupon&quot; re-derives against the current price but keeps any non-coupon discount (e.g. referral). &quot;Clear all discount&quot; zeroes the entire discount — including a referral/legacy discount with no promo code — so the total becomes the full gross.
                             </p>
                           </div>
                         )}
                       </div>
                     )
                   })()}
+
+                  {/* Manual override — set total / collected directly (corrections) */}
+                  {booking.status !== 'cancelled' && (
+                    <ManualOverride
+                      bookingId={booking.id}
+                      totalPaise={booking.total_amount_paise || 0}
+                      collectedPaise={(booking as { deposit_paise?: number | null }).deposit_paise ?? 0}
+                      onApplied={(f) => setRows(prev => prev.map(b => b.id === booking.id ? ({ ...b, ...f } as Booking) : b))}
+                    />
+                  )}
 
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
@@ -970,7 +1001,11 @@ export function AdminBookingsClient({
 
 type EditableTraveller = { name: string; age: number | string; gender: string }
 
-function TravellerEditor({ bookingId, initial }: { bookingId: string; initial: { name: string; age: number; gender: string }[] }) {
+function TravellerEditor({ bookingId, initial, onSaved }: {
+  bookingId: string
+  initial: { name: string; age: number; gender: string }[]
+  onSaved?: (f: { guests: number; traveller_details: EditableTraveller[] }) => void
+}) {
   const [travellers, setTravellers] = useState<EditableTraveller[]>(() => initial.map((t) => ({ name: t.name, age: t.age, gender: t.gender })))
   const [draft, setDraft] = useState<EditableTraveller[]>(travellers)
   const [editing, setEditing] = useState(false)
@@ -988,14 +1023,20 @@ function TravellerEditor({ bookingId, initial }: { bookingId: string; initial: {
 
   function save() {
     const payload = draft.map((t) => ({ name: t.name.trim(), age: Number(t.age), gender: t.gender }))
+    const removed = payload.length < travellers.length
     start(async () => {
-      const res = await adminUpdateTravellerDetails(bookingId, payload)
-      if (res.error) { setErr(true); setMsg(res.error) }
-      else {
-        setErr(false); setMsg('Traveller details updated.')
-        setTravellers((res.travellers as EditableTraveller[]) || payload)
-        setEditing(false)
-      }
+      // Same count → correct-in-place; fewer → remove-as-correction via override
+      // (drops guest count, no refund). Money is untouched either way.
+      const res = removed
+        ? await adminOverrideBooking(bookingId, { travellerDetails: payload })
+        : await adminUpdateTravellerDetails(bookingId, payload)
+      if (res.error) { setErr(true); setMsg(res.error); return }
+      const saved = ((res as { travellers?: EditableTraveller[] }).travellers as EditableTraveller[]) || payload
+      setErr(false)
+      setMsg(removed ? 'Traveller removed (no refund). Adjust the total via Manual override if needed.' : 'Traveller details updated.')
+      setTravellers(saved)
+      setEditing(false)
+      if (removed) onSaved?.({ guests: saved.length, traveller_details: saved })
     })
   }
 
@@ -1048,10 +1089,19 @@ function TravellerEditor({ bookingId, initial }: { bookingId: string; initial: {
                 <option value="female">female</option>
                 <option value="other">other</option>
               </select>
+              {draft.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => d.filter((_, idx) => idx !== i))}
+                  className="text-[11px] text-red-400 hover:text-red-300"
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
           <p className="text-[10px] text-muted-foreground">
-            Corrects existing travellers only. To add or remove a traveller use the booking / per-traveller cancellation flows.
+            Edit corrects details. &quot;Remove&quot; drops a traveller as a correction — guest count decreases, <strong>no refund</strong> (unlike per-traveller cancellation); the total is unchanged, adjust it via Manual override if needed.
           </p>
           <div className="flex gap-2">
             <Button size="sm" className="text-xs" onClick={save} disabled={isPending}>Save travellers</Button>
@@ -1165,6 +1215,77 @@ function TravellerAdder({
         <Button size="sm" className="text-xs" onClick={submit} disabled={isPending || draft.every(t => !t.name.trim())}>
           {isPending ? 'Adding…' : 'Add to booking'}
         </Button>
+        <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
+      </div>
+      {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
+    </div>
+  )
+}
+
+function ManualOverride({
+  bookingId,
+  totalPaise,
+  collectedPaise,
+  onApplied,
+}: {
+  bookingId: string
+  totalPaise: number
+  collectedPaise: number
+  onApplied: (fields: { total_amount_paise: number; deposit_paise: number }) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [total, setTotal] = useState('')
+  const [collected, setCollected] = useState('')
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState(false)
+  const [isPending, start] = useTransition()
+  const inputCls = 'bg-secondary border border-border rounded-lg px-2 py-1 text-xs'
+
+  function apply() {
+    const patch: { totalPaise?: number; collectedPaise?: number } = {}
+    if (total.trim()) patch.totalPaise = Math.round(parseFloat(total) * 100)
+    if (collected.trim()) patch.collectedPaise = Math.round(parseFloat(collected) * 100)
+    if (patch.totalPaise === undefined && patch.collectedPaise === undefined) {
+      setErr(true); setMsg('Enter a new total and/or collected amount.'); return
+    }
+    start(async () => {
+      const res = await adminOverrideBooking(bookingId, patch)
+      if (res.error) { setErr(true); setMsg(res.error); return }
+      setErr(false); setMsg('Override applied.')
+      onApplied({ total_amount_paise: res.totalPaise!, deposit_paise: res.collectedPaise! })
+      setOpen(false); setTotal(''); setCollected('')
+    })
+  }
+
+  if (!open) {
+    return (
+      <div>
+        <button onClick={() => { setOpen(true); setMsg('') }} className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+          <Pencil className="h-3 w-3" /> Manual override (total / collected)
+        </button>
+        {msg && <p className={`text-xs mt-1 ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-3 rounded-lg border border-amber-500/30 bg-amber-500/[0.04] space-y-2">
+      <p className="text-xs font-medium flex items-center gap-1"><Pencil className="h-3 w-3 text-amber-500" /> Manual override</p>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label className="text-[11px] text-muted-foreground block mb-0.5">New trip total (₹)</label>
+          <input type="number" min="0" value={total} onChange={(e) => setTotal(e.target.value)} placeholder={`Now ${(totalPaise / 100).toLocaleString('en-IN')}`} className={`${inputCls} w-36`} />
+        </div>
+        <div>
+          <label className="text-[11px] text-muted-foreground block mb-0.5">New collected (₹)</label>
+          <input type="number" min="0" value={collected} onChange={(e) => setCollected(e.target.value)} placeholder={`Now ${(collectedPaise / 100).toLocaleString('en-IN')}`} className={`${inputCls} w-36`} />
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Sets these directly as a correction — no payment recorded, no refund issued. Leave a field blank to keep it. Balance recomputes automatically.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" className="text-xs" onClick={apply} disabled={isPending}>{isPending ? 'Applying…' : 'Apply override'}</Button>
         <Button size="sm" variant="outline" className="text-xs border-border" onClick={() => setOpen(false)} disabled={isPending}>Cancel</Button>
       </div>
       {msg && <p className={`text-xs ${err ? 'text-red-400' : 'text-green-500'}`}>{msg}</p>}
