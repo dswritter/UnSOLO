@@ -8,6 +8,7 @@ import { razorpay } from '@/lib/razorpay/client'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
 import { computeBookingTotals } from '@/lib/booking/pricing'
+import { recordPaymentLedger } from '@/lib/booking/ledger'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -1109,6 +1110,15 @@ async function applyCapturedPaymentToBooking(
       .from('bookings')
       .update({ razorpay_payment_ids: [...existingPayments, entry] })
       .eq('id', before.id)
+    // Phase 2 dual-write: mirror this capture into the payments ledger (best-effort).
+    await recordPaymentLedger(createServiceRoleClient(), {
+      bookingId: before.id,
+      amountPaise: paidAmountPaise,
+      method: 'razorpay',
+      kind: wasDeposit > 0 ? 'balance' : 'payment',
+      gatewayPaymentId: paymentId,
+      gatewayFeePaise: fee ?? 0,
+    })
   }
 
   if (wasDeposit === 0 && !fullyPaid) {
@@ -2742,6 +2752,16 @@ export async function recordManualPayment(
       await runBalanceCompletionEffects(svc as never, bookingBefore.user_id, booking as never, confirmationCode)
     } catch { /* non-critical */ }
   }
+
+  // Phase 2 dual-write: mirror this offline collection into the payments ledger.
+  await recordPaymentLedger(svc, {
+    bookingId,
+    amountPaise: applied,
+    method: 'offline_cash',
+    kind: wasDeposit > 0 ? 'balance' : 'payment',
+    recordedBy: user.id,
+    note: note || null,
+  })
 
   try {
     const { logAuditEvent } = await import('@/actions/admin')
