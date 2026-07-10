@@ -510,16 +510,40 @@ export function AdminBookingsClient({
                     const balance = Math.max(0, total - collected)
                     const overpaid = Math.max(0, collected - total)
                     const isCancelled = booking.status === 'cancelled'
+
+                    // Roll up partial-cancellation refunds for this booking — this
+                    // money already came out of `collected` above; this is purely
+                    // informational so it's visible WHY collected dropped, without
+                    // digging through the per-traveller cancellation list below.
+                    const pcRows = pcMap[booking.id] || []
+                    const refundedCompleted = pcRows
+                      .filter((r) => r.status === 'approved' && r.refund_status === 'completed')
+                      .reduce((sum, r) => sum + (r.refund_amount_paise || 0), 0)
+                    const refundedInProgress = pcRows
+                      .filter((r) => r.status === 'approved' && (r.refund_status === 'pending' || r.refund_status === 'processing'))
+                      .reduce((sum, r) => sum + (r.refund_amount_paise || 0), 0)
+
                     return (
                       <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
                         <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
                           <span><span className="text-muted-foreground">Trip total:</span> <span className="font-medium">{formatPrice(total)}</span></span>
                           <span><span className="text-muted-foreground">Collected:</span> <span className="font-medium text-green-500">{formatPrice(collected)}</span></span>
+                          {refundedCompleted > 0 && (
+                            <span>
+                              <span className="text-muted-foreground">Refunded (cancelled travellers):</span>{' '}
+                              <span className="font-medium text-blue-400">{formatPrice(refundedCompleted)}</span>
+                            </span>
+                          )}
                           <span><span className="text-muted-foreground">Balance:</span> <span className={`font-medium ${balance > 0 ? 'text-amber-500' : 'text-green-500'}`}>{formatPrice(balance)}</span></span>
                           {overpaid > 0 && (
                             <span><span className="text-muted-foreground">Overpaid:</span> <span className="font-medium text-amber-500">{formatPrice(overpaid)}</span></span>
                           )}
                         </div>
+                        {refundedInProgress > 0 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            + {formatPrice(refundedInProgress)} refund to cancelled traveller(s) still in progress (not yet credited) — see Per-traveller cancellation below.
+                          </p>
+                        )}
                         {!isCancelled && overpaid > 0 && (
                           <div className="flex flex-wrap items-center gap-2">
                             <Button
