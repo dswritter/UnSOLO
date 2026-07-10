@@ -7,6 +7,7 @@ import { getActionAuth } from '@/lib/auth/action-auth'
 import { razorpay } from '@/lib/razorpay/client'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
+import { computeBookingTotals } from '@/lib/booking/pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
 import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -2240,11 +2241,9 @@ export async function adminSetBookingCoupon(bookingId: string, promoCode: string
     label = res.name
   }
 
-  const newDiscount = Math.min(gross, newCoupon + nonCoupon)
-  const newTotal = Math.max(0, gross - newDiscount)
   const deposit = booking.deposit_paise || 0
-  const balanceDuePaise = Math.max(0, newTotal - deposit)
-  const overpaidPaise = Math.max(0, deposit - newTotal)
+  const { discountPaise: newDiscount, totalPaise: newTotal, balanceDuePaise, overpaidPaise } =
+    computeBookingTotals({ grossPaise: gross, discountPaise: newCoupon + nonCoupon, collectedPaise: deposit })
 
   const { error: upErr } = await svc
     .from('bookings')

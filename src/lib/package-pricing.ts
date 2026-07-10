@@ -1,5 +1,7 @@
 /** Tiered per-person pricing (accommodation / facilities). */
 
+import { computeBookingTotals } from '@/lib/booking/pricing'
+
 export type PriceVariant = {
   description: string
   price_paise: number
@@ -30,13 +32,20 @@ export function recalcBookingTierTotals(input: {
   balanceDuePaise: number
   overpaidPaise: number
 } {
-  const newGrossPaise = Math.max(0, Math.round(input.newGrossPaise))
-  const deposit = Math.max(0, Math.round(input.depositPaise))
-  const discountKeptPaise = Math.max(0, Math.min(Math.round(input.discountPaise), newGrossPaise))
-  const newTotalPaise = Math.max(0, newGrossPaise - discountKeptPaise)
-  const balanceDuePaise = Math.max(0, newTotalPaise - deposit)
-  const overpaidPaise = Math.max(0, deposit - newTotalPaise)
-  return { newGrossPaise, discountKeptPaise, newTotalPaise, balanceDuePaise, overpaidPaise }
+  // Delegates to the one booking pricing engine so the total/balance/overpay
+  // identity is computed in a single place (see @/lib/booking/pricing).
+  const t = computeBookingTotals({
+    grossPaise: input.newGrossPaise,
+    discountPaise: input.discountPaise,
+    collectedPaise: input.depositPaise,
+  })
+  return {
+    newGrossPaise: t.grossPaise,
+    discountKeptPaise: t.discountPaise,
+    newTotalPaise: t.totalPaise,
+    balanceDuePaise: t.balanceDuePaise,
+    overpaidPaise: t.overpaidPaise,
+  }
 }
 
 /** Parse DB jsonb into validated tiers (2+ rows), or null for single-tier packages. */

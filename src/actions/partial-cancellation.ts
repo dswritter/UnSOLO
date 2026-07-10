@@ -6,6 +6,7 @@ import { getActionAuth } from '@/lib/auth/action-auth'
 import { computeGatewayFeeDeduction, type CapturedPayment } from '@/lib/refund-math'
 import { loadGatewayFeeSettings } from '@/lib/refund-settings'
 import { refundAcrossPayments } from '@/lib/refunds/razorpay'
+import { computeBookingTotals } from '@/lib/booking/pricing'
 
 type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
 
@@ -424,14 +425,18 @@ async function applyApprovedPartialCancellation(
   const moneyUpdate: Record<string, number> = {}
   let newTotal: number
   if (typeof booking.gross_paise === 'number') {
-    const newGross = Math.round(booking.gross_paise * factor)
-    const newDiscount = Math.round((booking.discount_paise ?? 0) * factor)
-    newTotal = Math.max(0, newGross - newDiscount)
-    moneyUpdate.gross_paise = newGross
-    moneyUpdate.discount_paise = newDiscount
+    // Shrink gross + discount proportionally to the remaining guests, then run the
+    // gross→total identity through the shared pricing engine (@/lib/booking/pricing).
+    const t = computeBookingTotals({
+      grossPaise: Math.round(booking.gross_paise * factor),
+      discountPaise: Math.round((booking.discount_paise ?? 0) * factor),
+    })
+    newTotal = t.totalPaise
+    moneyUpdate.gross_paise = t.grossPaise
+    moneyUpdate.discount_paise = t.discountPaise
   } else {
     // Legacy rows without gross tracking: fall back to scaling the total directly.
-    newTotal = Math.round((booking.total_amount_paise || 0) * factor)
+    newTotal = computeBookingTotals({ grossPaise: Math.round((booking.total_amount_paise || 0) * factor) }).totalPaise
   }
   const newDeposit = Math.max(0, Math.min((booking.deposit_paise || 0) - refund, newTotal))
 
