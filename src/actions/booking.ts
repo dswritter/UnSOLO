@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { razorpay } from '@/lib/razorpay/client'
+import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 import { resolvePerPersonFromPackage, parsePriceVariants, recalcBookingTierTotals } from '@/lib/package-pricing'
 import { getPlatformFeePercent } from '@/lib/platform-settings'
 import { splitHostEarning } from '@/lib/community-payment'
@@ -1803,41 +1804,6 @@ export type RazorpayRefundBookingResult =
  * Call Razorpay refund API and mark booking refund as processing. Uses service role (no user session required).
  * Idempotent when refund_status is already processing or completed.
  */
-/**
- * Refund a total amount across one or more captured Razorpay payments. Each
- * payment can only be refunded up to the amount it captured, so a token + balance
- * booking must refund each payment separately. Allocates greedily in capture order.
- */
-async function refundAcrossPayments(
-  payments: Array<{ id: string; amount: number }>,
-  totalRefundPaise: number,
-  notes: Record<string, string>,
-): Promise<{ ok: true; refundIds: string[] } | { ok: false; error: string; refundIds: string[] }> {
-  const auth = `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`
-  const refundIds: string[] = []
-  let remaining = totalRefundPaise
-  for (const p of payments) {
-    if (remaining <= 0) break
-    const amount = Math.min(remaining, p.amount || 0)
-    if (amount <= 0) continue
-    const resp = await fetch(`https://api.razorpay.com/v1/payments/${p.id}/refund`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: auth },
-      body: JSON.stringify({ amount, notes }),
-    })
-    const result = (await resp.json()) as { id?: string; error?: { description?: string } }
-    if (!resp.ok) {
-      return { ok: false, error: result.error?.description || 'Razorpay refund failed', refundIds }
-    }
-    if (result.id) refundIds.push(result.id)
-    remaining -= amount
-  }
-  if (remaining > 0) {
-    return { ok: false, error: `Refund exceeds captured payments by ₹${(remaining / 100).toLocaleString('en-IN')}.`, refundIds }
-  }
-  return { ok: true, refundIds }
-}
-
 export async function initiateRazorpayRefundForBooking(
   bookingId: string,
   options?: { skipCustomerNotification?: boolean },
@@ -2630,7 +2596,7 @@ export async function adminAddTravellersToBooking(
   const svc = createServiceRoleClient()
   const { data: booking } = await svc
     .from('bookings')
-    .select('id, user_id, guests, traveller_details, total_amount_paise, deposit_paise, status, package:packages(title)')
+    .select('id, user_id, guests, traveller_details, total_amount_paise, deposit_paise, discount_paise, gross_paise, status, package:packages(title)')
     .eq('id', bookingId)
     .single()
   if (!booking) return { error: 'Booking not found' }
@@ -2654,6 +2620,11 @@ export async function adminAddTravellersToBooking(
     if (opts.newTotalPaise < 0) return { error: 'Trip total cannot be negative.' }
     effectiveTotal = Math.round(opts.newTotalPaise)
     update.total_amount_paise = effectiveTotal
+    // Keep the gross/discount/total identity (gross = total + discount) so a later
+    // coupon re-derive or tier change computes against the correct gross — previously
+    // gross_paise was left stale, producing a wrong total on the next re-derivation.
+    const discount = (booking as { discount_paise?: number | null }).discount_paise || 0
+    update.gross_paise = effectiveTotal + discount
   }
   if (typeof opts?.newCollectedPaise === 'number' && Number.isFinite(opts.newCollectedPaise)) {
     if (opts.newCollectedPaise < 0) return { error: 'Collected amount cannot be negative.' }

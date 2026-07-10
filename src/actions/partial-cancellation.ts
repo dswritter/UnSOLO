@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { computeGatewayFeeDeduction, type CapturedPayment } from '@/lib/refund-math'
 import { loadGatewayFeeSettings } from '@/lib/refund-settings'
+import { refundAcrossPayments } from '@/lib/refunds/razorpay'
 
 type Traveller = { name?: string; age?: number | string | null; gender?: string | null }
 
@@ -285,6 +286,10 @@ export async function processPartialCancellation(
       .update({ status: 'denied', admin_note: adminNote?.trim() || null, processed_by: user.id, processed_at: new Date().toISOString() })
       .eq('id', partialId)
     await notifyTravellerOutcome(svc, actor.booking, false, 0)
+    try {
+      const { logAuditEvent } = await import('@/actions/admin')
+      await logAuditEvent(user.id, 'PARTIAL_CANCELLATION_DENIED', 'booking', pc.booking_id, { partialId })
+    } catch { /* non-critical */ }
     revalidatePath('/bookings'); revalidatePath('/admin/bookings')
     return { success: true }
   }
@@ -477,6 +482,16 @@ async function applyApprovedPartialCancellation(
 
   await notifyTravellerOutcome(svc, booking, true, refund)
 
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(processedBy, 'PARTIAL_CANCELLATION_APPROVED', 'booking', booking.id, {
+      partialId: pc.id,
+      guestsCancelled: pc.guests_cancelled,
+      refundPaise: refund,
+      newGuests,
+    })
+  } catch { /* non-critical */ }
+
   revalidatePath('/bookings'); revalidatePath('/admin/bookings')
   return {
     success: true,
@@ -504,39 +519,6 @@ async function notifyTravellerOutcome(
       user_id: booking.user_id, type: 'booking', title: approved ? 'Partial cancellation approved' : 'Partial cancellation declined', body, link: '/bookings',
     })
   } catch { /* non-critical */ }
-}
-
-/**
- * Refund a total across one or more captured Razorpay payments (token + balance
- * are separate payments, each refundable only up to its own capture). Internal —
- * deliberately not exported as a server action so it can't be invoked directly.
- */
-async function refundAcrossPayments(
-  payments: Array<{ id: string; amount: number }>,
-  totalRefundPaise: number,
-  notes: Record<string, string>,
-): Promise<{ ok: true; refundIds: string[] } | { ok: false; error: string }> {
-  const auth = `Basic ${Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64')}`
-  const refundIds: string[] = []
-  let remaining = totalRefundPaise
-  for (const p of payments) {
-    if (remaining <= 0) break
-    const amount = Math.min(remaining, p.amount || 0)
-    if (amount <= 0) continue
-    const resp = await fetch(`https://api.razorpay.com/v1/payments/${p.id}/refund`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: auth },
-      body: JSON.stringify({ amount, notes }),
-    })
-    const result = (await resp.json()) as { id?: string; error?: { description?: string } }
-    if (!resp.ok) return { ok: false, error: result.error?.description || 'Razorpay refund failed' }
-    if (result.id) refundIds.push(result.id)
-    remaining -= amount
-  }
-  if (remaining > 0) {
-    return { ok: false, error: `Refund exceeds captured payments by ₹${(remaining / 100).toLocaleString('en-IN')}.` }
-  }
-  return { ok: true, refundIds }
 }
 
 /** Initiate a Razorpay refund for an approved partial cancellation. */

@@ -160,6 +160,10 @@ export async function processBookingChangeRequest(requestId: string, approve: bo
       body: `Your requested change to "${bookingTitle(actor.booking)}" was declined${adminNote?.trim() ? `: ${adminNote.trim()}` : '.'}`,
       link: '/bookings',
     })
+    try {
+      const { logAuditEvent } = await import('@/actions/admin')
+      await logAuditEvent(user.id, 'CHANGE_REQUEST_DENIED', 'booking', req.booking_id, { requestId, kind: req.kind })
+    } catch { /* non-critical */ }
     revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
     return { success: true }
   }
@@ -199,6 +203,11 @@ export async function processBookingChangeRequest(requestId: string, approve: bo
       link: '/bookings',
     })
   }
+
+  try {
+    const { logAuditEvent } = await import('@/actions/admin')
+    await logAuditEvent(user.id, 'CHANGE_REQUEST_APPROVED', 'booking', req.booking_id, { requestId, kind: req.kind })
+  } catch { /* non-critical */ }
 
   revalidatePath('/bookings'); revalidatePath('/admin/bookings'); revalidatePath('/host')
   return { success: true }
