@@ -555,9 +555,15 @@ export function AdminBookingsClient({
                             >
                               <IndianRupee className="h-3 w-3" /> Refund overpayment ({formatPrice(overpaid)})
                             </Button>
-                            <p className="text-[10px] text-muted-foreground w-full">
-                              The customer has paid more than the current total (e.g. after a price-tier change). Refunds {formatPrice(overpaid)} to their original payment method and reduces collected to match — the booking stays active.
-                            </p>
+                            {refundedCompleted > 0 ? (
+                              <p className="text-[10px] text-amber-400/90 w-full">
+                                ⚠ This booking has completed cancellation refunds — some of this {formatPrice(overpaid)} may be a legitimately RETAINED cancellation fee (charged to a cancelled traveller but not refunded per policy), not a plain overpayment. Check the Per-traveller cancellation records below before refunding it back.
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground w-full">
+                                The customer has paid more than the current total (e.g. after a price-tier change). Refunds {formatPrice(overpaid)} to their original payment method and reduces collected to match — the booking stays active.
+                              </p>
+                            )}
                           </div>
                         )}
                         {!isCancelled && balance > 0 && (

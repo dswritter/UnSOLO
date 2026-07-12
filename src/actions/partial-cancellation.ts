@@ -460,7 +460,16 @@ async function applyApprovedPartialCancellation(
     // Legacy rows without gross tracking: fall back to scaling the total directly.
     newTotal = computeBookingTotals({ grossPaise: Math.round((booking.total_amount_paise || 0) * factor) }).totalPaise
   }
-  const newDeposit = Math.max(0, Math.min((booking.deposit_paise || 0) - refund, newTotal))
+  // Deposit is REDUCED by the refund only — never capped at newTotal. Capping it
+  // there used to silently erase any retained (non-refunded) cancellation fee
+  // from "Collected": e.g. a traveller's seat was worth ₹2,000 but only ₹300 was
+  // refunded per the cancellation-tier policy, so ₹1,700 is legitimately still
+  // held — that money doesn't vanish just because the remaining group's fair-value
+  // total is now lower. Left uncapped, deposit_paise stays the true "net collected"
+  // figure (consistent with every other mutation — tier/coupon changes never cap
+  // it either) and any genuine excess over the new total surfaces via the existing
+  // Balance/Overpaid derivation + "Refund overpayment" tool, same as elsewhere.
+  const newDeposit = Math.max(0, (booking.deposit_paise || 0) - refund)
 
   const { error: upErr } = await svc
     .from('bookings')
