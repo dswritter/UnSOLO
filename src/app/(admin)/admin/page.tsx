@@ -19,6 +19,7 @@ import {
   Sparkles,
   Store,
   Phone,
+  UserPlus,
 } from 'lucide-react'
 
 function fmtPrice(paise: number) {
@@ -57,6 +58,7 @@ export default async function AdminDashboardPage() {
     { href: '/admin/service-listings', icon: Store, title: 'Service Listings', desc: 'Approve stays, activities, rentals', badge: stats.pendingServiceListings, permissionKey: 'service_listings' },
     { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips', badge: stats.pendingCommunityTrips, permissionKey: 'community_trips' },
     { href: '/admin/phone-verifications', icon: Phone, title: 'Phone Verifications', desc: 'Verify foreign host numbers & approve changes', badge: stats.pendingPhoneVerifications, permissionKey: 'phone_verifications' },
+    { href: '/admin/trip-claims', icon: UserPlus, title: 'Trip Claims', desc: 'Companions asking to join a trip they weren’t booked under', badge: stats.pendingTripClaims, permissionKey: 'trip_claims' },
     { href: '/admin/community-chats', icon: MessageCircle, title: 'Community Chats', desc: 'Rooms, images, enable/disable', badge: 0, permissionKey: 'community_chats' },
     { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers', badge: 0, permissionKey: 'discounts' },
     { href: '/admin/offers', icon: Sparkles, title: 'Offers Page', desc: 'Arrange section order and bundle rows', badge: 0, permissionKey: 'offers' },

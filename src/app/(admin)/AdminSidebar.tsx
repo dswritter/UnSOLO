@@ -21,6 +21,7 @@ import {
   Sparkles,
   LifeBuoy,
   Store,
+  UserPlus,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -100,6 +101,7 @@ const navItems: {
     roles: ['admin', 'social_media_manager', 'chat_responder'],
     permissionKey: 'community_chats',
   },
+  { href: '/admin/trip-claims', label: 'Trip Claims', icon: UserPlus, roles: ['admin'], permissionKey: 'trip_claims' },
   { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'], permissionKey: 'revenue' },
   { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
   { href: '/admin/offers', label: 'Offers Page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },

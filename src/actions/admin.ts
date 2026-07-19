@@ -146,6 +146,7 @@ export async function getAdminDashboardStats() {
     { count: pendingCommunityTrips },
     { count: pendingForeignPhones },
     { count: pendingPhoneChanges },
+    { count: pendingTripClaims },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }),
@@ -166,6 +167,8 @@ export async function getAdminDashboardStats() {
       .neq('phone_country_code', '+91'),
     // Pending phone change requests
     supabase.from('phone_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    // Pending trip-companion join requests
+    supabase.from('trip_traveller_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
 
   // Revenue = cash actually collected (deposit_paise, falling back to total for
@@ -206,6 +209,7 @@ export async function getAdminDashboardStats() {
     pendingServiceListings: pendingServiceListings || 0,
     pendingCommunityTrips: pendingCommunityTrips || 0,
     pendingPhoneVerifications: (pendingForeignPhones || 0) + (pendingPhoneChanges || 0),
+    pendingTripClaims: pendingTripClaims || 0,
   }
 }
 

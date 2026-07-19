@@ -45,6 +45,7 @@ export type AdminPermissionKey =
   | 'settings'
   | 'team'
   | 'phone_verifications'
+  | 'trip_claims'
 
 export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   users: 'Manage Users',
@@ -62,6 +63,7 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   settings: 'Platform Settings',
   team: 'Team Management',
   phone_verifications: 'Phone Verifications (Foreign hosts)',
+  trip_claims: 'Trip Claims & Companion Reviews',
 }
 
 /** Default permissions for each non-admin staff role. Admin always gets all. */
@@ -426,16 +428,39 @@ export type Review = {
   user_id: string
   package_id: string
   rating: number
+  rating_destination?: number | null
+  rating_experience?: number | null
   title: string | null
   body: string | null
   images: string[] | null
   /** Review edit tracking */
   is_edited: boolean
   edited_at?: string | null
+  /** Moderation — only non-'approved' for a companion review awaiting booker/host/admin sign-off. */
+  status?: 'pending' | 'approved' | 'denied'
+  denial_reason?: string | null
   created_at: string
   updated_at?: string
   user?: Profile
   package?: Package
+}
+
+/** A companion's request to be recognized as having been on a trip they didn't book themselves. */
+export type TripTravellerClaim = {
+  id: string
+  booking_id: string
+  package_id: string
+  claimant_id: string
+  confirmation_code_entered: string
+  claimed_traveller_name: string | null
+  status: 'pending' | 'approved' | 'denied'
+  resolved_by: string | null
+  resolved_by_role: 'admin' | 'host' | 'booker' | null
+  resolved_at: string | null
+  denial_reason: string | null
+  linked_review_id: string | null
+  created_at: string
+  updated_at: string
 }
 
 export type HostRating = {

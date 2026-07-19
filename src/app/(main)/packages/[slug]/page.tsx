@@ -28,6 +28,7 @@ import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
 import { TripDetailSeasonBackdrop } from '@/components/packages/TripDetailSeasonBackdrop'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
+import { JoinTripPanel } from '@/components/trip-claims/JoinTripPanel'
 import type { Package, HostProfile } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 import { APP_URL } from '@/lib/constants'
@@ -208,6 +209,10 @@ export default async function PackageDetailPage({
   const shouldLoadSlots =
     computeSlots && !!package_.departure_dates && !!package_.max_group_size
 
+  // Does this viewer already have full access to the trip (own completed booking,
+  // or an approved companion claim), or a claim already pending? Drives whether
+  // the "write a review / join this trip" panel shows at all, and which state.
+  const checkJoinEligibility = !!user && !isHost
   const [
     reviewsRes,
     interestData,
@@ -215,6 +220,8 @@ export default async function PackageDetailPage({
     interestedRowsRes,
     similarRes,
     dateBookingResults,
+    ownCompletedBookingRes,
+    myClaimRes,
   ] = await Promise.all([
     supabase
       .from('reviews')
@@ -251,7 +258,22 @@ export default async function PackageDetailPage({
           }),
         )
       : Promise.resolve([] as { date: string; rows: { guests: number | null }[] }[]),
+    checkJoinEligibility
+      ? supabase.from('bookings').select('id').eq('package_id', pkg.id).eq('user_id', user!.id).eq('status', 'completed').limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
+    checkJoinEligibility
+      ? supabase.from('trip_traveller_claims').select('status').eq('package_id', pkg.id).eq('claimant_id', user!.id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
+
+  const joinEligibility: 'can_claim' | 'pending' | null = (() => {
+    if (!checkJoinEligibility) return null
+    if (ownCompletedBookingRes?.data) return null // already has their own booking
+    const claimStatus = (myClaimRes?.data as { status?: string } | null)?.status
+    if (claimStatus === 'approved') return null // already has full access
+    if (claimStatus === 'pending') return 'pending'
+    return 'can_claim' // none yet, or previously denied (can resubmit)
+  })()
 
   const reviews = reviewsRes.data
   const avgRating = reviews?.length
@@ -569,6 +591,11 @@ export default async function PackageDetailPage({
               averageExperience={avgExp}
               currentUserId={user?.id || null}
             />
+            {joinEligibility && (
+              <div className="mt-4">
+                <JoinTripPanel packageId={pkg.id} eligibility={joinEligibility} />
+              </div>
+            )}
           </div>
 
           {/* Sidebar - Booking / Join */}

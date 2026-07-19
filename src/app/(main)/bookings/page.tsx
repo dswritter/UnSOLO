@@ -9,6 +9,9 @@ import type { PartialCancellationRow } from '@/components/bookings/PartialCancel
 import type { ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
+import { getPendingClaimsForBookingsIOwn, getMyClaimedBookings } from '@/actions/trip-claims'
+import { PendingClaimsList } from '@/components/trip-claims/PendingClaimsList'
+import { ClaimedTripsSection } from '@/components/trip-claims/ClaimedTripsSection'
 
 /** Community-trip join requests not yet fully booked (deduped against active bookings). */
 export type IncompleteTripStatus = 'awaiting_unsolo' | 'awaiting_host' | 'payment_pending'
@@ -59,6 +62,11 @@ export type GroupBookingInfo = {
 export default async function BookingsPage() {
   const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
+
+  const [pendingClaims, claimedBookings] = await Promise.all([
+    getPendingClaimsForBookingsIOwn().catch(() => []),
+    getMyClaimedBookings().catch(() => []),
+  ])
 
   const { data: bookingRows, error: bookingsError } = await supabase
     .from('bookings')
@@ -248,7 +256,8 @@ export default async function BookingsPage() {
   }
 
   const hasContent =
-    tripBookings.length > 0 || serviceBookings.length > 0 || groupBookings.length > 0 || incompleteJoinTrips.length > 0
+    tripBookings.length > 0 || serviceBookings.length > 0 || groupBookings.length > 0 ||
+    incompleteJoinTrips.length > 0 || claimedBookings.length > 0
 
   return (
     <div className="min-h-screen">
@@ -259,6 +268,9 @@ export default async function BookingsPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Your travel history and upcoming adventures</p>
         </div>
+
+        <PendingClaimsList claims={pendingClaims} context="booker" />
+        <ClaimedTripsSection bookings={claimedBookings} />
 
         {!hasContent ? (
           <EmptyState

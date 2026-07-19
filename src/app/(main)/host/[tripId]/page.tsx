@@ -22,6 +22,8 @@ import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { PartialCancelManager, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
+import { getPendingClaimsForTrip } from '@/actions/trip-claims'
+import { PendingClaimsList } from '@/components/trip-claims/PendingClaimsList'
 import type { Package } from '@/types'
 
 export default async function ManageTripPage({
@@ -35,10 +37,11 @@ export default async function ManageTripPage({
   if (!hostStatus.authenticated) redirect('/login')
   if (!hostStatus.isHost) redirect('/host/verify')
 
-  const [trip, requests, roster] = await Promise.all([
+  const [trip, requests, roster, pendingClaims] = await Promise.all([
     getHostTripDetail(tripId),
     getJoinRequestsForTrip(tripId),
     getTripRosterForHost(tripId).catch(() => []),
+    getPendingClaimsForTrip(tripId).catch(() => []),
   ])
 
   if (!trip) notFound()
@@ -164,6 +167,9 @@ export default async function ManageTripPage({
             </div>
           </div>
         </div>
+
+        {/* Trip-companion join requests — a traveller who wasn't the account holder asking to be recognized */}
+        <PendingClaimsList claims={pendingClaims} context="host" />
 
         {/* Interest Section */}
         {interestCount > 0 && (
