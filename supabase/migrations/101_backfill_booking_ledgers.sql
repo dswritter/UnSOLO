@@ -13,7 +13,11 @@ from public.bookings b
 where coalesce(b.deposit_paise, 0) > 0
   and not exists (select 1 from public.booking_payments p where p.booking_id = b.id);
 
--- Full-booking refunds → one row each.
+-- Full-booking refunds → one row each. tier_percent isn't stored on `bookings`
+-- itself — the closest record of it is host_earnings.refund_tier_percent (set
+-- when the full-cancellation refund was split). Scalar subquery (not a join) so
+-- this can never fan out into duplicate rows even if a booking somehow has more
+-- than one host_earnings row; nullable since not every booking has one at all.
 insert into public.booking_refunds
   (booking_id, amount_paise, method, status, gateway_refund_id, tier_percent,
    completed_at, created_at)
@@ -23,7 +27,7 @@ select
   coalesce(nullif(b.refund_method, ''), 'razorpay'),
   coalesce(nullif(b.refund_status, ''), 'pending'),
   b.refund_razorpay_id,
-  b.refund_tier_percent,
+  (select he.refund_tier_percent from public.host_earnings he where he.booking_id = b.id limit 1),
   case when b.refund_status = 'completed' then coalesce(b.updated_at, now()) end,
   coalesce(b.refund_initiated_at, b.updated_at, b.created_at)
 from public.bookings b
