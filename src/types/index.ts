@@ -71,7 +71,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Partial<Record<UserRole, AdminPermissionK
   social_media_manager: ['bookings', 'requests', 'community_chats'],
   field_person: ['bookings', 'requests'],
   chat_responder: ['bookings', 'community_chats'],
-  host_onboarding_staff: ['service_listings', 'community_trips', 'phone_verifications'],
+  host_onboarding_staff: ['service_listings', 'community_trips', 'phone_verifications', 'trip_claims'],
   user: [],
   // 'custom' resolved at runtime from team_members.custom_permissions
 }

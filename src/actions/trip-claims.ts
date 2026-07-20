@@ -43,19 +43,29 @@ async function bumpReviewStatsForUser(svc: Svc, userId: string) {
 
 async function notifyTripClaimSubmitted(
   svc: Svc,
-  opts: { claimantId: string; claimantName: string; bookerId: string; hostId: string | null; tripTitle: string },
+  opts: { claimantId: string; claimantName: string; bookerId: string; hostId: string | null; packageId: string; tripTitle: string },
 ) {
   const recipients = new Map<string, 'booker' | 'host' | 'staff'>()
   if (opts.bookerId && opts.bookerId !== opts.claimantId) recipients.set(opts.bookerId, 'booker')
   if (opts.hostId && opts.hostId !== opts.claimantId && !recipients.has(opts.hostId)) recipients.set(opts.hostId, 'host')
 
-  const { data: admins } = await svc.from('profiles').select('id').eq('role', 'admin')
-  const { data: staff } = await svc.from('team_members').select('user_id, role, custom_permissions').eq('is_active', true)
-  const staffIds = (staff || [])
-    .filter((m) => m.role === 'admin' || (m.role === 'custom' && Array.isArray(m.custom_permissions) && (m.custom_permissions as string[]).includes('trip_claims')))
-    .map((m) => m.user_id as string)
-  for (const a of admins || []) if (a.id !== opts.claimantId && !recipients.has(a.id)) recipients.set(a.id, 'staff')
-  for (const id of staffIds) if (id !== opts.claimantId && !recipients.has(id)) recipients.set(id, 'staff')
+  // Staff recipients resolved via the SAME hasAdminPermission logic the page/
+  // sidebar/dashboard use for 'trip_claims' — not a hand-rolled role filter —
+  // so it stays correct if the granted-by-default roles change, and also
+  // catches 'admin'/'super_admin' team_members rows (not just profiles.role).
+  const { hasAdminPermission } = await import('@/types')
+  const { data: adminProfiles } = await svc.from('profiles').select('id').in('role', ['admin', 'super_admin'])
+  const { data: teamMembers } = await svc.from('team_members').select('user_id, role, custom_permissions').eq('is_active', true)
+
+  for (const p of adminProfiles || []) if (p.id !== opts.claimantId && !recipients.has(p.id)) recipients.set(p.id, 'staff')
+  for (const m of teamMembers || []) {
+    if (!m.user_id || m.user_id === opts.claimantId || recipients.has(m.user_id)) continue
+    const role = m.role as string
+    const perms = Array.isArray(m.custom_permissions) ? (m.custom_permissions as string[]) : []
+    if (role === 'admin' || role === 'super_admin' || hasAdminPermission(role as never, perms as never, 'trip_claims')) {
+      recipients.set(m.user_id, 'staff')
+    }
+  }
 
   if (recipients.size === 0) return
   const body = `${opts.claimantName} says they were on "${opts.tripTitle}" (booked by someone else) and wants to join — review and approve or deny.`
@@ -65,7 +75,7 @@ async function notifyTripClaimSubmitted(
       type: 'booking' as const,
       title: 'Trip companion wants to join',
       body,
-      link: role === 'booker' ? '/bookings' : role === 'host' ? '/host' : '/admin/trip-claims',
+      link: role === 'booker' ? '/bookings' : role === 'host' ? `/host/${opts.packageId}` : '/admin/trip-claims',
     })),
   )
 }
@@ -158,7 +168,7 @@ export async function submitTripClaim(packageId: string, confirmationCode: strin
   const claimantName = claimantProfile?.full_name || claimantProfile?.username || 'Someone'
 
   await notifyTripClaimSubmitted(svc, {
-    claimantId: user.id, claimantName, bookerId: booking.user_id, hostId: pkg?.host_id ?? null, tripTitle: pkg?.title || 'this trip',
+    claimantId: user.id, claimantName, bookerId: booking.user_id, hostId: pkg?.host_id ?? null, packageId, tripTitle: pkg?.title || 'this trip',
   })
 
   revalidatePath('/bookings'); revalidatePath(`/host/${packageId}`); revalidatePath('/admin/trip-claims')
@@ -254,7 +264,7 @@ export async function submitCompanionReview(
     const { data: claimantProfile } = await svc.from('profiles').select('full_name, username').eq('id', user.id).single()
     const claimantName = claimantProfile?.full_name || claimantProfile?.username || 'Someone'
     await notifyTripClaimSubmitted(svc, {
-      claimantId: user.id, claimantName, bookerId: booking.user_id, hostId: pkg?.host_id ?? null, tripTitle: pkg?.title || 'this trip',
+      claimantId: user.id, claimantName, bookerId: booking.user_id, hostId: pkg?.host_id ?? null, packageId, tripTitle: pkg?.title || 'this trip',
     })
   }
 
