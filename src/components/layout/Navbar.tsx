@@ -142,6 +142,9 @@ export function Navbar() {
         .eq('user_id', viewerId)
       if (cancelled) return
       const roomIds = [...new Set((data ?? []).map(r => r.room_id).filter(Boolean))] as string[]
+      // Reuse this fetch for the "Meet Travellers" → "Community" label switch —
+      // avoids a second `chat_room_members` query for the same information.
+      setHasRooms(roomIds.length > 0)
       subscribe(roomIds)
     }
 
@@ -182,33 +185,17 @@ export function Navbar() {
     return () => { supabase.removeChannel(ch) }
   }, [user])
 
-  // "Meet Travellers" → "Community" once user has joined any room
-  useEffect(() => {
-    if (!user) return
-    const supabase = createClient()
-    supabase
-      .from('chat_room_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .then(({ count }) => setHasRooms((count ?? 0) > 0))
-  }, [user])
-
   // Fetch pending join request count for hosts
   useEffect(() => {
     if (!user?.is_host) return
     const supabase = createClient()
 
     async function fetchPending() {
-      // Get all trip IDs hosted by this user
-      const { data: trips } = await supabase
-        .from('packages')
-        .select('id')
-        .eq('host_id', user!.id)
-      if (!trips?.length) return
+      // Single query via embedded join instead of packages-then-join_requests round trips.
       const { count } = await supabase
         .from('join_requests')
-        .select('id', { count: 'exact', head: true })
-        .in('trip_id', trips.map(t => t.id))
+        .select('*, trip:packages!inner(host_id)', { count: 'exact', head: true })
+        .eq('trip.host_id', user!.id)
         .eq('status', 'pending')
       setPendingJoinCount(count ?? 0)
     }
