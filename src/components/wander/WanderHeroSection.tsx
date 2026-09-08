@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getRequestAuth } from '@/lib/auth/request-session'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import {
   getWanderStats,
   getWanderRatingHero,
@@ -32,34 +32,22 @@ export async function WanderHeroSection({
       getWanderHeroCopy(),
     ])
 
-  const { supabase, user } = auth
-  let profileAvatar: string | null = null
-  let mobileHeroUser: {
-    id: string
-    username: string
-    full_name: string | null
-    avatar_url: string | null
-    is_host: boolean
-    role: string | null
-  } | null = null
-  if (user) {
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('avatar_url, username, full_name, is_host, role')
-      .eq('id', user.id)
-      .single()
-    profileAvatar = p?.avatar_url ?? null
-    mobileHeroUser = p
+  const { user } = auth
+  // Request-cached — shares its result with WanderListingRowsServer's call
+  // instead of firing a second profile query for the same signed-in user.
+  const profile = user ? await getRequestProfile(user.id) : null
+  const profileAvatar = profile?.avatar_url ?? null
+  const mobileHeroUser =
+    user && profile
       ? {
           id: user.id,
-          username: p.username,
-          full_name: p.full_name ?? null,
-          avatar_url: p.avatar_url ?? null,
-          is_host: !!p.is_host,
-          role: p.role ?? null,
+          username: profile.username,
+          full_name: profile.full_name ?? null,
+          avatar_url: profile.avatar_url ?? null,
+          is_host: !!profile.is_host,
+          role: profile.role ?? null,
         }
       : null
-  }
 
   return (
     <>

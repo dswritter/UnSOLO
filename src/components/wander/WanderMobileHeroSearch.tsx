@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, CalendarDays, ChevronRight, Compass, CreditCard, Gift, Home, Instagram, Key, Loader2, LogOut, MapPin, Pencil, Plane, Search, Shield, Smile, User, Users } from 'lucide-react'
@@ -19,6 +20,7 @@ import { useSignOut } from '@/hooks/useSignOut'
 import type { WanderHeroCopy, WanderHeroMobileTabCopy, WanderStats } from '@/lib/wander/wanderQueries'
 import { cn, getInitials } from '@/lib/utils'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
 import { WanderNominatimLocationInput } from '@/components/wander/WanderNominatimLocationInput'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
@@ -253,8 +255,15 @@ export function WanderMobileHeroSearch({
     <div className="md:hidden">
       <section className="relative overflow-hidden border-b border-white/10 bg-background">
         <div className="absolute inset-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroImageUrl} alt="" fetchPriority="high" decoding="async" className="h-full w-full object-cover opacity-60" />
+          <Image
+            src={heroImageUrl}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            unoptimized={!isOptimizableImageUrl(heroImageUrl)}
+            className="object-cover opacity-60"
+          />
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,20,0.18),rgba(6,12,20,0.84)_52%,rgba(6,12,20,0.98)_100%)]" />
         </div>
         <div className="relative z-[1] px-4 pb-4 pt-4">

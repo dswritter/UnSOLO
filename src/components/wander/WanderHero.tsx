@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import type { CSSProperties, ReactNode } from 'react'
 import { Instagram, Star, ShieldCheck } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn, getInitials } from '@/lib/utils'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
 import type { WanderRatingHero, WanderStats, WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
 export function WanderHero({
@@ -112,14 +114,17 @@ export function WanderHero({
   return (
     <section className="relative w-full min-h-0 overflow-hidden bg-background">
       <div className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element -- URL from admin; any HTTPS host */}
-        <img
+        <Image
           src={heroImageUrl}
           alt=""
+          fill
           // LCP image — fetch it ahead of below-the-fold work.
-          fetchPriority="high"
-          decoding="async"
-          className="absolute inset-0 h-full w-full object-cover object-center opacity-95"
+          priority
+          sizes="100vw"
+          // Admin can set this to any HTTPS host; only optimize (resize/reformat)
+          // when it's on a host next.config.ts's remotePatterns allows.
+          unoptimized={!isOptimizableImageUrl(heroImageUrl)}
+          className="object-cover object-center opacity-95"
         />
         {/*
           Readability scrim on the left where copy + search live; right stays mostly the photo

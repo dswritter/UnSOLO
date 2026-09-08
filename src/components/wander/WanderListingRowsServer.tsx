@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getRequestAuth } from '@/lib/auth/request-session'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import {
   getWanderTripRow,
   getWanderStayRow,
@@ -11,56 +11,54 @@ import { fetchPackagePopularityMaps } from '@/lib/explore-package-popularity'
 import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListingsSectionsWrapper'
 import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+async function fetchInterestedPackageIds(
+  supabase: SupabaseClient,
+  userId: string | null,
+  packageIds: string[],
+): Promise<string[]> {
+  if (!userId || packageIds.length === 0) return []
+  const { data } = await supabase
+    .from('package_interests')
+    .select('package_id')
+    .eq('user_id', userId)
+    .in('package_id', packageIds)
+  return (data || []).map((row) => (row as { package_id: string }).package_id)
+}
 
 export async function WanderListingRowsServer() {
   const { supabase, user } = await getRequestAuth()
-  let profileAvatar: string | null = null
-  if (user) {
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('avatar_url')
-      .eq('id', user.id)
-      .single()
-    profileAvatar = p?.avatar_url ?? null
-  }
   const userId = user?.id ?? null
 
-  const [tp, stayListings, actListings, rentListings] = await Promise.all([
+  // All independent of each other — run in one round trip instead of a chain
+  // of sequential awaits. `getRequestProfile` is request-cached, so this
+  // shares its result with WanderHeroSection's call instead of double-fetching.
+  const [tp, stayListings, actListings, rentListings, profile] = await Promise.all([
     getWanderTripRow(),
     getWanderStayRow(),
     getWanderActivityRow(),
     getWanderRentalRow(),
+    userId ? getRequestProfile(userId) : Promise.resolve(null),
   ])
+  const profileAvatar = profile?.avatar_url ?? null
 
-  const [stays, activities, rentals] = await Promise.all([
+  const tripPackageIds = tp.packages.map((p) => p.id)
+
+  const [stays, activities, rentals, landingInterestedPackageIds, popularity] = await Promise.all([
     getWanderServiceItemsForListings(stayListings),
     getWanderServiceItemsForListings(actListings),
     getWanderServiceItemsForListings(rentListings),
+    fetchInterestedPackageIds(supabase, userId, tripPackageIds),
+    tripPackageIds.length > 0 ? fetchPackagePopularityMaps(supabase, tripPackageIds) : null,
   ])
-
-  let landingInterestedPackageIds: string[] = []
-  if (userId && tp.packages.length > 0) {
-    const { data: interests } = await supabase
-      .from('package_interests')
-      .select('package_id')
-      .eq('user_id', userId)
-      .in(
-        'package_id',
-        tp.packages.map((p) => p.id),
-      )
-    landingInterestedPackageIds = (interests || []).map(
-      (row) => (row as { package_id: string }).package_id,
-    )
-  }
 
   if (!stays || !activities || !rentals) return null
 
   // Booked-guests per trip → "Only N left" badge on the home cards (same source as Explore).
-  let spotsBookedByTrip: Record<string, number> = {}
-  if (tp.packages.length > 0) {
-    const { bookedGuests } = await fetchPackagePopularityMaps(supabase, tp.packages.map((p) => p.id))
-    spotsBookedByTrip = Object.fromEntries(bookedGuests)
-  }
+  const spotsBookedByTrip: Record<string, number> = popularity
+    ? Object.fromEntries(popularity.bookedGuests)
+    : {}
 
   return (
     <div className="border-t border-border/50">
