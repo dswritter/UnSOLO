@@ -9,6 +9,7 @@ import { followUser, unfollowUser, startDirectMessage } from '@/actions/profile'
 import { getInitials } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { useFollowersCount } from './FollowersCountContext'
 
 type FollowUser = {
   id: string
@@ -21,7 +22,6 @@ interface ProfileActionsProps {
   profileId: string
   isFollowing: boolean
   isLoggedIn: boolean
-  initialFollowersCount: number
   initialFollowingCount: number
   followers: FollowUser[]
   following: FollowUser[]
@@ -31,12 +31,13 @@ export function ProfileActions({
   profileId,
   isFollowing: initialFollowing,
   isLoggedIn,
-  initialFollowersCount,
 }: ProfileActionsProps) {
   const [isFollowing, setIsFollowing] = useState(initialFollowing)
-  const [, setFollowersCount] = useState(initialFollowersCount)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  // Populated when rendered alongside OwnProfileFollowCounts (see FollowersCountContext) —
+  // lets this button's optimistic toggle update that count instantly.
+  const followersCountCtx = useFollowersCount()
 
   async function handleFollow() {
     if (!isLoggedIn) {
@@ -46,21 +47,21 @@ export function ProfileActions({
     setLoading(true)
     if (isFollowing) {
       setIsFollowing(false)
-      setFollowersCount(c => c - 1)
+      followersCountCtx?.setCount(c => c - 1)
       const result = await unfollowUser(profileId)
       if (result.error) {
         toast.error(result.error)
         setIsFollowing(true)
-        setFollowersCount(c => c + 1)
+        followersCountCtx?.setCount(c => c + 1)
       }
     } else {
       setIsFollowing(true)
-      setFollowersCount(c => c + 1)
+      followersCountCtx?.setCount(c => c + 1)
       const result = await followUser(profileId)
       if (result.error) {
         toast.error(result.error)
         setIsFollowing(false)
-        setFollowersCount(c => c - 1)
+        followersCountCtx?.setCount(c => c - 1)
       } else {
         toast.success('Following!')
       }
@@ -121,9 +122,16 @@ export function OwnProfileFollowCounts({
   isFollowing?: boolean
 }) {
   const [showModal, setShowModal] = useState<'followers' | 'following' | null>(null)
+  // On other profiles this is rendered inside a FollowersCountProvider (see
+  // ProfileUsernameDetail) so it reflects the Follow button's optimistic toggle
+  // instantly instead of only the array length from the initial server render.
+  const followersCountCtx = useFollowersCount()
 
-  // For other profiles, derive count from followers array length if initialFollowersCount is -1
-  const displayFollowersCount = initialFollowersCount === -1 ? followers.length : initialFollowersCount
+  // For other profiles, prefer the shared live count; fall back to followers array length.
+  const displayFollowersCount =
+    initialFollowersCount === -1
+      ? (followersCountCtx?.count ?? followers.length)
+      : initialFollowersCount
 
   return (
     <>

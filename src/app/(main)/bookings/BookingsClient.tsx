@@ -149,6 +149,7 @@ export function BookingsClient({
   const [joinCode, setJoinCode] = useState('')
   const [joining, setJoining] = useState(false)
   const [dismissingServiceId, setDismissingServiceId] = useState<string | null>(null)
+  const [dismissedServiceIds, setDismissedServiceIds] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   // Filter state
@@ -214,6 +215,8 @@ export function BookingsClient({
   const groupTripsUpcoming = filteredGroupBookings.filter((g) => !isGroupTripEnded(g, scheduleToday))
   const groupTripsPast = filteredGroupBookings.filter((g) => isGroupTripEnded(g, scheduleToday))
 
+  const visibleServiceBookings = serviceBookings.filter((b) => !dismissedServiceIds.has(b.id))
+
   function openReview(bookingId: string) {
     setReviewingId(bookingId)
     setRatingDest(0)
@@ -224,10 +227,17 @@ export function BookingsClient({
 
   async function handleDismissServiceBooking(bookingId: string) {
     setDismissingServiceId(bookingId)
+    // Optimistic — hide it immediately instead of waiting on the round trip.
+    setDismissedServiceIds(prev => new Set(prev).add(bookingId))
     const res = await dismissServiceBookingFromMyTrips(bookingId)
     setDismissingServiceId(null)
     if (res && 'error' in res && res.error) {
       toast.error(res.error)
+      setDismissedServiceIds(prev => {
+        const next = new Set(prev)
+        next.delete(bookingId)
+        return next
+      })
       return
     }
     toast.success('Removed from My Trips')
@@ -546,11 +556,11 @@ export function BookingsClient({
       )}
 
       {/* Service Bookings */}
-      {serviceBookings.length > 0 && (
+      {visibleServiceBookings.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4">Service Bookings</h2>
           <div className="space-y-4">
-            {serviceBookings.map((booking) => {
+            {visibleServiceBookings.map((booking) => {
               const listing = (booking as any).service_listings
               const rawListingImg = listing?.images?.[0]
               const imageUrl = rawListingImg

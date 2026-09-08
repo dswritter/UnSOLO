@@ -25,6 +25,9 @@ import {
   type RecentlyViewedPackage,
 } from '@/lib/explore/recently-viewed-packages'
 import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
+import { toggleInterest } from '@/actions/booking'
+import { useAuth } from '@/components/layout/AuthProvider'
+import { toast } from 'sonner'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
 
@@ -90,13 +93,11 @@ export function ExploreClient({
   // isNavigating covers external navigations (sidebar/filter changes) that we
   // don't initiate via startTabTransition. Cleared only when fresh props arrive.
   const [isNavigating, setIsNavigating] = useState(false)
-  const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set()
-    const saved = localStorage.getItem('wishlisted_packages')
-    return new Set(saved ? JSON.parse(saved) : [])
-  })
+  const { userId } = useAuth()
+  const [interestedIds, setInterestedIds] = useState<Set<string>>(() => new Set(interestedPackageIds))
+  const [interestCountMap, setInterestCountMap] = useState<Record<string, number>>(interestCounts)
+  const [pendingInterestIds, setPendingInterestIds] = useState<Set<string>>(new Set())
   const prevParamsRef = useRef<string>('')
-  const interestedSet = new Set(interestedPackageIds)
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => { setRecentlyViewed(readRecentlyViewedPackages()) }, [])
@@ -112,21 +113,48 @@ export function ExploreClient({
     setActiveTab(initialTab)
   }, [initialTab])
 
-  const toggleWishlist = (packageId: string) => {
-    setWishlisted(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(packageId)) {
-        newSet.delete(packageId)
-      } else {
-        newSet.add(packageId)
-      }
-      // Persist to localStorage
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('wishlisted_packages', JSON.stringify(Array.from(newSet)))
-      }
-      return newSet
+  // New tab/filters bring a fresh set of packages with their own server-provided
+  // interest data — resync so stale state from the previous tab doesn't linger.
+  useEffect(() => {
+    setInterestedIds(new Set(interestedPackageIds))
+    setInterestCountMap(interestCounts)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packages])
+
+  const toggleInterested = useCallback(async (packageId: string) => {
+    if (!userId) {
+      router.push('/login')
+      return
+    }
+    if (pendingInterestIds.has(packageId)) return
+    setPendingInterestIds(prev => new Set(prev).add(packageId))
+
+    const wasInterested = interestedIds.has(packageId)
+    setInterestedIds(prev => {
+      const next = new Set(prev)
+      if (wasInterested) next.delete(packageId)
+      else next.add(packageId)
+      return next
     })
-  }
+    setInterestCountMap(prev => ({ ...prev, [packageId]: (prev[packageId] ?? 0) + (wasInterested ? -1 : 1) }))
+
+    const result = await toggleInterest(packageId)
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      setInterestedIds(prev => {
+        const next = new Set(prev)
+        if (wasInterested) next.add(packageId)
+        else next.delete(packageId)
+        return next
+      })
+      setInterestCountMap(prev => ({ ...prev, [packageId]: (prev[packageId] ?? 0) + (wasInterested ? 1 : -1) }))
+    }
+    setPendingInterestIds(prev => {
+      const next = new Set(prev)
+      next.delete(packageId)
+      return next
+    })
+  }, [userId, interestedIds, pendingInterestIds, router])
 
   // Detect navigations triggered externally (sidebar filters, search drawer).
   // URL changes via useSearchParams happen before the server finishes
@@ -419,10 +447,9 @@ export function ExploreClient({
                     pkg={pkg}
                     pastEdition={pastTripPackageIds.has(pkg.id)}
                     spotsBooked={spotsBooked[pkg.id] ?? 0}
-                    interestTotal={interestCounts[pkg.id] ?? 0}
-                    wishlistedIds={wishlisted.has(pkg.id)}
-                    hasPublishedInterest={interestedSet.has(pkg.id)}
-                    onToggleWishlist={toggleWishlist}
+                    interestTotal={interestCountMap[pkg.id] ?? 0}
+                    interested={interestedIds.has(pkg.id)}
+                    onToggleInterest={toggleInterested}
                     onOpenDetail={() => {
                       writeRecentlyViewedPackage({
                         id: pkg.id,

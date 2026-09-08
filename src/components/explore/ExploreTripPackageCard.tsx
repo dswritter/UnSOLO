@@ -34,11 +34,10 @@ export interface ExploreTripPackageCardProps {
   pastEdition: boolean
   spotsBooked: number
   interestTotal: number
-  wishlistedIds: boolean
-  hasPublishedInterest: boolean
+  interested: boolean
   onOpenDetail: () => void
   onPrefetch: () => void
-  onToggleWishlist: (id: string) => void
+  onToggleInterest: (id: string) => void
 }
 
 export function ExploreTripPackageCard({
@@ -46,11 +45,10 @@ export function ExploreTripPackageCard({
   pastEdition,
   spotsBooked,
   interestTotal,
-  wishlistedIds,
-  hasPublishedInterest,
+  interested,
   onOpenDetail,
   onPrefetch,
-  onToggleWishlist,
+  onToggleInterest,
 }: ExploreTripPackageCardProps) {
   const spotsLeft = pkg.max_group_size - spotsBooked
   const nextDeparture = packageNextDepartureLine(pkg)
@@ -131,15 +129,15 @@ export function ExploreTripPackageCard({
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              onToggleWishlist(pkg.id)
+              onToggleInterest(pkg.id)
             }}
             className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 transition-all z-10 backdrop-blur-sm"
-            aria-label="Add to wishlist"
+            aria-label={interested ? 'Remove interest' : "I'm interested in this trip"}
           >
             <Heart
               className={cn(
                 'h-5 w-5 transition-all duration-300',
-                wishlistedIds || hasPublishedInterest ? 'fill-red-500 text-red-500 scale-110' : 'text-white/80 hover:text-white',
+                interested ? 'fill-red-500 text-red-500 scale-110' : 'text-white/80 hover:text-white',
               )}
             />
           </button>

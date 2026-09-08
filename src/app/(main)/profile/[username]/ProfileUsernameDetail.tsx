@@ -12,6 +12,7 @@ import { ACHIEVEMENTS } from '@/types'
 import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
+import { FollowersCountProvider } from './FollowersCountContext'
 import { PhoneRequestButton } from './PhoneRequestButton'
 import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
 import { getStatusStoriesForProfile } from '@/actions/statusStories'
@@ -296,6 +297,7 @@ export async function ProfileUsernameDetail({
                 </Avatar>
               )}
 
+              <FollowersCountProvider initialCount={followData.followersCount}>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
                   <div>
@@ -339,7 +341,6 @@ export async function ProfileUsernameDetail({
                         profileId={profile.id}
                         isFollowing={followData.isFollowing}
                         isLoggedIn={!!viewerUserId}
-                        initialFollowersCount={followData.followersCount}
                         initialFollowingCount={followData.followingCount}
                         followers={followerUsers}
                         following={followingUsers}
@@ -439,6 +440,7 @@ export async function ProfileUsernameDetail({
                   </div>
                 )}
               </div>
+              </FollowersCountProvider>
             </div>
           </div>
 

@@ -12,6 +12,9 @@ import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { packageDurationShortLabel, packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { MapPin, Mountain, Heart } from 'lucide-react'
+import { toggleInterest } from '@/actions/booking'
+import { useAuth } from '@/components/layout/AuthProvider'
+import { toast } from 'sonner'
 
 // Frosted-glass difficulty chip, sitting on top of the card image. The text
 // is a deeper hue than the previous lights — pale rose / amber / emerald
@@ -37,25 +40,31 @@ type Props = {
 export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastEdition = false, spotsBooked = 0 }: Props) {
   const spotsLeft = pkg.max_group_size ? pkg.max_group_size - spotsBooked : null
   const router = useRouter()
+  const { userId } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
-  const interestedSet = new Set(interestedPackageIds)
-  const [wishlisted, setWishlisted] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set()
-    const saved = localStorage.getItem('wishlisted_packages')
-    return new Set(saved ? JSON.parse(saved) : [])
-  })
+  const [interested, setInterested] = useState(() => interestedPackageIds.includes(pkg.id))
+  const [count, setCount] = useState(interestCount)
+  const [togglePending, setTogglePending] = useState(false)
 
-  const toggleWishlist = useCallback((packageId: string) => {
-    setWishlisted(prev => {
-      const next = new Set(prev)
-      if (next.has(packageId)) next.delete(packageId)
-      else next.add(packageId)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('wishlisted_packages', JSON.stringify([...next]))
-      }
-      return next
-    })
-  }, [])
+  const toggleInterested = useCallback(async (packageId: string) => {
+    if (!userId) {
+      router.push('/login')
+      return
+    }
+    if (togglePending) return
+    setTogglePending(true)
+    const wasInterested = interested
+    setInterested(!wasInterested)
+    setCount(c => wasInterested ? c - 1 : c + 1)
+
+    const result = await toggleInterest(packageId)
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      setInterested(wasInterested)
+      setCount(c => wasInterested ? c + 1 : c - 1)
+    }
+    setTogglePending(false)
+  }, [interested, togglePending, userId, router])
 
   const openPackage = useCallback(() => {
     if (isMobile) {
@@ -72,7 +81,6 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const heartActive = wishlisted.has(pkg.id) || interestedSet.has(pkg.id)
   const nextDeparture = packageNextDepartureLine(pkg)
 
   return (
@@ -139,15 +147,16 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
             onClick={e => {
               e.preventDefault()
               e.stopPropagation()
-              toggleWishlist(pkg.id)
+              void toggleInterested(pkg.id)
             }}
-            className="absolute top-2 right-2 z-10 rounded-full bg-black/35 p-2 backdrop-blur-xl backdrop-saturate-150 transition-all hover:bg-black/55"
-            aria-label="Add to wishlist"
+            disabled={togglePending}
+            className="absolute top-2 right-2 z-10 rounded-full bg-black/35 p-2 backdrop-blur-xl backdrop-saturate-150 transition-all hover:bg-black/55 disabled:opacity-70"
+            aria-label={interested ? 'Remove interest' : "I'm interested in this trip"}
           >
             <Heart
               className={cn(
                 'h-4 w-4 transition-all duration-300 sm:h-5 sm:w-5 motion-reduce:transition-none motion-reduce:scale-100',
-                heartActive ? 'scale-110 fill-red-500 text-red-500' : 'text-white/80 hover:text-white',
+                interested ? 'scale-110 fill-red-500 text-red-500' : 'text-white/80 hover:text-white',
               )}
             />
           </button>
@@ -191,10 +200,10 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
           </div>
           {/* Cancellations & refunds link is intentionally NOT on the card —
               it lives on the trip detail page so the listing grid stays clean. */}
-          {interestCount > 0 && (
+          {count > 0 && (
             <div className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
               <Heart className="h-3 w-3 shrink-0 fill-red-400 text-red-400" />
-              {interestCount} {interestCount === 1 ? 'person' : 'people'} interested
+              {count} {count === 1 ? 'person' : 'people'} interested
             </div>
           )}
         </CardContent>
