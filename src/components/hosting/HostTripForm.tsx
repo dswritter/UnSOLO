@@ -42,6 +42,8 @@ import {
   type HostTripDraftPayload,
 } from '@/lib/host-trip-create-draft'
 import { saveListingDraft, saveListingDraftAsStaff, markListingDraftSubmitted, getMyListingDraft } from '@/actions/listing-drafts'
+import { HostListingContactFields } from '@/components/admin/HostListingContactFields'
+import type { HostListingContactInput } from '@/lib/host-listing-contact'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -124,6 +126,7 @@ export function HostTripForm({
   resumeDraftId,
   staffDraftId,
   staffDraftPayload,
+  staffCreate = false,
 }: {
   editTripId?: string
   /** When set, load this draft from local storage; plain `/host/create` always starts blank. */
@@ -132,6 +135,8 @@ export function HostTripForm({
    *  to that draft (not a new package); the host completes & submits later. */
   staffDraftId?: string
   staffDraftPayload?: HostTripDraftPayload
+  /** Staff create a real listing for a host who may not have an account yet. */
+  staffCreate?: boolean
 }) {
   const router = useRouter()
   const isEdit = !!editTripId
@@ -142,6 +147,7 @@ export function HostTripForm({
   const [editModerationStatus, setEditModerationStatus] = useState<string | null>(null)
   const [editTripSlug, setEditTripSlug] = useState<string | null>(null)
   const [activePriceTierIndex, setActivePriceTierIndex] = useState(0)
+  const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
 
   // Data
   const [destinations, setDestinations] = useState<Destination[]>([])
@@ -316,11 +322,11 @@ export function HostTripForm({
       // Fetch admin-managed max group size
       const { createClient: cc } = await import('@/lib/supabase/client')
       const sb = cc()
-      if (!hostStatus.isHost) {
+      if (!hostStatus.isHost || staffCreate) {
         // Admins and community_trips staff (e.g. host onboarding) may edit an
         // existing trip to help the host — but can't create one from scratch.
         const canManage = await canManageAnyHostTrip()
-        if (!canManage || !editTripId) {
+        if (!canManage || (!editTripId && !staffCreate)) {
           router.push('/host/verify')
           return
         }
@@ -413,7 +419,7 @@ export function HostTripForm({
           }
         }
       } else {
-        if (!hostStatus.isHost) {
+        if (!hostStatus.isHost && !staffCreate) {
           const { data: currentUser } = await sb.auth.getUser()
           const userId = currentUser.user?.id
           if (!userId) {
@@ -457,7 +463,7 @@ export function HostTripForm({
       setLoading(false)
     }
     load()
-  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft])
+  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate])
 
   const today = (() => {
     const d = new Date()
@@ -588,7 +594,7 @@ export function HostTripForm({
 
   useEffect(() => {
     // No local-storage draft when staff are editing a host's cloud draft.
-    if (isEdit || isStaffDraft || loading || !draftSessionId) return
+    if (isEdit || isStaffDraft || staffCreate || loading || !draftSessionId) return
     const t = window.setTimeout(() => {
       if (isHostTripCreateDraftNonEmpty(createDraftBody)) {
         upsertHostTripDraft(draftSessionId, createDraftBody)
@@ -605,7 +611,7 @@ export function HostTripForm({
       }
     }, 900)
     return () => clearTimeout(t)
-  }, [isEdit, loading, draftSessionId, createDraftBody])
+  }, [isEdit, isStaffDraft, staffCreate, loading, draftSessionId, createDraftBody])
 
   // ── Cloud sync (so the onboarding team can see in-progress drafts) ──────────
   // Saved on STAGE TRANSITIONS + when leaving the page — not on every keystroke.
@@ -615,7 +621,7 @@ export function HostTripForm({
   const cloudInFlightRef = useRef(false)
 
   const saveDraftToCloud = useCallback(async () => {
-    if (isEdit) return
+    if (isEdit || staffCreate) return
     const { draftSessionId: id, body, step: s } = cloudLatestRef.current
     if (!id || !isHostTripCreateDraftNonEmpty(body) || cloudInFlightRef.current) return
     cloudInFlightRef.current = true
@@ -644,7 +650,7 @@ export function HostTripForm({
     } finally {
       cloudInFlightRef.current = false
     }
-  }, [isEdit, isStaffDraft, staffDraftId])
+  }, [isEdit, isStaffDraft, staffDraftId, staffCreate])
 
   // Save once the local draft has loaded (covers existing drafts re-opened after
   // deploy, and the first/last steps that have no adjacent step to trigger on).
@@ -1078,6 +1084,7 @@ export function HostTripForm({
     switch (step) {
       case 0:
         return !!title.trim() && !!destinationId && !!description.trim()
+          && (!staffCreate || !!(hostContact.email?.trim() || hostContact.phone?.trim()))
       case 1: {
         const pairs = scheduleRows.filter((r) => r.dep && r.ret)
         if (!tripDays || !tripNights || pairs.length === 0) return false
@@ -1288,6 +1295,7 @@ export function HostTripForm({
           includes: built.payload.includes,
           images: built.payload.images,
           join_preferences: built.payload.join_preferences,
+          host_contact: staffCreate ? hostContact : undefined,
         })
 
         if (result.error) {
@@ -1298,7 +1306,7 @@ export function HostTripForm({
             deleteHostTripDraft(draftSessionId)
             void markListingDraftSubmitted('trip', draftSessionId)
           }
-          router.push('/host')
+          router.push(staffCreate ? '/admin/community-trips' : '/host')
         }
       } finally {
         setIsSubmitting(false)
@@ -1348,7 +1356,7 @@ export function HostTripForm({
             variant="ghost"
             size="sm"
             onClick={() =>
-              requestNavigateAway(isEdit && editTripId ? `/host/${editTripId}` : '/host')
+              requestNavigateAway(isEdit && editTripId ? `/host/${editTripId}` : staffCreate ? '/admin/community-trips' : '/host')
             }
             className="text-muted-foreground mb-4 gap-1.5"
           >
@@ -1427,6 +1435,8 @@ export function HostTripForm({
           {step === 0 && (
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Basic Information</h2>
+
+              {staffCreate && <HostListingContactFields value={hostContact} onChange={setHostContact} />}
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Trip Title *</label>

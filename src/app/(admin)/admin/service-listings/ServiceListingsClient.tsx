@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ServiceListing, Destination, formatPrice } from '@/types'
 import { approveServiceListing, rejectServiceListing, hardDeleteServiceListing } from '@/actions/admin-service-listings'
 import { cn } from '@/lib/utils'
+import type { HostListingAssignment } from '@/lib/host-listing-contact'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'archived'
 
@@ -22,7 +23,7 @@ function parseTypeFilter(raw: string | undefined): 'all' | string {
 }
 
 interface ServiceListingsClientProps {
-  serviceListings: (ServiceListing & { booking_count?: number })[]
+  serviceListings: (ServiceListing & { booking_count?: number; host_assignment?: HostListingAssignment[] })[]
   destinations: Destination[]
   /** From URL (?status= / ?type=) after moderation redirect */
   initialStatusFilter?: string
@@ -72,7 +73,8 @@ export function ServiceListingsClient({
     if (typeFilter !== 'all' && l.type !== typeFilter) return false
     if (search.trim()) {
       const q = search.toLowerCase()
-      if (!l.title?.toLowerCase().includes(q) && !l.location?.toLowerCase().includes(q)) return false
+      if (!l.title?.toLowerCase().includes(q) && !l.location?.toLowerCase().includes(q)
+        && !l.host_assignment?.some((a) => a.email?.includes(q) || a.phone?.includes(q))) return false
     }
     return true
   })
@@ -203,6 +205,12 @@ export function ServiceListingsClient({
                   <div className="max-w-xs truncate">
                     <div className="font-medium text-primary hover:underline">{listing.title}</div>
                     <div className="text-xs text-muted-foreground">{listing.location}</div>
+                    {listing.host_assignment?.[0] && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {listing.host_id ? 'Linked to host' : listing.host_assignment[0].status === 'conflict' ? 'Host contact conflict' : 'Awaiting host signup / verification'}
+                        <div className="truncate">{listing.host_assignment[0].email || listing.host_assignment[0].phone}</div>
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 capitalize text-foreground">{listing.type}</td>

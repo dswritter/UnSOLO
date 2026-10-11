@@ -23,9 +23,10 @@ function formatOtpRetryMessage(notBefore: Date): string {
 
 /** Earliest time the user may send another OTP (server-side; survives refresh). */
 async function getOtpSendNotBefore(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  _supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
 ): Promise<Date | null> {
+  const supabase = createServiceRoleClient()
   const now = Date.now()
   const oneHourAgoIso = new Date(now - 60 * 60 * 1000).toISOString()
 
@@ -61,13 +62,16 @@ async function getOtpSendNotBefore(
 }
 
 export async function sendPhoneOTP(phoneNumber: string) {
-  const { supabase, user } = await getActionAuth()
+  const { user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
+  const supabase = createServiceRoleClient()
 
   // Validate phone format
-  if (!validateIndianPhone(phoneNumber)) {
+  const normalizedPhone = validateIndianPhone(phoneNumber)
+  if (!normalizedPhone) {
     return { error: 'Enter a valid 10-digit Indian mobile number (starting with 6-9)' }
   }
+  phoneNumber = normalizedPhone
 
   const { data: phoneTaken } = await supabase
     .from('profiles')
@@ -122,8 +126,12 @@ export async function sendPhoneOTP(phoneNumber: string) {
 }
 
 export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
-  const { supabase, user } = await getActionAuth()
+  const { user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
+  const supabase = createServiceRoleClient()
+  const normalizedPhone = validateIndianPhone(phoneNumber)
+  if (!normalizedPhone) return { error: 'Enter a valid Indian mobile number' }
+  phoneNumber = normalizedPhone
 
   // Find latest non-expired OTP for this user+phone
   const { data: otpRecord } = await supabase
@@ -176,18 +184,22 @@ export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
     .eq('id', otpRecord.id)
 
   // Update profile: phone verified + phone number
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({
       is_phone_verified: true,
       phone_number: phoneNumber,
+      phone_country_code: '+91',
+      phone_verified_method: 'otp',
       updated_at: new Date().toISOString(),
     })
     .eq('id', user.id)
+  if (profileError) return { error: profileError.message }
 
   // Check if user qualifies as host (both phone + email verified)
-  const isHost = await checkAndSetHostStatus(supabase, user.id)
+  const isHost = await checkAndSetHostStatus(supabase, user.id, !!user.email_confirmed_at)
 
+  revalidatePath('/host')
   revalidatePath('/host/verify')
   revalidatePath('/profile')
   return { success: true, isHost }
@@ -618,18 +630,13 @@ export async function getPendingPhoneVerifications() {
 async function checkAndSetHostStatus(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
+  emailVerified: boolean,
 ): Promise<boolean> {
   const { data: profile } = await supabase
     .from('profiles')
     .select('is_phone_verified, is_email_verified')
     .eq('id', userId)
     .single()
-
-  // Also check auth email confirmation
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  const emailVerified = !!session?.user?.email_confirmed_at || profile?.is_email_verified
 
   if (profile?.is_phone_verified && emailVerified) {
     await supabase

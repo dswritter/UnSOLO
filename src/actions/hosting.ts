@@ -12,6 +12,7 @@ import { tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { getEmailFromAuthUser } from '@/lib/auth-email'
 import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
+import { normalizeHostListingContact, type HostListingContactInput } from '@/lib/host-listing-contact'
 
 // ── Host trip management ────────────────────────────────────
 
@@ -204,17 +205,24 @@ export async function createHostedTrip(formData: {
   includes: string[]
   images: string[]
   join_preferences: JoinPreferences
+  host_contact?: HostListingContactInput
 }) {
-  const { supabase, user } = await requireHost()
+  const { supabase, user, isAdmin } = formData.host_contact
+    ? await requireHostOrAdmin()
+    : { ...await requireHost(), isAdmin: false }
+  if (formData.host_contact && !isAdmin) return { error: 'Only authorized staff can create on behalf of a host' }
+  if (isAdmin && !formData.host_contact) return { error: 'Enter the host’s email or phone to create this trip on their behalf' }
+  let contact: ReturnType<typeof normalizeHostListingContact> | null = null
+  try {
+    if (formData.host_contact) contact = normalizeHostListingContact(formData.host_contact)
+  } catch (e) { return { error: e instanceof Error ? e.message : 'Invalid host contact' } }
 
   const slug = generateSlug(formData.title)
 
   const tiers = formData.price_variants?.length ? formData.price_variants : null
   const price_paise = tiers?.length ? minPricePaiseFromVariants(tiers) : formData.price_paise
 
-  const { data: trip, error } = await supabase
-    .from('packages')
-    .insert({
+  const payload = {
       title: formData.title,
       slug,
       destination_id: formData.destination_id,
@@ -239,9 +247,12 @@ export async function createHostedTrip(formData: {
       moderation_status: 'pending',
       is_active: false, // Activated after admin approval
       join_preferences: formData.join_preferences,
-    })
-    .select('slug')
-    .single()
+    }
+  const { data: trip, error } = contact
+    ? await supabase.rpc('create_delegated_host_listing', {
+        p_kind: 'trip', p_listing: payload, p_contact: contact, p_staff_id: user.id,
+      })
+    : await supabase.from('packages').insert(payload).select('slug').single()
 
   if (error) return { error: error.message }
 
@@ -263,12 +274,12 @@ export async function createHostedTrip(formData: {
     })
   }
 
-  await supabase
-    .from('profiles')
-    .update({ phone_public: true })
-    .eq('id', user.id)
+  if (!contact) {
+    await supabase.from('profiles').update({ phone_public: true }).eq('id', user.id)
+  }
 
   revalidatePath('/host')
+  revalidatePath('/admin/community-trips')
   revalidatePath('/')
   return { success: true, slug: trip?.slug }
 }
@@ -914,7 +925,7 @@ export async function withdrawJoinRequest(joinRequestId: string) {
 
 /** Hosts cannot INSERT destinations via the anon client (RLS). Creates row with service role after host check. */
 export async function createHostDestination(name: string, state: string) {
-  const { supabase } = await requireHost()
+  const { supabase } = await requireHostOrAdmin()
   const trimName = name.trim()
   const trimState = state.trim()
   if (!trimName || !trimState) return { error: 'Destination name and state are required' }

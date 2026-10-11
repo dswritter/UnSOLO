@@ -7,6 +7,7 @@ import CommunityTripsClient from './CommunityTripsClient'
 import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import type { UserRole, AdminPermissionKey } from '@/types'
+import { hostListingAssignmentRows } from '@/lib/host-listing-contact'
 
 type PendingPayoutRow = { id: string } & Record<string, unknown>
 
@@ -46,12 +47,12 @@ export default async function AdminCommunityTripsPage() {
   // Fetch all community trips (host_id not null)
   const { data: trips } = await svc
     .from('packages')
-    .select('*, destination:destinations(name, state), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
-    .not('host_id', 'is', null)
+    .select('*, destination:destinations(name, state), host_assignment:host_listing_assignments(email, phone, status), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
+    .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
     .is('archived_at', null)
     .order('created_at', { ascending: false })
 
-  const tripList = trips || []
+  const tripList = (trips || []).map((t) => ({ ...t, host_assignment: hostListingAssignmentRows(t.host_assignment) }))
   const tripIds = tripList.map((t) => t.id as string)
   const bookingCountByPackage =
     tripIds.length > 0 ? await fetchCommunityTripBookingCountsForPackages(svc, tripIds) : {}
@@ -92,6 +93,9 @@ export default async function AdminCommunityTripsPage() {
     <div>
       <h1 className="text-2xl font-black mb-1">Community <span className="text-primary">Trips</span></h1>
       <p className="text-muted-foreground text-sm mb-6">Moderate user-hosted trips and manage host payouts</p>
+      <a href="/admin/community-trips/create" className="mb-6 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
+        + Create trip on behalf of a host
+      </a>
       <CommunityTripsClient
         trips={tripsWithBookings}
         pendingPayouts={pendingPayouts || []}

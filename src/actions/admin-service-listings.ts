@@ -8,6 +8,7 @@ import type { ServiceListing, ServiceListingType, ServiceListingMetadata, Servic
 import { hasAdminPermission } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
+import { normalizeHostListingContact, hostListingAssignmentRows, type HostListingContactInput, type HostListingAssignment } from '@/lib/host-listing-contact'
 
 /**
  * Allow anyone whose role grants the `service_listings` permission.
@@ -76,12 +77,14 @@ export async function getAdminServiceListings() {
     .select(`
       *,
       destination:destinations(id, name, slug),
+      host_assignment:host_listing_assignments(email, phone, status),
       host:profiles(id, username, full_name, avatar_url)
     `)
     .order('created_at', { ascending: false })
 
   if (error) throw error
   const listings = (data || []) as (ServiceListing & {
+    host_assignment?: HostListingAssignment[]
     destination?: { id: string; name: string; slug: string }
     host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
   })[]
@@ -89,7 +92,7 @@ export async function getAdminServiceListings() {
     supabase,
     listings.map((l) => l.id),
   )
-  return listings.map((l) => ({ ...l, booking_count: byListingId[l.id] ?? 0 }))
+  return listings.map((l) => ({ ...l, host_assignment: hostListingAssignmentRows(l.host_assignment), booking_count: byListingId[l.id] ?? 0 }))
 }
 
 export async function getServiceListingDetail(id: string) {
@@ -101,6 +104,7 @@ export async function getServiceListingDetail(id: string) {
       .select(`
         *,
         destination:destinations(id, name, slug),
+        host_assignment:host_listing_assignments(email, phone, status),
         host:profiles(id, username, full_name, avatar_url)
       `)
       .eq('id', id)
@@ -116,6 +120,7 @@ export async function getServiceListingDetail(id: string) {
   if (error) throw error
 
   const listingRow = data as ServiceListing & {
+    host_assignment?: HostListingAssignment[]
     destination?: { id: string; name: string; slug: string }
     host?: { id: string; username: string; full_name: string | null; avatar_url: string | null }
   }
@@ -123,6 +128,7 @@ export async function getServiceListingDetail(id: string) {
 
   return {
     ...listingRow,
+    host_assignment: hostListingAssignmentRows(listingRow.host_assignment),
     booking_count: byListingId[id] ?? 0,
     booking_count_by_item_id: byItemId,
     items: (items || []) as Array<{
@@ -162,6 +168,7 @@ export async function createServiceListing(input: {
   tags: string[]
   metadata: ServiceListingMetadata | null
   host_id?: string | null
+  host_contact?: HostListingContactInput
   is_active?: boolean
   is_featured?: boolean
   status?: 'pending' | 'approved' | 'rejected' | 'archived'
@@ -169,6 +176,10 @@ export async function createServiceListing(input: {
   event_schedule?: ServiceEventScheduleEntry[] | null
 }) {
   const { supabase, user } = await requireAdmin()
+
+  const { host_contact: hostContact, ...listingInput } = input
+  if (hostContact && input.host_id) throw new Error('Choose a host account or host contact, not both')
+  const contact = hostContact ? normalizeHostListingContact(hostContact) : null
 
   // Validate slug uniqueness
   const { data: existing } = await supabase
@@ -194,21 +205,25 @@ export async function createServiceListing(input: {
   const primaryDestinationId = destinationIds[0]
 
   // Validate images
-  if (!input.images || input.images.length === 0) {
+  const images = input.images?.map((url) => url.trim()).filter(Boolean) || []
+  if (images.length === 0) {
     throw new Error('At least one image is required')
   }
 
-  const { destination_ids: _omit, ...rest } = input
-  const { data, error } = await supabase
-    .from('service_listings')
-    .insert({
-      ...rest,
-      destination_id: primaryDestinationId,
-      destination_ids: destinationIds,
-      price_variants: input.price_variants || null,
-    })
-    .select()
-    .single()
+  const { destination_ids: _omit, ...rest } = listingInput
+  const payload = {
+    ...rest,
+    images,
+    ...(contact ? { status: 'pending', is_active: false } : {}),
+    destination_id: primaryDestinationId,
+    destination_ids: destinationIds,
+    price_variants: input.price_variants || null,
+  }
+  const { data, error } = contact
+    ? await supabase.rpc('create_delegated_host_listing', {
+        p_kind: 'service', p_listing: payload, p_contact: contact, p_staff_id: user.id,
+      })
+    : await supabase.from('service_listings').insert(payload).select().single()
 
   if (error) throw error
 
@@ -217,6 +232,10 @@ export async function createServiceListing(input: {
     title: input.title,
     type: input.type,
   })
+
+  revalidatePath('/admin/service-listings')
+  revalidatePath('/host')
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 
   return data as ServiceListing
 }
@@ -377,9 +396,12 @@ export async function approveServiceListing(id: string) {
   // logic tell "never reviewed" apart from "re-review after edit".
   const { data: existing } = await supabase
     .from('service_listings')
-    .select('first_approved_at')
+    .select('first_approved_at, host_id, created_on_behalf_by')
     .eq('id', id)
     .single()
+  if (existing?.created_on_behalf_by && !existing.host_id) {
+    throw new Error('Link the host account before publishing this listing')
+  }
   if (!existing?.first_approved_at) {
     update.first_approved_at = new Date().toISOString()
   }

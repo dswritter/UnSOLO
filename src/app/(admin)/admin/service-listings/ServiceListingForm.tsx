@@ -11,6 +11,8 @@ import type {
 } from '@/types'
 import type { PriceVariant } from '@/lib/package-pricing'
 import { createServiceListing, updateServiceListing } from '@/actions/admin-service-listings'
+import { HostListingContactFields, HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
+import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
 
 const AMENITIES_BY_TYPE = {
   stays: [
@@ -55,6 +57,7 @@ const AMENITIES_BY_TYPE = {
 interface ServiceListingFormProps {
   destinations: Destination[]
   listing?: ServiceListing & {
+    host_assignment?: HostListingAssignment[]
     items?: { id: string }[]
     booking_count?: number
   }
@@ -66,6 +69,8 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [addingLocation, setAddingLocation] = useState(false)
+  const [onBehalf, setOnBehalf] = useState(false)
+  const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
 
   const [formData, setFormData] = useState({
     title: listing?.title || '',
@@ -104,7 +109,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       if (listing) {
         await updateServiceListing(listing.id, formData)
       } else {
-        await createServiceListing({ ...formData, type })
+        await createServiceListing({ ...formData, type, host_contact: onBehalf ? hostContact : undefined })
       }
       // Hard navigation: client router.push/refresh can leave this page mounted and the button stuck on "Saving...".
       window.location.assign('/admin/service-listings')
@@ -130,6 +135,18 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           {error}
         </div>
+      )}
+
+      {listing ? (
+        <HostListingAssignmentPanel kind="service" listingId={listing.id} hostId={listing.host_id} assignment={listing.host_assignment?.[0]} />
+      ) : (
+        <section className="space-y-4">
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input type="checkbox" checked={onBehalf} onChange={(e) => setOnBehalf(e.target.checked)} />
+            Create on behalf of a host
+          </label>
+          {onBehalf && <HostListingContactFields value={hostContact} onChange={setHostContact} />}
+        </section>
       )}
 
       {/* Basic Info */}
@@ -380,7 +397,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <label className="text-sm font-medium text-foreground">
               Price Variants (Optional - for multi-tier pricing)
             </label>
-            <p className="text-xs text-muted-foreground">Add multiple tiers like "Basic ₹5000, Deluxe ₹7500"</p>
+            <p className="text-xs text-muted-foreground">Add multiple tiers like &quot;Basic ₹5000, Deluxe ₹7500&quot;</p>
             {formData.price_variants.map((variant, idx) => (
               <div key={idx} className="mt-2 flex gap-2">
                 <input
@@ -436,6 +453,15 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             </button>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Photos</h2>
+        <p className="text-xs text-muted-foreground">One image URL per line. At least one photo is required.</p>
+        <textarea aria-label="Listing photo URLs" rows={4} value={formData.images.join('\n')}
+          onChange={(e) => setFormData({ ...formData, images: e.target.value.split('\n') })}
+          onBlur={() => setFormData((prev) => ({ ...prev, images: prev.images.map((url) => url.trim()).filter(Boolean) }))}
+          placeholder="https://…" className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
       </section>
 
       {/* Capacity & Inventory */}

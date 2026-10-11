@@ -157,7 +157,7 @@ export async function getAdminDashboardStats() {
     supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('service_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('packages').select('*', { count: 'exact', head: true })
-      .not('host_id', 'is', null)
+      .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
       .is('archived_at', null)
       .eq('moderation_status', 'pending'),
     // Foreign phones submitted but not yet manually verified
@@ -233,7 +233,7 @@ export async function getAdminSidebarCounts() {
     supabase.from('custom_date_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('service_listings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('packages').select('*', { count: 'exact', head: true })
-      .not('host_id', 'is', null)
+      .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
       .is('archived_at', null)
       .eq('moderation_status', 'pending'),
   ])
@@ -936,8 +936,8 @@ export async function updatePackage(
   // Host (community) trips can be edited by 'community_trips' staff (e.g. host
   // onboarding); curated UnSOLO packages still require the 'packages' permission.
   const probe = createServiceRoleClient()
-  const { data: pkgRow } = await probe.from('packages').select('host_id').eq('id', packageId).maybeSingle()
-  const { supabase } = await requirePermission(pkgRow?.host_id ? 'community_trips' : 'packages')
+  const { data: pkgRow } = await probe.from('packages').select('host_id, created_on_behalf_by').eq('id', packageId).maybeSingle()
+  const { supabase } = await requirePermission(pkgRow?.host_id || pkgRow?.created_on_behalf_by ? 'community_trips' : 'packages')
 
   const payload = { ...updates }
   if (updates.price_variants !== undefined) {
@@ -1468,11 +1468,12 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
 
   const { data: trip } = await supabase
     .from('packages')
-    .select('host_id, title, host:profiles!packages_host_id_fkey(id, full_name, username)')
+    .select('host_id, created_on_behalf_by, title, host:profiles!packages_host_id_fkey(id, full_name, username)')
     .eq('id', tripId)
     .single()
 
-  if (!trip || !trip.host_id) return { error: 'Community trip not found' }
+  if (!trip || (!trip.host_id && !trip.created_on_behalf_by)) return { error: 'Community trip not found' }
+  if (approve && !trip.host_id) return { error: 'Link the host account before publishing this trip' }
 
   const newStatus = approve ? 'approved' : 'rejected'
 
@@ -1502,7 +1503,7 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
   const svcSupabase = await createServiceClient()
   const host = trip.host as unknown as { id: string; full_name: string | null; username: string }
 
-  await svcSupabase.from('notifications').insert({
+  if (host) await svcSupabase.from('notifications').insert({
     user_id: host.id,
     type: 'booking',
     title: approve ? 'Trip Approved!' : 'Trip Not Approved',

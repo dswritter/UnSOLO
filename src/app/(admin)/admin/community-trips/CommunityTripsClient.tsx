@@ -16,6 +16,7 @@ import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
+import { HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
 
 interface Props {
   /** Community packages; server merges `booking_count` for each row. */
@@ -68,7 +69,8 @@ export default function CommunityTripsClient({
       if (
         !t.title?.toLowerCase().includes(q) &&
         !host?.full_name?.toLowerCase().includes(q) &&
-        !host?.username?.toLowerCase().includes(q)
+        !host?.username?.toLowerCase().includes(q) &&
+        !t.host_assignment?.some((a: { email?: string; phone?: string }) => a.email?.includes(q) || a.phone?.includes(q))
       ) return false
     }
     return true
@@ -475,6 +477,9 @@ export default function CommunityTripsClient({
                   <Badge className={`${MOD_COLORS[trip.moderation_status] || ''} text-[10px]`}>
                     {trip.moderation_status}
                   </Badge>
+                  {trip.host_assignment?.[0] && <Badge variant="secondary" className="text-[10px]">
+                    {trip.host_id ? 'Linked to host' : trip.host_assignment[0].status === 'conflict' ? 'Host contact conflict' : 'Awaiting host signup / verification'}
+                  </Badge>}
                   {!trip.is_active && (
                     <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px]">
                       Hidden by Host
@@ -498,6 +503,7 @@ export default function CommunityTripsClient({
               {expanded && (
                 <div className="px-4 pb-4 border-t border-border pt-3 space-y-4">
                   {/* Host info */}
+                  <HostListingAssignmentPanel kind="trip" listingId={trip.id} hostId={trip.host_id} assignment={trip.host_assignment?.[0]} />
                   <div className="flex items-center gap-3 bg-secondary/30 rounded-lg p-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={host?.avatar_url || ''} />
@@ -507,8 +513,8 @@ export default function CommunityTripsClient({
                     </Avatar>
                     <div>
                       <div className="font-medium text-sm">
-                        {host?.full_name || host?.username}
-                        <Link href={`/profile/${host?.username}`} className="text-primary text-xs ml-2 hover:underline">View Profile</Link>
+                        {host?.full_name || host?.username || 'Host account not linked yet'}
+                        {host?.username && <Link href={`/profile/${host.username}`} className="text-primary text-xs ml-2 hover:underline">View Profile</Link>}
                       </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2">
                         @{host?.username}
