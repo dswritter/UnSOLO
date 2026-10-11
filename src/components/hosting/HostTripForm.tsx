@@ -44,6 +44,8 @@ import {
 import { saveListingDraft, saveListingDraftAsStaff, markListingDraftSubmitted, getMyListingDraft } from '@/actions/listing-drafts'
 import { HostListingContactFields } from '@/components/admin/HostListingContactFields'
 import type { HostListingContactInput } from '@/lib/host-listing-contact'
+import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
+import { normalizeTripDeparturePairs, type TripDeparturePair } from '@/lib/trip-departure-recurrence'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -464,16 +466,6 @@ export function HostTripForm({
     }
     load()
   }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate])
-
-  const today = (() => {
-    const d = new Date()
-    return d.toISOString().split('T')[0]
-  })()
-  const maxDateStr = (() => {
-    const d = new Date()
-    d.setFullYear(d.getFullYear() + 2)
-    return d.toISOString().split('T')[0]
-  })()
 
   const minListPricePaise = useMemo(() => {
     const amounts = priceRows
@@ -1049,24 +1041,6 @@ export function HostTripForm({
     }, COVER_LONG_PRESS_MS)
   }
 
-  function addScheduleRow() {
-    setScheduleRows((prev) => [...prev, { dep: '', ret: '' }])
-  }
-
-  function updateScheduleRow(idx: number, field: 'dep' | 'ret', value: string) {
-    if (value && value.length === 10 && value < today) {
-      toast.error(field === 'dep' ? 'Departure date cannot be in the past' : 'Return date cannot be in the past')
-      return
-    }
-    setScheduleRows((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)),
-    )
-  }
-
-  function removeScheduleRow(idx: number) {
-    setScheduleRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)))
-  }
-
   function toggleInclude(label: string) {
     setSelectedIncludes(prev =>
       prev.includes(label) ? prev.filter(i => i !== label) : [...prev, label]
@@ -1086,7 +1060,8 @@ export function HostTripForm({
         return !!title.trim() && !!destinationId && !!description.trim()
           && (!staffCreate || !!(hostContact.email?.trim() || hostContact.phone?.trim()))
       case 1: {
-        const pairs = scheduleRows.filter((r) => r.dep && r.ret)
+        let pairs: TripDeparturePair[]
+        try { pairs = normalizeTripDeparturePairs(scheduleRows) } catch { return false }
         if (!tripDays || !tripNights || pairs.length === 0) return false
         if (priceRows.length >= 2) {
           return priceRows.every((r) => {
@@ -1179,16 +1154,14 @@ export function HostTripForm({
       }
     }
 
-    const pairs = scheduleRows
-      .filter((r) => r.dep && r.ret)
-      .map((r) => ({ dep: r.dep, ret: r.ret }))
+    let pairs: TripDeparturePair[]
+    try {
+      pairs = normalizeTripDeparturePairs(scheduleRows)
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : 'Invalid departure schedule' }
+    }
     if (pairs.length === 0) {
       return { error: 'Add at least one departure date and return date' }
-    }
-    for (const p of pairs) {
-      if (p.ret < p.dep) {
-        return { error: 'Return date must be on or after departure for every row' }
-      }
     }
     const td = parseInt(tripDays, 10)
     const tn = parseInt(tripNights, 10)
@@ -1746,51 +1719,7 @@ export function HostTripForm({
                 </div>
               )}
 
-              {/* Departure + return (no auto end date) */}
-              <div>
-                <label className="text-sm text-muted-foreground mb-2 block">
-                  Offered departures *
-                </label>
-                <div className="space-y-3 mb-3">
-                  {scheduleRows.map((row, i) => (
-                    <div key={i} className="flex flex-wrap items-end gap-2">
-                      <div>
-                        <span className="text-[10px] text-muted-foreground block mb-1">Departure date</span>
-                        <Input
-                          type="date"
-                          min={today}
-                          max={maxDateStr}
-                          value={row.dep}
-                          onChange={(e) => updateScheduleRow(i, 'dep', e.target.value)}
-                          className="bg-secondary border-border text-sm w-[160px]"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-muted-foreground block mb-1">Return / arrival date</span>
-                        <Input
-                          type="date"
-                          min={row.dep || today}
-                          max={maxDateStr}
-                          value={row.ret}
-                          onChange={(e) => updateScheduleRow(i, 'ret', e.target.value)}
-                          className="bg-secondary border-border text-sm w-[160px]"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeScheduleRow(i)}
-                        className="text-red-400 hover:text-red-300 p-2"
-                        title="Remove row"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <Button size="sm" variant="outline" className="gap-1.5" type="button" onClick={addScheduleRow}>
-                  <Plus className="h-3 w-3" /> Add another departure
-                </Button>
-              </div>
+              <TripDepartureScheduleEditor rows={scheduleRows} onChange={setScheduleRows} disabled={isSubmitting} />
 
               {/* Includes */}
               <div>
@@ -2273,7 +2202,8 @@ export function HostTripForm({
                     <span>Max {maxGroupSize} people</span>
                     <span className="capitalize">{difficulty}</span>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <p className="text-xs text-muted-foreground mt-2">{scheduleRows.filter((r) => r.dep && r.ret).length} offered departures</p>
+                  <div className="flex max-h-64 overflow-y-auto flex-wrap gap-2 mt-2">
                     {scheduleRows
                       .filter((r) => r.dep && r.ret)
                       .map((r, i) => (

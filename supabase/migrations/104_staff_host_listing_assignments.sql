@@ -1,13 +1,14 @@
 -- Apply manually in Supabase before deploying the staff onboarding UI.
+-- Safe to rerun after a previous or partial installation; preserve existing data.
 BEGIN;
 
 -- Audit marker only: adding another profile FK here would make existing
 -- PostgREST host:profiles(...) embeds ambiguous throughout discovery.
-ALTER TABLE public.packages ADD COLUMN created_on_behalf_by uuid;
-ALTER TABLE public.service_listings ADD COLUMN created_on_behalf_by uuid;
+ALTER TABLE public.packages ADD COLUMN IF NOT EXISTS created_on_behalf_by uuid;
+ALTER TABLE public.service_listings ADD COLUMN IF NOT EXISTS created_on_behalf_by uuid;
 
 -- Private contact information: deliberately no client-facing RLS policies.
-CREATE TABLE public.host_listing_assignments (
+CREATE TABLE IF NOT EXISTS public.host_listing_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   service_listing_id uuid UNIQUE REFERENCES public.service_listings(id) ON DELETE CASCADE,
   package_id uuid UNIQUE REFERENCES public.packages(id) ON DELETE CASCADE,
@@ -26,13 +27,13 @@ CREATE TABLE public.host_listing_assignments (
   CHECK (phone IS NULL OR phone ~ '^\+[1-9][0-9]{7,14}$'),
   CHECK ((status = 'claimed') = (claimed_by IS NOT NULL AND claimed_at IS NOT NULL))
 );
-CREATE INDEX host_listing_assignments_email ON public.host_listing_assignments(email) WHERE status <> 'claimed';
-CREATE INDEX host_listing_assignments_phone ON public.host_listing_assignments(phone) WHERE status <> 'claimed';
+CREATE INDEX IF NOT EXISTS host_listing_assignments_email ON public.host_listing_assignments(email) WHERE status <> 'claimed';
+CREATE INDEX IF NOT EXISTS host_listing_assignments_phone ON public.host_listing_assignments(phone) WHERE status <> 'claimed';
 ALTER TABLE public.host_listing_assignments ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.host_listing_assignments FROM anon, authenticated;
 GRANT ALL ON public.host_listing_assignments TO service_role;
 
-CREATE FUNCTION public.host_contact_phone(raw text, country_code text DEFAULT '+91')
+CREATE OR REPLACE FUNCTION public.host_contact_phone(raw text, country_code text DEFAULT '+91')
 RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
   SELECT CASE WHEN nullif(regexp_replace(raw, '[^0-9]', '', 'g'), '') IS NULL THEN NULL
     WHEN btrim(raw) LIKE '+%' THEN '+' || regexp_replace(raw, '[^0-9]', '', 'g')
@@ -43,7 +44,7 @@ RETURNS text LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
 $$;
 
 -- Serialized per assignment; only a single verified, unambiguous account can own it.
-CREATE FUNCTION public.resolve_host_listing_assignment(assignment_id uuid)
+CREATE OR REPLACE FUNCTION public.resolve_host_listing_assignment(assignment_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   a public.host_listing_assignments%ROWTYPE;
@@ -88,7 +89,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.resolve_host_listings_for_user(user_id uuid)
+CREATE OR REPLACE FUNCTION public.resolve_host_listings_for_user(user_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE a record;
 BEGIN
@@ -104,17 +105,18 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.host_assignment_contact_trigger()
+CREATE OR REPLACE FUNCTION public.host_assignment_contact_trigger()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   PERFORM public.resolve_host_listing_assignment(NEW.id);
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS host_assignment_contact_changed ON public.host_listing_assignments;
 CREATE TRIGGER host_assignment_contact_changed AFTER INSERT OR UPDATE OF email, phone
   ON public.host_listing_assignments FOR EACH ROW EXECUTE FUNCTION public.host_assignment_contact_trigger();
 
-CREATE FUNCTION public.host_assignment_identity_trigger()
+CREATE OR REPLACE FUNCTION public.host_assignment_identity_trigger()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   PERFORM public.resolve_host_listings_for_user(NEW.id);
@@ -122,16 +124,20 @@ BEGIN
 END;
 $$;
 -- Profile insertion handles new Google/Apple users once handle_new_user has run.
+-- Recreate only this migration's triggers; leave existing signup triggers intact.
+DROP TRIGGER IF EXISTS host_assignment_profile_created ON public.profiles;
 CREATE TRIGGER host_assignment_profile_created AFTER INSERT ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.host_assignment_identity_trigger();
+DROP TRIGGER IF EXISTS host_assignment_phone_verified ON public.profiles;
 CREATE TRIGGER host_assignment_phone_verified AFTER UPDATE OF is_phone_verified, phone_number, phone_country_code ON public.profiles
   FOR EACH ROW WHEN (NEW.is_phone_verified = true) EXECUTE FUNCTION public.host_assignment_identity_trigger();
+DROP TRIGGER IF EXISTS host_assignment_auth_verified ON auth.users;
 CREATE TRIGGER host_assignment_auth_verified AFTER INSERT OR UPDATE OF email, email_confirmed_at, phone, phone_confirmed_at ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.host_assignment_identity_trigger();
 
 -- Existing profile/OTP RLS allowed users to spoof verification via direct REST.
 -- Only the trusted server can grant phone verification; editing a phone revokes it.
-CREATE FUNCTION public.protect_host_phone_verification()
+CREATE OR REPLACE FUNCTION public.protect_host_phone_verification()
 RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   IF current_user IN ('authenticated', 'anon') THEN
@@ -151,6 +157,7 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS protect_host_phone_verification ON public.profiles;
 CREATE TRIGGER protect_host_phone_verification BEFORE INSERT OR UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.protect_host_phone_verification();
 REVOKE ALL ON public.phone_otp_verifications FROM anon, authenticated;
@@ -158,7 +165,7 @@ GRANT ALL ON public.phone_otp_verifications TO service_role;
 
 -- Create listing + contact + initial match in ONE transaction. Table and column
 -- identifiers are quoted; this RPC is service-role only, never client callable.
-CREATE FUNCTION public.create_delegated_host_listing(p_kind text, p_listing jsonb, p_contact jsonb, p_staff_id uuid)
+CREATE OR REPLACE FUNCTION public.create_delegated_host_listing(p_kind text, p_listing jsonb, p_contact jsonb, p_staff_id uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   target_table text;
@@ -184,7 +191,7 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.update_host_listing_contact(p_kind text, p_listing_id uuid, p_contact jsonb, p_staff_id uuid)
+CREATE OR REPLACE FUNCTION public.update_host_listing_contact(p_kind text, p_listing_id uuid, p_contact jsonb, p_staff_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE a public.host_listing_assignments%ROWTYPE; owner uuid;
 BEGIN
@@ -219,7 +226,7 @@ $$;
 
 -- Ownership must be established before publishing; also covers direct staff
 -- form edits rather than just the dedicated approval actions.
-CREATE FUNCTION public.guard_unclaimed_host_listing_publication()
+CREATE OR REPLACE FUNCTION public.guard_unclaimed_host_listing_publication()
 RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   IF NEW.created_on_behalf_by IS NOT NULL AND NEW.host_id IS NULL THEN
@@ -232,8 +239,10 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+DROP TRIGGER IF EXISTS guard_unclaimed_host_listing_publication ON public.service_listings;
 CREATE TRIGGER guard_unclaimed_host_listing_publication BEFORE INSERT OR UPDATE ON public.service_listings
   FOR EACH ROW EXECUTE FUNCTION public.guard_unclaimed_host_listing_publication();
+DROP TRIGGER IF EXISTS guard_unclaimed_host_listing_publication ON public.packages;
 CREATE TRIGGER guard_unclaimed_host_listing_publication BEFORE INSERT OR UPDATE ON public.packages
   FOR EACH ROW EXECUTE FUNCTION public.guard_unclaimed_host_listing_publication();
 

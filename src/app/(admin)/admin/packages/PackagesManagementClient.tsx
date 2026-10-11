@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { formatPrice, type Package, type Destination, type JoinPreferences } from '@/types'
 import { maxInclusiveSpanDays, packageDurationFullLabel, packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { normalizeTripDeparturePairs } from '@/lib/trip-departure-recurrence'
 import {
   hasTieredPricing,
   minPricePaiseFromVariants,
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripImageGridWithCover } from '@/components/ui/TripImageGridWithCover'
+import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
 import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users } from 'lucide-react'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
@@ -195,18 +197,20 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    const depRows = form.departureDates.filter(d => d.departure && d.returnDate)
+    let depRows: { departure: string; returnDate: string }[]
+    try {
+      depRows = normalizeTripDeparturePairs(
+        form.departureDates.map(d => ({ dep: d.departure, ret: d.returnDate })),
+      ).map(d => ({ departure: d.dep, returnDate: d.ret }))
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Invalid departure schedule.' })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
     if (depRows.length === 0) {
       setMessage({ type: 'error', text: 'Add at least one departure date and return / arrival date.' })
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
-    }
-    for (const row of depRows) {
-      if (row.returnDate < row.departure) {
-        setMessage({ type: 'error', text: 'Return date must be on or after departure for every row.' })
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-        return
-      }
     }
     const duration_days = maxInclusiveSpanDays(depRows.map(d => ({ dep: d.departure, ret: d.returnDate })))
     const trip_days = parseInt(form.trip_days, 10)
@@ -470,24 +474,6 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         : [...f.join_interest_tags, tag],
     }))
   }
-
-  function addDepartureDate() {
-    setForm(f => ({ ...f, departureDates: [...f.departureDates, { departure: '', returnDate: '' }] }))
-  }
-
-  function updateDepartureSlot(idx: number, field: 'departure' | 'returnDate', value: string) {
-    setForm(f => ({
-      ...f,
-      departureDates: f.departureDates.map((d, i) => (i === idx ? { ...d, [field]: value } : d)),
-    }))
-  }
-
-  function removeDepartureDate(idx: number) {
-    setForm(f => ({ ...f, departureDates: f.departureDates.filter((_, i) => i !== idx) }))
-  }
-
-  const today = new Date().toISOString().split('T')[0]
-  const maxDateStr = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 2); return d.toISOString().split('T')[0] })()
 
   return (
     <div className="space-y-6">
@@ -1003,42 +989,15 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             </div>
           )}
 
-          {/* Departure + return — date pickers */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-2 block">Departure &amp; return / arrival (each row)</label>
-            <div className="space-y-2 mb-2">
-              {form.departureDates.map((d, i) => (
-                <div key={i} className="flex flex-wrap items-end gap-2">
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-0.5">Departure</span>
-                    <Input
-                      type="date"
-                      min={today}
-                      max={maxDateStr}
-                      value={d.departure}
-                      onChange={e => updateDepartureSlot(i, 'departure', e.target.value)}
-                      className="bg-secondary border-border text-sm max-w-[180px]"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-muted-foreground block mb-0.5">Return</span>
-                    <Input
-                      type="date"
-                      min={d.departure || today}
-                      max={maxDateStr}
-                      value={d.returnDate}
-                      onChange={e => updateDepartureSlot(i, 'returnDate', e.target.value)}
-                      className="bg-secondary border-border text-sm max-w-[180px]"
-                    />
-                  </div>
-                  <button type="button" onClick={() => removeDepartureDate(i)} className="text-red-400 hover:text-red-300 p-1"><X className="h-4 w-4" /></button>
-                </div>
-              ))}
-            </div>
-            <Button size="sm" variant="outline" className="border-border text-xs gap-1" type="button" onClick={addDepartureDate}>
-              <Plus className="h-3 w-3" /> Add row
-            </Button>
-          </div>
+          <TripDepartureScheduleEditor
+            key={editingId || 'new'}
+            rows={form.departureDates.map(d => ({ dep: d.departure, ret: d.returnDate }))}
+            onChange={rows => setForm(f => ({
+              ...f,
+              departureDates: rows.map(d => ({ departure: d.dep, returnDate: d.ret })),
+            }))}
+            disabled={isPending}
+          />
 
           <Button onClick={handleSubmit} disabled={isPending} className="bg-primary text-black hover:bg-primary/90">
             {isPending ? 'Saving...' : editingId ? 'Update Package' : 'Create Package'}

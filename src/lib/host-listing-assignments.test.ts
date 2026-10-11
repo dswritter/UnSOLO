@@ -26,13 +26,44 @@ const fixture = `
   CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 `
 
+const migration = readFileSync('supabase/migrations/104_staff_host_listing_assignments.sql', 'utf8')
+
+describe('staff host listing migration retries', () => {
+  it.each(['existing package audit column', 'both existing audit columns', 'existing table and indexes'])('%s', async (state) => {
+    const db = new PGlite()
+    try {
+      await db.exec(fixture)
+      if (state === 'existing table and indexes') {
+        // Simulate an operator applying just the initial DDL in an earlier run.
+        const initialDDL = migration.split(/CREATE (?:OR REPLACE )?FUNCTION public.host_contact_phone/)[0]
+        await db.exec(`${initialDDL}\nCOMMIT;`)
+      } else {
+        await db.exec('ALTER TABLE public.packages ADD COLUMN created_on_behalf_by uuid')
+        if (state === 'both existing audit columns') {
+          await db.exec('ALTER TABLE public.service_listings ADD COLUMN created_on_behalf_by uuid')
+        }
+      }
+      const packageId = randomUUID()
+      const staffId = randomUUID()
+      await db.query("INSERT INTO packages(id, title, created_on_behalf_by) VALUES ($1, 'Existing trip', $2)", [packageId, staffId])
+      await db.exec(migration)
+      const { rows } = await db.query<{ created_on_behalf_by: string }>('SELECT created_on_behalf_by FROM packages WHERE id = $1', [packageId])
+      expect(rows).toEqual([{ created_on_behalf_by: staffId }])
+      const columns = await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'created_on_behalf_by' ORDER BY table_name")
+      expect(columns.rows).toEqual([{ table_name: 'packages' }, { table_name: 'service_listings' }])
+      const privateTable = await db.query<{ relrowsecurity: boolean; client_access: boolean }>("SELECT relrowsecurity, has_table_privilege('authenticated', oid, 'SELECT') AS client_access FROM pg_class WHERE oid = 'public.host_listing_assignments'::regclass")
+      expect(privateTable.rows).toEqual([{ relrowsecurity: true, client_access: false }])
+    } finally { await db.close() }
+  }, 30000)
+})
+
 describe('staff host listing ownership database', () => {
   let db: PGlite
   let staffId: string
   beforeAll(async () => {
     db = new PGlite()
     await db.exec(fixture)
-    await db.exec(readFileSync('supabase/migrations/104_staff_host_listing_assignments.sql', 'utf8'))
+    await db.exec(migration)
   }, 30000)
   afterAll(async () => { await db?.close() })
   beforeEach(async () => {
@@ -61,6 +92,36 @@ describe('staff host listing ownership database', () => {
     const { rows } = await db.query<{ host_id: string | null }>('SELECT host_id FROM service_listings WHERE id = $1', [id])
     return rows[0].host_id
   }
+
+  it('can rerun the full migration without changing listings, assignments, audit logs or notifications', async () => {
+    const hostId = await account('existing@example.com', true)
+    const claimed = await listing({ email: 'existing@example.com' })
+    const pending = await listing({ email: 'future@example.com' }, 'trip')
+    const tables = ['packages', 'service_listings', 'host_listing_assignments', 'notifications', 'audit_logs']
+    const snapshots = await Promise.all(tables.map((table) => db.query(`SELECT * FROM public.${table}`)))
+    const triggers = await db.query('SELECT tgrelid, tgname FROM pg_trigger WHERE NOT tgisinternal ORDER BY tgrelid, tgname')
+
+    await db.exec(migration)
+    await db.exec(migration)
+
+    for (const [index, table] of tables.entries()) {
+      expect((await db.query(`SELECT * FROM public.${table}`)).rows).toEqual(snapshots[index].rows)
+    }
+    expect((await db.query('SELECT tgrelid, tgname FROM pg_trigger WHERE NOT tgisinternal ORDER BY tgrelid, tgname')).rows).toEqual(triggers.rows)
+    expect(await host(claimed.id)).toBe(hostId)
+    expect((await ownership(pending.id)).status).toBe('pending')
+    // Reinstalled triggers must still claim pending listings exactly once.
+    const futureId = await account('future@example.com', true)
+    expect(await ownership(pending.id)).toEqual({ status: 'claimed', claimed_by: futureId })
+    await db.query('SELECT public.resolve_host_listings_for_user($1)', [futureId])
+    const notices = await db.query<{ count: number }>('SELECT count(*)::int AS count FROM notifications WHERE user_id = $1', [futureId])
+    expect(notices.rows[0].count).toBe(1)
+    await db.exec('SET ROLE authenticated')
+    try {
+      await expect(db.query('SELECT * FROM host_listing_assignments')).rejects.toThrow('permission denied')
+      await expect(db.query('SELECT public.resolve_host_listings_for_user($1)', [futureId])).rejects.toThrow('permission denied')
+    } finally { await db.exec('RESET ROLE') }
+  })
 
   it('keeps unverified signup unclaimed, then links on email confirmation', async () => {
     const l = await listing({ email: 'host@example.com' })

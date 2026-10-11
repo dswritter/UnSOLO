@@ -1,9 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
-// Unit tests for the pure money/refund math. These run in plain Node (no DOM, no
-// network, no Supabase) — only side-effect-free functions are tested here.
+// Default to Node for calendar, money, server-action and embedded database tests.
+// Component interaction tests opt into happy-dom with a file-level directive.
 export default defineConfig({
+  // Match Next.js's automatic JSX runtime for component interaction tests.
+  esbuild: { jsx: 'automatic' },
   // Map the `@/` path alias (from tsconfig) so tested modules can import via `@/…`.
   resolve: {
     alias: {
