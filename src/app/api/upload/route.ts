@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
+import { hasAdminPermission, type AdminPermissionKey, type UserRole } from '@/types'
 import {
   UPLOAD_MAX_IMAGE_BYTES,
   UPLOAD_IMAGE_TOO_LARGE_MESSAGE,
@@ -12,7 +15,7 @@ export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const formData = await req.formData()
@@ -21,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role, is_host')
     .eq('id', user.id)
@@ -35,6 +38,39 @@ export async function POST(req: NextRequest) {
     purpose = 'host_trip'
   } else {
     purpose = 'package'
+  }
+
+  if (purpose === 'service_listing') {
+    if (authError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (profileError) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+
+    if (profile?.is_host !== true) {
+      // Match getEffectiveAdminRole / host-listing-search precedence using the caller's client.
+      let role = profile?.role && STAFF_ROLES.includes(profile.role as UserRole)
+        ? profile.role as UserRole : null
+      let permissions: AdminPermissionKey[] = []
+      if (!role || role === 'custom') {
+        try {
+          const { data: membership, error: membershipError } = await supabase
+            .from('team_members')
+            .select('role, is_active, custom_permissions')
+            .eq('user_id', user.id)
+            .maybeSingle()
+          if (membershipError) return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+          if (!role && membership?.is_active && STAFF_ROLES.includes(membership.role as UserRole)) {
+            role = membership.role as UserRole
+          }
+          if (role === 'custom' && membership?.is_active && Array.isArray(membership.custom_permissions)) {
+            permissions = membership.custom_permissions as AdminPermissionKey[]
+          }
+        } catch {
+          return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+        }
+      }
+      if (!role || !hasAdminPermission(role, permissions, 'service_listings')) {
+        return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
+      }
+    }
   }
 
   if (purpose === 'community_room') {
@@ -78,9 +114,11 @@ export async function POST(req: NextRequest) {
             ? 'wander-hero'
             : purpose === 'host_trip'
               ? 'host-trips'
-              : 'packages'
+              : purpose === 'service_listing'
+                ? 'service-listings'
+                : 'packages'
 
-  const base = `${folder}/${user.id}-${Date.now()}`
+  const base = `${folder}/${user.id}-${randomUUID()}`
   const fullKey = `${base}.webp`
   const thumbKey = `${base}_thumb.webp`
 

@@ -13,6 +13,7 @@ import type { PriceVariant } from '@/lib/package-pricing'
 import { createServiceListing, updateServiceListing } from '@/actions/admin-service-listings'
 import { HostListingContactFields, HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
 import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
+import { ListingPhotoUpload } from '@/components/admin/ListingPhotoUpload'
 
 const AMENITIES_BY_TYPE = {
   stays: [
@@ -67,6 +68,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const router = useRouter()
   const [type, setType] = useState<ServiceListingType>(listing?.type || 'stays')
   const [loading, setLoading] = useState(false)
+  const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [addingLocation, setAddingLocation] = useState(false)
   const [onBehalf, setOnBehalf] = useState(false)
@@ -102,6 +104,10 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (uploadingPhotos) {
+      setError('Wait for the photo uploads to finish, or cancel them, before saving the listing.')
+      return
+    }
     setError(null)
     setLoading(true)
 
@@ -468,8 +474,10 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Photos</h2>
-        <p className="text-xs text-muted-foreground">One image URL per line. At least one photo is required.</p>
-        <textarea aria-label="Listing photo URLs" rows={4} value={formData.images.join('\n')}
+        <ListingPhotoUpload disabled={loading} onBusyChange={setUploadingPhotos}
+          onUploaded={urls => setFormData(prev => ({ ...prev, images: [...prev.images.map(url => url.trim()).filter(Boolean), ...urls] }))} />
+        <p className="text-xs text-muted-foreground">Or paste image URLs below, one per line. At least one photo is required. The first photo is the cover; reorder the lines to change it.</p>
+        <textarea aria-label="Listing photo URLs" rows={4} disabled={loading || uploadingPhotos} value={formData.images.join('\n')}
           onChange={(e) => setFormData({ ...formData, images: e.target.value.split('\n') })}
           onBlur={() => setFormData((prev) => ({ ...prev, images: prev.images.map((url) => url.trim()).filter(Boolean) }))}
           placeholder="https://…" className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
@@ -649,7 +657,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       <div className="flex gap-4">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || uploadingPhotos}
           className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-70 disabled:text-white"
         >
           {loading ? 'Saving...' : listing ? 'Update Listing' : onBehalf ? 'Create listing for a host' : 'Create listing'}

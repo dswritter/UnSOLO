@@ -2,7 +2,7 @@
 
 ## Deployment
 
-1. Apply `supabase/migrations/104_staff_host_listing_assignments.sql`, then `supabase/migrations/105_staff_host_contact_search.sql`, then `supabase/migrations/106_staff_created_listing_approval.sql` in the Supabase SQL editor **before deploying the UI**. Migration **105 enables the host picker**; **106 enables direct staff approval and safe activation after linking**. Both require 104. Migrations are not applied automatically in this project.
+1. Apply `supabase/migrations/104_staff_host_listing_assignments.sql`, then `supabase/migrations/105_staff_host_contact_search.sql`, then `supabase/migrations/106_staff_created_listing_approval.sql`, then `supabase/migrations/107_packages_updated_at_repair.sql` in the Supabase SQL editor **before deploying the UI**. Migration **105 enables the host picker**; **106 enables direct staff approval and safe activation after linking**; **107 repairs the package update timestamp required by linking**. Migrations are not applied automatically in this project.
 2. Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the deployment environment. `.env` contains local placeholders, not real credentials.
 3. Deploy the application. No changes to existing Supabase signup triggers are required.
 
@@ -11,6 +11,12 @@
 If an earlier run failed with `column "created_on_behalf_by" of relation "packages" already exists`, use the updated migration `104` and rerun **the entire file**, including `BEGIN` and `COMMIT`. It now retains existing columns, tables and indexes, replaces its functions, and recreates only its own triggers. Existing listings, contacts, ownership, audit logs and notifications are preserved. Do not delete the existing audit columns or assignment table to retry.
 
 If the SQL session reports `current transaction is aborted`, issue `ROLLBACK` in that session first, then rerun the complete updated file. Notices that an object already exists or a trigger does not yet exist are expected on installation/retry, not errors.
+
+### Fixing Create Trip: missing packages.updated_at
+
+If **Create trip** fails with `column "updated_at" of relation "packages" does not exist`, the database is missing the timestamp setup from migration 030. Apply the **entire** `supabase/migrations/107_packages_updated_at_repair.sql` in Supabase, then retry creating the trip. No application redeployment is needed for this SQL-only repair if migrations 104–106 and the current UI are already deployed.
+
+Migration 107 safely adds the missing column, fills only missing timestamps from `created_at` (or the current time if unavailable), and restores the package update trigger. Existing timestamps, listing ownership, approval, and publication status are preserved. It can be rerun on databases that already have the column; do not delete existing listings or assignments. The failed atomic creation rolls back, so retrying it does not require cleaning up a partially created trip.
 
 ## Staff workflow
 
@@ -26,6 +32,12 @@ If the SQL session reports `current transaction is aborted`, issue `ROLLBACK` in
 - Staff-created trips appear under **Admin → Community Trips** (`/admin/community-trips`). Search by title, host name, or assigned contact.
 - After the host verifies the matching contact, all linked trips and services appear in their **Host Dashboard** (`/host`). New staff-created listings go live after linking; older pending listings remain manageable there, but are not public until approved.
 - Create each additional listing separately using the **same host contact**. One host can own many trips and any mix of stays, activities, rentals and getting-around listings. There is no one-listing-per-host restriction. Reuse the same verified email/phone consistently to avoid splitting assignments across accounts.
+
+## Listing photos
+
+Under **Admin → Service Listings → Create Listing → Photos**, choose **Select listing photos** to upload multiple images in one selection. On desktop, use Ctrl/Cmd-click or Shift-click; on mobile, select multiple photos in the photo picker. JPEG, PNG, WebP and AVIF are supported, up to 5 MB per photo. Existing trip and host-service photo pickers also support multiple selection (host-service items retain their five-photo limit).
+
+Photos upload in order and append to existing photos. The first photo remains the cover; reorder the URL lines to change it. URL entry is still available. Failed files are reported individually without discarding successful uploads. Cancel stops the remaining uploads and retains completed photos. Finish or cancel uploads before saving the listing.
 
 ## Host contact picker
 
