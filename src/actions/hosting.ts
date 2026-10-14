@@ -244,8 +244,8 @@ export async function createHostedTrip(formData: {
       includes: formData.includes,
       images: formData.images,
       host_id: user.id,
-      moderation_status: 'pending',
-      is_active: false, // Activated after admin approval
+      moderation_status: contact ? 'approved' : 'pending',
+      is_active: false, // Delegated RPC activates only after verified host linking
       join_preferences: formData.join_preferences,
     }
   const { data: trip, error } = contact
@@ -256,25 +256,25 @@ export async function createHostedTrip(formData: {
 
   if (error) return { error: error.message }
 
-  // Notify admins about new community trip for moderation
-  const { createClient: createSC } = await import('@supabase/supabase-js')
-  const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-
-  const { data: host } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
-  const hostName = host?.full_name || host?.username || 'A host'
-
-  const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
-  for (const admin of admins || []) {
-    await svcSupabase.from('notifications').insert({
-      user_id: admin.id,
-      type: 'booking',
-      title: 'New Community Trip for Review',
-      body: `${hostName} submitted "${formData.title}" for moderation.`,
-      link: '/admin/community-trips',
-    })
-  }
-
   if (!contact) {
+    // Ordinary host submissions still require review; staff-created trips do not.
+    const { createClient: createSC } = await import('@supabase/supabase-js')
+    const svcSupabase = createSC(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+
+    const { data: host } = await supabase.from('profiles').select('full_name, username').eq('id', user.id).single()
+    const hostName = host?.full_name || host?.username || 'A host'
+
+    const { data: admins } = await svcSupabase.from('profiles').select('id').in('role', ['admin'])
+    for (const admin of admins || []) {
+      await svcSupabase.from('notifications').insert({
+        user_id: admin.id,
+        type: 'booking',
+        title: 'New Community Trip for Review',
+        body: `${hostName} submitted "${formData.title}" for moderation.`,
+        link: '/admin/community-trips',
+      })
+    }
+
     await supabase.from('profiles').update({ phone_public: true }).eq('id', user.id)
   }
 

@@ -1,23 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PHONE_COUNTRY_CODES } from '@/lib/utils'
 import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
 import { updateHostListingContact } from '@/actions/host-listing-assignments'
+import { HostListingContactPicker } from './HostListingContactPicker'
 
-export function HostListingContactFields({ value, onChange }: {
+export function HostListingContactFields({ listingKind, value, onChange, disabled = false }: {
+  listingKind: 'service' | 'trip'
   value: HostListingContactInput
   onChange: (value: HostListingContactInput) => void
+  disabled?: boolean
 }) {
+  const phoneId = useId()
   return (
-    <fieldset className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+    <fieldset disabled={disabled} className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
       <legend className="px-1 text-sm font-semibold">Host contact — creating on their behalf</legend>
+      <HostListingContactPicker listingKind={listingKind} value={value} onChange={onChange} disabled={disabled} />
       <p className="text-xs text-muted-foreground">
-        Enter their email or phone (at least one). An existing verified account is linked immediately;
+        Choose a host above or enter their email or phone (at least one). You can reuse the same host for multiple listings of any type. An existing verified account is linked immediately;
         otherwise, listings link automatically when they verify the same contact after signup.
         Contact details are private. If the contacts belong to different accounts, staff must correct them.
-        New listings remain pending until reviewed and approved.
+        New staff-created listings are approved automatically, but are not public until the host’s verified account is linked.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium">
@@ -27,7 +32,7 @@ export function HostListingContactFields({ value, onChange }: {
             placeholder="host@example.com" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
         </label>
         <div>
-          <label className="block text-sm font-medium" htmlFor="delegated-host-phone">Host phone</label>
+          <label className="block text-sm font-medium" htmlFor={phoneId}>Host phone</label>
           <div className="mt-1 flex gap-2">
             <select aria-label="Host phone country code" value={value.countryCode || '+91'}
               onChange={(e) => onChange({ ...value, countryCode: e.target.value })}
@@ -36,7 +41,7 @@ export function HostListingContactFields({ value, onChange }: {
                 <option key={code} value={code}>{rule.name} {code}</option>
               ))}
             </select>
-            <input id="delegated-host-phone" type="tel" autoComplete="off" value={value.phone || ''}
+            <input id={phoneId} type="tel" autoComplete="off" value={value.phone || ''}
               onChange={(e) => onChange({ ...value, phone: e.target.value })}
               placeholder="Mobile number" className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3 py-2" />
           </div>
@@ -84,7 +89,7 @@ export function HostListingAssignmentPanel({ kind, listingId, hostId, assignment
         {assignment ? 'Correct host contact' : 'Assign to a host by email or phone'}
       </button>}
       {!hostId && editing && <>
-        <HostListingContactFields value={contact} onChange={setContact} />
+        <HostListingContactFields listingKind={kind} value={contact} onChange={setContact} disabled={saving} />
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         <div className="flex gap-3">
           <button type="button" disabled={saving} onClick={() => void save()} className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50">

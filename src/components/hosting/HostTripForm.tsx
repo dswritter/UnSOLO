@@ -46,6 +46,7 @@ import { HostListingContactFields } from '@/components/admin/HostListingContactF
 import type { HostListingContactInput } from '@/lib/host-listing-contact'
 import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
 import { normalizeTripDeparturePairs, type TripDeparturePair } from '@/lib/trip-departure-recurrence'
+import { tripSubmissionCopy } from '@/lib/trip-submission-copy'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -1274,7 +1275,7 @@ export function HostTripForm({
         if (result.error) {
           toast.error(result.error)
         } else {
-          toast.success('Trip created! It will be reviewed by our team before going live.')
+          toast.success(tripSubmissionCopy({ isEdit: false, staffCreate }).success)
           if (draftSessionId) {
             deleteHostTripDraft(draftSessionId)
             void markListingDraftSubmitted('trip', draftSessionId)
@@ -1296,6 +1297,7 @@ export function HostTripForm({
   }
 
   const selectedDest = destinations.find(d => d.id === destinationId)
+  const submissionCopy = tripSubmissionCopy({ isEdit, staffCreate, isStaffDraft })
 
   return (
     <div className="min-h-[100dvh] w-full">
@@ -1409,7 +1411,7 @@ export function HostTripForm({
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Basic Information</h2>
 
-              {staffCreate && <HostListingContactFields value={hostContact} onChange={setHostContact} />}
+              {staffCreate && <HostListingContactFields listingKind="trip" disabled={isSubmitting} value={hostContact} onChange={setHostContact} />}
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Trip Title *</label>
@@ -2129,7 +2131,7 @@ export function HostTripForm({
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Review Your Trip</h2>
               <p className="text-sm text-muted-foreground">
-                Double-check everything before submitting. Your trip will be reviewed by our team.
+                {submissionCopy.description}
               </p>
 
               <div className="space-y-4">
@@ -2397,12 +2399,12 @@ export function HostTripForm({
                     {isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {isEdit ? 'Saving...' : 'Submitting...'}
+                        {submissionCopy.working}
                       </>
                     ) : (
                       <>
                         <Check className="h-4 w-4" />
-                        {isEdit ? 'Save changes' : 'Submit for Review'}
+                        {submissionCopy.button}
                       </>
                     )}
                   </Button>

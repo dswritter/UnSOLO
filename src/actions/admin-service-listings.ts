@@ -214,7 +214,7 @@ export async function createServiceListing(input: {
   const payload = {
     ...rest,
     images,
-    ...(contact ? { status: 'pending', is_active: false } : {}),
+    ...(contact ? { status: 'approved', is_active: false } : {}),
     destination_id: primaryDestinationId,
     destination_ids: destinationIds,
     price_variants: input.price_variants || null,

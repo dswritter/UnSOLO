@@ -140,12 +140,23 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       {listing ? (
         <HostListingAssignmentPanel kind="service" listingId={listing.id} hostId={listing.host_id} assignment={listing.host_assignment?.[0]} />
       ) : (
-        <section className="space-y-4">
+        <section className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Create a service listing for a host</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create stays, activities, rentals and getting-around listings on behalf of a host.
+              Leave the option unchecked to create a listing without delegated host contact.
+            </p>
+          </div>
           <label className="flex items-center gap-2 text-sm font-semibold">
-            <input type="checkbox" checked={onBehalf} onChange={(e) => setOnBehalf(e.target.checked)} />
+            <input type="checkbox" checked={onBehalf} disabled={loading} aria-describedby="service-host-contact-help" onChange={(e) => setOnBehalf(e.target.checked)} />
             Create on behalf of a host
           </label>
-          {onBehalf && <HostListingContactFields value={hostContact} onChange={setHostContact} />}
+          <p id="service-host-contact-help" className="text-sm text-muted-foreground">
+            The same host can own multiple listings, including trips and services. Search and pick
+            an existing host or previous listing contact, or enter a new host&apos;s email or phone.
+          </p>
+          {onBehalf && <HostListingContactFields listingKind="service" disabled={loading} value={hostContact} onChange={setHostContact} />}
         </section>
       )}
 
@@ -589,9 +600,12 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
 
       {/* Moderation */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold">Moderation</h2>
+        <h2 className="mb-4 text-lg font-semibold">{!listing && onBehalf ? 'Publication' : 'Moderation'}</h2>
         <div className="space-y-3">
-          <label className="flex items-center gap-2">
+          {!listing && onBehalf ? <p className="text-sm text-muted-foreground">
+            This listing is approved when you create it; no separate review is required.
+            It becomes active once the host’s verified account is linked. Until then, it is not public.
+          </p> : <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={formData.is_active}
@@ -599,7 +613,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               className="rounded border-border"
             />
             <span className="text-sm font-medium">Active</span>
-          </label>
+          </label>}
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -610,7 +624,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <span className="text-sm font-medium">Featured</span>
           </label>
 
-          <div>
+          {(!onBehalf || listing) && <div>
             <label className="block text-sm font-medium text-foreground">Status</label>
             <select
               value={formData.status}
@@ -627,7 +641,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               <option value="rejected">Rejected</option>
               <option value="archived">Archived</option>
             </select>
-          </div>
+          </div>}
         </div>
       </section>
 
@@ -638,7 +652,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           disabled={loading}
           className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-70 disabled:text-white"
         >
-          {loading ? 'Saving...' : listing ? 'Update Listing' : 'Create Listing'}
+          {loading ? 'Saving...' : listing ? 'Update Listing' : onBehalf ? 'Create listing for a host' : 'Create listing'}
         </button>
         <button
           type="button"

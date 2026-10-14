@@ -2,29 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from 'vitest'
-
-// Minimal existing schema; the ACTUAL migration supplies all tested functions,
-// triggers, constraints and grants. No Supabase project/credentials required.
-const fixture = `
-  CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
-  CREATE SCHEMA auth;
-  CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, phone text, email_confirmed_at timestamptz, phone_confirmed_at timestamptz);
-  CREATE TABLE public.profiles(id uuid PRIMARY KEY, role text DEFAULT 'user', phone_number text,
-    phone_country_code text DEFAULT '+91', is_phone_verified boolean DEFAULT false, is_host boolean DEFAULT false);
-  CREATE TABLE public.service_listings(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), title text NOT NULL, slug text UNIQUE,
-    host_id uuid REFERENCES profiles(id), updated_at timestamptz DEFAULT now(), status text DEFAULT 'pending', is_active boolean DEFAULT false);
-  CREATE TABLE public.packages(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), title text NOT NULL, slug text UNIQUE,
-    host_id uuid REFERENCES profiles(id), updated_at timestamptz DEFAULT now(), moderation_status text DEFAULT 'pending', is_active boolean DEFAULT false);
-  CREATE TABLE public.notifications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid REFERENCES profiles(id), type text, title text, body text, link text);
-  CREATE TABLE public.audit_logs(admin_id uuid, action text, target_type text, target_id text, details jsonb);
-  CREATE TABLE public.phone_otp_verifications(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, verified boolean DEFAULT false);
-  GRANT SELECT, UPDATE ON public.profiles TO authenticated;
-  GRANT ALL ON public.phone_otp_verifications TO authenticated;
-  CREATE FUNCTION public.handle_new_user() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER AS $$
-    BEGIN INSERT INTO public.profiles(id) VALUES (NEW.id); RETURN NEW; END;
-  $$;
-  CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-`
+import { hostListingSchema as fixture } from './test-fixtures/host-listing-schema'
 
 const migration = readFileSync('supabase/migrations/104_staff_host_listing_assignments.sql', 'utf8')
 
@@ -199,6 +177,25 @@ describe('staff host listing ownership database', () => {
     const id = await account('trip@example.com', true)
     const { rows } = await db.query<{ host_id: string; moderation_status: string }>('SELECT host_id, moderation_status FROM packages WHERE id = $1', [l.id])
     expect(rows[0]).toEqual({ host_id: id, moderation_status: 'pending' })
+  })
+  it('links multiple stays, activities, rentals and trips to one host after verification', async () => {
+    for (const type of ['stays', 'activities', 'rentals', 'getting_around']) {
+      await db.query('SELECT public.create_delegated_host_listing($1, $2::jsonb, $3::jsonb, $4)', [
+        'service', JSON.stringify({ title: `Staff-created ${type}`, slug: randomUUID(), type }),
+        JSON.stringify({ email: 'one-host@example.com' }), staffId,
+      ])
+    }
+    const trip = await listing({ email: 'one-host@example.com' }, 'trip')
+    const hostId = await account('one-host@example.com', true)
+    const services = await db.query<{ type: string; host_id: string; status: string; is_active: boolean }>(
+      'SELECT type, host_id, status, is_active FROM service_listings ORDER BY type')
+    expect(services.rows).toEqual(['activities', 'getting_around', 'rentals', 'stays'].map(type => ({
+      type, host_id: hostId, status: 'pending', is_active: false,
+    })))
+    expect(await ownership(trip.id)).toEqual({ status: 'claimed', claimed_by: hostId })
+    const assignments = await db.query<{ count: number }>(
+      "SELECT count(*)::int AS count FROM host_listing_assignments WHERE claimed_by = $1 AND status = 'claimed'", [hostId])
+    expect(assignments.rows[0].count).toBe(5)
   })
   it('prevents publishing before claiming, and allows approval once claimed', async () => {
     const l = await listing({ email: 'publish@example.com' })

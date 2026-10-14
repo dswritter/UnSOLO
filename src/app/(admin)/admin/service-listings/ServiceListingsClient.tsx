@@ -136,6 +136,17 @@ export function ServiceListingsClient({
 
   return (
     <div className="space-y-4">
+      <section className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+        <h2 className="text-sm font-semibold">Create stays, activities and rentals for a host</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Getting-around listings are supported too.{' '}
+          <Link href="/admin/service-listings/create" className="font-medium text-primary hover:underline">
+            Create listing for a host
+          </Link>{' '}
+          and select <strong>Create on behalf of a host</strong> in the form. One host can own multiple
+          listings; search for their contact or enter a new one. Leave the option unchecked for normal creation.
+        </p>
+      </section>
       <div className="flex flex-wrap gap-4 rounded-xl border border-border bg-card/90 p-4 shadow-sm shadow-black/10">
         <div className="flex-1 min-w-[200px]">
           <label className="text-xs font-semibold text-muted-foreground">Search</label>

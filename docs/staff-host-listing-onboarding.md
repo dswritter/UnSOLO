@@ -2,7 +2,7 @@
 
 ## Deployment
 
-1. Apply `supabase/migrations/104_staff_host_listing_assignments.sql` in the Supabase SQL editor **before deploying the UI**. Migrations are not applied automatically in this project.
+1. Apply `supabase/migrations/104_staff_host_listing_assignments.sql`, then `supabase/migrations/105_staff_host_contact_search.sql`, then `supabase/migrations/106_staff_created_listing_approval.sql` in the Supabase SQL editor **before deploying the UI**. Migration **105 enables the host picker**; **106 enables direct staff approval and safe activation after linking**. Both require 104. Migrations are not applied automatically in this project.
 2. Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the deployment environment. `.env` contains local placeholders, not real credentials.
 3. Deploy the application. No changes to existing Supabase signup triggers are required.
 
@@ -14,17 +14,26 @@ If the SQL session reports `current transaction is aborted`, issue `ROLLBACK` in
 
 ## Staff workflow
 
-- **Service listings:** Admin → Service Listings → Create Listing → **Create on behalf of a host**. Enter the host's email, phone, or both and complete the listing, including photos.
-- **Trips:** Admin → Community Trips → **Create trip on behalf of a host**. Complete the full trip form and enter their contact.
+- **Service listings:** Admin → Service Listings → Create Listing → **Create on behalf of a host**. This supports stays, activities, rentals and getting-around listings. The option is unchecked by default; leave it unchecked for normal, non-delegated creation. When checked, the submit button reads **Create listing for a host**. Search and pick a host contact, or manually enter their email, phone, or both, and complete the listing, including photos.
+- **Trips:** Admin → Community Trips → **Create trip on behalf of a host**. Complete the full trip form and search/pick or manually enter their contact. Ordinary host trip creation does not show the staff contact picker.
 - Admins and host-onboarding staff have access. Custom staff roles need the corresponding `service_listings` or `community_trips` permission.
-- Before linking, the listing shows **Awaiting host signup / contact verification**. Staff can correct the contact from its editor/details. New delegated listings stay pending; ownership must be linked before approval/publication.
+- Staff-created trips and services are approved on creation: use **Create trip** or **Create listing for a host**, not **Submit for review**. If the host is already verified and linked, the listing becomes active immediately. Otherwise it stays approved but inactive, showing **Awaiting host signup / contact verification**, and becomes active after verified linking. Staff can correct the contact from its editor/details. Ordinary host submissions still require admin review.
+- Migration 106 does not approve or activate old pending listings retrospectively. Existing rejected/archived/pending listings remain unchanged; staff approval and publication controls remain available in their editors. Saving a host’s draft remains **Save draft**, without publication.
 
 ## Where to find listings and add more for one host
 
 - All service listings appear under **Admin → Service Listings** (`/admin/service-listings`), with pending/linked/conflict ownership status. Search by title, location, or the assigned contact.
 - Staff-created trips appear under **Admin → Community Trips** (`/admin/community-trips`). Search by title, host name, or assigned contact.
-- After the host verifies the matching contact, all linked trips and services appear in their **Host Dashboard** (`/host`). Pending listings remain manageable there, but are not public until approved.
+- After the host verifies the matching contact, all linked trips and services appear in their **Host Dashboard** (`/host`). New staff-created listings go live after linking; older pending listings remain manageable there, but are not public until approved.
 - Create each additional listing separately using the **same host contact**. One host can own many trips and any mix of stays, activities, rentals and getting-around listings. There is no one-listing-per-host restriction. Reuse the same verified email/phone consistently to avoid splitting assignments across accounts.
+
+## Host contact picker
+
+- Search by host name, email, phone or previous listing title. Options include **registered accounts with verified contact** and **previous listing contact suggestions**; a previous contact is not proof of verification.
+- Suggestions span all listing types, not just the type being created. For example, pick a contact from a prior trip when creating a new stay for the same host.
+- Selecting an option only fills the contact fields. It does not assign ownership by option ID or bypass the existing verified-contact linking rules. Review the filled email/phone before submitting.
+- For a new host, or when no suitable result appears, enter the contact manually. Unverified contacts remain awaiting signup/verification; conflicting contacts remain unclaimed until staff correct them. New delegated listings are approved without self-review, but remain inactive until verified ownership is linked.
+- Migration 105 enables search only: it does not migrate listing data, automatically create claimed assignments or reassign existing listings. Editing an existing listing does not expose the creation checkbox; claimed ownership remains non-reassignable through this feature.
 
 ## Linking behavior
 
@@ -32,7 +41,7 @@ If the SQL session reports `current transaction is aborted`, issue `ROLLBACK` in
 - The current signup UI uses email. For a phone-only assignment, the host signs up normally and verifies the matching phone through the existing host-verification page.
 - Emails are trimmed and case-insensitive. Phones include country codes; supported staff-entry countries match the existing verification flow: India, Nepal, Sri Lanka and Bhutan.
 - If email and phone match different verified accounts, or a phone matches multiple accounts, the listing remains unclaimed with **Contact conflict**. Staff must correct the contact; no account wins arbitrarily.
-- Linking sets the primary `host_id` and grants host-dashboard management access. It does **not** mark contacts verified, expose their phone publicly, configure payouts, change moderation status, or transfer existing earnings.
+- Linking sets the primary `host_id` and grants host-dashboard management access. It activates a delegated listing only if it is already approved. It does **not** mark contacts verified, expose their phone publicly, configure payouts, change moderation status, or transfer existing earnings.
 - Claimed listings cannot be reassigned through this feature. Changing the account's contact later does not transfer ownership. There is no arbitrary expiry for hosts who join later.
 - Contact details are stored in a private, RLS-enabled table with no anonymous/authenticated access. Database rules prevent direct client OTP access, granting phone verification, or self-promoting staff roles.
 
