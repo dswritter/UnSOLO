@@ -6,6 +6,8 @@
 2. Configure `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` in the deployment environment. `.env` contains local placeholders, not real credentials.
 3. Deploy the application. No changes to existing Supabase signup triggers are required.
 
+Separately apply `supabase/migrations/108_wander_hero_metrics.sql` before deploying the optimized Wander hero. This adds the cached hero aggregate RPC and recent-review indexes. The RPC is service-role-only; no public grants or additional client credentials are required.
+
 ### Retrying a failed migration
 
 If an earlier run failed with `column "created_on_behalf_by" of relation "packages" already exists`, use the updated migration `104` and rerun **the entire file**, including `BEGIN` and `COMMIT`. It now retains existing columns, tables and indexes, replaces its functions, and recreates only its own triggers. Existing listings, contacts, ownership, audit logs and notifications are preserved. Do not delete the existing audit columns or assignment table to retry.

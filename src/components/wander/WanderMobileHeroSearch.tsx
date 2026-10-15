@@ -2,35 +2,17 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useCallback, useEffect, useMemo, useState, useTransition, type CSSProperties } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, CalendarDays, ChevronRight, Compass, CreditCard, Gift, Home, Instagram, Key, Loader2, LogOut, MapPin, Pencil, Plane, Search, Shield, Smile, User, Users } from 'lucide-react'
-import { NotificationBell } from '@/components/layout/NotificationBell'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type CSSProperties, type ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CalendarDays, Instagram, Loader2, MapPin, Search, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useSignOut } from '@/hooks/useSignOut'
-import type { WanderHeroCopy, WanderHeroMobileTabCopy, WanderStats } from '@/lib/wander/wanderQueries'
-import { cn, getInitials } from '@/lib/utils'
+import type { WanderHeroCopy, WanderHeroMobileTabCopy } from '@/lib/wander/wanderQueries'
 import { pushExploreUrl } from '@/lib/explore/pushExploreUrl'
 import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
 import { WanderNominatimLocationInput } from '@/components/wander/WanderNominatimLocationInput'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
-
-const TABS: { id: Tab; label: string; icon: typeof Plane }[] = [
-  { id: 'trips', label: 'Trips', icon: Plane },
-  { id: 'rentals', label: 'Rentals', icon: Key },
-  { id: 'activities', label: 'Activities', icon: Compass },
-  { id: 'stays', label: 'Stays', icon: Home },
-]
 
 const MOBILE_CTA_COPY: Record<Tab, string> = {
   trips: 'Explore Trips',
@@ -63,6 +45,9 @@ function todayLocalIsoDate() {
   return `${y}-${m}-${d}`
 }
 
+const subscribeToLocalDate = () => () => {}
+const getServerLocalDateSnapshot = () => null
+
 function monthParamFromRange(start: string, end: string): string | undefined {
   if (!start?.trim() || !end?.trim()) return undefined
   const d1 = new Date(start)
@@ -82,8 +67,8 @@ export function WanderMobileHeroSearch({
   initialTab = null,
   heroImageUrl,
   heroCopy,
-  stats,
-  userProfile,
+  statsSlot,
+  accountSlot,
   listedActivities,
   wanderSearchBasePath = '/',
   onCardState,
@@ -96,75 +81,40 @@ export function WanderMobileHeroSearch({
   initialTab?: Tab | null
   heroImageUrl: string
   heroCopy: WanderHeroCopy
-  stats: Pick<WanderStats, 'destinations' | 'bookings' | 'happyPercent'>
-  userProfile?: {
-    id: string
-    username: string
-    full_name: string | null
-    avatar_url: string | null
-    is_host?: boolean
-    role?: string | null
-  } | null
+  statsSlot: ReactNode
+  accountSlot: ReactNode
   listedActivities: string[]
   wanderSearchBasePath?: '/'
   onCardState?: (state: { tab: Tab; summaryLines: [string, string]; openSheet: () => void } | null) => void
 }) {
   const router = useRouter()
-  const signOut = useSignOut()
-  const pathname = usePathname()
   const searchParams = useSearchParams()
   const [isExplorePending, startExploreTransition] = useTransition()
-  const [isAndroidShell, setIsAndroidShell] = useState(false)
-  const [tab, setTab] = useState<Tab | null>(initialTab)
+  const urlTab = searchParams.get('tab')
+  const tab: Tab | null = urlTab === 'trips' || urlTab === 'stays' || urlTab === 'activities' || urlTab === 'rentals'
+    ? urlTab
+    : initialTab ?? null
   const [sheetOpen, setSheetOpen] = useState(false)
   const openSheet = useCallback(() => setSheetOpen(true), [])
 
-  const [today, setToday] = useState<string | null>(null)
+  const today = useSyncExternalStore(subscribeToLocalDate, todayLocalIsoDate, getServerLocalDateSnapshot)
   const [tripWhere, setTripWhere] = useState('')
-  const [tripStart, setTripStart] = useState('')
+  const [tripStartInput, setTripStartInput] = useState<string | null>(null)
   const [tripEnd, setTripEnd] = useState('')
   const [stayWhere, setStayWhere] = useState('')
-  const [stayIn, setStayIn] = useState('')
+  const [stayInInput, setStayInInput] = useState<string | null>(null)
   const [stayOut, setStayOut] = useState('')
   const [stayGuests, setStayGuests] = useState('2')
   const [actWhere, setActWhere] = useState('')
-  const [actStart, setActStart] = useState('')
+  const [actStartInput, setActStartInput] = useState<string | null>(null)
   const [actEnd, setActEnd] = useState('')
   const [actType, setActType] = useState('')
   const [rentWhere, setRentWhere] = useState('')
   const [rentItem, setRentItem] = useState('')
 
-  useEffect(() => {
-    if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
-  }, [])
-
-  useEffect(() => {
-    const t = todayLocalIsoDate()
-    setToday(t)
-    setTripStart(s => s || t)
-    setStayIn(s => s || t)
-    setActStart(s => s || t)
-  }, [])
-
-  useEffect(() => {
-    const urlTab = searchParams.get('tab')
-    if (urlTab === 'trips' || urlTab === 'stays' || urlTab === 'activities' || urlTab === 'rentals') {
-      setTab(urlTab)
-    } else {
-      setTab(null)
-    }
-  }, [searchParams])
-
-  const setBrowseTab = useCallback((nextTab: Tab) => {
-    setTab(nextTab)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', nextTab)
-    const hasActiveExploreFilters = Boolean(params.get('q')?.trim() || params.get('month')?.trim())
-    if (hasActiveExploreFilters) params.set('search', '1')
-    else params.delete('search')
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [pathname, router, searchParams])
+  const tripStart = tripStartInput ?? today ?? ''
+  const stayIn = stayInInput ?? today ?? ''
+  const actStart = actStartInput ?? today ?? ''
 
   const buildExploreHref = useCallback((): string => {
     if (!tab) return wanderSearchBasePath
@@ -189,7 +139,7 @@ export function WanderMobileHeroSearch({
 
     params.set('search', '1')
     return `${wanderSearchBasePath}?${params.toString()}#wander-explore`
-  }, [actEnd, actStart, actType, rentItem, rentWhere, stayWhere, tab, tripEnd, tripStart, tripWhere, wanderSearchBasePath])
+  }, [actEnd, actStart, actType, actWhere, rentItem, rentWhere, stayWhere, tab, tripEnd, tripStart, tripWhere, wanderSearchBasePath])
 
   function goExplore() {
     const href = buildExploreHref()
@@ -222,7 +172,7 @@ export function WanderMobileHeroSearch({
       [rentWhere.trim(), rentItem.trim()].filter(Boolean).join(' · ') || 'Choose an area and rental',
       'Best for local transport and gear planning',
     ]
-  }, [actEnd, actStart, actType, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
+  }, [actEnd, actStart, actType, actWhere, rentItem, rentWhere, stayGuests, stayIn, stayOut, stayWhere, tab, tripEnd, tripStart, tripWhere])
 
   useEffect(() => {
     if (!onCardState) return
@@ -237,17 +187,10 @@ export function WanderMobileHeroSearch({
   const activityOptions = [{ label: 'All activities', value: '' } as const, ...listedActivities.map(a => ({ label: a, value: a }))]
   const instagramHref = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramUrl : heroCopy.instagramUrl
   const instagramLabel = heroCopy.mobileContentMode === 'custom' ? heroCopy.mobileInstagramLabel : heroCopy.instagramLabel
-  const statsInline = [
-    { icon: MapPin, value: `${stats.destinations}+`, label: 'Destinations' },
-    { icon: CreditCard, value: `${stats.bookings}+`, label: 'Bookings' },
-    { icon: Smile, value: `${stats.happyPercent}%`, label: 'Happy users' },
-  ] as const
   const heroTypography = heroCopy.mobileFontMode === 'custom' ? heroCopy.mobileTypography : heroCopy.desktopTypography
   const eyebrowStyle: CSSProperties | undefined = heroTypography.badgeSize ? { fontSize: heroTypography.badgeSize } : undefined
   const titleStyle: CSSProperties | undefined = heroTypography.headlineSize ? { fontSize: heroTypography.headlineSize } : undefined
   const subtitleStyle: CSSProperties | undefined = heroTypography.subtitleSize ? { fontSize: heroTypography.subtitleSize } : undefined
-  const instagramStyle: CSSProperties | undefined = heroTypography.instagramSize ? { fontSize: heroTypography.instagramSize } : undefined
-  const statsStyle: CSSProperties | undefined = heroTypography.statsSize ? { fontSize: heroTypography.statsSize } : undefined
   const desktopLine2 = joinDesktopHeadline(heroCopy)
   const showDesktopLine2 = heroCopy.mobileContentMode === 'inherit' && tab === 'trips' && desktopLine2.length > 0
 
@@ -273,74 +216,7 @@ export function WanderMobileHeroSearch({
               {hero.eyebrow}
             </div>
             <div className="flex items-center gap-2">
-              {userProfile ? <NotificationBell userId={userProfile.id} wanderNav /> : null}
-              {!isAndroidShell && (
-                userProfile ? (
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger className="shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-primary/45 rounded-full">
-                      <Avatar className="h-9 w-9 border-2 border-white/20">
-                        <AvatarImage src={userProfile.avatar_url || ''} alt={userProfile.full_name || userProfile.username} />
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                          {getInitials(userProfile.full_name || userProfile.username)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-[200] glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0 min-w-[15rem]">
-                      <div className="px-4 py-3">
-                        <p className="text-base font-semibold truncate">{userProfile.full_name || userProfile.username}</p>
-                        <p className="text-sm text-white/65">@{userProfile.username}</p>
-                      </div>
-                      <DropdownMenuSeparator className="bg-white/15" />
-                      <DropdownMenuItem
-                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                        onClick={() => router.push(`/profile/${userProfile.username}`)}
-                      >
-                        <User className="mr-3 h-4 w-4" /> My Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                        onClick={() => router.push('/profile')}
-                      >
-                        <Pencil className="mr-3 h-4 w-4" /> Edit Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                        onClick={() => router.push('/bookings')}
-                      >
-                        <BookOpen className="mr-3 h-4 w-4" /> My Bookings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                        onClick={() => router.push('/referrals')}
-                      >
-                        <Gift className="mr-3 h-4 w-4 text-primary" /> Refer & Earn
-                      </DropdownMenuItem>
-                      {userProfile.role && userProfile.role !== 'user' && (
-                        <DropdownMenuItem
-                          className="py-2.5 text-sm text-white/95 focus:bg-white/10 focus:text-white"
-                          onClick={() => router.push('/admin')}
-                        >
-                          <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator className="bg-white/15" />
-                      <DropdownMenuItem
-                        className="py-2.5 text-sm text-destructive focus:bg-red-500/15 focus:text-red-300"
-                        onClick={() => signOut()}
-                      >
-                        <LogOut className="mr-3 h-4 w-4" /> Sign out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Link
-                    href={`/login?redirectTo=${encodeURIComponent(`${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`)}`}
-                    className="rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md"
-                  >
-                    Sign in
-                  </Link>
-                )
-              )}
+              {accountSlot}
             </div>
           </div>
 
@@ -366,17 +242,7 @@ export function WanderMobileHeroSearch({
               it reads like the desktop search/filter card. Extra bottom space
               below so the tab strip can land on the hero with breathing room. */}
           <div className="mt-3 mb-7 flex items-stretch gap-2 rounded-2xl border border-white/16 bg-white/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-            {statsInline.map(({ icon: Icon, value, label }) => (
-              <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
-                <Icon className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.85} aria-hidden />
-                <div className="min-w-0">
-                  <p className="text-base font-black tabular-nums leading-none text-white" style={statsStyle}>
-                    {value}
-                  </p>
-                  <p className="mt-0.5 truncate text-[10px] font-semibold leading-tight text-white/65">{label}</p>
-                </div>
-              </div>
-            ))}
+            {statsSlot}
             {instagramHref ? (
               instagramHref.startsWith('/') ? (
                 <Link
@@ -432,7 +298,7 @@ export function WanderMobileHeroSearch({
                     <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">From</span>
                     <div className="relative">
                       <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={tripStart} min={today ?? undefined} max={tripEnd || undefined} onChange={e => setTripStart(e.target.value)} suppressHydrationWarning />
+                      <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={tripStart} min={today ?? undefined} max={tripEnd || undefined} onChange={e => setTripStartInput(e.target.value)} suppressHydrationWarning />
                     </div>
                   </label>
                   <label className="block space-y-1.5">
@@ -459,7 +325,7 @@ export function WanderMobileHeroSearch({
                       <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Check-in</span>
                       <div className="relative">
                         <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={stayIn} min={today ?? undefined} max={stayOut || undefined} onChange={e => setStayIn(e.target.value)} suppressHydrationWarning />
+                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={stayIn} min={today ?? undefined} max={stayOut || undefined} onChange={e => setStayInInput(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                     <label className="block space-y-1.5">
@@ -494,7 +360,7 @@ export function WanderMobileHeroSearch({
                       <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">From</span>
                       <div className="relative">
                         <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={actStart} min={today ?? undefined} max={actEnd || undefined} onChange={e => setActStart(e.target.value)} suppressHydrationWarning />
+                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={actStart} min={today ?? undefined} max={actEnd || undefined} onChange={e => setActStartInput(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                     <label className="block space-y-1.5">

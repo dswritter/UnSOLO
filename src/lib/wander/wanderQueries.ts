@@ -329,62 +329,35 @@ export type WanderStats = {
   happyPercent: number
 }
 
-export const getWanderStats = unstable_cache(async function (): Promise<WanderStats> {
-  const supabase = svc()
+type WanderHeroMetrics = WanderStats & {
+  overallRating: number | null
+  reviewCount: number
+}
 
-  const [{ count: profileCount }, { count: bookingCount }, destPackages, destServices, reviews, hostReviews] = await Promise.all([
-    supabase.from('profiles').select('*', { count: 'exact', head: true }),
-    supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .not('status', 'eq', 'pending'),
-    supabase
-      .from('packages')
-      .select('destination_id')
-      .eq('is_active', true)
-      .not('host_id', 'is', null)
-      .not('destination_id', 'is', null),
-    // Service listings can span multiple destinations (see migration 048);
-    // we read both the primary id and the destination_ids array so stays /
-    // activities / rentals counts contribute every distinct destination.
-    supabase
-      .from('service_listings')
-      .select('destination_id, destination_ids')
-      .eq('is_active', true)
-      .not('host_id', 'is', null)
-      .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)'),
-    supabase.from('reviews').select('rating'),
-    supabase.from('host_reviews').select('rating'),
-  ])
-
-  const destSet = new Set<string>()
-  for (const r of destPackages.data || []) {
-    const d = (r as { destination_id: string | null }).destination_id
-    if (d) destSet.add(d)
-  }
-  for (const r of destServices.data || []) {
-    const row = r as { destination_id: string | null; destination_ids: string[] | null }
-    if (row.destination_id) destSet.add(row.destination_id)
-    for (const id of row.destination_ids ?? []) {
-      if (id) destSet.add(id)
+/** One bounded Postgres aggregate shared by stats and rating card. */
+const getCachedWanderHeroMetrics = unstable_cache(async (): Promise<WanderHeroMetrics> => {
+  try {
+    const { data, error } = await svc().rpc('get_wander_hero_metrics')
+    if (error) throw error
+    const row = Array.isArray(data) ? data[0] : data
+    return {
+      soloTravelers: Number(row?.solo_travelers ?? 0),
+      destinations: Number(row?.destinations ?? 0),
+      bookings: Number(row?.bookings ?? 0),
+      happyPercent: Number(row?.happy_percent ?? 0),
+      overallRating: row?.overall_rating == null ? null : Number(row.overall_rating),
+      reviewCount: Number(row?.review_count ?? 0),
     }
+  } catch {
+    // A missing/unavailable metrics RPC must not hold the critical hero render.
+    return { soloTravelers: 0, destinations: 0, bookings: 0, happyPercent: 0, overallRating: null, reviewCount: 0 }
   }
+}, ['wander-hero-metrics-v1'], { revalidate: 300, tags: ['wander-hero-metrics'] })
 
-  const allRatings = [
-    ...((reviews.data || []) as { rating: number }[]).map(x => x.rating),
-    ...((hostReviews.data || []) as { rating: number }[]).map(x => x.rating),
-  ]
-  const totalR = allRatings.length
-  const goodR = allRatings.filter(x => x >= 3).length
-  const happyPercent = totalR === 0 ? 0 : Math.round((goodR / totalR) * 1000) / 10
-
-  return {
-    soloTravelers: profileCount ?? 0,
-    destinations: destSet.size,
-    bookings: bookingCount ?? 0,
-    happyPercent,
-  }
-}, ['wander-stats'], { revalidate: 120 })
+export async function getWanderStats(): Promise<WanderStats> {
+  const { soloTravelers, destinations, bookings, happyPercent } = await getCachedWanderHeroMetrics()
+  return { soloTravelers, destinations, bookings, happyPercent }
+}
 
 export type RaterPreview = { userId: string; avatar_url: string | null; username: string; full_name: string | null }
 
@@ -397,20 +370,21 @@ export type WanderRatingHero = {
 
 export const getWanderRatingHero = unstable_cache(async function (): Promise<WanderRatingHero> {
   const supabase = svc()
-  const [reviews, hostRows] = await Promise.all([
-    supabase.from('reviews').select('user_id, rating, created_at'),
-    supabase.from('host_reviews').select('reviewer_id, rating, created_at'),
+  const [metrics, reviews, hostRows] = await Promise.all([
+    getCachedWanderHeroMetrics(),
+    supabase.from('reviews').select('user_id, created_at').not('user_id', 'is', null)
+      .order('created_at', { ascending: false }).limit(50),
+    supabase.from('host_reviews').select('reviewer_id, created_at')
+      .order('created_at', { ascending: false }).limit(50),
   ])
-  const r1 = (reviews.data || []) as { user_id: string; rating: number; created_at: string }[]
-  const r2 = (hostRows.data || []) as { reviewer_id: string; rating: number; created_at: string }[]
+  const r1 = (reviews.data || []) as { user_id: string; created_at: string }[]
+  const r2 = (hostRows.data || []) as { reviewer_id: string; created_at: string }[]
 
   const all = [
-    ...r1.map(x => ({ uid: x.user_id, rating: x.rating, t: x.created_at })),
-    ...r2.map(x => ({ uid: x.reviewer_id, rating: x.rating, t: x.created_at })),
+    ...r1.map(x => ({ uid: x.user_id, t: x.created_at })),
+    ...r2.map(x => ({ uid: x.reviewer_id, t: x.created_at })),
   ]
-  const sum = all.reduce((a, b) => a + b.rating, 0)
-  const n = all.length
-  const overall = n === 0 ? 4.8 : Math.round((sum / n) * 10) / 10
+  const overall = metrics.overallRating ?? 4.8
 
   // Recent raters, unique users, most recent first
   all.sort((a, b) => new Date(b.t).getTime() - new Date(a.t).getTime())
@@ -440,8 +414,8 @@ export const getWanderRatingHero = unstable_cache(async function (): Promise<Wan
       .slice(0, 8)
   }
 
-  return { overall, reviewCount: n, recentRaters }
-}, ['wander-rating-hero'], { revalidate: 120 })
+  return { overall, reviewCount: metrics.reviewCount, recentRaters }
+}, ['wander-rating-hero-v2'], { revalidate: 300, tags: ['wander-hero-metrics'] })
 
 export type WanderTripRowResult = {
   packages: Package[]

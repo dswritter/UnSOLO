@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { WanderMobileHeroSearch } from '@/components/wander/WanderMobileHeroSearch'
 import { WanderMobileTabNav } from '@/components/wander/WanderMobileTabNav'
-import type { WanderHeroCopy, WanderStats } from '@/lib/wander/wanderQueries'
+import type { WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
 type Tab = 'trips' | 'stays' | 'activities' | 'rentals'
 
@@ -25,23 +25,16 @@ export function WanderMobileHeroCoordinator({
   initialTab,
   heroImageUrl,
   heroCopy,
-  stats,
-  userProfile,
+  statsSlot,
+  accountSlot,
   listedActivities,
   wanderSearchBasePath,
 }: {
   initialTab?: Tab | null
   heroImageUrl: string
   heroCopy: WanderHeroCopy
-  stats: Pick<WanderStats, 'destinations' | 'bookings' | 'happyPercent'>
-  userProfile?: {
-    id: string
-    username: string
-    full_name: string | null
-    avatar_url: string | null
-    is_host?: boolean
-    role?: string | null
-  } | null
+  statsSlot: ReactNode
+  accountSlot: ReactNode
   listedActivities: string[]
   wanderSearchBasePath?: '/'
 }) {
@@ -55,8 +48,8 @@ export function WanderMobileHeroCoordinator({
           initialTab={initialTab}
           heroImageUrl={heroImageUrl}
           heroCopy={heroCopy}
-          stats={stats}
-          userProfile={userProfile}
+          statsSlot={statsSlot}
+          accountSlot={accountSlot}
           listedActivities={listedActivities}
           wanderSearchBasePath={wanderSearchBasePath}
           onCardState={handleCardState}

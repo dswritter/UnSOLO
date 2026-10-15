@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import {
   getStatusStripForHome,
   getMyGeneralRoomsForStatus,
@@ -5,12 +7,22 @@ import {
 } from '@/actions/statusStories'
 import { StatusStoriesBar } from '@/components/status/StatusStoriesBar'
 
-export async function WanderStatusRail({ avatarUrl }: { avatarUrl?: string | null }) {
-  const { stories, currentUserId, seenStoryIds } = await getStatusStripForHome()
-  if (!currentUserId) return null
+export async function WanderStatusRail({ avatarUrl }: { avatarUrl?: string | null } = {}) {
+  const { user } = await getRequestAuth()
+  if (!user) return <div className="space-y-1">
+    <h3 className="text-sm font-bold">Traveler status</h3>
+    <p className="mb-3 text-sm text-muted-foreground">Sign in to see recent stories from people you follow — unread first.</p>
+    <Link href="/login?redirectTo=/" className="text-sm font-semibold text-primary hover:underline">Sign in</Link>
+  </div>
 
-  const generalRooms = await getMyGeneralRoomsForStatus()
-  const existingActiveCount = await countActiveStatusStoriesForUser()
+  const [profile, strip, generalRooms, existingActiveCount] = await Promise.all([
+    getRequestProfile(user.id),
+    getStatusStripForHome(),
+    getMyGeneralRoomsForStatus(),
+    countActiveStatusStoriesForUser(),
+  ])
+  const { stories, currentUserId, seenStoryIds } = strip
+  if (!currentUserId) return null
 
   return (
     <div className="flex w-full min-w-0 flex-row flex-wrap items-center gap-x-3 gap-y-1 sm:gap-x-4">
@@ -28,7 +40,7 @@ export async function WanderStatusRail({ avatarUrl }: { avatarUrl?: string | nul
           currentUserId={currentUserId}
           seenStoryIds={seenStoryIds}
           generalRooms={generalRooms}
-          addSlotAvatarUrl={avatarUrl}
+          addSlotAvatarUrl={profile?.avatar_url ?? avatarUrl ?? null}
           existingActiveCount={existingActiveCount}
           maxOtherAuthors={4}
           compact

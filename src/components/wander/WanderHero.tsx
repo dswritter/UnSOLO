@@ -1,36 +1,26 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import type { CSSProperties, ReactNode } from 'react'
-import { Instagram, Star, ShieldCheck } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { cn, getInitials } from '@/lib/utils'
+import { Instagram, ShieldCheck } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
-import type { WanderRatingHero, WanderStats, WanderHeroCopy } from '@/lib/wander/wanderQueries'
+import type { WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
 export function WanderHero({
-  rating,
-  stats,
   heroImageUrl,
   trustBadgeText,
   heroCopy,
   children,
   belowHero,
+  proofCard,
 }: {
-  rating: WanderRatingHero
-  stats: Pick<WanderStats, 'soloTravelers'>
   heroImageUrl: string
   trustBadgeText: string
   heroCopy: WanderHeroCopy
   children?: ReactNode
   belowHero?: ReactNode
+  proofCard?: ReactNode
 }) {
-  const trustLine =
-    stats.soloTravelers >= 1000
-      ? `${Math.floor(stats.soloTravelers / 1000)}K+`
-      : stats.soloTravelers > 0
-        ? `${stats.soloTravelers}+`
-        : '10K+'
-
   const desktopTypography = heroCopy.desktopTypography
   const badgeStyle: CSSProperties | undefined = desktopTypography.badgeSize ? { fontSize: desktopTypography.badgeSize } : undefined
   const headlineStyle: CSSProperties | undefined = desktopTypography.headlineSize ? { fontSize: desktopTypography.headlineSize } : undefined
@@ -176,42 +166,7 @@ export function WanderHero({
           <div className="flex min-w-0 items-end justify-end self-stretch sm:min-h-[7rem]">
             <div className="flex w-[8.5rem] shrink-0 flex-col items-stretch gap-2.5">
               {instagramCta}
-              <div className="w-full rounded-xl border border-white/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-white/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]">
-                <div className="flex items-start gap-1.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/25">
-                    <Star className="h-4 w-4 text-primary fill-primary" aria-hidden />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xl font-black text-white leading-none tabular-nums">
-                      {rating.overall.toFixed(1)}
-                      <span className="text-xs font-semibold text-white/50">/5</span>
-                    </p>
-                  </div>
-                </div>
-                <p className="text-[11px] font-bold leading-tight text-white sm:text-xs">
-                  <span className="block">Trusted by {trustLine}</span>
-                  <span className="block">solo travelers</span>
-                </p>
-                <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-2">
-                    {rating.recentRaters.slice(0, 5).map(r => (
-                      <Link
-                        key={r.userId}
-                        href={`/profile/${r.username}`}
-                        className="relative inline-block ring-2 ring-background/90 rounded-full hover:z-10 hover:ring-primary/60 transition-all motion-reduce:transition-none"
-                        title={r.full_name || r.username}
-                      >
-                        <Avatar className="h-6 w-6 border-2 border-background sm:h-7 sm:w-7">
-                          <AvatarImage src={r.avatar_url || ''} alt="" />
-                          <AvatarFallback className="bg-primary/20 text-[9px] font-bold text-primary">
-                            {getInitials(r.full_name || r.username)}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              {proofCard}
             </div>
           </div>
         </div>
