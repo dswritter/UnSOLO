@@ -9,7 +9,7 @@ import {
   Clock,
   UserCheck,
   BookOpen,
-  ArrowRight,
+  ChevronRight,
   Package,
   Mountain,
   Tag,
@@ -20,11 +20,19 @@ import {
   Store,
   Phone,
   UserPlus,
+  CheckCircle2,
+  IndianRupee,
 } from 'lucide-react'
+
+type Icon = typeof Users
 
 function fmtPrice(paise: number) {
   if (paise === 0) return '₹0'
   return `₹${Math.round(paise / 100).toLocaleString('en-IN')}`
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
 }
 
 export default async function AdminDashboardPage() {
@@ -35,179 +43,111 @@ export default async function AdminDashboardPage() {
 
   const role: UserRole = session?.role ?? 'user'
   const customPermissions: AdminPermissionKey[] = session?.customPermissions ?? []
-
-  function can(key: AdminPermissionKey) {
-    return hasAdminPermission(role, customPermissions, key)
-  }
-
+  const can = (key: AdminPermissionKey) => hasAdminPermission(role, customPermissions, key)
   const isAdmin = role === 'admin'
 
-  // Quick Actions definition — each has a permissionKey that gates visibility
-  const quickActions: {
-    href: string
-    icon: typeof Users
-    title: string
-    desc: string
-    badge: number
-    permissionKey: AdminPermissionKey
-  }[] = [
-    { href: '/admin/users', icon: Users, title: 'Manage Users', desc: 'Search, filter, view user details', badge: 0, permissionKey: 'users' },
-    { href: '/admin/bookings', icon: BookOpen, title: 'Manage Bookings', desc: 'View, assign POC, manage cancellations', badge: 0, permissionKey: 'bookings' },
-    { href: '/admin/requests', icon: FileText, title: 'Custom Requests', desc: 'Review custom date requests', badge: stats.pendingDateRequests, permissionKey: 'requests' },
-    { href: '/admin/packages', icon: Package, title: 'Manage Packages', desc: 'Create, edit packages & destinations', badge: 0, permissionKey: 'packages' },
-    { href: '/admin/service-listings', icon: Store, title: 'Service Listings', desc: 'Approve stays, activities, rentals', badge: stats.pendingServiceListings, permissionKey: 'service_listings' },
-    { href: '/admin/community-trips', icon: Mountain, title: 'Community Trips', desc: 'Approve host-created trips', badge: stats.pendingCommunityTrips, permissionKey: 'community_trips' },
-    { href: '/admin/phone-verifications', icon: Phone, title: 'Phone Verifications', desc: 'Verify foreign host numbers & approve changes', badge: stats.pendingPhoneVerifications, permissionKey: 'phone_verifications' },
-    { href: '/admin/trip-claims', icon: UserPlus, title: 'Trip Claims', desc: 'Companions asking to join a trip they weren’t booked under', badge: stats.pendingTripClaims, permissionKey: 'trip_claims' },
-    { href: '/admin/community-chats', icon: MessageCircle, title: 'Community Chats', desc: 'Rooms, images, enable/disable', badge: 0, permissionKey: 'community_chats' },
-    { href: '/admin/discounts', icon: Tag, title: 'Discounts', desc: 'Manage promo codes & offers', badge: 0, permissionKey: 'discounts' },
-    { href: '/admin/offers', icon: Sparkles, title: 'Offers Page', desc: 'Arrange section order and bundle rows', badge: 0, permissionKey: 'offers' },
+  const attention: { href: string; icon: Icon; label: string; count: number; urgent?: boolean; show: boolean }[] = [
+    { href: '/admin/bookings?cancellation=requested', icon: AlertTriangle, label: 'Cancellation requests', count: stats.cancellationRequested, urgent: true, show: can('bookings') },
+    { href: '/admin/service-listings?status=pending', icon: Store, label: 'Service listings to review', count: stats.pendingServiceListings, show: can('service_listings') },
+    { href: '/admin/community-trips?status=pending', icon: Mountain, label: 'Community trips to review', count: stats.pendingCommunityTrips, show: can('community_trips') },
+    { href: '/admin/trip-claims', icon: UserPlus, label: 'Trip claims', count: stats.pendingTripClaims, show: can('trip_claims') },
+    { href: '/admin/phone-verifications', icon: Phone, label: 'Phone verifications', count: stats.pendingPhoneVerifications, show: can('phone_verifications') },
+    { href: '/admin/requests', icon: FileText, label: 'Custom date requests', count: stats.pendingDateRequests, show: can('requests') },
+    { href: '/admin/bookings?status=pending', icon: Clock, label: 'Bookings awaiting payment', count: stats.pendingBookings, show: can('bookings') },
   ]
+  const visibleAttention = attention.filter(item => item.show)
+  const openItems = visibleAttention.filter(item => item.count > 0)
 
-  const visibleActions = quickActions.filter(a => can(a.permissionKey))
+  const metrics: { href: string; icon: Icon; label: string; value: string; show: boolean }[] = [
+    { href: '/admin/revenue', icon: IndianRupee, label: 'Net revenue', value: fmtPrice(stats.totalRevenue), show: can('revenue') },
+    { href: '/admin/bookings', icon: BookOpen, label: 'Total bookings', value: stats.totalBookings.toLocaleString('en-IN'), show: can('bookings') },
+    { href: '/admin/bookings?status=confirmed', icon: CreditCard, label: 'Confirmed', value: stats.confirmedBookings.toLocaleString('en-IN'), show: can('bookings') },
+    { href: '/admin/users', icon: Users, label: 'Users', value: stats.totalUsers.toLocaleString('en-IN'), show: isAdmin },
+    { href: '/admin/team', icon: UserCheck, label: 'Team', value: stats.teamCount.toLocaleString('en-IN'), show: isAdmin },
+  ]
+  const visibleMetrics = metrics.filter(metric => metric.show)
+
+  const shortcuts: { href: string; icon: Icon; label: string; permissionKey: AdminPermissionKey }[] = [
+    { href: '/admin/users', icon: Users, label: 'Users', permissionKey: 'users' },
+    { href: '/admin/bookings', icon: BookOpen, label: 'Bookings', permissionKey: 'bookings' },
+    { href: '/admin/packages', icon: Package, label: 'Packages', permissionKey: 'packages' },
+    { href: '/admin/service-listings', icon: Store, label: 'Service listings', permissionKey: 'service_listings' },
+    { href: '/admin/community-trips', icon: Mountain, label: 'Community trips', permissionKey: 'community_trips' },
+    { href: '/admin/community-chats', icon: MessageCircle, label: 'Community chats', permissionKey: 'community_chats' },
+    { href: '/admin/discounts', icon: Tag, label: 'Discounts', permissionKey: 'discounts' },
+    { href: '/admin/offers', icon: Sparkles, label: 'Offers page', permissionKey: 'offers' },
+  ]
+  const visibleShortcuts = shortcuts.filter(shortcut => can(shortcut.permissionKey))
 
   return (
-    <div>
-      <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground mb-1">Dashboard</h1>
-      <p className="text-sm text-muted-foreground mb-6">Overview and shortcuts — Wander admin</p>
+    <div className="max-w-5xl space-y-8">
+      <header>
+        <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {openItems.length > 0
+            ? `${openItems.length} ${openItems.length === 1 ? 'queue needs' : 'queues need'} your attention`
+            : 'Everything is up to date'}
+        </p>
+      </header>
 
-      {/* Stats grouped by category — scoped by role */}
-      <div className="space-y-4 mb-8">
-        {/* Platform — admin only */}
-        {isAdmin && (
-          <div>
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Platform</h3>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/admin/users" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-sky-500/40 transition-colors shadow-sm shadow-black/10">
-                <Users className="h-4 w-4 text-sky-300" />
-                <span className="text-lg font-bold text-sky-200">{stats.totalUsers}</span>
-                <span className="text-xs text-muted-foreground">Users</span>
-              </Link>
-              <Link href="/admin/team" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-emerald-500/35 transition-colors shadow-sm shadow-black/10">
-                <UserCheck className="h-4 w-4 text-emerald-300" />
-                <span className="text-lg font-bold text-emerald-200">{stats.teamCount}</span>
-                <span className="text-xs text-muted-foreground">Team</span>
-              </Link>
+      {visibleAttention.length > 0 && (
+        <section>
+          <SectionTitle>Needs attention</SectionTitle>
+          {openItems.length > 0 ? (
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/90">
+              {openItems.map(({ href, icon: ItemIcon, label, count, urgent }) => (
+                <li key={href}>
+                  <Link href={href} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/60">
+                    <ItemIcon className={urgent ? 'h-4 w-4 shrink-0 text-rose-400' : 'h-4 w-4 shrink-0 text-muted-foreground'} />
+                    <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
+                    <span className={urgent
+                      ? 'rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-rose-300'
+                      : 'rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-amber-300'}>
+                      {count > 999 ? '999+' : count}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-card/90 px-4 py-3 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              No pending reviews, claims or requests.
             </div>
-          </div>
-        )}
+          )}
+        </section>
+      )}
 
-        {/* Bookings */}
-        {can('bookings') && (
-          <div>
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bookings</h3>
-            <div className="flex flex-wrap gap-2">
-              <Link href="/admin/bookings" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-violet-500/35 transition-colors shadow-sm shadow-black/10">
-                <BookOpen className="h-4 w-4 text-violet-300" />
-                <span className="text-lg font-bold text-violet-200">{stats.totalBookings}</span>
-                <span className="text-xs text-muted-foreground">All Bookings</span>
-              </Link>
-              <Link href="/admin/bookings?status=confirmed" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-emerald-500/40 transition-colors shadow-sm shadow-black/10">
-                <CreditCard className="h-4 w-4 text-emerald-300" />
-                <span className="text-lg font-bold text-emerald-200">{stats.confirmedBookings}</span>
-                <span className="text-xs text-muted-foreground">Confirmed</span>
-              </Link>
-              <Link href="/admin/bookings?status=pending" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card/90 hover:border-amber-500/40 transition-colors shadow-sm shadow-black/10">
-                <Clock className="h-4 w-4 text-amber-300" />
-                <span className="text-lg font-bold text-amber-200">{stats.pendingBookings}</span>
-                <span className="text-xs text-muted-foreground">Pending Payment</span>
-              </Link>
-              {stats.cancellationRequested > 0 && (
-                <Link href="/admin/bookings?cancellation=requested" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-rose-500/35 bg-rose-500/10 hover:bg-rose-500/15 transition-colors shadow-sm shadow-black/10">
-                  <AlertTriangle className="h-4 w-4 text-rose-300" />
-                  <span className="text-lg font-bold text-rose-200">{stats.cancellationRequested}</span>
-                  <span className="text-xs text-muted-foreground">Cancel Requests</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Pending listings — host onboarding staff & admin */}
-        {(can('service_listings') || can('community_trips')) && (
-          <div>
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Listings for Review</h3>
-            <div className="flex flex-wrap gap-2">
-              {can('service_listings') && (
-                <Link href="/admin/service-listings?status=pending" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15 transition-colors shadow-sm shadow-black/10">
-                  <Store className="h-4 w-4 text-amber-300" />
-                  <span className="text-lg font-bold text-amber-200">{stats.pendingServiceListings}</span>
-                  <span className="text-xs text-muted-foreground">Pending Service Listings</span>
-                </Link>
-              )}
-              {can('community_trips') && (
-                <Link href="/admin/community-trips?status=pending" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-teal-500/35 bg-teal-500/10 hover:bg-teal-500/15 transition-colors shadow-sm shadow-black/10">
-                  <Mountain className="h-4 w-4 text-teal-300" />
-                  <span className="text-lg font-bold text-teal-200">{stats.pendingCommunityTrips}</span>
-                  <span className="text-xs text-muted-foreground">Pending Community Trips</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Requests & Revenue */}
-        {(can('requests') || can('revenue')) && (
-          <div>
-            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Requests & Revenue</h3>
-            <div className="flex flex-wrap gap-2">
-              {can('requests') && (
-                <Link href="/admin/requests" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-500/35 bg-amber-500/10 hover:bg-amber-500/15 transition-colors shadow-sm shadow-black/10">
-                  <FileText className="h-4 w-4 text-amber-300" />
-                  <span className="text-lg font-bold text-amber-200">{stats.pendingDateRequests}</span>
-                  <span className="text-xs text-muted-foreground">Custom Date Requests</span>
-                </Link>
-              )}
-              {can('revenue') && (
-                <Link href="/admin/revenue" className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/40 bg-primary/10 hover:bg-primary/15 transition-colors shadow-sm shadow-black/10">
-                  <span className="text-lg font-bold text-primary">{fmtPrice(stats.totalRevenue)}</span>
-                  <span className="text-xs text-muted-foreground">Net Revenue</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      {visibleActions.length > 0 && (
-        <>
-          <h2 className="text-lg font-bold text-foreground mb-3">Quick actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {visibleActions.map(({ href, icon: Icon, title, desc, badge }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`group rounded-xl border bg-card/90 p-4 shadow-sm shadow-black/10 hover:border-primary/40 transition-colors ${
-                  badge > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-border'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <Icon className="h-4 w-4 text-primary" />
-                      {badge > 0 && (
-                        <span className="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white leading-none shadow-sm">
-                          {badge > 99 ? '99+' : badge}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-sm">{title}</h3>
-                      <p className="text-xs text-muted-foreground">{desc}</p>
-                      {badge > 0 && (
-                        <p className="text-[10px] text-amber-300/90 font-medium mt-0.5">
-                          {badge} pending review
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
+      {visibleMetrics.length > 0 && (
+        <section>
+          <SectionTitle>Overview</SectionTitle>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {visibleMetrics.map(({ href, icon: MetricIcon, label, value }) => (
+              <Link key={href} href={href} className="rounded-xl border border-border bg-card/90 p-4 transition-colors hover:border-primary/40">
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MetricIcon className="h-3.5 w-3.5" />
+                  {label}
+                </p>
+                <p className="mt-2 truncate text-xl font-bold tabular-nums text-foreground">{value}</p>
               </Link>
             ))}
           </div>
-        </>
+        </section>
+      )}
+
+      {visibleShortcuts.length > 0 && (
+        <section>
+          <SectionTitle>Shortcuts</SectionTitle>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {visibleShortcuts.map(({ href, icon: ShortcutIcon, label }) => (
+              <Link key={href} href={href} className="flex items-center gap-2.5 rounded-lg border border-border bg-card/60 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary">
+                <ShortcutIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{label}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   )
