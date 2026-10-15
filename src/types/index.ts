@@ -211,6 +211,8 @@ export type Package = {
   /** When true the trip is visible but not accepting new bookings. */
   bookings_paused?: boolean | null
   host_id: string | null
+  /** Staff member who created the trip for a host whose account may not be linked yet. */
+  created_on_behalf_by?: string | null
   /** Per-listing WhatsApp number override (digits only, country code first). NULL = use platform default. */
   whatsapp_number?: string | null
   moderation_status: 'pending' | 'approved' | 'rejected' | null
@@ -382,6 +384,8 @@ export type ServiceListing = {
   tags: string[] | null
   metadata: ServiceListingMetadata | null
   host_id: string | null
+  /** Staff member who created the listing for a host whose account may not be linked yet. */
+  created_on_behalf_by?: string | null
   is_active: boolean
   is_featured: boolean
   status: 'pending' | 'approved' | 'rejected' | 'archived'

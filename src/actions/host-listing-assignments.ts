@@ -37,5 +37,6 @@ export async function updateHostListingContact(kind: 'service' | 'trip', listing
   revalidatePath('/admin/community-trips')
   revalidatePath('/host')
   revalidateTag(SERVICE_LISTINGS_TAG, 'max')
+  revalidateTag('host-listing-assignments', 'max')
   return { success: true }
 }

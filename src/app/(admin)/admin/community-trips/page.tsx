@@ -47,7 +47,7 @@ export default async function AdminCommunityTripsPage() {
   // Fetch all community trips (host_id not null)
   const { data: trips } = await svc
     .from('packages')
-    .select('*, destination:destinations(name, state), host_assignment:host_listing_assignments(email, phone, status), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
+    .select('*, destination:destinations(name, state), host_assignment:host_listing_assignments(host_name, email, phone, status), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
     .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
     .is('archived_at', null)
     .order('created_at', { ascending: false })

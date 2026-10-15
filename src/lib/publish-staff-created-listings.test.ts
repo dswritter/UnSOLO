@@ -75,4 +75,22 @@ describe('110: staff-created listings publish immediately', () => {
     const row = await create(cases[1], 'x@example.com')
     expect(row.is_active).toBe(true)
   })
+
+  it('111: stores and updates the staff-entered host display name', async () => {
+    await db.exec(migration110)
+    await db.exec('SET check_function_bodies = off')
+    await db.exec(readFileSync('supabase/migrations/111_unlinked_host_display.sql', 'utf8'))
+    const payload = { title: 'Named', slug: randomUUID(), type: 'rentals' }
+    const { rows } = await db.query<{ listing: { id: string; is_active: boolean } }>(
+      'SELECT public.create_delegated_host_listing($1, $2::jsonb, $3::jsonb, $4) AS listing',
+      ['service', JSON.stringify(payload), JSON.stringify({ email: 'n@example.com', name: '  Asha Rentals ' }), staffId])
+    const id = rows[0].listing.id
+    expect(rows[0].listing.is_active).toBe(true)
+    const name = async () => (await db.query<{ host_name: string | null }>(
+      'SELECT host_name FROM host_listing_assignments WHERE service_listing_id = $1', [id])).rows[0].host_name
+    expect(await name()).toBe('Asha Rentals')
+    await db.query('SELECT public.update_host_listing_contact($1, $2, $3::jsonb, $4)',
+      ['service', id, JSON.stringify({ email: 'n@example.com', name: 'Asha Bike Rentals' }), staffId])
+    expect(await name()).toBe('Asha Bike Rentals')
+  })
 })

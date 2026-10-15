@@ -2,12 +2,14 @@ import { z } from 'zod'
 import { validatePhone, PHONE_COUNTRY_CODES, type SupportedCountryCode } from '@/lib/utils'
 
 export type HostListingContactInput = {
+  name?: string | null
   email?: string | null
   phone?: string | null
   countryCode?: string
 }
 
 export type HostListingAssignment = {
+  host_name?: string | null
   email: string | null
   phone: string | null
   status: 'pending' | 'claimed' | 'conflict'
@@ -37,5 +39,6 @@ export function normalizeHostListingContact(input: HostListingContactInput) {
     phone = countryCode + local
   }
   if (!email && !phone) throw new Error('Enter the host’s email or phone number')
-  return { email, phone }
+  const name = input.name?.replace(/\s+/g, ' ').trim().slice(0, 80) || null
+  return { email, phone, name }
 }

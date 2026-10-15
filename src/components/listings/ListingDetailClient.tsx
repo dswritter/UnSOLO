@@ -534,12 +534,16 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/profile/${host.username}`}
-                  className="font-bold text-foreground hover:text-primary transition-colors"
-                >
-                  {host.full_name || host.username}
-                </Link>
+                {host.username ? (
+                  <Link
+                    href={`/profile/${host.username}`}
+                    className="font-bold text-foreground hover:text-primary transition-colors"
+                  >
+                    {host.full_name || host.username}
+                  </Link>
+                ) : (
+                  <span className="font-bold text-foreground">{host.full_name}</span>
+                )}
                 {host.host_rating != null && host.host_rating > 0 && (
                   <div className="flex items-center gap-1 mt-0.5">
                     <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -547,6 +551,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                   </div>
                 )}
               </div>
+              {host.username ? (
               <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <Link
                   href={`/profile/${host.username}`}
@@ -564,6 +569,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                   {openingChat ? 'Opening…' : 'Message'}
                 </button>
               </div>
+              ) : null}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
               The host&apos;s contact number will be shared with you after your booking is completed.

@@ -35,6 +35,7 @@ import type { Package, HostProfile } from '@/types'
 import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-preferences'
 import { APP_URL } from '@/lib/constants'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { getUnlinkedHost } from '@/lib/listings/unlinked-host'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -46,6 +47,11 @@ const GENDER_LABELS: Record<string, string> = {
   women: 'Women only',
   men: 'Men only',
   all: 'All genders welcome',
+}
+
+function HostProfileLink({ username, className, children }: { username: string; className?: string; children: React.ReactNode }) {
+  if (!username) return <span className={className}>{children}</span>
+  return <Link href={`/profile/${username}`} className={className}>{children}</Link>
 }
 
 function toAbsoluteUrl(value: string | null | undefined) {
@@ -131,10 +137,15 @@ export default async function PackageDetailPage({
   }
 
   const package_ = pkg as Package
-  const isCommunityTrip = !!package_.host_id
+  // Staff-created trips awaiting their host's account still present as community trips.
+  const isUnlinkedHost = !package_.host_id && !!package_.created_on_behalf_by
+  const isCommunityTrip = !!package_.host_id || isUnlinkedHost
   const jp = package_.join_preferences
-  const communityDirectCheckout = isCommunityTrip && isCommunityDirectCheckout(jp ?? undefined)
-  const hostData = (pkg.host as unknown as HostProfile) || null
+  // No host account yet to approve join requests, so travellers book directly.
+  const communityDirectCheckout = isCommunityTrip && (isUnlinkedHost || isCommunityDirectCheckout(jp ?? undefined))
+  const hostDataPromise: Promise<HostProfile | null> = isUnlinkedHost
+    ? getUnlinkedHost('trip', package_.id)
+    : Promise.resolve((pkg.host as unknown as HostProfile) || null)
   const isHost = !!user && !!package_.host_id && user.id === package_.host_id
   const compareAtDisplayPaise = hasTieredPricing(package_.price_variants)
     ? ((package_.price_variants || [])
@@ -239,6 +250,7 @@ export default async function PackageDetailPage({
   ])
 
   const isAdminUser = (await profilePromise)?.role === 'admin'
+  const hostData = await hostDataPromise
   const existingRequest = (joinRequestRes.data || null) as
     | { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
     | null
@@ -413,7 +425,7 @@ export default async function PackageDetailPage({
               <div className="bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-bold mb-4">Your Host</h2>
                 <div className="flex items-start gap-4">
-                  <Link href={`/profile/${hostData.username}`}>
+                  <HostProfileLink username={hostData.username}>
                     {hostData.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -426,12 +438,12 @@ export default async function PackageDetailPage({
                         {(hostData.full_name || hostData.username || 'H')[0].toUpperCase()}
                       </div>
                     )}
-                  </Link>
+                  </HostProfileLink>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Link href={`/profile/${hostData.username}`} className="font-bold text-foreground hover:text-primary transition-colors">
+                      <HostProfileLink username={hostData.username} className="font-bold text-foreground hover:text-primary transition-colors">
                         {hostData.full_name || hostData.username}
-                      </Link>
+                      </HostProfileLink>
                       {hostData.is_verified && (
                         <span className="inline-flex items-center gap-1 text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
                           <ShieldCheck className="h-3 w-3" /> Verified
@@ -745,9 +757,9 @@ export default async function PackageDetailPage({
                     {isCommunityTrip && hostData && (
                       <div className="flex justify-between">
                         <span>Hosted by</span>
-                        <Link href={`/profile/${hostData.username}`} className="text-primary hover:underline">
+                        <HostProfileLink username={hostData.username} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
-                        </Link>
+                        </HostProfileLink>
                       </div>
                     )}
                   </div>

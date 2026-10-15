@@ -158,4 +158,20 @@ describe('metadata-indexed Explore pagination RPC', () => {
     await db.exec('SET ROLE anon')
     try { expect(await search(null, 1, 4)).toHaveLength(4) } finally { await db.exec('RESET ROLE') }
   })
+
+  it('111: treats staff-created trips without a linked host as community trips', async () => {
+    const m111 = readFileSync('supabase/migrations/111_unlinked_host_display.sql', 'utf8')
+    const start = m111.indexOf('CREATE OR REPLACE FUNCTION public.search_explore_packages_page(')
+    await db.exec('ALTER TABLE packages ADD COLUMN IF NOT EXISTS created_on_behalf_by uuid')
+    await db.exec(m111.slice(start, m111.indexOf('$$;', m111.indexOf('AS $$', start) + 5) + 3))
+    const hosted = await addTrip(1)
+    const unlinked = await addTrip(2)
+    const own = await addTrip(3)
+    await db.query('UPDATE packages SET host_id = NULL, created_on_behalf_by = $1 WHERE id = $2', [hostId, unlinked])
+    await db.query('UPDATE packages SET host_id = NULL WHERE id = $1', [own])
+    const ids = async (source: string) => (await db.query<{ listing: { id: string } }>(
+      'SELECT * FROM public.search_explore_packages_page(NULL,$1)', [source])).rows.map(r => r.listing.id).sort()
+    expect(await ids('community')).toEqual([hosted, unlinked].sort())
+    expect(await ids('unsolo')).toEqual([own])
+  })
 })

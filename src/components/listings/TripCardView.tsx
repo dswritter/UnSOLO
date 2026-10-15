@@ -28,7 +28,7 @@ export function TripCardView({
   pkg, pastEdition, spotsBooked, interestCount, interested, togglePending = false, imageSizes, onOpen, onPrefetch, onToggleInterest,
 }: TripCardViewProps) {
   const spotsLeft = pkg.max_group_size ? pkg.max_group_size - spotsBooked : null
-  const badge = primaryTripBadge({ pastEdition, spotsLeft, isFeatured: pkg.is_featured, isCommunity: Boolean(pkg.host_id) })
+  const badge = primaryTripBadge({ pastEdition, spotsLeft, isFeatured: pkg.is_featured, isCommunity: Boolean(pkg.host_id || pkg.created_on_behalf_by) })
   const departure = packageNextDepartureLine(pkg)
   const dateLine = pastEdition
     ? departure?.replace(/^Last departure /, 'Last ran ')

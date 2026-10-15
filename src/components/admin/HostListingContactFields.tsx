@@ -22,9 +22,15 @@ export function HostListingContactFields({ listingKind, value, onChange, disable
         Choose a host above or enter their email or phone (at least one). You can reuse the same host for multiple listings of any type. An existing verified account is linked immediately;
         otherwise, listings link automatically when they verify the same contact after signup.
         Contact details are private. If the contacts belong to different accounts, staff must correct them.
-        New staff-created listings are approved and published immediately; the host gets access once their verified account is linked.
+        New staff-created listings are approved and published immediately as community listings under the display name; email and phone stay private. The host gets access once their verified account is linked.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm font-medium sm:col-span-2">
+          Host display name
+          <input type="text" autoComplete="off" maxLength={80} value={value.name || ''}
+            onChange={(e) => onChange({ ...value, name: e.target.value })}
+            placeholder="Shown to travellers as the host" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
+        </label>
         <label className="block text-sm font-medium">
           Host email
           <input type="email" autoComplete="off" value={value.email || ''}
@@ -63,7 +69,7 @@ export function HostListingAssignmentPanel({ kind, listingId, hostId, assignment
   const [error, setError] = useState<string | null>(null)
   const code = Object.keys(PHONE_COUNTRY_CODES).find((c) => assignment?.phone?.startsWith(c)) || '+91'
   const [contact, setContact] = useState<HostListingContactInput>({
-    email: assignment?.email || '', phone: assignment?.phone?.slice(code.length) || '', countryCode: code,
+    name: assignment?.host_name || '', email: assignment?.email || '', phone: assignment?.phone?.slice(code.length) || '', countryCode: code,
   })
   async function save() {
     setSaving(true)
@@ -84,7 +90,7 @@ export function HostListingAssignmentPanel({ kind, listingId, hostId, assignment
           ? 'Contact conflict — email and phone match different accounts. Correct the contact to link safely.'
           : assignment ? 'Awaiting host signup / contact verification' : 'No host assigned'}
       </p>
-      {assignment && <p className="break-all text-xs text-muted-foreground">{[assignment.email, assignment.phone].filter(Boolean).join(' · ')}</p>}
+      {assignment && <p className="break-all text-xs text-muted-foreground">{[assignment.host_name, assignment.email, assignment.phone].filter(Boolean).join(' · ')}</p>}
       {!hostId && !editing && <button type="button" onClick={() => setEditing(true)} className="text-sm font-medium text-primary hover:underline">
         {assignment ? 'Correct host contact' : 'Assign to a host by email or phone'}
       </button>}

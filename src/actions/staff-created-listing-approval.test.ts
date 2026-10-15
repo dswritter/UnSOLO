@@ -79,7 +79,7 @@ describe('staff-created listing approval actions', () => {
     expect(await createHostedTrip({ ...tripInput, host_contact: { email: ' HOST@Example.com ' } }))
       .toEqual({ success: true, slug: 'created-slug' })
     expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', {
-      p_kind: 'trip', p_staff_id: 'actor-id', p_contact: { email: 'host@example.com', phone: null },
+      p_kind: 'trip', p_staff_id: 'actor-id', p_contact: { email: 'host@example.com', phone: null, name: null },
       p_listing: expect.objectContaining({ moderation_status: 'approved', is_active: true }),
     })
     expect(mocks.userFrom).not.toHaveBeenCalled()
@@ -111,7 +111,7 @@ describe('staff-created listing approval actions', () => {
       ...serviceInput, type, status: 'rejected', is_active: true, host_contact: { phone: '9876543210' },
     })
     expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', {
-      p_kind: 'service', p_staff_id: 'actor-id', p_contact: { email: null, phone: '+919876543210' },
+      p_kind: 'service', p_staff_id: 'actor-id', p_contact: { email: null, phone: '+919876543210', name: null },
       p_listing: expect.objectContaining({ type, status: 'approved', is_active: true }),
     })
     expect(mocks.insert).toHaveBeenCalledWith('staff', 'audit_logs', expect.objectContaining({

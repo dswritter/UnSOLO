@@ -77,7 +77,7 @@ export async function getAdminServiceListings() {
     .select(`
       *,
       destination:destinations(id, name, slug),
-      host_assignment:host_listing_assignments(email, phone, status),
+      host_assignment:host_listing_assignments(host_name, email, phone, status),
       host:profiles(id, username, full_name, avatar_url)
     `)
     .order('created_at', { ascending: false })
@@ -104,7 +104,7 @@ export async function getServiceListingDetail(id: string) {
       .select(`
         *,
         destination:destinations(id, name, slug),
-        host_assignment:host_listing_assignments(email, phone, status),
+        host_assignment:host_listing_assignments(host_name, email, phone, status),
         host:profiles(id, username, full_name, avatar_url)
       `)
       .eq('id', id)

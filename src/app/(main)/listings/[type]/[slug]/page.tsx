@@ -14,6 +14,7 @@ import { ListingDetailClient } from '@/components/listings/ListingDetailClient'
 import type { ServiceListingType } from '@/types'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { APP_URL } from '@/lib/constants'
+import { getUnlinkedHost } from '@/lib/listings/unlinked-host'
 
 const CATEGORY_LABELS: Record<ServiceListingType, string> = {
   stays: 'Stays',
@@ -127,7 +128,7 @@ export default async function ServiceListingDetailPage({
 
     // `service_listing_items` may not exist yet if migration 049 hasn't been
     // applied. The action swallows the error and returns [] in that case.
-    const [items, relatedListings, hostListings] = await Promise.all([
+    const [items, relatedListings, hostListings, unlinkedHost] = await Promise.all([
       getCachedPublicServiceListingItems(listing.id),
       getCachedRelatedListings(listing.id, {
         type: listing.type,
@@ -156,6 +157,7 @@ export default async function ServiceListingDetailPage({
         const packages = (packagesRes.data || []) as any[]
         return [...serviceListings, ...packages].slice(0, 6)
       })() : Promise.resolve([]),
+      !listing.host_id && listing.created_on_behalf_by ? getUnlinkedHost('service', listing.id) : Promise.resolve(null),
     ])
 
     const wanderBackHref = `/wander?search=1&tab=${type}`
@@ -185,7 +187,7 @@ export default async function ServiceListingDetailPage({
           </div>
         )}
 
-        <ListingDetailClient listing={listing} items={items} host={listing.host ?? null} relatedListings={relatedListings} hostListings={hostListings} />
+        <ListingDetailClient listing={listing} items={items} host={listing.host ?? unlinkedHost} relatedListings={relatedListings} hostListings={hostListings} />
       </div>
     )
   } catch (error) {

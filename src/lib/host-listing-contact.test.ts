@@ -9,10 +9,10 @@ describe('host listing contact normalization', () => {
     expect(hostListingAssignmentRows(null)).toEqual([])
   })
   it('accepts email only, with case-insensitive matching', () => {
-    expect(normalizeHostListingContact({ email: ' Host@Example.com ' })).toEqual({ email: 'host@example.com', phone: null })
+    expect(normalizeHostListingContact({ email: ' Host@Example.com ' })).toEqual({ email: 'host@example.com', phone: null, name: null })
   })
   it.each(['9876543210', '+91 98765-43210', '91 (98765) 43210'])('normalizes Indian phone %s', (phone) => {
-    expect(normalizeHostListingContact({ phone })).toEqual({ email: null, phone: '+919876543210' })
+    expect(normalizeHostListingContact({ phone })).toEqual({ email: null, phone: '+919876543210', name: null })
   })
   it.each([
     ['+977', '9812345678', '+9779812345678'],

@@ -30,7 +30,7 @@ describe('staff host contact permissions', () => {
     await updateHostListingContact('service', 'listing-id', { email: ' HOST@Example.com ' })
     await updateHostListingContact('trip', 'trip-id', { phone: '9876543210' })
     expect(mocks.rpc).toHaveBeenCalledWith('update_host_listing_contact', {
-      p_kind: 'service', p_listing_id: 'listing-id', p_contact: { email: 'host@example.com', phone: null }, p_staff_id: 'staff-id',
+      p_kind: 'service', p_listing_id: 'listing-id', p_contact: { email: 'host@example.com', phone: null, name: null }, p_staff_id: 'staff-id',
     })
   })
   it('allows active onboarding membership when the profile role has not synced', async () => {
