@@ -12,6 +12,7 @@ import { WanderListingsSectionsWrapper } from '@/components/wander/WanderListing
 import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyViewedStrip'
 import { WanderListingSections } from '@/components/wander/WanderListingSections'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
+import { WanderRowFallback } from '@/components/wander/WanderRowFallback'
 import type { Package, ServiceListing } from '@/types'
 
 type ActiveTab = 'trips' | 'stays' | 'activities' | 'rentals' | null
@@ -27,7 +28,7 @@ async function WanderTripsRowServer({ activeTab }: { activeTab: ActiveTab }) {
   const interestedPackageIds = await fetchInterestedPackageIds(auth.supabase, auth.user?.id ?? null, packages.map(pkg => pkg.id))
   return <WanderListingSections onlySection="trips" trips={packages} tripInterestCounts={interestCounts}
     spotsBookedByTrip={bookedGuests} interestedPackageIds={interestedPackageIds}
-    stays={[]} activities={[]} rentals={[]} activeTab={activeTab} />
+    stays={[]} activities={[]} rentals={[]} activeTab={activeTab} seedPreview />
 }
 
 async function WanderServiceRowServer({ type, activeTab }: { type: 'stays' | 'activities' | 'rentals'; activeTab: ActiveTab }) {
@@ -38,7 +39,7 @@ async function WanderServiceRowServer({ type, activeTab }: { type: 'stays' | 'ac
   const withItems = await getWanderServiceItemsForListings(listings)
   const sectionProps = { trips: [] as Package[], stays: [] as typeof withItems, activities: [] as typeof withItems,
     rentals: [] as typeof withItems, activeTab }
-  return <WanderListingSections onlySection={type} {...sectionProps} {...{ [type]: withItems }} />
+  return <WanderListingSections onlySection={type} {...sectionProps} {...{ [type]: withItems }} seedPreview />
 }
 
 async function WanderStatusInterludeServer() {
@@ -53,27 +54,16 @@ async function WanderStatusInterludeServer() {
   </div></div>
 }
 
-function WanderListingSectionSkeleton({ title }: { title: string }) {
-  return <section aria-label={`Loading ${title}`} aria-busy="true">
-    <div className="mb-3 flex items-center gap-3"><div className="h-6 w-44 animate-pulse rounded-md bg-white/10" />
-      <span className="text-xs text-white/55">Loading {title.toLowerCase()}…</span></div>
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map(i => <div key={i} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
-      <div className="aspect-[4/3] animate-pulse bg-white/[0.08]" />
-      <div className="space-y-2 p-3"><div className="h-4 w-3/4 animate-pulse rounded bg-white/10" /><div className="h-3 w-1/2 animate-pulse rounded bg-white/[0.07]" /></div>
-    </div>)}</div>
-  </section>
-}
-
 /** The shell resolves immediately; each row streams when its own data is ready. */
 export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab }) {
   return <div className="border-t border-border/50">
     <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
       <WanderRecentlyViewedStrip />
       <WanderListingsSectionsWrapper
-        trips={<Suspense fallback={<WanderListingSectionSkeleton title="popular trips" />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
-        stays={<Suspense fallback={<WanderListingSectionSkeleton title="stays" />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
-        activities={<Suspense fallback={<WanderListingSectionSkeleton title="activities" />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
-        rentals={<Suspense fallback={<WanderListingSectionSkeleton title="rentals" />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
+        trips={<Suspense fallback={<WanderRowFallback kind="trips" title="popular trips" activeTab={activeTab} />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
+        stays={<Suspense fallback={<WanderRowFallback kind="stays" title="stays" activeTab={activeTab} />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
+        activities={<Suspense fallback={<WanderRowFallback kind="activities" title="activities" activeTab={activeTab} />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
+        rentals={<Suspense fallback={<WanderRowFallback kind="rentals" title="rentals" activeTab={activeTab} />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
         interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-white/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
       />
       <div className="mt-6 grid gap-3 md:hidden">

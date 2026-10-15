@@ -81,6 +81,8 @@ interface ExploreClientProps {
   pageVariant?: 'default' | 'wander'
   /** Shown when results omit the location/text filter because the strict search had no hits */
   searchFallback?: boolean
+  /** Rendering a cached home-row snapshot while the full result set streams in. */
+  previewPending?: boolean
 }
 
 export function ExploreClient({
@@ -98,6 +100,7 @@ export function ExploreClient({
   basePath = '/',
   pageVariant = 'default',
   searchFallback = false,
+  previewPending = false,
 }: ExploreClientProps) {
   const isWanderShell = pageVariant === 'wander'
   const router = useRouter()
@@ -304,6 +307,26 @@ export function ExploreClient({
       }, 350)
     }
 
+    const searchNoun = activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType].toLowerCase()
+    const renderSearchField = (id: string) => (
+      <div role="search" className={cn(
+        'flex h-9 items-center gap-2 rounded-full border pl-3 pr-1.5 transition-colors focus-within:ring-2 focus-within:ring-primary/40',
+        isWanderShell ? 'border-white/10 bg-white/5 hover:bg-white/10 focus-within:bg-white/10' : 'border-border bg-secondary',
+      )}>
+        <label htmlFor={id} className="sr-only">Search {searchNoun}</label>
+        {localSearch
+          ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-label="Searching" />
+          : <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+        <input id={id} type="search" maxLength={160} autoComplete="off" enterKeyHint="search"
+          value={searchDraft}
+          onChange={event => handleSearchChange(event.target.value)}
+          placeholder={`Search ${searchNoun}`}
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
+        {searchDraft && <button type="button" onClick={() => handleSearchChange('')}
+          className="rounded-full p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground" aria-label="Clear search"><X className="h-3.5 w-3.5" /></button>}
+      </div>
+    )
+
   const exploreCalendarToday = listingScheduleTodayISO()
 
   const tripsUpcomingPkgs = useMemo(
@@ -432,22 +455,10 @@ export function ExploreClient({
               )
             })}
           </div>
+          <div className="w-full max-w-xs lg:max-w-sm">{renderSearchField('explore-results-search')}</div>
         </div>
 
-        <div className="mb-5 max-w-2xl">
-          <label htmlFor="explore-results-search" className="sr-only">Search {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]}</label>
-          <div className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5', isWanderShell ? 'border-white/15 bg-white/[0.06]' : 'border-border bg-card')}>
-            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <input id="explore-results-search" type="search" maxLength={160}
-              value={searchDraft}
-              onChange={event => handleSearchChange(event.target.value)}
-              placeholder={`Search ${activeTab === 'trips' ? 'trips by destination, details or metadata' : `${typeLabels[activeTab as ServiceListingType].toLowerCase()} by name, location or details`}…`}
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
-            {searchDraft && <button type="button" onClick={() => handleSearchChange('')}
-              className="rounded-md p-1 text-muted-foreground hover:text-foreground" aria-label="Clear search"><X className="h-4 w-4" /></button>}
-          </div>
-          {localSearch && <p className="mt-1.5 text-xs text-muted-foreground">Filtering loaded listings while searching the full catalog…</p>}
-        </div>
+        <div className="mb-4 md:hidden">{renderSearchField('explore-results-search-mobile')}</div>
 
         {params.q && searchFallback ? (
           <div
@@ -604,8 +615,15 @@ export function ExploreClient({
               </div>
             ) : (
               <div className={serviceGridClassName}>
-                {serviceListings.map((listing) => (
+                {visibleServiceListings.map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
+                ))}
+              </div>
+            )}
+            {previewPending && !isLoading && (
+              <div className={cn(isTripsTab ? tripGridClassName : serviceGridClassName, 'mt-6')} aria-busy="true" aria-label="Loading more listings">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <SkeletonCard key={i} variant={isTripsTab ? 'trip' : 'service'} />
                 ))}
               </div>
             )}

@@ -99,6 +99,7 @@ function PlainCard({
         )}
       >
         <div className="relative aspect-video overflow-hidden bg-secondary">
+          <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
           <Image
             src={imageUrl}
             alt={listing.title}
@@ -260,6 +261,7 @@ function ItemsCarouselCard({
     >
       {/* ── Hero image with overlay info ──────────────────────────────── */}
       <div className="relative aspect-video overflow-hidden bg-secondary">
+        <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
           <Image
             src={heroImage}
             alt={activeItem.name}

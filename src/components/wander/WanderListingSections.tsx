@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Package, ServiceListing } from '@/types'
 import { ServiceListingCard } from '@/components/explore/ServiceListingCard'
 import { WanderTripCard } from '@/components/wander/WanderTripCard'
+import { WanderRowPreviewSeed } from '@/components/wander/WanderRowPreviewSeed'
 import { ChevronRight, ArrowRight } from 'lucide-react'
 import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 import { listingScheduleTodayISO } from '@/lib/utils'
@@ -100,6 +101,7 @@ export function WanderListingSections({
   rentals,
   activeTab = null,
   onlySection,
+  seedPreview = false,
   /**
    * Optional content rendered between the 2nd and 3rd category sections —
    * used by the mobile landing to slot Traveler status between "Popular trips"
@@ -116,6 +118,8 @@ export function WanderListingSections({
   rentals: RentalWithItems[]
   activeTab?: 'trips' | 'stays' | 'activities' | 'rentals' | null
   onlySection?: 'trips' | 'stays' | 'activities' | 'rentals'
+  /** Remember this row in the browser so "View all" can paint it instantly. */
+  seedPreview?: boolean
   interludeSlot?: ReactNode
 }) {
   // Default mobile order is trips → rentals → stays → activities so a fresh
@@ -226,7 +230,17 @@ export function WanderListingSections({
   } satisfies Record<typeof sectionOrder[number], ReactNode>
 
   if (onlySection) {
-    return sections[onlySection]
+    if (!seedPreview) return sections[onlySection]
+    return (
+      <>
+        {sections[onlySection]}
+        {onlySection === 'trips' ? (
+          <WanderRowPreviewSeed kind="trips" data={{ packages: trips, interestCounts: tripInterestCounts, spotsBooked: spotsBookedByTrip }} />
+        ) : (
+          <WanderRowPreviewSeed kind={onlySection} data={{ listings: { stays, activities, rentals }[onlySection] }} />
+        )}
+      </>
+    )
   }
 
   return (

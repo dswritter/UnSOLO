@@ -44,7 +44,6 @@ export function WanderExploreSkeleton() {
             ))}
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-white/55">Loading results…</p>
       </div>
     </div>
   )

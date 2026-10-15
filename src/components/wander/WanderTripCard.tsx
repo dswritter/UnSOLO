@@ -109,6 +109,8 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
       >
         <div className="relative h-48 bg-secondary overflow-hidden">
           {pkg.images?.[0] ? (
+            <>
+            <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
             <Image
               src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]}
               alt=""
@@ -116,6 +118,7 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
               className={cn('object-cover', pastEdition && 'brightness-[0.88] saturate-90')}
               sizes="(min-width: 1024px) 25vw, 100vw"
             />
+            </>
           ) : (
             <div className="flex h-full items-center justify-center">
               <Mountain className="h-12 w-12 text-primary/30" />
