@@ -214,7 +214,7 @@ export async function createServiceListing(input: {
   const payload = {
     ...rest,
     images,
-    ...(contact ? { status: 'approved', is_active: false } : {}),
+    ...(contact ? { status: 'approved', is_active: true } : {}),
     destination_id: primaryDestinationId,
     destination_ids: destinationIds,
     price_variants: input.price_variants || null,
@@ -396,12 +396,9 @@ export async function approveServiceListing(id: string) {
   // logic tell "never reviewed" apart from "re-review after edit".
   const { data: existing } = await supabase
     .from('service_listings')
-    .select('first_approved_at, host_id, created_on_behalf_by')
+    .select('first_approved_at')
     .eq('id', id)
     .single()
-  if (existing?.created_on_behalf_by && !existing.host_id) {
-    throw new Error('Link the host account before publishing this listing')
-  }
   if (!existing?.first_approved_at) {
     update.first_approved_at = new Date().toISOString()
   }

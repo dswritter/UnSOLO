@@ -22,7 +22,7 @@ export function HostListingContactFields({ listingKind, value, onChange, disable
         Choose a host above or enter their email or phone (at least one). You can reuse the same host for multiple listings of any type. An existing verified account is linked immediately;
         otherwise, listings link automatically when they verify the same contact after signup.
         Contact details are private. If the contacts belong to different accounts, staff must correct them.
-        New staff-created listings are approved automatically, but are not public until the host’s verified account is linked.
+        New staff-created listings are approved and published immediately; the host gets access once their verified account is linked.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium">

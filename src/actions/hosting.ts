@@ -247,7 +247,7 @@ export async function createHostedTrip(formData: {
       images: formData.images,
       host_id: user.id,
       moderation_status: contact ? 'approved' : 'pending',
-      is_active: false, // Delegated RPC activates only after verified host linking
+      is_active: !!contact,
       join_preferences: formData.join_preferences,
     }
   const { data: trip, error } = contact

@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { formatPrice, type Package, type Destination, type JoinPreferences } from '@/types'
-import { maxInclusiveSpanDays, packageDurationFullLabel, packageDurationShortLabel } from '@/lib/package-trip-calendar'
+import { maxInclusiveSpanDays, packageDurationFullLabel } from '@/lib/package-trip-calendar'
 import { normalizeTripDeparturePairs } from '@/lib/trip-departure-recurrence'
 import {
   hasTieredPricing,
@@ -15,13 +15,13 @@ import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { createPackage, updatePackage, togglePackageActive, deletePackage, createDestination, addIncludesOption } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripImageGridWithCover } from '@/components/ui/TripImageGridWithCover'
 import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
 import { parseSearchKeywords } from '@/lib/explore/search-metadata'
-import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users } from 'lucide-react'
+import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users, ExternalLink, Trash2 } from 'lucide-react'
+import { compactTripDuration } from '@/lib/listing-card-format'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
 interface IncludesOption {
@@ -1019,65 +1019,66 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
       {/* Package list */}
       <div className="space-y-3">
-        {packages.map(pkg => (
-          <div key={pkg.id} className={`rounded-xl border bg-card/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${pkg.is_active ? 'border-border' : 'border-red-900/30 opacity-60'}`}>
-            <div className="flex items-center gap-3 min-w-0">
-              {pkg.images?.[0] && (
+        {packages.map(pkg => {
+          const tiered = hasTieredPricing(pkg.price_variants)
+          const departures = (pkg.departure_dates || []).length
+          const meta = [
+            pkg.destination ? `${pkg.destination.name}, ${pkg.destination.state}` : null,
+            compactTripDuration(pkg),
+            pkg.max_group_size ? `Max ${pkg.max_group_size}` : null,
+            pkg.difficulty ? pkg.difficulty[0].toUpperCase() + pkg.difficulty.slice(1) : null,
+            `${departures} departure${departures === 1 ? '' : 's'}`,
+          ].filter(Boolean).join(' · ')
+          return (
+          <div key={pkg.id} className="flex flex-col gap-3 rounded-xl border border-border bg-card/50 p-3 sm:flex-row sm:items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              {pkg.images?.[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
-              )}
+                <img src={storageThumbnailUrl(pkg.images[0]) || pkg.images[0]} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+              ) : <div className="h-12 w-12 shrink-0 rounded-lg bg-secondary" />}
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold truncate">{pkg.title}</p>
-                  {pkg.is_featured && <Star className="h-3.5 w-3.5 text-primary fill-primary shrink-0" />}
-                  {!pkg.is_active && <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-xs">Inactive</Badge>}
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate font-semibold">{pkg.title}</p>
+                  {pkg.is_featured && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" aria-label="Featured" />}
+                  <span className={pkg.is_active
+                    ? 'shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
+                    : 'shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-muted-foreground'}>
+                    {pkg.is_active ? 'Live' : 'Hidden'}
+                  </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {pkg.destination?.name}, {pkg.destination?.state} · {packageDurationShortLabel(pkg)} · Max {pkg.max_group_size} · {pkg.difficulty}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {(pkg.departure_dates || []).length} departure dates ·{' '}
-                  {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
-                  /person
-                </p>
+                <p className="truncate text-xs text-muted-foreground">{meta}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="text-right leading-tight">
-                {!hasTieredPricing(pkg.price_variants) &&
-                typeof pkg.compare_at_price_paise === 'number' &&
-                pkg.compare_at_price_paise > pkg.price_paise ? (
-                  <div className="text-[11px] text-muted-foreground line-through">
-                    {formatPrice(pkg.compare_at_price_paise)}
-                  </div>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+              <div className="mr-1 text-right leading-tight">
+                {!tiered && typeof pkg.compare_at_price_paise === 'number' && pkg.compare_at_price_paise > pkg.price_paise ? (
+                  <div className="text-[11px] text-muted-foreground line-through">{formatPrice(pkg.compare_at_price_paise)}</div>
                 ) : null}
-                <span className="text-primary font-bold text-sm">
-                  {hasTieredPricing(pkg.price_variants) ? `From ${formatPrice(pkg.price_paise)}` : formatPrice(pkg.price_paise)}
+                <span className="text-sm font-bold text-primary">
+                  {tiered ? 'From ' : ''}{formatPrice(pkg.price_paise)}
                 </span>
               </div>
               <Button
-                size="sm" variant="ghost"
-                className="text-muted-foreground hover:text-white"
-                onClick={() => window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')}
-                title="Preview public page"
+                size="sm" variant="outline"
+                className="h-8 min-w-[4.5rem] gap-1.5"
+                onClick={() => handleToggleActive(pkg.id, pkg.is_active)}
+                disabled={isPending}
               >
-                <Eye className="h-4 w-4" />
+                {pkg.is_active ? <><EyeOff className="h-3.5 w-3.5" />Hide</> : <><Eye className="h-3.5 w-3.5" />Publish</>}
               </Button>
-              <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-white" onClick={() => loadForEdit(pkg)}>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+                onClick={() => window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')}
+                title="Open public page" aria-label="Open public page">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+                onClick={() => loadForEdit(pkg)} title="Edit" aria-label="Edit">
                 <Edit2 className="h-4 w-4" />
               </Button>
               <Button
                 size="sm" variant="ghost"
-                className={pkg.is_active ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'}
-                onClick={() => handleToggleActive(pkg.id, pkg.is_active)}
-                disabled={isPending}
-              >
-                {pkg.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
-              <Button
-                size="sm" variant="ghost"
-                className="text-red-500 hover:text-red-400"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400"
                 onClick={() => {
                   if (!window.confirm(`Delete "${pkg.title}"? This cannot be undone.`)) return
                   startTransition(async () => {
@@ -1091,12 +1092,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 }}
                 disabled={isPending}
                 title="Delete package"
+                aria-label="Delete package"
               >
-                <X className="h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

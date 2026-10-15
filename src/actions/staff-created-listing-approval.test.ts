@@ -80,7 +80,7 @@ describe('staff-created listing approval actions', () => {
       .toEqual({ success: true, slug: 'created-slug' })
     expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', {
       p_kind: 'trip', p_staff_id: 'actor-id', p_contact: { email: 'host@example.com', phone: null },
-      p_listing: expect.objectContaining({ moderation_status: 'approved', is_active: false }),
+      p_listing: expect.objectContaining({ moderation_status: 'approved', is_active: true }),
     })
     expect(mocks.userFrom).not.toHaveBeenCalled()
     expect(mocks.staffFrom.mock.calls.map(([table]) => table)).toEqual(['profiles', 'team_members'])
@@ -112,7 +112,7 @@ describe('staff-created listing approval actions', () => {
     })
     expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', {
       p_kind: 'service', p_staff_id: 'actor-id', p_contact: { email: null, phone: '+919876543210' },
-      p_listing: expect.objectContaining({ type, status: 'approved', is_active: false }),
+      p_listing: expect.objectContaining({ type, status: 'approved', is_active: true }),
     })
     expect(mocks.insert).toHaveBeenCalledWith('staff', 'audit_logs', expect.objectContaining({
       admin_id: 'actor-id', action: 'CREATE_SERVICE_LISTING', target_id: 'listing-id',

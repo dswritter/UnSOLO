@@ -1475,7 +1475,6 @@ export async function moderateCommunityTrip(tripId: string, approve: boolean, re
     .single()
 
   if (!trip || (!trip.host_id && !trip.created_on_behalf_by)) return { error: 'Community trip not found' }
-  if (approve && !trip.host_id) return { error: 'Link the host account before publishing this trip' }
 
   const newStatus = approve ? 'approved' : 'rejected'
 
