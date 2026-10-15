@@ -41,7 +41,7 @@ export async function WanderLandingPage({
             <WanderHeroSection activeTab={activeTab} searchBasePath={searchBasePath} />
           </Suspense>
           <Suspense fallback={<WanderListingRowsSkeleton />}>
-            <WanderListingRowsServer />
+            <WanderListingRowsServer activeTab={activeTab} />
           </Suspense>
         </>
       )}

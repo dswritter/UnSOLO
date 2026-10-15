@@ -99,6 +99,7 @@ export function WanderListingSections({
   activities,
   rentals,
   activeTab = null,
+  onlySection,
   /**
    * Optional content rendered between the 2nd and 3rd category sections —
    * used by the mobile landing to slot Traveler status between "Popular trips"
@@ -114,6 +115,7 @@ export function WanderListingSections({
   activities: ActivityWithItems[]
   rentals: RentalWithItems[]
   activeTab?: 'trips' | 'stays' | 'activities' | 'rentals' | null
+  onlySection?: 'trips' | 'stays' | 'activities' | 'rentals'
   interludeSlot?: ReactNode
 }) {
   // Default mobile order is trips → rentals → stays → activities so a fresh
@@ -222,6 +224,10 @@ export function WanderListingSections({
       </section>
     ),
   } satisfies Record<typeof sectionOrder[number], ReactNode>
+
+  if (onlySection) {
+    return sections[onlySection]
+  }
 
   return (
     <div className="space-y-8 md:space-y-10">

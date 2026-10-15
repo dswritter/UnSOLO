@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { fuzzyMatch, tokenizeLocationQuery } from '@/lib/utils'
-import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
-import { getServiceListingsByType } from '@/actions/service-listing-discovery'
+import { sortExplorePackages } from '@/lib/explore-package-popularity'
+import { getServiceListingsByType, type ServiceListingSearchFilters } from '@/actions/service-listing-discovery'
+import { getCachedExploreMaxPackagePrice, getCachedExplorePackages, getCachedPackageInterestCounts } from '@/lib/explore/cachedPublicPackageData'
+import { getCachedPublicServiceItems } from '@/lib/explore/cachedPublicServiceData'
 
 export type ServiceListingWithItems = ServiceListing & {
   items: Array<{
@@ -16,65 +17,15 @@ export type ServiceListingWithItems = ServiceListing & {
   }>
 }
 
-export async function getMaxPackagePrice(supabase: Awaited<ReturnType<typeof createClient>>): Promise<number> {
-  const { data } = await supabase
-    .from('packages')
-    .select('price_paise')
-    .eq('is_active', true)
-    .order('price_paise', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (!data?.price_paise) return 2000000
-  return data.price_paise
-}
-
 export async function getPackages(searchParams: Record<string, string>) {
-  const supabase = await createClient()
-  const tripSource = searchParams.tripSource
-
-  let query = supabase
-    .from('packages')
-    .select(
-      '*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)',
-    )
-    .eq('is_active', true)
-
-  if (tripSource === 'community') {
-    query = query.not('host_id', 'is', null)
-  } else if (tripSource === 'unsolo') {
-    query = query.is('host_id', null)
-  }
-
-  if (searchParams.difficulty) {
-    query = query.eq('difficulty', searchParams.difficulty)
-  }
-  if (searchParams.minBudget) {
-    const minPaise = parseInt(searchParams.minBudget, 10) * 100
-    if (!isNaN(minPaise)) {
-      query = query.gte('price_paise', minPaise)
-    }
-  }
-  if (searchParams.maxBudget) {
-    const maxPaise = parseInt(searchParams.maxBudget, 10) * 100
-    if (!isNaN(maxPaise)) {
-      query = query.lte('price_paise', maxPaise)
-    }
-  }
-  if (searchParams.maxDays) {
-    query = query.lte('duration_days', parseInt(searchParams.maxDays))
-  }
-  if (searchParams.minDays) {
-    query = query.gte('duration_days', parseInt(searchParams.minDays))
-  }
-
-  query = query
-    .order('is_featured', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  const { data } = await query
-  let packages = (data || []) as unknown as Package[]
+  let packages = await getCachedExplorePackages({
+    tripSource: searchParams.tripSource,
+    difficulty: searchParams.difficulty,
+    minBudget: searchParams.minBudget,
+    maxBudget: searchParams.maxBudget,
+    maxDays: searchParams.maxDays,
+    minDays: searchParams.minDays,
+  })
 
   // Keep packages whose next bookable departure is in the past so the grid can
   // show "Last departure …" (see packageNextDepartureLine) and link to reviews.
@@ -112,22 +63,6 @@ export async function getPackages(searchParams: Record<string, string>) {
     })
   }
 
-  if (searchParams.interested) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: interests } = await supabase
-        .from('package_interests')
-        .select('package_id')
-        .eq('user_id', user.id)
-      const interestedIds = new Set((interests || []).map(i => i.package_id))
-      packages = packages.filter(pkg => interestedIds.has(pkg.id))
-    }
-  }
-
-  const ids = packages.map(p => p.id)
-  const { bookedGuests, interestCount } = await fetchPackagePopularityMaps(supabase, ids)
-  packages = sortExplorePackages(packages, bookedGuests, interestCount)
-
   return packages
 }
 
@@ -135,28 +70,14 @@ async function attachItemsToServiceListings(
   listings: ServiceListing[],
 ): Promise<ServiceListingWithItems[]> {
   if (listings.length === 0) return []
-  const supabase = await createClient()
   const ids = listings.map(l => l.id)
-  const { data: itemRows } = await supabase
-    .from('service_listing_items')
-    .select('id, name, price_paise, images, unit, is_out_of_stock, service_listing_id')
-    .in('service_listing_id', ids)
-    .eq('is_active', true)
-    .order('position_order', { ascending: true })
-    .order('created_at', { ascending: true })
+  const itemRows = await getCachedPublicServiceItems(ids)
 
   const itemsByListing = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null; is_out_of_stock: boolean }>>()
-  for (const row of itemRows || []) {
-    const lid = (row as { service_listing_id: string }).service_listing_id
+  for (const row of itemRows) {
+    const lid = row.service_listing_id
     if (!itemsByListing.has(lid)) itemsByListing.set(lid, [])
-    itemsByListing.get(lid)!.push({
-      id: row.id,
-      name: row.name,
-      price_paise: row.price_paise,
-      images: (row.images as string[]) || [],
-      unit: row.unit as string | null,
-      is_out_of_stock: Boolean((row as { is_out_of_stock?: boolean | null }).is_out_of_stock),
-    })
+    itemsByListing.get(lid)!.push(row)
   }
 
   return listings.map(l => ({
@@ -168,8 +89,8 @@ async function attachItemsToServiceListings(
 function buildServiceListingFilters(
   searchParams: Record<string, string>,
   includeTextSearch: boolean,
-): Record<string, unknown> {
-  const filters: Record<string, unknown> = {}
+): ServiceListingSearchFilters {
+  const filters: ServiceListingSearchFilters = {}
   if (includeTextSearch && searchParams.q) {
     filters.search = searchParams.q
   }
@@ -204,11 +125,11 @@ export async function getServiceListings(
   const hasSearch = !!searchParams.q
 
   const runForType = async (includeTextSearch: boolean, limit: number) => {
-    const typeFilters = buildServiceListingFilters(searchParams, includeTextSearch) as Record<string, unknown>
+    const typeFilters = buildServiceListingFilters(searchParams, includeTextSearch)
     if (type !== 'activities' && typeFilters.difficulty) {
       delete typeFilters.difficulty
     }
-    const result = await getServiceListingsByType(type, typeFilters as any, 1, limit)
+    const result = await getServiceListingsByType(type, typeFilters, 1, limit)
     return result.listings
   }
 
@@ -257,56 +178,67 @@ export async function loadExploreListData(params: Record<string, string>): Promi
     | 'activities'
     | 'rentals'
     | 'getting_around'
-  const supabase = await createClient()
-
   let packages: Package[] = []
   let serviceListings: ServiceListingWithItems[] = []
   let resultCount = 0
   let searchFallback = false
   let interestedPackageIds: string[] = []
   let maxPackagePrice = 2000000
-  let spotsBooked: Record<string, number> = {}
-  let interestCounts: Record<string, number> = {}
+  const spotsBooked: Record<string, number> = {}
+  const interestCounts: Record<string, number> = {}
 
   if (activeTab === 'trips') {
-    // Run packages + max-price + cached auth in parallel — they don't depend on each other.
-    // (Previously these ran sequentially and getUser() always made a GoTrue round-trip,
-    // which dominated mobile view-all latency.)
+    // Shared public listings/aggregates are cached. Per-user interests remain
+    // request-scoped and are never put in the public cache.
     const [pkgList, maxPrice, auth] = await Promise.all([
       getPackages(params),
-      getMaxPackagePrice(supabase),
+      getCachedExploreMaxPackagePrice(),
       getRequestAuth(),
     ])
     packages = pkgList
     maxPackagePrice = maxPrice
+
+    const userInterests = auth.user
+      ? await auth.supabase.from('package_interests').select('package_id').eq('user_id', auth.user.id)
+      : { data: [] as Array<{ package_id: string }> | null }
+    interestedPackageIds = (userInterests.data || []).map(row => row.package_id)
+    const interestedSet = new Set(interestedPackageIds)
+    if (params.interested && auth.user) packages = packages.filter(pkg => interestedSet.has(pkg.id))
 
     if (params.q && packages.length === 0) {
       const rest = { ...params }
       delete rest.q
       const broad = await getPackages(rest)
       if (broad.length > 0) {
-        packages = broad
+        packages = params.interested && auth.user
+          ? broad.filter(pkg => interestedSet.has(pkg.id))
+          : broad
         searchFallback = true
       }
     }
     resultCount = packages.length
 
-    // Popularity + per-user interests can also be parallel.
+    // Choose strict/fallback results first, then fetch and sort their aggregate
+    // popularity once. Previously getPackages fetched it for every candidate.
     const ids = packages.map(p => p.id)
-    const [popularity, userInterests] = await Promise.all([
+    const [interestCountRows, bookingRows] = await Promise.all([
       ids.length > 0
-        ? fetchPackagePopularityMaps(supabase, ids)
-        : Promise.resolve({ bookedGuests: new Map<string, number>(), interestCount: new Map<string, number>() }),
-      auth.user
-        ? supabase
-            .from('package_interests')
-            .select('package_id')
-            .eq('user_id', auth.user.id)
-        : Promise.resolve({ data: [] as Array<{ package_id: string }> | null }),
+        ? getCachedPackageInterestCounts(ids)
+        : Promise.resolve([] as [string, number][]),
+      auth.user && ids.length > 0
+        ? auth.supabase.from('bookings').select('package_id, guests').in('package_id', ids).in('status', ['confirmed', 'completed'])
+        : Promise.resolve({ data: [] as Array<{ package_id: string; guests: number | null }> | null }),
     ])
-    for (const [id, count] of popularity.bookedGuests) spotsBooked[id] = count
-    for (const [id, count] of popularity.interestCount) interestCounts[id] = count
-    interestedPackageIds = (userInterests.data || []).map(i => i.package_id)
+    const interestCount = new Map(interestCountRows)
+    const bookedGuests = new Map<string, number>()
+    for (const booking of bookingRows.data || []) {
+      const id = booking.package_id
+      const guests = typeof booking.guests === 'number' && booking.guests > 0 ? booking.guests : 1
+      bookedGuests.set(id, (bookedGuests.get(id) || 0) + guests)
+    }
+    packages = sortExplorePackages(packages, bookedGuests, interestCount)
+    for (const [id, count] of bookedGuests) spotsBooked[id] = count
+    for (const [id, count] of interestCount) interestCounts[id] = count
   } else {
     const svc = await getServiceListings(params)
     serviceListings = svc.listings

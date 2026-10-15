@@ -2,14 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { WanderListingSections } from '@/components/wander/WanderListingSections'
 import { WANDER_TAB_CHANGE_EVENT } from '@/components/wander/WanderMobileTabNav'
-import type { Package, ServiceListing } from '@/types'
-
-type ActivityWithItems = ServiceListing & {
-  items: Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>
-}
-type RentalWithItems = ActivityWithItems
+import type { ReactNode } from 'react'
 
 /**
  * Thin client wrapper so the active-tab ordering of WanderListingSections
@@ -18,22 +12,16 @@ type RentalWithItems = ActivityWithItems
  */
 export function WanderListingsSectionsWrapper({
   trips,
-  tripInterestCounts,
-  spotsBookedByTrip,
-  interestedPackageIds,
   stays,
   activities,
   rentals,
   interludeSlot,
 }: {
-  trips: Package[]
-  tripInterestCounts?: Record<string, number>
-  spotsBookedByTrip?: Record<string, number>
-  interestedPackageIds?: string[]
-  stays: ActivityWithItems[]
-  activities: ActivityWithItems[]
-  rentals: RentalWithItems[]
-  interludeSlot?: React.ReactNode
+  trips: ReactNode
+  stays: ReactNode
+  activities: ReactNode
+  rentals: ReactNode
+  interludeSlot?: ReactNode
 }) {
   const searchParams = useSearchParams()
   const urlTab = searchParams.get('tab')
@@ -57,22 +45,24 @@ export function WanderListingsSectionsWrapper({
   }, [])
   // Clear optimistic once URL catches up
   useEffect(() => {
-    if (confirmedTab === pendingTab) setPendingTab(null)
+    if (confirmedTab === pendingTab && pendingTab !== null) {
+      const reset = window.setTimeout(() => setPendingTab(null), 0)
+      return () => window.clearTimeout(reset)
+    }
   }, [confirmedTab, pendingTab])
 
   const activeTab = pendingTab ?? confirmedTab
 
-  return (
-    <WanderListingSections
-      trips={trips}
-      tripInterestCounts={tripInterestCounts}
-      spotsBookedByTrip={spotsBookedByTrip}
-      interestedPackageIds={interestedPackageIds}
-      stays={stays}
-      activities={activities}
-      rentals={rentals}
-      activeTab={activeTab}
-      interludeSlot={interludeSlot}
-    />
-  )
+  const slots = { trips, stays, activities, rentals }
+  const sectionOrder = ['trips', 'rentals', 'stays', 'activities'] as const
+  const orderedTypes = activeTab
+    ? [activeTab, ...sectionOrder.filter(type => type !== activeTab)]
+    : [...sectionOrder]
+
+  return <div className="space-y-8 md:space-y-10">
+    {orderedTypes.map((type, index) => <div key={type} className="contents">
+      {slots[type]}
+      {index === 1 && interludeSlot ? <div key={`interlude-${index}`}>{interludeSlot}</div> : null}
+    </div>)}
+  </div>
 }

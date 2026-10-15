@@ -1,9 +1,20 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { createPublicClient } from '@/lib/supabase/public-client'
+import { createClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
+import { getCachedPublicServiceListings, type PublicServiceFilters } from '@/lib/explore/cachedPublicServiceData'
 import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
+
+export type ServiceListingSearchFilters = {
+  destination_id?: string
+  min_price?: number
+  max_price?: number
+  amenities?: string[]
+  tags?: string[]
+  difficulty?: string
+  search?: string
+}
 
 /** All approved service listings are eligible for explore (past activity dates included). */
 export async function isServiceListingVisibleToPublic(
@@ -14,90 +25,20 @@ export async function isServiceListingVisibleToPublic(
 
 export async function getServiceListingsByType(
   type: ServiceListingType,
-  filters: {
-    destination_id?: string
-    min_price?: number
-    max_price?: number
-    amenities?: string[]
-    tags?: string[]
-    difficulty?: string
-    search?: string
-  } = {},
-  page: number = 1,
-  limit: number = 12
+  filters: ServiceListingSearchFilters = {},
+  page = 1,
+  limit = 12,
 ) {
-  const supabase = await createClient()
-
-  let query = supabase
-    .from('service_listings')
-    .select('*, destination:destinations(id, name, slug)', { count: 'exact' })
-    .eq('type', type)
-    .eq('is_active', true)
-    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
-
-  // Apply filters
-  if (filters.destination_id) {
-    query = query.contains('destination_ids', [filters.destination_id])
+  const stableFilters: PublicServiceFilters = {
+    destination_id: filters.destination_id,
+    min_price: filters.min_price,
+    max_price: filters.max_price,
+    amenities: filters.amenities ? [...filters.amenities].sort() : undefined,
+    tags: filters.tags ? [...filters.tags].sort() : undefined,
+    difficulty: filters.difficulty,
+    search: filters.search?.trim() || undefined,
   }
-
-  if (filters.min_price) {
-    query = query.gte('price_paise', filters.min_price * 100)
-  }
-
-  if (filters.max_price) {
-    query = query.lte('price_paise', filters.max_price * 100)
-  }
-
-  if (filters.search) {
-    const terms = tokenizeLocationQuery(filters.search)
-    const orParts: string[] = []
-    for (const term of terms) {
-      const e = escapeIlikePattern(term)
-      orParts.push(
-        `title.ilike.%${e}%,description.ilike.%${e}%,location.ilike.%${e}%`,
-      )
-    }
-    if (orParts.length > 0) {
-      query = query.or(orParts.join(','))
-    }
-  }
-
-  // Apply amenities filter (uses array contains)
-  if (filters.amenities && filters.amenities.length > 0) {
-    query = query.contains('amenities', filters.amenities)
-  }
-
-  // Apply tags filter
-  if (filters.tags && filters.tags.length > 0) {
-    query = query.contains('tags', filters.tags)
-  }
-
-  // Apply difficulty filter (type-specific, stored in metadata)
-  if (filters.difficulty && type === 'activities') {
-    // Filter by metadata.difficulty for activities
-    // Note: This may require using @@ operator or filter in app
-    // For now, we fetch and filter in-app
-  }
-
-  // Sort: Featured > Rating > Newest
-  query = query
-    .order('is_featured', { ascending: false })
-    .order('average_rating', { ascending: false })
-    .order('review_count', { ascending: false })
-    .order('created_at', { ascending: false })
-
-  // Paginate
-  const offset = (page - 1) * limit
-  query = query.range(offset, offset + limit - 1)
-
-  const { data, error, count } = await query
-
-  if (error) throw error
-
-  const listings = (data || []) as ServiceListing[]
-
-  const adjustedTotal = count || 0
-
+  const { listings, total: adjustedTotal } = await getCachedPublicServiceListings(type, stableFilters, page, limit)
   return {
     listings,
     total: adjustedTotal,
@@ -271,7 +212,7 @@ export async function getRelatedListings(
 
   const destinationIds = currentListing.destination_ids?.filter(Boolean) || []
 
-  let query = supabase
+  const query = supabase
     .from('service_listings')
     .select('*')
     .eq('type', currentListing.type)

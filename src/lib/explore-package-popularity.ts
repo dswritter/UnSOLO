@@ -31,24 +31,25 @@ export async function fetchPackagePopularityMaps(
   const interestCount = new Map<string, number>()
   if (packageIds.length === 0) return { bookedGuests, interestCount }
 
-  const { data: bookings } = await supabase
-    .from('bookings')
-    .select('package_id, guests')
-    .in('package_id', packageIds)
-    .in('status', ['confirmed', 'completed'])
+  const [bookingsResult, interestsResult] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('package_id, guests')
+      .in('package_id', packageIds)
+      .in('status', ['confirmed', 'completed']),
+    supabase
+      .from('package_interests')
+      .select('package_id')
+      .in('package_id', packageIds),
+  ])
 
-  for (const b of bookings || []) {
+  for (const b of bookingsResult.data || []) {
     const pid = b.package_id as string
     const g = typeof b.guests === 'number' && b.guests > 0 ? b.guests : 1
     bookedGuests.set(pid, (bookedGuests.get(pid) || 0) + g)
   }
 
-  const { data: interests } = await supabase
-    .from('package_interests')
-    .select('package_id')
-    .in('package_id', packageIds)
-
-  for (const row of interests || []) {
+  for (const row of interestsResult.data || []) {
     const pid = row.package_id as string
     interestCount.set(pid, (interestCount.get(pid) || 0) + 1)
   }

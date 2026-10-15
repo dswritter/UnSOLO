@@ -15,6 +15,7 @@ import {
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
 } from '@/lib/wander/wander-defaults'
 import { sanitizeAdminPublicHref } from '@/lib/wander/safe-public-link'
+import { getCachedPublicServiceItems } from '@/lib/explore/cachedPublicServiceData'
 export {
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
   DEFAULT_WANDER_HERO_LINE1,
@@ -446,6 +447,8 @@ export type WanderTripRowResult = {
   packages: Package[]
   /** Counts for `package_interests` rows, keyed by package id (aligned with Explore). */
   interestCounts: Record<string, number>
+  /** Global booked-guest counts are public card badges and share the 60s trip-row cache. */
+  bookedGuests: Record<string, number>
 }
 
 /** Carousel slots used on Wander home for trips / activities / stays / rentals. */
@@ -486,10 +489,13 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
     .order('created_at', { ascending: false })
     .limit(120)
   let packages = (raw || []) as Package[]
-  if (packages.length === 0) return { packages: [], interestCounts: {} }
+  if (packages.length === 0) return { packages: [], interestCounts: {}, bookedGuests: {} }
 
   const ids = packages.map(p => p.id)
-  const { data: reviewRows } = await supabase.from('reviews').select('package_id, rating').in('package_id', ids)
+  const [{ data: reviewRows }, popularity] = await Promise.all([
+    supabase.from('reviews').select('package_id, rating').in('package_id', ids),
+    fetchPackagePopularityMaps(supabase, ids),
+  ])
   const avgByPackage = new Map<string, { sum: number; n: number }>()
   for (const r of reviewRows || []) {
     const row = r as { package_id: string; rating: number }
@@ -504,7 +510,7 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
     return x.sum / x.n
   }
 
-  const { bookedGuests, interestCount } = await fetchPackagePopularityMaps(supabase, ids)
+  const { bookedGuests, interestCount } = popularity
   packages = sortExplorePackages(packages, bookedGuests, interestCount)
   packages.sort((a, b) => {
     if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
@@ -521,7 +527,7 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
   for (const p of sliced) {
     interestCounts[p.id] = interestCount.get(p.id) || 0
   }
-  return { packages: sliced, interestCounts }
+  return { packages: sliced, interestCounts, bookedGuests: Object.fromEntries(bookedGuests) }
 }, ['wander-trip-row'], { revalidate: 60 })
 
 export const getWanderActivityRow = unstable_cache(async function (): Promise<ServiceListing[]> {
@@ -605,25 +611,19 @@ export async function getWanderServiceItemsForListings(
   >
 > {
   if (listings.length === 0) return []
-  const supabase = svc()
   const ids = listings.map(l => l.id)
-  const { data: itemRows } = await supabase
-    .from('service_listing_items')
-    .select('id, name, price_paise, images, unit, is_out_of_stock, service_listing_id')
-    .in('service_listing_id', ids)
-    .eq('is_active', true)
-    .order('position_order', { ascending: true })
+  const itemRows = await getCachedPublicServiceItems(ids)
   const itemsBy = new Map<string, Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null; is_out_of_stock: boolean }>>()
-  for (const row of itemRows || []) {
-    const lid = (row as { service_listing_id: string }).service_listing_id
+  for (const row of itemRows) {
+    const lid = row.service_listing_id
     if (!itemsBy.has(lid)) itemsBy.set(lid, [])
     itemsBy.get(lid)!.push({
-      id: (row as { id: string }).id,
-      name: (row as { name: string }).name,
-      price_paise: (row as { price_paise: number }).price_paise,
-      images: ((row as { images: string[] | null }).images) || [],
-      unit: (row as { unit: string | null }).unit,
-      is_out_of_stock: Boolean((row as { is_out_of_stock?: boolean | null }).is_out_of_stock),
+      id: row.id,
+      name: row.name,
+      price_paise: row.price_paise,
+      images: row.images,
+      unit: row.unit,
+      is_out_of_stock: row.is_out_of_stock,
     })
   }
   return listings.map(l => ({ ...l, items: itemsBy.get(l.id) || [] }))
