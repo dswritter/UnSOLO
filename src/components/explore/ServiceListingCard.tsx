@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import type { ServiceListing } from '@/types'
-import { formatPrice, cn } from '@/lib/utils'
+import { cn, formatPrice } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
-import { Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { shortListingLocation, unitShortLabel } from '@/lib/listing-card-format'
+import { writeDetailPreview } from '@/lib/detail-preview'
+import { ListingCardBadge, ListingCardMedia, ListingCardPrice, listingCardShellClass } from '@/components/listings/ListingCardParts'
 
 type CardItem = {
   id: string
@@ -22,192 +24,41 @@ type CardItem = {
 interface ServiceListingCardProps {
   listing: ServiceListing
   items?: CardItem[]
-  /** When false, the card is tappable/clickable only (no bottom CTA). */
-  showViewDetailsButton?: boolean
-  /** Dated listings with no upcoming schedule — subdued grid treatment (explore Past section). */
+  /** Dated listings with no upcoming schedule — subdued treatment. */
   muted?: boolean
 }
 
-// ── Single-image fallback card (no items or just one) ─────────────────────
-function PlainCard({
-  listing,
-  showViewDetailsButton = true,
-  muted = false,
-}: {
-  listing: ServiceListing
-  showViewDetailsButton?: boolean
-  muted?: boolean
-}) {
-  const router = useRouter()
-  const [isMobile, setIsMobile] = useState(false)
-  const rawCover = listing.images?.[0]
-  const imageUrl = rawCover ? (storageThumbnailUrl(rawCover) || rawCover) : '/placeholder-listing.svg'
-  const ratingDisplay =
-    listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
+const MAX_DOTS = 5
+const CARD_IMAGE_SIZES = '(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 80vw'
 
-  const getMetadataDisplay = () => {
-    const m = listing.metadata || {}
-    const parts: string[] = []
-    switch (listing.type) {
-      case 'stays':
-        if (m.num_rooms) parts.push(`${m.num_rooms} rooms`)
-        if (m.num_bathrooms) parts.push(`${m.num_bathrooms} baths`)
-        break
-      case 'activities':
-        if (m.duration_hours) parts.push(`${m.duration_hours}h`)
-        if (m.difficulty) parts.push(m.difficulty as string)
-        break
-      case 'rentals':
-        if (m.vehicle_type) parts.push(m.vehicle_type as string)
-        if (m.mileage_limit_km) parts.push(`${m.mileage_limit_km} km limit`)
-        break
-      case 'getting_around':
-        if (m.transport_type) parts.push(m.transport_type as string)
-        if (m.capacity_persons) parts.push(`${m.capacity_persons} seats`)
-        break
-    }
-    return parts.join(' • ')
+function listingDetailLine(listing: ServiceListing): string {
+  const m = listing.metadata || {}
+  switch (listing.type) {
+    case 'stays':
+      return m.num_rooms ? `${m.num_rooms} room${Number(m.num_rooms) === 1 ? '' : 's'}` : ''
+    case 'activities':
+      return m.duration_hours ? `${m.duration_hours}h` : ''
+    case 'rentals':
+      return typeof m.vehicle_type === 'string' ? m.vehicle_type : ''
+    case 'getting_around':
+      return typeof m.transport_type === 'string' ? m.transport_type : ''
+    default:
+      return ''
   }
-
-  useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 768)
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
-
-  return (
-    <Link
-      href={`/listings/${listing.type}/${listing.slug}`}
-      target={isMobile ? undefined : '_blank'}
-      rel={isMobile ? undefined : 'noopener noreferrer'}
-      onClick={() => {
-        if (!isMobile) return
-        void router.prefetch(`/listings/${listing.type}/${listing.slug}`)
-        window.dispatchEvent(new CustomEvent('unsolo:navigate'))
-      }}
-    >
-      <div
-        className={cn(
-          'group overflow-hidden rounded-lg border bg-card transition-all duration-300 border-border dark:border-border',
-          muted
-            ? 'border-dashed border-border/55 bg-muted/20 opacity-[0.93] saturate-[0.9] grayscale-[12%]'
-            : cn(
-                'hover:shadow-xl hover:scale-[1.02]',
-                'hover:bg-gradient-to-br hover:from-card hover:to-secondary/50',
-              ),
-        )}
-      >
-        <div className="relative aspect-video overflow-hidden bg-secondary">
-          <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
-          <Image
-            src={imageUrl}
-            alt={listing.title}
-            fill
-            sizes="(min-width: 1024px) 25vw, (min-width: 768px) 50vw, 80vw"
-            className={cn(
-              'object-cover transition-transform group-hover:scale-110',
-              muted && 'brightness-[0.9] saturate-90 group-hover:scale-[1.02]',
-            )}
-          />
-          {listing.is_featured && (
-            <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs font-semibold px-2 py-1 rounded">
-              Featured
-            </div>
-          )}
-        </div>
-        <div className="p-4 space-y-2">
-          <div>
-            <h3
-              className={cn(
-                'font-semibold text-sm line-clamp-2',
-                muted ? 'text-muted-foreground' : 'text-foreground',
-              )}
-            >
-              {listing.title}
-            </h3>
-            <p className="text-xs text-muted-foreground">{listing.location}</p>
-            {muted ? (
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/95">
-                Past edition
-              </p>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">{getMetadataDisplay()}</p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xs text-muted-foreground">From</span>
-            <span className={cn('text-lg font-bold', muted ? 'text-muted-foreground' : 'text-foreground')}>
-              {formatPrice(listing.price_paise)}
-            </span>
-            <span className="text-xs text-muted-foreground">/ {listing.unit.replace('_', ' ')}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-            <span className={cn('text-sm font-medium', muted ? 'text-muted-foreground' : 'text-foreground')}>
-              {ratingDisplay}
-            </span>
-            {listing.review_count > 0 && (
-              <span className="text-xs text-muted-foreground">({listing.review_count})</span>
-            )}
-          </div>
-          {listing.tags && listing.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {listing.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded">
-                  {tag}
-                </span>
-              ))}
-              {listing.tags.length > 2 && (
-                <span className="text-xs text-muted-foreground px-2 py-1">+{listing.tags.length - 2}</span>
-              )}
-            </div>
-          )}
-          {showViewDetailsButton ? (
-            <button className="w-full mt-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors">
-              View Details
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </Link>
-  )
 }
 
-// ── Items carousel card ────────────────────────────────────────────────────
-// NOTE: This card intentionally does NOT use <Link> as a wrapper.
-// Nesting <button> elements inside <a> is invalid HTML — browsers collapse
-// the structure and the inner buttons end up triggering navigation regardless
-// of stopPropagation. We use window.open() on the card body instead so the
-// detail page opens in a new tab.
-function ItemsCarouselCard({
-  listing,
-  items,
-  showViewDetailsButton = true,
-  muted = false,
-}: {
-  listing: ServiceListing
-  items: CardItem[]
-  showViewDetailsButton?: boolean
-  muted?: boolean
-}) {
+function imageSrc(raw: string | null | undefined) {
+  return raw ? (storageThumbnailUrl(raw) || raw) : '/placeholder-listing.svg'
+}
+
+export function ServiceListingCard({ listing, items, muted = false }: ServiceListingCardProps) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
   const [idx, setIdx] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const ratingDisplay =
-    listing.average_rating > 0 ? `${listing.average_rating.toFixed(1)}` : 'New'
-
-  const resetTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setIdx((i) => (i + 1) % items.length)
-    }, 4000)
-  }, [items.length])
-
-  useEffect(() => {
-    resetTimer()
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [idx, resetTimer])
+  const slides = (items || []).filter(item => item.images.length > 0)
+  const hasCarousel = slides.length >= 2
+  const active = hasCarousel ? slides[idx % slides.length] : null
+  const href = `/listings/${listing.type}/${listing.slug}`
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768)
@@ -216,29 +67,25 @@ function ItemsCarouselCard({
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const goTo = useCallback((next: number) => {
-    setIdx(next)
-    resetTimer()
-  }, [resetTimer])
-
-  const prev = useCallback((e: React.MouseEvent) => {
+  const step = (delta: number) => (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    goTo((idx - 1 + items.length) % items.length)
-  }, [idx, items.length, goTo])
+    setIdx(i => (i + delta + slides.length) % slides.length)
+  }
 
-  const next = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    goTo((idx + 1) % items.length)
-  }, [idx, items.length, goTo])
+  const location = shortListingLocation(listing.location, listing.destination)
+  const detail = listingDetailLine(listing)
+  const optionCount = items?.length ?? 0
+  const rating = listing.average_rating > 0 ? listing.average_rating.toFixed(1) : null
+  const coverRaw = listing.images?.[0]
+  const coverUrl = coverRaw ? storageThumbnailUrl(coverRaw) || coverRaw : null
 
-  const activeItem = items[idx]
-  const rawHero = activeItem.images[0] || listing.images?.[0]
-  const heroImage = rawHero ? (storageThumbnailUrl(rawHero) || rawHero) : '/placeholder-listing.svg'
-
-  const href = `/listings/${listing.type}/${listing.slug}`
   const openDetail = () => {
+    writeDetailPreview(href, {
+      title: listing.title, image: coverUrl, imageSizes: CARD_IMAGE_SIZES, location,
+      meta: [detail, optionCount > 1 ? `${optionCount} options` : ''].filter(Boolean),
+      price: formatPrice(listing.price_paise), priceSuffix: unitShortLabel(listing.unit), priceFrom: true,
+    })
     if (isMobile) {
       pushWithRouteProgress(router, href)
       return
@@ -250,179 +97,72 @@ function ItemsCarouselCard({
     <div
       role="link"
       tabIndex={0}
+      aria-label={listing.title}
       onClick={openDetail}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openDetail() }}
-      className={cn(
-        'group overflow-hidden rounded-lg border bg-card transition-all duration-300 cursor-pointer border-border dark:border-border',
-        muted
-          ? 'border-dashed border-border/55 bg-muted/20 opacity-[0.93] saturate-[0.9] grayscale-[12%] hover:scale-[1.01]'
-          : 'hover:shadow-xl hover:scale-[1.02]',
-      )}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          openDetail()
+        }
+      }}
+      onMouseEnter={() => router.prefetch(href)}
+      onFocus={() => router.prefetch(href)}
+      className={listingCardShellClass(muted)}
     >
-      {/* ── Hero image with overlay info ──────────────────────────────── */}
-      <div className="relative aspect-video overflow-hidden bg-secondary">
-        <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
-          <Image
-            src={heroImage}
-            alt={activeItem.name}
-            fill
-            className={cn(
-              'object-cover transition-all duration-500',
-              muted && 'brightness-[0.9] saturate-90',
-            )}
-          />
-          {/* Gradient overlay */}
-          <div
-            className={cn(
-              'absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10',
-              muted && 'opacity-90',
-            )}
-          />
-
-          {listing.is_featured && (
-            <div className="absolute top-2 left-2 bg-amber-500 text-white text-xs font-semibold px-2 py-1 rounded">
-              Featured
-            </div>
-          )}
-
-          {/* Prev / Next arrows — visible on hover */}
-          {items.length > 1 && (
-            <>
-              <button
-                onClick={prev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 z-10"
-                aria-label="Previous item"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 z-10"
-                aria-label="Next item"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </>
-          )}
-
-          {/* Active item name + price overlay (bottom of image) */}
-          <div className="absolute bottom-0 left-0 right-0 px-3 pb-2.5 pt-6">
-            <p className="text-white font-semibold text-sm leading-tight line-clamp-1">{activeItem.name}</p>
-            <p className="text-white/80 text-xs mt-0.5">
-              From {formatPrice(activeItem.price_paise)}
-              {activeItem.unit ? ` / ${activeItem.unit.replace('per_', '').replace('_', ' ')}` : ''}
+      <ListingCardMedia muted={muted}>
+        <Image
+          src={imageSrc(active?.images[0] || listing.images?.[0])}
+          alt={active?.name || listing.title}
+          fill
+          sizes={CARD_IMAGE_SIZES}
+          className="object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+        />
+        <ListingCardBadge badge={muted ? { label: 'Past', tone: 'past' } : listing.is_featured ? { label: 'Featured', tone: 'featured' } : null} />
+        {active ? (
+          <>
+            <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
+            <p className="absolute bottom-2 left-3 right-16 z-10 truncate text-xs font-medium text-white">
+              {active.name}{active.is_out_of_stock ? <span className="text-amber-300"> · Sold out</span> : null}
             </p>
-            {activeItem.is_out_of_stock ? (
-              <p className="text-[11px] font-semibold text-amber-300 mt-1">Out of stock</p>
-            ) : null}
-          </div>
-
-          {/* Dot indicators */}
-          {items.length > 1 && (
-            <div className="absolute bottom-2 right-3 flex gap-1 z-10">
-              {items.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo(i) }}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all',
-                    i === idx ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
-                  )}
-                  aria-label={`Item ${i + 1}`}
-                />
-              ))}
+            <div className="absolute bottom-2.5 right-3 z-10 flex items-center gap-1">
+              {slides.length <= MAX_DOTS
+                ? slides.map((slide, i) => (
+                    <span key={slide.id} className={cn('h-1.5 rounded-full transition-all', i === idx ? 'w-3.5 bg-white' : 'w-1.5 bg-white/50')} />
+                  ))
+                : <span className="rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">{idx + 1}/{slides.length}</span>}
             </div>
-          )}
-        </div>
-
-        {/* ── Item thumbnail strip ──────────────────────────────────────── */}
-        {items.length > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto px-3 pt-2.5 pb-0 scrollbar-hide">
-            {items.map((item, i) => {
-              const rawT = item.images[0]
-              const thumb = rawT ? (storageThumbnailUrl(rawT) || rawT) : '/placeholder-listing.svg'
-              return (
-                <button
-                  key={item.id}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo(i) }}
-                  className={cn(
-                    'flex-shrink-0 rounded overflow-hidden border-2 transition-all',
-                    i === idx ? 'border-primary' : 'border-transparent opacity-60 hover:opacity-90'
-                  )}
-                >
-                  <Image
-                    src={thumb}
-                    alt={item.name}
-                    width={40}
-                    height={40}
-                    className="h-10 w-10 object-cover"
-                  />
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── Card footer ───────────────────────────────────────────────── */}
-        <div className="px-4 pt-2.5 pb-4 space-y-2">
-          <div>
-            <h3 className={cn('font-semibold text-sm line-clamp-1', muted ? 'text-muted-foreground' : 'text-foreground')}>{listing.title}</h3>
-            <p className="text-xs text-muted-foreground">{listing.location}</p>
-            {muted ? (
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/95">Past edition</p>
-            ) : null}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              <span className={cn('text-sm font-medium', muted ? 'text-muted-foreground' : 'text-foreground')}>{ratingDisplay}</span>
-              {listing.review_count > 0 && (
-                <span className="text-xs text-muted-foreground">({listing.review_count})</span>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground">{items.length} option{items.length !== 1 ? 's' : ''}</span>
-          </div>
-
-          {listing.tags && listing.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {listing.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="inline-block bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded">
-                  {tag}
-                </span>
-              ))}
-              {listing.tags.length > 2 && (
-                <span className="text-xs text-muted-foreground px-1">+{listing.tags.length - 2}</span>
-              )}
-            </div>
-          )}
-
-          {showViewDetailsButton ? (
-            <button
-              onClick={(e) => { e.stopPropagation(); openDetail() }}
-              className="w-full rounded-lg bg-primary text-primary-foreground text-sm font-medium py-2 hover:bg-primary/90 transition-colors"
-            >
-              View Details
+            <button type="button" onClick={step(-1)} aria-label="Previous option"
+              className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100">
+              <ChevronLeft className="h-4 w-4" />
             </button>
-          ) : null}
+            <button type="button" onClick={step(1)} aria-label="Next option"
+              className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        ) : null}
+      </ListingCardMedia>
+
+      <div className="relative flex flex-1 flex-col p-3.5">
+        <h3 className={cn('line-clamp-2 text-[15px] font-bold leading-snug', muted ? 'text-muted-foreground' : 'text-foreground')}>
+          {listing.title}
+        </h3>
+        {location || detail ? (
+          <p className="mt-1 flex min-w-0 gap-1 text-xs text-muted-foreground">
+            {location ? <span className="truncate">{location}</span> : null}
+            {detail ? <span className="shrink-0 capitalize">{location ? '· ' : ''}{detail}</span> : null}
+          </p>
+        ) : null}
+        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+          <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+          {rating ? <span className="font-medium text-foreground">{rating}</span> : <span>New</span>}
+          {rating && listing.review_count > 0 ? <span>({listing.review_count})</span> : null}
+          {optionCount > 1 ? <span>· {optionCount} options</span> : null}
+        </p>
+        <div className="mt-auto pt-3">
+          <ListingCardPrice amount={formatPrice(listing.price_paise)} suffix={unitShortLabel(listing.unit)} from muted={muted} />
         </div>
+      </div>
     </div>
   )
-}
-
-// ── Public export ──────────────────────────────────────────────────────────
-export function ServiceListingCard({ listing, items, showViewDetailsButton = true, muted = false }: ServiceListingCardProps) {
-  // Show carousel only when there are 2+ active items with at least one image
-  const carouselItems = (items || []).filter((it) => it.images.length > 0)
-  if (carouselItems.length >= 2) {
-    return (
-      <ItemsCarouselCard
-        listing={listing}
-        items={carouselItems}
-        showViewDetailsButton={showViewDetailsButton}
-        muted={muted}
-      />
-    )
-  }
-  return <PlainCard listing={listing} showViewDetailsButton={showViewDetailsButton} muted={muted} />
 }

@@ -181,7 +181,7 @@ export function WanderListingSections({
         ) : (
           <ScrollRow viewAllHref={staysHref} viewAllLabel="View all stays">
             {stays.map(l => (
-              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
+              <ServiceListingCard key={l.id} listing={l} items={l.items} />
             ))}
           </ScrollRow>
         )}
@@ -202,7 +202,6 @@ export function WanderListingSections({
                 key={l.id}
                 listing={l}
                 items={l.items}
-                showViewDetailsButton={false}
                 muted={pastActivityIds.has(l.id)}
               />
             ))}
@@ -221,7 +220,7 @@ export function WanderListingSections({
         ) : (
           <ScrollRow viewAllHref={rentalsHref} viewAllLabel="View all rentals">
             {rentals.map(l => (
-              <ServiceListingCard key={l.id} listing={l} items={l.items} showViewDetailsButton={false} />
+              <ServiceListingCard key={l.id} listing={l} items={l.items} />
             ))}
           </ScrollRow>
         )}

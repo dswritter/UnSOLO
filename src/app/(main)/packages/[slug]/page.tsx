@@ -1,8 +1,10 @@
 export const revalidate = 300 // 5 minutes
 
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getRequestAuth } from '@/lib/auth/request-session'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
+import { getCachedPublicPackageDetail, PACKAGE_DETAIL_SELECT } from '@/lib/packages/public-package-cache'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -62,12 +64,13 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const { supabase } = await getRequestAuth()
-  const { data: pkg } = await supabase
-    .from('packages')
-    .select('title, slug, description, short_description, images, destination:destinations(name)')
-    .eq('slug', slug)
-    .single()
+  const cached = await getCachedPublicPackageDetail(slug)
+  const pkg = (cached as Pick<Package, 'title' | 'slug' | 'description' | 'short_description' | 'images'> & { destination?: unknown } | null)
+    ?? (await (await getRequestAuth()).supabase
+      .from('packages')
+      .select('title, slug, description, short_description, images, destination:destinations(name)')
+      .eq('slug', slug)
+      .maybeSingle()).data
 
   if (!pkg) {
     return {}
@@ -112,30 +115,19 @@ export default async function PackageDetailPage({
 }) {
   const { slug } = await params
   const { group: groupId } = await searchParams
-  const { supabase, user } = await getRequestAuth()
+  const [{ supabase, user }, cachedPkg] = await Promise.all([getRequestAuth(), getCachedPublicPackageDetail(slug)])
 
-  // Get auth user first to check if admin or host
-  let userRole: string | null = null
-  if (user) {
-    const { data: userProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-    userRole = userProfile?.role || null
-  }
-
-  // Fetch package — allow admins and the host to see inactive/pending trips
-  const query = supabase
-    .from('packages')
-    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, phone_number, phone_public, is_host, host_rating, is_verified, total_hosted_trips)')
-    .eq('slug', slug)
-
-  // Only filter by is_active for regular users
-  const isAdminUser = userRole === 'admin'
-  const { data: pkg } = await query.single()
-
-  if (!pkg) notFound()
-
-  // If not active: only allow admin or the host to view
-  if (!pkg.is_active && !isAdminUser && !(user && pkg.host_id === user.id)) {
-    notFound()
+  // Hosts see fresh data for their own trip; admins/hosts can also open inactive trips.
+  const profilePromise = user ? getRequestProfile(user.id) : Promise.resolve(null)
+  let pkg = cachedPkg as (Package & { host: unknown }) | null
+  if (!pkg || (user && pkg.host_id === user.id)) {
+    const { data: fresh } = await supabase.from('packages').select(PACKAGE_DETAIL_SELECT).eq('slug', slug).maybeSingle()
+    pkg = (fresh as (Package & { host: unknown }) | null) ?? pkg
+    if (!pkg) notFound()
+    const isAdminUser = (await profilePromise)?.role === 'admin'
+    if (!pkg.is_active && !isAdminUser && !(user && pkg.host_id === user.id)) {
+      notFound()
+    }
   }
 
   const package_ = pkg as Package
@@ -163,48 +155,11 @@ export default async function PackageDetailPage({
       ? package_.compare_at_price_paise
       : null
 
-  // Existing join request + group invite are independent — fetch in parallel.
   const shouldLoadJoinRequest = isCommunityTrip && !!user && !isHost
   const shouldLoadGroupInvite = !!groupId && !isCommunityTrip
 
-  const [joinRequestRes, groupInviteRes] = await Promise.all([
-    shouldLoadJoinRequest
-      ? supabase
-          .from('join_requests')
-          .select('id, status, message, host_response, payment_deadline')
-          .eq('trip_id', package_.id)
-          .eq('user_id', user!.id)
-          .single()
-      : Promise.resolve({ data: null }),
-    shouldLoadGroupInvite
-      ? supabase
-          .from('group_bookings')
-          .select('id, travel_date, per_person_paise, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
-          .eq('id', groupId!)
-          .eq('status', 'open')
-          .single()
-      : Promise.resolve({ data: null }),
-  ])
-
-  const existingRequest = (joinRequestRes.data || null) as
-    | { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
-    | null
-
-  let groupInvite: { id: string; travel_date: string; organizer_name: string; per_person_paise: number } | null = null
-  if (groupInviteRes.data) {
-    const gData = groupInviteRes.data
-    const org = gData.organizer as unknown as { full_name: string | null; username: string }
-    groupInvite = {
-      id: gData.id,
-      travel_date: gData.travel_date,
-      per_person_paise: gData.per_person_paise,
-      organizer_name: org?.full_name || org?.username || 'Someone',
-    }
-  }
-
   // Fan out all remaining independent reads in parallel so the waterfall
-  // collapses to a single round-trip. Per-departure-date booking counts are
-  // also fetched concurrently rather than one date at a time.
+  // collapses to a single round-trip (booking counts for all dates in one query).
   const computeSlots = !isCommunityTrip || communityDirectCheckout
   const shouldLoadSlots =
     computeSlots && !!package_.departure_dates && !!package_.max_group_size
@@ -222,6 +177,8 @@ export default async function PackageDetailPage({
     dateBookingResults,
     ownCompletedBookingRes,
     myClaimRes,
+    joinRequestRes,
+    groupInviteRes,
   ] = await Promise.all([
     supabase
       .from('reviews')
@@ -246,17 +203,16 @@ export default async function PackageDetailPage({
           .limit(3)
       : Promise.resolve({ data: [] as Array<{ id: string; title: string; slug: string; price_paise: number; images: string[] | null; duration_days: number; difficulty: string }> }),
     shouldLoadSlots
-      ? Promise.all(
-          (package_.departure_dates || []).map(async date => {
-            const { data } = await supabase
-              .from('bookings')
-              .select('guests')
-              .eq('package_id', pkg.id)
-              .eq('travel_date', date)
-              .in('status', ['pending', 'confirmed', 'completed'])
-            return { date, rows: data || [] }
-          }),
-        )
+      ? supabase
+          .from('bookings')
+          .select('travel_date, guests')
+          .eq('package_id', pkg.id)
+          .in('travel_date', package_.departure_dates || [])
+          .in('status', ['pending', 'confirmed', 'completed'])
+          .then(({ data }) => (package_.departure_dates || []).map(date => ({
+            date,
+            rows: (data || []).filter(row => tripDepartureDateKey(row.travel_date) === tripDepartureDateKey(date)),
+          })))
       : Promise.resolve([] as { date: string; rows: { guests: number | null }[] }[]),
     checkJoinEligibility
       ? supabase.from('bookings').select('id').eq('package_id', pkg.id).eq('user_id', user!.id).eq('status', 'completed').limit(1).maybeSingle()
@@ -264,7 +220,40 @@ export default async function PackageDetailPage({
     checkJoinEligibility
       ? supabase.from('trip_traveller_claims').select('status').eq('package_id', pkg.id).eq('claimant_id', user!.id).maybeSingle()
       : Promise.resolve({ data: null }),
+    shouldLoadJoinRequest
+      ? supabase
+          .from('join_requests')
+          .select('id, status, message, host_response, payment_deadline')
+          .eq('trip_id', package_.id)
+          .eq('user_id', user!.id)
+          .single()
+      : Promise.resolve({ data: null }),
+    shouldLoadGroupInvite
+      ? supabase
+          .from('group_bookings')
+          .select('id, travel_date, per_person_paise, organizer:profiles!group_bookings_organizer_id_fkey(full_name, username)')
+          .eq('id', groupId!)
+          .eq('status', 'open')
+          .single()
+      : Promise.resolve({ data: null }),
   ])
+
+  const isAdminUser = (await profilePromise)?.role === 'admin'
+  const existingRequest = (joinRequestRes.data || null) as
+    | { id: string; status: 'pending' | 'approved' | 'rejected'; message: string | null; host_response: string | null; payment_deadline: string | null }
+    | null
+
+  let groupInvite: { id: string; travel_date: string; organizer_name: string; per_person_paise: number } | null = null
+  if (groupInviteRes.data) {
+    const gData = groupInviteRes.data
+    const org = gData.organizer as unknown as { full_name: string | null; username: string }
+    groupInvite = {
+      id: gData.id,
+      travel_date: gData.travel_date,
+      per_person_paise: gData.per_person_paise,
+      organizer_name: org?.full_name || org?.username || 'Someone',
+    }
+  }
 
   const joinEligibility: 'can_claim' | 'pending' | null = (() => {
     if (!checkJoinEligibility) return null
@@ -576,11 +565,13 @@ export default async function PackageDetailPage({
 
             {/* Related Services - Cross-Sell */}
             {package_.destination?.name && (
-              <RelatedServicesSection
-                packageId={package_.id}
-                destinationId={package_.destination_id}
-                destinationName={package_.destination.name}
-              />
+              <Suspense fallback={null}>
+                <RelatedServicesSection
+                  packageId={package_.id}
+                  destinationId={package_.destination_id}
+                  destinationName={package_.destination.name}
+                />
+              </Suspense>
             )}
 
             {/* Reviews */}
