@@ -869,6 +869,7 @@ export async function createPackage(formData: {
   destination_id: string
   description: string
   short_description: string
+  metadata?: Record<string, unknown> | null
   price_paise: number
   compare_at_price_paise?: number | null
   price_variants?: PriceVariant[] | null
@@ -913,6 +914,7 @@ export async function updatePackage(
     destination_id?: string
     description?: string
     short_description?: string
+    metadata?: Record<string, unknown> | null
     price_paise?: number
     compare_at_price_paise?: number | null
     price_variants?: PriceVariant[] | null

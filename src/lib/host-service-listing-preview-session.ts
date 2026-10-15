@@ -19,6 +19,7 @@ export type HostServiceListingPreviewPayload = {
   destinationState: string | null
   amenities: string[]
   tags: string[]
+  searchKeywords?: string[]
   hostImages: string[]
   items: {
     name: string

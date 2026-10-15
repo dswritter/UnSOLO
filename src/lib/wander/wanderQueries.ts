@@ -2,7 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import type { Package, ServiceListing } from '@/types'
-import { fetchPackagePopularityMaps, sortExplorePackages } from '@/lib/explore-package-popularity'
+import { sortExplorePackages } from '@/lib/explore-package-popularity'
 import { listingScheduleTodayISO } from '@/lib/utils'
 import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import {
@@ -268,6 +268,12 @@ function svc() {
   return createServiceClient(url, key)
 }
 
+function withoutExploreSearchDocument<T extends object>(row: T): T {
+  const result = { ...(row as Record<string, unknown>) }
+  delete result.search_document
+  return result as T
+}
+
 /** Hero background for /wander — from Admin → platform_settings. */
 export const getWanderHeroImageUrl = unstable_cache(async function (): Promise<string> {
   try {
@@ -452,7 +458,7 @@ function wanderActivityListingHasUpcoming(scheduleListing: ServiceListing, today
   return sch.some(e => tripDepartureDateKey(e.date) >= todayISO)
 }
 
-/** Featured first, then by average review rating, then explore popularity sort. */
+/** Fast four-card home preview: cap candidate rows before one compact metrics query. */
 export const getWanderTripRow = unstable_cache(async function (): Promise<WanderTripRowResult> {
   const supabase = svc()
   const { data: raw } = await supabase
@@ -461,35 +467,25 @@ export const getWanderTripRow = unstable_cache(async function (): Promise<Wander
     .eq('is_active', true)
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
-    .limit(120)
-  let packages = (raw || []) as Package[]
+    .limit(WANDER_LANDING_ROW_SLOTS * 4)
+  let packages = ((raw || []) as Package[]).map(withoutExploreSearchDocument)
   if (packages.length === 0) return { packages: [], interestCounts: {}, bookedGuests: {} }
 
   const ids = packages.map(p => p.id)
-  const [{ data: reviewRows }, popularity] = await Promise.all([
-    supabase.from('reviews').select('package_id, rating').in('package_id', ids),
-    fetchPackagePopularityMaps(supabase, ids),
-  ])
-  const avgByPackage = new Map<string, { sum: number; n: number }>()
-  for (const r of reviewRows || []) {
-    const row = r as { package_id: string; rating: number }
-    const cur = avgByPackage.get(row.package_id) || { sum: 0, n: 0 }
-    cur.sum += row.rating
-    cur.n += 1
-    avgByPackage.set(row.package_id, cur)
+  const { data: metricRows, error: metricsError } = await supabase.rpc('get_wander_trip_candidate_metrics', { p_package_ids: ids })
+  const bookedGuests = new Map<string, number>()
+  const interestCount = new Map<string, number>()
+  const ratingAvg = new Map<string, number>()
+  if (!metricsError) for (const row of metricRows || []) {
+    bookedGuests.set(row.package_id, Number(row.booked_guests) || 0)
+    interestCount.set(row.package_id, Number(row.interest_count) || 0)
+    ratingAvg.set(row.package_id, Number(row.average_rating) || 0)
   }
-  const ratingAvg = (id: string) => {
-    const x = avgByPackage.get(id)
-    if (!x || x.n === 0) return 0
-    return x.sum / x.n
-  }
-
-  const { bookedGuests, interestCount } = popularity
   packages = sortExplorePackages(packages, bookedGuests, interestCount)
   packages.sort((a, b) => {
     if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1
-    const ra = ratingAvg(a.id)
-    const rb = ratingAvg(b.id)
+    const ra = ratingAvg.get(a.id) || 0
+    const rb = ratingAvg.get(b.id) || 0
     if (rb !== ra) return rb - ra
     return 0
   })
@@ -517,7 +513,7 @@ export const getWanderActivityRow = unstable_cache(async function (): Promise<Se
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  const listings = (data || []) as ServiceListing[]
+  const listings = ((data || []) as ServiceListing[]).map(withoutExploreSearchDocument)
   const todayISO = listingScheduleTodayISO()
   return wanderLandingPrioritizeThenCap(
     listings,
@@ -539,7 +535,8 @@ export const getWanderStayRow = unstable_cache(async function (): Promise<Servic
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  return wanderLandingPrioritizeThenCap(data as ServiceListing[], () => true, WANDER_LANDING_ROW_SLOTS)
+  const listings = ((data || []) as ServiceListing[]).map(withoutExploreSearchDocument)
+  return wanderLandingPrioritizeThenCap(listings, () => true, WANDER_LANDING_ROW_SLOTS)
 }, ['wander-stay-row'], { revalidate: 60 })
 
 export const getWanderRentalRow = unstable_cache(async function (): Promise<ServiceListing[]> {
@@ -565,7 +562,8 @@ export const getWanderRentalRow = unstable_cache(async function (): Promise<Serv
     if (!row.service_listing_id) continue
     counts.set(row.service_listing_id, (counts.get(row.service_listing_id) || 0) + 1)
   }
-  const sorted = [...(listings as ServiceListing[])].sort((a, b) => {
+  const publicListings = (listings as ServiceListing[]).map(withoutExploreSearchDocument)
+  const sorted = [...publicListings].sort((a, b) => {
     const ca = counts.get(a.id) || 0
     const cb = counts.get(b.id) || 0
     if (cb !== ca) return cb - ca

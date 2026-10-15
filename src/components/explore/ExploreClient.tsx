@@ -5,11 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
 import { Button } from '@/components/ui/button'
-import { Mountain, Plane, Home, Compass, Navigation, Key, X } from 'lucide-react'
+import { Mountain, Plane, Home, Compass, Navigation, Key, X, Search, Loader2, type LucideIcon } from 'lucide-react'
 import { cn, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
-import { typeEmojis, typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
+import { typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { ExploreTripPackageCard } from './ExploreTripPackageCard'
 import { ExploreSidebar } from './ExploreSidebar'
 import { ServiceListingCard } from './ServiceListingCard'
@@ -26,15 +26,27 @@ import {
 } from '@/lib/explore/recently-viewed-packages'
 import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { toggleInterest } from '@/actions/booking'
+import { loadMoreExploreListings } from '@/actions/explore-listings'
+import { appendUniqueById, matchesExploreSearch } from '@/lib/explore/local-search'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { toast } from 'sonner'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
+type AppendedExplorePage = {
+  key: string
+  packages: Package[]
+  serviceListings: ServiceListingWithItems[]
+  page: number
+  totalCount: number
+  hasMore: boolean
+  spotsBooked: Record<string, number>
+  interestCounts: Record<string, number>
+}
 
 // Order intentionally matches the mobile hero tab strip (trips → rentals →
 // activities → stays) so users don't have to mentally re-map the categories
 // when they leave the home screen.
-const ALL_TABS: { id: TabType; label: string; icon: any }[] = [
+const ALL_TABS: { id: TabType; label: string; icon: LucideIcon }[] = [
   { id: 'trips', label: 'Trips', icon: Plane },
   { id: 'rentals', label: 'Rentals', icon: Key },
   { id: 'activities', label: 'Activities', icon: Compass },
@@ -56,6 +68,8 @@ interface ExploreClientProps {
   serviceListings: ServiceListingWithItems[]
   params: Record<string, string>
   resultCount: number
+  page: number
+  hasMore: boolean
   activeTab: TabType
   interestedPackageIds?: string[]
   maxPackagePrice?: number
@@ -74,6 +88,8 @@ export function ExploreClient({
   serviceListings,
   params,
   resultCount,
+  page,
+  hasMore,
   activeTab: initialTab,
   interestedPackageIds = [],
   maxPackagePrice = 2000000,
@@ -100,7 +116,29 @@ export function ExploreClient({
   const prevParamsRef = useRef<string>('')
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
   const [isMobile, setIsMobile] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [appendError, setAppendError] = useState<string | null>(null)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [appendedPage, setAppendedPage] = useState<AppendedExplorePage | null>(null)
+  const committedSearch = params.q || ''
+  const [searchDraftState, setSearchDraftState] = useState({ committed: committedSearch, value: committedSearch })
+  const searchDraft = searchDraftState.committed === committedSearch ? searchDraftState.value : committedSearch
   useEffect(() => { setRecentlyViewed(readRecentlyViewedPackages()) }, [])
+
+  useEffect(() => {
+    const query = searchDraft.trim()
+    if (query === committedSearch.trim()) return
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString())
+      if (query) next.set('q', query)
+      else next.delete('q')
+      next.delete('page')
+      if (isWanderShell) next.set('search', '1')
+      const suffix = next.toString()
+      router.replace(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false })
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [basePath, committedSearch, isWanderShell, router, searchDraft, searchParams])
 
   useEffect(() => {
     const update = () => setIsMobile(window.innerWidth < 768)
@@ -163,13 +201,18 @@ export function ExploreClient({
   useEffect(() => {
     const currentParams = searchParams.toString()
     if (prevParamsRef.current !== '' && prevParamsRef.current !== currentParams) {
-      setIsNavigating(true)
+      const previous = new URLSearchParams(prevParamsRef.current)
+      const current = new URLSearchParams(currentParams)
+      previous.delete('q')
+      previous.delete('page')
+      current.delete('q')
+      current.delete('page')
+      if (previous.toString() !== current.toString()) setIsNavigating(true)
     }
     prevParamsRef.current = currentParams
   }, [searchParams])
 
   // New props = navigation complete. Safe to hide the skeleton.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setIsNavigating(false) }, [packages, serviceListings])
 
   const handleTabChange = (tab: TabType) => {
@@ -193,39 +236,104 @@ export function ExploreClient({
     setIsNavigating(true)
   }, [])
 
-  const isTripsTab = activeTab === 'trips'
-  const results = isTripsTab ? packages : serviceListings
+    const queryKey = JSON.stringify(Object.entries(params).filter(([key]) => key !== 'page').sort(([a], [b]) => a.localeCompare(b)))
+    const currentAppend = appendedPage?.key === queryKey ? appendedPage : null
+    const loadedPackages = currentAppend ? [...packages, ...currentAppend.packages] : packages
+    const loadedServiceListings = currentAppend ? [...serviceListings, ...currentAppend.serviceListings] : serviceListings
+    const requestedSearch = searchDraft.trim()
+    const localSearch = requestedSearch !== committedSearch.trim() ? requestedSearch : ''
+    const visiblePackages = localSearch ? loadedPackages.filter(pkg => matchesExploreSearch([
+      pkg.title, pkg.description, pkg.short_description, pkg.destination?.name, pkg.destination?.state, pkg.includes, pkg.metadata,
+    ], localSearch)) : loadedPackages
+    const visibleServiceListings = localSearch ? loadedServiceListings.filter(listing => matchesExploreSearch([
+      listing.title, listing.description, listing.short_description, listing.location, listing.tags, listing.amenities, listing.metadata,
+    ], localSearch)) : loadedServiceListings
+    const isTripsTab = activeTab === 'trips'
+    const results = isTripsTab ? visiblePackages : visibleServiceListings
+    const nextPage = currentAppend?.page ?? page
+    const canLoadMore = !localSearch && (currentAppend?.hasMore ?? hasMore)
+    const totalCount = currentAppend?.totalCount ?? resultCount
+    const visibleSpotsBooked = { ...spotsBooked, ...currentAppend?.spotsBooked }
+    const visibleInterestCounts = { ...interestCountMap, ...currentAppend?.interestCounts }
+
+    const handleLoadMore = async () => {
+      if (loadingMore || !canLoadMore) return
+      setLoadingMore(true)
+      setAppendError(null)
+      try {
+        const next = await loadMoreExploreListings(params, nextPage + 1)
+        setAppendedPage(previous => {
+          const current = previous?.key === queryKey ? previous : {
+            key: queryKey, packages: [], serviceListings: [], page,
+            totalCount: next.resultCount, hasMore: true, spotsBooked: {}, interestCounts: {},
+          }
+          return {
+            key: queryKey,
+            packages: appendUniqueById([...packages, ...current.packages], next.packages).slice(packages.length),
+            serviceListings: appendUniqueById([...serviceListings, ...current.serviceListings], next.serviceListings).slice(serviceListings.length),
+            page: next.page,
+            totalCount: next.resultCount,
+            hasMore: next.hasMore,
+            spotsBooked: { ...current.spotsBooked, ...next.spotsBooked },
+            interestCounts: { ...current.interestCounts, ...next.interestCounts },
+          }
+        })
+        setInterestCountMap(previous => ({ ...previous, ...next.interestCounts }))
+        if (next.interestedPackageIds.length) {
+          setInterestedIds(previous => new Set([...previous, ...next.interestedPackageIds]))
+        }
+      } catch (error) {
+        setAppendError(error instanceof Error ? error.message : 'Could not load more listings')
+      } finally {
+        setLoadingMore(false)
+      }
+    }
+
+    const handleSearchChange = (value: string) => {
+      setSearchDraftState({ committed: committedSearch, value })
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+      searchDebounceRef.current = setTimeout(() => {
+        const query = value.trim()
+        const next = new URLSearchParams(window.location.search)
+        if (query) next.set('q', query)
+        else next.delete('q')
+        next.delete('page')
+        if (isWanderShell) next.set('search', '1')
+        const suffix = next.toString()
+        router.replace(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false })
+      }, 350)
+    }
 
   const exploreCalendarToday = listingScheduleTodayISO()
 
   const tripsUpcomingPkgs = useMemo(
     () =>
       isTripsTab
-        ? (packages as Package[]).filter((p) => packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
+        ? visiblePackages.filter((p) => packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
         : ([] as Package[]),
-    [isTripsTab, packages, exploreCalendarToday],
+    [isTripsTab, visiblePackages, exploreCalendarToday],
   )
   const tripsPastPkgs = useMemo(
     () =>
       isTripsTab
-        ? (packages as Package[]).filter((p) => !packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
+        ? visiblePackages.filter((p) => !packageHasUpcomingOpenDeparture(p, exploreCalendarToday))
         : ([] as Package[]),
-    [isTripsTab, packages, exploreCalendarToday],
+      [isTripsTab, visiblePackages, exploreCalendarToday],
   )
 
   const activitiesLiveListings = useMemo(
     () =>
       activeTab === 'activities'
-        ? serviceListings.filter((l) => activityExploreHasUpcomingDates(l, exploreCalendarToday))
+          ? visibleServiceListings.filter((l) => activityExploreHasUpcomingDates(l, exploreCalendarToday))
         : ([] as ServiceListingWithItems[]),
-    [activeTab, serviceListings, exploreCalendarToday],
+        [activeTab, visibleServiceListings, exploreCalendarToday],
   )
   const activitiesPastOnlyListings = useMemo(
     () =>
       activeTab === 'activities'
-        ? serviceListings.filter((l) => !activityExploreHasUpcomingDates(l, exploreCalendarToday))
+          ? visibleServiceListings.filter((l) => !activityExploreHasUpcomingDates(l, exploreCalendarToday))
         : ([] as ServiceListingWithItems[]),
-    [activeTab, serviceListings, exploreCalendarToday],
+        [activeTab, visibleServiceListings, exploreCalendarToday],
   )
 
   /** Upcoming-first, past after — one grid so rows flow naturally (past uses tag + muted styling). */
@@ -326,6 +434,21 @@ export function ExploreClient({
           </div>
         </div>
 
+        <div className="mb-5 max-w-2xl">
+          <label htmlFor="explore-results-search" className="sr-only">Search {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]}</label>
+          <div className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5', isWanderShell ? 'border-white/15 bg-white/[0.06]' : 'border-border bg-card')}>
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <input id="explore-results-search" type="search" maxLength={160}
+              value={searchDraft}
+              onChange={event => handleSearchChange(event.target.value)}
+              placeholder={`Search ${activeTab === 'trips' ? 'trips by destination, details or metadata' : `${typeLabels[activeTab as ServiceListingType].toLowerCase()} by name, location or details`}…`}
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
+            {searchDraft && <button type="button" onClick={() => handleSearchChange('')}
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground" aria-label="Clear search"><X className="h-4 w-4" /></button>}
+          </div>
+          {localSearch && <p className="mt-1.5 text-xs text-muted-foreground">Filtering loaded listings while searching the full catalog…</p>}
+        </div>
+
         {params.q && searchFallback ? (
           <div
             role="status"
@@ -402,7 +525,7 @@ export function ExploreClient({
           <div className="hidden lg:block w-64 flex-shrink-0">
             <ExploreSidebar
               params={params}
-              resultCount={resultCount}
+              resultCount={totalCount}
               activeTab={activeTab}
               isLoading={isLoading}
               maxPackagePrice={maxPackagePrice}
@@ -446,8 +569,8 @@ export function ExploreClient({
                     key={pkg.id}
                     pkg={pkg}
                     pastEdition={pastTripPackageIds.has(pkg.id)}
-                    spotsBooked={spotsBooked[pkg.id] ?? 0}
-                    interestTotal={interestCountMap[pkg.id] ?? 0}
+                    spotsBooked={visibleSpotsBooked[pkg.id] ?? 0}
+                    interestTotal={visibleInterestCounts[pkg.id] ?? 0}
                     interested={interestedIds.has(pkg.id)}
                     onToggleInterest={toggleInterested}
                     onOpenDetail={() => {
@@ -484,6 +607,15 @@ export function ExploreClient({
                 {serviceListings.map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
                 ))}
+              </div>
+            )}
+            {!isLoading && canLoadMore && (
+              <div className="mt-8 flex flex-col items-center gap-2">
+                <p className="text-xs text-muted-foreground">Showing {results.length} of {totalCount} listings</p>
+                {appendError && <p role="alert" className="text-sm text-red-400">{appendError}</p>}
+                <Button type="button" variant="outline" disabled={loadingMore} onClick={() => void handleLoadMore()} className="min-w-40 gap-2">
+                  {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading more…</> : 'Load more'}
+                </Button>
               </div>
             )}
           </div>

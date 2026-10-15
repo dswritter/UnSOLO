@@ -17,6 +17,8 @@ export async function WanderExploreSection({
       serviceListings={exploreData.serviceListings}
       params={sp}
       resultCount={exploreData.resultCount}
+      page={exploreData.page}
+      hasMore={exploreData.hasMore}
       activeTab={exploreData.activeTab}
       searchFallback={exploreData.searchFallback}
       interestedPackageIds={exploreData.interestedPackageIds}

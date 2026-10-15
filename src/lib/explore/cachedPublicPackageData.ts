@@ -3,46 +3,68 @@ import { createPublicClient } from '@/lib/supabase/public-client'
 import type { Package } from '@/types'
 
 export type PublicPackageFilters = {
+  search?: string
   tripSource?: string
   difficulty?: string
   minBudget?: string
   maxBudget?: string
   maxDays?: string
   minDays?: string
+  month?: string
 }
 
-/** Shared, cookie-free Explore listing data. User-specific interests stay outside this cache. */
-export const getCachedExplorePackages = unstable_cache(async (filters: PublicPackageFilters): Promise<Package[]> => {
-  const supabase = createPublicClient()
-  let query = supabase
-    .from('packages')
-    .select('*, destination:destinations(*), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, bio, host_rating, is_verified, total_hosted_trips)')
-    .eq('is_active', true)
+export type ExplorePackagePage = { packages: Package[]; totalCount: number; page: number; pageSize: number }
 
-  if (filters.tripSource === 'community') query = query.not('host_id', 'is', null)
-  else if (filters.tripSource === 'unsolo') query = query.is('host_id', null)
-  if (filters.difficulty) query = query.eq('difficulty', filters.difficulty)
-  if (filters.minBudget) {
-    const value = Number.parseInt(filters.minBudget, 10)
-    if (Number.isFinite(value)) query = query.gte('price_paise', value * 100)
+function packagePageArgs(filters: PublicPackageFilters, page: number, pageSize: number) {
+  const parseBoundedInteger = (value: string | undefined, minimum: number, maximum: number) => {
+    const parsed = Number.parseInt(value || '', 10)
+    return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null
   }
-  if (filters.maxBudget) {
-    const value = Number.parseInt(filters.maxBudget, 10)
-    if (Number.isFinite(value)) query = query.lte('price_paise', value * 100)
+  const minBudget = parseBoundedInteger(filters.minBudget, 1, 21_474_836)
+  const maxBudget = parseBoundedInteger(filters.maxBudget, 1, 21_474_836)
+  const minDays = parseBoundedInteger(filters.minDays, 1, 10000)
+  const maxDays = parseBoundedInteger(filters.maxDays, 1, 10000)
+  const month = Number.parseInt(filters.month || '', 10)
+  return {
+    p_search: filters.search?.trim() || null,
+    p_trip_source: filters.tripSource || null,
+    p_difficulty: filters.difficulty || null,
+    p_min_price_paise: minBudget == null ? null : minBudget * 100,
+    p_max_price_paise: maxBudget == null ? null : maxBudget * 100,
+    p_min_days: minDays,
+    p_max_days: maxDays,
+    p_month: Number.isInteger(month) && month >= 0 && month <= 11 ? month : null,
+    p_interested_only: false,
+    p_page: Math.max(1, Math.floor(page)),
+    p_page_size: Math.max(1, Math.min(48, Math.floor(pageSize))),
   }
-  if (filters.maxDays) {
-    const value = Number.parseInt(filters.maxDays, 10)
-    if (Number.isFinite(value)) query = query.lte('duration_days', value)
-  }
-  if (filters.minDays) {
-    const value = Number.parseInt(filters.minDays, 10)
-    if (Number.isFinite(value)) query = query.gte('duration_days', value)
-  }
-  const { data, error } = await query.order('is_featured', { ascending: false })
-    .order('created_at', { ascending: false }).limit(200)
+}
+
+async function queryExplorePackagePage(filters: PublicPackageFilters, page: number, pageSize: number, client = createPublicClient(), interestedOnly = false): Promise<ExplorePackagePage> {
+  const { data, error } = await client.rpc('search_explore_packages_page', {
+    ...packagePageArgs(filters, page, pageSize), p_interested_only: interestedOnly,
+  })
   if (error) throw error
-  return (data || []) as unknown as Package[]
-}, ['explore-public-packages-v1'], { revalidate: 30, tags: ['explore-public-packages'] })
+  const rows = (data || []) as Array<{ listing: Package | null; total_count: number | string }>
+  return {
+    packages: rows.flatMap(row => row.listing ? [row.listing] : []),
+    totalCount: Number(rows[0]?.total_count ?? 0),
+    page: Math.max(1, Math.floor(page)),
+    pageSize: Math.max(1, Math.min(48, Math.floor(pageSize))),
+  }
+}
+
+/** Public pages are shared-cacheable; a user's interested-only page is not. */
+export const getCachedExplorePackagePage = unstable_cache(
+  async (filters: PublicPackageFilters, page: number, pageSize: number) => queryExplorePackagePage(filters, page, pageSize),
+  ['explore-public-package-page-v2'], { revalidate: 30, tags: ['explore-public-packages'] },
+)
+
+export async function getInterestedExplorePackagePage(
+  client: Parameters<typeof queryExplorePackagePage>[3], filters: PublicPackageFilters, page: number, pageSize: number,
+) {
+  return queryExplorePackagePage(filters, page, pageSize, client, true)
+}
 
 export const getCachedExploreMaxPackagePrice = unstable_cache(async (): Promise<number> => {
   const { data, error } = await createPublicClient().from('packages')

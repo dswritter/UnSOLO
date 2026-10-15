@@ -53,10 +53,14 @@ async function WanderStatusInterludeServer() {
   </div></div>
 }
 
-function WanderListingSectionSkeleton() {
-  return <section aria-hidden="true" className="animate-pulse">
-    <div className="mb-4 h-6 w-44 rounded-md bg-white/10" />
-    <div className="flex gap-3 overflow-hidden">{[0, 1, 2].map(i => <div key={i} className="h-52 w-52 shrink-0 rounded-2xl bg-white/[0.07]" />)}</div>
+function WanderListingSectionSkeleton({ title }: { title: string }) {
+  return <section aria-label={`Loading ${title}`} aria-busy="true">
+    <div className="mb-3 flex items-center gap-3"><div className="h-6 w-44 animate-pulse rounded-md bg-white/10" />
+      <span className="text-xs text-white/55">Loading {title.toLowerCase()}…</span></div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map(i => <div key={i} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04]">
+      <div className="aspect-[4/3] animate-pulse bg-white/[0.08]" />
+      <div className="space-y-2 p-3"><div className="h-4 w-3/4 animate-pulse rounded bg-white/10" /><div className="h-3 w-1/2 animate-pulse rounded bg-white/[0.07]" /></div>
+    </div>)}</div>
   </section>
 }
 
@@ -66,10 +70,10 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
     <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
       <WanderRecentlyViewedStrip />
       <WanderListingsSectionsWrapper
-        trips={<Suspense fallback={<WanderListingSectionSkeleton />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
-        stays={<Suspense fallback={<WanderListingSectionSkeleton />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
-        activities={<Suspense fallback={<WanderListingSectionSkeleton />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
-        rentals={<Suspense fallback={<WanderListingSectionSkeleton />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
+        trips={<Suspense fallback={<WanderListingSectionSkeleton title="popular trips" />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
+        stays={<Suspense fallback={<WanderListingSectionSkeleton title="stays" />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
+        activities={<Suspense fallback={<WanderListingSectionSkeleton title="activities" />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
+        rentals={<Suspense fallback={<WanderListingSectionSkeleton title="rentals" />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
         interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-white/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
       />
       <div className="mt-6 grid gap-3 md:hidden">

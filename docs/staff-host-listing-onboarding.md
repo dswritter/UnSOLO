@@ -8,6 +8,10 @@
 
 Separately apply `supabase/migrations/108_wander_hero_metrics.sql` before deploying the optimized Wander hero. This adds the cached hero aggregate RPC and recent-review indexes. The RPC is service-role-only; no public grants or additional client credentials are required.
 
+Apply `supabase/migrations/109_explore_pagination_metadata_search.sql` before deploying incremental Explore search. It adds indexed JSONB metadata/search documents and the public-safe paginated trip search RPC. No backfill or listing rewrite is needed; existing trip rows receive an empty metadata object and their search documents are populated by the migration.
+
+The Explore page then loads 24 trips or 12 service listings per request. It displays a **Load more** button, keeps the filter/search in the URL, and searches indexed title, description, destination, tags, amenities, and JSONB metadata before paging. Trip metadata is editable in the host trip form under **Searchable details**; admin service listings have **Additional searchable details**. Keep structured type-specific service attributes in `metadata` and tags/amenities in their existing fields.
+
 ### Retrying a failed migration
 
 If an earlier run failed with `column "created_on_behalf_by" of relation "packages" already exists`, use the updated migration `104` and rerun **the entire file**, including `BEGIN` and `COMMIT`. It now retains existing columns, tables and indexes, replaces its functions, and recreates only its own triggers. Existing listings, contacts, ownership, audit logs and notifications are preserved. Do not delete the existing audit columns or assignment table to retry.

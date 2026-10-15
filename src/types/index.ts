@@ -198,6 +198,8 @@ export type Package = {
   difficulty: 'easy' | 'moderate' | 'challenging'
   includes: string[] | null
   images: string[] | null
+  /** Flexible, searchable trip attributes (keywords, season, audience, transport, etc.). */
+  metadata?: Record<string, unknown> | null
   is_featured: boolean
   is_active: boolean
   stripe_price_id: string | null
@@ -329,6 +331,8 @@ export type ServiceListingCollaborator = {
 }
 
 export type ServiceListingMetadata = {
+  /** Optional synonyms/details used by full-text Explore search. */
+  search_keywords?: string[]
   // Stays
   num_rooms?: number
   num_bathrooms?: number

@@ -188,6 +188,7 @@ export async function createHostedTrip(formData: {
   destination_id: string
   description: string
   short_description?: string
+  metadata?: Record<string, unknown> | null
   price_paise: number
   compare_at_price_paise?: number | null
   price_variants?: PriceVariant[] | null
@@ -228,6 +229,7 @@ export async function createHostedTrip(formData: {
       destination_id: formData.destination_id,
       description: formData.description,
       short_description: formData.short_description || '',
+      metadata: formData.metadata ?? {},
       price_paise,
       compare_at_price_paise: formData.compare_at_price_paise ?? null,
       price_variants: tiers,

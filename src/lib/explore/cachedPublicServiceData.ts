@@ -2,7 +2,6 @@ import { unstable_cache } from 'next/cache'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
-import { escapeIlikePattern, tokenizeLocationQuery } from '@/lib/utils'
 
 export type PublicServiceFilters = {
   destination_id?: string
@@ -22,7 +21,7 @@ export const getCachedPublicServiceListings = unstable_cache(async (
 ) => {
   const client = createPublicClient()
   let query = client.from('service_listings')
-    .select('*, destination:destinations(id, name, slug)', { count: 'exact' })
+    .select('id, title, slug, description, short_description, type, price_paise, compare_at_price_paise, price_variants, unit, destination_id, destination_ids, location, latitude, longitude, max_guests_per_booking, quantity_available, images, amenities, tags, metadata, host_id, is_active, is_featured, status, first_approved_at, last_host_resubmit_at, event_schedule, average_rating, review_count, created_at, updated_at, destination:destinations(id, name, slug)', { count: 'exact' })
     .eq('type', type).eq('is_active', true)
     .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
 
@@ -30,25 +29,23 @@ export const getCachedPublicServiceListings = unstable_cache(async (
   if (filters.min_price) query = query.gte('price_paise', filters.min_price * 100)
   if (filters.max_price) query = query.lte('price_paise', filters.max_price * 100)
   if (filters.search) {
-    const orParts = tokenizeLocationQuery(filters.search).flatMap(term => {
-      const escaped = escapeIlikePattern(term)
-      return [`title.ilike.%${escaped}%`, `description.ilike.%${escaped}%`, `location.ilike.%${escaped}%`]
-    })
-    if (orParts.length) query = query.or(orParts.join(','))
+    query = query.textSearch('search_document', filters.search, { config: 'simple', type: 'websearch' })
   }
   if (filters.amenities?.length) query = query.contains('amenities', filters.amenities)
   if (filters.tags?.length) query = query.contains('tags', filters.tags)
-  // difficulty is stored in metadata and has never been server-filtered here.
-  // Retain it in the key so changing the current semantics cannot alias entries.
+  if (filters.difficulty && type === 'activities') {
+    query = query.filter('metadata->>difficulty', 'eq', filters.difficulty)
+  }
   const offset = (page - 1) * limit
   const { data, error, count } = await query
     .order('is_featured', { ascending: false })
     .order('average_rating', { ascending: false })
     .order('review_count', { ascending: false })
     .order('created_at', { ascending: false })
+    .order('id', { ascending: true })
     .range(offset, offset + limit - 1)
   if (error) throw error
-  return { listings: (data || []) as ServiceListing[], total: count || 0, page, limit }
+  return { listings: (data || []) as unknown as ServiceListing[], total: count || 0, page, limit }
 }, ['explore-public-service-listings-v1'], { revalidate: 30, tags: ['explore-public-service-listings'] })
 
 export type PublicServiceItem = {

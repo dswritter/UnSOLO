@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Package } from '@/types'
 
-const { getRequestAuth, getCachedExplorePackages, getCachedExploreMaxPackagePrice, getCachedPackageInterestCounts, getCachedPublicServiceItems, getServiceListingsByType } = vi.hoisted(() => ({
+const { getRequestAuth, getCachedExplorePackagePage, getInterestedExplorePackagePage, getCachedExploreMaxPackagePrice, getCachedPackageInterestCounts, getCachedPublicServiceItems, getServiceListingsByType } = vi.hoisted(() => ({
   getRequestAuth: vi.fn(),
-  getCachedExplorePackages: vi.fn(),
+  getCachedExplorePackagePage: vi.fn(),
+  getInterestedExplorePackagePage: vi.fn(),
   getCachedExploreMaxPackagePrice: vi.fn(),
   getCachedPackageInterestCounts: vi.fn(),
   getCachedPublicServiceItems: vi.fn(),
@@ -12,7 +13,7 @@ const { getRequestAuth, getCachedExplorePackages, getCachedExploreMaxPackagePric
 
 vi.mock('@/lib/auth/request-session', () => ({ getRequestAuth }))
 vi.mock('@/lib/explore/cachedPublicPackageData', () => ({
-  getCachedExplorePackages, getCachedExploreMaxPackagePrice, getCachedPackageInterestCounts,
+  getCachedExplorePackagePage, getInterestedExplorePackagePage, getCachedExploreMaxPackagePrice, getCachedPackageInterestCounts,
 }))
 vi.mock('@/lib/explore/cachedPublicServiceData', () => ({ getCachedPublicServiceItems }))
 vi.mock('@/actions/service-listing-discovery', () => ({ getServiceListingsByType }))
@@ -30,10 +31,12 @@ function makeSupabase({ interests = [] as string[], bookings = [] as Array<{ pac
   const from = vi.fn((table: string) => {
     const query: Record<string, (...args: unknown[]) => unknown> = {}
     query.select = () => query
-    query.eq = () => Promise.resolve({ data: table === 'package_interests' ? interests.map(package_id => ({ package_id })) : [] })
-    query.in = (column: unknown) => column === 'package_id'
-      ? query
-      : Promise.resolve({ data: table === 'bookings' ? bookings : [] })
+    query.eq = () => query
+    query.in = (column: unknown) => table === 'package_interests'
+      ? Promise.resolve({ data: interests.map(package_id => ({ package_id })) })
+      : column === 'package_id'
+        ? query
+        : Promise.resolve({ data: table === 'bookings' ? bookings : [] })
     return query
   })
   return { from }
@@ -42,22 +45,26 @@ function makeSupabase({ interests = [] as string[], bookings = [] as Array<{ pac
 describe('Explore trip loading stages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    getCachedExplorePackages.mockResolvedValue([pkg('p-1', 'Alpha'), pkg('p-2', 'Beta')])
+    getCachedExplorePackagePage.mockImplementation(async (filters: { search?: string }, page: number, pageSize: number) => ({
+      packages: filters.search ? [] : page === 1 ? [pkg('p-1', 'Alpha'), pkg('p-2', 'Beta')] : [pkg('p-3', 'Gamma')],
+      totalCount: filters.search ? 0 : 3, page, pageSize,
+    }))
+    getInterestedExplorePackagePage.mockResolvedValue({ packages: [pkg('p-2', 'Beta')], totalCount: 1, page: 1, pageSize: 24 })
     getCachedExploreMaxPackagePrice.mockResolvedValue(900000)
     getCachedPackageInterestCounts.mockResolvedValue([['p-1', 1], ['p-2', 8]])
     getCachedPublicServiceItems.mockResolvedValue([])
     getRequestAuth.mockResolvedValue({ user: null, supabase: makeSupabase() })
   })
 
-  it('fetches public popularity once after choosing strict or broad fallback results', async () => {
+  it('fetches page popularity once after a full-text miss falls back to the broad first page', async () => {
     const result = await loadExploreListData({ tab: 'trips', q: 'zzzzzzzz-not-a-match' })
     expect(result.searchFallback).toBe(true)
-    expect(result.resultCount).toBe(2)
-    expect(result.packages.map(row => row.id)).toEqual(['p-2', 'p-1'])
+    expect(result.resultCount).toBe(3)
+    expect(result.packages.map(row => row.id)).toEqual(['p-1', 'p-2'])
     expect(result.interestCounts).toEqual({ 'p-1': 1, 'p-2': 8 })
     expect(getCachedPackageInterestCounts).toHaveBeenCalledTimes(1)
     expect(getCachedPackageInterestCounts).toHaveBeenCalledWith(['p-1', 'p-2'])
-    expect(getCachedExplorePackages).toHaveBeenCalledTimes(2)
+    expect(getCachedExplorePackagePage).toHaveBeenCalledTimes(2)
     expect(getCachedExploreMaxPackagePrice).toHaveBeenCalledTimes(1)
   })
 
@@ -70,7 +77,29 @@ describe('Explore trip loading stages', () => {
     expect(result.spotsBooked).toEqual({ 'p-2': 3 })
     expect(getCachedPackageInterestCounts).toHaveBeenCalledTimes(1)
     expect(getCachedPackageInterestCounts).toHaveBeenCalledWith(['p-2'])
+    expect(getInterestedExplorePackagePage).toHaveBeenCalledWith(supabase, expect.objectContaining({}), 1, 24)
     expect(supabase.from).toHaveBeenCalledWith('bookings')
     expect(supabase.from).toHaveBeenCalledWith('package_interests')
+  })
+
+  it('loads only the requested trip page and reports exact totals/hasMore', async () => {
+    const result = await loadExploreListData({ tab: 'trips', page: '2' })
+    expect(result.packages.map(row => row.id)).toEqual(['p-3'])
+    expect(result.page).toBe(2)
+    expect(result.pageSize).toBe(24)
+    expect(result.resultCount).toBe(3)
+    expect(result.hasMore).toBe(false)
+    expect(getCachedExplorePackagePage).toHaveBeenCalledWith(expect.objectContaining({}), 2, 24)
+  })
+
+  it('propagates service pages and exact count through item enrichment', async () => {
+    const listing = { id: 'service-2', title: 'Rental 2', type: 'rentals', images: [] } as unknown as import('@/types').ServiceListing
+    getServiceListingsByType.mockResolvedValue({ listings: [listing], total: 25, page: 2, limit: 12, totalPages: 3 })
+    getCachedPublicServiceItems.mockResolvedValue([])
+    const result = await loadExploreListData({ tab: 'rentals', page: '2' })
+    expect(result.serviceListings.map(row => row.id)).toEqual(['service-2'])
+    expect(result.resultCount).toBe(25)
+    expect(result.hasMore).toBe(true)
+    expect(getServiceListingsByType).toHaveBeenCalledWith('rentals', expect.any(Object), 2, 12)
   })
 })

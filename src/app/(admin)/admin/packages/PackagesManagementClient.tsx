@@ -20,6 +20,7 @@ import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripImageGridWithCover } from '@/components/ui/TripImageGridWithCover'
 import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
+import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users } from 'lucide-react'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 
@@ -45,7 +46,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
   // Form state
   const [form, setForm] = useState({
-    title: '', slug: '', destination_id: '', description: '', short_description: '',
+    title: '', slug: '', destination_id: '', description: '', short_description: '', searchKeywords: '',
     priceRows: [{ rupees: '', compareRupees: '', facilities: '' }] as { rupees: string; compareRupees: string; facilities: string }[],
     trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
     exclude_first_travel: true,
@@ -82,7 +83,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
 
   function resetForm() {
     setForm({
-      title: '', slug: '', destination_id: '', description: '', short_description: '',
+      title: '', slug: '', destination_id: '', description: '', short_description: '', searchKeywords: '',
       priceRows: [{ rupees: '', compareRupees: '', facilities: '' }],
       trip_days: '', trip_nights: '', max_group_size: '', difficulty: 'moderate',
       exclude_first_travel: true,
@@ -115,6 +116,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       destination_id: pkg.destination_id,
       description: pkg.description,
       short_description: pkg.short_description || '',
+      searchKeywords: Array.isArray(pkg.metadata?.search_keywords) ? pkg.metadata.search_keywords.join(', ') : '',
       priceRows:
         hasTieredPricing(pkg.price_variants) && Array.isArray(pkg.price_variants)
           ? pkg.price_variants.map((v) => ({
@@ -303,6 +305,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       destination_id: form.destination_id,
       description: form.description,
       short_description: form.short_description,
+      metadata: { search_keywords: parseSearchKeywords(form.searchKeywords) },
       price_paise,
       compare_at_price_paise,
       price_variants,
@@ -703,6 +706,15 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               placeholder="Detailed trip description (Markdown: **bold**, ## heading, - list)"
               className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Additional searchable details</label>
+            <textarea rows={2} maxLength={1200} value={form.searchKeywords}
+              onChange={e => setForm({ ...form, searchKeywords: e.target.value })}
+              placeholder="Add synonyms, season, terrain, audience, or activity terms travelers may search for"
+              className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+            <p className="mt-1 text-xs text-muted-foreground">Comma-separate terms; these are stored in trip metadata and indexed for Explore search.</p>
           </div>
 
           {/* Join preferences (parity with host trip form) */}

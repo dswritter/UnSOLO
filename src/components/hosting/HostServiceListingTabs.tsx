@@ -40,10 +40,10 @@ import type {
   ServiceListing,
   ServiceListingItem,
   ServiceListingItemUnavailability,
-  ServiceListingMetadata,
   ServiceListingType,
 } from '@/types'
 import { UPLOAD_MAX_IMAGE_BYTES } from '@/lib/constants'
+import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 import { formatFileSize } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { ImageUploadOverlay } from '@/components/ui/ImageUploadOverlay'
@@ -587,6 +587,10 @@ export function HostServiceListingTabs(props: Props) {
     return [...config.suggestedAmenities]
   })
   const [tagsInput, setTagsInput] = useState((initialListing?.tags || cloudPayload?.tags || []).join(', '))
+  const [searchableDetails, setSearchableDetails] = useState(() => {
+    const saved = initialListing?.metadata?.search_keywords
+    return Array.isArray(saved) ? saved.join(', ') : (cloudPayload?.searchKeywords || []).join(', ')
+  })
   const [customAmenity, setCustomAmenity] = useState('')
   // Activities only: host-scheduled event schedule. Null = ongoing.
   const initialSchedule = initialListing?.event_schedule || null
@@ -638,6 +642,7 @@ export function HostServiceListingTabs(props: Props) {
     unit,
     amenities,
     tagsInput: tagsInput.trim(),
+    searchableDetails: searchableDetails.trim(),
     isDateSpecific,
     hasSlots,
     eventSchedule,
@@ -666,7 +671,7 @@ export function HostServiceListingTabs(props: Props) {
   const currentSnapshot = useMemo(
     () => serializeFormState(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [title, destinationIds, location, pinLatLon, shortDescription, description, unit, amenities, tagsInput, isDateSpecific, hasSlots, eventSchedule, items],
+    [title, destinationIds, location, pinLatLon, shortDescription, description, unit, amenities, tagsInput, searchableDetails, isDateSpecific, hasSlots, eventSchedule, items],
   )
 
   const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot
@@ -976,6 +981,7 @@ export function HostServiceListingTabs(props: Props) {
       destinationState: primaryDest?.state ?? null,
       amenities: isRental || isStay ? [] : amenities,
       tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+      searchKeywords: parseSearchKeywords(searchableDetails),
       hostImages: [],
       items: items.map(it => ({
         name: it.name,
@@ -988,7 +994,7 @@ export function HostServiceListingTabs(props: Props) {
         amenities: (isRental || isStay) ? (it.amenities ?? []) : null,
       })),
     }
-  }, [destinations, destinationIds, items, isRental, isStay, isActivity, config, unit, type, title, shortDescription, description, location, pinLatLon, amenities, tagsInput])
+  }, [destinations, destinationIds, items, isRental, isStay, isActivity, config, unit, type, title, shortDescription, description, location, pinLatLon, amenities, tagsInput, searchableDetails])
 
   /** Open the public-style preview in a new tab using the current in-memory
    *  form state — works in both create and edit mode, no persistence required. */
@@ -1125,7 +1131,7 @@ export function HostServiceListingTabs(props: Props) {
           // Rentals & stays: master amenities empty — each item owns its own.
           amenities: isRental || isStay ? [] : amenities,
           tags,
-          metadata: null,
+          metadata: { search_keywords: parseSearchKeywords(searchableDetails) },
           host_id: userId,
           items: payload,
           ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
@@ -1184,6 +1190,7 @@ export function HostServiceListingTabs(props: Props) {
       latitude: pinLatLon?.lat ?? null,
       longitude: pinLatLon?.lon ?? null,
       tags,
+      metadata: { ...(initialListing?.metadata || {}), search_keywords: parseSearchKeywords(searchableDetails) },
       ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
     })
     setSaving(false)
@@ -1289,6 +1296,7 @@ export function HostServiceListingTabs(props: Props) {
         latitude: pinLatLon?.lat ?? null,
         longitude: pinLatLon?.lon ?? null,
         tags,
+        metadata: { ...(props.listing.metadata || {}), search_keywords: parseSearchKeywords(searchableDetails) },
         ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
       })
       if ('error' in businessRes && businessRes.error) {
@@ -1782,6 +1790,15 @@ export function HostServiceListingTabs(props: Props) {
               onChange={(e) => setTagsInput(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="service-search-details" className="text-sm font-semibold">Additional searchable details (optional)</label>
+            <textarea id="service-search-details" rows={3} maxLength={1200}
+              value={searchableDetails} onChange={event => setSearchableDetails(event.target.value)}
+              placeholder="Synonyms, seasons, audience, specialty, vehicle features, or other terms guests might search for"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <p className="text-xs text-muted-foreground">Comma-separate extra terms. Searchable details are stored with your listing metadata.</p>
           </div>
 
           {type === 'activities' && (() => {

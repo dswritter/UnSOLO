@@ -14,6 +14,7 @@ import { createServiceListing, updateServiceListing } from '@/actions/admin-serv
 import { HostListingContactFields, HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
 import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
 import { ListingPhotoUpload } from '@/components/admin/ListingPhotoUpload'
+import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 
 const AMENITIES_BY_TYPE = {
   stays: [
@@ -481,6 +482,18 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           onChange={(e) => setFormData({ ...formData, images: e.target.value.split('\n') })}
           onBlur={() => setFormData((prev) => ({ ...prev, images: prev.images.map((url) => url.trim()).filter(Boolean) }))}
           placeholder="https://…" className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+      </section>
+
+      <section className="space-y-2">
+        <label htmlFor="service-search-keywords" className="block text-lg font-semibold">Additional searchable details</label>
+        <textarea id="service-search-keywords" rows={3} maxLength={1200}
+          value={formData.metadata.search_keywords?.join(', ') || ''}
+          onChange={event => setFormData(prev => ({ ...prev, metadata: {
+            ...prev.metadata, search_keywords: parseSearchKeywords(event.target.value),
+          } }))}
+          placeholder="Synonyms, activity styles, vehicle features, season, audience, or other terms guests may search for…"
+          className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+        <p className="text-xs text-muted-foreground">These terms are stored as listing metadata and included in Explore search.</p>
       </section>
 
       {/* Capacity & Inventory */}

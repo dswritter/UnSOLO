@@ -18,6 +18,8 @@ export type HostTripCreateDraftV1 = {
   destination: { id: string; name: string; state: string } | null
   description: string
   shortDescription: string
+  /** Optional search synonyms stored under packages.metadata.search_keywords. */
+  searchKeywords?: string
   priceRows: { rupees: string; compareRupees?: string; facilities: string }[]
   tripDays: string
   tripNights: string
@@ -66,6 +68,7 @@ export function emptyHostTripCreateDraftFields(): HostTripDraftPayload {
     destination: null,
     description: '',
     shortDescription: '',
+    searchKeywords: '',
     priceRows: DEFAULT_PRICE.map((r) => ({ ...r })),
     tripDays: '',
     tripNights: '',
@@ -96,6 +99,7 @@ export function isHostTripCreateDraftNonEmpty(
     | 'destinationId'
     | 'description'
     | 'shortDescription'
+    | 'searchKeywords'
     | 'tripDays'
     | 'tripNights'
     | 'maxGroupSize'
@@ -115,6 +119,7 @@ export function isHostTripCreateDraftNonEmpty(
   if (d.destinationId) return true
   if (d.description.trim()) return true
   if (d.shortDescription.trim()) return true
+  if (d.searchKeywords?.trim()) return true
   if (d.tripDays.trim() || d.tripNights.trim()) return true
   if (d.minAge.trim() || d.maxAge.trim() || d.minTripsCompleted.trim()) return true
   if (d.interestTags.length > 0) return true

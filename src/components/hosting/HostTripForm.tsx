@@ -47,6 +47,7 @@ import type { HostListingContactInput } from '@/lib/host-listing-contact'
 import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureScheduleEditor'
 import { normalizeTripDeparturePairs, type TripDeparturePair } from '@/lib/trip-departure-recurrence'
 import { tripSubmissionCopy } from '@/lib/trip-submission-copy'
+import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -161,6 +162,7 @@ export function HostTripForm({
   const [destinationId, setDestinationId] = useState('')
   const [description, setDescription] = useState('')
   const [shortDescription, setShortDescription] = useState('')
+  const [searchableDetails, setSearchableDetails] = useState('')
 
   const [priceRows, setPriceRows] = useState<{ rupees: string; compareRupees: string; facilities: string }[]>([
     { rupees: '', compareRupees: '', facilities: '' },
@@ -237,6 +239,7 @@ export function HostTripForm({
     setDestinationId(draft.destinationId ?? '')
     setDescription(draft.description ?? '')
     setShortDescription(draft.shortDescription ?? '')
+    setSearchableDetails(draft.searchKeywords ?? '')
     setPriceRows(
       Array.isArray(draft.priceRows) && draft.priceRows.length > 0
         ? draft.priceRows.map((r) => ({
@@ -356,6 +359,9 @@ export function HostTripForm({
         setDestinationId(tripData.destination_id || '')
         setDescription(tripData.description || '')
         setShortDescription(tripData.short_description || '')
+        const tripMetadata = tripData.metadata as Record<string, unknown> | null
+        const storedKeywords = tripMetadata?.search_keywords
+        setSearchableDetails(Array.isArray(storedKeywords) ? storedKeywords.filter((value): value is string => typeof value === 'string').join(', ') : '')
         const pv = tripData.price_variants as PriceVariant[] | null
         if (pv && Array.isArray(pv) && pv.length >= 2) {
           setPriceRows(
@@ -504,6 +510,7 @@ export function HostTripForm({
       destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
       description,
       shortDescription,
+      searchKeywords: searchableDetails,
       priceRows: priceRows.map((r) => ({
         rupees: r.rupees,
         compareRupees: r.compareRupees,
@@ -535,6 +542,7 @@ export function HostTripForm({
     destinations,
     description,
     shortDescription,
+    searchableDetails,
     priceRows,
     tripDays,
     tripNights,
@@ -1102,6 +1110,7 @@ export function HostTripForm({
           destination_id: string
           description: string
           short_description: string | null
+          metadata: Record<string, unknown>
           price_paise: number
           compare_at_price_paise?: number | null
           price_variants: PriceVariant[] | null
@@ -1203,6 +1212,7 @@ export function HostTripForm({
         destination_id: destinationId,
         description: description.trim(),
         short_description: shortDescription.trim() || null,
+        metadata: { search_keywords: parseSearchKeywords(searchableDetails) },
         price_paise: pricePaise,
         compare_at_price_paise: compareAtPricePaise,
         price_variants,
@@ -1254,6 +1264,7 @@ export function HostTripForm({
           destination_id: built.payload.destination_id,
           description: built.payload.description,
           short_description: built.payload.short_description || undefined,
+          metadata: built.payload.metadata,
           price_paise: built.payload.price_paise,
           price_variants: built.payload.price_variants,
           duration_days: built.payload.duration_days,
@@ -1447,6 +1458,16 @@ export function HostTripForm({
                   className="bg-secondary border-border"
                   maxLength={150}
                 />
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground mb-1.5 block" htmlFor="trip-search-details">Searchable details (optional)</label>
+                <textarea id="trip-search-details" value={searchableDetails}
+                  onChange={event => setSearchableDetails(event.target.value)}
+                  maxLength={1200} rows={3}
+                  placeholder="Add synonyms and details travelers may search for: season, activity, terrain, audience, transport, region…"
+                  className="w-full resize-y rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
+                <p className="mt-1 text-xs text-muted-foreground">Comma-separate extra terms. These are saved with trip metadata and included in Explore search.</p>
               </div>
 
               <div>
