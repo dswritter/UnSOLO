@@ -162,7 +162,7 @@ export function ExploreSidebar({
       className={cn(
         'border-r border-border p-4 overflow-y-auto max-h-[calc(100vh-120px)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         isWander
-          ? 'wander-frost-panel sticky top-24 rounded-2xl border border-foreground/10 p-5 max-h-[calc(100dvh-7rem)]'
+          ? 'wander-frost-panel sticky! top-[5.25rem] rounded-2xl border border-foreground/10 p-5 max-h-[calc(100dvh-10.5rem)]'
           : 'bg-background border-border',
       )}
     >

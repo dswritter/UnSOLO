@@ -1,6 +1,5 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
 import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import {
   getWanderTripRow,
@@ -18,18 +17,11 @@ import type { Package, ServiceListing } from '@/types'
 
 type ActiveTab = 'trips' | 'stays' | 'activities' | 'rentals' | null
 
-async function fetchInterestedPackageIds(supabase: Awaited<ReturnType<typeof getRequestAuth>>['supabase'], userId: string | null, packageIds: string[]) {
-  if (!userId || packageIds.length === 0) return []
-  const { data } = await supabase.from('package_interests').select('package_id').eq('user_id', userId).in('package_id', packageIds)
-  return (data || []).map(row => row.package_id as string)
-}
-
+/** Public, cached data only — viewer interest state loads in the browser so this row never waits on auth. */
 async function WanderTripsRowServer({ activeTab }: { activeTab: ActiveTab }) {
-  const [{ packages, interestCounts, bookedGuests }, auth] = await Promise.all([getWanderTripRow(), getRequestAuth()])
-  const interestedPackageIds = await fetchInterestedPackageIds(auth.supabase, auth.user?.id ?? null, packages.map(pkg => pkg.id))
+  const { packages, interestCounts, bookedGuests } = await getWanderTripRow()
   return <WanderListingSections onlySection="trips" trips={packages} tripInterestCounts={interestCounts}
-    spotsBookedByTrip={bookedGuests} interestedPackageIds={interestedPackageIds}
-    stays={[]} activities={[]} rentals={[]} activeTab={activeTab} seedPreview />
+    spotsBookedByTrip={bookedGuests} stays={[]} activities={[]} rentals={[]} activeTab={activeTab} seedPreview />
 }
 
 async function WanderServiceRowServer({ type, activeTab }: { type: 'stays' | 'activities' | 'rentals'; activeTab: ActiveTab }) {
@@ -67,15 +59,6 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
         rentals={<Suspense fallback={<WanderRowFallback kind="rentals" title="rentals" activeTab={activeTab} />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
         interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-foreground/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
       />
-      <div className="dark mt-10 flex flex-col items-start justify-between gap-4 overflow-hidden rounded-[1.75rem] bg-[linear-gradient(120deg,#1b2436,#2a3550)] p-6 text-foreground shadow-[0_18px_44px_rgba(15,23,42,0.25)] sm:flex-row sm:items-center md:p-8">
-        <div>
-          <p className="text-xl font-black tracking-tight md:text-2xl">Lead your own trip</p>
-          <p className="mt-1 max-w-xl text-sm text-muted-foreground">Host a group, set your price and dates, and get paid out automatically.</p>
-        </div>
-        <Link href="/host" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90">
-          Start hosting <ArrowRight className="h-4 w-4" />
-        </Link>
-      </div>
       <div className="mt-6 grid gap-3 md:hidden">
         <div className="rounded-2xl border border-foreground/14 bg-foreground/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>

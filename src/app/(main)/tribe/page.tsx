@@ -46,10 +46,15 @@ async function TribeIndexContent() {
   )
 }
 
-export default function TribePage() {
+export default async function TribePage() {
+  const messagingBasePath = await getMessagingBasePath()
   return (
-    <Suspense fallback={<TribeIndexPageFallback />}>
-      <TribeIndexContent />
-    </Suspense>
+    <>
+      {/* Opens the last-visited room right away on desktop, before the room list resolves. */}
+      <CommunityIndexDesktopRedirect roomId={null} listPath={messagingBasePath} roomPathPrefix={messagingBasePath} />
+      <Suspense fallback={<TribeIndexPageFallback />}>
+        <TribeIndexContent />
+      </Suspense>
+    </>
   )
 }

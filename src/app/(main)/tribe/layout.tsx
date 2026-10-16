@@ -23,14 +23,17 @@ const tribeSans = Plus_Jakarta_Sans({
 /**
  * /tribe — same chat behavior as /community, with Wander’s forest + gold theme (no extra mockup left rail).
  */
+/** Streams the recent-rooms strip so the chat shell never waits on the room list. */
+async function MobileChatBottomBarServer({ userId, basePath }: { userId: string; basePath: string }) {
+  const { rooms } = await getCachedSidebarRooms(userId, { limit: 12, offset: 0 })
+  return <MobileChatBottomBar rooms={rooms} basePath={basePath} />
+}
+
 export default async function TribeLayout({ children }: { children: ReactNode }) {
   const { user } = await getRequestAuth()
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()
-
-  // For the mobile chat bottom bar — recent rooms (avatar strip).
-  const { rooms } = await getCachedSidebarRooms(user.id, { limit: 12, offset: 0 })
 
   return (
     <div
@@ -52,7 +55,9 @@ export default async function TribeLayout({ children }: { children: ReactNode })
           {children}
         </div>
       </TribeMessagingContainer>
-      <MobileChatBottomBar rooms={rooms} basePath={messagingBasePath} />
+      <Suspense fallback={null}>
+        <MobileChatBottomBarServer userId={user.id} basePath={messagingBasePath} />
+      </Suspense>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import type { Package, ServiceListing, ServiceListingType } from '@/types'
 import type { ServiceListingWithItems } from '@/lib/explore/explorePageData'
 import { Button } from '@/components/ui/button'
-import { Mountain, Plane, Home, Compass, Navigation, Key, X, Search, Loader2, type LucideIcon } from 'lucide-react'
+import { Mountain, Plane, Home, Compass, Navigation, Key, X, Search, Loader2, ChevronDown, type LucideIcon } from 'lucide-react'
 import { cn, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageHasUpcomingOpenDeparture, packageNextOpenDepartureKey, tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -430,9 +430,9 @@ export function ExploreClient({
         </div>
       ) : null}
 
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
-        {/* Desktop: one sticky search bar — category + search together */}
-        <div className="glass-card sticky top-2 z-30 mb-6 hidden items-center gap-3 p-2 md:flex">
+      <div className={cn('flex flex-col', !isWanderShell && 'mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6')}>
+        {/* `sticky!`: `.glass-card` sets position: relative outside Tailwind's layers. */}
+        <div className="glass-card sticky! top-3 z-30 mb-5 hidden items-center gap-3 p-2 md:flex">
           <div className="flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
             {TABS.map((tab) => {
               const Icon = tab.icon
@@ -546,11 +546,13 @@ export function ExploreClient({
 
           {/* Results Grid */}
           <div className="min-w-0 flex-1">
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-lg font-black tracking-tight text-foreground md:text-xl">
-                  {isLoading ? 'Updating results…' : `${totalCount} ${totalCount === 1 ? searchNounSingular : searchNoun}`}
-                  {params.q ? <span className="font-semibold text-muted-foreground"> for “{params.q}”</span> : null}
+                <h2 className="text-sm font-medium text-muted-foreground" aria-live="polite">
+                  {isLoading ? 'Updating results…' : (
+                    <>Showing <span className="font-bold text-foreground">{totalCount}</span> {totalCount === 1 ? searchNounSingular : searchNoun}</>
+                  )}
+                  {params.q ? <span> for “<span className="font-semibold text-foreground">{params.q}</span>”</span> : null}
                 </h2>
                 {filterChips.length > 0 ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -581,12 +583,13 @@ export function ExploreClient({
                   </div>
                 ) : null}
               </div>
-              <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                <span className="hidden sm:inline">Sort</span>
+              <label className="relative flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+                <span className="hidden sm:inline">Sort by</span>
+                <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <select
                   value={sort}
                   onChange={(e) => setSort(e.target.value as ExploreSort)}
-                  className="h-9 rounded-full border border-border bg-card px-3 text-sm font-semibold text-foreground"
+                  className="h-9 cursor-pointer appearance-none rounded-full border border-border bg-card pl-3.5 pr-9 text-sm font-semibold text-foreground hover:border-primary/50 focus-visible:border-primary focus-visible:outline-none"
                 >
                   <option value="recommended">Recommended</option>
                   {isTripsTab ? <option value="soonest">Departing soonest</option> : null}

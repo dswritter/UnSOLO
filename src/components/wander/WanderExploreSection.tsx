@@ -11,7 +11,7 @@ export async function WanderExploreSection({
   const exploreData = await loadExploreListData(sp)
 
   return (
-    <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 sm:px-6 lg:px-10 py-6 md:py-9">
+    <div className="mx-auto w-full max-w-[1600px] px-4 pb-8 pt-4 sm:px-6 md:pt-5 lg:px-8">
     <ExploreClient
       packages={exploreData.packages}
       serviceListings={exploreData.serviceListings}

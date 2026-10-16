@@ -7,10 +7,10 @@ import { fetchRoomMessagesClient } from '@/lib/chat/fetchRoomMessages'
 const CHAT_MSG_GC_MS = 1000 * 60 * 60 * 24 * 7 // 7d — match ChatWindow / QueryProvider
 
 /** Warm TanStack cache + start network fetch before navigation (hover / intent). */
-export function prefetchRoomMessages(queryClient: QueryClient, roomId: string) {
+export function prefetchRoomMessages(queryClient: QueryClient, roomId: string): Promise<void> {
   const key = chatKeys.messages(roomId)
-  if (queryClient.getQueryData(key)) return
-  void queryClient.prefetchQuery({
+  if (queryClient.getQueryData(key)) return Promise.resolve()
+  return queryClient.prefetchQuery({
     queryKey: key,
     queryFn: () => fetchRoomMessagesClient(roomId),
     staleTime: Infinity,

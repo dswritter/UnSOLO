@@ -8,23 +8,26 @@ import { toggleInterest } from '@/actions/booking'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { toast } from 'sonner'
 import { TripCardView } from '@/components/listings/TripCardView'
+import { rememberViewerInterest, useViewerInterested } from '@/lib/explore/viewer-interests'
 
 type Props = {
   pkg: Package
   interestCount: number
-  /** Server: package ids the signed-in user already marked interested */
-  interestedPackageIds: string[]
+  /** Optional server-known interests; otherwise the viewer's interests load in the browser. */
+  interestedPackageIds?: string[]
   /** Render like explore “past” editions: subdued card + Past trip badge. */
   pastEdition?: boolean
   /** Guests already booked across this package's departures (for "Only N left"). */
   spotsBooked?: number
 }
 
-export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastEdition = false, spotsBooked = 0 }: Props) {
+export function WanderTripCard({ pkg, interestCount, interestedPackageIds = [], pastEdition = false, spotsBooked = 0 }: Props) {
   const router = useRouter()
   const { userId } = useAuth()
   const [isMobile, setIsMobile] = useState(false)
-  const [interested, setInterested] = useState(() => interestedPackageIds.includes(pkg.id))
+  const loadedInterested = useViewerInterested(userId, pkg.id)
+  const [interestOverride, setInterestOverride] = useState<boolean | null>(null)
+  const interested = interestOverride ?? loadedInterested ?? interestedPackageIds.includes(pkg.id)
   const [count, setCount] = useState(interestCount)
   const [togglePending, setTogglePending] = useState(false)
 
@@ -36,14 +39,16 @@ export function WanderTripCard({ pkg, interestCount, interestedPackageIds, pastE
     if (togglePending) return
     setTogglePending(true)
     const wasInterested = interested
-    setInterested(!wasInterested)
+    setInterestOverride(!wasInterested)
     setCount(c => wasInterested ? c - 1 : c + 1)
 
     const result = await toggleInterest(packageId)
     if ('error' in result && result.error) {
       toast.error(result.error)
-      setInterested(wasInterested)
+      setInterestOverride(wasInterested)
       setCount(c => wasInterested ? c + 1 : c - 1)
+    } else {
+      rememberViewerInterest(userId, packageId, !wasInterested)
     }
     setTogglePending(false)
   }, [interested, togglePending, userId, router])

@@ -72,6 +72,9 @@ interface ChatSidebarProps {
   pinnedRoomIds?: string[]
 }
 
+const BACKGROUND_WARM_ROOMS = 8
+const BACKGROUND_WARM_DELAY_MS = 1200
+
 export function ChatSidebar({
   rooms,
   totalRoomCount: totalRoomCountProp,
@@ -118,6 +121,22 @@ export function ChatSidebar({
     setLocalRooms(rooms)
     setLocalPinnedIds(pinnedRoomIdsProp)
   }, [rooms, pinnedRoomIdsProp])
+
+  // Open room renders first; then warm the other conversations' messages one at a time.
+  useEffect(() => {
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const active = currentActiveRoomRef.current ? normalizeRoomId(currentActiveRoomRef.current) : null
+        const ids = rooms.map(r => r.id).filter(id => normalizeRoomId(id) !== active).slice(0, BACKGROUND_WARM_ROOMS)
+        for (const id of ids) {
+          if (cancelled || document.visibilityState === 'hidden') return
+          await prefetchRoomMessages(queryClient, id)
+        }
+      })()
+    }, BACKGROUND_WARM_DELAY_MS)
+    return () => { cancelled = true; window.clearTimeout(timer) }
+  }, [rooms, queryClient])
 
   // Preload notification sound on first interaction
   useEffect(() => { preloadSound() }, [])
@@ -437,7 +456,6 @@ export function ChatSidebar({
                   />
                   <Link
                     href={`${basePath}/${room.id}`}
-                    prefetch
                     onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                     className="flex-1 min-w-0 text-left py-0"
                   >
@@ -483,7 +501,6 @@ export function ChatSidebar({
               >
                 <Link
                   href={`${basePath}/${room.id}`}
-                  prefetch
                   onMouseEnter={() => prefetchRoomMessages(queryClient, room.id)}
                   className="flex flex-1 min-w-0 items-center gap-3 text-left"
                 >

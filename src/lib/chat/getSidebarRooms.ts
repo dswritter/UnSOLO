@@ -119,7 +119,7 @@ export async function getSidebarRooms(
   }
 
   const dmPartnerIds = [...new Set((dmMembers || []).map(m => m.user_id))]
-  let profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
+  const profileMap = new Map<string, { id: string; username: string; full_name: string | null; avatar_url: string | null }>()
   const dmPartnerHasStatus = new Set<string>()
   const dmPartnerStatusSeen = new Set<string>()
   if (dmPartnerIds.length > 0) {
@@ -258,14 +258,18 @@ export async function getSidebarRooms(
 }
 
 /**
- * Dedupes sidebar fetches within a single RSC request (layout + page both need the same list).
+ * Builds the full sidebar once per RSC request (layout, sidebar and index page share it).
+ * Keyed on the user id only — React `cache` compares object args by identity.
  */
-export const getCachedSidebarRooms = cache(
-  async (
-    userId: string,
-    pagination: { limit: number; offset: number } = { limit: 8, offset: 0 },
-  ): Promise<SidebarRoomPageResult> => {
-    const supabase = await createClient()
-    return getSidebarRooms(supabase, userId, pagination)
-  },
-)
+const getAllSidebarRoomsForRequest = cache(async (userId: string): Promise<SidebarRoomPageResult> => {
+  const supabase = await createClient()
+  return getSidebarRooms(supabase, userId, { limit: Number.MAX_SAFE_INTEGER, offset: 0 })
+})
+
+export async function getCachedSidebarRooms(
+  userId: string,
+  pagination: { limit: number; offset: number } = { limit: 8, offset: 0 },
+): Promise<SidebarRoomPageResult> {
+  const all = await getAllSidebarRoomsForRequest(userId)
+  return { ...all, rooms: all.rooms.slice(pagination.offset, pagination.offset + pagination.limit) }
+}
