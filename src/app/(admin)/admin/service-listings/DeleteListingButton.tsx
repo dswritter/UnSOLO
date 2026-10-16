@@ -13,7 +13,7 @@ export function DeleteListingButton({ id }: { id: string }) {
   const [isPending, startTransition] = useTransition()
 
   async function onClick() {
-    if (!(await confirmAction({ title: 'Delete this listing permanently?', description: 'This cannot be undone. Listings with existing bookings cannot be deleted.', confirmLabel: 'Delete', tone: 'danger' }))) return
+    if (!(await confirmAction({ title: 'Delete this listing?', description: 'It is removed for everyone. Listings with bookings are archived instead so their records stay intact.', confirmLabel: 'Delete', tone: 'danger' }))) return
     startTransition(async () => {
       try {
         await hardDeleteServiceListing(id)

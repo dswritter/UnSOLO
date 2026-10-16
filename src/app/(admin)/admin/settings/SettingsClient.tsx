@@ -309,7 +309,7 @@ function syntheticGeneralRow(key: string): Setting {
       key,
       value: 'default',
       description:
-        'default: classic forest green. auto: six Indian seasons (Asia/Kolkata calendar). manual: fixed season until changed.',
+        'default: midnight gold (warm charcoal + brand yellow). auto: six Indian seasons (Asia/Kolkata calendar). manual: fixed season until changed.',
     }
   }
   if (key === 'wander_theme_season_manual') {
@@ -425,13 +425,15 @@ export default function SettingsClient({ settings: initialSettings }: { settings
 
   function handleSave() {
     startTransition(async () => {
-      const mobileContentMode = (settings.wander_hero_mobile_content_mode ?? 'inherit').trim().toLowerCase()
-      if (mobileContentMode !== 'inherit' && mobileContentMode !== 'custom') {
+      // Validate only what the admin changed, so a legacy stored value can't block unrelated saves.
+      const changed = (key: string) => (settings[key] ?? '') !== (savedBaselineRef.current?.[key] ?? '')
+      const mobileContentMode = (settings.wander_hero_mobile_content_mode || 'inherit').trim().toLowerCase()
+      if (changed('wander_hero_mobile_content_mode') && mobileContentMode !== 'inherit' && mobileContentMode !== 'custom') {
         toast.error('Mobile hero content mode must be inherit or custom.')
         return
       }
-      const mobileFontMode = (settings.wander_hero_mobile_font_mode ?? 'inherit').trim().toLowerCase()
-      if (mobileFontMode !== 'inherit' && mobileFontMode !== 'custom') {
+      const mobileFontMode = (settings.wander_hero_mobile_font_mode || 'inherit').trim().toLowerCase()
+      if (changed('wander_hero_mobile_font_mode') && mobileFontMode !== 'inherit' && mobileFontMode !== 'custom') {
         toast.error('Mobile hero font mode must be inherit or custom.')
         return
       }
@@ -447,7 +449,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
         'wander_hero_mobile_stats_size',
       ] as const
       for (const key of heroFontKeys) {
-        if (!isValidHeroFontSizeValue(settings[key] || '')) {
+        if (changed(key) && !isValidHeroFontSizeValue(settings[key] || '')) {
           toast.error(`Invalid hero font size for ${key}. Use values like 22px, 1.4rem, or 1.1em.`)
           return
         }
@@ -575,7 +577,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
                         Controls immersive /wander surfaces (explore, packages, host shell, admin wrapper). Default keeps
-                        the current forest look; auto follows six Indian seasons (Asia/Kolkata); manual pins one palette for
+                        the midnight-gold look; auto follows six Indian seasons (Asia/Kolkata); manual pins one palette for
                         campaigns.
                       </p>
                     </div>
@@ -588,7 +590,7 @@ export default function SettingsClient({ settings: initialSettings }: { settings
                         }
                         className="h-9 max-w-xs rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
                       >
-                        <option value="default">Default (classic forest)</option>
+                        <option value="default">Default (midnight gold)</option>
                         <option value="auto">Auto (season by calendar)</option>
                         <option value="manual">Manual (fixed season)</option>
                       </select>

@@ -1,6 +1,7 @@
 import { getListingDraftForStaff } from '@/actions/listing-drafts'
 import { getDestinationsPublic } from '@/actions/hosting'
 import { HostTripForm } from '@/components/hosting/HostTripForm'
+import { getTripFormBootstrap } from '@/lib/hosting/trip-form-bootstrap'
 import { HostServiceListingTabs } from '@/components/hosting/HostServiceListingTabs'
 import type { HostTripDraftPayload } from '@/lib/host-trip-create-draft'
 import type { HostServiceListingPreviewPayload } from '@/lib/host-service-listing-preview-session'
@@ -19,7 +20,7 @@ export default async function EditHostDraftPage({ params }: { params: Promise<{ 
   // Both kinds open in the FULL host form (staff cloud-draft mode); saves go to the
   // host's draft and they finish/submit it.
   if (draft.kind === 'trip') {
-    return <HostTripForm staffDraftId={draft.id} staffDraftPayload={draft.payload as unknown as HostTripDraftPayload} />
+    return <HostTripForm bootstrap={await getTripFormBootstrap()} staffDraftId={draft.id} staffDraftPayload={draft.payload as unknown as HostTripDraftPayload} />
   }
 
   const payload = draft.payload as unknown as HostServiceListingPreviewPayload

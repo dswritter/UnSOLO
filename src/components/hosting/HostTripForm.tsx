@@ -73,6 +73,7 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react'
+import type { TripFormBootstrap } from '@/lib/hosting/trip-form-bootstrap'
 
 /** Native <select> strips OS glossy styling so fields match <Input />. */
 function FormSelect({
@@ -131,6 +132,7 @@ export function HostTripForm({
   staffDraftId,
   staffDraftPayload,
   staffCreate = false,
+  bootstrap,
 }: {
   editTripId?: string
   /** When set, load this draft from local storage; plain `/host/create` always starts blank. */
@@ -141,21 +143,24 @@ export function HostTripForm({
   staffDraftPayload?: HostTripDraftPayload
   /** Staff create a real listing for a host who may not have an account yet. */
   staffCreate?: boolean
+  /** Server-fetched options/limits; lets create flows render without client round trips. */
+  bootstrap?: TripFormBootstrap
 }) {
   const router = useRouter()
   const isEdit = !!editTripId
   const isStaffDraft = !!staffDraftId
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState(0)
-  const [loading, setLoading] = useState(true)
+  // Staff create is authorized by its page and needs nothing else loaded.
+  const [loading, setLoading] = useState(!(bootstrap && staffCreate && !editTripId))
   const [editModerationStatus, setEditModerationStatus] = useState<string | null>(null)
   const [editTripSlug, setEditTripSlug] = useState<string | null>(null)
   const [activePriceTierIndex, setActivePriceTierIndex] = useState(0)
   const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
 
   // Data
-  const [destinations, setDestinations] = useState<Destination[]>([])
-  const [includesOptions, setIncludesOptions] = useState<IncludesOption[]>([])
+  const [destinations, setDestinations] = useState<Destination[]>(bootstrap?.destinations ?? [])
+  const [includesOptions, setIncludesOptions] = useState<IncludesOption[]>(bootstrap?.includesOptions ?? [])
 
   // Form state
   const [title, setTitle] = useState('')
@@ -173,8 +178,8 @@ export function HostTripForm({
   const [departureTime, setDepartureTime] = useState<'morning' | 'evening'>('morning')
   const [returnTime, setReturnTime] = useState<'morning' | 'evening'>('morning')
   const [maxGroupSize, setMaxGroupSize] = useState('12')
-  const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(50)
-  const [platformFeePercent, setPlatformFeePercent] = useState(15)
+  const [adminMaxGroupSize, setAdminMaxGroupSize] = useState(bootstrap?.maxGroupSize ?? 50)
+  const [platformFeePercent, setPlatformFeePercent] = useState(bootstrap?.platformFeePercent ?? 15)
   const [standardFlow, setStandardFlow] = useState<'after_host_approval' | 'pay_on_booking'>(
     'pay_on_booking',
   )
@@ -294,16 +299,18 @@ export function HostTripForm({
       // Staff editing a host's cloud draft via the full form: hydrate from the
       // passed payload, skip the host-verify flow, and don't touch local storage.
       if (isStaffDraft && staffDraftPayload) {
-        const [dests, includes] = await Promise.all([getDestinationsPublic(), getIncludesOptionsPublic()])
+        const [dests, includes] = bootstrap
+          ? [bootstrap.destinations, bootstrap.includesOptions]
+          : await Promise.all([getDestinationsPublic(), getIncludesOptionsPublic()])
         setDestinations(dests)
         setIncludesOptions(includes)
-        const { createClient: cc } = await import('@/lib/supabase/client')
-        const sb = cc()
-        const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
-        if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 50)
-        const { data: feeSetting } = await sb.from('platform_settings').select('value').eq('key', 'platform_fee_percent').single()
-        if (feeSetting?.value != null) {
-          const f = parseFloat(String(feeSetting.value).trim())
+        if (!bootstrap) {
+          const { createClient: cc } = await import('@/lib/supabase/client')
+          const { data: settings } = await cc().from('platform_settings').select('key, value').in('key', ['host_max_group_size', 'platform_fee_percent'])
+          const setting = (key: string) => settings?.find(row => row.key === key)?.value
+          const max = parseInt(String(setting('host_max_group_size') ?? ''), 10)
+          if (max) setAdminMaxGroupSize(max)
+          const f = parseFloat(String(setting('platform_fee_percent') ?? '').trim())
           if (Number.isFinite(f) && f >= 0 && f <= 100) setPlatformFeePercent(Math.round(f * 100) / 100)
         }
         setDraftSessionId(staffDraftId!)
@@ -312,36 +319,40 @@ export function HostTripForm({
         return
       }
 
-      const hostStatus = await checkIsHost()
+      if (bootstrap && staffCreate && !editTripId) return
+
+      const { createClient: cc } = await import('@/lib/supabase/client')
+      const sb = cc()
+      const needsManageCheck = staffCreate || !!editTripId
+      const [hostStatus, dests, includes, canManage, settingsRes] = await Promise.all([
+        checkIsHost(),
+        bootstrap ? Promise.resolve(bootstrap.destinations) : getDestinationsPublic(),
+        bootstrap ? Promise.resolve(bootstrap.includesOptions) : getIncludesOptionsPublic(),
+        needsManageCheck ? canManageAnyHostTrip() : Promise.resolve(false),
+        bootstrap
+          ? Promise.resolve(null)
+          : sb.from('platform_settings').select('key, value').in('key', ['host_max_group_size', 'platform_fee_percent']),
+      ])
       if (!hostStatus.authenticated) {
         router.push('/login')
         return
       }
-
-      const [dests, includes] = await Promise.all([
-        getDestinationsPublic(),
-        getIncludesOptionsPublic(),
-      ])
       setDestinations(dests)
       setIncludesOptions(includes)
 
-      // Fetch admin-managed max group size
-      const { createClient: cc } = await import('@/lib/supabase/client')
-      const sb = cc()
       if (!hostStatus.isHost || staffCreate) {
         // Admins and community_trips staff (e.g. host onboarding) may edit an
         // existing trip to help the host — but can't create one from scratch.
-        const canManage = await canManageAnyHostTrip()
         if (!canManage || (!editTripId && !staffCreate)) {
           router.push('/host/verify')
           return
         }
       }
-      const { data: maxSetting } = await sb.from('platform_settings').select('value').eq('key', 'host_max_group_size').single()
-      if (maxSetting) setAdminMaxGroupSize(parseInt(maxSetting.value) || 50)
-      const { data: feeSetting } = await sb.from('platform_settings').select('value').eq('key', 'platform_fee_percent').single()
-      if (feeSetting?.value != null) {
-        const f = parseFloat(String(feeSetting.value).trim())
+      if (settingsRes?.data) {
+        const setting = (key: string) => settingsRes.data?.find(row => row.key === key)?.value
+        const max = parseInt(String(setting('host_max_group_size') ?? ''), 10)
+        if (max) setAdminMaxGroupSize(max)
+        const f = parseFloat(String(setting('platform_fee_percent') ?? '').trim())
         if (Number.isFinite(f) && f >= 0 && f <= 100) setPlatformFeePercent(Math.round(f * 100) / 100)
       }
 
@@ -472,7 +483,7 @@ export function HostTripForm({
       setLoading(false)
     }
     load()
-  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate])
+  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate, bootstrap])
 
   const minListPricePaise = useMemo(() => {
     const amounts = priceRows

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { HostTripForm } from '@/components/hosting/HostTripForm'
+import { getTripFormBootstrap } from '@/lib/hosting/trip-form-bootstrap'
 import { checkIsHost } from '@/actions/hosting'
 import { hasPayoutConfigured } from '@/actions/payout'
 import { getRequestAuth } from '@/lib/auth/request-session'
@@ -21,5 +22,5 @@ export default async function CreateTripPage({
   }
 
   const { draft } = await searchParams
-  return <HostTripForm resumeDraftId={draft} />
+  return <HostTripForm bootstrap={await getTripFormBootstrap()} resumeDraftId={draft} />
 }

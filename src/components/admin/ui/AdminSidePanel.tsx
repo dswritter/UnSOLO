@@ -37,6 +37,9 @@ export function AdminSidePanel({ open, onClose, title, subtitle, headerExtra, ch
 
   if (!open || typeof document === 'undefined') return null
 
+  // Portal inside the themed shell: its CSS variables don't reach document.body.
+  const portalRoot = document.querySelector('[data-wander-shell-season]') ?? document.body
+
   return createPortal(
     <div className="fixed inset-0 z-[90] flex justify-end">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
@@ -60,6 +63,6 @@ export function AdminSidePanel({ open, onClose, title, subtitle, headerExtra, ch
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
       </div>
     </div>,
-    document.body,
+    portalRoot,
   )
 }

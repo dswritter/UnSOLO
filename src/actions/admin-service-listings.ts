@@ -350,14 +350,20 @@ export async function hardDeleteServiceListing(id: string) {
 
   const { error } = await supabase.from('service_listings').delete().eq('id', id)
   if (error) {
-    // 23503 = foreign-key violation (the listing still has bookings).
-    if (error.code === '23503') {
-      throw new Error('This listing has bookings and cannot be permanently deleted.')
-    }
-    throw new Error(error.message)
+    // 23503 = foreign-key violation: the listing has bookings, so archive it to keep their records.
+    if (error.code !== '23503') throw new Error(error.message)
+    const { data: row } = await supabase.from('service_listings').select('slug').eq('id', id).single()
+    const { error: archiveError } = await supabase.from('service_listings').update({
+      archived_at: new Date().toISOString(),
+      is_active: false,
+      status: 'archived',
+      slug: `${row?.slug || 'listing'}-archived-${Date.now().toString(36)}`,
+    }).eq('id', id)
+    if (archiveError) throw new Error(archiveError.message)
+    await logAuditEvent(user.id, 'ARCHIVE_SERVICE_LISTING', 'service_listing', id)
+  } else {
+    await logAuditEvent(user.id, 'HARD_DELETE_SERVICE_LISTING', 'service_listing', id)
   }
-
-  await logAuditEvent(user.id, 'HARD_DELETE_SERVICE_LISTING', 'service_listing', id)
 
   revalidatePath('/admin/service-listings')
   revalidatePath('/')

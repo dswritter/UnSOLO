@@ -17,6 +17,7 @@ import {
 } from '@/components/host/hostBadgeStyles'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { HostDeleteListingButton } from '@/components/host/HostDeleteListingButton'
 import { toast } from 'sonner'
 import {
   MapPin,
@@ -657,6 +658,13 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                   >
                     <Link href={`/host/${trip.id}`}>Manage</Link>
                   </Button>
+                  <HostDeleteListingButton
+                    kind="trip"
+                    listingId={trip.id}
+                    title={trip.title}
+                    className={cn(w && 'text-white/60 hover:text-red-300')}
+                    onDeleted={() => setTrips(prev => prev.filter(t => t.id !== trip.id))}
+                  />
                 </div>
               </div>
               {expandedRequests.has(trip.id) && (

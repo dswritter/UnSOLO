@@ -97,7 +97,7 @@ export function ServiceListingsClient({
   }
 
   async function handleHardDelete(id: string) {
-    if (!(await confirmAction({ title: 'Delete this listing permanently?', description: 'This cannot be undone, and its booking history will be unlinked.', confirmLabel: 'Delete', tone: 'danger' }))) return
+    if (!(await confirmAction({ title: 'Delete this listing?', description: 'It is removed for everyone. Listings with bookings are archived instead so their records stay intact.', confirmLabel: 'Delete', tone: 'danger' }))) return
     setLoading(id)
     try {
       await hardDeleteServiceListing(id)

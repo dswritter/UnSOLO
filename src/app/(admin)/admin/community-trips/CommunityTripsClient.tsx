@@ -13,7 +13,7 @@ import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { toast } from 'sonner'
-import { Check, X, Eye, CreditCard, Star, ChevronRight, Settings, Info, AlertTriangle, Zap } from 'lucide-react'
+import { Check, X, Eye, CreditCard, Star, ChevronRight, Trash2, Settings, Info, AlertTriangle, Zap } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
@@ -100,7 +100,7 @@ export default function CommunityTripsClient({
   }
 
   async function handleHardDelete(tripId: string) {
-    if (!(await confirmAction({ title: 'Delete this community trip permanently?', description: 'This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return
+    if (!(await confirmAction({ title: 'Delete this community trip?', description: 'It is removed for everyone. If it has bookings it is archived instead, so their records stay intact.', confirmLabel: 'Delete', tone: 'danger' }))) return
     startTransition(async () => {
       const res = await hardDeletePackage(tripId)
       if (res.error) { toast.error(res.error); return }
@@ -699,8 +699,7 @@ export default function CommunityTripsClient({
                       )}
                     </div>
                   )}
-                  {/* Hard delete — only for rejected trips */}
-                  {trip.moderation_status === 'rejected' && (
+                  {(
                     <div className="mt-3 pt-3 border-t border-border">
                       <Button
                         size="sm"
@@ -709,9 +708,9 @@ export default function CommunityTripsClient({
                         onClick={() => handleHardDelete(trip.id)}
                         disabled={isPending}
                       >
-                        🗑 Permanently delete trip
+                        <Trash2 className="h-3.5 w-3.5" /> Delete trip
                       </Button>
-                      <p className="text-[10px] text-muted-foreground mt-1">Removes the trip and unlinks its bookings. Cannot be undone.</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Trips with bookings are archived so booking records stay intact.</p>
                     </div>
                   )}
                 </div>

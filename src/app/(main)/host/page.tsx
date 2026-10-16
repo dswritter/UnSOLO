@@ -14,6 +14,7 @@ import { HostTripDraftsPanel } from './HostTripDraftsPanel'
 import { HostCreateDropdown } from './HostCreateDropdown'
 import { ResubmitServiceListingButton } from './ResubmitServiceListingButton'
 import { ToggleServiceListingButton } from './ToggleServiceListingButton'
+import { HostDeleteListingButton } from '@/components/host/HostDeleteListingButton'
 import { StopHostingPanel } from '@/components/host/StopHostingPanel'
 import type { ServiceListing } from '@/types'
 import { Wallet, AlertTriangle } from 'lucide-react'
@@ -42,6 +43,7 @@ export default async function HostDashboardPage() {
         .from('service_listings')
         .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at, last_host_resubmit_at')
         .eq('host_id', user.id)
+        .is('archived_at', null)
         .order('created_at', { ascending: false })
     : { data: null }
 
@@ -184,6 +186,7 @@ export default async function HostDashboardPage() {
                         listingId={listing.id}
                         isActive={listing.is_active !== false}
                       />
+                      <HostDeleteListingButton kind="service" listingId={listing.id} title={listing.title} />
                       <HostModerationBadge forestContrast status={listing.status} />
                     </div>
                   </div>

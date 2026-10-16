@@ -472,6 +472,7 @@ export async function getMyHostedTrips() {
     .from('packages')
     .select('*, destination:destinations(name, state)')
     .eq('host_id', user.id)
+    .is('archived_at', null)
     .order('created_at', { ascending: false })
 
   const tripIds = (trips || []).map(t => t.id)

@@ -1044,17 +1044,29 @@ export async function deletePackage(packageId: string) {
   return { success: true }
 }
 
-/** Permanently removes a package / community trip row regardless of bookings. */
+/** Admin delete at any state: removes the trip, or archives it when it has bookings. */
 export async function hardDeletePackage(packageId: string) {
   const { supabase, user } = await requirePermission('community_trips')
 
-  // Null out package_id on existing bookings first so FK doesn't block
-  await supabase.from('bookings').update({ package_id: null }).eq('package_id', packageId)
-
-  const { error } = await supabase.from('packages').delete().eq('id', packageId)
-  if (error) return { error: error.message }
-
-  await logAuditEvent(user.id, 'HARD_DELETE_PACKAGE', 'package', packageId)
+  // Keep booking records linked: trips with any bookings are archived, not deleted.
+  const { count: bookingCount } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('package_id', packageId)
+  if (bookingCount && bookingCount > 0) {
+    const { data: pkg } = await supabase.from('packages').select('slug').eq('id', packageId).single()
+    const { error } = await supabase.from('packages').update({
+      archived_at: new Date().toISOString(),
+      is_active: false,
+      slug: `${pkg?.slug || 'trip'}-archived-${Date.now().toString(36)}`,
+    }).eq('id', packageId)
+    if (error) return { error: error.message }
+    await logAuditEvent(user.id, 'ARCHIVE_PACKAGE', 'package', packageId)
+  } else {
+    const { error } = await supabase.from('packages').delete().eq('id', packageId)
+    if (error) return { error: error.message }
+    await logAuditEvent(user.id, 'HARD_DELETE_PACKAGE', 'package', packageId)
+  }
 
   const { revalidatePath } = await import('next/cache')
   revalidatePath('/')
