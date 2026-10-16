@@ -13,6 +13,15 @@ import { WanderRecentlyViewedStrip } from '@/components/wander/WanderRecentlyVie
 import { WanderListingSections } from '@/components/wander/WanderListingSections'
 import { WanderStatusRail } from '@/components/wander/WanderStatusRail'
 import { WanderRowFallback } from '@/components/wander/WanderRowFallback'
+import {
+  WanderDiscoverySkeleton,
+  WanderHostsSection,
+  WanderLeaderboardTeaser,
+  WanderRegionsSection,
+  WanderReviewsSection,
+  WanderVibesSection,
+} from '@/components/wander/WanderDiscoverySections'
+import { WanderHowItWorks } from '@/components/wander/WanderDiscoveryClient'
 import type { Package, ServiceListing } from '@/types'
 
 type ActiveTab = 'trips' | 'stays' | 'activities' | 'rentals' | null
@@ -59,6 +68,12 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
         rentals={<Suspense fallback={<WanderRowFallback kind="rentals" title="rentals" activeTab={activeTab} />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
         interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-foreground/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
       />
+      <Suspense fallback={<WanderDiscoverySkeleton variant="grid" />}><WanderVibesSection /></Suspense>
+      <Suspense fallback={<WanderDiscoverySkeleton variant="grid" />}><WanderRegionsSection /></Suspense>
+      <Suspense fallback={<WanderDiscoverySkeleton variant="row" />}><WanderReviewsSection /></Suspense>
+      <Suspense fallback={<WanderDiscoverySkeleton variant="row" />}><WanderHostsSection /></Suspense>
+      <Suspense fallback={<WanderDiscoverySkeleton variant="panel" />}><WanderLeaderboardTeaser /></Suspense>
+      <WanderHowItWorks />
       <div className="mt-6 grid gap-3 md:hidden">
         <div className="rounded-2xl border border-foreground/14 bg-foreground/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>

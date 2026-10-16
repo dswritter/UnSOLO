@@ -16,6 +16,19 @@ import {
 } from '@/lib/wander/wander-defaults'
 import { sanitizeAdminPublicHref } from '@/lib/wander/safe-public-link'
 import { getCachedPublicServiceItems } from '@/lib/explore/cachedPublicServiceData'
+import {
+  buildRegionTiles,
+  buildVibeBuckets,
+  pickReviewCards,
+  rankHosts,
+  type DiscoveryPackage,
+  type HostCandidate,
+  type HostCard,
+  type RegionTile,
+  type ReviewCard,
+  type ReviewRow,
+  type VibeBucket,
+} from '@/lib/wander/homeDiscovery'
 export {
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
   DEFAULT_WANDER_HERO_LINE1,
@@ -600,3 +613,84 @@ export async function getWanderServiceItemsForListings(
   }
   return listings.map(l => ({ ...l, items: itemsBy.get(l.id) || [] }))
 }
+
+const getWanderDiscoveryPackages = unstable_cache(async function (): Promise<DiscoveryPackage[]> {
+  try {
+    const { data, error } = await svc()
+      .from('packages')
+      .select('id, title, short_description, description, metadata, price_paise, duration_days, difficulty, images, host_id, destination:destinations(name, state, country, image_url)')
+      .eq('is_active', true)
+      .limit(600)
+    if (error) throw error
+    return (data || []) as unknown as DiscoveryPackage[]
+  } catch {
+    return []
+  }
+}, ['wander-discovery-packages-v1'], { revalidate: 300 })
+
+export async function getWanderRegionTiles(): Promise<RegionTile[]> {
+  return buildRegionTiles(await getWanderDiscoveryPackages())
+}
+
+export async function getWanderVibeBuckets(): Promise<VibeBucket[]> {
+  return buildVibeBuckets(await getWanderDiscoveryPackages())
+}
+
+/** Hosts with live trips or approved service listings, best-rated first. */
+export const getWanderTopHosts = unstable_cache(async function (): Promise<HostCard[]> {
+  try {
+    const supabase = svc()
+    const [packages, services] = await Promise.all([
+      getWanderDiscoveryPackages(),
+      supabase.from('service_listings').select('host_id')
+        .eq('is_active', true)
+        .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+        .not('host_id', 'is', null)
+        .limit(1000),
+    ])
+    const live = new Map<string, number>()
+    for (const p of packages) if (p.host_id) live.set(p.host_id, (live.get(p.host_id) ?? 0) + 1)
+    for (const s of (services.data || []) as { host_id: string | null }[]) {
+      if (s.host_id) live.set(s.host_id, (live.get(s.host_id) ?? 0) + 1)
+    }
+    if (!live.size) return []
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, bio, location, host_rating, total_hosted_trips, is_verified')
+      .in('id', [...live.keys()].slice(0, 300))
+    return rankHosts((profiles || []) as HostCandidate[], live)
+  } catch {
+    return []
+  }
+}, ['wander-top-hosts-v1'], { revalidate: 600 })
+
+/** Recent approved 5★ reviews with reviewer + trip context. */
+export const getWanderRecentReviews = unstable_cache(async function (): Promise<ReviewCard[]> {
+  try {
+    const supabase = svc()
+    const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select('id, user_id, package_id, rating, title, body, images, created_at')
+      .eq('status', 'approved')
+      .gte('rating', 5)
+      .not('body', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(40)
+    if (error || !reviews?.length) return []
+    const rows = reviews as ReviewRow[]
+    const userIds = [...new Set(rows.map(r => r.user_id))]
+    const packageIds = [...new Set(rows.map(r => r.package_id))]
+    const [profiles, packages] = await Promise.all([
+      supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds),
+      supabase.from('packages').select('id, title, slug, images, is_active, destination:destinations(name)').in('id', packageIds),
+    ])
+    const profileMap = new Map((profiles.data || []).map(p => [p.id as string, p as { username: string | null; full_name: string | null; avatar_url: string | null }]))
+    const packageMap = new Map((packages.data || []).map(raw => {
+      const p = raw as unknown as { id: string; title: string; slug: string; images: string[] | null; is_active: boolean | null; destination: { name: string | null } | null }
+      return [p.id, { title: p.title, slug: p.slug, images: p.images, is_active: p.is_active, destination: p.destination?.name ?? null }]
+    }))
+    return pickReviewCards(rows, profileMap, packageMap)
+  } catch {
+    return []
+  }
+}, ['wander-recent-reviews-v1'], { revalidate: 600 })
