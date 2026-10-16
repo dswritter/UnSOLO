@@ -8,6 +8,14 @@ import type { SidebarRoom } from '@/components/chat/ChatSidebar'
 
 const PAGE_SIZE = 8
 
+/** Resolve only from this viewer's permitted sidebar, never from an unrestricted room lookup. */
+export async function loadActiveSidebarRoom(roomId: string): Promise<{ room: SidebarRoom | null; error?: string }> {
+  const { supabase, user } = await getActionAuth()
+  if (!user) return { room: null, error: 'Not authenticated' }
+  const { rooms } = await getSidebarRooms(supabase, user.id, { limit: Number.MAX_SAFE_INTEGER, offset: 0 })
+  return { room: rooms.find(room => room.id === roomId) ?? null }
+}
+
 async function userCanPinRoom(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,

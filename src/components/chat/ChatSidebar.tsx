@@ -14,11 +14,12 @@ import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { startDirectMessage } from '@/actions/profile'
-import { loadMoreSidebarRooms, toggleChatSidebarPin } from '@/actions/chat-sidebar'
+import { loadActiveSidebarRoom, loadMoreSidebarRooms, toggleChatSidebarPin } from '@/actions/chat-sidebar'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
 import { DmSidebarAvatarMenu } from './DmSidebarAvatarMenu'
+import { prioritizeActiveConversation } from '@/lib/chat/sidebar-page'
 
 function normalizeRoomId(id: string) {
   return id.trim().toLowerCase()
@@ -63,6 +64,7 @@ interface ChatSidebarProps {
   totalRoomCount?: number
   pageSize?: number
   activeRoomId?: string | null
+  initialActiveRoom?: SidebarRoom | null
   className?: string
   /** Current user id (for status viewer + menus) */
   viewerUserId: string
@@ -80,6 +82,7 @@ export function ChatSidebar({
   totalRoomCount: totalRoomCountProp,
   pageSize: _pageSize = 8,
   activeRoomId,
+  initialActiveRoom = null,
   className = '',
   viewerUserId,
   basePath = '/community',
@@ -88,6 +91,7 @@ export function ChatSidebar({
   const queryClient = useQueryClient()
   const totalRoomCount = totalRoomCountProp ?? rooms.length
   const [localRooms, setLocalRooms] = useState(rooms)
+  const [activeRoomPreview, setActiveRoomPreview] = useState<SidebarRoom | null>(initialActiveRoom)
   const [localPinnedIds, setLocalPinnedIds] = useState(pinnedRoomIdsProp)
   const pinInFlightRef = useRef<Set<string>>(new Set())
   const [loadMoreLoading, setLoadMoreLoading] = useState(false)
@@ -112,9 +116,27 @@ export function ChatSidebar({
   }, [basePath])
   const currentActiveRoom = activeRoomId || pathname?.match(roomPathRe)?.[1] || null
 
-  localRoomsRef.current = localRooms
+  localRoomsRef.current = activeRoomPreview?.id === currentActiveRoom && !localRooms.some(room => room.id === currentActiveRoom)
+    ? [activeRoomPreview, ...localRooms]
+    : localRooms
   localPinnedIdsRef.current = localPinnedIds
   currentActiveRoomRef.current = currentActiveRoom
+
+  useEffect(() => {
+    if (!currentActiveRoom || activeRoomPreview?.id === currentActiveRoom || localRooms.some(room => room.id === currentActiveRoom)) return
+    let cancelled = false
+    void loadActiveSidebarRoom(currentActiveRoom).then(result => {
+      if (cancelled) return
+      if (result.error) toast.error(result.error)
+      else setActiveRoomPreview(result.room)
+    }).catch((error: unknown) => {
+      if (!cancelled) {
+        console.error('Unable to load active sidebar conversation', error)
+        toast.error('Unable to show the open conversation in the sidebar. Please retry.')
+      }
+    })
+    return () => { cancelled = true }
+  }, [currentActiveRoom, localRooms, activeRoomPreview])
 
   // Sync with prop changes
   useEffect(() => {
@@ -161,6 +183,9 @@ export function ChatSidebar({
 
         appendRoomMessageToCache(queryClient, msg)
         window.dispatchEvent(new CustomEvent('unsolo:new-message', { detail: msg }))
+        setActiveRoomPreview(prev => prev && normalizeRoomId(prev.id) === msgRoom
+          ? { ...prev, lastMessage: msg.content, lastMessageAt: msg.created_at }
+          : prev)
 
         setLocalRooms(prev => {
           const idx = prev.findIndex(r => normalizeRoomId(r.id) === msgRoom)
@@ -302,7 +327,10 @@ export function ChatSidebar({
   }, [])
 
   const filtered = useMemo(() => {
-    const f = localRooms.filter(r => {
+    const visibleRooms = activeRoomPreview?.id === currentActiveRoom && !localRooms.some(r => r.id === currentActiveRoom)
+      ? [activeRoomPreview, ...localRooms]
+      : localRooms
+    const f = visibleRooms.filter(r => {
       if (filter !== 'all' && r.type !== filter) return false
       if (search.trim()) {
         const q = search.toLowerCase()
@@ -310,8 +338,9 @@ export function ChatSidebar({
       }
       return true
     })
-    return sortSidebarRooms(f, localPinnedIds)
-  }, [localRooms, filter, search, localPinnedIds])
+    const sorted = sortSidebarRooms(f, localPinnedIds)
+    return prioritizeActiveConversation(sorted, currentActiveRoom)
+  }, [localRooms, activeRoomPreview, currentActiveRoom, filter, search, localPinnedIds])
 
   const canLoadMore = totalRoomCount > localRooms.length && !search.trim()
 

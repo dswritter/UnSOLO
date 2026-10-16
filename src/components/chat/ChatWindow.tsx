@@ -33,6 +33,7 @@ import { PinnedMessageBanner } from '@/components/chat/PinnedMessageBanner'
 import { ChatPollCard } from '@/components/chat/ChatPollCard'
 import { consumeHashtagFragment, type ChatLinkTarget } from '@/lib/chat/chatHashTags'
 import type { TripChatBookingPhase } from '@/lib/chat/tripChatAccess'
+import { TripStatusBadge } from '@/components/chat/TripStatusBadge'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 
@@ -104,19 +105,6 @@ function SenderTrustBadges({
     )
   }
   return null
-}
-
-function TripStatusBadge({ phase, className = '' }: { phase: TripChatBookingPhase; className?: string }) {
-  const label = phase === 'upcoming' ? 'Booked' : phase === 'ongoing' ? 'On trip' : 'Completed'
-  const cls =
-    phase === 'upcoming'
-      ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/40'
-      : phase === 'ongoing'
-        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/40'
-        : 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-300 border-zinc-500/40'
-  return (
-    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border ${cls} ${className}`}>{label}</span>
-  )
 }
 
 interface ReadReceipt {
@@ -2008,11 +1996,6 @@ export function ChatWindow({
                 }
                 isOwn={item.message.user_id === currentUser.id}
                 isOnline={item.message.user_id ? isUserOnline(item.message.user_id) : false}
-                tripBadge={
-                  roomType === 'trip' && item.message.user_id
-                    ? memberProfiles.find(m => m.id === item.message.user_id)?.trip_chat_badge ?? null
-                    : null
-                }
                 onClickProfile={() => item.message.user_id && item.message.user_id !== currentUser.id && setProfilePopup(item.message.user_id)}
                 readStatus={item.message.user_id === currentUser.id ? getReadStatus(item.message.id, currentUser.id) : undefined}
                 isDM={isDM}
@@ -2671,7 +2654,6 @@ function MessageBubble({
   emojiPickerOpen,
   onToggleEmojiPicker,
   onPickEmojiStrip,
-  tripBadge,
   chatListPath = '/community',
   tribeShell = false,
   roomType = 'general',
@@ -2708,7 +2690,6 @@ function MessageBubble({
   emojiPickerOpen: boolean
   onToggleEmojiPicker: () => void
   onPickEmojiStrip: (emoji: string) => void
-  tripBadge?: TripChatBookingPhase | null
   chatListPath?: string
   tribeShell?: boolean
   roomType?: 'trip' | 'general' | 'direct'
@@ -2910,7 +2891,6 @@ function MessageBubble({
               communityMod={showCommunityMod}
               tribeShell={tribeShell}
             />
-            {tripBadge ? <TripStatusBadge phase={tripBadge} /> : null}
           </div>
         )}
         <div
@@ -3038,7 +3018,6 @@ function MessageBubble({
           </div>
         )}
         <div className={`flex items-center gap-1 flex-wrap ${isOwn ? 'justify-end' : ''}`}>
-          {isOwn && tripBadge ? <TripStatusBadge phase={tripBadge} /> : null}
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
           {isOwn && readStatus && readStatus !== 'sending' && (
             <span className="flex items-center shrink-0">
