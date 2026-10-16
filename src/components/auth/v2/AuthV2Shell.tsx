@@ -1,11 +1,9 @@
 import type { ReactNode } from 'react'
-import Image from 'next/image'
+import { AuthNightScene } from '@/components/auth/v2/AuthNightScene'
 import { AuthV2Stats } from '@/components/auth/v2/AuthV2Stats'
 import { AuthV2TopBar } from '@/components/auth/v2/AuthV2TopBar'
 import { cn } from '@/lib/utils'
 import type { WanderRatingHero, WanderStats } from '@/lib/wander/wanderQueries'
-
-const HERO_IMAGE = '/auth/dark-glowing-tent.png'
 
 type Mode = 'login' | 'signup'
 
@@ -26,10 +24,6 @@ const HERO: Record<Mode, { title: ReactNode }> = {
   },
 }
 
-/** Subtle northern-lights wash over the photo (keeps forest-green theme). */
-const auroraLayerClass =
-  'pointer-events-none absolute inset-0 mix-blend-soft-light [background:radial-gradient(ellipse_90%_55%_at_15%_15%,rgba(34,197,94,0.12),transparent_55%),radial-gradient(ellipse_70%_50%_at_85%_20%,rgba(16,185,129,0.1),transparent_50%)]'
-
 type ShellProps = {
   mode: Mode
   children: ReactNode
@@ -40,22 +34,13 @@ type ShellProps = {
 export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
   const h = HERO[mode]
   return (
-    <div className="dark relative min-h-dvh w-full overflow-x-hidden text-foreground">
-      {/* Full-bleed hero — tent composition on the left; form sits on the right over the same image */}
-      <Image
-        src={HERO_IMAGE}
-        alt=""
-        fill
-        className="object-cover object-left"
-        priority
-        sizes="100vw"
-      />
-      {/* Readability: light scrim on tent side, stronger on the right for the form */}
+    <div className="relative min-h-dvh w-full overflow-x-hidden text-foreground">
+      <AuthNightScene />
+      {/* Darker on the form side so the card reads over the scene */}
       <div
-        className="absolute inset-0 bg-gradient-to-r from-black/25 via-[#010806]/35 to-[#010806]/78 md:via-[#010806]/40 md:to-[#010806]/85"
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-background/50"
         aria-hidden
       />
-      <div className={auroraLayerClass} aria-hidden />
 
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1920px] flex-col lg:flex-row">
         {/* Left: wordmark, headline, frosted stats — over tent */}
@@ -72,7 +57,7 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
           <div className="mt-auto w-full min-w-0 pt-6 lg:pt-8">
             <div
               className={cn(
-                'w-full max-w-full rounded-2xl border border-foreground/20 bg-foreground/[0.08] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.35)]',
+                'w-full max-w-full rounded-2xl border border-foreground/15 bg-card/80 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.35)]',
                 'backdrop-blur-xl backdrop-saturate-150 [box-shadow:inset_0_1px_0_0_rgba(255,255,255,0.12)]',
                 'ring-1 ring-foreground/10 sm:p-4 md:rounded-3xl md:p-5',
               )}
@@ -96,7 +81,7 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
         >
           <div
             className={cn(
-              'mx-auto w-full max-w-md rounded-2xl border border-foreground/10 bg-card/80 p-5 shadow-2xl shadow-black/50 backdrop-blur-md',
+              'mx-auto w-full max-w-md rounded-2xl border border-foreground/10 bg-card/80 p-5 shadow-2xl shadow-black/20 dark:shadow-black/50 backdrop-blur-md',
               'lg:mx-0 lg:ml-auto lg:max-w-lg lg:rounded-3xl lg:p-8 lg:py-9',
             )}
           >

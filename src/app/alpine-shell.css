@@ -63,3 +63,99 @@ html:not(.dark) .tribe-chat-scroll-pattern::before {
 .dark .brand-gold {
   -webkit-text-stroke: 0;
 }
+
+/* Login / sign-up night scene (AuthNightScene) */
+.auth-scene .auth-star {
+  animation: auth-twinkle 4s ease-in-out infinite;
+}
+.auth-scene .auth-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: auth-flicker 0.9s ease-in-out infinite alternate;
+}
+.auth-scene .auth-flame-b { animation-duration: 0.7s; animation-delay: -0.3s; }
+.auth-scene .auth-flame-c { animation-duration: 1.1s; animation-delay: -0.6s; }
+.auth-scene .auth-fireglow,
+.auth-scene .auth-tentglow {
+  animation: auth-glow 2.4s ease-in-out infinite alternate;
+}
+.auth-scene .auth-ember {
+  transform-box: fill-box;
+  animation: auth-ember 3s ease-out infinite;
+  opacity: 0;
+}
+.auth-scene .auth-aurora {
+  animation: auth-aurora 14s ease-in-out infinite alternate;
+}
+.auth-scene .auth-shooting {
+  animation: auth-shoot 9s linear infinite;
+  opacity: 0;
+}
+@keyframes auth-twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+@keyframes auth-flicker {
+  0% { transform: scale(1, 1) skewX(0deg); }
+  50% { transform: scale(0.94, 1.08) skewX(2deg); }
+  100% { transform: scale(1.04, 0.94) skewX(-2deg); }
+}
+@keyframes auth-glow {
+  from { opacity: 0.75; }
+  to { opacity: 1; }
+}
+@keyframes auth-ember {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate(18px, -170px); opacity: 0; }
+}
+@keyframes auth-aurora {
+  from { transform: translateX(-40px) skewY(0deg); opacity: 0.7; }
+  to { transform: translateX(40px) skewY(-1.5deg); opacity: 1; }
+}
+@keyframes auth-shoot {
+  0% { transform: translate(1150px, 60px) rotate(155deg); opacity: 0; }
+  2% { opacity: 1; }
+  8% { transform: translate(800px, 230px) rotate(155deg); opacity: 0; }
+  100% { transform: translate(800px, 230px) rotate(155deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-scene * {
+    animation: none !important;
+  }
+  .auth-scene .auth-ember,
+  .auth-scene .auth-shooting {
+    display: none;
+  }
+}
+
+/* Day mode: the same scene at sunrise */
+.auth-scene .as-day-only { display: none; }
+html:not(.dark) .auth-scene .as-day-only { display: inline; }
+html:not(.dark) .auth-scene .as-night-only,
+html:not(.dark) .auth-scene .auth-aurora,
+html:not(.dark) .auth-scene .auth-shooting { display: none; }
+html:not(.dark) .auth-scene .as-sky-0 { stop-color: #8fb0e3; }
+html:not(.dark) .auth-scene .as-sky-1 { stop-color: #c9d6f0; }
+html:not(.dark) .auth-scene .as-sky-2 { stop-color: #f7d2c4; }
+html:not(.dark) .auth-scene .as-sky-3 { stop-color: #ffe2b8; }
+html:not(.dark) .auth-scene .auth-star { fill: #fff; opacity: 0.25; animation-name: auth-twinkle-dawn; }
+html:not(.dark) .auth-scene .as-far { fill: #8da0c6; }
+html:not(.dark) .auth-scene .as-snow { fill: #ffffff; opacity: 0.9; }
+html:not(.dark) .auth-scene .as-mid { fill: #6a7ca3; }
+html:not(.dark) .auth-scene .as-ground { fill: #44547a; }
+html:not(.dark) .auth-scene .as-trees { fill: #33415f; }
+html:not(.dark) .auth-scene .as-knoll { fill: #3a4868; }
+html:not(.dark) .auth-scene .as-tent { fill: #2c3754; }
+html:not(.dark) .auth-scene .auth-fireglow { opacity: 0.55; }
+.auth-scene .auth-sun {
+  animation: auth-sunrise 20s ease-out forwards;
+}
+@keyframes auth-twinkle-dawn {
+  0%, 100% { opacity: 0.08; }
+  50% { opacity: 0.3; }
+}
+@keyframes auth-sunrise {
+  from { transform: translateY(60px); }
+  to { transform: translateY(0); }
+}
