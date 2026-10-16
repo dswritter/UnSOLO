@@ -222,7 +222,7 @@ export async function getAdminDashboardStats() {
  * scans (unlike getAdminDashboardStats, which is for the dashboard page only).
  */
 export async function getAdminSidebarCounts() {
-  await requireStaff()
+  const { user } = await requireStaff()
   const { createClient: createSvc } = await import('@supabase/supabase-js')
   const supabase = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
 
@@ -231,6 +231,9 @@ export async function getAdminSidebarCounts() {
     { count: pendingDateRequests },
     { count: pendingServiceListings },
     { count: pendingCommunityTrips },
+    { count: pendingForeignPhones },
+    { count: pendingPhoneChanges },
+    { count: pendingTripClaims },
   ] = await Promise.all([
     supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('custom_date_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
@@ -239,13 +242,41 @@ export async function getAdminSidebarCounts() {
       .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
       .is('archived_at', null)
       .eq('moderation_status', 'pending'),
+    supabase.from('profiles').select('*', { count: 'exact', head: true })
+      .not('phone_number', 'is', null)
+      .eq('is_phone_verified', false)
+      .neq('phone_country_code', '+91'),
+    supabase.from('phone_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('trip_traveller_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
+
+  // Notifications about a review queue are done once that queue is empty, however it was cleared.
+  const queueEmpty: Record<string, boolean> = {
+    '/admin/community-trips': !pendingCommunityTrips,
+    '/admin/service-listings': !pendingServiceListings,
+    '/admin/requests': !pendingDateRequests,
+    '/admin/phone-verifications': !pendingForeignPhones && !pendingPhoneChanges,
+    '/admin/trip-claims': !pendingTripClaims,
+  }
+  const resolvedLinks = Object.keys(queueEmpty).filter(link => queueEmpty[link])
+  let notificationsResolved = 0
+  if (resolvedLinks.length > 0) {
+    const { data: cleared } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .in('link', resolvedLinks)
+      .select('id')
+    notificationsResolved = cleared?.length ?? 0
+  }
 
   return {
     bookings: pendingBookings || 0,
     requests: pendingDateRequests || 0,
     serviceListings: pendingServiceListings || 0,
     communityTrips: pendingCommunityTrips || 0,
+    notificationsResolved,
   }
 }
 

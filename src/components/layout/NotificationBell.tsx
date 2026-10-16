@@ -26,6 +26,9 @@ const TYPE_ICONS: Record<string, typeof Bell> = {
 }
 
 /** `below` = under trigger (navbar). `above` = opens upward (e.g. bell at bottom of admin sidebar). */
+/** Fired when notifications were marked read elsewhere (e.g. an admin cleared the queue they refer to). */
+export const NOTIFICATIONS_CHANGED_EVENT = 'unsolo:notifications-changed'
+
 export function NotificationBell({
   userId,
   placement = 'below',
@@ -123,10 +126,12 @@ export function NotificationBell({
 
     // 5 min safety-net poll (realtime INSERT handles delivery; polling is only a fallback)
     const pollInterval = setInterval(load, 300_000)
+    window.addEventListener(NOTIFICATIONS_CHANGED_EVENT, load)
 
     return () => {
       supabase.removeChannel(channel)
       clearInterval(pollInterval)
+      window.removeEventListener(NOTIFICATIONS_CHANGED_EVENT, load)
     }
   }, [userId])
 

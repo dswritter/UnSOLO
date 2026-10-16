@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { getAdminSidebarCounts } from '@/actions/admin'
+import { AdminCommandPalette } from '@/components/admin/ui/AdminCommandPalette'
+import { NOTIFICATIONS_CHANGED_EVENT } from '@/components/layout/NotificationBell'
 import { AdminNotificationBell } from './AdminNotificationBell'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -103,8 +105,12 @@ interface AdminSidebarProps {
   customPermissions?: AdminPermissionKey[]
 }
 
+// Pages whose loaders write (team role sync) are only prefetched on intent.
+const NO_FULL_PREFETCH = new Set(['/admin/team'])
+const BACKGROUND_REFRESH_AFTER_MS = 20_000
+const SETTINGS_NAV_ITEM = navGroups.flatMap(group => group.items).find(item => item.href === '/admin/settings')!
 const NOTIFICATION_REFRESH_PATHS = ['/admin/bookings', '/admin/requests', '/admin/service-listings', '/admin/trip-claims', '/admin/community-trips'] as const
-const EMPTY_COUNTS = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
+const EMPTY_COUNTS = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0, notificationsResolved: 0 }
 
 export function AdminSidebar({ role, name, userId, customPermissions = [] }: AdminSidebarProps) {
   const pathname = usePathname()
@@ -127,12 +133,38 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
   // Badges load after the page paints (and after each admin action/navigation), never blocking render.
   useEffect(() => {
     let cancelled = false
-    getAdminSidebarCounts().then(next => { if (!cancelled) setCounts(next) }).catch(() => {})
+    getAdminSidebarCounts().then(next => {
+      if (cancelled) return
+      setCounts(next)
+      if (next.notificationsResolved > 0) window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT))
+    }).catch(() => {})
     return () => { cancelled = true }
   }, [pathname, countsVersion])
 
   const pathnameRef = useRef(pathname)
   useEffect(() => { pathnameRef.current = pathname }, [pathname])
+
+  // Prefetched pages open instantly from cache; refresh them in the background so data stays current.
+  const lastFreshAt = useRef(new Map<string, number>())
+  useEffect(() => {
+    const now = Date.now()
+    const isFirst = lastFreshAt.current.size === 0
+    const last = lastFreshAt.current.get(pathname)
+    lastFreshAt.current.set(pathname, now)
+    if (isFirst || NO_FULL_PREFETCH.has(pathname)) return
+    if (last === undefined || now - last > BACKGROUND_REFRESH_AFTER_MS) router.refresh()
+  }, [pathname, router])
+
+  // Actions taken on the current page (no navigation) also clear queues; re-check periodically and on focus.
+  useEffect(() => {
+    const bump = () => { if (document.visibilityState === 'visible') setCountsVersion(v => v + 1) }
+    const interval = setInterval(bump, 45_000)
+    document.addEventListener('visibilitychange', bump)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', bump)
+    }
+  }, [])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null
@@ -190,6 +222,13 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
         </Link>
       </div>
 
+      <div className="shrink-0 px-3 pt-3">
+        <AdminCommandPalette
+          pages={visibleGroups.flatMap(group => group.items.map(item => ({ href: item.href, label: item.label, group: group.label ?? 'Admin', icon: item.icon })))}
+          includeSettings={canSee(SETTINGS_NAV_ITEM)}
+        />
+      </div>
+
       {/* Nav links — scrolls; header/footer stay fixed in column */}
       <nav className="min-h-0 flex-1 px-3 py-3 space-y-0.5 overflow-y-auto [scrollbar-gutter:stable]">
         {visibleGroups.map(group => (
@@ -204,6 +243,7 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
                 <Link
                   key={href}
                   href={href}
+                  prefetch={NO_FULL_PREFETCH.has(href) ? null : true}
                   onClick={() => setMobileOpen(false)}
                   aria-current={isActive ? 'page' : undefined}
                   className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors ${

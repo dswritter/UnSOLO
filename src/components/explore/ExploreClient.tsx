@@ -321,7 +321,7 @@ export function ExploreClient({
           value={searchDraft}
           onChange={event => handleSearchChange(event.target.value)}
           placeholder={`Search ${searchNoun}`}
-          className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
+          className="input-bare min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
         {searchDraft && <button type="button" onClick={() => handleSearchChange('')}
           className="rounded-full p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground" aria-label="Clear search"><X className="h-3.5 w-3.5" /></button>}
       </div>
@@ -376,12 +376,12 @@ export function ExploreClient({
   )
 
   const tripGridClassName = cn(
-    'grid grid-cols-1 sm:grid-cols-2 gap-6',
-    isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+    'grid grid-cols-1 sm:grid-cols-2 gap-5',
+    isWanderShell ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
   )
   const serviceGridClassName = cn(
-    'grid grid-cols-1 md:grid-cols-2 gap-4',
-    isWanderShell ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+    'grid grid-cols-1 sm:grid-cols-2 gap-5',
+    isWanderShell ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
   )
   return (
     <div
@@ -531,9 +531,9 @@ export function ExploreClient({
         )}
 
         {/* Sidebar + Results Layout */}
-        <div className="flex gap-6 flex-1">
+        <div className="flex flex-1 items-start gap-6 lg:gap-8">
           {/* Desktop Sidebar - hidden on mobile */}
-          <div className="hidden lg:block w-64 flex-shrink-0">
+          <div className="hidden w-60 shrink-0 self-stretch lg:block">
             <ExploreSidebar
               params={params}
               resultCount={totalCount}
@@ -546,9 +546,9 @@ export function ExploreClient({
           </div>
 
           {/* Results Grid */}
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             {isLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className={isTripsTab ? tripGridClassName : serviceGridClassName}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <SkeletonCard key={i} variant={isTripsTab ? 'trip' : 'service'} />
                 ))}

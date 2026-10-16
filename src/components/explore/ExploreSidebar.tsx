@@ -62,8 +62,8 @@ interface ExploreSidebarProps {
 
 function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-border pb-4 mb-4">
-      <h3 className="text-sm font-semibold mb-3">{label}</h3>
+    <div className="border-b border-border/60 pb-4 mb-4 last:border-0 last:mb-0 last:pb-0">
+      <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</h3>
       {children}
     </div>
   )
@@ -160,15 +160,15 @@ export function ExploreSidebar({
   return (
     <div
       className={cn(
-        'border-r border-border p-4 overflow-y-auto max-h-[calc(100vh-120px)]',
+        'border-r border-border p-4 overflow-y-auto max-h-[calc(100vh-120px)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         isWander
-          ? 'wander-frost-panel border-white/15 rounded-2xl max-h-[min(100vh-8rem,52rem)]'
+          ? 'wander-frost-panel sticky top-24 rounded-2xl border border-white/10 p-5 max-h-[calc(100dvh-7rem)]'
           : 'bg-background border-border',
       )}
     >
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Filters</h2>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-base font-bold">Filters</h2>
         {hasActiveFilters && (
           <button
             onClick={clearAllFilters}
@@ -184,14 +184,14 @@ export function ExploreSidebar({
         <>
           {/* Trip Source */}
           <FilterSection label="Trip Source">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {['all', 'unsolo', 'community'].map((source) => (
                 <button
                   key={source}
                   disabled={isLoading}
                   onClick={() => setTripSource(source as 'all' | 'unsolo' | 'community')}
                   className={cn(
-                    'px-3 py-2 rounded-lg text-sm font-medium text-left transition-all',
+                    'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                     (source === 'all' ? !getCurrentValue('tripSource') : getCurrentValue('tripSource') === source)
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -206,7 +206,7 @@ export function ExploreSidebar({
 
           {/* Difficulty */}
           <FilterSection label="Difficulty">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {DIFFICULTY_OPTIONS.map((opt) => {
                 const currentValue = getCurrentValue('difficulty', '')
                 const isSelected = currentValue === opt.value
@@ -216,7 +216,7 @@ export function ExploreSidebar({
                     disabled={isLoading}
                     onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
+                      'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -256,7 +256,7 @@ export function ExploreSidebar({
 
           {/* Duration */}
           <FilterSection label="Duration">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {DURATION_OPTIONS.map((opt) => {
                 const minDays = getCurrentValue('minDays', '')
                 const maxDays = getCurrentValue('maxDays', '')
@@ -283,7 +283,7 @@ export function ExploreSidebar({
                       }
                     }}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
+                      'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -307,7 +307,7 @@ export function ExploreSidebar({
               <ChevronDown className={cn('h-4 w-4 transition-transform', expandedSections.month && 'rotate-180')} />
             </button>
             {expandedSections.month && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {(() => {
                   const currentMonth = getCurrentValue('month', '')
                   return (
@@ -322,7 +322,7 @@ export function ExploreSidebar({
                           pushExploreUrl(router, basePath, buildUrl({ month: null }))
                         }}
                         className={cn(
-                          'px-2 py-2 rounded-lg text-xs text-center transition-all font-medium',
+                          'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                           !currentMonth
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -331,7 +331,7 @@ export function ExploreSidebar({
                       >
                         Any
                       </button>
-                      <div className="grid grid-cols-3 gap-1">
+                      <div className="grid w-full grid-cols-3 gap-1">
                         {MONTHS.map((m, idx) => (
                           <button
                             key={m}
@@ -353,7 +353,7 @@ export function ExploreSidebar({
                               }
                             }}
                             className={cn(
-                              'px-1 py-2 rounded-lg text-xs text-center transition-all',
+                              'rounded-lg px-1 py-1.5 text-xs text-center transition-colors',
                               currentMonth === String(idx)
                                 ? 'bg-primary text-primary-foreground font-medium'
                                 : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -411,7 +411,7 @@ export function ExploreSidebar({
         <>
           {/* Price for services */}
           <FilterSection label="Price">
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {PRICE_OPTIONS_SERVICE.map((opt) => {
                 const minPrice = getCurrentValue('minPrice', '')
                 const maxPrice = getCurrentValue('maxPrice', '')
@@ -438,7 +438,7 @@ export function ExploreSidebar({
                       }
                     }}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-sm text-left transition-all',
+                      'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                       isSelected
                         ? 'bg-primary text-primary-foreground font-medium'
                         : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -455,7 +455,7 @@ export function ExploreSidebar({
           {/* Difficulty for activities */}
           {activeTab === 'activities' && (
             <FilterSection label="Difficulty">
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {DIFFICULTY_OPTIONS.map((opt) => {
                   const currentValue = getCurrentValue('difficulty', '')
                   const isSelected = currentValue === opt.value
@@ -465,7 +465,7 @@ export function ExploreSidebar({
                       disabled={isLoading}
                       onClick={() => handleFilterClick('difficulty', isSelected ? null : (opt.value || null))}
                       className={cn(
-                        'px-3 py-2 rounded-lg text-sm text-left transition-all',
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                         isSelected
                           ? 'bg-primary text-primary-foreground font-medium'
                           : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
@@ -483,7 +483,7 @@ export function ExploreSidebar({
           {/* Activity Type for activities */}
           {activeTab === 'activities' && (
             <FilterSection label="Activity Type">
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {ACTIVITY_TYPES.map((opt) => {
                   const currentValue = getCurrentValue('activityType', '')
                   const isSelected = currentValue === opt.value
@@ -493,7 +493,7 @@ export function ExploreSidebar({
                       disabled={isLoading}
                       onClick={() => handleFilterClick('activityType', isSelected ? null : (opt.value || null))}
                       className={cn(
-                        'px-3 py-2 rounded-lg text-sm text-left transition-all',
+                        'rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
                         isSelected
                           ? 'bg-primary text-primary-foreground font-medium'
                           : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80',
