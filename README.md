@@ -16,6 +16,15 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Mobile listing discovery
+
+Listing cards use uncropped 9:16 poster frames below 768px; desktop retains
+landscape cards. Homepage rows start with the cached preview and request
+additional public listing pages (eight cards at a time) only after the visitor swipes towards the row's end
+(or taps "Load more"). Preview IDs are deduplicated against subsequent pages.
+Each section's header keeps "View all" available without a large promotional
+tile in the row. Failed page requests offer an explicit retry.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

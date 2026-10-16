@@ -65,7 +65,7 @@ export function TripCardView({
       <ListingCardMedia muted={pastEdition}>
         {imageUrl ? (
           <Image src={imageUrl} alt="" fill sizes={imageSizes}
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none" />
+            className="object-cover transition-transform duration-300 md:group-hover:scale-[1.03] motion-reduce:transition-none" />
         ) : (
           <div className="relative flex h-full items-center justify-center"><Mountain className="h-12 w-12 text-primary/30" /></div>
         )}

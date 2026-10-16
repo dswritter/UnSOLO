@@ -115,7 +115,7 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
           alt={active?.name || listing.title}
           fill
           sizes={CARD_IMAGE_SIZES}
-          className="object-cover transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none"
+          className="object-cover transition-transform duration-300 md:group-hover:scale-[1.03] motion-reduce:transition-none"
         />
         <ListingCardBadge badge={muted ? { label: 'Past', tone: 'past' } : listing.is_featured ? { label: 'Featured', tone: 'featured' } : null} />
         {active ? (

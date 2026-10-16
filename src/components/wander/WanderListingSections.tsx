@@ -4,7 +4,8 @@ import type { Package, ServiceListing } from '@/types'
 import { ServiceListingCard } from '@/components/explore/ServiceListingCard'
 import { WanderTripCard } from '@/components/wander/WanderTripCard'
 import { WanderRowPreviewSeed } from '@/components/wander/WanderRowPreviewSeed'
-import { ChevronRight, ArrowRight } from 'lucide-react'
+import { WanderMobileListingRow } from '@/components/wander/WanderMobileListingRow'
+import { ChevronRight } from 'lucide-react'
 import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 import { listingScheduleTodayISO } from '@/lib/utils'
 import { packageHasUpcomingOpenDeparture, packageNextOpenDepartureKey, tripDepartureDateKey } from '@/lib/package-trip-calendar'
@@ -14,7 +15,6 @@ type ActivityWithItems = ServiceListing & {
 }
 type RentalWithItems = ActivityWithItems
 
-const MOBILE_MAX = 5
 // Home rows are a *preview*; the full set lives on the "View all" / search page.
 // Without this cap the desktop grid rendered every row item (up to 120 trip
 // cards = 120 images), which dominated landing load. 12 = three 4-up rows.
@@ -64,37 +64,19 @@ function SectionHeader({
 }
 
 /** Horizontally-scrolling row on mobile, grid on sm+. Pass each card pre-rendered. */
-function ScrollRow({ children, viewAllHref, viewAllLabel }: { children: ReactNode[]; viewAllHref: string; viewAllLabel: string }) {
-  // Mobile shows up to MOBILE_MAX cards in the scroll row, then a "View all" tile at the end.
-  // Desktop falls back to the existing 4-up grid (no scroll).
-  const mobileChildren = children.slice(0, MOBILE_MAX)
+function ScrollRow({ children, ids, kind, viewAllHref, viewAllLabel }: {
+  children: ReactNode[]
+  ids: string[]
+  kind: 'trips' | 'stays' | 'activities' | 'rentals'
+  viewAllHref: string
+  viewAllLabel: string
+}) {
   const desktopChildren = children.slice(0, DESKTOP_MAX)
-  const overflow = children.length > MOBILE_MAX
   return (
     <>
-      {/* Mobile: horizontal scroll-snap row */}
-      <div className="md:hidden">
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {mobileChildren.map((child, i) => (
-            <div key={i} className="snap-start shrink-0 basis-[78%] sm:basis-[60%]">
-              {child}
-            </div>
-          ))}
-          {/* View all tile — always shown to make the scroll-end action obvious */}
-          <Link
-            href={viewAllHref}
-            className="snap-start shrink-0 basis-[58%] sm:basis-[40%] flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/40 bg-primary/5 px-4 py-8 text-center transition-colors hover:bg-primary/10"
-          >
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <ArrowRight className="h-5 w-5" />
-            </span>
-            <span className="text-sm font-bold text-primary">{viewAllLabel}</span>
-            {overflow ? (
-              <span className="text-[11px] text-muted-foreground">+{children.length - MOBILE_MAX} more</span>
-            ) : null}
-          </Link>
-        </div>
-      </div>
+      <WanderMobileListingRow key={`${kind}:${ids.join(',')}`} initialIds={ids} kind={kind} viewAllHref={viewAllHref} viewAllLabel={viewAllLabel}>
+        {children}
+      </WanderMobileListingRow>
 
       {/* Desktop: 4-up grid, capped to a preview (full set on "View all"). */}
       <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -182,7 +164,7 @@ export function WanderListingSections({
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground">No trips to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={tripsHref} viewAllLabel="View all trips">
+          <ScrollRow kind="trips" ids={tripsPopularOrdered.map(p => p.id)} viewAllHref={tripsHref} viewAllLabel="View all trips">
             {tripsPopularOrdered.map((p) => (
               <WanderTripCard
                 key={p.id}
@@ -208,7 +190,7 @@ export function WanderListingSections({
         {stays.length === 0 ? (
           <p className="text-sm text-muted-foreground">No stays to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={staysHref} viewAllLabel="View all stays">
+          <ScrollRow kind="stays" ids={stays.map(l => l.id)} viewAllHref={staysHref} viewAllLabel="View all stays">
             {stays.map(l => (
               <ServiceListingCard key={l.id} listing={l} items={l.items} />
             ))}
@@ -226,7 +208,7 @@ export function WanderListingSections({
         {activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activities to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={activitiesHref} viewAllLabel="View all activities">
+          <ScrollRow kind="activities" ids={activitiesPopularOrdered.map(l => l.id)} viewAllHref={activitiesHref} viewAllLabel="View all activities">
             {activitiesPopularOrdered.map((l) => (
               <ServiceListingCard
                 key={l.id}
@@ -249,7 +231,7 @@ export function WanderListingSections({
         {rentals.length === 0 ? (
           <p className="text-sm text-muted-foreground">No rentals to show yet.</p>
         ) : (
-          <ScrollRow viewAllHref={rentalsHref} viewAllLabel="View all rentals">
+          <ScrollRow kind="rentals" ids={rentals.map(l => l.id)} viewAllHref={rentalsHref} viewAllLabel="View all rentals">
             {rentals.map(l => (
               <ServiceListingCard key={l.id} listing={l} items={l.items} />
             ))}
