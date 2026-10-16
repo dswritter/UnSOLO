@@ -3,6 +3,7 @@ import { getRequestAuth } from '@/lib/auth/request-session'
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { AdminSidebar } from './AdminSidebar'
+import { ConfirmProvider } from '@/components/admin/ui/ConfirmDialog'
 
 export async function AdminShell({ children }: { children: React.ReactNode }) {
   const { supabase, user } = await getRequestAuth()
@@ -48,7 +49,9 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
       />
 
       <main className="flex-1 min-w-0 min-h-dvh overflow-y-auto pt-14 md:pt-0 [scrollbar-gutter:stable]">
-        <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 md:py-8">{children}</div>
+        <div className="mx-auto w-full max-w-[1920px] px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+          <ConfirmProvider>{children}</ConfirmProvider>
+        </div>
       </main>
     </div>
   )

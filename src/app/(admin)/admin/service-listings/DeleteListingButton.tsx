@@ -1,5 +1,7 @@
 'use client'
 
+import { toast } from 'sonner'
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { hardDeleteServiceListing } from '@/actions/admin-service-listings'
@@ -7,16 +9,17 @@ import { hardDeleteServiceListing } from '@/actions/admin-service-listings'
 /** Permanently delete a service listing from the individual edit view. */
 export function DeleteListingButton({ id }: { id: string }) {
   const router = useRouter()
+  const confirmAction = useConfirm()
   const [isPending, startTransition] = useTransition()
 
-  function onClick() {
-    if (!window.confirm('Permanently delete this listing? This cannot be undone. (Listings with existing bookings cannot be deleted.)')) return
+  async function onClick() {
+    if (!(await confirmAction({ title: 'Delete this listing permanently?', description: 'This cannot be undone. Listings with existing bookings cannot be deleted.', confirmLabel: 'Delete', tone: 'danger' }))) return
     startTransition(async () => {
       try {
         await hardDeleteServiceListing(id)
         router.push('/admin/service-listings')
       } catch (e) {
-        alert(`Error: ${e instanceof Error ? e.message : 'Could not delete'}`)
+        toast.error(e instanceof Error ? e.message : 'Could not delete')
       }
     })
   }

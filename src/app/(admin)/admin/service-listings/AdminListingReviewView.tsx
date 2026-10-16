@@ -1,5 +1,7 @@
 'use client'
 
+import { toast } from 'sonner'
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -85,6 +87,7 @@ function Field({ label, value, highlight }: { label: string; value?: string | nu
 
 export function AdminListingReviewView({ listing }: { listing: Listing }) {
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
+  const confirmAction = useConfirm()
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [rejectReasonInput, setRejectReasonInput] = useState('')
 
@@ -108,14 +111,14 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
     : `/admin/service-listings/${listing.id}/preview`
 
   async function handleApprove() {
-    if (!confirm('Approve this listing? It will become publicly visible immediately.')) return
+    if (!(await confirmAction({ title: 'Approve this listing?', description: 'It becomes publicly visible immediately.', confirmLabel: 'Approve' }))) return
     setLoading('approve')
     try {
       await approveServiceListing(listing.id)
       // Full navigation: avoids stuck "Approving…" when client router.refresh() kept the review segment active.
       window.location.assign(serviceListingsIndexUrl(listing.type, 'approved'))
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown'}`)
+      toast.error(e instanceof Error ? e.message : 'Unknown')
       setLoading(null)
     }
   }
@@ -135,7 +138,7 @@ export function AdminListingReviewView({ listing }: { listing: Listing }) {
       await rejectServiceListing(listing.id, reason)
       window.location.assign(serviceListingsIndexUrl(listing.type, 'rejected'))
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown'}`)
+      toast.error(e instanceof Error ? e.message : 'Unknown')
       setLoading(null)
     }
   }

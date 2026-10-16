@@ -1,11 +1,14 @@
 'use client'
 
+import { toast } from 'sonner'
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ServiceListing, Destination, formatPrice } from '@/types'
 import { approveServiceListing, rejectServiceListing, hardDeleteServiceListing } from '@/actions/admin-service-listings'
-import { cn } from '@/lib/utils'
 import type { HostListingAssignment } from '@/lib/host-listing-contact'
+import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'archived'
 
@@ -30,18 +33,6 @@ interface ServiceListingsClientProps {
   initialTypeFilter?: string
 }
 
-function statusClass(status: string) {
-  switch (status) {
-    case 'approved':
-      return 'bg-emerald-500/15 text-emerald-200 border-emerald-500/35'
-    case 'rejected':
-      return 'bg-rose-500/15 text-rose-200 border-rose-500/35'
-    case 'pending':
-      return 'bg-amber-500/15 text-amber-200 border-amber-500/35'
-    default:
-      return 'bg-muted text-muted-foreground border-border'
-  }
-}
 
 export function ServiceListingsClient({
   serviceListings,
@@ -50,6 +41,7 @@ export function ServiceListingsClient({
   initialTypeFilter,
 }: ServiceListingsClientProps) {
   const [filter, setFilter] = useState<StatusFilter>(() => parseStatusFilter(initialStatusFilter))
+  const confirmAction = useConfirm()
   const [typeFilter, setTypeFilter] = useState<'all' | string>(() => parseTypeFilter(initialTypeFilter))
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState<string | null>(null)
@@ -87,14 +79,14 @@ export function ServiceListingsClient({
   }
 
   const handleApprove = async (id: string) => {
-    if (!confirm('Approve this listing?')) return
+    if (!(await confirmAction({ title: 'Approve this listing?', description: 'It becomes publicly visible immediately.', confirmLabel: 'Approve' }))) return
     const row = serviceListings.find((l) => l.id === id)
     setLoading(id)
     try {
       await approveServiceListing(id)
       window.location.assign(row ? listUrlForRow(row, 'approved') : '/admin/service-listings')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
+      toast.error(e instanceof Error ? e.message : 'Unknown error')
       setLoading(null)
     }
   }
@@ -105,13 +97,13 @@ export function ServiceListingsClient({
   }
 
   async function handleHardDelete(id: string) {
-    if (!confirm('Permanently delete this listing? This CANNOT be undone and all booking history will be unlinked.')) return
+    if (!(await confirmAction({ title: 'Delete this listing permanently?', description: 'This cannot be undone, and its booking history will be unlinked.', confirmLabel: 'Delete', tone: 'danger' }))) return
     setLoading(id)
     try {
       await hardDeleteServiceListing(id)
       window.location.assign('/admin/service-listings')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
+      toast.error(e instanceof Error ? e.message : 'Unknown error')
       setLoading(null)
     }
   }
@@ -129,66 +121,39 @@ export function ServiceListingsClient({
       await rejectServiceListing(idToReject, reason)
       window.location.assign(row ? listUrlForRow(row, 'rejected') : '/admin/service-listings')
     } catch (e) {
-      alert(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`)
+      toast.error(e instanceof Error ? e.message : 'Unknown error')
       setLoading(null)
     }
   }
 
   return (
     <div className="space-y-4">
-      <section className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-        <h2 className="text-sm font-semibold">Create stays, activities and rentals for a host</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Getting-around listings are supported too.{' '}
-          <Link href="/admin/service-listings/create" className="font-medium text-primary hover:underline">
-            Create listing for a host
-          </Link>{' '}
-          and select <strong>Create on behalf of a host</strong> in the form. One host can own multiple
-          listings; search for their contact or enter a new one. Leave the option unchecked for normal creation.
-        </p>
-      </section>
-      <div className="flex flex-wrap gap-4 rounded-xl border border-border bg-card/90 p-4 shadow-sm shadow-black/10">
-        <div className="flex-1 min-w-[200px]">
-          <label className="text-xs font-semibold text-muted-foreground">Search</label>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Title or location…"
-            className="mt-1 w-full rounded-lg border border-border bg-secondary/80 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
-          />
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground">Status</label>
-          <select
+      <AdminFilterBar>
+        <AdminSearchInput value={search} onChange={setSearch} placeholder="Search title or location" className="w-full sm:w-72" />
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminFilterTabs
+            tabs={STATUS_FILTERS.map(key => ({
+              key,
+              label: key.charAt(0).toUpperCase() + key.slice(1),
+              count: key === 'all' ? serviceListings.length : serviceListings.filter(l => l.status === key).length,
+            }))}
             value={filter}
-            onChange={(e) => setFilter(e.target.value as StatusFilter)}
-            className="mt-1 w-full min-w-[140px] rounded-lg border border-border bg-secondary/80 px-3 py-2 text-sm text-foreground"
-          >
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-muted-foreground">Type</label>
+            onChange={setFilter}
+          />
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="mt-1 w-full min-w-[160px] rounded-lg border border-border bg-secondary/80 px-3 py-2 text-sm text-foreground"
+            aria-label="Listing type"
+            className="h-8 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
-            <option value="all">All</option>
+            <option value="all">All types</option>
             <option value="stays">Stays</option>
             <option value="activities">Activities</option>
             <option value="rentals">Rentals</option>
-            <option value="getting_around">Getting Around</option>
+            <option value="getting_around">Getting around</option>
           </select>
         </div>
-      </div>
+      </AdminFilterBar>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card/50 shadow-sm shadow-black/10">
         <table className="w-full text-sm">
@@ -227,14 +192,7 @@ export function ServiceListingsClient({
                 <td className="px-4 py-3 capitalize text-foreground">{listing.type}</td>
                 <td className="px-4 py-3 font-mono text-foreground/90">{formatPrice(listing.price_paise)}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      'inline-block rounded-md border px-2 py-1 text-xs font-semibold capitalize',
-                      statusClass(listing.status),
-                    )}
-                  >
-                    {listing.status}
-                  </span>
+                  <StatusPill status={listing.status} />
                 </td>
                 <td className="px-4 py-3">
                   {listing.average_rating > 0 ? (

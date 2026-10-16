@@ -1,5 +1,6 @@
 import { getAdminBookings, getStaffMembers } from '@/actions/admin'
 import { AdminBookingsClient } from './AdminBookingsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 const STATUSES = ['pending', 'confirmed', 'completed', 'cancelled']
 const ADMIN_BOOKINGS_PAGE_SIZE = 25
@@ -27,7 +28,7 @@ export default async function AdminBookingsPage({
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Manage Bookings</h1>
+      <AdminPageHeader title="Bookings" />
       <AdminBookingsClient
         key={activeStatus}
         bookings={page.rows}

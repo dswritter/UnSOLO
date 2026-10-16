@@ -23,93 +23,77 @@ import {
   LifeBuoy,
   Store,
   UserPlus,
+  FilePen,
+  Phone,
+  ShieldCheck,
+  MessagesSquare,
+  IndianRupee,
+  Megaphone,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-const navItems: {
+type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
   roles: UserRole[]
-  badgeKey?: string
+  badgeKey?: 'bookings' | 'requests' | 'serviceListings' | 'communityTrips'
   permissionKey?: AdminPermissionKey
-}[] = [
+}
+
+const ALL_STAFF: UserRole[] = ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom']
+
+const navGroups: { label: string | null; items: NavItem[] }[] = [
+  { label: null, items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard, roles: ALL_STAFF }] },
   {
-    href: '/admin',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom'],
-  },
-  { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'], permissionKey: 'users' },
-  {
-    href: '/admin/bookings',
-    label: 'Bookings',
-    icon: BookOpen,
-    roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'],
-    badgeKey: 'bookings',
-    permissionKey: 'bookings',
-  },
-  {
-    href: '/admin/recover-payments',
-    label: 'Recover payments',
-    icon: LifeBuoy,
-    roles: ['admin'],
-    permissionKey: 'bookings',
+    label: 'Operations',
+    items: [
+      { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, roles: ['admin', 'social_media_manager', 'field_person', 'chat_responder'], badgeKey: 'bookings', permissionKey: 'bookings' },
+      { href: '/admin/requests', label: 'Custom requests', icon: FileText, roles: ['admin', 'social_media_manager', 'field_person'], badgeKey: 'requests', permissionKey: 'requests' },
+      { href: '/admin/trip-claims', label: 'Trip claims', icon: UserPlus, roles: ['admin'], permissionKey: 'trip_claims' },
+      { href: '/admin/recover-payments', label: 'Recover payments', icon: LifeBuoy, roles: ['admin'], permissionKey: 'bookings' },
+    ],
   },
   {
-    href: '/admin/requests',
-    label: 'Custom Requests',
-    icon: FileText,
-    roles: ['admin', 'social_media_manager', 'field_person'],
-    badgeKey: 'requests',
-    permissionKey: 'requests',
-  },
-  { href: '/admin/packages', label: 'Packages', icon: Package, roles: ['admin'], permissionKey: 'packages' },
-  {
-    href: '/admin/service-listings',
-    label: 'Service Listings',
-    icon: Store,
-    roles: ['admin', 'host_onboarding_staff'],
-    badgeKey: 'serviceListings',
-    permissionKey: 'service_listings',
+    label: 'Listings',
+    items: [
+      { href: '/admin/packages', label: 'UnSOLO trips', icon: Package, roles: ['admin'], permissionKey: 'packages' },
+      { href: '/admin/community-trips', label: 'Community trips', icon: Mountain, roles: ['admin', 'host_onboarding_staff'], badgeKey: 'communityTrips', permissionKey: 'community_trips' },
+      { href: '/admin/service-listings', label: 'Service listings', icon: Store, roles: ['admin', 'host_onboarding_staff'], badgeKey: 'serviceListings', permissionKey: 'service_listings' },
+      { href: '/admin/host-drafts', label: 'Drafts in progress', icon: FilePen, roles: ['admin', 'host_onboarding_staff'], permissionKey: 'community_trips' },
+    ],
   },
   {
-    href: '/admin/community-trips',
-    label: 'Community Trips',
-    icon: Mountain,
-    roles: ['admin', 'host_onboarding_staff'],
-    badgeKey: 'communityTrips',
-    permissionKey: 'community_trips',
+    label: 'People',
+    items: [
+      { href: '/admin/users', label: 'Users', icon: Users, roles: ['admin'], permissionKey: 'users' },
+      { href: '/admin/phone-verifications', label: 'Phone verifications', icon: Phone, roles: ['admin', 'host_onboarding_staff'], permissionKey: 'phone_verifications' },
+      { href: '/admin/team', label: 'Team', icon: ShieldCheck, roles: ['admin'], permissionKey: 'team' },
+    ],
   },
   {
-    href: '/admin/host-drafts',
-    label: 'Listings in progress',
-    icon: Mountain,
-    roles: ['admin', 'host_onboarding_staff'],
-    permissionKey: 'community_trips',
+    label: 'Community',
+    items: [
+      { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager', 'chat_responder'], permissionKey: 'community_chats' },
+      { href: '/admin/trip-groups', label: 'Trip groups', icon: MessagesSquare, roles: ['admin', 'social_media_manager'], permissionKey: 'community_trips' },
+    ],
   },
   {
-    href: '/admin/trip-groups',
-    label: 'Trip Groups',
-    icon: MessageCircle,
-    roles: ['admin', 'social_media_manager'],
-    permissionKey: 'community_trips',
+    label: 'Growth',
+    items: [
+      { href: '/admin/revenue', label: 'Revenue', icon: IndianRupee, roles: ['admin'], permissionKey: 'revenue' },
+      { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
+      { href: '/admin/offers', label: 'Offers page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },
+      { href: '/admin/promo-cards', label: 'Home promos', icon: Megaphone, roles: ['admin'], permissionKey: 'promo_cards' },
+    ],
   },
   {
-    href: '/admin/community-chats',
-    label: 'Community chats',
-    icon: MessageCircle,
-    roles: ['admin', 'social_media_manager', 'chat_responder'],
-    permissionKey: 'community_chats',
+    label: 'System',
+    items: [
+      { href: '/admin/whatsapp', label: 'WhatsApp', icon: Phone, roles: ['admin'], permissionKey: 'whatsapp' },
+      { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'], permissionKey: 'settings' },
+    ],
   },
-  { href: '/admin/trip-claims', label: 'Trip Claims', icon: UserPlus, roles: ['admin'], permissionKey: 'trip_claims' },
-  { href: '/admin/revenue', label: 'Revenue', icon: Tag, roles: ['admin'], permissionKey: 'revenue' },
-  { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
-  { href: '/admin/offers', label: 'Offers Page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },
-  { href: '/admin/promo-cards', label: 'Home promos', icon: Sparkles, roles: ['admin'], permissionKey: 'promo_cards' },
-  { href: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle, roles: ['admin'], permissionKey: 'whatsapp' },
-  { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'], permissionKey: 'settings' },
-  { href: '/admin/team', label: 'Team', icon: Users, roles: ['admin'], permissionKey: 'team' },
 ]
 
 interface AdminSidebarProps {
@@ -130,11 +114,11 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
 
   // For 'custom' role: show dashboard always + items whose permissionKey is in customPermissions
   // For all other roles: filter by the roles array
-  const visible = navItems.filter(n => {
-    if (n.roles.includes(role)) return true
-    if (role === 'custom' && n.permissionKey && customPermissions.includes(n.permissionKey)) return true
-    return false
-  })
+  const canSee = (n: NavItem) =>
+    n.roles.includes(role) || (role === 'custom' && !!n.permissionKey && customPermissions.includes(n.permissionKey))
+  const visibleGroups = navGroups
+    .map(group => ({ ...group, items: group.items.filter(canSee) }))
+    .filter(group => group.items.length > 0)
 
   const [counts, setCounts] = useState(EMPTY_COUNTS)
 
@@ -208,30 +192,38 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
 
       {/* Nav links — scrolls; header/footer stay fixed in column */}
       <nav className="min-h-0 flex-1 px-3 py-3 space-y-0.5 overflow-y-auto [scrollbar-gutter:stable]">
-        {visible.map(({ href, label, icon: Icon, badgeKey }) => {
-          const isActive = pathname === href || (href !== '/admin' && pathname?.startsWith(href))
-          const badgeCount = badgeKey ? counts[badgeKey as keyof typeof counts] : 0
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setMobileOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive
-                  ? 'bg-primary/18 text-primary font-semibold shadow-sm shadow-black/10'
-                  : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/80'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {badgeCount > 0 && (
-                <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-rose-600 text-white text-[10px] font-bold px-1 shadow-sm">
-                  {badgeCount > 99 ? '99+' : badgeCount}
-                </span>
-              )}
-            </Link>
-          )
-        })}
+        {visibleGroups.map(group => (
+          <div key={group.label ?? 'main'} className={group.label ? 'pt-3' : undefined}>
+            {group.label ? (
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">{group.label}</p>
+            ) : null}
+            {group.items.map(({ href, label, icon: Icon, badgeKey }) => {
+              const isActive = pathname === href || (href !== '/admin' && pathname?.startsWith(href))
+              const badgeCount = badgeKey ? counts[badgeKey] : 0
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMobileOpen(false)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    isActive
+                      ? 'bg-primary/18 text-primary font-semibold'
+                      : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/80'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 truncate">{label}</span>
+                  {badgeCount > 0 && (
+                    <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold px-1 tabular-nums">
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Bottom — pinned to viewport bottom via parent h-dvh + flex column */}

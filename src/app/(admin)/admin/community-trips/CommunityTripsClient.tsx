@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
+import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
 
 interface Props {
   /** Community packages; server merges `booking_count` for each row. */
@@ -28,11 +31,6 @@ interface Props {
   razorpayxEnabled: boolean
 }
 
-const MOD_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  approved: 'bg-green-500/20 text-green-400 border-green-500/30',
-  rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
-}
 
 export default function CommunityTripsClient({
   trips: initialTrips,
@@ -41,6 +39,7 @@ export default function CommunityTripsClient({
   razorpayxEnabled,
 }: Props) {
   const router = useRouter()
+  const confirmAction = useConfirm()
   const [trips, setTrips] = useState(initialTrips)
   const [pendingPayouts, setPendingPayouts] = useState(initialPayouts)
   const [filter, setFilter] = useState('all')
@@ -98,8 +97,8 @@ export default function CommunityTripsClient({
     })
   }
 
-  function handleHardDelete(tripId: string) {
-    if (!confirm('Permanently delete this community trip? This CANNOT be undone.')) return
+  async function handleHardDelete(tripId: string) {
+    if (!(await confirmAction({ title: 'Delete this community trip permanently?', description: 'This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return
     startTransition(async () => {
       const res = await hardDeletePackage(tripId)
       if (res.error) { toast.error(res.error); return }
@@ -391,39 +390,18 @@ export default function CommunityTripsClient({
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-1">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by title or host…"
-          className="flex-1 min-w-[200px] px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+      <AdminFilterBar className="mb-0">
+        <AdminSearchInput value={search} onChange={setSearch} placeholder="Search by title or host" className="w-full sm:w-72" />
+        <AdminFilterTabs
+          tabs={['all', 'pending', 'approved', 'rejected'].map(key => ({
+            key,
+            label: key.charAt(0).toUpperCase() + key.slice(1),
+            count: key === 'all' ? trips.length : trips.filter(t => t.moderation_status === key).length,
+          }))}
+          value={filter}
+          onChange={setFilter}
         />
-        {search && (
-          <button onClick={() => setSearch('')} className="text-xs text-red-400 hover:text-red-300 shrink-0">
-            Clear
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {['all', 'pending', 'approved', 'rejected'].map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              filter === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-primary/50'
-            }`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-            {s !== 'all' && (
-              <span className="ml-1 opacity-70">
-                ({trips.filter(t => t.moderation_status === s).length})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      </AdminFilterBar>
 
       {/* Trips list */}
       <div className="space-y-3">
@@ -474,9 +452,7 @@ export default function CommunityTripsClient({
                 </div>
                 {/* Row 2: badges + price (clear of title, no overlap) */}
                 <div className="mt-2 ml-[52px] flex flex-wrap items-center gap-1.5">
-                  <Badge className={`${MOD_COLORS[trip.moderation_status] || ''} text-[10px]`}>
-                    {trip.moderation_status}
-                  </Badge>
+                  <StatusPill status={trip.moderation_status} />
                   {trip.host_assignment?.[0] && <Badge variant="secondary" className="text-[10px]">
                     {trip.host_id ? 'Linked to host' : trip.host_assignment[0].status === 'conflict' ? 'Host contact conflict' : 'Awaiting host signup / verification'}
                   </Badge>}

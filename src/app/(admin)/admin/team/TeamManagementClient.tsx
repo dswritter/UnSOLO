@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { addTeamMember, removeTeamMember } from '@/actions/admin'
@@ -64,6 +65,7 @@ interface Props {
 
 export function TeamManagementClient({ teamMembers: initial }: Props) {
   const router = useRouter()
+  const confirmAction = useConfirm()
   const [identifier, setIdentifier] = useState('')
   const [selectedRole, setSelectedRole] = useState<UserRole>('field_person')
   const [notes, setNotes] = useState('')
@@ -104,8 +106,8 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
     })
   }
 
-  function handleRemove(teamMemberId: string, name: string) {
-    if (!confirm(`Remove ${name} from the team? Their role will be reset to "user".`)) return
+  async function handleRemove(teamMemberId: string, name: string) {
+    if (!(await confirmAction({ title: `Remove ${name} from the team?`, description: 'Their role is reset to a regular user.', confirmLabel: 'Remove', tone: 'danger' }))) return
     startTransition(async () => {
       const res = await removeTeamMember(teamMemberId)
       if (res.error) {

@@ -1,6 +1,8 @@
 import { getDestinations } from '@/actions/admin'
 import { getAdminServiceListings } from '@/actions/admin-service-listings'
 import { ServiceListingsClient } from './ServiceListingsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
+import Link from 'next/link'
 
 export default async function AdminServiceListingsPage({
   searchParams,
@@ -41,7 +43,7 @@ export default async function AdminServiceListingsPage({
   if (errors.length > 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Manage Service Listings</h1>
+        <AdminPageHeader title="Service listings" className="mb-0" />
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-100">
           <p className="font-semibold text-base mb-2">Couldn&apos;t load this page</p>
           <ul className="list-disc pl-5 space-y-1 font-mono text-[12px]">
@@ -59,15 +61,11 @@ export default async function AdminServiceListingsPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Manage Service Listings</h1>
-        <a
-          href="/admin/service-listings/create"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          + Create Listing
-        </a>
-      </div>
+      <AdminPageHeader
+        title="Service listings"
+        description="Stays, activities, rentals and transport — review, publish and manage."
+        actions={<Link href="/admin/service-listings/create" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">New listing</Link>}
+      />
       <ServiceListingsClient
         serviceListings={serviceListings}
         destinations={destinations}

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { computeReleasableHostEarning } from '@/lib/host-releasable'
@@ -9,6 +10,7 @@ import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { hostListingAssignmentRows } from '@/lib/host-listing-contact'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 type PendingPayoutRow = { id: string } & Record<string, unknown>
 
@@ -95,11 +97,11 @@ export default async function AdminCommunityTripsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black mb-1">Community <span className="text-primary">Trips</span></h1>
-      <p className="text-muted-foreground text-sm mb-6">Moderate user-hosted trips and manage host payouts</p>
-      <a href="/admin/community-trips/create" className="mb-6 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground">
-        + Create trip on behalf of a host
-      </a>
+      <AdminPageHeader
+        title="Community trips"
+        description="Review host trips and release host payouts."
+        actions={<Link href="/admin/community-trips/create" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">New trip for a host</Link>}
+      />
       <CommunityTripsClient
         trips={tripsWithBookings}
         pendingPayouts={pendingPayouts || []}

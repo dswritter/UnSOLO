@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
@@ -13,6 +14,8 @@ import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { PartialCancelManager, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
+import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
 
 interface Props {
   bookings: Booking[]
@@ -28,13 +31,6 @@ interface Props {
 
 const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'cancellation_requested', 'cancelled', 'completed'] as const
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-  confirmed: 'bg-green-900/50 text-green-300 border-green-700',
-  cancelled: 'bg-red-900/50 text-red-300 border-red-700',
-  completed: 'bg-blue-900/50 text-blue-300 border-blue-700',
-}
-
 export function AdminBookingsClient({
   bookings: initialBookings,
   partialCancellationsByBooking = {},
@@ -44,6 +40,7 @@ export function AdminBookingsClient({
   pageSize = 25,
 }: Props) {
   const router = useRouter()
+  const confirmAction = useConfirm()
   // Status is filtered server-side; the component is remounted (key=activeStatus)
   // when it changes, so these init fresh from props each time.
   const [rows, setRows] = useState<Booking[]>(initialBookings)
@@ -163,10 +160,10 @@ export function AdminBookingsClient({
     })
   }
 
-  function handleRecordOfflineRefund(bookingId: string) {
+  async function handleRecordOfflineRefund(bookingId: string) {
     const el = document.getElementById(`offline-refund-note-${bookingId}`) as HTMLInputElement | null
     const note = el?.value?.trim() || undefined
-    if (!confirm('Record this refund as settled offline (cash / bank transfer)? The customer will be notified and emailed a receipt.')) return
+    if (!(await confirmAction({ title: 'Record refund as settled offline?', description: 'For cash or bank transfer refunds. The customer is notified and emailed a receipt.', confirmLabel: 'Record refund' }))) return
     startTransition(async () => {
       const res = await recordOfflineRefund(bookingId, note)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
@@ -208,8 +205,8 @@ export function AdminBookingsClient({
     })
   }
 
-  function handleDeleteBooking(bookingId: string) {
-    if (!confirm('Permanently delete this booking? This cannot be undone.')) return
+  async function handleDeleteBooking(bookingId: string) {
+    if (!(await confirmAction({ title: 'Delete this booking permanently?', description: 'This cannot be undone.', confirmLabel: 'Delete', tone: 'danger' }))) return
     startTransition(async () => {
       const res = await adminDeleteBooking(bookingId)
       if (res.error) showFeedback(bookingId, `Error: ${res.error}`)
@@ -217,14 +214,12 @@ export function AdminBookingsClient({
     })
   }
 
-  function handleRecomputeTotals(bookingId: string) {
-    if (!confirm(
-      'Recompute this booking\'s gross/discount/total from scratch, based on its current guest count and price tier?\n\n' +
-      'This assumes the ENTIRE current discount is coupon-derived and re-checks the offer\'s eligibility fresh ' +
-      '(it will drop to ₹0 if the group no longer qualifies, e.g. a "1 free of 6" offer with fewer than 6 left). ' +
-      'It does NOT try to preserve a separate referral/manual discount stacked on the coupon — re-add that ' +
-      'afterward via Manual Override if this booking has one.'
-    )) return
+  async function handleRecomputeTotals(bookingId: string) {
+    if (!(await confirmAction({
+      title: 'Recompute this booking’s totals?',
+      description: 'Gross, discount and total are rebuilt from the current guest count and price tier. The whole current discount is treated as coupon-derived and its eligibility re-checked, so it can drop to ₹0 (e.g. a “1 free of 6” offer with fewer than 6 guests). A separate referral or manual discount is not preserved; re-add it with Manual override afterwards.',
+      confirmLabel: 'Recompute',
+    }))) return
     startTransition(async () => {
       const res = await adminRecomputeBookingTotals(bookingId)
       if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
@@ -236,8 +231,8 @@ export function AdminBookingsClient({
     })
   }
 
-  function handleClearDiscount(bookingId: string) {
-    if (!confirm('Clear the entire discount (including any referral / non-coupon amount)? The total becomes the full gross.')) return
+  async function handleClearDiscount(bookingId: string) {
+    if (!(await confirmAction({ title: 'Clear the entire discount?', description: 'Includes any referral or non-coupon amount. The total becomes the full gross price.', confirmLabel: 'Clear discount', tone: 'danger' }))) return
     startTransition(async () => {
       const res = await adminOverrideBooking(bookingId, { clearDiscount: true })
       if (res.error) { showFeedback(bookingId, `Error: ${res.error}`); return }
@@ -341,39 +336,23 @@ export function AdminBookingsClient({
 
   return (
     <div>
-      {/* Status filter — server-side (navigates + refetches the first page) */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {STATUS_FILTERS.map(s => (
-          <button
-            key={s}
-            onClick={() => selectStatus(s)}
-            disabled={isLoadingMore}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              activeStatus === s
-                ? 'bg-primary text-black border-primary'
-                : 'bg-card text-muted-foreground border-border hover:border-primary/35'
-            }`}
-          >
-            {s === 'cancellation_requested' ? 'Cancellation requested' : s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Advanced filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Search user/email..."
-          value={searchUser}
-          onChange={e => setSearchUser(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary w-44"
+      <AdminFilterBar>
+        <AdminFilterTabs
+          tabs={STATUS_FILTERS.map(key => ({ key, label: key === 'cancellation_requested' ? 'Cancellation requests' : key.charAt(0).toUpperCase() + key.slice(1) }))}
+          value={activeStatus as typeof STATUS_FILTERS[number]}
+          onChange={key => { if (!isLoadingMore) selectStatus(key) }}
         />
+      </AdminFilterBar>
+
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <AdminSearchInput value={searchUser} onChange={setSearchUser} placeholder="Search user or email" className="w-full sm:w-64" />
         <select
           value={filterMonth}
           onChange={e => setFilterMonth(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+          aria-label="Travel month"
+          className="h-9 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
-          <option value="">All Months</option>
+          <option value="">All months</option>
           {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
             <option key={i} value={i}>{m}</option>
           ))}
@@ -381,9 +360,10 @@ export function AdminBookingsClient({
         <select
           value={filterYear}
           onChange={e => setFilterYear(e.target.value)}
-          className="px-3 py-1.5 rounded-lg text-xs bg-card border border-border focus:outline-none focus:border-primary"
+          aria-label="Travel year"
+          className="h-9 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
-          <option value="">All Years</option>
+          <option value="">All years</option>
           {[2025, 2026, 2027, 2028].map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
@@ -432,9 +412,7 @@ export function AdminBookingsClient({
                 onClick={() => setExpandedId(isExpanded ? null : booking.id)}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <Badge className={`${STATUS_COLORS[booking.status] || ''} border text-xs shrink-0`}>
-                    {booking.status}
-                  </Badge>
+                  <StatusPill status={booking.status} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-semibold truncate">{displayTitle}</p>

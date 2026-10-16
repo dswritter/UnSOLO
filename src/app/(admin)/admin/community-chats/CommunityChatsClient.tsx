@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,7 @@ async function uploadCommunityRoomCover(file: File): Promise<string | null> {
 
 export function CommunityChatsClient({ initialRooms }: { initialRooms: CommunityChatRoomRow[] }) {
   const router = useRouter()
+  const confirmAction = useConfirm()
   const [rooms, setRooms] = useState(initialRooms)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -110,7 +112,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
   }
 
   async function removeRoom(room: CommunityChatRoomRow) {
-    if (!window.confirm(`Permanently delete “${room.name}” and all its messages? This cannot be undone.`)) return
+    if (!(await confirmAction({ title: `Delete “${room.name}”?`, description: 'The room and all its messages are removed permanently.', confirmLabel: 'Delete', tone: 'danger' }))) return
     setBusyId(room.id)
     const r = await deleteCommunityChatRoomAdmin(room.id)
     setBusyId(null)

@@ -6,6 +6,7 @@ import { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } from '@/types'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import { PendingClaimsList } from '@/components/trip-claims/PendingClaimsList'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function TripClaimsPage() {
   const { user } = await getRequestAuth()
@@ -39,9 +40,7 @@ export default async function TripClaimsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black mb-1">
-        Trip <span className="text-primary">Claims</span>
-      </h1>
+      <AdminPageHeader title="Trip claims" className="mb-1" />
       <p className="text-muted-foreground text-sm mb-6">
         Companions who weren&apos;t the account holder asking to be recognized as travellers — approve to grant trip-chat
         access + full booking visibility (the booker or the trip&apos;s host can also approve these; whoever acts first wins).

@@ -1,5 +1,6 @@
 import { getAdminPackages, getDestinations, getIncludesOptions } from '@/actions/admin'
 import { PackagesManagementClient } from './PackagesManagementClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function AdminPackagesPage() {
   const [packages, destinations, includesOptions] = await Promise.all([
@@ -10,7 +11,7 @@ export default async function AdminPackagesPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Manage Packages</h1>
+      <AdminPageHeader title="UnSOLO trips" description="Trips run by UnSOLO. Community trips live under Community trips." />
       <PackagesManagementClient
         packages={packages}
         destinations={destinations}

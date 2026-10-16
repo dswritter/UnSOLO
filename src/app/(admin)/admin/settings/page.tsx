@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import SettingsClient from './SettingsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function AdminSettingsPage() {
   const { supabase, user } = await getRequestAuth()
@@ -16,8 +17,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black mb-1">Platform <span className="text-primary">Settings</span></h1>
-      <p className="text-muted-foreground text-sm mb-6">Manage platform-wide configuration</p>
+      <AdminPageHeader title="Settings" description="Platform-wide configuration." />
       <SettingsClient settings={settings || []} />
     </div>
   )

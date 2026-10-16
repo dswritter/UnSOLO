@@ -5,8 +5,10 @@ import { loadAdminUsersPage } from '@/actions/admin-users'
 import type { AdminUserFilter, AdminUsersPage } from '@/lib/admin/users-query'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Search, Phone, Instagram, Mountain } from 'lucide-react'
+import { Phone, Instagram, Mountain } from 'lucide-react'
 import Link from 'next/link'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
+import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
 
 type FilterKey = AdminUserFilter
 
@@ -52,34 +54,12 @@ export function UsersClient({ initial }: { initial: AdminUsersPage }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Users ({data.counts.all})</h1>
+      <AdminPageHeader title="Users" count={data.counts.all} className="mb-4" />
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search by name or username…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:border-primary"
-        />
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {filters.map(f => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              filter === f.key ? 'bg-primary text-black' : 'bg-card border border-border text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {f.label} ({f.count})
-          </button>
-        ))}
-      </div>
+      <AdminFilterBar>
+        <AdminSearchInput value={search} onChange={setSearch} placeholder="Search by name or username" className="w-full sm:w-72" />
+        <AdminFilterTabs tabs={filters} value={filter} onChange={setFilter} />
+      </AdminFilterBar>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3 mb-3 text-[10px] text-muted-foreground">

@@ -4,14 +4,10 @@ import { useState, useTransition } from 'react'
 import { formatDate, type CustomDateRequest, type Profile, type Package } from '@/types'
 import { updateCustomRequestStatus } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Check, X, Phone, Mail, Calendar, Users } from 'lucide-react'
+import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminFilterTabs } from '@/components/admin/ui/AdminFilters'
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
-  approved: 'bg-green-900/50 text-green-300 border-green-700',
-  rejected: 'bg-red-900/50 text-red-300 border-red-700',
-}
 
 interface Props {
   requests: CustomDateRequest[]
@@ -46,27 +42,16 @@ export function CustomRequestsClient({ requests: initial }: Props) {
 
   return (
     <div>
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {['all', 'pending', 'approved', 'rejected'].map(s => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              filter === s
-                ? 'bg-primary text-black border-primary'
-                : 'bg-card text-muted-foreground border-border hover:border-primary/35'
-            }`}
-          >
-            {s.charAt(0).toUpperCase() + s.slice(1)}
-            {s !== 'all' && (
-              <span className="ml-1 opacity-70">
-                ({requests.filter(r => r.status === s).length})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <AdminFilterTabs
+        className="mb-6"
+        tabs={['all', 'pending', 'approved', 'rejected'].map(key => ({
+          key,
+          label: key.charAt(0).toUpperCase() + key.slice(1),
+          count: key === 'all' ? requests.length : requests.filter(r => r.status === key).length,
+        }))}
+        value={filter}
+        onChange={setFilter}
+      />
 
       {/* Requests list */}
       <div className="space-y-3">
@@ -89,9 +74,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Badge className={`${STATUS_COLORS[req.status] || ''} border text-xs`}>
-                      {req.status}
-                    </Badge>
+                    <StatusPill status={req.status} />
                     <span className="font-semibold">{pkg?.title || 'Unknown Package'}</span>
                   </div>
 

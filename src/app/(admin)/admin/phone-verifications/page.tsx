@@ -6,6 +6,7 @@ import { hasAdminPermission, ROLE_DEFAULT_PERMISSIONS } from '@/types'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { STAFF_ROLES } from '@/lib/auth/admin-permissions'
 import PhoneVerificationsClient from './PhoneVerificationsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function PhoneVerificationsPage() {
   const { user } = await getRequestAuth()
@@ -40,12 +41,7 @@ export default async function PhoneVerificationsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black mb-1">
-        Phone <span className="text-primary">Verifications</span>
-      </h1>
-      <p className="text-muted-foreground text-sm mb-6">
-        Manually verify foreign host phone numbers and approve phone change requests
-      </p>
+      <AdminPageHeader title="Phone verifications" description="Verify foreign host numbers and approve phone changes." />
       <PhoneVerificationsClient
         foreignPending={result.foreignPending}
         changeRequests={result.changeRequests}

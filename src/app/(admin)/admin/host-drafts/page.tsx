@@ -1,5 +1,6 @@
 import { getStaffListingDrafts } from '@/actions/listing-drafts'
 import { timeAgo } from '@/lib/utils'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,10 +11,7 @@ export default async function HostDraftsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-1">Listings in progress</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Hosts part-way through creating a listing (saved as they move between steps). Reach out and help them finish.
-      </p>
+      <AdminPageHeader title="Drafts in progress" description="Hosts part-way through creating a listing. Reach out and help them finish." />
 
       {err && <p className="text-sm text-red-400">{err}</p>}
       {!err && drafts.length === 0 && (

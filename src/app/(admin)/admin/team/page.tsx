@@ -2,12 +2,13 @@ export const dynamic = 'force-dynamic'
 
 import { getTeamMembers } from '@/actions/admin'
 import { TeamManagementClient } from './TeamManagementClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function AdminTeamPage() {
   const teamMembers = await getTeamMembers()
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Team Management</h1>
+      <AdminPageHeader title="Team" description="Staff accounts and what each role can access." />
       <TeamManagementClient teamMembers={teamMembers} />
     </div>
   )

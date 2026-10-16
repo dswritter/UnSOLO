@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { createClient as createSvcClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 function fmtPrice(paise: number) {
   return `₹${Math.round(paise / 100).toLocaleString('en-IN')}`
@@ -79,8 +80,7 @@ export default async function AdminRevenuePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-2">Revenue</h1>
-      <p className="text-sm text-muted-foreground mb-6">Breakdown of platform earnings</p>
+      <AdminPageHeader title="Revenue" description="Cash collected minus approved refunds." />
 
       {/* Summary */}
       <div className="flex flex-wrap gap-3 mb-8">

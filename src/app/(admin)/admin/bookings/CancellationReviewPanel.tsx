@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Info } from 'lucide-react'
@@ -39,6 +40,7 @@ export function CancellationReviewPanel({
   mode = 'review',
 }: Props) {
   const [quote, setQuote] = useState<CancellationQuote | null>(null)
+  const confirmAction = useConfirm()
   const [quoteError, setQuoteError] = useState<string | null>(null)
   const [refundRupees, setRefundRupees] = useState<string>('')
   const [tierPercent, setTierPercent] = useState<number>(0)
@@ -172,8 +174,8 @@ export function CancellationReviewPanel({
           <Button
             size="sm"
             className="bg-red-600 hover:bg-red-700 text-white text-xs"
-            onClick={() => {
-              if (confirm('Cancel this entire booking? The traveller is notified and the refund below is queued.')) {
+            onClick={async () => {
+              if (await confirmAction({ title: 'Cancel this entire booking?', description: 'The traveller is notified and the refund below is queued.', confirmLabel: 'Cancel booking', cancelLabel: 'Keep booking', tone: 'danger' })) {
                 onApprove(refundPaise, tierPercent, note)
               }
             }}

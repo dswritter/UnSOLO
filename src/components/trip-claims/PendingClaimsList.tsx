@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useTransition } from 'react'
 import { toast } from 'sonner'
 import { processTripClaim } from '@/actions/trip-claims'
@@ -33,14 +34,15 @@ export function PendingClaimsList({
   context: 'booker' | 'host' | 'admin'
 }) {
   const [items, setItems] = useState(claims)
+  const confirmAction = useConfirm()
   const [busyId, setBusyId] = useState<string | null>(null)
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({})
   const [isPending, startTransition] = useTransition()
 
   if (items.length === 0) return null
 
-  function act(claimId: string, approve: boolean) {
-    if (!approve && !confirm('Deny this request? The person will be notified, optionally with your note.')) return
+  async function act(claimId: string, approve: boolean) {
+    if (!approve && !(await confirmAction({ title: 'Deny this request?', description: 'The person is notified, with your note if you added one.', confirmLabel: 'Deny', tone: 'danger' }))) return
     setBusyId(claimId)
     startTransition(async () => {
       const res = await processTripClaim(claimId, approve, noteDrafts[claimId])

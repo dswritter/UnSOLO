@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useTransition, useRef, useEffect } from 'react'
 import { formatPrice, type Package, type Destination, type JoinPreferences } from '@/types'
 import { maxInclusiveSpanDays, packageDurationFullLabel } from '@/lib/package-trip-calendar'
@@ -23,6 +24,7 @@ import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, Users, ExternalLink, Trash2 } from 'lucide-react'
 import { compactTripDuration } from '@/lib/listing-card-format'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
+import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
 
 interface IncludesOption {
   id: string
@@ -37,6 +39,7 @@ interface Props {
 
 export function PackagesManagementClient({ packages: initial, destinations: initDest, includesOptions: initIncludes }: Props) {
   const [packages, setPackages] = useState(initial)
+  const confirmAction = useConfirm()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -1040,11 +1043,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
                 <div className="flex min-w-0 items-center gap-2">
                   <p className="truncate font-semibold">{pkg.title}</p>
                   {pkg.is_featured && <Star className="h-3.5 w-3.5 shrink-0 fill-primary text-primary" aria-label="Featured" />}
-                  <span className={pkg.is_active
-                    ? 'shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300'
-                    : 'shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-muted-foreground'}>
-                    {pkg.is_active ? 'Live' : 'Hidden'}
-                  </span>
+                  <StatusPill status={pkg.is_active ? 'live' : 'hidden'} />
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{meta}</p>
               </div>
@@ -1079,8 +1078,8 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               <Button
                 size="sm" variant="ghost"
                 className="h-8 w-8 p-0 text-muted-foreground hover:text-red-400"
-                onClick={() => {
-                  if (!window.confirm(`Delete "${pkg.title}"? This cannot be undone.`)) return
+                onClick={async () => {
+                  if (!(await confirmAction({ title: `Delete “${pkg.title}”?`, description: 'Trips with booking history are archived instead.', confirmLabel: 'Delete', tone: 'danger' }))) return
                   startTransition(async () => {
                     const res = await deletePackage(pkg.id)
                     if ('error' in res && res.error) setMessage({ type: 'error', text: res.error })

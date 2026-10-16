@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -43,6 +44,7 @@ const emptyDraft = {
 
 export default function PromoCardsClient({ initial }: { initial: Row[] }) {
   const [rows, setRows] = useState<Row[]>(initial)
+  const confirmAction = useConfirm()
   const [pending, startTransition] = useTransition()
   const [draft, setDraft] = useState(emptyDraft)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -138,8 +140,8 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
     })
   }
 
-  function remove(row: Row) {
-    if (!confirm(`Delete “${row.title}”?`)) return
+  async function remove(row: Row) {
+    if (!(await confirmAction({ title: `Delete “${row.title}”?`, confirmLabel: 'Delete', tone: 'danger' }))) return
     const supabase = createClient()
     startTransition(async () => {
       const { error } = await supabase.from('landing_promo_cards').delete().eq('id', row.id)

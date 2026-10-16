@@ -1,15 +1,13 @@
 import { getCommunityChatRoomsAdmin } from '@/actions/admin'
 import { CommunityChatsClient } from './CommunityChatsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default async function AdminCommunityChatsPage() {
   const { rooms, error } = await getCommunityChatRoomsAdmin()
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-black">Community <span className="text-primary">Chat Rooms</span></h1>
-        <p className="text-sm text-muted-foreground mt-1">Create and manage public Meet Travellers rooms shown under Community in chat</p>
-      </div>
+      <AdminPageHeader title="Community chats" description="Public Meet Travellers rooms shown under Community in chat." />
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : (

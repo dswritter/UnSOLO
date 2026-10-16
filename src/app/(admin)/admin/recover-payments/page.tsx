@@ -1,15 +1,11 @@
 import { scanOrphanedRazorpayPayments, recoverBookingFromRazorpayOrder } from '@/actions/admin'
 import { RecoverPaymentsClient } from './RecoverPaymentsClient'
+import { AdminPageHeader } from '@/components/admin/ui/AdminPrimitives'
 
 export default function AdminRecoverPaymentsPage() {
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-black">Recover <span className="text-primary">Payments</span></h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Rebuild bookings for travelers who were charged but whose booking row never persisted.
-        </p>
-      </div>
+      <AdminPageHeader title="Recover payments" description="Rebuild bookings for travellers who were charged but whose booking never saved." />
       <RecoverPaymentsClient scan={scanOrphanedRazorpayPayments} recover={recoverBookingFromRazorpayOrder} />
     </div>
   )
