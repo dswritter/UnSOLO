@@ -1,63 +1,65 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { loadAdminUsersPage } from '@/actions/admin-users'
+import type { AdminUserFilter, AdminUsersPage } from '@/lib/admin/users-query'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Search, Phone, Instagram, Mountain } from 'lucide-react'
 import Link from 'next/link'
 
-interface UserEntry {
-  id: string
-  username: string
-  full_name: string | null
-  avatar_url: string | null
-  phone_number: string | null
-  is_host: boolean | null
-  is_phone_verified: boolean | null
-  instagram_url: string | null
-  created_at: string
-  role: string
-  bookings: { confirmed: number; completed: number; cancelled: number }
-  totalTrips: number
-}
+type FilterKey = AdminUserFilter
 
-type FilterKey = 'all' | 'hosts' | 'no_instagram' | 'no_phone' | 'active_travelers'
-
-export function UsersClient({ users }: { users: UserEntry[] }) {
+export function UsersClient({ initial }: { initial: AdminUsersPage }) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [data, setData] = useState(initial)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const requestId = useRef(0)
+  const firstRun = useRef(true)
 
-  const filtered = users.filter(u => {
-    if (filter === 'hosts' && !u.is_host) return false
-    if (filter === 'no_instagram' && u.instagram_url) return false
-    if (filter === 'no_phone' && u.is_phone_verified) return false
-    if (filter === 'active_travelers' && u.totalTrips === 0) return false
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      return (u.full_name || '').toLowerCase().includes(q) ||
-        u.username.toLowerCase().includes(q)
+  const load = useCallback(async (q: string, f: FilterKey, offset: number) => {
+    const id = ++requestId.current
+    setLoading(true)
+    setError(null)
+    try {
+      const next = await loadAdminUsersPage(q, f, offset)
+      if (id !== requestId.current) return
+      setData(prev => offset === 0 ? next : { ...next, rows: [...prev.rows, ...next.rows] })
+    } catch (e) {
+      if (id === requestId.current) setError(e instanceof Error ? e.message : 'Could not load users')
+    } finally {
+      if (id === requestId.current) setLoading(false)
     }
-    return true
-  })
+  }, [])
 
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return }
+    const timer = setTimeout(() => void load(search, filter, 0), search ? 300 : 0)
+    return () => clearTimeout(timer)
+  }, [search, filter, load])
+
+  const filtered = data.rows
+  const users = data.rows
   const filters: { key: FilterKey; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: users.length },
-    { key: 'hosts', label: 'Hosts', count: users.filter(u => u.is_host).length },
-    { key: 'active_travelers', label: '1+ Trips', count: users.filter(u => u.totalTrips > 0).length },
-    { key: 'no_phone', label: 'No Phone', count: users.filter(u => !u.is_phone_verified).length },
-    { key: 'no_instagram', label: 'No Instagram', count: users.filter(u => !u.instagram_url).length },
+    { key: 'all', label: 'All', count: data.counts.all },
+    { key: 'hosts', label: 'Hosts', count: data.counts.hosts },
+    { key: 'active_travelers', label: '1+ Trips', count: data.counts.active_travelers },
+    { key: 'no_phone', label: 'No Phone', count: data.counts.no_phone },
+    { key: 'no_instagram', label: 'No Instagram', count: data.counts.no_instagram },
   ]
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">Users ({users.length})</h1>
+      <h1 className="text-2xl font-bold mb-4">Users ({data.counts.all})</h1>
 
       {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by name, username, or email..."
+          placeholder="Search by name or username…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-2.5 text-sm bg-card border border-border rounded-xl focus:outline-none focus:border-primary"
@@ -98,7 +100,8 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
           <div className="col-span-2">Role</div>
         </div>
 
-        {filtered.length === 0 ? (
+        {error ? <p role="alert" className="py-4 text-center text-sm text-red-400">{error}</p> : null}
+        {filtered.length === 0 && !loading ? (
           <p className="text-sm text-muted-foreground text-center py-8">No users match your search.</p>
         ) : (
           filtered.map(u => (
@@ -137,6 +140,15 @@ export function UsersClient({ users }: { users: UserEntry[] }) {
             </Link>
           ))
         )}
+      </div>
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <p className="text-xs text-muted-foreground">Showing {users.length} of {data.total}</p>
+        {users.length < data.total ? (
+          <button type="button" disabled={loading} onClick={() => void load(search, filter, users.length)}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:border-primary/40 disabled:opacity-60">
+            {loading ? 'Loading…' : 'Load more'}
+          </button>
+        ) : loading ? <p className="text-xs text-muted-foreground">Loading…</p> : null}
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { createServiceRoleClient } from '@/lib/supabase/server'
-import { getReleasableHostEarning } from '@/actions/host-payout'
+import { computeReleasableHostEarning } from '@/lib/host-releasable'
+import { parseRefundTiersJson, defaultHostRefundTiers } from '@/lib/refund-tiers'
 import { isRazorpayXConfigured } from '@/lib/razorpay/x'
 import CommunityTripsClient from './CommunityTripsClient'
 import { fetchCommunityTripBookingCountsForPackages } from '@/lib/community-trip-booking-stats'
@@ -44,13 +45,22 @@ export default async function AdminCommunityTripsPage() {
   // host's own rows, so a staff member's session client would return empty.
   const svc = createServiceRoleClient()
 
-  // Fetch all community trips (host_id not null)
-  const { data: trips } = await svc
-    .from('packages')
-    .select('*, destination:destinations(name, state), host_assignment:host_listing_assignments(host_name, email, phone, status), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
-    .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
-    .is('archived_at', null)
-    .order('created_at', { ascending: false })
+  const [{ data: trips }, { data: pendingPayoutsRaw }, { data: settingsRows }] = await Promise.all([
+    svc
+      .from('packages')
+      .select('*, destination:destinations(name, state), host_assignment:host_listing_assignments(host_name, email, phone, status), host:profiles!packages_host_id_fkey(id, username, full_name, avatar_url, is_phone_verified, is_email_verified, host_rating)')
+      .or('host_id.not.is.null,created_on_behalf_by.not.is.null')
+      .is('archived_at', null)
+      .order('created_at', { ascending: false }),
+    svc
+      .from('host_earnings')
+      .select(
+        '*, host:profiles(username, full_name, upi_id, bank_account_number, bank_ifsc, payout_method), booking:bookings(travel_date, check_in_date, confirmation_code, package:packages(title))',
+      )
+      .in('payout_status', ['pending', 'processing', 'failed'])
+      .order('created_at', { ascending: false }),
+    svc.from('platform_settings').select('key, value').in('key', ['platform_fee_percent', 'refund_tiers_host']),
+  ])
 
   const tripList = (trips || []).map((t) => ({ ...t, host_assignment: hostListingAssignmentRows(t.host_assignment) }))
   const tripIds = tripList.map((t) => t.id as string)
@@ -61,31 +71,25 @@ export default async function AdminCommunityTripsPage() {
     booking_count: bookingCountByPackage[t.id as string] ?? 0,
   }))
 
-  // Get pending payouts — must use service-role (host_earnings RLS: host sees own only).
-  const { data: pendingPayoutsRaw } = await svc
-    .from('host_earnings')
-    .select(
-      '*, host:profiles(username, full_name, upi_id, bank_account_number, bank_ifsc, payout_method), booking:bookings(travel_date, check_in_date, confirmation_code, package:packages(title))',
-    )
-    .in('payout_status', ['pending', 'processing', 'failed'])
-    .order('created_at', { ascending: false })
-
-  // Attach releasable-now info so the client can prefill safe amount + show the refund gate.
-  const pendingPayouts = await Promise.all(
-    ((pendingPayoutsRaw || []) as PendingPayoutRow[]).map(async (row) => {
-      const info = await getReleasableHostEarning(row.id)
-      return { ...row, releasable: 'error' in info ? null : info }
-    }),
-  )
+  const setting = (key: string) => settingsRows?.find((row) => row.key === key)?.value
+  const refundTiers = parseRefundTiersJson((setting('refund_tiers_host') as string | null) ?? null, defaultHostRefundTiers())
+  // Releasable-now info lets the client prefill a safe amount and show the refund gate.
+  const pendingPayouts = ((pendingPayoutsRaw || []) as PendingPayoutRow[]).map((row) => {
+    const booking = row.booking as { travel_date?: string | null; check_in_date?: string | null } | null
+    return {
+      ...row,
+      releasable: computeReleasableHostEarning({
+        hostPaise: Number(row.host_paise) || 0,
+        releasedPaise: Number(row.released_paise) || 0,
+        travelDateIso: booking?.travel_date ?? booking?.check_in_date ?? null,
+        tiers: refundTiers,
+      }),
+    }
+  })
 
   const razorpayxEnabled = isRazorpayXConfigured()
 
-  const { data: feeRow } = await svc
-    .from('platform_settings')
-    .select('value')
-    .eq('key', 'platform_fee_percent')
-    .maybeSingle()
-  const parsedFee = parseFloat(String(feeRow?.value ?? '').trim())
+  const parsedFee = parseFloat(String(setting('platform_fee_percent') ?? '').trim())
   const platformFeePercent =
     Number.isFinite(parsedFee) && parsedFee >= 0 && parsedFee <= 100 ? Math.round(parsedFee * 100) / 100 : 15
 

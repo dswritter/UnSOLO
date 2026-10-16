@@ -13,9 +13,9 @@ import {
 import {
   parseRefundTiersJson,
   defaultHostRefundTiers,
-  currentRefundPercent,
   type RefundTier,
 } from '@/lib/refund-tiers'
+import { computeReleasableHostEarning, type ReleasableHostEarning } from '@/lib/host-releasable'
 
 type RefundSchedule = { tiers: RefundTier[] }
 
@@ -30,15 +30,7 @@ async function getHostRefundTiers(): Promise<RefundSchedule> {
   return { tiers }
 }
 
-export async function getReleasableHostEarning(earningId: string): Promise<{
-  hostPaise: number
-  releasedPaise: number
-  unpaidPaise: number
-  safePaise: number
-  currentRefundPct: number
-  inZeroRefundWindow: boolean
-  travelDateIso: string | null
-} | { error: string }> {
+async function loadReleasableHostEarning(earningId: string): Promise<ReleasableHostEarning | { error: string }> {
   const supabase = await createServiceClient()
   const { data: earning } = await supabase
     .from('host_earnings')
@@ -47,33 +39,24 @@ export async function getReleasableHostEarning(earningId: string): Promise<{
     .single()
   if (!earning) return { error: 'Earning not found' }
 
-  let travelDateIso: string | null = null
-  if (earning.booking_id) {
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('travel_date, check_in_date')
-      .eq('id', earning.booking_id)
-      .single()
-    travelDateIso = (booking?.travel_date as string | null) ?? (booking?.check_in_date as string | null) ?? null
-  }
+  const [bookingRes, { tiers }] = await Promise.all([
+    earning.booking_id
+      ? supabase.from('bookings').select('travel_date, check_in_date').eq('id', earning.booking_id).single()
+      : Promise.resolve({ data: null }),
+    getHostRefundTiers(),
+  ])
+  const booking = bookingRes.data as { travel_date?: string | null; check_in_date?: string | null } | null
+  return computeReleasableHostEarning({
+    hostPaise: earning.host_paise as number,
+    releasedPaise: earning.released_paise as number | null,
+    travelDateIso: booking?.travel_date ?? booking?.check_in_date ?? null,
+    tiers,
+  })
+}
 
-  const { tiers } = await getHostRefundTiers()
-  const currentRefundPct = travelDateIso ? currentRefundPercent(travelDateIso, tiers) : 0
-  const hostPaise = earning.host_paise as number
-  const releasedPaise = (earning.released_paise as number) || 0
-  const unpaidPaise = Math.max(0, hostPaise - releasedPaise)
-  // Safe advance = host's share that cannot be clawed back even at the current refund percent.
-  const safePaise = Math.floor(hostPaise * (1 - currentRefundPct / 100)) - releasedPaise
-
-  return {
-    hostPaise,
-    releasedPaise,
-    unpaidPaise,
-    safePaise: Math.max(0, safePaise),
-    currentRefundPct,
-    inZeroRefundWindow: currentRefundPct <= 0,
-    travelDateIso,
-  }
+export async function getReleasableHostEarning(earningId: string): Promise<ReleasableHostEarning | { error: string }> {
+  await requireAdminLocal()
+  return loadReleasableHostEarning(earningId)
 }
 
 type PayoutInput = {
@@ -163,7 +146,7 @@ export async function releaseHostPayout(input: PayoutInput) {
     const amount = Math.round(input.amountPaise)
     if (amount <= 0) return { error: 'Payout amount must be positive' }
 
-    const info = await getReleasableHostEarning(input.earningId)
+    const info = await loadReleasableHostEarning(input.earningId)
     if ('error' in info) return { error: info.error }
     if (amount > info.unpaidPaise) return { error: 'Amount exceeds the remaining host balance' }
 

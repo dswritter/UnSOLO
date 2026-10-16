@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { getAdminSidebarCounts } from '@/actions/admin'
 import { AdminNotificationBell } from './AdminNotificationBell'
 import type { UserRole, AdminPermissionKey } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -23,7 +24,7 @@ import {
   Store,
   UserPlus,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const navItems: {
   href: string
@@ -115,11 +116,13 @@ interface AdminSidebarProps {
   role: UserRole
   name: string
   userId: string
-  pendingCounts?: { bookings: number; requests: number; serviceListings: number; communityTrips: number }
   customPermissions?: AdminPermissionKey[]
 }
 
-export function AdminSidebar({ role, name, userId, pendingCounts, customPermissions = [] }: AdminSidebarProps) {
+const NOTIFICATION_REFRESH_PATHS = ['/admin/bookings', '/admin/requests', '/admin/service-listings', '/admin/trip-claims', '/admin/community-trips'] as const
+const EMPTY_COUNTS = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
+
+export function AdminSidebar({ role, name, userId, customPermissions = [] }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -133,9 +136,31 @@ export function AdminSidebar({ role, name, userId, pendingCounts, customPermissi
     return false
   })
 
-  const counts = pendingCounts ?? { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0 }
+  const [counts, setCounts] = useState(EMPTY_COUNTS)
+
+  const [countsVersion, setCountsVersion] = useState(0)
+
+  // Badges load after the page paints (and after each admin action/navigation), never blocking render.
+  useEffect(() => {
+    let cancelled = false
+    getAdminSidebarCounts().then(next => { if (!cancelled) setCounts(next) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [pathname, countsVersion])
+
+  const pathnameRef = useRef(pathname)
+  useEffect(() => { pathnameRef.current = pathname }, [pathname])
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null
+    // Badges always update; the open page reloads only when the event concerns it.
+    const scheduleReload = (refreshOn: readonly string[]) => () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        setCountsVersion(v => v + 1)
+        const path = pathnameRef.current ?? ''
+        if (refreshOn.some(prefix => path.startsWith(prefix))) router.refresh()
+      }, 800)
+    }
     const supabase = createClient()
     const channel = supabase
       .channel(`admin-sidebar-${userId}`)
@@ -147,7 +172,7 @@ export function AdminSidebar({ role, name, userId, pendingCounts, customPermissi
           table: 'notifications',
           filter: `user_id=eq.${userId}`,
         },
-        () => router.refresh(),
+        scheduleReload(NOTIFICATION_REFRESH_PATHS),
       )
       .on(
         'postgres_changes',
@@ -157,14 +182,15 @@ export function AdminSidebar({ role, name, userId, pendingCounts, customPermissi
           table: 'packages',
           filter: 'moderation_status=eq.pending',
         },
-        () => router.refresh(),
+        scheduleReload(['/admin/community-trips']),
       )
       .subscribe()
 
     return () => {
+      if (timer) clearTimeout(timer)
       void supabase.removeChannel(channel)
     }
-  }, [router, userId])
+  }, [userId, router])
 
   const sidebarContent = (
     <>

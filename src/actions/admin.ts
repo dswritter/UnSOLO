@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { cache } from 'react'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { ROLE_LABELS, hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
@@ -79,7 +80,8 @@ async function requirePermission(key: AdminPermissionKey) {
   return { supabase: svc, user, role }
 }
 
-async function requireStaff() {
+// Request-scoped: pages often call several staff-gated loaders in one render.
+const requireStaff = cache(async () => {
   const { supabase, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
 
@@ -108,7 +110,7 @@ async function requireStaff() {
     )
   }
   return { supabase, user, role: effectiveRole }
-}
+})
 
 async function syncTeamMemberProfileRoles() {
   const svc = createServiceRoleClient()
@@ -147,6 +149,7 @@ export async function getAdminDashboardStats() {
     { count: pendingForeignPhones },
     { count: pendingPhoneChanges },
     { count: pendingTripClaims },
+    { data: revSummary, error: revErr },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('bookings').select('*', { count: 'exact', head: true }),
@@ -169,6 +172,7 @@ export async function getAdminDashboardStats() {
     supabase.from('phone_change_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     // Pending trip-companion join requests
     supabase.from('trip_traveller_claims').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.rpc('admin_revenue_summary'),
   ])
 
   // Revenue = cash actually collected (deposit_paise, falling back to total for
@@ -176,7 +180,6 @@ export async function getAdminDashboardStats() {
   // fall back to the in-JS scan if that migration hasn't been applied yet.
   let grossRevenue = 0
   let totalRefunds = 0
-  const { data: revSummary, error: revErr } = await supabase.rpc('admin_revenue_summary')
   if (!revErr && Array.isArray(revSummary) && revSummary[0]) {
     grossRevenue = Number(revSummary[0].gross_revenue) || 0
     totalRefunds = Number(revSummary[0].total_refunds) || 0
