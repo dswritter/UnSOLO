@@ -1,8 +1,10 @@
-import { getAdminDashboardStats } from '@/actions/admin'
+import { getAdminDashboardStats, getAdminRecentBookings } from '@/actions/admin'
+import { formatDistanceToNowStrict } from 'date-fns'
 import { getEffectiveAdminRole } from '@/lib/auth/admin-permissions'
 import { hasAdminPermission } from '@/types'
 import type { AdminPermissionKey, UserRole } from '@/types'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import {
   Users,
   CreditCard,
@@ -20,7 +22,6 @@ import {
   Store,
   Phone,
   UserPlus,
-  CheckCircle2,
   IndianRupee,
 } from 'lucide-react'
 
@@ -36,9 +37,10 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, session] = await Promise.all([
+  const [stats, session, recentBookings] = await Promise.all([
     getAdminDashboardStats(),
     getEffectiveAdminRole(),
+    getAdminRecentBookings(),
   ])
 
   const role: UserRole = session?.role ?? 'user'
@@ -80,7 +82,7 @@ export default async function AdminDashboardPage() {
   const visibleShortcuts = shortcuts.filter(shortcut => can(shortcut.permissionKey))
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="max-w-6xl space-y-8">
       <header>
         <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -93,36 +95,36 @@ export default async function AdminDashboardPage() {
       {visibleAttention.length > 0 && (
         <section>
           <SectionTitle>Needs attention</SectionTitle>
-          {openItems.length > 0 ? (
-            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/90">
-              {openItems.map(({ href, icon: ItemIcon, label, count, urgent }) => (
-                <li key={href}>
-                  <Link href={href} className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/60">
-                    <ItemIcon className={urgent ? 'h-4 w-4 shrink-0 text-rose-400' : 'h-4 w-4 shrink-0 text-muted-foreground'} />
-                    <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
-                    <span className={urgent
-                      ? 'rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-rose-700 dark:text-rose-300'
-                      : 'rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300'}>
-                      {count > 999 ? '999+' : count}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-card/90 px-4 py-3 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-              No pending reviews, claims or requests.
-            </div>
-          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[...openItems, ...visibleAttention.filter(item => item.count === 0)].map(({ href, icon: ItemIcon, label, count, urgent }) => (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'group flex flex-col gap-2 rounded-xl border bg-card/90 p-4 transition-colors hover:border-primary/50',
+                  count === 0 ? 'border-border opacity-60' : urgent ? 'border-rose-500/40' : 'border-amber-500/40',
+                )}
+              >
+                <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <ItemIcon className={cn('h-4 w-4 shrink-0', count > 0 && urgent ? 'text-rose-500' : '')} />
+                  {label}
+                </span>
+                <span className="text-2xl font-black tabular-nums text-foreground">{count > 999 ? '999+' : count}</span>
+                <span className="mt-auto inline-flex items-center gap-1 text-xs font-semibold text-primary">
+                  {count > 0 ? 'Open queue' : 'View'} <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            ))}
+          </div>
         </section>
       )}
 
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
+        <div className="min-w-0">
       {visibleMetrics.length > 0 && (
         <section>
           <SectionTitle>Overview</SectionTitle>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {visibleMetrics.map(({ href, icon: MetricIcon, label, value }) => (
               <Link key={href} href={href} className="rounded-xl border border-border bg-card/90 p-4 transition-colors hover:border-primary/40">
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -135,6 +137,30 @@ export default async function AdminDashboardPage() {
           </div>
         </section>
       )}
+
+        </div>
+        {recentBookings.length > 0 && (
+          <section>
+            <SectionTitle>Recent bookings</SectionTitle>
+            <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card/90">
+              {recentBookings.map((b) => (
+                <li key={b.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                  <span className="min-w-0 truncate">
+                    <span className="font-semibold text-foreground">{b.guestName}</span>
+                    <span className="text-muted-foreground"> · {b.listingTitle}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatDistanceToNowStrict(new Date(b.created_at), { addSuffix: true })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Link href="/admin/bookings" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+              All bookings <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </section>
+        )}
+      </div>
 
       {visibleShortcuts.length > 0 && (
         <section>

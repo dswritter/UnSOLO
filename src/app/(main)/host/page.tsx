@@ -2,8 +2,9 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/hosting'
 import { getPayoutDetails } from '@/actions/payout'
-import { getRequestAuth } from '@/lib/auth/request-session'
-import { formatDate, cn } from '@/lib/utils'
+import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
+import { hostAttentionItems, hostUpcomingDepartures, type HostAttentionTrip } from '@/lib/hosting/host-attention'
+import { formatDate, cn, listingScheduleTodayISO } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HostModerationBadge } from '@/components/host/HostModerationBadge'
 import { hostHiddenStatusClassForest } from '@/components/host/hostBadgeStyles'
@@ -17,7 +18,7 @@ import { ToggleServiceListingButton } from './ToggleServiceListingButton'
 import { HostDeleteListingButton } from '@/components/host/HostDeleteListingButton'
 import { StopHostingPanel } from '@/components/host/StopHostingPanel'
 import type { ServiceListing } from '@/types'
-import { Wallet, AlertTriangle } from 'lucide-react'
+import { Wallet, AlertTriangle, ArrowRight, CalendarDays, CheckCircle2 } from 'lucide-react'
 
 export default async function HostDashboardPage() {
   const hostStatus = await checkIsHost()
@@ -74,16 +75,28 @@ export default async function HostDashboardPage() {
     }
   }
 
+  const profile = user ? await getRequestProfile(user.id) : null
+  const firstName = (profile?.full_name || profile?.username || '').split(' ')[0]
+  const attentionTrips = trips as unknown as HostAttentionTrip[]
+  const attention = hostAttentionItems({
+    trips: attentionTrips,
+    serviceListings: (serviceListings ?? []).map((l) => ({ id: l.id, title: l.title, status: l.status })),
+    payoutConfigured,
+  })
+  const departures = hostUpcomingDepartures(attentionTrips, listingScheduleTodayISO())
+
   return (
     <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-black text-foreground">
-              Host <span className="text-primary">Dashboard</span>
+            <h1 className="text-2xl font-black tracking-tight text-foreground md:text-3xl">
+              {firstName ? `Welcome back, ${firstName}` : 'Host dashboard'}
             </h1>
-            <p className="text-sm text-foreground/75 mt-0.5">
-              Host your own trips or experiences and invite travelers to join
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {attention.length > 0
+                ? `${attention.length} ${attention.length === 1 ? 'thing needs' : 'things need'} your attention`
+                : 'You’re all caught up'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -97,29 +110,38 @@ export default async function HostDashboardPage() {
           </div>
         </div>
 
-        {!payoutConfigured && (
-          <div className="mb-6 rounded-xl border border-amber-300/50 bg-amber-500/15 p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-200 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-foreground">Add your payout details</p>
-              <p className="text-xs text-foreground/70 mt-0.5">
-                You need a UPI ID or bank account on file before you can publish new listings and receive earnings.
-              </p>
-            </div>
-            <Button asChild size="sm" className="bg-primary text-primary-foreground font-bold flex-shrink-0">
-              <Link href="/host/payout">Set up</Link>
-            </Button>
-          </div>
-        )}
-
-        <div className="mb-6 rounded-xl border border-foreground/25 bg-foreground/[0.06] p-4 text-xs">
-          <p className="font-semibold text-foreground">Fair-split refunds — your share is protected</p>
-          <p className="text-foreground/70 mt-1 leading-relaxed">
-            On cancellations, UnSOLO and you absorb the refund proportionally to our earnings. You only ever lose
-            your fair portion — never the platform fee, promo codes, or referral credits.{' '}
-            <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
-          </p>
-        </div>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+        <div className="min-w-0">
+        <section className="glass-card mb-6 p-5">
+          <h2 className="text-lg font-black tracking-tight text-foreground">Needs attention</h2>
+          {attention.length === 0 ? (
+            <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> No requests or fixes waiting.
+            </p>
+          ) : (
+            <ul className="mt-3 flex flex-col gap-2">
+              {attention.map((item) => (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      'flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-colors hover:border-primary/60',
+                      item.tone === 'warning' ? 'border-amber-500/40 bg-amber-500/10' : 'border-border bg-background/50',
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-2 text-foreground">
+                      {item.tone === 'warning' ? <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" /> : null}
+                      <span className="truncate">{item.text}</span>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 font-semibold text-primary">
+                      {item.cta} <ArrowRight className="h-3.5 w-3.5" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <HostTripDraftsPanel />
 
@@ -221,6 +243,40 @@ export default async function HostDashboardPage() {
           </section>
         )}
         <StopHostingPanel />
+        </div>
+
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-4">
+          <section className="glass-card p-5">
+            <h2 className="flex items-center gap-2 text-base font-black text-foreground">
+              <CalendarDays className="h-4 w-4 text-primary" /> Upcoming departures
+            </h2>
+            {departures.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">No open departures scheduled.</p>
+            ) : (
+              <ol className="mt-3 flex flex-col gap-3">
+                {departures.map((d) => (
+                  <li key={`${d.tripId}-${d.date}`} className="flex gap-3">
+                    <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary ring-4 ring-primary/20" />
+                    <Link href={`/host/${d.tripId}`} className="min-w-0 hover:underline">
+                      <span className="block text-sm font-bold text-foreground">{formatDate(d.date)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{d.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        <div className="rounded-xl border border-border bg-card/60 p-4 text-xs">
+          <p className="font-semibold text-foreground">Fair-split refunds — your share is protected</p>
+          <p className="text-foreground/70 mt-1 leading-relaxed">
+            On cancellations, UnSOLO and you absorb the refund proportionally to our earnings. You only ever lose
+            your fair portion — never the platform fee, promo codes, or referral credits.{' '}
+            <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
+          </p>
+        </div>
+
+        </aside>
+        </div>
       </div>
   )
 }

@@ -138,6 +138,7 @@ export function BookingFormClient({
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   /** token_to_book only: pay host token slice now vs full trip now */
   const [tokenPayMode, setTokenPayMode] = useState<'token' | 'full'>('token')
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [missingChoiceHint, setMissingChoiceHint] = useState<'tier' | 'date' | null>(null)
   const priceTierSectionRef = useRef<HTMLDivElement | null>(null)
   const departureDateSectionRef = useRef<HTMLDivElement | null>(null)
@@ -327,36 +328,52 @@ export function BookingFormClient({
     target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
-  async function handleBook() {
+  function validateTripChoice(): boolean {
     if (variantTiers && variantTiers.length >= 2 && selectedVariantIndex == null) {
       toast.error('Please choose a price option before booking')
       scrollToMissingChoice('tier')
-      return
+      return false
     }
     if (!selectedDate) {
       toast.error('Please select a departure date before booking')
       scrollToMissingChoice('date')
-      return
+      return false
     }
     if (selectedDate < today) {
       toast.error('Travel date cannot be in the past')
-      return
+      return false
     }
+    return true
+  }
+
+  function validateTravellers(): boolean {
     for (let i = 0; i < travellers.length; i++) {
       const t = travellers[i]
       const age = parseInt(t.age, 10)
       if (!t.name.trim()) {
         toast.error(`Enter the name for traveller ${i + 1}`)
-        return
+        return false
       }
       if (!t.age.trim() || Number.isNaN(age) || age < 1 || age > 120) {
         toast.error(`Enter a valid age for traveller ${i + 1}`)
-        return
+        return false
       }
       if (!t.gender) {
         toast.error(`Select gender for traveller ${i + 1}`)
-        return
+        return false
       }
+    }
+    return true
+  }
+
+  async function handleBook() {
+    if (!validateTripChoice()) {
+      setStep(1)
+      return
+    }
+    if (!validateTravellers()) {
+      setStep(2)
+      return
     }
     setLoading(true)
 
@@ -651,6 +668,29 @@ export function BookingFormClient({
 
       {tab === 'fixed' && (
         <>
+          <ol className="grid grid-cols-3 gap-1 rounded-xl bg-foreground/[0.05] p-1 text-xs font-semibold" aria-label="Checkout steps">
+            {(['Trip', 'Travellers', 'Pay'] as const).map((label, i) => {
+              const n = (i + 1) as 1 | 2 | 3
+              return (
+                <li key={label}>
+                  <button
+                    type="button"
+                    disabled={n > step}
+                    onClick={() => setStep(n)}
+                    aria-current={n === step ? 'step' : undefined}
+                    className={`w-full rounded-lg px-2 py-1.5 transition-colors ${
+                      n === step ? 'bg-primary text-primary-foreground shadow-sm' : n < step ? 'text-foreground hover:bg-card' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {n}. {label}
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+
+          {step === 1 && (
+          <>
           {variantTiers && variantTiers.length >= 2 && (
             <div
               ref={priceTierSectionRef}
@@ -804,6 +844,19 @@ export function BookingFormClient({
             })()}
           </div>
 
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-sm">
+            <span className="text-muted-foreground">Trip total <b className="text-foreground">{formatPrice(tripTotalAfterDiscounts)}</b></span>
+            <div className="flex gap-2">
+              <Button type="button" onClick={() => { if (validateTripChoice()) setStep(2) }} className="bg-primary font-bold text-primary-foreground hover:bg-primary/90">
+                Continue
+              </Button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {step === 2 && (
+          <>
           {/* Traveller details — one row per guest, kept in sync with the stepper */}
           {tab === 'fixed' && (
             <div className="space-y-2">
@@ -855,6 +908,20 @@ export function BookingFormClient({
             </div>
           )}
 
+          <div className="flex items-center justify-between gap-3 border-t border-border pt-3 text-sm">
+            <span className="text-muted-foreground">Trip total <b className="text-foreground">{formatPrice(tripTotalAfterDiscounts)}</b></span>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setStep(1)}>Back</Button>
+              <Button type="button" onClick={() => { if (validateTravellers()) setStep(3) }} className="bg-primary font-bold text-primary-foreground hover:bg-primary/90">
+                Review & pay
+              </Button>
+            </div>
+          </div>
+          </>
+          )}
+
+          {step === 3 && (
+          <>
           {/* Discounts & Promo */}
           <div className="space-y-2">
             {/* Referred user first-booking discount */}
@@ -1057,6 +1124,11 @@ export function BookingFormClient({
                   ? `Pay ${formatPrice(dueNowDisplayPaise)} token & book`
                   : `Pay ${formatPrice(dueNowDisplayPaise)} & book`}
           </Button>
+          <button type="button" onClick={() => setStep(2)} className="w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground">
+            ← Back to travellers
+          </button>
+          </>
+          )}
         </>
       )}
 

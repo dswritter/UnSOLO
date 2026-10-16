@@ -357,7 +357,56 @@ export default async function PackageDetailPage({
           </div>
         )}
 
-        <div className="flex flex-col-reverse lg:grid lg:grid-cols-3 gap-8">
+        <div className="mb-6 space-y-3">
+          {/* Title + Location */}
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <MapPin className="h-4 w-4 text-primary" />
+              {package_.destination?.name}, {package_.destination?.state}
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight text-foreground">
+              {package_.title}
+            </h1>
+            {isCommunityTrip && (
+              <div className="mt-2">
+                <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
+              </div>
+            )}
+          </div>
+
+          {/* Interested + Share */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <InterestButton
+                packageId={package_.id}
+                initialCount={interestData.count}
+                initialInterested={interestData.isInterested}
+                isLoggedIn={!!user}
+              />
+              {showScarcePill && (
+                <span className="inline-flex items-center rounded-full bg-red-500/15 text-red-400 border border-red-500/30 px-2 py-0.5 text-[11px] font-semibold">
+                  Only {scarceSlotsLeft} left
+                </span>
+              )}
+              <InterestedAvatars
+                packageId={package_.id}
+                totalCount={interestData.count}
+                preview={interestedUsers}
+              />
+            </div>
+            <ShareButton
+              slug={package_.slug}
+              title={package_.title}
+              location={`${package_.destination?.name}, ${package_.destination?.state}`}
+              pricePaise={package_.price_paise}
+              priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
+              durationSummary={packageDurationShortLabel(package_)}
+              whatsappNumber={whatsappNumber}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:grid lg:grid-cols-3 gap-8">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Hero image gallery with difficulty badge overlay */}
@@ -371,56 +420,37 @@ export default async function PackageDetailPage({
               </div>
             </div>
 
-            {/* Title + Location */}
-            <div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <MapPin className="h-4 w-4 text-primary" />
-                {package_.destination?.name}, {package_.destination?.state}
-              </div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold leading-tight text-foreground">
-                {package_.title}
-              </h1>
-              {isCommunityTrip && (
-                <div className="mt-2">
-                  <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Community Trip</Badge>
+            {/* Key facts + jump links right under the photos */}
+            <div className="grid grid-cols-3 gap-4">
+              <TripDurationStatCard duration={package_} />
+              {[
+                { icon: Users, label: 'Group Size', value: `Up to ${package_.max_group_size}` },
+                { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
+              ].map(({ icon: Icon, label, value }) => (
+                <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
+                  <Icon className="h-5 w-5 text-primary mx-auto mb-1" />
+                  <div className="font-bold text-sm">{value}</div>
+                  <div className="text-xs text-muted-foreground">{label}</div>
                 </div>
-              )}
+              ))}
             </div>
 
-            {/* Interested + Share */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <InterestButton
-                  packageId={package_.id}
-                  initialCount={interestData.count}
-                  initialInterested={interestData.isInterested}
-                  isLoggedIn={!!user}
-                />
-                {showScarcePill && (
-                  <span className="inline-flex items-center rounded-full bg-red-500/15 text-red-400 border border-red-500/30 px-2 py-0.5 text-[11px] font-semibold">
-                    Only {scarceSlotsLeft} left
-                  </span>
-                )}
-                <InterestedAvatars
-                  packageId={package_.id}
-                  totalCount={interestData.count}
-                  preview={interestedUsers}
-                />
-              </div>
-              <ShareButton
-                slug={package_.slug}
-                title={package_.title}
-                location={`${package_.destination?.name}, ${package_.destination?.state}`}
-                pricePaise={package_.price_paise}
-                priceLinePrefix={hasTieredPricing(package_.price_variants) ? 'From ' : ''}
-                durationSummary={packageDurationShortLabel(package_)}
-                whatsappNumber={whatsappNumber}
-              />
-            </div>
+            <nav aria-label="Trip sections" className="sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-background/85 p-1 backdrop-blur-md scrollbar-hide">
+              {[
+                ['#about', 'Overview'],
+                ...(package_.includes?.length ? [['#included', 'Inclusions']] : []),
+                ...(isCommunityTrip && hostData ? [['#host', 'Host']] : []),
+                ['#reviews', 'Reviews'],
+              ].map(([href, label]) => (
+                <a key={href} href={href} className="whitespace-nowrap rounded-xl px-3 py-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-card hover:text-foreground">
+                  {label}
+                </a>
+              ))}
+            </nav>
 
             {/* Host profile card (community trips only) */}
             {isCommunityTrip && hostData && (
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div id="host" className="scroll-mt-20 bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-bold mb-4">Your Host</h2>
                 <div className="flex items-start gap-4">
                   <HostProfileLink username={hostData.username}>
@@ -504,23 +534,8 @@ export default async function PackageDetailPage({
               </div>
             )}
 
-            {/* Stats row */}
-            <div className="grid grid-cols-3 gap-4">
-              <TripDurationStatCard duration={package_} />
-              {[
-                { icon: Users, label: 'Group Size', value: `Up to ${package_.max_group_size}` },
-                { icon: Star, label: 'Rating', value: avgRating ? `${avgRating.toFixed(1)}/5` : 'New' },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="bg-card border border-border rounded-xl p-4 text-center">
-                  <Icon className="h-5 w-5 text-primary mx-auto mb-1" />
-                  <div className="font-bold text-sm">{value}</div>
-                  <div className="text-xs text-muted-foreground">{label}</div>
-                </div>
-              ))}
-            </div>
-
             {/* Description */}
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div id="about" className="scroll-mt-20 bg-card border border-border rounded-xl p-6">
               <h2 className="text-xl font-bold mb-3">About This Trip</h2>
               {package_.description?.trim() ? (
                 <TripDescriptionDisplay className="text-muted-foreground">{package_.description}</TripDescriptionDisplay>
@@ -531,7 +546,7 @@ export default async function PackageDetailPage({
 
             {/* What's Included */}
             {package_.includes && package_.includes.length > 0 && (
-              <div className="bg-card border border-border rounded-xl p-6">
+              <div id="included" className="scroll-mt-20 bg-card border border-border rounded-xl p-6">
                 <h2 className="text-xl font-bold mb-4">What&apos;s Included</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {package_.includes.map((item) => (
@@ -585,6 +600,7 @@ export default async function PackageDetailPage({
             )}
 
             {/* Reviews */}
+            <div id="reviews" className="scroll-mt-20">
             <ReviewsSection
               reviews={reviews || []}
               averageRating={avgRating}
@@ -592,6 +608,7 @@ export default async function PackageDetailPage({
               averageExperience={avgExp}
               currentUserId={user?.id || null}
             />
+            </div>
             {joinEligibility && (
               <div className="mt-4">
                 <JoinTripPanel packageId={pkg.id} eligibility={joinEligibility} />

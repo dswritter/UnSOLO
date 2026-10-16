@@ -14,15 +14,6 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   const [fullscreen, setFullscreen] = useState(false)
   const [loaded, setLoaded] = useState<Record<number, boolean>>({})
   const [touchStart, setTouchStart] = useState(0)
-  const [touchEnd, setTouchEnd] = useState(0)
-
-  if (!images || images.length === 0) {
-    return (
-      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
-        <Mountain className="h-20 w-20 text-primary/30" />
-      </div>
-    )
-  }
 
   function next() {
     setCurrent(c => (c + 1) % images.length)
@@ -37,7 +28,6 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    setTouchEnd(e.changedTouches[0].clientX)
     if (images.length > 1) {
       const distance = touchStart - e.changedTouches[0].clientX
       // Swipe left (distance > 50)
@@ -47,12 +37,13 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
     }
   }
 
+  const count = images?.length ?? 0
   useEffect(() => {
     if (!fullscreen) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setFullscreen(false)
-      else if (e.key === 'ArrowRight' && images.length > 1) next()
-      else if (e.key === 'ArrowLeft' && images.length > 1) prev()
+      else if (e.key === 'ArrowRight' && count > 1) setCurrent(c => (c + 1) % count)
+      else if (e.key === 'ArrowLeft' && count > 1) setCurrent(c => (c - 1 + count) % count)
     }
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -61,10 +52,52 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
     }
-  }, [fullscreen, images.length])
+  }, [fullscreen, count])
+
+  if (!images || images.length === 0) {
+    return (
+      <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary flex items-center justify-center">
+        <Mountain className="h-20 w-20 text-primary/30" />
+      </div>
+    )
+  }
+
+  const mosaic = images.length >= 3
 
   return (
     <>
+      {/* Desktop mosaic: one large photo + up to four tiles */}
+      {mosaic && (
+        <div className="relative hidden h-[26rem] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl md:grid">
+          {images.slice(0, 5).map((img, i) => (
+            <button
+              key={img + i}
+              type="button"
+              onClick={() => { setCurrent(i); setFullscreen(true) }}
+              className={`group relative overflow-hidden bg-secondary ${i === 0 ? 'col-span-2 row-span-2' : images.length === 3 ? 'col-span-2' : ''}`}
+              aria-label={`Open photo ${i + 1} of ${images.length}`}
+            >
+              <Image
+                src={img}
+                alt={`${title} - ${i + 1}`}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+                sizes={i === 0 ? '(max-width: 1280px) 50vw, 33vw' : '20vw'}
+                priority={i === 0}
+              />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => { setCurrent(0); setFullscreen(true) }}
+            className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-md hover:bg-white"
+          >
+            Show all {images.length} photos
+          </button>
+        </div>
+      )}
+
+      <div className={mosaic ? 'md:hidden' : undefined}>
       {/* Main image */}
       <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         <Image
@@ -137,6 +170,8 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
           ))}
         </div>
       )}
+
+      </div>
 
       {/* Fullscreen lightbox */}
       {fullscreen && (

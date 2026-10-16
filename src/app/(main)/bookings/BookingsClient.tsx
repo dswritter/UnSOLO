@@ -155,6 +155,7 @@ export function BookingsClient({
   // Filter state
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType, setFilterType] = useState<'all' | 'solo' | 'group'>('all')
+  const [timeView, setTimeView] = useState<'upcoming' | 'past'>('upcoming')
   const [filterMonth, setFilterMonth] = useState('')
 
   // Review form state
@@ -216,6 +217,15 @@ export function BookingsClient({
   const groupTripsPast = filteredGroupBookings.filter((g) => isGroupTripEnded(g, scheduleToday))
 
   const visibleServiceBookings = serviceBookings.filter((b) => !dismissedServiceIds.has(b.id))
+
+  const upcomingCount = (showSolo ? upcoming.length + filteredIncompleteJoin.length : 0) + (showGroup ? groupTripsUpcoming.length : 0)
+  const pastCount = (showSolo ? past.length : 0) + (showGroup ? groupTripsPast.length : 0)
+  const nextTrip = [...upcoming]
+    .filter((b) => b.status === 'confirmed' && b.travel_date)
+    .sort((a, b) => (a.travel_date ?? '').localeCompare(b.travel_date ?? ''))[0]
+  const daysToNextTrip = nextTrip?.travel_date
+    ? Math.max(0, Math.round((new Date(`${nextTrip.travel_date.slice(0, 10)}T12:00:00`).getTime() - new Date(`${scheduleToday}T12:00:00`).getTime()) / 86_400_000))
+    : null
 
   function openReview(bookingId: string) {
     setReviewingId(bookingId)
@@ -434,6 +444,48 @@ export function BookingsClient({
   return (
     <div className="space-y-8">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <div role="tablist" aria-label="Trips by time" className="inline-flex gap-1 rounded-xl bg-foreground/[0.05] p-1">
+        {([['upcoming', 'Upcoming', upcomingCount], ['past', 'Past', pastCount]] as const).map(([id, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={timeView === id}
+            onClick={() => setTimeView(id)}
+            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+              timeView === id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-card hover:text-foreground'
+            }`}
+          >
+            {label} <span className="ml-1 opacity-70">{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {timeView === 'upcoming' && nextTrip?.package && daysToNextTrip != null && (
+        <div className="glass-card grid overflow-hidden p-0 sm:grid-cols-[minmax(0,18rem)_1fr]">
+          <div className="relative h-40 bg-muted sm:h-full">
+            {nextTrip.package.images?.[0] ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={nextTrip.package.images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : null}
+            <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-slate-900">
+              {daysToNextTrip === 0 ? 'Departs today' : `Departs in ${daysToNextTrip} day${daysToNextTrip === 1 ? '' : 's'}`}
+            </span>
+          </div>
+          <div className="flex flex-col gap-3 p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Your next trip</p>
+              <h2 className="mt-1 text-xl font-black tracking-tight text-foreground">{nextTrip.package.title}</h2>
+              <p className="text-sm text-muted-foreground">{formatDate(nextTrip.travel_date!)}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/packages/${nextTrip.package.slug}`} className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">View trip</Link>
+              <Link href="/community" className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:border-primary">Open trip chat</Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(s => (
@@ -477,7 +529,7 @@ export function BookingsClient({
       </div>
 
       {/* Community trips: join request not yet matched to a booking row */}
-      {showSolo && filteredIncompleteJoin.length > 0 && (
+      {timeView === 'upcoming' && showSolo && filteredIncompleteJoin.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
@@ -532,7 +584,7 @@ export function BookingsClient({
       {/* Group Bookings — split by trip end date so confirmed trips still move to Past after travel */}
       {showGroup && (groupTripsUpcoming.length > 0 || groupTripsPast.length > 0) && (
         <div className="space-y-10">
-          {groupTripsUpcoming.length > 0 && (
+          {timeView === 'upcoming' && groupTripsUpcoming.length > 0 && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" /> Group Trips
@@ -542,7 +594,7 @@ export function BookingsClient({
               </div>
             </div>
           )}
-          {groupTripsPast.length > 0 && (
+          {timeView === 'past' && groupTripsPast.length > 0 && (
             <div>
               <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-muted-foreground">
                 <Users className="h-5 w-5" /> Past group trips
@@ -646,7 +698,7 @@ export function BookingsClient({
         </div>
       )}
 
-      {showSolo && upcoming.length > 0 && (
+      {timeView === 'upcoming' && showSolo && upcoming.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4">Upcoming Trips</h2>
           <div className="space-y-4">
@@ -657,7 +709,7 @@ export function BookingsClient({
         </div>
       )}
 
-      {showSolo && past.length > 0 && (
+      {timeView === 'past' && showSolo && past.length > 0 && (
         <div>
           <h2 className="text-xl font-bold mb-4 text-muted-foreground">Past Trips</h2>
           <div className="space-y-4">

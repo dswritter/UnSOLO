@@ -14,6 +14,8 @@ import type { Profile } from '@/types'
 import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
+import { TribeTripContextPanel } from '@/components/chat/TribeTripContextPanel'
+import { packageNextDepartureLine } from '@/lib/package-trip-calendar'
 
 type PackageJoin = {
   title?: string
@@ -202,8 +204,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
   const tripHostUserId =
     room.type === 'trip' && pkg?.host_id ? String(pkg.host_id) : null
 
+  const dest = pkg?.destination ? (Array.isArray(pkg.destination) ? pkg.destination[0] : pkg.destination) : null
+
   return (
-    <div className="flex flex-col h-full min-h-0 flex-1 bg-transparent">
+    <div className="flex h-full min-h-0 flex-1 bg-transparent">
+    <div className="flex flex-col h-full min-h-0 min-w-0 flex-1">
       <TribeRoomCoordinator
         roomId={roomId}
         roomName={displayName}
@@ -226,6 +231,18 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           </Suspense>
         }
       />
+    </div>
+    {room.type === 'trip' && pkg ? (
+      <TribeTripContextPanel
+        title={pkg.title || displayName}
+        slug={packageSlug}
+        imageUrl={pkg.images?.[0] ?? null}
+        place={dest ? `${dest.name}, ${dest.state}` : null}
+        nextDepartureLine={packageNextDepartureLine(pkg)}
+        members={bootstrapMemberProfiles}
+        hostUserId={tripHostUserId}
+      />
+    ) : null}
     </div>
   )
 }

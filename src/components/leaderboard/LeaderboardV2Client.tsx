@@ -90,6 +90,49 @@ function PodiumSlot({
   )
 }
 
+type Standing = { rank: number; score: number; nextScore: number | null }
+
+function StandingCard({ standing, signedIn }: { standing: Standing | null; signedIn: boolean }) {
+  return (
+    <div className="glass-card p-5">
+      <h3 className="text-sm font-black text-foreground">Your standing</h3>
+      {standing ? (
+        <>
+          <p className="mt-2">
+            <span className="text-3xl font-black text-primary">#{standing.rank}</span>
+            <span className="ml-2 text-sm text-muted-foreground">{formatPts(standing.score)}</span>
+          </p>
+          {standing.nextScore != null ? (
+            <>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatPts(standing.nextScore - standing.score)} to reach #{standing.rank - 1}
+              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-foreground/[0.07]">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Math.round((standing.score / standing.nextScore) * 100))}%` }} />
+              </div>
+            </>
+          ) : standing.rank === 1 ? (
+            <p className="mt-1 text-xs text-muted-foreground">You&apos;re at the top. Keep exploring to stay there.</p>
+          ) : null}
+          <Link href="/bookings" className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+            Review a past trip · +10 pts
+          </Link>
+        </>
+      ) : signedIn ? (
+        <>
+          <p className="mt-2 text-sm text-muted-foreground">Complete your first trip to get on the board.</p>
+          <Link href="/?search=1&tab=trips#wander-explore" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Find a trip →</Link>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-muted-foreground">Sign in to see your rank and how close you are to the next spot.</p>
+          <Link href="/login?redirectTo=/leaderboard" className="mt-3 inline-block text-sm font-semibold text-primary hover:underline">Sign in →</Link>
+        </>
+      )}
+    </div>
+  )
+}
+
 type Props = {
   entries: LeaderboardEntryRow[]
   monthlyEntries: MonthlyLeaderboardEntry[]
@@ -161,6 +204,18 @@ export function LeaderboardV2Client({
     return source
   }, [search, filtered, visibleRawList, showPodium])
 
+  const standing = useMemo<Standing | null>(() => {
+    if (!currentUserId) return null
+    const listed = entries.find(e => e.user_id === currentUserId)
+    const me = listed ?? myEntry
+    if (!me) return null
+    const higher = entries.filter(e => e.total_score > me.total_score)
+    const rank = listed ? higher.length + 1 : myRank
+    if (!rank) return null
+    const nextScore = higher.length ? Math.min(...higher.map(e => e.total_score)) : null
+    return { rank, score: me.total_score, nextScore: listed ? nextScore : null }
+  }, [currentUserId, entries, myEntry, myRank])
+
   const canLoadMore = !search.trim() && !isMonthly && visibleCount < rawList.length
   const stickyMyEntry = !isMonthly && myRank != null && myEntry
 
@@ -187,7 +242,7 @@ export function LeaderboardV2Client({
           aria-hidden
           className="pointer-events-none absolute inset-0 z-0 wander-theme wander-textured"
         />
-        <div className="relative z-[1] mx-auto flex w-full max-w-[1100px] flex-col gap-6 px-4 pb-10 pt-4 sm:px-6 lg:px-10">
+        <div className="relative z-[1] mx-auto flex w-full max-w-[1240px] flex-col gap-6 px-4 pb-10 pt-4 sm:px-6 lg:px-10">
           {/* Title block: desktop only. On mobile the page already has the
               UNSOLO header above; the big "Travel Leaderboard" + tagline +
               "Top travellers" caption + podium was three labels for the same
@@ -210,6 +265,8 @@ export function LeaderboardV2Client({
             </div>
           </div>
 
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          <div className="flex min-w-0 flex-col gap-6">
           {showPodium ? (
             <div className="shrink-0">
               <p className="hidden md:block mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-foreground/45">
@@ -432,9 +489,13 @@ export function LeaderboardV2Client({
               </div>
             ) : null}
 
+          </div>
+          </div>
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-4">
+            <StandingCard standing={standing} signedIn={Boolean(currentUserId)} />
             <div
               className={cn(
-                'relative mt-2 w-full overflow-hidden rounded-3xl border border-foreground/12',
+                'relative w-full overflow-hidden rounded-3xl border border-foreground/12',
                 'min-h-[14rem] shadow-[0_8px_32px_rgba(0,0,0,0.18)] sm:min-h-[16rem]',
               )}
             >
@@ -480,6 +541,7 @@ export function LeaderboardV2Client({
               <Check className="h-3.5 w-3.5 text-emerald-500/80" />
               Scores update every 24 hours
             </p>
+          </aside>
           </div>
         </div>
 

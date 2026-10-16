@@ -12,6 +12,7 @@ import { ACHIEVEMENTS } from '@/types'
 import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
+import { ProfileSectionTabs } from '@/components/profile/ProfileSectionTabs'
 import { FollowersCountProvider } from './FollowersCountContext'
 import { PhoneRequestButton } from './PhoneRequestButton'
 import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
@@ -258,22 +259,17 @@ export async function ProfileUsernameDetail({
     </div>
   )
 
-  const atAGlanceCard = (
-    <Card className="bg-card border-border shadow-sm at-a-glance-wrap">
-      <CardContent className="p-5">
-        <h2 className="font-bold mb-4 text-sm text-muted-foreground uppercase tracking-wide">At a glance</h2>
-        {statsGrid}
-        {leaderboardRankRow}
-      </CardContent>
-    </Card>
-  )
 
   return (
     <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:gap-8 xl:gap-10 lg:items-start">
         <div className="min-w-0 space-y-6 lg:col-span-7">
-          <div className="bg-card border border-border rounded-2xl p-6 md:p-8">
-            <div className="flex flex-col sm:flex-row gap-6 items-start">
+          <div className="overflow-hidden bg-card border border-border rounded-2xl p-6 md:p-8">
+            <div
+              aria-hidden
+              className="-mx-6 -mt-6 mb-[-2.5rem] h-28 bg-[radial-gradient(600px_200px_at_80%_0%,rgba(252,186,3,0.35),transparent_60%),linear-gradient(120deg,#1b2436,#3b4a6b_55%,#7a8fb5)] md:-mx-8 md:-mt-8 md:h-36"
+            />
+            <div className="relative flex flex-col sm:flex-row gap-6 items-start sm:[&>*:not(:first-child)]:pt-12">
               {profile.avatar_url && viewerUserId ? (
                 <ProfileAvatarWithStatusMenu
                   src={profile.avatar_url}
@@ -442,122 +438,137 @@ export async function ProfileUsernameDetail({
               </div>
               </FollowersCountProvider>
             </div>
+            <div className="mt-6 border-t border-border pt-5">
+              {statsGrid}
+              {leaderboardRankRow}
+            </div>
           </div>
 
           {viewerUserId ? (
             <ProfileStatusRail isOwn={isOwnProfile} stories={statusStoriesVisible} viewerId={viewerUserId} />
           ) : null}
 
-          {isOwnProfile && (serviceListings?.length || 0 > 0 || packages?.length || 0 > 0) && (
-            <Card className="bg-card border-border">
-              <CardContent className="p-5">
-                <h2 className="font-bold mb-3 flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-primary" /> My Listings
-                </h2>
-                <div className="space-y-2">
-                  {serviceListings?.map((listing) => {
-                    const dest = (listing.destination as unknown as { name: string; state: string } | null)
-                    return (
-                      <Link key={listing.id} href={`/listings/${listing.type}/${listing.slug}`} className="block">
-                        <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
-                          <div className="text-sm">{listing.type === 'activities' ? '🎯' : listing.type === 'stays' ? '🏠' : listing.type === 'rentals' ? '🚗' : '✈️'}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{listing.title}</div>
-                            <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
+          <ProfileSectionTabs
+            tabs={[
+              ...(completedBookings && completedBookings.length > 0
+                ? [{ id: 'trips', label: 'Trips', count: completedBookings.length, content: (
+                    <Card className="bg-card border-border">
+                      <CardContent className="p-5">
+                        <h2 className="font-bold mb-4 flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" /> Travel History
+                          {tripsPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
+                        </h2>
+                        {tripsPrivate ? (
+                          <p className="text-sm text-muted-foreground">This user has made their travel history private.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {completedBookings.map((booking) => {
+                              const pkg = booking.package as { title: string; slug: string; destination?: { name: string; state: string } } | null
+                              return (
+                                <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
+                                  <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 transition-colors">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
+                                      🏔️
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-sm font-medium truncate">{pkg?.title || 'Trip'}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {pkg?.destination?.name}, {pkg?.destination?.state} · {formatDate(booking.travel_date)}
+                                      </div>
+                                    </div>
+                                    <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
+                                  </div>
+                                </Link>
+                              )
+                            })}
                           </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ) }]
+                : []),
+              ...(reviews && reviews.length > 0
+                ? [{ id: 'reviews', label: 'Reviews', count: reviews.length, content: (
+                    <Card className="bg-card border-border">
+                      <CardContent className="p-5">
+                        <h2 className="font-bold mb-4 flex items-center gap-2">
+                          <Star className="h-4 w-4 text-primary" /> Reviews
+                        </h2>
+                        <div className="space-y-4">
+                          {reviews.map((review) => {
+                            const pkg = review.package as { title: string; slug: string } | null
+                            return (
+                              <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
+                                <div className="border-b border-border pb-4 last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 py-2 transition-colors">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm font-medium">{pkg?.title}</span>
+                                    <div className="flex gap-0.5">
+                                      {Array.from({ length: 5 }).map((_, i) => (
+                                        <Star
+                                          key={i}
+                                          className={`h-3 w-3 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {review.body && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">{review.body}</p>
+                                  )}
+                                </div>
+                              </Link>
+                            )
+                          })}
                         </div>
-                      </Link>
-                    )
-                  })}
-                  {packages?.map((pkg) => {
-                    const dest = (pkg.destination as unknown as { name: string; state: string } | null)
-                    return (
-                      <Link key={pkg.id} href={`/packages/${pkg.slug}`} className="block">
-                        <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
-                          <div className="text-sm">🏔️</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{pkg.title}</div>
-                            <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
-                          </div>
+                      </CardContent>
+                    </Card>
+                  ) }]
+                : []),
+              ...(isOwnProfile && ((serviceListings?.length ?? 0) > 0 || (packages?.length ?? 0) > 0)
+                ? [{ id: 'listings', label: 'My listings', content: (
+                    <Card className="bg-card border-border">
+                      <CardContent className="p-5">
+                        <h2 className="font-bold mb-3 flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-primary" /> My Listings
+                        </h2>
+                        <div className="space-y-2">
+                          {serviceListings?.map((listing) => {
+                            const dest = (listing.destination as unknown as { name: string; state: string } | null)
+                            return (
+                              <Link key={listing.id} href={`/listings/${listing.type}/${listing.slug}`} className="block">
+                                <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
+                                  <div className="text-sm">{listing.type === 'activities' ? '🎯' : listing.type === 'stays' ? '🏠' : listing.type === 'rentals' ? '🚗' : '✈️'}</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{listing.title}</div>
+                                    <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
+                                  </div>
+                                </div>
+                              </Link>
+                            )
+                          })}
+                          {packages?.map((pkg) => {
+                            const dest = (pkg.destination as unknown as { name: string; state: string } | null)
+                            return (
+                              <Link key={pkg.id} href={`/packages/${pkg.slug}`} className="block">
+                                <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
+                                  <div className="text-sm">🏔️</div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium truncate">{pkg.title}</div>
+                                    <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
+                                  </div>
+                                </div>
+                              </Link>
+                            )
+                          })}
                         </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      </CardContent>
+                    </Card>
+                  ) }]
+                : []),
+            ]}
+          />
 
-          {completedBookings && completedBookings.length > 0 && (
-            <Card className="bg-card border-border">
-              <CardContent className="p-5">
-                <h2 className="font-bold mb-4 flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary" /> Travel History
-                  {tripsPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-                </h2>
-                {tripsPrivate ? (
-                  <p className="text-sm text-muted-foreground">This user has made their travel history private.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {completedBookings.map((booking) => {
-                      const pkg = booking.package as { title: string; slug: string; destination?: { name: string; state: string } } | null
-                      return (
-                        <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
-                          <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 transition-colors">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
-                              🏔️
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium truncate">{pkg?.title || 'Trip'}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {pkg?.destination?.name}, {pkg?.destination?.state} · {formatDate(booking.travel_date)}
-                              </div>
-                            </div>
-                            <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
-                          </div>
-                        </Link>
-                      )
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
-          {reviews && reviews.length > 0 && (
-            <Card className="bg-card border-border">
-              <CardContent className="p-5">
-                <h2 className="font-bold mb-4 flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" /> Reviews
-                </h2>
-                <div className="space-y-4">
-                  {reviews.map((review) => {
-                    const pkg = review.package as { title: string; slug: string } | null
-                    return (
-                      <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
-                        <div className="border-b border-border pb-4 last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 py-2 transition-colors">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{pkg?.title}</span>
-                            <div className="flex gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <Star
-                                  key={i}
-                                  className={`h-3 w-3 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          {review.body && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">{review.body}</p>
-                          )}
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
 
           {(!completedBookings || completedBookings.length === 0) && (!reviews || reviews.length === 0) && (
             <Card className="bg-card border-border">
@@ -578,7 +589,6 @@ export async function ProfileUsernameDetail({
 
           <div className="space-y-6 lg:hidden">
             {achievementsHeading}
-            {atAGlanceCard}
             {badgesCard}
             <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
           </div>
@@ -586,7 +596,6 @@ export async function ProfileUsernameDetail({
 
         <aside className="hidden min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:gap-6 lg:sticky lg:top-20 xl:top-24 lg:self-start">
           {achievementsHeading}
-          {atAGlanceCard}
           {badgesCard}
           <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
         </aside>

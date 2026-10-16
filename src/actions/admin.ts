@@ -3,6 +3,7 @@
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { cache } from 'react'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { getEffectiveAdminRole } from '@/lib/auth/admin-permissions'
 import { ROLE_LABELS, hasAdminPermission, type AdminPermissionKey, type JoinPreferences, type UserRole } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import type { PartialCancellationRow } from '@/components/bookings/PartialCancellation'
@@ -129,6 +130,47 @@ async function syncTeamMemberProfileRoles() {
 }
 
 // ── Dashboard Stats ──────────────────────────────────────────
+
+export type AdminRecentBooking = {
+  id: string
+  created_at: string
+  status: string
+  guestName: string
+  listingTitle: string
+}
+
+/** Latest bookings for the dashboard activity feed (needs the bookings permission). */
+export async function getAdminRecentBookings(limit = 6): Promise<AdminRecentBooking[]> {
+  await requireStaff()
+  const session = await getEffectiveAdminRole()
+  if (!session || !hasAdminPermission(session.role, session.customPermissions, 'bookings')) return []
+  const svc = createServiceRoleClient()
+  const { data } = await svc
+    .from('bookings')
+    .select('id, created_at, status, package:packages(title), service_listing:service_listings(title), user:profiles!bookings_user_id_fkey(full_name, username)')
+    .order('created_at', { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 20))
+  type Row = {
+    id: string
+    created_at: string
+    status: string
+    package: { title: string } | { title: string }[] | null
+    service_listing: { title: string } | { title: string }[] | null
+    user: { full_name: string | null; username: string } | { full_name: string | null; username: string }[] | null
+  }
+  const one = <T,>(v: T | T[] | null): T | null => (Array.isArray(v) ? v[0] ?? null : v)
+  return ((data ?? []) as Row[]).map((r) => {
+    const u = one(r.user)
+    return {
+      id: r.id,
+      created_at: r.created_at,
+      status: r.status,
+      guestName: u?.full_name || u?.username || 'Traveller',
+      listingTitle: one(r.package)?.title || one(r.service_listing)?.title || 'Booking',
+    }
+  })
+}
+
 
 export async function getAdminDashboardStats() {
   await requireStaff() // verify auth

@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Mountain, Plane, Home, Compass, Navigation, Key, X, Search, Loader2, type LucideIcon } from 'lucide-react'
 import { cn, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
-import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { packageHasUpcomingOpenDeparture, packageNextOpenDepartureKey, tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { exploreFilterChips, exploreHrefWithout, sortExploreItems, type ExploreSort } from '@/lib/explore/explore-filter-chips'
 import { typeLabels, GETTING_AROUND_ENABLED } from '@/lib/service-listing-filters'
 import { ExploreTripPackageCard } from './ExploreTripPackageCard'
 import { ExploreSidebar } from './ExploreSidebar'
@@ -364,6 +365,14 @@ export function ExploreClient({
     () => [...tripsUpcomingPkgs, ...tripsPastPkgs],
     [tripsUpcomingPkgs, tripsPastPkgs],
   )
+  const [sortChoice, setSort] = useState<ExploreSort>('recommended')
+  const sort: ExploreSort = sortChoice === 'soonest' && !isTripsTab ? 'recommended' : sortChoice
+  const sortedTrips = useMemo(
+    () => sortExploreItems(tripsDisplayOrder, sort, (p) => packageNextOpenDepartureKey(p, exploreCalendarToday)),
+    [tripsDisplayOrder, sort, exploreCalendarToday],
+  )
+  const filterChips = exploreFilterChips(params)
+  const searchNounSingular = isTripsTab ? 'trip' : searchNoun.replace(/ies$/, 'y').replace(/s$/, '')
   const pastTripPackageIds = useMemo(() => new Set(tripsPastPkgs.map((p) => p.id)), [tripsPastPkgs])
 
   const activitiesDisplayOrder = useMemo(
@@ -422,31 +431,21 @@ export function ExploreClient({
       ) : null}
 
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
-        {isWanderShell ? (
-          <div className="mb-4">
-            <h2 className="hidden lg:block text-2xl md:text-3xl font-black tracking-tight text-foreground">Explore</h2>
-            <p className="hidden lg:block mt-1 text-sm text-foreground/70">Search and filter the full catalog while you stay in Wander.</p>
-          </div>
-        ) : null}
-        {/* Desktop tabs (mobile uses the sticky strip above). */}
-        <div className="hidden md:flex mb-6 flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-2 overflow-x-auto pb-2 -mb-0">
+        {/* Desktop: one sticky search bar — category + search together */}
+        <div className="glass-card sticky top-2 z-30 mb-6 hidden items-center gap-3 p-2 md:flex">
+          <div className="flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
             {TABS.map((tab) => {
               const Icon = tab.icon
+              const active = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => handleTabChange(tab.id)}
+                  aria-pressed={active}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all whitespace-nowrap',
-                    isWanderShell
-                      ? activeTab === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-md'
-                        : 'bg-foreground/5 text-foreground/90 hover:bg-foreground/10'
-                      : activeTab === tab.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                    'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
+                    active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-card hover:text-foreground',
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -455,7 +454,7 @@ export function ExploreClient({
               )
             })}
           </div>
-          <div className="w-full max-w-xs lg:max-w-sm">{renderSearchField('explore-results-search')}</div>
+          <div className="min-w-0 flex-1">{renderSearchField('explore-results-search')}</div>
         </div>
 
         <div className="mb-4 md:hidden">{renderSearchField('explore-results-search-mobile')}</div>
@@ -547,6 +546,55 @@ export function ExploreClient({
 
           {/* Results Grid */}
           <div className="min-w-0 flex-1">
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg font-black tracking-tight text-foreground md:text-xl">
+                  {isLoading ? 'Updating results…' : `${totalCount} ${totalCount === 1 ? searchNounSingular : searchNoun}`}
+                  {params.q ? <span className="font-semibold text-muted-foreground"> for “{params.q}”</span> : null}
+                </h2>
+                {filterChips.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {filterChips.map((chip) => (
+                      <button
+                        key={chip.id}
+                        type="button"
+                        onClick={() => {
+                          onExploreNavigationStart()
+                          pushExploreUrl(router, basePath, exploreHrefWithout(params, chip.clears, basePath))
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground hover:border-primary"
+                        aria-label={`Remove filter ${chip.label}`}
+                      >
+                        {chip.label} <X className="h-3 w-3" />
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onExploreNavigationStart()
+                        pushExploreUrl(router, basePath, exploreHrefWithout(params, filterChips.flatMap((c) => c.clears), basePath))
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <label className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+                <span className="hidden sm:inline">Sort</span>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as ExploreSort)}
+                  className="h-9 rounded-full border border-border bg-card px-3 text-sm font-semibold text-foreground"
+                >
+                  <option value="recommended">Recommended</option>
+                  {isTripsTab ? <option value="soonest">Departing soonest</option> : null}
+                  <option value="price_asc">Price: low to high</option>
+                  <option value="price_desc">Price: high to low</option>
+                </select>
+              </label>
+            </div>
             {isLoading ? (
               <div className={isTripsTab ? tripGridClassName : serviceGridClassName}>
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -575,7 +623,7 @@ export function ExploreClient({
               </div>
             ) : isTripsTab ? (
               <div className={tripGridClassName}>
-                {tripsDisplayOrder.map((pkg) => (
+                {sortedTrips.map((pkg) => (
                   <ExploreTripPackageCard
                     key={pkg.id}
                     pkg={pkg}
@@ -604,7 +652,7 @@ export function ExploreClient({
               </div>
             ) : activeTab === 'activities' ? (
               <div className={serviceGridClassName}>
-                {activitiesDisplayOrder.map((listing) => (
+                {sortExploreItems(activitiesDisplayOrder, sort).map((listing) => (
                   <ServiceListingCard
                     key={listing.id}
                     listing={listing}
@@ -615,7 +663,7 @@ export function ExploreClient({
               </div>
             ) : (
               <div className={serviceGridClassName}>
-                {visibleServiceListings.map((listing) => (
+                {sortExploreItems(visibleServiceListings, sort).map((listing) => (
                   <ServiceListingCard key={listing.id} listing={listing} items={listing.items} />
                 ))}
               </div>
