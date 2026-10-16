@@ -74,11 +74,6 @@ export function AuthNightScene() {
           <stop offset="0.4" stopColor="#ff7a1a" stopOpacity="0.18" />
           <stop offset="1" stopColor="#ff7a1a" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id="as-flame" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor="#ff5a1f" />
-          <stop offset="0.55" stopColor="#ffb02e" />
-          <stop offset="1" stopColor="#fff2a8" />
-        </linearGradient>
         <linearGradient id="as-tent" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#ffcf6b" />
           <stop offset="1" stopColor="#e07a1f" />
@@ -92,6 +87,32 @@ export function AuthNightScene() {
           <stop offset="0.25" stopColor="#ffd27a" stopOpacity="0.55" />
           <stop offset="1" stopColor="#ffb05a" stopOpacity="0" />
         </radialGradient>
+        <radialGradient id="as-tentbody" cx="0.5" cy="0.85" r="0.75">
+          <stop className="as-tent-0" offset="0" stopColor="#c8f59a" />
+          <stop className="as-tent-1" offset="0.35" stopColor="#5fbf6e" />
+          <stop className="as-tent-2" offset="1" stopColor="#1f5a38" />
+        </radialGradient>
+        <radialGradient id="as-tenthalo" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#8ef08a" stopOpacity="0.45" />
+          <stop offset="0.5" stopColor="#4fd17a" stopOpacity="0.12" />
+          <stop offset="1" stopColor="#4fd17a" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="as-flame-outer" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#d9361a" />
+          <stop offset="0.6" stopColor="#f2621f" />
+          <stop offset="1" stopColor="#ff9a3c" stopOpacity="0.6" />
+        </linearGradient>
+        <linearGradient id="as-flame-mid" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#ff7a1a" />
+          <stop offset="1" stopColor="#ffc23d" />
+        </linearGradient>
+        <linearGradient id="as-flame-core" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#ffd96b" />
+          <stop offset="1" stopColor="#fff8dc" />
+        </linearGradient>
+        <filter id="as-smokeblur" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="7" />
+        </filter>
         <filter id="as-blur" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="18" />
         </filter>
@@ -126,8 +147,11 @@ export function AuthNightScene() {
       />
 
       <g className="as-night-only">
-        <circle cx="1360" cy="150" r="38" fill="#f8fafc" opacity="0.9" />
-        <circle cx="1376" cy="140" r="36" fill="#111a33" />
+        <mask id="as-moonmask">
+          <rect width="1600" height="1000" fill="#fff" />
+          <circle cx="1376" cy="140" r="36" fill="#000" />
+        </mask>
+        <circle cx="1360" cy="150" r="38" fill="#f8fafc" opacity="0.9" mask="url(#as-moonmask)" />
       </g>
       <g className="as-day-only auth-sun">
         <circle cx="860" cy="590" r="300" fill="url(#as-sun)" />
@@ -145,35 +169,80 @@ export function AuthNightScene() {
         ))}
       </g>
 
-      {/* Camp knoll between the headline column and the form, clear of the stats card */}
-      <path d="M420 1000 C 470 860, 560 800, 720 790 S 960 820, 1040 1000 Z" fill="#0b1122" className="as-knoll" />
-      <ellipse className="auth-fireglow" cx="840" cy="790" rx="280" ry="140" fill="url(#as-fireglow)" />
+      {/* Flat camp ground shared by the tent, the fire and the two travellers */}
+      <path className="as-knoll" d="M170 1000 C 220 880, 300 806, 400 800 L 900 800 C 980 806, 1050 880, 1090 1000 Z" fill="#0b1122" />
+      <ellipse className="auth-fireglow" cx="740" cy="790" rx="300" ry="150" fill="url(#as-fireglow)" />
 
-      <g transform="translate(560 690)">
-        <path className="as-tent" d="M0 110 L95 0 L190 110 Z" fill="#1c2238" />
-        <path className="auth-tentglow" d="M64 110 L95 40 L126 110 Z" fill="url(#as-tent)" />
-        <path d="M95 0 L95 110" stroke="#0a0f1e" strokeWidth="3" />
+      {/* Tent lit from inside */}
+      <g transform="translate(330 690)">
+        <ellipse className="as-night-only auth-tenthalo" cx="95" cy="80" rx="170" ry="110" fill="url(#as-tenthalo)" />
+        <ellipse cx="95" cy="112" rx="104" ry="7" fill="#05080f" opacity="0.45" />
+        <path className="auth-tentglow" d="M0 110 L95 0 L190 110 Z" fill="url(#as-tentbody)" />
+        <path d="M95 0 L0 110 M95 0 L190 110" stroke="#173f28" strokeWidth="2.5" opacity="0.7" />
+        <path className="auth-tentglow" d="M74 110 L95 52 L116 110 Z" fill="url(#as-tent)" />
+        <path d="M95 52 L66 112 L74 110 Z" fill="#2a7a45" opacity="0.9" />
+        <path d="M95 -6 L95 110" stroke="#0e2417" strokeWidth="3" />
       </g>
 
-      <g transform="translate(745 734)">
-        <path d="M-6 64 c 6 -26 26 -30 34 -46 c 8 16 2 30 -6 46 Z" fill="#111827" />
-        <circle cx="22" cy="12" r="9" fill="#111827" />
+      {/* Boy, left of the fire, warming his hands */}
+      <g transform="translate(632 800)">
+        <rect x="-30" y="-12" width="60" height="12" rx="6" fill="#3b2412" />
+        <path className="as-pants" d="M-2 -14 L22 -30 L38 -2" fill="none" stroke="#151b2e" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        <g className="auth-breathe">
+          <rect className="as-jacket-b" x="-11" y="-58" width="22" height="46" rx="11" fill="#24425a" transform="rotate(10 0 -14)" />
+          <g className="auth-head-b">
+            <circle className="as-skin" cx="8" cy="-68" r="10" fill="#8a5a44" />
+            <path className="as-hair" d="M-2 -70 C -2 -82, 18 -84, 18 -70 C 12 -76, 4 -76, -2 -70 Z" fill="#120d0a" />
+          </g>
+          <g className="auth-arm-b">
+            <rect className="as-jacket-b" x="0" y="-3.5" width="32" height="7" rx="3.5" fill="#24425a" transform="translate(6 -50) rotate(28)" />
+          </g>
+        </g>
       </g>
 
-      <g transform="translate(840 800)">
-        <rect x="-42" y="-6" width="84" height="12" rx="6" fill="#3b2412" transform="rotate(14)" />
-        <rect x="-42" y="-6" width="84" height="12" rx="6" fill="#4a2c15" transform="rotate(-14)" />
-        <g className="auth-flame auth-flame-a">
-          <path d="M0 -6 C -30 -30, -14 -70, 0 -104 C 14 -70, 30 -30, 0 -6 Z" fill="url(#as-flame)" />
+      {/* Girl, right of the fire */}
+      <g transform="translate(850 800) scale(-1 1)">
+        <rect x="-30" y="-12" width="60" height="12" rx="6" fill="#4a2c15" />
+        <path className="as-pants" d="M-2 -14 L22 -28 L36 -2" fill="none" stroke="#151b2e" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+        <g className="auth-breathe auth-breathe-g">
+          <rect className="as-jacket-g" x="-11" y="-56" width="22" height="44" rx="11" fill="#6b2f2a" transform="rotate(8 0 -14)" />
+          <g className="auth-head-g">
+            <path className="as-hair auth-ponytail" d="M-4 -70 C -18 -66, -20 -50, -12 -44 C -10 -54, -8 -60, -2 -64 Z" fill="#120d0a" />
+            <circle className="as-skin" cx="7" cy="-66" r="9.5" fill="#8a5a44" />
+            <path className="as-hair" d="M-3 -66 C -4 -80, 18 -82, 17 -67 C 10 -73, 3 -72, -3 -66 Z" fill="#120d0a" />
+          </g>
+          <g className="auth-arm-g">
+            <rect className="as-jacket-g" x="0" y="-3.5" width="30" height="7" rx="3.5" fill="#6b2f2a" transform="translate(5 -48) rotate(34)" />
+          </g>
+        </g>
+      </g>
+
+      {/* Campfire: stone ring, logs, layered flames, sparks and smoke */}
+      <g transform="translate(740 800)">
+        {[-48, -32, -14, 4, 22, 40, 52].map((x, i) => (
+          <ellipse key={i} className="as-stone" cx={x} cy={i % 2 ? 2 : 0} rx="9" ry="6" fill="#2a3048" />
+        ))}
+        <rect x="-38" y="-10" width="76" height="11" rx="5.5" fill="#3b2412" transform="rotate(12 0 -4)" />
+        <rect x="-38" y="-10" width="76" height="11" rx="5.5" fill="#55331a" transform="rotate(-12 0 -4)" />
+        <g className="auth-smoke-group" filter="url(#as-smokeblur)">
+          {[0, 1, 2].map((i) => (
+            <circle key={i} className="auth-smoke" cx={(i - 1) * 6} cy="-90" r="10" fill="#9aa3b8" style={{ animationDelay: `${i * 1.6}s` }} />
+          ))}
         </g>
         <g className="auth-flame auth-flame-b">
-          <path d="M-14 -6 C -34 -24, -26 -52, -16 -70 C -8 -50, 4 -30, -14 -6 Z" fill="url(#as-flame)" opacity="0.85" />
+          <path d="M-18 -6 C -36 -26, -28 -56, -18 -74 C -12 -54, 0 -34, -18 -6 Z" fill="url(#as-flame-outer)" />
         </g>
         <g className="auth-flame auth-flame-c">
-          <path d="M14 -6 C 34 -24, 26 -56, 18 -76 C 8 -52, -4 -30, 14 -6 Z" fill="url(#as-flame)" opacity="0.85" />
+          <path d="M18 -6 C 36 -26, 28 -60, 20 -80 C 12 -56, 0 -34, 18 -6 Z" fill="url(#as-flame-outer)" />
         </g>
         <g className="auth-flame auth-flame-a">
-          <path d="M0 -8 C -12 -22, -6 -40, 0 -54 C 6 -40, 12 -22, 0 -8 Z" fill="#fff6c8" opacity="0.9" />
+          <path d="M0 -4 C -30 -26, -18 -66, 0 -100 C 18 -66, 30 -26, 0 -4 Z" fill="url(#as-flame-outer)" />
+        </g>
+        <g className="auth-flame auth-flame-b">
+          <path d="M0 -6 C -20 -24, -12 -54, 0 -78 C 12 -54, 20 -24, 0 -6 Z" fill="url(#as-flame-mid)" />
+        </g>
+        <g className="auth-flame auth-flame-c">
+          <path d="M0 -8 C -11 -20, -6 -38, 0 -52 C 6 -38, 11 -20, 0 -8 Z" fill="url(#as-flame-core)" />
         </g>
         {EMBERS.map((e, i) => (
           <circle

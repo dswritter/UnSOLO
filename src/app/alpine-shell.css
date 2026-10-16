@@ -146,8 +146,7 @@ html:not(.dark) .auth-scene .as-mid { fill: #6a7ca3; }
 html:not(.dark) .auth-scene .as-ground { fill: #44547a; }
 html:not(.dark) .auth-scene .as-trees { fill: #33415f; }
 html:not(.dark) .auth-scene .as-knoll { fill: #3a4868; }
-html:not(.dark) .auth-scene .as-tent { fill: #2c3754; }
-html:not(.dark) .auth-scene .auth-fireglow { opacity: 0.55; }
+html:not(.dark) .auth-scene .auth-fireglow { fill-opacity: 0.3; }
 .auth-scene .auth-sun {
   animation: auth-sunrise 20s ease-out forwards;
 }
@@ -159,3 +158,90 @@ html:not(.dark) .auth-scene .auth-fireglow { opacity: 0.55; }
   from { transform: translateY(60px); }
   to { transform: translateY(0); }
 }
+
+/* Camp: travellers, smoke, tent glow */
+.auth-scene .auth-breathe,
+.auth-scene .auth-head-b,
+.auth-scene .auth-head-g,
+.auth-scene .auth-arm-b,
+.auth-scene .auth-arm-g,
+.auth-scene .auth-ponytail,
+.auth-scene .auth-smoke {
+  transform-box: fill-box;
+}
+.auth-scene .auth-breathe {
+  transform-origin: 50% 100%;
+  animation: auth-breathe 3.6s ease-in-out infinite;
+}
+.auth-scene .auth-breathe-g { animation-delay: -1.4s; }
+.auth-scene .auth-head-b {
+  transform-origin: 30% 100%;
+  animation: auth-nod 5s ease-in-out infinite;
+}
+.auth-scene .auth-head-g {
+  transform-origin: 50% 100%;
+  animation: auth-tilt 4.2s ease-in-out infinite;
+}
+.auth-scene .auth-ponytail {
+  transform-origin: 90% 0%;
+  animation: auth-sway 2.8s ease-in-out infinite alternate;
+}
+.auth-scene .auth-arm-b,
+.auth-scene .auth-arm-g {
+  transform-origin: 0% 0%;
+  animation: auth-warm 2.6s ease-in-out infinite alternate;
+}
+.auth-scene .auth-arm-g { animation-delay: -1.1s; }
+.auth-scene .auth-tenthalo {
+  animation: auth-glow 3.2s ease-in-out infinite alternate;
+}
+.auth-scene .auth-smoke {
+  transform-origin: 50% 50%;
+  opacity: 0;
+  animation: auth-smoke 4.8s ease-out infinite;
+}
+html:not(.dark) .auth-scene .auth-smoke { fill: #e6e9f0; }
+@keyframes auth-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.025); }
+}
+@keyframes auth-nod {
+  0%, 70%, 100% { transform: rotate(0deg); }
+  80% { transform: rotate(-7deg); }
+  90% { transform: rotate(2deg); }
+}
+@keyframes auth-tilt {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-6deg); }
+}
+@keyframes auth-sway {
+  from { transform: rotate(-6deg); }
+  to { transform: rotate(8deg); }
+}
+@keyframes auth-warm {
+  from { transform: rotate(-6deg); }
+  to { transform: rotate(5deg); }
+}
+@keyframes auth-smoke {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.22; }
+  100% { transform: translate(24px, -150px) scale(2.4); opacity: 0; }
+}
+html:not(.dark) .auth-scene .auth-smoke { animation-name: auth-smoke-day; }
+@keyframes auth-smoke-day {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.7; }
+  100% { transform: translate(30px, -170px) scale(2.8); opacity: 0; }
+}
+
+/* Day palette for the camp */
+html:not(.dark) .auth-scene .as-tent-0 { stop-color: #a6e39a; }
+html:not(.dark) .auth-scene .as-tent-1 { stop-color: #4fae63; }
+html:not(.dark) .auth-scene .as-tent-2 { stop-color: #2c7347; }
+html:not(.dark) .auth-scene .as-jacket-b { fill: #2f6f8f; }
+html:not(.dark) .auth-scene .as-jacket-g { fill: #d9634c; }
+html:not(.dark) .auth-scene .as-skin { fill: #e3ac8c; }
+html:not(.dark) .auth-scene .as-hair { fill: #2b1d16; }
+html:not(.dark) .auth-scene .as-pants { stroke: #2f3a5c; }
+html:not(.dark) .auth-scene .as-stone { fill: #8a90a3; }
+html:not(.dark) .auth-scene .auth-ember { display: none; }

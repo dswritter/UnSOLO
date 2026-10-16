@@ -5,7 +5,7 @@ export function AuthV2TopBar() {
   return (
     <div className="flex items-center">
       <Link href="/" className="text-lg font-black tracking-tight text-foreground sm:text-xl">
-        UNSOLO
+        <span className="brand-gold">UN</span>SOLO
       </Link>
     </div>
   )

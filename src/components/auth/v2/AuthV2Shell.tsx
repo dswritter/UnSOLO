@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AuthNightScene } from '@/components/auth/v2/AuthNightScene'
+import { ColorModeToggle } from '@/components/layout/ColorModeToggle'
 import { AuthV2Stats } from '@/components/auth/v2/AuthV2Stats'
 import { AuthV2TopBar } from '@/components/auth/v2/AuthV2TopBar'
 import { cn } from '@/lib/utils'
@@ -11,14 +12,14 @@ const HERO: Record<Mode, { title: ReactNode }> = {
   login: {
     title: (
       <span className="text-[1.35rem] font-extrabold leading-snug text-foreground sm:text-3xl md:text-4xl">
-        Welcome back to <span className="text-primary">Unsolo</span>.
+        Welcome back to <span className="brand-gold">Unsolo</span>.
       </span>
     ),
   },
   signup: {
     title: (
       <span className="text-[1.35rem] font-extrabold leading-snug text-foreground sm:text-3xl md:text-4xl">
-        Create your <span className="text-primary">Unsolo</span> account.
+        Create your <span className="brand-gold">Unsolo</span> account.
       </span>
     ),
   },
@@ -36,6 +37,7 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden text-foreground">
       <AuthNightScene />
+      <ColorModeToggle className="absolute right-4 top-4 z-20 bg-card/80 backdrop-blur-md sm:right-6 sm:top-5" />
       {/* Darker on the form side so the card reads over the scene */}
       <div
         className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-background/50"

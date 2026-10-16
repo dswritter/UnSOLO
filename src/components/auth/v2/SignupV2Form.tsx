@@ -286,7 +286,7 @@ function SignupV2FormInner() {
           <div className="w-full border-t border-foreground/10" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-card/90 px-3 text-foreground/40">or continue with</span>
+          <span className="rounded-full bg-card px-3 text-muted-foreground">or continue with</span>
         </div>
       </div>
 
