@@ -108,6 +108,22 @@ export function packageHasUpcomingOpenDeparture(
   })
 }
 
+/** Earliest open departure on/after today (YYYY-MM-DD), or null when none is dated and open. */
+export function packageNextOpenDepartureKey(
+  pkg: { departure_dates?: string[] | null; departure_dates_closed?: string[] | null },
+  todayIso?: string,
+): string | null {
+  const todayStr = todayIso ?? listingScheduleTodayISO()
+  const closed = new Set((pkg.departure_dates_closed || []).map(tripDepartureDateKey))
+  let best: string | null = null
+  for (const d of pkg.departure_dates?.filter(Boolean) ?? []) {
+    const k = tripDepartureDateKey(d)
+    if (k < todayStr || closed.has(k)) continue
+    if (best === null || k < best) best = k
+  }
+  return best
+}
+
 /** Scannable line for cards: next upcoming departure, or last departure if all past. */
 export function packageNextDepartureLine(
   input: { departure_dates?: string[] | null },

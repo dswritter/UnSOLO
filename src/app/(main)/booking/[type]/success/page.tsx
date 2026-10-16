@@ -95,7 +95,7 @@ async function BookingDetails({ bookingId }: { bookingId: string }) {
           <h1 className="text-2xl font-bold text-foreground">Booking Confirmed!</h1>
           <p className="text-muted-foreground text-sm mt-2">
             Your confirmation code is{' '}
-            <code className="bg-black/30 px-2 py-1 rounded font-mono font-bold text-primary border border-primary/20">
+            <code className="bg-foreground/[0.06] px-2 py-1 rounded font-mono font-bold text-primary border border-primary/20">
               {booking.id}
             </code>
           </p>

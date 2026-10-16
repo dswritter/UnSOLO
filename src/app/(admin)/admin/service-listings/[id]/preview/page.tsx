@@ -16,7 +16,7 @@ export default async function AdminListingPreviewPage({
     <div className="min-h-full w-full">
       {/* Admin preview banner */}
       <div className="bg-amber-500/15 border-b border-amber-500/35 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-amber-100 font-medium">
+        <span className="text-sm text-amber-800 dark:text-amber-100 font-medium">
           Admin preview — status: <span className="font-bold capitalize">{listing.status}</span>
           {listing.status === 'pending' && !listing.first_approved_at && ' (never approved — not visible to public yet)'}
         </span>

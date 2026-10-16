@@ -99,11 +99,11 @@ declare global {
 const INCOMPLETE_JOIN_BADGE: Record<IncompleteTripStatus, { label: string; className: string }> = {
   awaiting_unsolo: {
     label: 'Awaiting UnSOLO approval',
-    className: 'bg-amber-500/15 text-amber-300 border-amber-500/35',
+    className: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/35',
   },
   awaiting_host: {
     label: 'Awaiting host approval',
-    className: 'bg-sky-500/15 text-sky-300 border-sky-500/35',
+    className: 'bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/35',
   },
   payment_pending: {
     label: 'Payment pending',
@@ -279,7 +279,7 @@ export function BookingsClient({
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map(i => (
             <button key={i} onClick={() => onChange(i)} className="focus:outline-none">
-              <Star className={`h-6 w-6 transition-colors ${i <= value ? 'text-primary fill-primary' : 'text-white/35 hover:text-primary/60'}`} />
+              <Star className={`h-6 w-6 transition-colors ${i <= value ? 'text-primary fill-primary' : 'text-foreground/35 hover:text-primary/60'}`} />
             </button>
           ))}
         </div>
@@ -744,7 +744,7 @@ function SoloBookingStatusBadge({ booking }: { booking: Booking }) {
   if (booking.status === 'pending') {
     if (isHostTrip && pkg?.moderation_status === 'pending') {
       return (
-        <Badge className="text-xs border bg-amber-500/15 text-amber-300 border-amber-500/35">
+        <Badge className="text-xs border bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/35">
           Awaiting UnSOLO approval
         </Badge>
       )
@@ -1512,7 +1512,7 @@ function DateChanger({ bookingId, currentDate }: { bookingId: string; currentDat
       <Button size="sm" className="bg-primary text-primary-foreground text-xs h-7" onClick={save} disabled={saving}>
         {saving ? '...' : 'Save'}
       </Button>
-      <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-white">
+      <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground">
         <X className="h-3.5 w-3.5" />
       </button>
     </div>

@@ -144,7 +144,7 @@ export function ServiceListingsClient({
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
             aria-label="Listing type"
-            className="h-8 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="h-8 rounded-full border border-border bg-foreground/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="all">All types</option>
             <option value="stays">Stays</option>
@@ -231,7 +231,7 @@ export function ServiceListingsClient({
                           type="button"
                           onClick={() => handleApprove(listing.id)}
                           disabled={loading === listing.id}
-                          className="rounded-md px-2 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
+                          className="rounded-md px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50"
                         >
                           {loading === listing.id ? 'Approving...' : 'Approve'}
                         </button>
@@ -239,7 +239,7 @@ export function ServiceListingsClient({
                           type="button"
                           onClick={() => openRejectDialog(listing.id)}
                           disabled={loading === listing.id}
-                          className="rounded-md px-2 py-1 text-xs font-medium text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
+                          className="rounded-md px-2 py-1 text-xs font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 disabled:opacity-50"
                         >
                           Reject
                         </button>

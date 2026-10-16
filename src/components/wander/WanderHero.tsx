@@ -13,13 +13,19 @@ export function WanderHero({
   children,
   belowHero,
   proofCard,
+  stats,
+  quickLinks,
 }: {
   heroImageUrl: string
   trustBadgeText: string
   heroCopy: WanderHeroCopy
+  /** Trip finder (search form) shown in the panel beside the photo. */
   children?: ReactNode
   belowHero?: ReactNode
   proofCard?: ReactNode
+  /** Trust numbers along the bottom of the photo. */
+  stats?: ReactNode
+  quickLinks?: Array<{ label: string; href: string }>
 }) {
   const desktopTypography = heroCopy.desktopTypography
   const badgeStyle: CSSProperties | undefined = desktopTypography.badgeSize ? { fontSize: desktopTypography.badgeSize } : undefined
@@ -28,7 +34,7 @@ export function WanderHero({
   const instagramStyle: CSSProperties | undefined = desktopTypography.instagramSize ? { fontSize: desktopTypography.instagramSize } : undefined
 
   const headlineInner = (
-    <h1 className="text-3xl font-black leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl md:leading-[1.02]" style={headlineStyle}>
+    <h1 className="text-3xl font-black leading-[1.05] tracking-tight text-foreground sm:text-5xl xl:text-6xl" style={headlineStyle}>
       {heroCopy.line1}
       <br />
       {heroCopy.line2Before}
@@ -56,11 +62,11 @@ export function WanderHero({
   }
 
   let subtitleBlock: ReactNode = (
-    <p className="mt-3 max-w-2xl text-sm text-white/80 md:text-base" style={subtitleStyle}>{heroCopy.subtitle}</p>
+    <p className="mt-3 max-w-2xl text-sm text-foreground/80 md:text-base" style={subtitleStyle}>{heroCopy.subtitle}</p>
   )
   if (heroCopy.subtitleLink) {
     const subCls =
-      'mt-3 inline-block max-w-2xl text-sm text-white/80 md:text-base rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
+      'mt-3 inline-block max-w-2xl text-sm text-foreground/80 md:text-base rounded-lg outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
     subtitleBlock =
       heroCopy.subtitleLink.startsWith('/') ? (
         <Link href={heroCopy.subtitleLink} className={subCls} style={subtitleStyle}>
@@ -75,7 +81,7 @@ export function WanderHero({
 
   const instagramHref = heroCopy.instagramUrl
   const instagramCtaShared = cn(
-    'glass-card flex w-full flex-col gap-2 p-2.5 text-left text-white transition-transform duration-200 hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+    'glass-card flex w-full flex-col gap-2 p-2.5 text-left text-foreground transition-transform duration-200 hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
   )
   const instagramCta =
     instagramHref != null ? (
@@ -102,80 +108,72 @@ export function WanderHero({
     ) : null
 
   return (
-    <section className="relative w-full min-h-0 overflow-hidden bg-background">
-      <div className="absolute inset-0">
-        <Image
-          src={heroImageUrl}
-          alt=""
-          fill
-          // LCP image — fetch it ahead of below-the-fold work.
-          priority
-          sizes="100vw"
-          // Admin can set this to any HTTPS host; only optimize (resize/reformat)
-          // when it's on a host next.config.ts's remotePatterns allows.
-          unoptimized={!isOptimizableImageUrl(heroImageUrl)}
-          className="object-cover object-center opacity-95"
-        />
-        {/*
-          Readability scrim on the left where copy + search live; right stays mostly the photo
-          (neutral vignette only, no heavy brand-green wash).
-        */}
-        <div
-          className="pointer-events-none absolute inset-y-0 left-0 w-[min(100%,60rem)] bg-gradient-to-r from-background/92 from-[8%] via-background/45 via-[48%] to-transparent to-[100%]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 left-0 h-[42%] w-[min(100%,70rem)] bg-gradient-to-t from-background/30 to-transparent [mask-image:linear-gradient(90deg,#000_0%,#000_50%,transparent_88%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 w-[min(100%,50%)] max-w-2xl bg-gradient-to-l from-black/10 from-[15%] to-transparent to-100%"
-          aria-hidden
-        />
-      </div>
-
-      <div
-        className={
-          belowHero
-            ? 'relative z-20 mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 md:pb-2 lg:px-10'
-            : 'relative z-10 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-5 sm:px-6 md:pb-5 md:pt-6 lg:px-10'
-        }
-      >
-        <div className="grid min-h-[min(100%,clamp(300px,48vh,560px))] grid-cols-1 gap-4 lg:min-h-[clamp(300px,44vh,520px)] lg:grid-cols-[minmax(0,1fr)_auto] lg:items-stretch">
-          <div className="flex min-h-0 min-w-0 flex-col justify-between gap-3">
-            <div className="min-w-0 self-start max-w-3xl">
-              <p
-                className="mb-3 inline-flex w-fit max-w-[min(100%,42rem)] items-start gap-2 rounded-lg border border-primary/30 bg-primary/8 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-sm backdrop-blur-[40px] backdrop-saturate-150 ring-1 ring-white/5 sm:text-[13px]"
-                style={badgeStyle}
-              >
-                <ShieldCheck
-                  className="h-4 w-4 shrink-0 text-[#fcba03] mt-0.5"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                <span>{trustBadgeText}</span>
-              </p>
-              {headlineBlock}
-              {subtitleBlock}
+    <section className="relative w-full">
+      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 lg:px-10">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(24rem,1fr)] lg:items-stretch">
+          {/* Photo card stays dusk-toned in both modes so copy over the image always reads */}
+          <div className="dark relative isolate flex min-h-[30rem] flex-col overflow-hidden rounded-[28px] text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+            <Image
+              src={heroImageUrl}
+              alt=""
+              fill
+              // LCP image — fetch it ahead of below-the-fold work.
+              priority
+              sizes="(min-width: 1024px) 60vw, 100vw"
+              // Admin can set this to any HTTPS host; only optimize when next.config.ts allows the host.
+              unoptimized={!isOptimizableImageUrl(heroImageUrl)}
+              className="-z-10 object-cover object-center"
+            />
+            <div
+              className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/15 via-black/25 to-black/80"
+              aria-hidden
+            />
+            <div className="flex flex-1 flex-col justify-between gap-6 p-6 lg:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <p
+                  className="inline-flex w-fit max-w-[min(100%,32rem)] items-start gap-2 rounded-full border border-white/20 bg-black/25 px-3 py-1.5 text-xs font-medium leading-snug text-white backdrop-blur-md"
+                  style={badgeStyle}
+                >
+                  <ShieldCheck className="mt-px h-4 w-4 shrink-0 text-primary" strokeWidth={2} aria-hidden />
+                  <span>{trustBadgeText}</span>
+                </p>
+                <div className="flex w-[8.5rem] shrink-0 flex-col items-stretch gap-2.5">
+                  {instagramCta}
+                  {proofCard}
+                </div>
+              </div>
+              <div className="min-w-0 max-w-3xl">
+                {headlineBlock}
+                {subtitleBlock}
+                {stats ? <div className="mt-5">{stats}</div> : null}
+              </div>
             </div>
-            {children ? (
-              <div className="w-full min-w-0 max-w-[min(100%,52.8rem)] pt-0">{children}</div>
+          </div>
+
+          <div className="glass-card flex min-w-0 flex-col p-5 lg:p-6">
+            <h2 className="text-xl font-black tracking-tight text-foreground">Find your next trip</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Group trips, stays, activities and rentals in one search.</p>
+            <div className="mt-4 min-w-0 flex-1">{children}</div>
+            {quickLinks && quickLinks.length > 0 ? (
+              <div className="mt-4 border-t border-border/70 pt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Quick picks</p>
+                <div className="flex flex-wrap gap-2">
+                  {quickLinks.map((q) => (
+                    <Link
+                      key={q.href}
+                      href={q.href}
+                      className="rounded-full border border-border bg-background/60 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:bg-primary/10"
+                    >
+                      {q.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ) : null}
           </div>
-
-          <div className="flex min-w-0 items-end justify-end self-stretch sm:min-h-[7rem]">
-            <div className="flex w-[8.5rem] shrink-0 flex-col items-stretch gap-2.5">
-              {instagramCta}
-              {proofCard}
-            </div>
-          </div>
         </div>
+        {belowHero ? <div className="mt-5">{belowHero}</div> : null}
       </div>
-      {belowHero ? (
-        <div className="relative z-0 mx-auto w-full max-w-[min(100%,1920px)] px-4 pb-4 pt-0 sm:px-6 md:pb-5 lg:px-10">
-          {belowHero}
-        </div>
-      ) : null}
     </section>
   )
 }

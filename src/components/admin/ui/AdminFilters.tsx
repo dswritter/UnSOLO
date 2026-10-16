@@ -19,7 +19,7 @@ export function AdminFilterTabs<K extends string>({ tabs, value, onChange, class
         const active = tab.key === value
         const classes = cn(
           'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors',
-          active ? 'bg-primary text-primary-foreground' : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground',
+          active ? 'bg-primary text-primary-foreground' : 'bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground',
         )
         const content = (
           <>
@@ -46,12 +46,12 @@ export function AdminSearchInput({ value, onChange, placeholder = 'Search', clas
   className?: string
 }) {
   return (
-    <div role="search" className={cn('flex h-9 items-center gap-2 rounded-full border border-border bg-white/5 pl-3 pr-1.5 focus-within:ring-2 focus-within:ring-primary/40', className)}>
+    <div role="search" className={cn('flex h-9 items-center gap-2 rounded-full border border-border bg-foreground/5 pl-3 pr-1.5 focus-within:ring-2 focus-within:ring-primary/40', className)}>
       <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <input type="search" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder}
         className="input-bare min-w-0 flex-1 border-0 bg-transparent text-sm shadow-none outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
       {value ? (
-        <button type="button" onClick={() => onChange('')} aria-label="Clear search" className="rounded-full p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground">
+        <button type="button" onClick={() => onChange('')} aria-label="Clear search" className="rounded-full p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground">
           <X className="h-3.5 w-3.5" />
         </button>
       ) : null}

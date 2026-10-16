@@ -35,7 +35,7 @@ export default async function TribeLayout({ children }: { children: ReactNode })
   return (
     <div
       className={cn(
-        'wander-theme wander-textured min-h-full w-full [color-scheme:dark] flex',
+        'wander-theme wander-textured min-h-full w-full flex',
         tribeSans.variable,
       )}
     >
@@ -45,10 +45,10 @@ export default async function TribeLayout({ children }: { children: ReactNode })
           <CommunitySidebarSection
             userId={user.id}
             basePath={messagingBasePath}
-            className="max-h-[min(100dvh-5.5rem,56rem)] border-white/10 rounded-2xl overflow-hidden wander-frost-panel"
+            className="max-h-[min(100dvh-5.5rem,56rem)] border-foreground/10 rounded-2xl overflow-hidden wander-frost-panel"
           />
         </Suspense>
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-clip rounded-2xl border border-white/12 bg-[color:var(--wander-inset-panel)] backdrop-blur-[44px] backdrop-saturate-[1.65]">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-clip rounded-2xl border border-foreground/12 bg-[color:var(--wander-inset-panel)] backdrop-blur-[44px] backdrop-saturate-[1.65]">
           {children}
         </div>
       </TribeMessagingContainer>

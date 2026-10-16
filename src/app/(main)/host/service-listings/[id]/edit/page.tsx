@@ -90,15 +90,15 @@ export default async function EditServiceListingPage({ params, searchParams }: P
         </div>
 
         {(listing.status === 'rejected' || listing.status === 'archived') && (
-          <div className="mb-6 rounded-xl border border-amber-400/45 bg-amber-500/15 px-4 py-3 text-sm text-white">
+          <div className="mb-6 rounded-xl border border-amber-400/45 bg-amber-500/15 px-4 py-3 text-sm text-foreground">
             <p className="font-semibold">
               {listing.status === 'rejected'
                 ? 'This listing was not approved by the team.'
                 : 'This listing has been archived.'}
             </p>
-            <p className="mt-1 text-white/80">
-              Update your business details or items below and <strong className="text-white">save your changes</strong>, then use{' '}
-              <strong className="text-white">Resubmit</strong> to send the listing back to the admin queue. After you resubmit once,
+            <p className="mt-1 text-foreground/80">
+              Update your business details or items below and <strong className="text-foreground">save your changes</strong>, then use{' '}
+              <strong className="text-foreground">Resubmit</strong> to send the listing back to the admin queue. After you resubmit once,
               you need to edit and save again before you can resubmit another time — this helps avoid duplicate submissions.
             </p>
             <div className="mt-3">

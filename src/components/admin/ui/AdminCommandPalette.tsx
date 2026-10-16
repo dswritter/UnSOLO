@@ -65,7 +65,7 @@ export function AdminCommandPalette({ pages, includeSettings }: { pages: Palette
       <button
         type="button"
         onClick={() => { setQuery(''); setActive(0); setOpen(true) }}
-        className="flex h-9 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-white/5 px-3 text-sm text-sidebar-foreground/60 transition-colors hover:bg-white/10 hover:text-sidebar-foreground"
+        className="flex h-9 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-foreground/5 px-3 text-sm text-sidebar-foreground/60 transition-colors hover:bg-foreground/10 hover:text-sidebar-foreground"
       >
         <Search className="h-4 w-4 shrink-0" />
         <span className="flex-1 text-left">Search admin</span>

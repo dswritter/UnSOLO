@@ -122,7 +122,7 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
           <>
             <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
             <p className="absolute bottom-2 left-3 right-16 z-10 truncate text-xs font-medium text-white">
-              {active.name}{active.is_out_of_stock ? <span className="text-amber-300"> · Sold out</span> : null}
+              {active.name}{active.is_out_of_stock ? <span className="text-amber-700 dark:text-amber-300"> · Sold out</span> : null}
             </p>
             <div className="absolute bottom-2.5 right-3 z-10 flex items-center gap-1">
               {slides.length <= MAX_DOTS

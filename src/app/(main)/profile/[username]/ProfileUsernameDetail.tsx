@@ -400,12 +400,12 @@ export async function ProfileUsernameDetail({
                     </a>
                   )}
                   {profile.instagram_url && (
-                    <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white transition-colors">
+                    <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
                       <Instagram className="h-3.5 w-3.5" /> Instagram
                     </a>
                   )}
                   {profile.website_url && (
-                    <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-white transition-colors">
+                    <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
                       <Globe className="h-3.5 w-3.5" /> Website
                     </a>
                   )}

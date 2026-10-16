@@ -806,15 +806,15 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
       </div>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 px-4 md:hidden">
-        <div className="pointer-events-auto rounded-2xl border border-white/12 bg-zinc-950/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+        <div className="pointer-events-auto rounded-2xl border border-foreground/12 bg-card/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
                 {isRental ? 'Plan your rental' : listing.type === 'stays' ? 'Stay booking' : 'Service booking'}
               </p>
-              <p className="truncate text-sm font-bold text-white">
+              <p className="truncate text-sm font-bold text-foreground">
                 {formatPrice(displayPricePaise)}{' '}
-                <span className="text-white/68">/ {displayUnit.replace('per_', '').replace('_', ' ')}</span>
+                <span className="text-foreground/68">/ {displayUnit.replace('per_', '').replace('_', ' ')}</span>
               </p>
             </div>
             <button

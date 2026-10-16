@@ -149,7 +149,7 @@ export function OwnProfileFollowCounts({
           <div className="bg-card border border-border rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h3 className="font-bold text-sm capitalize">{showModal}</h3>
-              <button onClick={() => setShowModal(null)} className="text-muted-foreground hover:text-white">
+              <button onClick={() => setShowModal(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>

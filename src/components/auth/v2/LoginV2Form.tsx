@@ -14,7 +14,7 @@ import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-white/20 !bg-zinc-950 !text-white !placeholder:text-white/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-zinc-950 dark:!text-white dark:!placeholder:text-white/40'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/40'
 
 const TRAVEL_QUOTES = [
   'The world is a book, and those who do not travel read only one page.',
@@ -109,8 +109,8 @@ function LoginV2FormInner() {
     return (
       <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
         <div className="h-10 w-10 border-[3px] border-[#fcba03] border-t-transparent rounded-full animate-spin" />
-        <p className="mt-5 text-sm text-white/60">Preparing your journey, please hold on…</p>
-        <p key={quoteIndex} className="mt-6 max-w-sm text-sm italic text-[#fcba03]/90">
+        <p className="mt-5 text-sm text-foreground/60">Preparing your journey, please hold on…</p>
+        <p key={quoteIndex} className="mt-6 max-w-sm text-sm italic text-primary/90">
           &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
         </p>
       </div>
@@ -123,10 +123,10 @@ function LoginV2FormInner() {
   return (
     <>
       <div className="mb-1">
-        <h2 className="text-lg font-bold text-white md:text-xl">
-          <span className="text-[#fcba03]">Log in</span> to continue
+        <h2 className="text-lg font-bold text-foreground md:text-xl">
+          <span className="text-primary">Log in</span> to continue
         </h2>
-        <p className="mt-1 text-sm text-white/50">Access your account and pick up where you left off.</p>
+        <p className="mt-1 text-sm text-foreground/50">Access your account and pick up where you left off.</p>
       </div>
 
       <AuthV2Tabs active="login" />
@@ -137,7 +137,7 @@ function LoginV2FormInner() {
           <CheckCircle className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
           <div className="space-y-2">
             <p className="text-sm font-bold text-emerald-500">Email verified</p>
-            <p className="text-xs text-white/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
+            <p className="text-xs text-foreground/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
             <Button className="w-full h-9 bg-[#fcba03] text-black text-sm font-bold hover:bg-[#fcba03]/90" asChild>
               <Link href={redirectTo || WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
@@ -146,8 +146,8 @@ function LoginV2FormInner() {
       ) : null}
       {showVerifiedNoSession ? (
         <div className="mb-4 rounded-xl border border-[#fcba03]/30 bg-[#fcba03]/10 p-4 text-left">
-          <p className="text-sm font-bold text-[#fcba03]">Email verified</p>
-          <p className="text-xs text-white/60 mt-1 leading-relaxed">
+          <p className="text-sm font-bold text-primary">Email verified</p>
+          <p className="text-xs text-foreground/60 mt-1 leading-relaxed">
             Sign in below with the email and password you used to register.
           </p>
         </div>
@@ -156,7 +156,7 @@ function LoginV2FormInner() {
       <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-3.5">
         <input type="hidden" name="redirectTo" value={redirectTo} />
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/80" htmlFor="auth-v2-email">
+          <label className="text-xs font-medium text-foreground/80" htmlFor="auth-v2-email">
             Email
           </label>
           <Input
@@ -171,12 +171,12 @@ function LoginV2FormInner() {
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-medium text-white/80" htmlFor="auth-v2-password">
+            <label className="text-xs font-medium text-foreground/80" htmlFor="auth-v2-password">
               Password
             </label>
             <Link
               href={`/forgot-password${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
-              className="text-xs font-semibold text-[#fcba03] hover:underline"
+              className="text-xs font-semibold text-primary hover:underline"
             >
               Forgot?
             </Link>
@@ -193,7 +193,7 @@ function LoginV2FormInner() {
             />
             <button
               type="button"
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-white/45 hover:text-white"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-foreground/45 hover:text-foreground"
               onClick={() => setShowPassword(v => !v)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
@@ -211,10 +211,10 @@ function LoginV2FormInner() {
 
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/10" />
+          <div className="w-full border-t border-foreground/10" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-zinc-950/90 px-3 text-white/40">or continue with</span>
+          <span className="bg-card/90 px-3 text-foreground/40">or continue with</span>
         </div>
       </div>
 
@@ -222,7 +222,7 @@ function LoginV2FormInner() {
         type="button"
         variant="outline"
         disabled={googleBusy || googleAttempts >= 2}
-        className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5"
+        className="h-11 w-full border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5"
         onClick={() => void handleGoogleSignIn()}
       >
         <GoogleMark className="mr-2 h-4 w-4" />
@@ -230,7 +230,7 @@ function LoginV2FormInner() {
       </Button>
 
       {googleError ? (
-        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-200/95 space-y-2">
+        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-700/95 dark:text-red-200/95 space-y-2">
           <p>{googleError}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             {googleAttempts < 2 ? (
@@ -238,18 +238,18 @@ function LoginV2FormInner() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-9 border-white/25 bg-transparent text-white hover:bg-white/10"
+                className="h-9 border-foreground/25 bg-transparent text-foreground hover:bg-foreground/10"
                 disabled={googleBusy}
                 onClick={() => void handleGoogleSignIn()}
               >
                 Try Google again
               </Button>
             ) : (
-              <p className="text-[11px] text-white/55">Use your email and password above to sign in.</p>
+              <p className="text-[11px] text-foreground/55">Use your email and password above to sign in.</p>
             )}
             <button
               type="button"
-              className="text-left text-[11px] font-semibold text-[#fcba03] hover:underline sm:text-right"
+              className="text-left text-[11px] font-semibold text-primary hover:underline sm:text-right"
               onClick={() => {
                 const el = document.getElementById('auth-v2-email')
                 el?.focus()
@@ -262,11 +262,11 @@ function LoginV2FormInner() {
         </div>
       ) : null}
 
-      <p className="mt-4 text-center text-sm text-white/50">
+      <p className="mt-4 text-center text-sm text-foreground/50">
         Don&apos;t have an account?{' '}
         <Link
           href={`/signup${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
-          className="font-semibold text-[#fcba03] hover:underline"
+          className="font-semibold text-primary hover:underline"
         >
           Sign up
         </Link>

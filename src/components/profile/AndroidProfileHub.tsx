@@ -63,7 +63,7 @@ export function AndroidProfileHub({ profile }: AndroidProfileHubProps) {
     <div className="min-h-dvh bg-background text-foreground">
       {/* Profile header */}
       <div className="flex flex-col items-center gap-3 px-6 pb-8 pt-12">
-        <Avatar className="h-24 w-24 border-4 border-white/20 shadow-xl">
+        <Avatar className="h-24 w-24 border-4 border-foreground/20 shadow-xl">
           <AvatarImage src={profile.avatar_url || ''} alt={profile.full_name || profile.username} />
           <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
             {getInitials(profile.full_name || profile.username)}

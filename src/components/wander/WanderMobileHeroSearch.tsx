@@ -196,7 +196,7 @@ export function WanderMobileHeroSearch({
 
   return (
     <div className="md:hidden">
-      <section className="relative overflow-hidden border-b border-white/10 bg-background">
+      <section className="dark relative overflow-hidden border-b border-foreground/10 bg-background text-foreground">
         <div className="absolute inset-0">
           <Image
             src={heroImageUrl}
@@ -223,7 +223,7 @@ export function WanderMobileHeroSearch({
           {/* Headline shrinks closer to the subtitle size so the whole hero
               fits without growing taller. The tab strip below straddles the
               hero/below boundary; this trims the room it needs. */}
-          <h1 className="mt-3 text-[1.25rem] font-black leading-[1.15] tracking-tight text-white" style={titleStyle}>
+          <h1 className="mt-3 text-[1.25rem] font-black leading-[1.15] tracking-tight text-foreground" style={titleStyle}>
             {hero.title}
             {showDesktopLine2 ? (
               <>
@@ -234,14 +234,14 @@ export function WanderMobileHeroSearch({
               </>
             ) : null}
           </h1>
-          <p className="mt-1.5 max-w-[22rem] text-[12.5px] leading-snug text-white/78" style={subtitleStyle}>
+          <p className="mt-1.5 max-w-[22rem] text-[12.5px] leading-snug text-foreground/78" style={subtitleStyle}>
             {hero.subtitle}
           </p>
 
           {/* Frosted stats panel — saturated glass instead of flat black/25 so
               it reads like the desktop search/filter card. Extra bottom space
               below so the tab strip can land on the hero with breathing room. */}
-          <div className="mt-3 mb-7 flex items-stretch gap-2 rounded-2xl border border-white/16 bg-white/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+          <div className="mt-3 mb-7 flex items-stretch gap-2 rounded-2xl border border-foreground/16 bg-foreground/[0.07] p-2.5 backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
             {statsSlot}
             {instagramHref ? (
               instagramHref.startsWith('/') ? (
@@ -277,35 +277,35 @@ export function WanderMobileHeroSearch({
               if (!isExplorePending) setSheetOpen(false)
             }}
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border-t border-white/10 bg-zinc-950 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-24px_60px_rgba(0,0,0,0.36)]">
-            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/15" />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] border-t border-foreground/10 bg-card px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-24px_60px_rgba(0,0,0,0.36)]">
+            <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-foreground/15" />
             <div className="mb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90" style={eyebrowStyle}>{hero.eyebrow}</p>
-              <h2 className="mt-1 text-lg font-black text-white">{tab ? MOBILE_CTA_COPY[tab] : ''}</h2>
+              <h2 className="mt-1 text-lg font-black text-foreground">{tab ? MOBILE_CTA_COPY[tab] : ''}</h2>
             </div>
 
             <div className="max-h-[70vh] overflow-y-auto pr-1">
               {tab === 'trips' ? (
                 <div className="space-y-3">
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Destination</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Destination</span>
                     <div className="relative min-w-0">
-                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <WanderNominatimLocationInput className="bg-white/5 pl-9 text-white" placeholder="Where are you planning?" value={tripWhere} onValueChange={setTripWhere} wander />
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <WanderNominatimLocationInput className="bg-foreground/5 pl-9 text-foreground" placeholder="Where are you planning?" value={tripWhere} onValueChange={setTripWhere} wander />
                     </div>
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">From</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">From</span>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={tripStart} min={today ?? undefined} max={tripEnd || undefined} onChange={e => setTripStartInput(e.target.value)} suppressHydrationWarning />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={tripStart} min={today ?? undefined} max={tripEnd || undefined} onChange={e => setTripStartInput(e.target.value)} suppressHydrationWarning />
                     </div>
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">To</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">To</span>
                     <div className="relative">
-                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={tripEnd} min={today ? (tripStart ? maxIsoDate(tripStart, today) : today) : tripStart || undefined} onChange={e => setTripEnd(e.target.value)} suppressHydrationWarning />
+                      <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={tripEnd} min={today ? (tripStart ? maxIsoDate(tripStart, today) : today) : tripStart || undefined} onChange={e => setTripEnd(e.target.value)} suppressHydrationWarning />
                     </div>
                   </label>
                 </div>
@@ -314,33 +314,33 @@ export function WanderMobileHeroSearch({
               {tab === 'stays' ? (
                 <div className="space-y-3">
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Where are you staying?</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Where are you staying?</span>
                     <div className="relative min-w-0">
-                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <WanderNominatimLocationInput className="bg-white/5 pl-9 text-white" placeholder="City, neighbourhood, or area" value={stayWhere} onValueChange={setStayWhere} wander />
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <WanderNominatimLocationInput className="bg-foreground/5 pl-9 text-foreground" placeholder="City, neighbourhood, or area" value={stayWhere} onValueChange={setStayWhere} wander />
                     </div>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block space-y-1.5">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Check-in</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Check-in</span>
                       <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={stayIn} min={today ?? undefined} max={stayOut || undefined} onChange={e => setStayInInput(e.target.value)} suppressHydrationWarning />
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                        <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={stayIn} min={today ?? undefined} max={stayOut || undefined} onChange={e => setStayInInput(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                     <label className="block space-y-1.5">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Check-out</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Check-out</span>
                       <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={stayOut} min={today ? (stayIn ? maxIsoDate(stayIn, today) : today) : stayIn || undefined} onChange={e => setStayOut(e.target.value)} suppressHydrationWarning />
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                        <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={stayOut} min={today ? (stayIn ? maxIsoDate(stayIn, today) : today) : stayIn || undefined} onChange={e => setStayOut(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                   </div>
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Guests</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Guests</span>
                     <div className="relative">
-                      <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <Input className="border-white/12 bg-white/5 pl-9 text-white" type="number" min={1} value={stayGuests} onChange={e => setStayGuests(e.target.value)} />
+                      <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="number" min={1} value={stayGuests} onChange={e => setStayGuests(e.target.value)} />
                     </div>
                   </label>
                 </div>
@@ -349,33 +349,33 @@ export function WanderMobileHeroSearch({
               {tab === 'activities' ? (
                 <div className="space-y-3">
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Place</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Place</span>
                     <div className="relative min-w-0">
-                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <WanderNominatimLocationInput className="bg-white/5 pl-9 text-white" placeholder="City or area" value={actWhere} onValueChange={setActWhere} wander />
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <WanderNominatimLocationInput className="bg-foreground/5 pl-9 text-foreground" placeholder="City or area" value={actWhere} onValueChange={setActWhere} wander />
                     </div>
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="block space-y-1.5">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">From</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">From</span>
                       <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={actStart} min={today ?? undefined} max={actEnd || undefined} onChange={e => setActStartInput(e.target.value)} suppressHydrationWarning />
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                        <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={actStart} min={today ?? undefined} max={actEnd || undefined} onChange={e => setActStartInput(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                     <label className="block space-y-1.5">
-                      <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">To</span>
+                      <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">To</span>
                       <div className="relative">
-                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                        <Input className="border-white/12 bg-white/5 pl-9 text-white" type="date" value={actEnd} min={today ? (actStart ? maxIsoDate(actStart, today) : today) : actStart || undefined} onChange={e => setActEnd(e.target.value)} suppressHydrationWarning />
+                        <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                        <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" type="date" value={actEnd} min={today ? (actStart ? maxIsoDate(actStart, today) : today) : actStart || undefined} onChange={e => setActEnd(e.target.value)} suppressHydrationWarning />
                       </div>
                     </label>
                   </div>
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Activity type</span>
-                    <select className="flex h-10 w-full rounded-xl border border-white/12 bg-white/5 px-3 text-sm text-white shadow-sm" value={actType} onChange={e => setActType(e.target.value)}>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Activity type</span>
+                    <select className="flex h-10 w-full rounded-xl border border-foreground/12 bg-foreground/5 px-3 text-sm text-foreground shadow-sm" value={actType} onChange={e => setActType(e.target.value)}>
                       {activityOptions.map((o, i) => (
-                        <option key={`${o.value}-${i}`} value={o.value} className="bg-zinc-950 text-white">
+                        <option key={`${o.value}-${i}`} value={o.value} className="bg-card text-foreground">
                           {o.label}
                         </option>
                       ))}
@@ -387,17 +387,17 @@ export function WanderMobileHeroSearch({
               {tab === 'rentals' ? (
                 <div className="space-y-3">
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">Pickup area</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">Pickup area</span>
                     <div className="relative min-w-0">
-                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <WanderNominatimLocationInput className="bg-white/5 pl-9 text-white" placeholder="City or area" value={rentWhere} onValueChange={setRentWhere} wander />
+                      <MapPin className="pointer-events-none absolute left-3 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <WanderNominatimLocationInput className="bg-foreground/5 pl-9 text-foreground" placeholder="City or area" value={rentWhere} onValueChange={setRentWhere} wander />
                     </div>
                   </label>
                   <label className="block space-y-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-white/60">What do you need?</span>
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-foreground/60">What do you need?</span>
                     <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/45" />
-                      <Input className="border-white/12 bg-white/5 pl-9 text-white" placeholder="e.g. bike, car, tent" value={rentItem} onChange={e => setRentItem(e.target.value)} />
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/45" />
+                      <Input className="border-foreground/12 bg-foreground/5 pl-9 text-foreground" placeholder="e.g. bike, car, tent" value={rentItem} onChange={e => setRentItem(e.target.value)} />
                     </div>
                   </label>
                 </div>

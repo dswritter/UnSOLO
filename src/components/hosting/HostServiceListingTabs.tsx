@@ -2068,8 +2068,8 @@ export function HostServiceListingTabs(props: Props) {
                     onClick={() => updateDraft(draft.localKey, { isOutOfStock: !draft.isOutOfStock })}
                     className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                       draft.isOutOfStock
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
-                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/30'
+                        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/40'
+                        : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-400/30'
                     }`}
                   >
                     {draft.isOutOfStock ? 'Out of stock' : 'In stock'}

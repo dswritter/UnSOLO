@@ -42,12 +42,12 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
   const loginHref = `/login${suffix ? `?${suffix}` : ''}`
 
   return (
-    <div className="mb-5 flex w-full border-b border-white/10">
+    <div className="mb-5 flex w-full border-b border-foreground/10">
       <Link
         href={loginHref}
         className={cn(
           'min-w-0 flex-1 pb-2.5 text-center text-sm font-bold transition',
-          active === 'login' ? 'border-b-2 border-[#fcba03] text-white' : 'text-white/45 hover:text-white/80',
+          active === 'login' ? 'border-b-2 border-[#fcba03] text-foreground' : 'text-foreground/45 hover:text-foreground/80',
         )}
       >
         Log in
@@ -56,7 +56,7 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
         href={signupHref}
         className={cn(
           'min-w-0 flex-1 pb-2.5 text-center text-sm font-bold transition',
-          active === 'signup' ? 'border-b-2 border-[#fcba03] text-white' : 'text-white/45 hover:text-white/80',
+          active === 'signup' ? 'border-b-2 border-[#fcba03] text-foreground' : 'text-foreground/45 hover:text-foreground/80',
         )}
       >
         Sign up
@@ -67,8 +67,8 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
 
 export function AuthV2SecurityFooter() {
   return (
-    <p className="mt-6 flex items-start gap-2 text-[11px] leading-relaxed text-white/45">
-      <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/50" />
+    <p className="mt-6 flex items-start gap-2 text-[11px] leading-relaxed text-foreground/45">
+      <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
       <span>Your data is secure with us. We never share your information.</span>
     </p>
   )

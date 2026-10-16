@@ -37,7 +37,7 @@ export function StatesExploredCard({
                       'px-2 py-1 rounded-md text-[10px] font-medium border transition-colors',
                       visited
                         ? 'bg-primary/15 text-primary border-primary/30'
-                        : 'bg-black/25 text-white/85 border-white/20',
+                        : 'bg-foreground/[0.06] text-foreground/85 border-border',
                     )}
                   >
                     {state}

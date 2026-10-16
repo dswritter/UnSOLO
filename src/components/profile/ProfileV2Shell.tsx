@@ -17,7 +17,7 @@ export function ProfileV2Shell({ children }: { children: ReactNode }) {
     <div
       className={cn(
         wanderSans.variable,
-        'wander-theme wander-textured relative min-h-dvh w-full text-foreground [color-scheme:dark]',
+        'wander-theme wander-textured relative min-h-dvh w-full text-foreground',
       )}
     >
       {children}

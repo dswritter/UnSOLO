@@ -62,7 +62,7 @@ export function WanderMobileTabNav() {
 
   return (
     <div className="md:hidden sticky top-0 z-40 -mt-7 px-3">
-      <div className="rounded-2xl border border-white/16 bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+      <div className="rounded-2xl border border-foreground/16 bg-foreground/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
         <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
@@ -71,7 +71,7 @@ export function WanderMobileTabNav() {
               onClick={() => setBrowseTab(id)}
               className={cn(
                 'relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
-                tab === id ? 'text-primary' : 'text-white/80 hover:text-white',
+                tab === id ? 'text-primary' : 'text-foreground/80 hover:text-foreground',
               )}
             >
               <Icon className={cn('h-5 w-5 shrink-0 stroke-[2]', isPending && tab === id && 'opacity-60')} />

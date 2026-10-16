@@ -1,9 +1,8 @@
 'use server'
 
-import { refresh, updateTag } from 'next/cache'
+import { refresh } from 'next/cache'
 
-/** Call after updating `platform_settings` so wander shell theme picks up immediately (no manual refresh). */
+/** Call after updating `platform_settings` so open pages pick up changes immediately. */
 export async function revalidatePlatformSettingsCache(): Promise<void> {
-  updateTag('wander-shell-theme')
   refresh()
 }

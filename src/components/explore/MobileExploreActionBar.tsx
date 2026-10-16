@@ -58,41 +58,41 @@ export function MobileExploreActionBar({
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 px-4 md:hidden">
-      <div className="flex items-center overflow-hidden rounded-2xl border border-white/12 bg-zinc-950/94 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      <div className="flex items-center overflow-hidden rounded-2xl border border-foreground/12 bg-card/94 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl">
         {/* Back: anchored on the left next to the thumb */}
         <button
           onClick={() => router.back()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center text-white"
+          className="flex h-12 w-12 shrink-0 items-center justify-center text-foreground"
           aria-label="Back"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="h-8 w-px bg-white/12" />
+        <div className="h-8 w-px bg-foreground/12" />
 
         <button
           onClick={onFilterClick}
-          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-white"
+          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-foreground"
           aria-label="Open filters"
         >
           <SlidersHorizontal className="h-4.5 w-4.5" />
           <span>Filters</span>
         </button>
 
-        <div className="h-8 w-px bg-white/12" />
+        <div className="h-8 w-px bg-foreground/12" />
         <button
           onClick={onSearchClick}
-          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-white"
+          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-foreground"
           aria-label="Open search"
         >
           <Search className="h-4.5 w-4.5" />
           <span>Search</span>
         </button>
 
-        <div className="h-8 w-px bg-white/12" />
+        <div className="h-8 w-px bg-foreground/12" />
         <button
           onClick={handleNearMe}
           disabled={locating}
-          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="flex flex-1 items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-foreground disabled:opacity-60"
           aria-label="Find places near me"
         >
           <MapPinned className="h-4.5 w-4.5" />

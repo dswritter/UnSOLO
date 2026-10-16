@@ -6,13 +6,13 @@ import { WanderStatsGrid } from '@/components/wander/WanderStatsGrid'
 import { getInitials } from '@/lib/utils'
 import { getWanderRatingHero, getWanderStats, type WanderHeroCopy } from '@/lib/wander/wanderQueries'
 
-const PROOF_CARD_CLASS = 'w-full rounded-xl border border-white/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-white/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]'
+const PROOF_CARD_CLASS = 'w-full rounded-xl border border-foreground/18 bg-background/40 p-2.5 shadow-[0_12px_48px_rgba(0,0,0,0.4)] backdrop-blur-[44px] backdrop-saturate-150 flex flex-col justify-between gap-2.5 ring-1 ring-foreground/12 [aspect-ratio:1/1.12] min-h-[9.5rem] sm:min-h-[10rem]'
 
 export function WanderHeroProofSkeleton() {
   return <div className={`${PROOF_CARD_CLASS} animate-pulse`} aria-label="Loading traveler ratings" aria-busy="true">
-    <div className="h-8 w-20 rounded-lg bg-white/10" />
-    <div className="space-y-1"><div className="h-3 w-20 rounded bg-white/10" /><div className="h-3 w-16 rounded bg-white/10" /></div>
-    <div className="flex gap-1">{[0, 1, 2, 3, 4].map(i => <div key={i} className="h-7 w-7 rounded-full bg-white/10" />)}</div>
+    <div className="h-8 w-20 rounded-lg bg-foreground/10" />
+    <div className="space-y-1"><div className="h-3 w-20 rounded bg-foreground/10" /><div className="h-3 w-16 rounded bg-foreground/10" /></div>
+    <div className="flex gap-1">{[0, 1, 2, 3, 4].map(i => <div key={i} className="h-7 w-7 rounded-full bg-foreground/10" />)}</div>
   </div>
 }
 
@@ -26,11 +26,11 @@ export async function WanderHeroRatingProofServer() {
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/25">
         <Star className="h-4 w-4 fill-primary text-primary" aria-hidden="true" />
       </div>
-      <div className="min-w-0"><p className="text-xl font-black leading-none tabular-nums text-white">
-        {rating.overall.toFixed(1)}<span className="text-xs font-semibold text-white/50">/5</span>
+      <div className="min-w-0"><p className="text-xl font-black leading-none tabular-nums text-foreground">
+        {rating.overall.toFixed(1)}<span className="text-xs font-semibold text-foreground/50">/5</span>
       </p></div>
     </div>
-    <p className="text-[11px] font-bold leading-tight text-white sm:text-xs">
+    <p className="text-[11px] font-bold leading-tight text-foreground sm:text-xs">
       <span className="block">Trusted by {trustLine}</span><span className="block">solo travelers</span>
     </p>
     <div className="flex items-center gap-1.5"><div className="flex -space-x-2">
@@ -48,7 +48,7 @@ export async function WanderHeroRatingProofServer() {
 
 export function WanderStatsGridSkeleton() {
   return <div aria-label="Loading travel stats" aria-busy="true" className="wander-frost-panel flex min-h-[5.25rem] w-full items-center gap-5 p-3">
-    {[0, 1, 2].map(i => <div key={i} className="h-8 flex-1 animate-pulse rounded bg-white/10" />)}
+    {[0, 1, 2].map(i => <div key={i} className="h-8 flex-1 animate-pulse rounded bg-foreground/10" />)}
   </div>
 }
 
@@ -58,7 +58,7 @@ export async function WanderHeroStatsServer() {
 
 export function WanderMobileStatsSkeleton() {
   return <div aria-label="Loading travel stats" aria-busy="true" className="flex min-w-0 flex-1 items-center gap-1.5">
-    {[0, 1, 2].map(i => <div key={i} className="h-9 min-w-0 flex-1 animate-pulse rounded bg-white/10" />)}
+    {[0, 1, 2].map(i => <div key={i} className="h-9 min-w-0 flex-1 animate-pulse rounded bg-foreground/10" />)}
   </div>
 }
 
@@ -76,8 +76,8 @@ export async function WanderMobileStatsServer({ heroCopy }: { heroCopy: WanderHe
   return <div className="flex min-w-0 flex-1 items-center gap-1.5">
     {items.map(({ Icon, value, label }) => <div key={label} className="flex min-w-0 flex-1 items-center gap-1.5">
       <Icon className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.85} aria-hidden="true" />
-      <div className="min-w-0"><p className="text-base font-black leading-none tabular-nums text-white" style={valueStyle}>{value}</p>
-        <p className="mt-0.5 truncate text-[10px] font-semibold leading-tight text-white/65">{label}</p></div>
+      <div className="min-w-0"><p className="text-base font-black leading-none tabular-nums text-foreground" style={valueStyle}>{value}</p>
+        <p className="mt-0.5 truncate text-[10px] font-semibold leading-tight text-foreground/65">{label}</p></div>
     </div>)}
   </div>
 }

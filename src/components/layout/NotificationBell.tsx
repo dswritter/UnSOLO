@@ -45,7 +45,7 @@ export function NotificationBell({
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const PAGE_SIZE = 20
-  /** Popover for wander nav — portaled under `[data-wander-shell-season]` so season CSS vars apply (body alone does not inherit them). */
+  /** Popover for wander nav — portaled under `[data-wander-shell]` so it keeps the shell font. */
   const [wanderShellPortalParent, setWanderShellPortalParent] = useState<HTMLElement | null>(null)
   const wanderShellPortalHostCleanupRef = useRef<HTMLElement | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -56,7 +56,7 @@ export function NotificationBell({
   /** Viewport-fixed coords for the upward (admin sidebar) sheet — portaled to body so the sidebar's overflow-hidden can't clip it. */
   const [abovePanelStyle, setAbovePanelStyle] = useState<CSSProperties | undefined>(undefined)
 
-  // Dom-only portal container under the wander shell subtree (inherits season tokens). ESLint suppresses needed for setState syncing portal node.
+  // Dom-only portal container under the wander shell subtree. ESLint suppresses needed for setState syncing portal node.
   /* eslint-disable react-hooks/set-state-in-effect -- mounting portal container is an external DOM subtree */
   useLayoutEffect(() => {
     if (!(wanderNav && placement === 'below')) {
@@ -67,7 +67,7 @@ export function NotificationBell({
       return
     }
 
-    const shell = rootRef.current?.closest('[data-wander-shell-season]')
+    const shell = rootRef.current?.closest('[data-wander-shell]')
     const parent: HTMLElement = shell instanceof HTMLElement ? shell : document.body
     const host = document.createElement('div')
     host.setAttribute('data-wander-notif-portal', '')
@@ -288,7 +288,7 @@ export function NotificationBell({
       className={cn(
         'overflow-hidden shadow-2xl transform-gpu',
         wanderNav
-          ? 'glass-modal rounded-2xl text-white pointer-events-auto flex flex-col max-h-[min(85vh,calc(100vh-2rem))]'
+          ? 'glass-modal rounded-2xl text-foreground pointer-events-auto flex flex-col max-h-[min(85vh,calc(100vh-2rem))]'
           : 'rounded-xl shadow-2xl bg-card border border-border text-card-foreground',
         placement === 'below' && portalWanderBelow
           ? undefined
@@ -301,10 +301,10 @@ export function NotificationBell({
       <div
         className={cn(
           'px-4 py-3 flex items-center justify-between border-b',
-          wanderNav ? 'border-white/15' : 'border-border',
+          wanderNav ? 'border-foreground/15' : 'border-border',
         )}
       >
-        <span className={cn('text-sm font-black tracking-tight', wanderNav && 'text-white')}>Notifications</span>
+        <span className={cn('text-sm font-black tracking-tight', wanderNav && 'text-foreground')}>Notifications</span>
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
             <button
@@ -312,7 +312,7 @@ export function NotificationBell({
               onClick={markAllRead}
               className={cn(
                 'text-[10px] font-semibold hover:underline',
-                wanderNav ? 'text-[#fcba03] hover:text-[#fcba03]/90' : 'text-primary',
+                wanderNav ? 'text-primary hover:text-primary/90' : 'text-primary',
               )}
             >
               Mark all read
@@ -321,12 +321,12 @@ export function NotificationBell({
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-white/10')}
+            className={cn(wanderNav && 'rounded-md p-0.5 hover:bg-foreground/10')}
           >
             <X
               className={cn(
                 'h-3.5 w-3.5',
-                wanderNav ? 'text-white/65 hover:text-white' : 'text-zinc-500',
+                wanderNav ? 'text-foreground/65 hover:text-foreground' : 'text-zinc-500',
               )}
             />
           </button>
@@ -338,7 +338,7 @@ export function NotificationBell({
           <div
             className={cn(
               'px-4 py-8 text-center text-sm',
-              wanderNav ? 'text-white/55' : 'text-muted-foreground',
+              wanderNav ? 'text-foreground/55' : 'text-muted-foreground',
             )}
           >
             No notifications yet
@@ -355,8 +355,8 @@ export function NotificationBell({
                   'flex items-start gap-3 px-4 py-3 w-full text-left transition-colors border-b last:border-0',
                   wanderNav
                     ? cn(
-                        'border-white/10 hover:bg-white/[0.08]',
-                        !n.is_read && 'bg-white/[0.06]',
+                        'border-foreground/10 hover:bg-foreground/[0.08]',
+                        !n.is_read && 'bg-foreground/[0.06]',
                       )
                     : cn(
                         'border-border/50 hover:bg-secondary/30',
@@ -369,8 +369,8 @@ export function NotificationBell({
                     'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5',
                     wanderNav
                       ? !n.is_read
-                        ? 'bg-white/20'
-                        : 'bg-white/12'
+                        ? 'bg-foreground/20'
+                        : 'bg-foreground/12'
                       : !n.is_read
                         ? 'bg-primary/20'
                         : 'bg-secondary',
@@ -380,7 +380,7 @@ export function NotificationBell({
                     className={cn(
                       'h-4 w-4',
                       wanderNav
-                        ? 'text-white'
+                        ? 'text-foreground'
                         : !n.is_read
                           ? 'text-primary'
                           : 'text-muted-foreground',
@@ -394,8 +394,8 @@ export function NotificationBell({
                         'text-xs truncate',
                         wanderNav
                           ? !n.is_read
-                            ? 'font-bold text-white'
-                            : 'text-white/85'
+                            ? 'font-bold text-foreground'
+                            : 'text-foreground/85'
                           : !n.is_read
                             ? 'font-semibold text-foreground'
                             : 'text-muted-foreground',
@@ -406,7 +406,7 @@ export function NotificationBell({
                     <span
                       className={cn(
                         'text-[10px] shrink-0',
-                        wanderNav ? 'text-white/50' : 'text-muted-foreground',
+                        wanderNav ? 'text-foreground/50' : 'text-muted-foreground',
                       )}
                     >
                       {timeAgo(n.created_at)}
@@ -416,7 +416,7 @@ export function NotificationBell({
                     <p
                       className={cn(
                         'text-xs mt-0.5 line-clamp-3 break-words',
-                        wanderNav ? 'text-white/65' : 'text-muted-foreground',
+                        wanderNav ? 'text-foreground/65' : 'text-muted-foreground',
                       )}
                     >
                       {n.body}
@@ -443,7 +443,7 @@ export function NotificationBell({
             className={cn(
               'w-full px-4 py-3 text-xs font-semibold transition-colors disabled:opacity-50',
               wanderNav
-                ? 'text-white/75 hover:text-white hover:bg-white/[0.06]'
+                ? 'text-foreground/75 hover:text-foreground hover:bg-foreground/[0.06]'
                 : 'text-primary hover:bg-secondary/50',
             )}
           >
@@ -460,14 +460,14 @@ export function NotificationBell({
         onClick={() => setOpen(!open)}
         className={cn(
           'relative rounded-lg p-2 transition-colors',
-          wanderNav ? 'hover:bg-white/10' : 'hover:bg-secondary',
+          wanderNav ? 'hover:bg-foreground/10' : 'hover:bg-secondary',
         )}
         type="button"
         aria-expanded={open}
         aria-label="Notifications"
       >
         <Bell
-          className={cn('h-5 w-5', wanderNav ? 'text-white' : 'text-muted-foreground')}
+          className={cn('h-5 w-5', wanderNav ? 'text-foreground' : 'text-muted-foreground')}
         />
         {unreadCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">

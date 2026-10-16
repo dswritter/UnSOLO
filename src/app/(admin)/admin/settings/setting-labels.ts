@@ -81,14 +81,6 @@ export const SETTING_LABELS: Record<
   wander_hero_mobile_subtitle_size: { label: 'Wander hero — mobile subtitle size', type: 'text' },
   wander_hero_mobile_instagram_size: { label: 'Wander hero — mobile Instagram size', type: 'text' },
   wander_hero_mobile_stats_size: { label: 'Wander hero — mobile stats size', type: 'text' },
-  wander_theme_mode: {
-    label: 'Wander shell — theme mode',
-    type: 'text',
-  },
-  wander_theme_season_manual: {
-    label: 'Wander shell — manual season',
-    type: 'text',
-  },
 }
 
 export const SHARE_POSTER_SETTING_KEYS = ['share_poster_share_title', 'share_poster_share_text', 'share_poster_footer_tagline'] as const

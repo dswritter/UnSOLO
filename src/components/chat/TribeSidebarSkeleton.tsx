@@ -18,21 +18,21 @@ export function TribeSidebarSkeleton({
       className={cn(
         'flex-col border-r border-border max-h-[min(100dvh-5.5rem,56rem)] overflow-hidden wander-frost-panel bg-card/50',
         layout === 'desktop' &&
-          'hidden md:flex w-96 min-w-[384px] shrink-0 border-white/10 rounded-2xl',
+          'hidden md:flex w-96 min-w-[384px] shrink-0 border-foreground/10 rounded-2xl',
         layout === 'mobile' && 'flex md:hidden w-full flex-1 min-h-0 max-h-full shrink-0 min-w-0 border-0 rounded-none',
         className,
       )}
     >
       {/* Header — search + filters row + sound (matches ChatSidebar) */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="relative mb-3 h-9 w-full rounded-lg bg-white/5 animate-pulse" />
+        <div className="relative mb-3 h-9 w-full rounded-lg bg-foreground/5 animate-pulse" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1.5">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-7 w-14 rounded-full bg-white/5 animate-pulse" />
+              <div key={i} className="h-7 w-14 rounded-full bg-foreground/5 animate-pulse" />
             ))}
           </div>
-          <div className="h-8 w-8 rounded-md bg-white/5 animate-pulse shrink-0" />
+          <div className="h-8 w-8 rounded-md bg-foreground/5 animate-pulse shrink-0" />
         </div>
       </div>
 
@@ -43,15 +43,15 @@ export function TribeSidebarSkeleton({
             key={i}
             className="flex items-center gap-2 px-4 py-3 border-b border-border/30 w-full"
           >
-            <div className="h-11 w-11 rounded-full bg-white/10 animate-pulse shrink-0" />
+            <div className="h-11 w-11 rounded-full bg-foreground/10 animate-pulse shrink-0" />
             <div className="flex-1 min-w-0 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="h-3.5 flex-1 max-w-[180px] rounded bg-white/10 animate-pulse" />
-                <div className="h-2.5 w-10 rounded bg-white/5 animate-pulse shrink-0" />
+                <div className="h-3.5 flex-1 max-w-[180px] rounded bg-foreground/10 animate-pulse" />
+                <div className="h-2.5 w-10 rounded bg-foreground/5 animate-pulse shrink-0" />
               </div>
-              <div className="h-3 w-[85%] rounded bg-white/5 animate-pulse" />
+              <div className="h-3 w-[85%] rounded bg-foreground/5 animate-pulse" />
             </div>
-            <div className="h-3.5 w-3.5 rounded bg-white/5 animate-pulse shrink-0" />
+            <div className="h-3.5 w-3.5 rounded bg-foreground/5 animate-pulse shrink-0" />
           </div>
         ))}
       </div>

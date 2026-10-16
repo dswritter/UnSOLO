@@ -362,7 +362,7 @@ export function AdminBookingsClient({
           value={filterMonth}
           onChange={e => setFilterMonth(e.target.value)}
           aria-label="Travel month"
-          className="h-9 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="h-9 rounded-full border border-border bg-foreground/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">All months</option>
           {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
@@ -373,7 +373,7 @@ export function AdminBookingsClient({
           value={filterYear}
           onChange={e => setFilterYear(e.target.value)}
           aria-label="Travel year"
-          className="h-9 rounded-full border border-border bg-white/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="h-9 rounded-full border border-border bg-foreground/5 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">All years</option>
           {[2025, 2026, 2027, 2028].map(y => (
@@ -383,7 +383,7 @@ export function AdminBookingsClient({
         {(searchUser || filterMonth || filterYear) && (
           <button
             onClick={() => { setSearchUser(''); setFilterMonth(''); setFilterYear('') }}
-            className="px-3 py-1.5 text-xs text-red-400 hover:text-red-300"
+            className="px-3 py-1.5 text-xs text-red-400 hover:text-red-700 dark:hover:text-red-300"
           >
             Clear filters
           </button>
@@ -779,9 +779,9 @@ export function AdminBookingsClient({
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-bold">Refund: {formatPrice(booking.refund_amount_paise)}</span>
                         <Badge className={
-                          booking.refund_status === 'completed' ? 'bg-green-900/50 text-green-300 border-green-700' :
-                          booking.refund_status === 'processing' ? 'bg-blue-900/50 text-blue-300 border-blue-700' :
-                          'bg-yellow-900/50 text-yellow-300 border-yellow-700'
+                          booking.refund_status === 'completed' ? 'bg-green-900/50 text-green-700 dark:text-green-300 border-green-700' :
+                          booking.refund_status === 'processing' ? 'bg-blue-900/50 text-blue-700 dark:text-blue-300 border-blue-700' :
+                          'bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 border-yellow-700'
                         }>
                           {booking.refund_status === 'completed' ? '✅ Refunded' :
                            booking.refund_status === 'processing' ? '⏳ Processing' :
@@ -941,7 +941,7 @@ export function AdminBookingsClient({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-300"
+                            className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-700 dark:hover:text-red-300"
                             onClick={() => setFullCancelOpenId(booking.id)}
                             disabled={isPending}
                           >
@@ -970,7 +970,7 @@ export function AdminBookingsClient({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-300"
+                        className="text-xs gap-1 border-red-800 text-red-400 hover:bg-red-950 hover:text-red-700 dark:hover:text-red-300"
                         onClick={() => handleDeleteBooking(booking.id)}
                         disabled={isPending}
                       >
@@ -1161,7 +1161,7 @@ function TravellerEditor({ bookingId, initial, onSaved }: {
                 <button
                   type="button"
                   onClick={() => setDraft((d) => d.filter((_, idx) => idx !== i))}
-                  className="text-[11px] text-red-400 hover:text-red-300"
+                  className="text-[11px] text-red-400 hover:text-red-700 dark:hover:text-red-300"
                 >
                   Remove
                 </button>
@@ -1259,7 +1259,7 @@ function TravellerAdder({
             <option value="other">other</option>
           </select>
           {draft.length > 1 && (
-            <button onClick={() => setDraft((d) => d.filter((_, idx) => idx !== i))} className="text-[11px] text-red-400 hover:text-red-300">Remove</button>
+            <button onClick={() => setDraft((d) => d.filter((_, idx) => idx !== i))} className="text-[11px] text-red-400 hover:text-red-700 dark:hover:text-red-300">Remove</button>
           )}
         </div>
       ))}

@@ -46,14 +46,14 @@ export function ForgotPasswordClient() {
           <p className="text-muted-foreground text-sm mt-2">Change the way you travel.</p>
         </div>
 
-        <div className="rounded-2xl border border-border/80 bg-card/95 p-8 shadow-lg shadow-black/25 backdrop-blur-sm space-y-6 ring-1 ring-white/5">
+        <div className="rounded-2xl border border-border/80 bg-card/95 p-8 shadow-lg shadow-black/25 backdrop-blur-sm space-y-6 ring-1 ring-foreground/5">
           {sent ? (
             <div className="text-center space-y-5">
               <div
                 className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/40 bg-emerald-500/15"
                 aria-hidden
               >
-                <CheckCircle className="h-8 w-8 text-emerald-300" strokeWidth={2} />
+                <CheckCircle className="h-8 w-8 text-emerald-700 dark:text-emerald-300" strokeWidth={2} />
               </div>
               <div className="space-y-2">
                 <h1 className="text-xl font-bold text-foreground">Check your email</h1>

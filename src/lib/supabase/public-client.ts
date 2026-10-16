@@ -8,8 +8,6 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
  * inside `unstable_cache`, whose body runs outside request scope. RLS still
  * applies as an anonymous user, so only publicly-readable rows are returned —
  * exactly the right scope for public content pages.
- *
- * Mirrors the pattern already used by `wander-season-theme.ts`.
  */
 export function createPublicClient() {
   return createSupabaseClient(

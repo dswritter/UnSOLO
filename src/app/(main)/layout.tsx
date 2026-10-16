@@ -1,4 +1,3 @@
-import { getResolvedWanderShellSeason } from '@/lib/wander/wander-season-theme'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
@@ -9,7 +8,6 @@ import { FooterWrapper } from '@/components/layout/FooterWrapper'
 import { BottomShellNav } from '@/components/layout/BottomShellNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { MainScrollContainer } from '@/components/layout/MainScrollContainer'
-import { WanderThemeCrossTabSync } from '@/components/layout/WanderThemeCrossTabSync'
 import { Suspense } from 'react'
 
 /**
@@ -18,26 +16,16 @@ import { Suspense } from 'react'
  * (main) are now free to be static/ISR (or stay dynamic) on their own terms.
  *
  * Auth and Android-shell detection resolve client-side (AuthProvider +
- * BottomShellNav). Revalidate hourly so the date-based wander season theme
- * (getResolvedWanderShellSeason uses `new Date()` in auto mode) stays current.
+ * BottomShellNav).
  */
-export const revalidate = 3600
-
-export default async function MainLayout({
+export default function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  let wanderShellSeason: Awaited<ReturnType<typeof getResolvedWanderShellSeason>> = 'default'
-  try {
-    wanderShellSeason = await getResolvedWanderShellSeason()
-  } catch {
-    wanderShellSeason = 'default'
-  }
-
   return (
     <div
-      data-wander-shell-season={wanderShellSeason}
+      data-wander-shell=""
       className="flex min-h-dvh flex-col bg-background text-foreground"
     >
       <AuthProvider>
@@ -56,7 +44,6 @@ export default async function MainLayout({
           {/* SignInPrompt uses useSearchParams → needs a Suspense boundary under static rendering. */}
           <SignInPrompt />
         </Suspense>
-        <WanderThemeCrossTabSync />
         <FooterWrapper />
       </AuthProvider>
     </div>

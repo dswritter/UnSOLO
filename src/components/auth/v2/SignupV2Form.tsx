@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-white/20 !bg-zinc-950 !text-white !placeholder:text-white/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-zinc-950 dark:!text-white dark:!placeholder:text-white/40'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/40'
 const inputPlaceholderClass =
   'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
 
@@ -65,8 +65,8 @@ function SignupV2FormInner() {
     return (
       <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
         <div className="h-10 w-10 border-[3px] border-[#fcba03] border-t-transparent rounded-full animate-spin" />
-        <p className="mt-5 text-sm text-white/60">Setting up your adventure, please hold on…</p>
-        <p className="text-xs text-white/40 mt-3 max-w-sm leading-relaxed">
+        <p className="mt-5 text-sm text-foreground/60">Setting up your adventure, please hold on…</p>
+        <p className="text-xs text-foreground/40 mt-3 max-w-sm leading-relaxed">
           We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
         </p>
       </div>
@@ -77,23 +77,23 @@ function SignupV2FormInner() {
     return (
       <div className="text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#fcba03]/30 bg-[#fcba03]/10">
-          <Mail className="h-7 w-7 text-[#fcba03]" />
+          <Mail className="h-7 w-7 text-primary" />
         </div>
-        <h2 className="mt-4 text-lg font-bold text-white">Verify your email</h2>
-        <p className="text-sm text-white/60 mt-3 leading-relaxed text-left">
+        <h2 className="mt-4 text-lg font-bold text-foreground">Verify your email</h2>
+        <p className="text-sm text-foreground/60 mt-3 leading-relaxed text-left">
           We sent a confirmation link to{' '}
-          <span className="text-white font-medium break-all">{pendingVerificationEmail}</span>. Open that email and tap{' '}
-          <strong className="text-white">Confirm</strong> — then you&apos;ll land on sign-in, already signed in, ready
+          <span className="text-foreground font-medium break-all">{pendingVerificationEmail}</span>. Open that email and tap{' '}
+          <strong className="text-foreground">Confirm</strong> — then you&apos;ll land on sign-in, already signed in, ready
           to explore.
         </p>
-        <p className="text-xs text-white/40 mt-3 text-left">
+        <p className="text-xs text-foreground/40 mt-3 text-left">
           Spam folder? Gmail &quot;Promotions&quot;? Check those too.
         </p>
         <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
           <Button
             type="button"
             variant="outline"
-            className="border-white/20 text-white"
+            className="border-foreground/20 text-foreground"
             disabled={resendBusy}
             onClick={async () => {
               setResendBusy(true)
@@ -111,7 +111,7 @@ function SignupV2FormInner() {
         </div>
         <button
           type="button"
-          className="mt-4 text-xs text-white/50 hover:text-white underline underline-offset-2"
+          className="mt-4 text-xs text-foreground/50 hover:text-foreground underline underline-offset-2"
           onClick={() => {
             setPendingVerificationEmail(null)
             submitLockRef.current = false
@@ -174,20 +174,20 @@ function SignupV2FormInner() {
   return (
     <>
       <div className="mb-1">
-        <h2 className="text-lg font-bold text-white md:text-xl">
-          <span className="text-[#fcba03]">Sign up</span> to continue
+        <h2 className="text-lg font-bold text-foreground md:text-xl">
+          <span className="text-primary">Sign up</span> to continue
         </h2>
-        <p className="mt-1 text-sm text-white/50">Join the community and start exploring.</p>
+        <p className="mt-1 text-sm text-foreground/50">Join the community and start exploring.</p>
       </div>
 
       <AuthV2Tabs active="signup" />
 
       {refCode && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#fcba03]/30 bg-[#fcba03]/10 p-3">
-          <Gift className="h-5 w-5 text-[#fcba03] shrink-0" />
+          <Gift className="h-5 w-5 text-primary shrink-0" />
           <div className="text-left">
-            <p className="text-sm font-bold text-[#fcba03]">You&apos;ve been invited!</p>
-            <p className="text-xs text-white/60">Get ₹200 off your first booking</p>
+            <p className="text-sm font-bold text-primary">You&apos;ve been invited!</p>
+            <p className="text-xs text-foreground/60">Get ₹200 off your first booking</p>
           </div>
         </div>
       )}
@@ -198,7 +198,7 @@ function SignupV2FormInner() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-white/80">Full name</label>
+            <label className="text-xs font-medium text-foreground/80">Full name</label>
             <Input
               name="fullName"
               placeholder="e.g. River Walker"
@@ -207,7 +207,7 @@ function SignupV2FormInner() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-white/80">Username</label>
+            <label className="text-xs font-medium text-foreground/80">Username</label>
             <Input
               name="username"
               placeholder="e.g. summit_seeker"
@@ -217,7 +217,7 @@ function SignupV2FormInner() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/80">Email</label>
+          <label className="text-xs font-medium text-foreground/80">Email</label>
           <Input
             id="auth-v2-signup-email"
             name="email"
@@ -229,7 +229,7 @@ function SignupV2FormInner() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/80">Password</label>
+          <label className="text-xs font-medium text-foreground/80">Password</label>
           <div className="relative">
             <Input
               ref={passwordRef}
@@ -243,7 +243,7 @@ function SignupV2FormInner() {
             />
             <button
               type="button"
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-white/45 hover:text-white"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-foreground/45 hover:text-foreground"
               onClick={() => setShowPassword(v => !v)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
@@ -252,7 +252,7 @@ function SignupV2FormInner() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/80">Confirm password</label>
+          <label className="text-xs font-medium text-foreground/80">Confirm password</label>
           <div className="relative">
             <Input
               ref={confirmPasswordRef}
@@ -264,7 +264,7 @@ function SignupV2FormInner() {
             />
             <button
               type="button"
-              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-white/45 hover:text-white"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-foreground/45 hover:text-foreground"
               onClick={() => setShowConfirmPassword(v => !v)}
               aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
             >
@@ -283,10 +283,10 @@ function SignupV2FormInner() {
 
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-white/10" />
+          <div className="w-full border-t border-foreground/10" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-zinc-950/90 px-3 text-white/40">or continue with</span>
+          <span className="bg-card/90 px-3 text-foreground/40">or continue with</span>
         </div>
       </div>
 
@@ -294,7 +294,7 @@ function SignupV2FormInner() {
         type="button"
         variant="outline"
         disabled={!!loading || googleBusy || googleAttempts >= 2}
-        className="h-11 w-full border-white/20 bg-transparent text-white hover:bg-white/5"
+        className="h-11 w-full border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5"
         onClick={() => void handleGoogleSignUp()}
       >
         <GoogleMark className="mr-2 h-4 w-4" />
@@ -302,7 +302,7 @@ function SignupV2FormInner() {
       </Button>
 
       {googleError ? (
-        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-200/95 space-y-2">
+        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-700/95 dark:text-red-200/95 space-y-2">
           <p>{googleError}</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             {googleAttempts < 2 ? (
@@ -310,18 +310,18 @@ function SignupV2FormInner() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-9 border-white/25 bg-transparent text-white hover:bg-white/10"
+                className="h-9 border-foreground/25 bg-transparent text-foreground hover:bg-foreground/10"
                 disabled={googleBusy}
                 onClick={() => void handleGoogleSignUp()}
               >
                 Try Google again
               </Button>
             ) : (
-              <p className="text-[11px] text-white/55">Continue with email above to create your account.</p>
+              <p className="text-[11px] text-foreground/55">Continue with email above to create your account.</p>
             )}
             <button
               type="button"
-              className="text-left text-[11px] font-semibold text-[#fcba03] hover:underline sm:text-right"
+              className="text-left text-[11px] font-semibold text-primary hover:underline sm:text-right"
               onClick={() => {
                 const el = document.getElementById('auth-v2-signup-email')
                 el?.focus()
@@ -334,13 +334,13 @@ function SignupV2FormInner() {
         </div>
       ) : null}
 
-      <p className="text-[11px] text-white/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
+      <p className="text-[11px] text-foreground/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
 
-      <p className="mt-4 text-center text-sm text-white/50">
+      <p className="mt-4 text-center text-sm text-foreground/50">
         Already have an account?{' '}
         <Link
           href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
-          className="font-semibold text-[#fcba03] hover:underline"
+          className="font-semibold text-primary hover:underline"
         >
           Log in
         </Link>

@@ -61,15 +61,15 @@ export function WanderMobileHeroCoordinator({
           <button
             type="button"
             onClick={cardState.openSheet}
-            className="w-full rounded-[1.7rem] border border-white/12 bg-white/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
+            className="w-full rounded-[1.7rem] border border-foreground/12 bg-foreground/[0.06] px-4 py-4 text-left shadow-[0_18px_44px_rgba(0,0,0,0.18)] backdrop-blur-[42px] backdrop-saturate-150"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
                   {MOBILE_CTA_COPY[cardState.tab]}
                 </p>
-                <p className="mt-1 truncate text-base font-bold text-white">{cardState.summaryLines[0]}</p>
-                <p className="mt-1 text-sm text-white/62">{cardState.summaryLines[1]}</p>
+                <p className="mt-1 truncate text-base font-bold text-foreground">{cardState.summaryLines[0]}</p>
+                <p className="mt-1 text-sm text-foreground/62">{cardState.summaryLines[1]}</p>
               </div>
               <span className="mt-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <ChevronRight className="h-4 w-4" />

@@ -402,7 +402,7 @@ function ProcessedRow({ row: initialRow }: { row: PartialCancellationRow }) {
             + Add refund (none recorded)
           </button>
           {canDelete && (
-            <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-300">
+            <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-700 dark:hover:text-red-300">
               Delete this record
             </button>
           )}
@@ -419,7 +419,7 @@ function ProcessedRow({ row: initialRow }: { row: PartialCancellationRow }) {
         />
       )}
       {!canAddRefund && canDelete && (
-        <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-300">
+        <button onClick={deleteRecord} disabled={isPending} className="text-[11px] text-red-400 hover:text-red-700 dark:hover:text-red-300">
           Delete this record
         </button>
       )}

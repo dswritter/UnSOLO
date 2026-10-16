@@ -28,7 +28,6 @@ import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { getInterestData } from '@/actions/booking'
 import { getSupportWhatsappNumber, resolveWhatsappNumber } from '@/lib/platform-settings'
 import { RelatedServicesSection } from '@/components/packages/RelatedServicesSection'
-import { TripDetailSeasonBackdrop } from '@/components/packages/TripDetailSeasonBackdrop'
 import { ReviewsSection } from '@/components/reviews/ReviewsSection'
 import { JoinTripPanel } from '@/components/trip-claims/JoinTripPanel'
 import type { Package, HostProfile } from '@/types'
@@ -332,7 +331,6 @@ export default async function PackageDetailPage({
   return (
     <div className="relative min-h-screen">
       <HeroBackdrop imageUrl={package_.images?.[0]} />
-      <TripDetailSeasonBackdrop />
       <div className="relative z-10 mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-4 pb-[calc(11rem+env(safe-area-inset-bottom,0px))] md:py-8">
         {/* Back arrow only — no inline label. On mobile the browser/OS back
             chevron is the primary affordance, so the redundant text strip just
@@ -354,7 +352,7 @@ export default async function PackageDetailPage({
           && package_.first_approved_at
           && !isHost
           && !isAdminUser && (
-          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
             Recent host edits are under review — booking stays open.
           </div>
         )}
@@ -611,9 +609,9 @@ export default async function PackageDetailPage({
               >
                 <CardContent className="p-6 space-y-4">
                   {bookingsPaused && !isHost && (
-                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm text-amber-200 space-y-1">
-                      <p className="font-semibold text-amber-300">Not accepting bookings right now</p>
-                      <p className="text-xs text-amber-200/80">The host has temporarily paused new bookings. Check back later or contact the host for details.</p>
+                    <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-4 text-sm text-amber-700 dark:text-amber-200 space-y-1">
+                      <p className="font-semibold text-amber-700 dark:text-amber-300">Not accepting bookings right now</p>
+                      <p className="text-xs text-amber-700/80 dark:text-amber-200/80">The host has temporarily paused new bookings. Check back later or contact the host for details.</p>
                     </div>
                   )}
                   {isCommunityTrip ? (
@@ -770,7 +768,7 @@ export default async function PackageDetailPage({
         </div>
 
         <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 px-4 md:hidden">
-          <div className="pointer-events-auto rounded-2xl border border-white/12 bg-zinc-950/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
+          <div className="pointer-events-auto rounded-2xl border border-foreground/12 bg-card/94 p-3 shadow-[0_18px_48px_rgba(0,0,0,0.32)] backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">
@@ -781,7 +779,7 @@ export default async function PackageDetailPage({
                     {formatPrice(compareAtDisplayPaise)} per person
                   </p>
                 ) : null}
-                <p className="truncate text-sm font-bold text-white">
+                <p className="truncate text-sm font-bold text-foreground">
                   {hasTieredPricing(package_.price_variants) ? 'From ' : ''}
                   {formatPrice(package_.price_paise)} per person
                 </p>

@@ -52,11 +52,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
 
   if (!room.is_active && room.type === 'trip') {
     return (
-      <div className="flex-1 flex items-center justify-center px-4 text-white/90">
+      <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4 max-w-md">
-          <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Trip chat</h2>
-          <p className="text-white/60 text-sm">Currently this trip is not live.</p>
+          <p className="text-foreground/60 text-sm">Currently this trip is not live.</p>
           <Button asChild className="bg-[#fcba03] text-black font-bold">
             <Link href={WANDER_HOME_SEARCH_HREF}>Browse trips</Link>
           </Button>
@@ -106,11 +106,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
 
   if (!effectiveMembership && room.type === 'direct') {
     return (
-      <div className="flex-1 flex items-center justify-center px-4 text-white/90">
+      <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Private Conversation</h2>
-          <p className="text-white/60 text-sm">You don&apos;t have access to this chat.</p>
+          <p className="text-foreground/60 text-sm">You don&apos;t have access to this chat.</p>
           <Button asChild className="bg-[#fcba03] text-black font-bold">
             <Link href={listPath}>Back</Link>
           </Button>
@@ -122,11 +122,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
   if (!effectiveMembership && room.type !== 'general' && room.type !== 'direct') {
     if (tripEligible) {
       return (
-        <div className="flex-1 flex items-center justify-center px-4 text-white/90">
+        <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
           <div className="text-center space-y-4">
-            <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
+            <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
             <h2 className="text-xl font-bold">You left this chat</h2>
-            <p className="text-white/60 text-sm">Rejoin to see new messages and participate.</p>
+            <p className="text-foreground/60 text-sm">Rejoin to see new messages and participate.</p>
             <JoinRoomButton roomId={roomId} label="Rejoin Chat" listBasePath={listPath} />
           </div>
         </div>
@@ -135,11 +135,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
 
     const bookHref = packageSlug ? `/packages/${packageSlug}` : WANDER_HOME_SEARCH_HREF
     return (
-      <div className="flex-1 flex items-center justify-center px-4 text-white/90">
+      <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Trip-only Chat</h2>
-          <p className="text-white/60 text-sm">
+          <p className="text-foreground/60 text-sm">
             This chat is for travelers with an active, upcoming, ongoing, or completed booking for this trip.
           </p>
           <Button asChild className="bg-[#fcba03] text-black font-bold">
@@ -152,11 +152,11 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
 
   if (!effectiveMembership && room.type === 'general') {
     return (
-      <div className="flex-1 flex items-center justify-center px-4 text-white/90">
+      <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-[#fcba03]/40 mx-auto" />
+          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">{room.name}</h2>
-          <p className="text-white/60 text-sm">Join this community to see chats and participate.</p>
+          <p className="text-foreground/60 text-sm">Join this community to see chats and participate.</p>
           <JoinRoomButton roomId={roomId} label="Join Community" listBasePath={listPath} />
         </div>
       </div>

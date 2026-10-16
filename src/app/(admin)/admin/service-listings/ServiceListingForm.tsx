@@ -571,7 +571,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             {formData.tags.map((tag, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/12 px-3 py-1 text-sm font-medium text-white"
+                className="inline-flex items-center gap-1.5 rounded-full border border-foreground/25 bg-foreground/12 px-3 py-1 text-sm font-medium text-foreground"
               >
                 {tag}
                 <button
@@ -582,7 +582,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                       tags: formData.tags.filter((_, i) => i !== idx),
                     })
                   }}
-                  className="rounded-full px-0.5 text-white/80 hover:bg-white/15 hover:text-white"
+                  className="rounded-full px-0.5 text-foreground/80 hover:bg-foreground/15 hover:text-foreground"
                   aria-label={`Remove tag ${tag}`}
                 >
                   ×

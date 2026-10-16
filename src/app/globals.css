@@ -1,8 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "./wander-shell-season.css";
-@import "./trip-detail-season-decor.css";
+@import "./alpine-shell.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -50,109 +49,98 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── UnSOLO Light Theme — Warm Cream + Slate ─────────────── */
-/* Palette: bg #FFFBF0 · card #FFFFFF · text #1A1A1A · yellow #FFC22E · warm-gray neutrals */
+/* ── Alpine day (light) / Alpine dusk (.dark) — the only theme. Mode is chosen in <head> (see lib/theme/color-mode). */
 :root {
-  --background: oklch(0.987 0.015 85);   /* #FFFBF0 warm cream — ~20:1 on foreground */
-  --foreground: oklch(0.13 0 0);          /* #1A1A1A near-black */
-  --card: oklch(1 0 0);                   /* #FFFFFF white cards stand out from cream bg */
-  --card-foreground: oklch(0.13 0 0);
+  --background: oklch(0.962 0.01 250);
+  --foreground: oklch(0.255 0.035 262);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.255 0.035 262);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.13 0 0);
-  /* Brand Yellow #FFC22E — dark text on top, ~7:1 contrast */
-  --primary: oklch(0.828 0.168 82);
-  --primary-foreground: oklch(0.13 0 0);
-  /* Softer than primary so outline/ghost CTAs don’t compete on cream */
-  --secondary: oklch(0.935 0.01 82);
-  --secondary-foreground: oklch(0.13 0 0);
-  --muted: oklch(0.942 0.014 80);        /* #F0EBE1 very light warm — subtle bg */
-  --muted-foreground: oklch(0.455 0.018 70); /* #6B6458 warm mid-gray — ~4.5:1 on muted ✓ */
-  --accent: oklch(0.828 0.168 82);
-  --accent-foreground: oklch(0.13 0 0);
-  --destructive: oklch(0.55 0.22 25);
-  --border: oklch(0.836 0.012 78);       /* #D4CEC5 warm border */
-  --input: oklch(0.955 0.013 80);        /* #F5F0E8 warm input bg */
-  /* Slightly deeper amber than fill — focus rings on cream + glass */
-  --ring: oklch(0.68 0.17 78);
-  --chart-1: oklch(0.828 0.168 82);      /* yellow */
-  --chart-2: oklch(0.72 0.14 65);        /* warm amber */
-  --chart-3: oklch(0.60 0.17 50);        /* warm orange */
-  --chart-4: oklch(0.50 0.15 40);        /* warm sienna */
-  --chart-5: oklch(0.40 0.12 35);        /* warm brown */
-  --radius: 0.625rem;
-  --sidebar: oklch(0.975 0.014 83);      /* slightly more cream than bg */
-  --sidebar-foreground: oklch(0.13 0 0);
-  --sidebar-primary: oklch(0.828 0.168 82);
-  --sidebar-primary-foreground: oklch(0.13 0 0);
-  --sidebar-accent: oklch(0.905 0.012 78);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
-  --sidebar-border: oklch(0.836 0.012 78);
-  --sidebar-ring: oklch(0.828 0.168 82);
+  --popover-foreground: oklch(0.255 0.035 262);
+  --primary: #fcba03;
+  --primary-foreground: #1a1500;
+  /* Brand gold is too pale for text on light surfaces — `.text-primary` uses this instead */
+  --primary-ink: #9a6b00;
+  --secondary: oklch(0.93 0.012 255);
+  --secondary-foreground: oklch(0.255 0.035 262);
+  --muted: oklch(0.94 0.01 255);
+  --muted-foreground: oklch(0.5 0.03 262);
+  --accent: #fcba03;
+  --accent-foreground: #1a1500;
+  --destructive: oklch(0.56 0.21 25);
+  --border: oklch(0.885 0.015 255);
+  --input: oklch(0.885 0.015 255);
+  --ring: #e0a000;
+  --chart-1: #fcba03;
+  --chart-2: oklch(0.62 0.15 250);
+  --chart-3: oklch(0.65 0.13 185);
+  --chart-4: oklch(0.6 0.15 300);
+  --chart-5: oklch(0.6 0.03 262);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.975 0.008 250);
+  --sidebar-foreground: oklch(0.255 0.035 262);
+  --sidebar-primary: #fcba03;
+  --sidebar-primary-foreground: #1a1500;
+  --sidebar-accent: oklch(0.93 0.012 255);
+  --sidebar-accent-foreground: oklch(0.255 0.035 262);
+  --sidebar-border: oklch(0.885 0.015 255);
+  --sidebar-ring: #e0a000;
   /* Shared motion (buttons, sheets, rows) — honor prefers-reduced-motion in components */
   --motion-duration-1: 150ms;
   --motion-duration-2: 220ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
-  /* Apple-style glass uses --glass-blur (16px). Legacy alias keeps older classnames aligned. */
   --glass-blur: 16px;
   --glass-radius: 1rem;
   --glass-radius-lg: 1.25rem;
+  --glass-shadow: 0 12px 34px rgba(27, 36, 54, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
   --wander-glass-blur: 16px;
   --wander-glass-saturate: 1;
 }
 
-/* ── UnSOLO Dark Theme — Warm Charcoal + Yellow ──────────── */
-/* Palette: bg #0F0E0C · card #1A1815 · text #F5F3F0 · yellow #FFC22E · warm slate neutrals */
 .dark {
-  --background: oklch(0.077 0.005 65);   /* #0F0E0C warm charcoal — ~18:1 on foreground */
-  --foreground: oklch(0.968 0.007 75);   /* #F5F3F0 warm off-white */
-  --card: oklch(0.12 0.007 65);          /* #1A1815 warm dark card */
-  --card-foreground: oklch(0.968 0.007 75);
-  --popover: oklch(0.12 0.007 65);
-  --popover-foreground: oklch(0.968 0.007 75);
-  /* Brand Yellow — same across both themes */
-  --primary: oklch(0.828 0.168 82);
-  --primary-foreground: oklch(0.077 0.005 65); /* dark bg color on yellow button */
-  /* Warm slate for inactive tabs, inputs — #2A261F */
-  --secondary: oklch(0.182 0.012 70);    /* ~5:1 against secondary-foreground ✓ */
-  --secondary-foreground: oklch(0.789 0.018 72); /* #C8C0B4 warm light gray */
-  --muted: oklch(0.155 0.012 65);        /* #241F19 slightly darker for subtle bg */
-  --muted-foreground: oklch(0.622 0.015 55); /* #9A9089 warm gray — ~6:1 on bg ✓ */
-  --accent: oklch(0.828 0.168 82);
-  --accent-foreground: oklch(0.077 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.263 0.015 65);       /* #3D3830 warm dark border */
-  --input: oklch(0.142 0.010 65);        /* #201D18 warm dark input */
-  --ring: oklch(0.828 0.168 82);
-  --chart-1: oklch(0.828 0.168 82);
-  --chart-2: oklch(0.72 0.14 65);
-  --chart-3: oklch(0.60 0.17 50);
-  --chart-4: oklch(0.50 0.15 40);
-  --chart-5: oklch(0.40 0.12 35);
-  --sidebar: oklch(0.09 0.006 65);       /* slightly darker than card */
-  --sidebar-foreground: oklch(0.968 0.007 75);
-  --sidebar-primary: oklch(0.828 0.168 82);
-  --sidebar-primary-foreground: oklch(0.077 0.005 65);
-  --sidebar-accent: oklch(0.182 0.012 70);
-  --sidebar-accent-foreground: oklch(0.968 0.007 75);
-  --sidebar-border: oklch(0.20 0.010 65);
-  --sidebar-ring: oklch(0.828 0.168 82);
+  --background: oklch(0.2 0.022 262);
+  --foreground: oklch(0.957 0.008 262);
+  --card: oklch(0.255 0.026 262);
+  --card-foreground: oklch(0.957 0.008 262);
+  --popover: oklch(0.24 0.026 262);
+  --popover-foreground: oklch(0.957 0.008 262);
+  --primary: #fcba03;
+  --primary-foreground: #1a1500;
+  --primary-ink: #fcba03;
+  --secondary: oklch(0.3 0.026 262);
+  --secondary-foreground: oklch(0.92 0.01 262);
+  --muted: oklch(0.245 0.022 262);
+  --muted-foreground: oklch(0.74 0.02 262);
+  --accent: #fcba03;
+  --accent-foreground: #1a1500;
+  --destructive: oklch(0.65 0.2 25);
+  --border: oklch(0.36 0.028 262);
+  --input: oklch(0.36 0.028 262);
+  --ring: #fcd34d;
+  --chart-1: #fcba03;
+  --chart-2: oklch(0.7 0.13 250);
+  --chart-3: oklch(0.7 0.11 185);
+  --chart-4: oklch(0.66 0.13 300);
+  --chart-5: oklch(0.6 0.03 262);
+  --sidebar: oklch(0.18 0.022 262);
+  --sidebar-foreground: oklch(0.957 0.008 262);
+  --sidebar-primary: #fcba03;
+  --sidebar-primary-foreground: #1a1500;
+  --sidebar-accent: oklch(0.28 0.026 262);
+  --sidebar-accent-foreground: oklch(0.957 0.008 262);
+  --sidebar-border: oklch(0.32 0.026 262);
+  --sidebar-ring: #fcba03;
+  --glass-shadow: 0 16px 44px rgba(0, 0, 0, 0.35);
+  --glass-highlight: rgba(255, 255, 255, 0.1);
 }
 
-/* ── /wander — forest shell: color tokens + textures live in wander-shell-season.css
-   via `data-wander-shell-season` on an ancestor (main layout or WanderThemeShell). ─ */
 .wander-theme {
   font-family: var(--font-wander, var(--font-sans)), ui-sans-serif, system-ui, sans-serif;
 }
 
-/*
-  Apple-style glass primitives — REAL backdrop-filter: blur(16px) only; translucent gradient fill,
-  1px border, shadow + inner highlight; soft ::before diagonal sheen. Classes: .glass-navbar,
-  .glass-card, .glass-modal. Legacy .wander-frost-* map to the same recipe (scoped to wander).
-  Prefer immersive backgrounds (.wander-textured, gradients) behind glass—not flat white.
-  Footer stays tonal mix only (not a third glass stack).
-*/
-
+/* Glass primitives (.glass-navbar, .glass-card, .glass-modal, .wander-frost-*) — tinted from --card so both modes work. */
 .glass-navbar,
 .glass-card,
 .glass-modal,
@@ -176,28 +164,6 @@
   overflow: hidden;
 }
 
-.glass-navbar::before,
-.glass-card::before,
-.glass-modal::before,
-.wander-frost::before,
-.wander-frost-chrome::before,
-.wander-theme .wander-frost-panel::before,
-.wander-theme .wander-frost-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    128deg,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(255, 255, 255, 0) 42%,
-    transparent 74%
-  );
-  opacity: 0.21;
-}
-
 .glass-navbar > * {
   position: relative;
   z-index: 1;
@@ -219,131 +185,36 @@
   }
 }
 
-@supports ((-webkit-backdrop-filter: blur(16px)) or (backdrop-filter: blur(16px))) {
-  /* !important beats merged Tailwind utilities (e.g. bg-popover) on menus/cards */
-  .glass-navbar {
-    border-radius: 0 !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
-    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  .glass-card,
-  .glass-modal,
-  .wander-frost,
-  .wander-frost-chrome,
-  .wander-theme .wander-frost-panel {
-    border-radius: var(--glass-radius-lg) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05)) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  .wander-theme .wander-frost-card[class*='rounded'] {
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
-    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.045)) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.25),
-      inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  /* Season-aware glass: tint from --card/--border (inherits from [data-wander-shell-season]); not flat grey/white */
-  [data-wander-shell-season] .glass-navbar {
-    border-bottom-color: color-mix(in oklab, var(--border) 72%, transparent) !important;
-    background:
-      linear-gradient(
-        to bottom right,
-        color-mix(in oklab, var(--wander-nav-surface, var(--card)) 100%, transparent),
-        color-mix(in oklab, var(--card) 52%, transparent)
-      ) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.32),
-      inset 0 1px 0 color-mix(in oklab, white 18%, transparent) !important;
-    color: var(--foreground);
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  [data-wander-shell-season] .glass-card,
-  [data-wander-shell-season] .glass-modal,
-  [data-wander-shell-season] .wander-frost,
-  [data-wander-shell-season] .wander-frost-chrome,
-  [data-wander-shell-season] .wander-theme .wander-frost-panel {
-    border-color: color-mix(in oklab, var(--wander-frost-chrome-border, var(--border)) 70%, transparent) !important;
-    background:
-      linear-gradient(
-        to bottom right,
-        color-mix(in oklab, var(--card) 76%, rgba(255, 255, 255, 0.09)),
-        color-mix(in oklab, var(--card) 44%, transparent)
-      ) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.28),
-      inset 0 1px 0 color-mix(in oklab, white 14%, transparent) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  [data-wander-shell-season] .glass-navbar::before,
-  [data-wander-shell-season] .glass-card::before,
-  [data-wander-shell-season] .glass-modal::before,
-  [data-wander-shell-season] .wander-frost::before,
-  [data-wander-shell-season] .wander-frost-chrome::before,
-  [data-wander-shell-season] .wander-theme .wander-frost-panel::before,
-  [data-wander-shell-season] .wander-theme .wander-frost-card::before {
-    opacity: 0.14;
-  }
-
-  [data-wander-shell-season] .wander-theme .wander-frost-card[class*='rounded'] {
-    border-color: color-mix(in oklab, var(--wander-frost-chrome-border, var(--border)) 62%, transparent) !important;
-    background:
-      linear-gradient(
-        to bottom right,
-        color-mix(in oklab, var(--card) 74%, rgba(255, 255, 255, 0.08)),
-        color-mix(in oklab, var(--card) 42%, transparent)
-      ) !important;
-    box-shadow:
-      0 10px 40px rgba(0, 0, 0, 0.26),
-      inset 0 1px 0 color-mix(in oklab, white 12%, transparent) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    backdrop-filter: blur(16px) !important;
-  }
+.glass-navbar {
+  border-radius: 0 !important;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent) !important;
+  background: color-mix(in oklab, var(--card) 78%, transparent) !important;
+  box-shadow: 0 6px 24px color-mix(in oklab, var(--foreground) 6%, transparent) !important;
+  color: var(--foreground);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
 }
 
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .glass-navbar,
-  .glass-card,
-  .glass-modal,
-  .wander-frost,
-  .wander-frost-chrome,
-  .wander-theme .wander-frost-panel,
-  .wander-theme .wander-frost-card {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    background: rgba(255, 255, 255, 0.85) !important;
-    border-color: rgba(210, 210, 210, 0.5) !important;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1) !important;
-  }
+.glass-card,
+.glass-modal,
+.wander-frost,
+.wander-frost-chrome,
+.wander-theme .wander-frost-panel,
+.wander-theme .wander-frost-card[class*='rounded'] {
+  border: 1px solid color-mix(in oklab, var(--border) 75%, transparent) !important;
+  background: color-mix(in oklab, var(--card) 82%, transparent) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight) !important;
+  color: var(--card-foreground);
+  -webkit-backdrop-filter: blur(16px) !important;
+  backdrop-filter: blur(16px) !important;
+}
 
-  [data-wander-shell-season] .glass-navbar,
-  [data-wander-shell-season] .glass-card,
-  [data-wander-shell-season] .glass-modal,
-  .wander-frost-chrome,
-  [data-wander-shell-season] .wander-theme .wander-frost-panel,
-  [data-wander-shell-season] .wander-theme .wander-frost-card[class*='rounded'] {
-    background: color-mix(in oklab, var(--card) 92%, white 4%) !important;
-    border-color: color-mix(in oklab, var(--border) 82%, transparent) !important;
-    color: var(--foreground);
-  }
+.glass-card,
+.glass-modal,
+.wander-frost,
+.wander-frost-chrome,
+.wander-theme .wander-frost-panel {
+  border-radius: var(--glass-radius-lg) !important;
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -353,51 +224,30 @@
   .wander-frost,
   .wander-frost-chrome,
   .wander-theme .wander-frost-panel,
-  .wander-theme .wander-frost-card {
+  .wander-theme .wander-frost-card[class*='rounded'] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
-    background: rgba(255, 255, 255, 0.85) !important;
-    border-color: rgba(220, 220, 220, 0.55) !important;
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08) !important;
-  }
-
-  [data-wander-shell-season] .glass-navbar,
-  [data-wander-shell-season] .glass-card,
-  [data-wander-shell-season] .glass-modal,
-  [data-wander-shell-season] .wander-frost-chrome,
-  [data-wander-shell-season] .wander-theme .wander-frost-panel {
-    background: color-mix(in oklab, var(--card) 94%, transparent) !important;
-    border-color: color-mix(in oklab, var(--border) 75%, transparent) !important;
-    color: var(--foreground);
-  }
-
-  .wander-theme .wander-frost-card[class*='rounded'] {
-    background: color-mix(in oklab, var(--card) 94%, transparent) !important;
+    background: var(--card) !important;
   }
 }
 
 /* Footer wander bar — tonal only (omit glass primitive to reduce stacked blurs site-wide). */
 .footer-wander-surface {
-  background: var(
-    --wander-footer-surface,
-    color-mix(in oklab, oklch(0.14 0.038 155) 93%, transparent)
-  );
-  border-color: var(
-    --wander-footer-border,
-    color-mix(in oklab, oklch(0.4 0.07 150) 45%, transparent)
-  );
-  color: oklch(0.97 0.01 90);
+  background: var(--wander-footer-surface);
+  border-color: var(--wander-footer-border);
+  color: oklch(0.96 0.008 262);
   box-shadow: inset 0 1px 0 0 color-mix(in oklab, white 5%, transparent);
 }
 .footer-wander-surface .text-muted-foreground,
 .footer-wander-surface a {
-  color: var(--wander-footer-muted, color-mix(in oklab, white 72%, oklch(0.5 0.05 150)));
+  color: var(--wander-footer-muted);
 }
 .footer-wander-surface a:hover {
   color: var(--primary);
 }
-/* /tribe inbox — crisper “secondary” text (pure white vs creamy muted) + playful transcript backdrop */
-.tribe-messaging-ui {
+
+/* /tribe inbox — crisper secondary text in dusk */
+.dark .tribe-messaging-ui {
   --muted-foreground: oklch(0.99 0.004 90);
 }
 /* Tribe transcript — northern-lights style glow (greens / teals on deep night) */
@@ -484,61 +334,43 @@
   }
 }
 
-/* Custom scrollbar — adapts to theme */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--input);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
 }
-.dark ::-webkit-scrollbar-track {
-  background: #111;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #333;
-}
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffc22e;
+  background: var(--primary);
 }
 
-/* ── Light Mode Form Contrast ──────────────────────────────── */
 /* Exclude radio/checkbox and .input-bare (inputs inside a pill that draws its own focus ring) */
-:root select,
-:root input:not([type='radio']):not([type='checkbox']):not(.input-bare),
-:root textarea {
+select,
+input:not([type='radio']):not([type='checkbox']):not(.input-bare),
+textarea {
   border-color: var(--border);
   color: var(--foreground);
 }
-:root select:hover,
-:root input:not([type='radio']):not([type='checkbox']):not(.input-bare):hover,
-:root textarea:hover {
-  box-shadow: 0 1px 4px oklch(0 0 0 / 0.12);
-}
-:root select:focus,
-:root input:not([type='radio']):not([type='checkbox']):not(.input-bare):focus,
-:root textarea:focus {
+select:focus,
+input:not([type='radio']):not([type='checkbox']):not(.input-bare):focus,
+textarea:focus {
   border-color: var(--ring);
-  box-shadow: 0 0 0 2px oklch(0.77 0.18 75 / 0.25);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 25%, transparent);
 }
-/* Light mode: hover makes text bolder/darker instead of white */
-:root a:hover,
-:root button:hover {
-  box-shadow: 0 1px 4px oklch(0 0 0 / 0.06);
-}
-/* Override hover:text-white in light mode — make text darker + bolder */
-:root .hover\:text-white:hover {
-  color: var(--foreground) !important;
-  font-weight: 600;
-}
-/* Keep dark mode hover:text-white working */
-.dark .hover\:text-white:hover {
-  color: white !important;
-  font-weight: inherit;
+
+/* Brand gold is unreadable as text on light surfaces — --primary-ink is deeper in day, gold in dusk */
+@layer utilities {
+  .text-primary,
+  .hover\:text-primary:hover,
+  .group:hover .group-hover\:text-primary {
+    color: var(--primary-ink);
+  }
 }
 
 /* Gold gradient text */

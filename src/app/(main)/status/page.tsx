@@ -33,7 +33,7 @@ export default async function StatusPage() {
       <header className="flex items-center gap-3 mb-4">
         <Link
           href="/community"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/14 bg-white/[0.06] text-white"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/14 bg-foreground/[0.06] text-foreground"
           aria-label="Back to chats"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -44,7 +44,7 @@ export default async function StatusPage() {
         </div>
       </header>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md px-3 py-3">
+      <div className="rounded-2xl border border-foreground/10 bg-foreground/[0.04] backdrop-blur-md px-3 py-3">
         <StatusStoriesBar
           initialStories={stories}
           currentUserId={currentUserId}

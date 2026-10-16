@@ -23,26 +23,26 @@ export function WanderRecentlyViewedStrip() {
 
   return (
     <div className="mb-4 md:mb-6">
-      <p className="mb-1.5 px-0.5 text-[9px] font-semibold uppercase tracking-widest text-[#fcba03]/60">Recently viewed</p>
+      <p className="mb-1.5 px-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary/60">Recently viewed</p>
       <div className="flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
         {items.map(rv => (
           <div key={rv.id} className="group/rv relative flex-shrink-0">
             <button
               type="button"
               onClick={() => window.open(`/packages/${rv.slug}`, '_blank', 'noopener,noreferrer')}
-              className="flex items-center gap-2 rounded-xl border border-white/18 bg-[color-mix(in_oklab,var(--card)_52%,transparent)] px-2.5 py-1.5 pr-6 text-left shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-[40px] backdrop-saturate-150 transition-colors hover:border-primary/40"
+              className="flex items-center gap-2 rounded-xl border border-foreground/18 bg-[color-mix(in_oklab,var(--card)_52%,transparent)] px-2.5 py-1.5 pr-6 text-left shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-[40px] backdrop-saturate-150 transition-colors hover:border-primary/40"
             >
               {rv.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={storageThumbnailUrl(rv.image) || rv.image} alt="" className="h-8 w-8 flex-shrink-0 rounded-lg object-cover" />
               ) : (
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/5">
-                  <Mountain className="h-4 w-4 text-white/40" />
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-foreground/5">
+                  <Mountain className="h-4 w-4 text-foreground/40" />
                 </div>
               )}
               <div>
-                <p className="max-w-[120px] truncate text-xs font-semibold text-white">{rv.title}</p>
-                <p className="max-w-[120px] truncate text-[10px] text-white/55">{rv.destName}</p>
+                <p className="max-w-[120px] truncate text-xs font-semibold text-foreground">{rv.title}</p>
+                <p className="max-w-[120px] truncate text-[10px] text-foreground/55">{rv.destName}</p>
               </div>
             </button>
             <button

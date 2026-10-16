@@ -47,19 +47,19 @@ export function AuthV2Stats({ stats, rating, className }: AuthV2StatsProps) {
         return (
         <li
           key={id}
-          className="flex min-w-0 items-start gap-2.5 text-white sm:max-w-[10rem] sm:items-center md:max-w-none"
+          className="flex min-w-0 items-start gap-2.5 text-foreground sm:max-w-[10rem] sm:items-center md:max-w-none"
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-[#fcba03]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-foreground/15 bg-foreground/5 text-primary">
             <Icon className="h-4 w-4" strokeWidth={2} />
           </div>
           <div className="min-w-0 text-left">
-            <p className="text-lg font-black leading-tight text-white sm:text-xl">
+            <p className="text-lg font-black leading-tight text-foreground sm:text-xl">
               {value}
               {valueSuffix ? (
-                <span className="ml-0.5 text-base text-[#fcba03] sm:text-lg">{valueSuffix}</span>
+                <span className="ml-0.5 text-base text-primary sm:text-lg">{valueSuffix}</span>
               ) : null}
             </p>
-            <p className="text-[10px] font-medium text-white/55 sm:text-xs leading-snug">{label}</p>
+            <p className="text-[10px] font-medium text-foreground/55 sm:text-xs leading-snug">{label}</p>
           </div>
         </li>
         )

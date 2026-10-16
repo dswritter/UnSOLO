@@ -259,10 +259,10 @@ export function EditProfileView({
                         if (e.key === 'Escape') { setEditingUsername(false); setNewUsername(profile.username) }
                       }}
                     />
-                    <button onClick={handleUsernameChange} disabled={usernameLoading} className="text-green-400 hover:text-green-300">
+                    <button onClick={handleUsernameChange} disabled={usernameLoading} className="text-green-400 hover:text-green-700 dark:hover:text-green-300">
                       <Check className="h-4 w-4" />
                     </button>
-                    <button onClick={() => { setEditingUsername(false); setNewUsername(profile.username) }} className="text-muted-foreground hover:text-white">
+                    <button onClick={() => { setEditingUsername(false); setNewUsername(profile.username) }} className="text-muted-foreground hover:text-foreground">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -423,8 +423,8 @@ export function EditProfileView({
               </div>
               {/* Re-verification warning for hosts changing their number */}
               {profile?.is_host && phoneNumber && phoneNumber !== originalPhoneNumber && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-300" />
+                <div className="flex items-start gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-200">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-700 dark:text-amber-300" />
                   <span>As a host, changing your number will require re-verification via OTP before you can manage new bookings.</span>
                 </div>
               )}

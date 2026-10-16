@@ -13,7 +13,7 @@ export async function HomeStatusRail({ avatarUrl }: { avatarUrl?: string | null 
   const existingActiveCount = await countActiveStatusStoriesForUser()
 
   return (
-    <div className="border-b border-border bg-background/90 dark:bg-black/40 backdrop-blur-md">
+    <div className="border-b border-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-3 sm:px-4 py-2">
         <StatusStoriesBar
           initialStories={stories}

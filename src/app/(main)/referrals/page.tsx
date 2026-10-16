@@ -152,7 +152,7 @@ export default function ReferralsPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    'flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-white transition-colors',
+                    'flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-foreground transition-colors',
                     'bg-[#25D366] hover:bg-[#1ebe57] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                   )}
                 >

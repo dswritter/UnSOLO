@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { getAdminSidebarCounts } from '@/actions/admin'
 import { AdminCommandPalette } from '@/components/admin/ui/AdminCommandPalette'
+import { ColorModeToggle } from '@/components/layout/ColorModeToggle'
 import { NOTIFICATIONS_CHANGED_EVENT } from '@/components/layout/NotificationBell'
 import { AdminNotificationBell } from './AdminNotificationBell'
 import type { UserRole, AdminPermissionKey } from '@/types'
@@ -211,15 +212,16 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
   const sidebarContent = (
     <>
       {/* Logo */}
-      <div className="shrink-0 px-4 py-4 border-b border-sidebar-border">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-lg font-black">
             <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border bg-amber-500/15 text-amber-100 border-amber-500/35">
+          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border bg-amber-500/15 text-amber-800 dark:text-amber-100 border-amber-500/35">
             {isAdmin ? 'Admin' : 'Staff'}
           </span>
         </Link>
+        <ColorModeToggle className="h-8 w-8" />
       </div>
 
       <div className="shrink-0 px-3 pt-3">
@@ -255,7 +257,7 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1 truncate">{label}</span>
                   {badgeCount > 0 && (
-                    <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold px-1 tabular-nums">
+                    <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-1 tabular-nums">
                       {badgeCount > 99 ? '99+' : badgeCount}
                     </span>
                   )}

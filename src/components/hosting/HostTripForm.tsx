@@ -1563,7 +1563,7 @@ export function HostTripForm({
                           <button
                             type="button"
                             onClick={() => removePriceRow(i)}
-                            className="p-2 text-red-400 hover:text-red-300"
+                            className="p-2 text-red-400 hover:text-red-700 dark:hover:text-red-300"
                             title="Remove tier"
                           >
                             <X className="h-4 w-4" />

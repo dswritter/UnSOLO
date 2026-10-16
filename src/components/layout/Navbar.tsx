@@ -19,6 +19,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import { useAuth } from './AuthProvider'
 import { NotificationBell } from './NotificationBell'
+import { ColorModeToggle } from './ColorModeToggle'
 import { SearchBar } from './SearchBar'
 
 export function Navbar() {
@@ -235,6 +236,7 @@ export function Navbar() {
     // just the notification bell — Profile tab in bottom nav handles profile navigation.
     return (
       <div className="fixed top-3 right-3 z-50 flex items-center gap-1">
+        <ColorModeToggle />
         <NotificationBell userId={user.id} wanderNav />
       </div>
     )
@@ -244,8 +246,8 @@ export function Navbar() {
     { href: '/', label: 'Explore', icon: Compass },
     { href: '/community', label: hasRooms ? 'Community' : 'Meet Travellers', icon: MessageSquare, showBadge: true },
     { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
-    { href: '/host', label: user?.is_host ? 'Hosting' : 'Become a Host', icon: Tent, showHostBadge: user?.is_host },
   ]
+  const hostActive = Boolean(pathname?.startsWith('/host'))
 
   return (
     <nav
@@ -262,13 +264,13 @@ export function Navbar() {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl font-black tracking-tight">
               <span className="text-primary">UN</span>
-              <span className={isWanderShell ? 'text-white' : 'text-foreground'}>SOLO</span>
+              <span className="text-foreground">SOLO</span>
             </span>
           </Link>
 
           {/* Desktop Nav — bottom-aligned so the active underline reads like screenshot tabs */}
           <div className="hidden md:flex items-end justify-center gap-8 flex-1 self-stretch min-h-16">
-            {navLinks.map(({ href, label, icon: Icon, showBadge, showHostBadge }) => {
+            {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
               const isActive = navLinkActive(href)
               const isTribeLink = href === '/community'
               return (
@@ -285,8 +287,7 @@ export function Navbar() {
                   isWanderShell
                     ? isActive
                       ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
-                      : /* avoid hover:text-white — :root .hover\\:text-white:hover forces dark text in light mode */
-                        'text-white/90 hover:text-primary border-b-[3px] border-transparent border-solid -mb-px'
+                      : 'text-foreground/80 hover:text-primary border-b-[3px] border-transparent border-solid -mb-px'
                     : isActive
                       ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
                       : 'text-muted-foreground hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px',
@@ -299,11 +300,6 @@ export function Navbar() {
                     {unreadChatCount > 99 ? '99+' : unreadChatCount}
                   </span>
                 )}
-                {showHostBadge && pendingJoinCount > 0 && (
-                  <span className="absolute -top-2 -right-3 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {pendingJoinCount > 99 ? '99+' : pendingJoinCount}
-                  </span>
-                )}
               </Link>
             )
             })}
@@ -312,7 +308,7 @@ export function Navbar() {
           {/* Search — hidden on /wander (local search lives in page) */}
           {!hideGlobalSearch && (
             <>
-              <div className="hidden md:block w-56 ml-4">
+              <div className="hidden md:block w-56 mx-4">
                 <SearchBar />
               </div>
             </>
@@ -320,6 +316,25 @@ export function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 md:gap-3">
+            <Link
+              href="/host"
+              prefetch
+              className={cn(
+                'relative hidden items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors md:inline-flex',
+                hostActive
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border bg-card/60 text-foreground hover:border-primary/60',
+              )}
+            >
+              <Tent className="h-4 w-4" />
+              {user?.is_host ? 'Hosting' : 'Become a host'}
+              {user?.is_host && pendingJoinCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {pendingJoinCount > 99 ? '99+' : pendingJoinCount}
+                </span>
+              )}
+            </Link>
+            <ColorModeToggle />
             {user ? (
               <>
                 <NotificationBell userId={user.id} wanderNav={isWanderShell} />
@@ -334,17 +349,17 @@ export function Navbar() {
                   >
                     {isWanderShell ? (
                       <span className="inline-flex min-w-0 max-w-full items-center gap-2">
-                        <Avatar className="h-8 w-8 shrink-0 border-2 border-white/20 sm:h-9 sm:w-9">
+                        <Avatar className="h-8 w-8 shrink-0 border-2 border-foreground/20 sm:h-9 sm:w-9">
                           <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
                           <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                             {getInitials(user.full_name || user.username)}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold text-white transition-colors group-hover:text-primary group-data-[popup-open]:text-primary md:inline">
+                        <span className="hidden min-w-0 max-w-[min(20vw,200px)] truncate text-left text-sm font-semibold text-foreground transition-colors group-hover:text-primary group-data-[popup-open]:text-primary md:inline">
                           {user.full_name || user.username}
                         </span>
                         <ChevronDown
-                          className="h-4 w-4 shrink-0 text-white transition-colors group-hover:text-primary group-data-[popup-open]:text-primary"
+                          className="h-4 w-4 shrink-0 text-foreground transition-colors group-hover:text-primary group-data-[popup-open]:text-primary"
                           aria-hidden
                         />
                       </span>
@@ -362,52 +377,52 @@ export function Navbar() {
                     className={cn(
                       'z-[200] min-w-[15rem] shadow-lg',
                       isWanderShell
-                        ? 'glass-modal w-60 rounded-xl p-0 text-white shadow-lg ring-0'
+                        ? 'glass-modal w-60 rounded-xl p-0 text-foreground shadow-lg ring-0'
                         : 'border-border bg-popover text-popover-foreground',
                     )}
                   >
                     <div className="px-4 py-3">
                       <p className="text-base font-semibold truncate text-inherit">{user.full_name || user.username}</p>
-                      <p className={cn('text-sm', isWanderShell ? 'text-white/65' : 'text-muted-foreground')}>
+                      <p className={cn('text-sm', isWanderShell ? 'text-foreground/65' : 'text-muted-foreground')}>
                         @{user.username}
                       </p>
                     </div>
-                    <DropdownMenuSeparator className={isWanderShell ? 'bg-white/15' : undefined} />
+                    <DropdownMenuSeparator className={isWanderShell ? 'bg-foreground/15' : undefined} />
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                       onClick={() => router.push(`/profile/${user.username}`)}
                     >
                       <User className="mr-3 h-4 w-4" /> My Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                       onClick={() => router.push('/profile')}
                     >
                       <Pencil className="mr-3 h-4 w-4" /> Edit Profile
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                       onClick={() => router.push('/bookings')}
                     >
                       <BookOpen className="mr-3 h-4 w-4" /> My Bookings
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                       onClick={() => router.push('/referrals')}
                     >
                       <Gift className={cn('mr-3 h-4 w-4', isWanderShell && 'text-primary')} /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
                       <DropdownMenuItem
-                        className={cn('py-2.5 text-sm', isWanderShell && 'text-white/95 focus:bg-white/10 focus:text-white')}
+                        className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                         onClick={() => router.push('/admin')}
                       >
                         <Shield className="mr-3 h-4 w-4 text-red-400" /> Admin Panel
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuSeparator className={isWanderShell ? 'bg-white/15' : undefined} />
+                    <DropdownMenuSeparator className={isWanderShell ? 'bg-foreground/15' : undefined} />
                     <DropdownMenuItem
-                      className={cn('py-2.5 text-sm text-destructive', isWanderShell && 'focus:bg-red-500/15 focus:text-red-300')}
+                      className={cn('py-2.5 text-sm text-destructive', isWanderShell && 'focus:bg-red-500/15 focus:text-red-700 dark:focus:text-red-300')}
                       onClick={() => signOut()}
                     >
                       <LogOut className="mr-3 h-4 w-4" /> Sign Out

@@ -101,8 +101,8 @@ export default async function AdminDashboardPage() {
                     <ItemIcon className={urgent ? 'h-4 w-4 shrink-0 text-rose-400' : 'h-4 w-4 shrink-0 text-muted-foreground'} />
                     <span className="flex-1 text-sm font-medium text-foreground">{label}</span>
                     <span className={urgent
-                      ? 'rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-rose-300'
-                      : 'rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-amber-300'}>
+                      ? 'rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-rose-700 dark:text-rose-300'
+                      : 'rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-amber-700 dark:text-amber-300'}>
                       {count > 999 ? '999+' : count}
                     </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />

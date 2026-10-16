@@ -66,6 +66,7 @@ export function WanderSearchBar({
   className = '',
   listedActivities = [],
   variant = 'default',
+  layout = 'row',
   wanderSearchBasePath = '/',
 }: {
   className?: string
@@ -73,10 +74,17 @@ export function WanderSearchBar({
   listedActivities: string[]
   /** High-contrast tabs on forest landing */
   variant?: 'default' | 'wander'
+  /** `panel`: stacked fields for a narrow side panel (no frost wrapper of its own). */
+  layout?: 'row' | 'panel'
   /** Query + hash target for homepage search (always `/`). */
   wanderSearchBasePath?: '/'
 }) {
   const isWander = variant === 'wander'
+  const isPanel = layout === 'panel'
+  const formGrid = (rowClasses: string) =>
+    isPanel
+      ? 'grid grid-cols-2 gap-3 [&>label:first-child]:col-span-2 [&>label:nth-child(4)]:col-span-2 [&>label:nth-child(2):nth-last-child(2)]:col-span-2 [&>button]:col-span-2 [&>button]:h-11'
+      : rowClasses
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -372,8 +380,10 @@ export function WanderSearchBar({
     <div
       className={cn(
         'w-full max-w-[min(100%,52.8rem)]',
-        isWander
-          ? 'wander-frost-panel [&_label_span]:text-white/70 [&_input]:border-white/20 [&_input]:bg-black/20 [&_input]:text-white [&_input]:placeholder:text-white/40 [&_select]:border-white/20 [&_select]:bg-black/20 [&_select]:text-white [&_svg.text-muted-foreground]:text-white/50'
+        isPanel
+          ? 'max-w-none [&_label_span]:text-muted-foreground [&_input]:border-border [&_input]:bg-background/70 [&_input]:text-foreground [&_input]:placeholder:text-muted-foreground [&_select]:border-border [&_select]:bg-background/70 [&_select]:text-foreground'
+          : isWander
+          ? 'wander-frost-panel [&_label_span]:text-muted-foreground [&_input]:border-border [&_input]:bg-background/70 [&_input]:text-foreground [&_input]:placeholder:text-muted-foreground [&_select]:border-border [&_select]:bg-background/70 [&_select]:text-foreground'
           : 'rounded-2xl border border-border/80 bg-card/90 p-3 shadow-xl backdrop-blur-md sm:p-4',
         className,
       )}
@@ -382,8 +392,10 @@ export function WanderSearchBar({
     >
       <div
         className={cn(
-          'flex flex-wrap justify-start gap-2 border-b pb-3 mb-3',
-          isWander ? 'border-white/15' : 'border-border/60',
+          isPanel
+            ? 'mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-foreground/[0.05] p-1'
+            : 'flex flex-wrap justify-start gap-2 border-b pb-3 mb-3',
+          !isPanel && (isWander ? 'border-foreground/15' : 'border-border/60'),
         )}
       >
         {TABS.map(({ id, label, icon: Icon }) => (
@@ -392,11 +404,17 @@ export function WanderSearchBar({
             type="button"
                   onClick={() => setBrowseTab(id)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
-              isWander
+              isPanel
+                ? 'inline-flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-semibold transition-colors'
+                : 'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
+              isPanel
+                ? tab === id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-card hover:text-foreground'
+                : isWander
                 ? tab === id
                   ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'bg-white/5 text-white/90 hover:bg-white/10 hover:text-white'
+                  : 'bg-foreground/5 text-foreground/90 hover:bg-foreground/10 hover:text-foreground'
                 : tab === id
                   ? 'bg-primary text-primary-foreground shadow-md'
                   : 'bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary',
@@ -410,7 +428,7 @@ export function WanderSearchBar({
 
       {tab === 'trips' && (
         <form
-          className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
+          className={formGrid('grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end')}
           onSubmit={e => {
             e.preventDefault()
             goExplore()
@@ -475,7 +493,7 @@ export function WanderSearchBar({
 
       {tab === 'stays' && (
         <form
-          className="grid gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-end"
+          className={formGrid('grid gap-3 md:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-end')}
           onSubmit={e => {
             e.preventDefault()
             goExplore()
@@ -555,7 +573,7 @@ export function WanderSearchBar({
 
       {tab === 'activities' && (
         <form
-          className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.1fr_auto] md:items-end"
+          className={formGrid('grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.1fr_auto] md:items-end')}
           onSubmit={e => {
             e.preventDefault()
             goExplore()
@@ -636,7 +654,7 @@ export function WanderSearchBar({
 
       {tab === 'rentals' && (
         <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+          className={formGrid('grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end')}
           onSubmit={e => {
             e.preventDefault()
             goExplore()
@@ -698,7 +716,7 @@ export function WanderSearchBar({
                 className={cn(
                   'w-full max-w-md rounded-2xl border p-4 shadow-2xl',
                   isWander
-                    ? 'border-white/20 bg-zinc-950/95 text-white [color-scheme:dark]'
+                    ? 'border-foreground/20 bg-card/95 text-foreground'
                     : 'border-border bg-card text-foreground',
                 )}
                 onClick={e => e.stopPropagation()}
@@ -708,7 +726,7 @@ export function WanderSearchBar({
               >
                 <p className="text-sm font-bold mb-1">Search near you?</p>
                 <p
-                  className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-white/70' : 'text-muted-foreground')}
+                  className={cn('text-xs mb-4 leading-relaxed', isWander ? 'text-foreground/70' : 'text-muted-foreground')}
                 >
                   Allow location to find nearby Stays, Rentals, or Activities. Your browser will ask for permission.
                 </p>
@@ -717,7 +735,7 @@ export function WanderSearchBar({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className={isWander ? 'text-white/80' : undefined}
+                    className={isWander ? 'text-foreground/80' : undefined}
                     disabled={geoLoading}
                     onClick={onGeoNotNow}
                   >

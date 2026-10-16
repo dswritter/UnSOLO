@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
 import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
 import {
   getWanderTripRow,
@@ -58,22 +59,31 @@ async function WanderStatusInterludeServer() {
 export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab }) {
   return <div className="border-t border-border/50">
     <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
-      <WanderRecentlyViewedStrip />
+      <div className="md:hidden"><WanderRecentlyViewedStrip /></div>
       <WanderListingsSectionsWrapper
         trips={<Suspense fallback={<WanderRowFallback kind="trips" title="popular trips" activeTab={activeTab} />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
         stays={<Suspense fallback={<WanderRowFallback kind="stays" title="stays" activeTab={activeTab} />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
         activities={<Suspense fallback={<WanderRowFallback kind="activities" title="activities" activeTab={activeTab} />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
         rentals={<Suspense fallback={<WanderRowFallback kind="rentals" title="rentals" activeTab={activeTab} />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}
-        interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-white/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
+        interludeSlot={<Suspense fallback={<div className="md:hidden h-24 animate-pulse rounded-2xl bg-foreground/[0.07]" />}><WanderStatusInterludeServer /></Suspense>}
       />
+      <div className="dark mt-10 flex flex-col items-start justify-between gap-4 overflow-hidden rounded-[1.75rem] bg-[linear-gradient(120deg,#1b2436,#2a3550)] p-6 text-foreground shadow-[0_18px_44px_rgba(15,23,42,0.25)] sm:flex-row sm:items-center md:p-8">
+        <div>
+          <p className="text-xl font-black tracking-tight md:text-2xl">Lead your own trip</p>
+          <p className="mt-1 max-w-xl text-sm text-muted-foreground">Host a group, set your price and dates, and get paid out automatically.</p>
+        </div>
+        <Link href="/host" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90">
+          Start hosting <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
       <div className="mt-6 grid gap-3 md:hidden">
-        <div className="rounded-2xl border border-white/14 bg-white/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
+        <div className="rounded-2xl border border-foreground/14 bg-foreground/[0.05] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary/90">Keep planning</p>
-          <h3 className="mt-1 text-lg font-black text-white">Check deals and meet other travellers</h3>
-          <p className="mt-1 text-sm text-white/62">Save on bundles, or jump into communities while you shape the plan.</p>
+          <h3 className="mt-1 text-lg font-black text-foreground">Check deals and meet other travellers</h3>
+          <p className="mt-1 text-sm text-foreground/62">Save on bundles, or jump into communities while you shape the plan.</p>
           <div className="mt-4 flex gap-2">
             <Link href="/offers" className="inline-flex flex-1 items-center justify-center rounded-xl bg-primary px-3 py-2 text-sm font-bold text-primary-foreground">View Offers</Link>
-            <Link href="/community" className="inline-flex flex-1 items-center justify-center rounded-xl border border-white/14 bg-white/[0.04] px-3 py-2 text-sm font-bold text-white">Meet Travellers</Link>
+            <Link href="/community" className="inline-flex flex-1 items-center justify-center rounded-xl border border-foreground/14 bg-foreground/[0.04] px-3 py-2 text-sm font-bold text-foreground">Meet Travellers</Link>
           </div>
         </div>
       </div>
@@ -83,8 +93,8 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
 
 export function WanderListingRowsSkeleton() {
   return <div className="border-t border-border/50"><div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
-    {[0, 1, 2].map(i => <div key={i} className="mb-8 animate-pulse"><div className="mb-3 h-5 w-36 rounded-md bg-white/10" />
-      <div className="flex gap-3 overflow-hidden">{[0, 1, 2].map(j => <div key={j} className="h-52 w-52 shrink-0 rounded-2xl bg-white/[0.07]" />)}</div>
+    {[0, 1, 2].map(i => <div key={i} className="mb-8 animate-pulse"><div className="mb-3 h-5 w-36 rounded-md bg-foreground/10" />
+      <div className="flex gap-3 overflow-hidden">{[0, 1, 2].map(j => <div key={j} className="h-52 w-52 shrink-0 rounded-2xl bg-foreground/[0.07]" />)}</div>
     </div>)}
   </div></div>
 }

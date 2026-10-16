@@ -158,7 +158,7 @@ function StarRow({ value, onChange, label }: { value: number; onChange: (v: numb
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((i) => (
           <button key={i} type="button" onClick={() => onChange(i)}>
-            <Star className={`h-5 w-5 ${i <= value ? 'text-primary fill-primary' : 'text-white/30'}`} />
+            <Star className={`h-5 w-5 ${i <= value ? 'text-primary fill-primary' : 'text-foreground/30'}`} />
           </button>
         ))}
       </div>

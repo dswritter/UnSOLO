@@ -177,7 +177,7 @@ export function WanderNominatimLocationInput({
       />
       {searching && (
         <span className="absolute right-2.5 top-1/2 -translate-y-1/2 z-[1]">
-          <Loader2 className={cn('h-4 w-4 animate-spin', wander ? 'text-[#fcba03]' : 'text-primary')} />
+          <Loader2 className={cn('h-4 w-4 animate-spin', wander ? 'text-primary' : 'text-primary')} />
         </span>
       )}
 
@@ -190,7 +190,7 @@ export function WanderNominatimLocationInput({
           className={cn(
             'rounded-lg border shadow-2xl max-h-56 overflow-y-auto',
             wander
-              ? 'border-white/20 bg-zinc-950/98 text-white [color-scheme:dark]'
+              ? 'border-foreground/20 bg-card/98 text-foreground'
               : 'border-border bg-card text-foreground',
           )}
         >
@@ -205,14 +205,14 @@ export function WanderNominatimLocationInput({
                 className={cn(
                   'flex w-full text-left px-3 py-2.5 text-sm border-b last:border-0 transition-colors',
                   wander
-                    ? 'border-white/10 hover:bg-white/10'
+                    ? 'border-foreground/10 hover:bg-foreground/10'
                     : 'border-border/30 hover:bg-secondary/60',
                 )}
               >
                 <div className="min-w-0">
                   <div>
                     <span className="font-medium">{r.name}</span>
-                    <span className={wander ? ' text-white/70' : ' text-muted-foreground'}>
+                    <span className={wander ? ' text-foreground/70' : ' text-muted-foreground'}>
                       {', '}
                       {r.state}
                     </span>
@@ -221,7 +221,7 @@ export function WanderNominatimLocationInput({
                     <p
                       className={cn(
                         'text-[10px] truncate mt-0.5',
-                        wander ? 'text-white/50' : 'text-muted-foreground',
+                        wander ? 'text-foreground/50' : 'text-muted-foreground',
                       )}
                     >
                       {r.detail}
@@ -241,7 +241,7 @@ export function WanderNominatimLocationInput({
           style={panelStyle}
           className={cn(
             'rounded-lg border shadow-2xl px-3 py-3 text-sm',
-            wander ? 'border-white/20 bg-zinc-950/98 text-white/60' : 'border-border bg-card text-muted-foreground',
+            wander ? 'border-foreground/20 bg-card/98 text-foreground/60' : 'border-border bg-card text-muted-foreground',
           )}
         >
           No places found — try a nearby city or district

@@ -482,7 +482,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         onCancel={cancelFileUpload}
       />
       {message && (
-        <p className={`text-sm px-4 py-3 rounded-lg ${message.type === 'error' ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
+        <p className={`text-sm px-4 py-3 rounded-lg ${message.type === 'error' ? 'bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-900/30 text-green-700 dark:text-green-300'}`}>
           {message.text}
         </p>
       )}
@@ -505,7 +505,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
       >
         <div className="space-y-6">
           {message?.type === 'error' && (
-            <p role="alert" className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">{message.text}</p>
+            <p role="alert" className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">{message.text}</p>
           )}
 
           {/* Basic info */}
@@ -875,7 +875,7 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             <label className="text-xs text-muted-foreground mb-2 block">What&apos;s Included (check applicable)</label>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
               {includesOptions.map(opt => (
-                <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-white text-muted-foreground">
+                <label key={opt.id} className="flex items-center gap-2 text-sm cursor-pointer hover:text-foreground text-muted-foreground">
                   <input
                     type="checkbox"
                     className="accent-primary"
@@ -1056,12 +1056,12 @@ export function PackagesManagementClient({ packages: initial, destinations: init
               >
                 {pkg.is_active ? <><EyeOff className="h-3.5 w-3.5" />Hide</> : <><Eye className="h-3.5 w-3.5" />Publish</>}
               </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => window.open(`/packages/${pkg.slug}`, '_blank', 'noopener,noreferrer')}
                 title="Open public page" aria-label="Open public page">
                 <ExternalLink className="h-4 w-4" />
               </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-white"
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 onClick={() => loadForEdit(pkg)} title="Edit" aria-label="Edit">
                 <Edit2 className="h-4 w-4" />
               </Button>

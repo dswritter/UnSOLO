@@ -141,7 +141,7 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
         {message && (
           <p
             className={`text-sm px-3 py-2 rounded-lg mb-4 ${
-              message.type === 'error' ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'
+              message.type === 'error' ? 'bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-900/30 text-green-700 dark:text-green-300'
             }`}
           >
             {message.text}
@@ -282,7 +282,7 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
                     <p className="font-medium">{profile?.full_name || profile?.username}</p>
                     <p className="text-xs text-muted-foreground">@{profile?.username}</p>
                     {m.role === 'custom' && m.custom_permissions && m.custom_permissions.length > 0 && (
-                      <p className="text-[10px] text-orange-300/80 mt-0.5">
+                      <p className="text-[10px] text-orange-700/80 dark:text-orange-300/80 mt-0.5">
                         {m.custom_permissions.length} permission{m.custom_permissions.length !== 1 ? 's' : ''}
                       </p>
                     )}
@@ -295,7 +295,7 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="text-red-400 hover:text-red-300 hover:bg-red-900/20 shrink-0"
+                  className="text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-900/20 shrink-0"
                   onClick={() => handleRemove(m.id, profile?.full_name || profile?.username || 'member')}
                   disabled={isPending}
                 >

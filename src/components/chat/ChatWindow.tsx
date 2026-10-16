@@ -82,7 +82,7 @@ function SenderTrustBadges({
       <span
         className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
           tribeShell
-            ? 'bg-amber-400/20 text-amber-100 border-amber-300/40'
+            ? 'bg-amber-400/20 text-amber-800 dark:text-amber-100 border-amber-300/40'
             : 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/35'
         }`}
       >
@@ -95,7 +95,7 @@ function SenderTrustBadges({
       <span
         className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
           tribeShell
-            ? 'bg-sky-400/20 text-sky-100 border-sky-300/40'
+            ? 'bg-sky-400/20 text-sky-800 dark:text-sky-100 border-sky-300/40'
             : 'bg-sky-500/15 text-sky-800 dark:text-sky-200 border-sky-500/35'
         }`}
       >
@@ -1599,7 +1599,7 @@ export function ChatWindow({
     <div
       className={cn(
         'flex flex-col h-full border-l relative',
-        tribeShell ? 'border-white/10 bg-transparent' : 'border-border bg-background',
+        tribeShell ? 'border-foreground/10 bg-transparent' : 'border-border bg-background',
       )}
     >
       {/* Header — sticky so the chat partner's name stays at the top of the
@@ -1609,7 +1609,7 @@ export function ChatWindow({
         className={cn(
           'sticky top-0 z-20 px-4 py-3 flex items-center justify-between shrink-0',
           tribeShell
-            ? 'border-b border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
+            ? 'border-b border-foreground/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-b border-border bg-background/95 backdrop-blur',
         )}
       >
@@ -1627,23 +1627,23 @@ export function ChatWindow({
             >
               <ArrowLeft className="h-4 w-4" />
             </button>
-            <div className="min-w-0 flex-1 rounded-full bg-black/20 px-3 py-2">
+            <div className="min-w-0 flex-1 rounded-full bg-foreground/[0.06] px-3 py-2">
               <input
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-full bg-transparent text-sm outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-white/55"
+                className="w-full bg-transparent text-sm outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-foreground/55"
               />
             </div>
-            <span className="text-[11px] text-white/75 tabular-nums shrink-0">
+            <span className="text-[11px] text-foreground/75 tabular-nums shrink-0">
               {messageSearchMatches.length ? `${activeSearchIndex + 1}/${messageSearchMatches.length}` : '0/0'}
             </span>
             <button
               type="button"
               disabled={messageSearchMatches.length === 0}
               onClick={() => setActiveSearchIndex(i => (i - 1 + messageSearchMatches.length) % messageSearchMatches.length)}
-              className="shrink-0 rounded-full p-2 text-white/85 disabled:opacity-40"
+              className="shrink-0 rounded-full p-2 text-foreground/85 disabled:opacity-40"
               aria-label="Previous result"
             >
               <ChevronUp className="h-4 w-4" />
@@ -1652,7 +1652,7 @@ export function ChatWindow({
               type="button"
               disabled={messageSearchMatches.length === 0}
               onClick={() => setActiveSearchIndex(i => (i + 1) % messageSearchMatches.length)}
-              className="shrink-0 rounded-full p-2 text-white/85 disabled:opacity-40"
+              className="shrink-0 rounded-full p-2 text-foreground/85 disabled:opacity-40"
               aria-label="Next result"
             >
               <ChevronDown className="h-4 w-4" />
@@ -2079,7 +2079,7 @@ export function ChatWindow({
                 setPkgSearch('')
               }}
             >
-              <X className="h-4 w-4 text-zinc-500 hover:text-white" />
+              <X className="h-4 w-4 text-zinc-500 hover:text-foreground" />
             </button>
           </div>
           <p className="text-[10px] text-muted-foreground mb-2">Popular first · 5 at a time</p>
@@ -2451,7 +2451,7 @@ export function ChatWindow({
         className={cn(
           'relative shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
           tribeShell
-            ? 'border-white/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
+            ? 'border-foreground/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
             : 'border-border bg-background',
         )}
         // dvh units (used in h-[calc(100dvh-...)]) adapt to the visual viewport
@@ -2466,7 +2466,7 @@ export function ChatWindow({
             className={cn(
               'mb-1.5 flex items-start gap-2 rounded-lg border-l-2 px-2.5 py-1.5 text-xs',
               tribeShell
-                ? 'border-primary/70 bg-white/[0.05]'
+                ? 'border-primary/70 bg-foreground/[0.05]'
                 : 'border-primary bg-secondary/60',
             )}
           >
@@ -2918,7 +2918,7 @@ function MessageBubble({
             isOwn
               ? 'bg-gradient-to-br from-primary to-amber-500 text-zinc-950 rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30 [&_a]:text-zinc-900'
               : tribeShell
-                ? 'bg-white/[0.09] backdrop-blur-md border border-white/15 rounded-tl-md text-white shadow-sm [&_a]:text-white [&_a]:underline'
+                ? 'bg-foreground/[0.09] backdrop-blur-md border border-foreground/15 rounded-tl-md text-foreground shadow-sm [&_a]:text-foreground [&_a]:underline'
                 : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
           }`}
           {...(canReact ? bubbleLongPress : {})}

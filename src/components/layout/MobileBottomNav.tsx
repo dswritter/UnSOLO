@@ -168,7 +168,7 @@ export function MobileBottomNav() {
   ]
 
   return (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-zinc-950/95 backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.4rem)]">
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-foreground/10 bg-card/95 backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.4rem)]">
       <div className="grid grid-cols-5 gap-1 px-2 pb-1 pt-2">
         {items.map(({ href, label, icon: Icon, active, badgeCount }) => {
           const isActive = active(pathname)
@@ -179,7 +179,7 @@ export function MobileBottomNav() {
               prefetch={false}
               className={cn(
                 'relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold transition-colors',
-                isActive ? 'text-primary' : 'text-white/72 hover:text-white',
+                isActive ? 'text-primary' : 'text-foreground/72 hover:text-foreground',
               )}
             >
               {/* Icon column is positioned so we can pin the unread badge to

@@ -127,11 +127,11 @@ function InlinePendingRequests({ tripId, wanderHost: wh }: { tripId: string; wan
   }
 
   if (loading) {
-    return <p className={cn('text-xs py-2', wh ? 'text-white/65' : 'text-muted-foreground')}>Loading…</p>
+    return <p className={cn('text-xs py-2', wh ? 'text-foreground/65' : 'text-muted-foreground')}>Loading…</p>
   }
 
   if (!requests?.length) {
-    return <p className={cn('text-xs py-2', wh ? 'text-white/65' : 'text-muted-foreground')}>No pending requests.</p>
+    return <p className={cn('text-xs py-2', wh ? 'text-foreground/65' : 'text-muted-foreground')}>No pending requests.</p>
   }
 
   return (
@@ -145,16 +145,16 @@ function InlinePendingRequests({ tripId, wanderHost: wh }: { tripId: string; wan
             key={req.id}
             className={cn(
               'flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs',
-              wh ? 'bg-white/[0.08] border border-white/15 text-white/90' : 'bg-secondary/40',
+              wh ? 'bg-foreground/[0.08] border border-foreground/15 text-foreground/90' : 'bg-secondary/40',
             )}
           >
             <div>
               <span className="font-medium">{name}</span>
               {profile?.username && (
-                <span className={cn('ml-1', wh ? 'text-white/60' : 'text-muted-foreground')}>@{profile.username}</span>
+                <span className={cn('ml-1', wh ? 'text-foreground/60' : 'text-muted-foreground')}>@{profile.username}</span>
               )}
               {req.message && (
-                <p className={cn('mt-0.5 line-clamp-1', wh ? 'text-white/65' : 'text-muted-foreground')}>{req.message}</p>
+                <p className={cn('mt-0.5 line-clamp-1', wh ? 'text-foreground/65' : 'text-muted-foreground')}>{req.message}</p>
               )}
             </div>
             <div className="flex gap-1.5 shrink-0">
@@ -252,16 +252,16 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'all'
               ? w
-                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-[#fcba03]'
+                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-primary'
                 : 'bg-primary/10 border-primary/40 text-primary'
               : w
-                ? 'border-white/20 bg-white/[0.06] text-white hover:border-[#fcba03]/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-[#fcba03]/35'
                 : 'bg-card border-border hover:border-primary/20',
           )}
         >
           <MapPin className="h-3.5 w-3.5" />
           <span className="font-bold">{stats.totalTrips}</span>
-          <span className={cn('text-xs', w ? 'text-white/75' : 'text-muted-foreground')}>Total</span>
+          <span className={cn('text-xs', w ? 'text-foreground/75' : 'text-muted-foreground')}>Total</span>
         </button>
         <button
           onClick={() => setFilter('active')}
@@ -269,16 +269,16 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'active'
               ? w
-                ? 'bg-emerald-400/20 border-emerald-200/45 text-white'
+                ? 'bg-emerald-400/20 border-emerald-500/45 text-foreground'
                 : 'bg-emerald-500/12 border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
               : w
-                ? 'border-white/20 bg-white/[0.06] text-white hover:border-emerald-200/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-emerald-200/35'
                 : 'bg-card border-border hover:border-emerald-500/25',
           )}
         >
           <TrendingUp className="h-3.5 w-3.5" />
           <span className="font-bold">{stats.activeTrips}</span>
-          <span className={cn('text-xs', w ? 'text-white/75' : 'text-muted-foreground')}>Active</span>
+          <span className={cn('text-xs', w ? 'text-foreground/75' : 'text-muted-foreground')}>Active</span>
         </button>
         <button
           onClick={() => setFilter('pending')}
@@ -286,16 +286,16 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'pending'
               ? w
-                ? 'bg-amber-400/25 border-amber-200/50 text-white'
+                ? 'bg-amber-400/25 border-amber-500/50 text-foreground'
                 : 'bg-amber-500/12 border-amber-500/45 text-amber-900 dark:text-amber-200'
               : w
-                ? 'border-white/20 bg-white/[0.06] text-white hover:border-amber-200/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-amber-200/35'
                 : 'bg-card border-border hover:border-amber-500/25',
           )}
         >
           <Clock className="h-3.5 w-3.5" />
           <span className="font-bold">{stats.pendingRequests}</span>
-          <span className={cn('text-xs', w ? 'text-white/75' : 'text-muted-foreground')}>Pending</span>
+          <span className={cn('text-xs', w ? 'text-foreground/75' : 'text-muted-foreground')}>Pending</span>
         </button>
         <button
           onClick={() => setFilter('earned')}
@@ -303,15 +303,15 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'earned'
               ? w
-                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-[#fcba03]'
+                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-primary'
                 : 'bg-primary/10 border-primary/40 text-primary'
               : w
-                ? 'border-white/20 bg-white/[0.06] text-white hover:border-[#fcba03]/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-[#fcba03]/35'
                 : 'bg-card border-border hover:border-primary/20',
           )}
         >
           <span className="font-bold">{formatPrice(stats.totalEarned)}</span>
-          <span className={cn('text-xs', w ? 'text-white/75' : 'text-muted-foreground')}>Earned</span>
+          <span className={cn('text-xs', w ? 'text-foreground/75' : 'text-muted-foreground')}>Earned</span>
         </button>
       </div>
 
@@ -320,15 +320,15 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
         <div
           className={cn(
             'mb-6 p-4 rounded-xl border',
-            w ? 'border-white/25 bg-white/[0.07]' : 'border-primary/20 bg-primary/5',
+            w ? 'border-foreground/25 bg-foreground/[0.07]' : 'border-primary/20 bg-primary/5',
           )}
         >
-          <h3 className={cn('text-sm font-bold mb-3', w && 'text-white')}>Earnings Breakdown</h3>
+          <h3 className={cn('text-sm font-bold mb-3', w && 'text-foreground')}>Earnings Breakdown</h3>
           <div className="space-y-2">
             {trips.filter(t => t.approved_requests > 0).map(t => (
-              <div key={t.id} className={cn('flex items-center justify-between text-sm', w && 'text-white/90')}>
+              <div key={t.id} className={cn('flex items-center justify-between text-sm', w && 'text-foreground/90')}>
                 <span className="truncate">{t.title}</span>
-                <span className={cn('font-bold shrink-0 ml-2', w ? 'text-[#fcba03]' : 'text-primary')}>
+                <span className={cn('font-bold shrink-0 ml-2', w ? 'text-primary' : 'text-primary')}>
                   {t.approved_requests} booking{t.approved_requests !== 1 ? 's' : ''} · {formatPrice(t.price_paise * t.approved_requests)}
                 </span>
               </div>
@@ -338,11 +338,11 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             <div
               className={cn(
                 'mt-3 pt-3 border-t flex justify-between text-sm',
-                w ? 'border-white/20 text-white/85' : 'border-primary/20',
+                w ? 'border-foreground/20 text-foreground/85' : 'border-primary/20',
               )}
             >
               <span className={cn(!w && 'text-muted-foreground')}>Pending Payout</span>
-              <span className={cn('font-bold', w ? 'text-amber-200' : 'text-amber-800 dark:text-amber-300')}>
+              <span className={cn('font-bold', w ? 'text-amber-700 dark:text-amber-200' : 'text-amber-800 dark:text-amber-300')}>
                 {formatPrice(stats.pendingPayout)}
               </span>
             </div>
@@ -351,7 +351,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
       )}
 
       {/* Trip list */}
-      <h2 className={cn('text-lg font-bold mb-3', w && 'text-white')}>
+      <h2 className={cn('text-lg font-bold mb-3', w && 'text-foreground')}>
         {filter === 'all' ? 'Your Trips' : filter === 'active' ? 'Active Trips' : filter === 'pending' ? 'Trips with Pending Requests' : 'Your Trips'}
       </h2>
 
@@ -364,7 +364,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
           dashed
           className={
             w
-              ? 'border-white/25 bg-white/[0.06] [&_h3]:text-white [&_p]:text-white/75 [&_svg]:text-[#fcba03]/80'
+              ? 'border-foreground/25 bg-foreground/[0.06] [&_h3]:text-foreground [&_p]:text-foreground/75 [&_svg]:text-primary/80'
               : ''
           }
         />
@@ -383,9 +383,9 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                   ? cn(
                       'bg-[color-mix(in_oklab,var(--card)_88%,transparent)]',
                       deemphasized
-                        ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
+                        ? 'border-foreground/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-foreground/25'
                         : trip.is_active
-                          ? 'border-white/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
+                          ? 'border-foreground/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
                           : 'border-red-400/30 hover:bg-[color-mix(in_oklab,var(--secondary)_35%,transparent)]',
                     )
                   : cn(
@@ -404,12 +404,12 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     <img
                       src={storageThumbnailUrl(trip.images[0]) || trip.images[0]}
                       alt=""
-                      className={cn('h-14 w-20 rounded-lg object-cover shrink-0 hidden sm:block', w && 'ring-1 ring-white/15')}
+                      className={cn('h-14 w-20 rounded-lg object-cover shrink-0 hidden sm:block', w && 'ring-1 ring-foreground/15')}
                     />
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className={cn('font-bold truncate', w && 'text-white')}>{trip.title}</h3>
+                      <h3 className={cn('font-bold truncate', w && 'text-foreground')}>{trip.title}</h3>
                       <HostModerationBadge
                         size="sm"
                         forestContrast={w}
@@ -429,23 +429,23 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     <div
                       className={cn(
                         'flex items-center gap-3 text-xs mt-1 flex-wrap',
-                        w ? 'text-white/90' : 'text-muted-foreground',
+                        w ? 'text-foreground/90' : 'text-muted-foreground',
                       )}
                     >
                       {trip.destination && (
                         <span className="flex items-center gap-1">
-                          <MapPin className={cn('h-3 w-3 shrink-0', w && 'text-[#fcba03]')} />
+                          <MapPin className={cn('h-3 w-3 shrink-0', w && 'text-primary')} />
                           {trip.destination.name}, {trip.destination.state}
                         </span>
                       )}
                       <span className="flex items-center gap-1">
-                        <Calendar className={cn('h-3 w-3 shrink-0', w && 'text-[#fcba03]')} />
+                        <Calendar className={cn('h-3 w-3 shrink-0', w && 'text-primary')} />
                         {packageDurationShortLabel(trip)}
                       </span>
                       <span
                         className={cn(
                           'inline-flex items-center tabular-nums',
-                          w ? 'font-semibold text-[#fcba03]' : '',
+                          w ? 'font-semibold text-primary' : '',
                         )}
                       >
                         {formatPrice(trip.price_paise)}
@@ -453,7 +453,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                       <span
                         className={cn(
                           'inline-flex items-center tabular-nums',
-                          w ? 'text-white/85' : 'text-muted-foreground',
+                          w ? 'text-foreground/85' : 'text-muted-foreground',
                         )}
                       >
                         · {bookingCount} booking{bookingCount === 1 ? '' : 's'}
@@ -462,14 +462,14 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     <p
                       className={cn(
                         'text-[11px] mt-1 space-x-2',
-                        w ? 'text-white/55' : 'text-muted-foreground',
+                        w ? 'text-foreground/55' : 'text-muted-foreground',
                       )}
                     >
                       <span>
                         First published:{' '}
                         {trip.first_approved_at ? formatDate(trip.first_approved_at) : 'Not yet'}
                       </span>
-                      <span className={w ? 'text-white/35' : 'text-muted-foreground/50'}>·</span>
+                      <span className={w ? 'text-foreground/35' : 'text-muted-foreground/50'}>·</span>
                       <span>
                         Last edited:{' '}
                         {trip.updated_at ? formatDate(trip.updated_at) : '—'}
@@ -478,7 +478,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     {(trip.departure_dates || []).length > 0 && (() => {
                       const next = nextOpenDeparture(trip.departure_dates, trip.departure_dates_closed ?? null)
                       return (
-                        <p className={cn('text-[10px] mt-0.5', w ? 'text-white/70' : 'text-muted-foreground')}>
+                        <p className={cn('text-[10px] mt-0.5', w ? 'text-foreground/70' : 'text-muted-foreground')}>
                           {next
                             ? <>Next open: {formatDate(next)}{trip.departure_dates!.length > 1 && ` (+${trip.departure_dates!.length - 1} date${trip.departure_dates!.length > 2 ? 's' : ''})`}</>
                             : <>All upcoming departures are full or past</>}
@@ -489,13 +489,13 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                       <div
                         className={cn(
                           'mt-2 pt-2 border-t space-y-1.5 max-h-36 overflow-y-auto',
-                          w ? 'border-white/20' : 'border-border/60',
+                          w ? 'border-foreground/20' : 'border-border/60',
                         )}
                       >
                         <p
                           className={cn(
                             'text-[10px] font-semibold uppercase tracking-wide',
-                            w ? 'text-white/80' : 'text-muted-foreground',
+                            w ? 'text-foreground/80' : 'text-muted-foreground',
                           )}
                         >
                           Manage slots per date
@@ -511,7 +511,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                               key={date}
                               className={cn(
                                 'space-y-1.5 text-[11px]',
-                                w && 'text-white/85',
+                                w && 'text-foreground/85',
                               )}
                             >
                               {/* Row: date + full/open badge + mark-full button */}
@@ -532,7 +532,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                                     variant="outline"
                                     className={cn(
                                       'h-7 text-[10px] px-2',
-                                      w && 'border-white/35 bg-white/[0.08] text-white hover:bg-white/15 hover:text-white',
+                                      w && 'border-foreground/35 bg-foreground/[0.08] text-foreground hover:bg-foreground/15 hover:text-foreground',
                                     )}
                                     disabled={isPending}
                                     onClick={() => handleToggleDateClosed(trip.id, date, !isClosed)}
@@ -543,7 +543,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                               </div>
                               {/* Row: booking deadline input */}
                               <div className="flex items-center gap-1.5 pl-0.5">
-                                <span className={cn('shrink-0', w ? 'text-white/55' : 'text-muted-foreground/80')}>
+                                <span className={cn('shrink-0', w ? 'text-foreground/55' : 'text-muted-foreground/80')}>
                                   Last day to book:
                                 </span>
                                 <input
@@ -555,7 +555,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                                   className={cn(
                                     'flex-1 min-w-0 rounded border px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-primary/50',
                                     w
-                                      ? 'bg-white/[0.08] border-white/25 text-white'
+                                      ? 'bg-foreground/[0.08] border-foreground/25 text-foreground'
                                       : 'bg-secondary border-border text-foreground',
                                   )}
                                 />
@@ -564,7 +564,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                                     type="button"
                                     disabled={isPending}
                                     onClick={() => handleSetCutoff(trip.id, date, null)}
-                                    className={cn('text-[10px] shrink-0 hover:underline', w ? 'text-white/55' : 'text-muted-foreground')}
+                                    className={cn('text-[10px] shrink-0 hover:underline', w ? 'text-foreground/55' : 'text-muted-foreground')}
                                   >
                                     Clear
                                   </button>
@@ -588,11 +588,11 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                       })}
                       className={cn(
                         'text-xs flex items-center gap-1 hover:underline transition-colors',
-                        w ? 'text-amber-200' : 'text-amber-800 dark:text-amber-300',
+                        w ? 'text-amber-700 dark:text-amber-200' : 'text-amber-800 dark:text-amber-300',
                       )}
                       title="View pending join requests"
                     >
-                      <Clock className={cn('h-3 w-3', w && 'text-[#fcba03]')} />
+                      <Clock className={cn('h-3 w-3', w && 'text-primary')} />
                       {trip.pending_requests}
                       {expandedRequests.has(trip.id) ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                     </button>
@@ -600,11 +600,11 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                   <span
                     className={cn(
                       'text-xs flex items-center gap-1 font-medium tabular-nums',
-                      w ? 'text-white' : 'text-emerald-800 dark:text-emerald-300',
+                      w ? 'text-foreground' : 'text-emerald-800 dark:text-emerald-300',
                     )}
                     title="Approved bookings"
                   >
-                    <Users className={cn('h-3.5 w-3.5', w && 'text-[#fcba03]')} />
+                    <Users className={cn('h-3.5 w-3.5', w && 'text-primary')} />
                     {trip.approved_requests}
                   </span>
                   {/* Pause bookings — trip stays visible but can't be booked */}
@@ -613,10 +613,10 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     variant="ghost"
                     className={cn(
                       'gap-1 text-xs',
-                      w && 'hover:bg-white/10',
+                      w && 'hover:bg-foreground/10',
                       trip.bookings_paused
-                        ? w ? 'text-amber-300 hover:text-amber-200' : 'text-amber-600 dark:text-amber-400'
-                        : w ? 'text-white/60 hover:text-white/90' : 'text-muted-foreground hover:text-foreground',
+                        ? w ? 'text-amber-700 dark:text-amber-300 hover:text-amber-700 dark:hover:text-amber-200' : 'text-amber-600 dark:text-amber-400'
+                        : w ? 'text-foreground/60 hover:text-foreground/90' : 'text-muted-foreground hover:text-foreground',
                     )}
                     onClick={() => handleTogglePause(trip.id)}
                     disabled={isPending}
@@ -628,13 +628,13 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     size="sm"
                     variant="ghost"
                     className={cn(
-                      w && 'hover:bg-white/10',
+                      w && 'hover:bg-foreground/10',
                       trip.is_active
                         ? w
-                          ? 'text-red-200 hover:text-red-100'
+                          ? 'text-red-700 dark:text-red-200 hover:text-red-800 dark:hover:text-red-100'
                           : 'text-destructive hover:text-destructive/90'
                         : w
-                          ? 'text-[#fcba03] hover:text-[#fcba03]/90'
+                          ? 'text-primary hover:text-primary/90'
                           : 'text-emerald-800 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300',
                     )}
                     onClick={() => handleToggle(trip.id)}
@@ -642,9 +642,9 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     title={trip.is_active ? 'Hide trip' : 'Show trip'}
                   >
                     {trip.is_active ? (
-                      <EyeOff className={cn('h-4 w-4', w && 'text-red-200')} />
+                      <EyeOff className={cn('h-4 w-4', w && 'text-red-700 dark:text-red-200')} />
                     ) : (
-                      <Eye className={cn('h-4 w-4', w && 'text-[#fcba03]')} />
+                      <Eye className={cn('h-4 w-4', w && 'text-primary')} />
                     )}
                   </Button>
                   <Button
@@ -653,7 +653,7 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     variant="outline"
                     className={cn(
                       'gap-1 text-xs',
-                      w && 'border-white/35 bg-white/[0.08] text-white hover:bg-white/15 hover:text-white',
+                      w && 'border-foreground/35 bg-foreground/[0.08] text-foreground hover:bg-foreground/15 hover:text-foreground',
                     )}
                   >
                     <Link href={`/host/${trip.id}`}>Manage</Link>
@@ -662,17 +662,17 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
                     kind="trip"
                     listingId={trip.id}
                     title={trip.title}
-                    className={cn(w && 'text-white/60 hover:text-red-300')}
+                    className={cn(w && 'text-foreground/60 hover:text-red-700 dark:hover:text-red-300')}
                     onDeleted={() => setTrips(prev => prev.filter(t => t.id !== trip.id))}
                   />
                 </div>
               </div>
               {expandedRequests.has(trip.id) && (
-                <div className={cn('mt-3 pt-3 border-t', w ? 'border-white/20' : 'border-border/60')}>
+                <div className={cn('mt-3 pt-3 border-t', w ? 'border-foreground/20' : 'border-border/60')}>
                   <p
                     className={cn(
                       'text-[11px] font-semibold uppercase tracking-wide mb-1',
-                      w ? 'text-white/80' : 'text-muted-foreground',
+                      w ? 'text-foreground/80' : 'text-muted-foreground',
                     )}
                   >
                     Pending Join Requests

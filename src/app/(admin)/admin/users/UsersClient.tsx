@@ -113,7 +113,7 @@ export function UsersClient({ initial }: { initial: AdminUsersPage }) {
                 {u.is_host && <Mountain className="h-3 w-3 text-primary" />}
               </div>
               <div className="col-span-2">
-                <Badge className={`text-[10px] ${u.role === 'admin' ? 'bg-red-900/50 text-red-300 border-red-700' : 'bg-secondary text-muted-foreground'}`}>
+                <Badge className={`text-[10px] ${u.role === 'admin' ? 'bg-red-900/50 text-red-700 dark:text-red-300 border-red-700' : 'bg-secondary text-muted-foreground'}`}>
                   {u.role}
                 </Badge>
               </div>

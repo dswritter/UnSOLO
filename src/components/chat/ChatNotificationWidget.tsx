@@ -622,13 +622,13 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   if (dismissed && notifications.length === 0) return null
 
   const iconBtn =
-    'rounded-lg p-1.5 text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/60'
+    'rounded-lg p-1.5 text-foreground/65 transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/60'
 
   return (
     <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end gap-1.5 pointer-events-none md:bottom-6">
       {minimized && typingRoomId && typingUsers.length > 0 && (
         <div
-          className="pointer-events-none max-w-[min(16rem,calc(100vw-5rem))] rounded-xl border border-white/15 bg-[color-mix(in_oklab,var(--card)_90%,transparent)] px-3 py-1.5 text-right text-[10px] text-white/80 shadow-lg backdrop-blur-sm"
+          className="pointer-events-none max-w-[min(16rem,calc(100vw-5rem))] rounded-xl border border-foreground/15 bg-[color-mix(in_oklab,var(--card)_90%,transparent)] px-3 py-1.5 text-right text-[10px] text-foreground/80 shadow-lg backdrop-blur-sm"
           aria-live="polite"
         >
           <span className="italic">
@@ -640,7 +640,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={() => notifications.length > 0 ? setMinimized(false) : (window.location.href = chatListBase)}
-          className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_28px_rgba(0,0,0,0.35)] ring-2 ring-white/15 transition-all hover:scale-105 hover:bg-primary/90"
+          className="pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_28px_rgba(0,0,0,0.35)] ring-2 ring-foreground/15 transition-all hover:scale-105 hover:bg-primary/90"
           aria-label={notifications.length > 0 ? 'Open chat notifications' : 'Open chats'}
         >
           <MessageCircle className="h-6 w-6" />
@@ -653,7 +653,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
       ) : (
         <div
           ref={miniPanelTrapRef}
-          className="pointer-events-auto relative isolate mb-2 flex w-[400px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-2xl border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.45)] wander-theme text-white [color-scheme:dark]"
+          className="pointer-events-auto relative isolate mb-2 flex w-[400px] max-w-[calc(100vw-4rem)] flex-col overflow-hidden rounded-2xl border border-foreground/15 shadow-[0_12px_48px_rgba(0,0,0,0.45)] wander-theme text-foreground"
           style={{ height: '380px', maxHeight: 'calc(100vh - 8rem)' }}
           role="dialog"
           aria-modal="true"
@@ -683,9 +683,9 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
 
           <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-[color-mix(in_oklab,var(--card)_94%,transparent)] px-4 py-3 backdrop-blur-sm">
-              <span className="flex items-center gap-2 text-sm font-bold text-white">
-                <MessageCircle className="h-4 w-4 text-[#fcba03]" aria-hidden />
+            <div className="flex shrink-0 items-center justify-between border-b border-foreground/10 bg-[color-mix(in_oklab,var(--card)_94%,transparent)] px-4 py-3 backdrop-blur-sm">
+              <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <MessageCircle className="h-4 w-4 text-primary" aria-hidden />
                 {activeRoom ? activeRoom.name : 'New Messages'}
               </span>
               <div className="flex items-center gap-0.5">
@@ -719,38 +719,38 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                       const isPending = n.id.startsWith('optimistic-')
                       return (
                         <div key={n.id} className={`flex items-start gap-3 px-4 py-2.5 ${isOwn ? 'flex-row-reverse' : ''}`}>
-                          <Avatar className="mt-0.5 h-7 w-7 shrink-0 border border-white/10">
+                          <Avatar className="mt-0.5 h-7 w-7 shrink-0 border border-foreground/10">
                             <AvatarImage src={n.user?.avatar_url || ''} />
-                            <AvatarFallback className="bg-white/15 text-[10px] font-bold text-[#fcba03]">
+                            <AvatarFallback className="bg-foreground/15 text-[10px] font-bold text-primary">
                               {getInitials(n.user?.full_name || n.user?.username || '?')}
                             </AvatarFallback>
                           </Avatar>
                           <div className={`flex max-w-[75%] flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                             {!isOwn && (
-                              <span className="mb-0.5 text-[10px] font-medium text-white/60">{n.user?.full_name || n.user?.username}</span>
+                              <span className="mb-0.5 text-[10px] font-medium text-foreground/60">{n.user?.full_name || n.user?.username}</span>
                             )}
                             <div
-                              className={`break-words rounded-2xl px-3 py-1.5 text-sm text-white shadow-inner backdrop-blur-md ${
+                              className={`break-words rounded-2xl px-3 py-1.5 text-sm text-foreground shadow-inner backdrop-blur-md ${
                                 isOwn
                                   ? `rounded-tr-sm border border-[#fcba03]/45 bg-[#fcba03]/18 ${isPending ? 'opacity-90' : ''}`
-                                  : 'rounded-tl-sm border border-white/15 bg-white/10'
+                                  : 'rounded-tl-sm border border-foreground/15 bg-foreground/10'
                               }`}
                             >
                               {n.content}
                             </div>
-                            <span className="mt-0.5 flex items-center gap-1 text-[9px] text-white/45">
+                            <span className="mt-0.5 flex items-center gap-1 text-[9px] text-foreground/45">
                               {isPending ? (
                                 <>
-                                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[#fcba03]" aria-hidden />
+                                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-primary" aria-hidden />
                                   <span>Sending…</span>
                                 </>
                               ) : (
                                 <>
                                   <span>{timeAgo(n.created_at)}</span>
                                   {isOwn && (miniReadStatus(n.id) === 'read' ? (
-                                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-[#fcba03]" aria-label="Read" />
+                                    <CheckCheck className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Read" />
                                   ) : miniReadStatus(n.id) === 'sent' ? (
-                                    <Check className="h-3 w-3 shrink-0 text-white/40" aria-label="Sent" />
+                                    <Check className="h-3 w-3 shrink-0 text-foreground/40" aria-label="Sent" />
                                   ) : null)}
                                 </>
                               )}
@@ -760,16 +760,16 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                       )
                     })
                   ) : (
-                    <div className="px-4 py-6 text-center text-xs text-white/55">No recent messages in this room</div>
+                    <div className="px-4 py-6 text-center text-xs text-foreground/55">No recent messages in this room</div>
                   )}
                   {typingUsers.length > 0 ? (
                     <div className="flex items-center gap-2 px-4 pb-2 pt-1">
                       <span className="flex gap-0.5" aria-hidden>
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:0ms]" />
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:0ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:150ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:300ms]" />
                       </span>
-                      <span className="text-[10px] italic text-white/55">
+                      <span className="text-[10px] italic text-foreground/55">
                         {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
                       </span>
                     </div>
@@ -783,32 +783,32 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                       key={n.id}
                       type="button"
                       onClick={() => openRoomChat(n.room_id, n.room_name)}
-                      className="flex w-full items-start gap-3 border-b border-white/10 px-4 py-3 text-left transition-colors last:border-0 hover:bg-white/10"
+                      className="flex w-full items-start gap-3 border-b border-foreground/10 px-4 py-3 text-left transition-colors last:border-0 hover:bg-foreground/10"
                     >
-                      <Avatar className="mt-0.5 h-8 w-8 shrink-0 border border-white/10">
+                      <Avatar className="mt-0.5 h-8 w-8 shrink-0 border border-foreground/10">
                         <AvatarImage src={n.user?.avatar_url || ''} />
-                        <AvatarFallback className="bg-white/15 text-xs font-bold text-[#fcba03]">
+                        <AvatarFallback className="bg-foreground/15 text-xs font-bold text-primary">
                           {getInitials(n.user?.full_name || n.user?.username || '?')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
-                          <span className="truncate text-xs font-medium text-white">{n.user?.full_name || n.user?.username || 'Someone'}</span>
-                          <span className="shrink-0 text-[10px] text-white/45">{timeAgo(n.created_at)}</span>
+                          <span className="truncate text-xs font-medium text-foreground">{n.user?.full_name || n.user?.username || 'Someone'}</span>
+                          <span className="shrink-0 text-[10px] text-foreground/45">{timeAgo(n.created_at)}</span>
                         </div>
-                        <p className="truncate text-[10px] text-[#fcba03]/90">{n.room_name}</p>
-                        <p className="mt-0.5 truncate text-xs text-white/65">{n.content}</p>
+                        <p className="truncate text-[10px] text-primary/90">{n.room_name}</p>
+                        <p className="mt-0.5 truncate text-xs text-foreground/65">{n.content}</p>
                       </div>
                     </button>
                   ))}
                   {typingUsers.length > 0 ? (
-                    <div className="flex items-center gap-2 border-t border-white/10 px-4 py-2.5">
+                    <div className="flex items-center gap-2 border-t border-foreground/10 px-4 py-2.5">
                       <span className="flex gap-0.5" aria-hidden>
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:0ms]" />
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:150ms]" />
-                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-white/50 [animation-delay:300ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:0ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:150ms]" />
+                        <span className="inline-block h-1 w-1 animate-bounce rounded-full bg-foreground/50 [animation-delay:300ms]" />
                       </span>
-                      <span className="text-[10px] italic text-white/55">
+                      <span className="text-[10px] italic text-foreground/55">
                         {typingUsers.map(u => u.username).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing…
                       </span>
                     </div>
@@ -821,7 +821,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             {activeRoom ? (
               <form
                 onSubmit={handleReply}
-                className="flex gap-2 border-t border-white/10 bg-[color-mix(in_oklab,var(--secondary)_88%,transparent)] px-3 py-2 backdrop-blur-sm"
+                className="flex gap-2 border-t border-foreground/10 bg-[color-mix(in_oklab,var(--secondary)_88%,transparent)] px-3 py-2 backdrop-blur-sm"
               >
                 <input
                   ref={inputRef}
@@ -830,7 +830,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   onChange={e => onReplyInputChange(e.target.value)}
                   onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                   placeholder={`Reply in ${activeRoom.name}...`}
-                  className="flex-1 rounded-xl border border-white/20 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 text-sm text-white placeholder:text-white/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
+                  className="flex-1 rounded-xl border border-foreground/20 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
                 />
                 <button
                   type="submit"
@@ -844,7 +844,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
             ) : (
               <Link
                 href={chatListBase}
-                className="block border-t border-white/10 bg-[color-mix(in_oklab,var(--secondary)_90%,transparent)] py-2.5 text-center text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-[color-mix(in_oklab,var(--secondary)_98%,transparent)]"
+                className="block border-t border-foreground/10 bg-[color-mix(in_oklab,var(--secondary)_90%,transparent)] py-2.5 text-center text-xs font-medium text-primary backdrop-blur-sm transition-colors hover:bg-[color-mix(in_oklab,var(--secondary)_98%,transparent)]"
               >
                 Open All Chats →
               </Link>

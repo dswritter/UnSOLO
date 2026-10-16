@@ -37,8 +37,8 @@ export function AdminSidePanel({ open, onClose, title, subtitle, headerExtra, ch
 
   if (!open || typeof document === 'undefined') return null
 
-  // Portal inside the themed shell: its CSS variables don't reach document.body.
-  const portalRoot = document.querySelector('[data-wander-shell-season]') ?? document.body
+  // Portal inside the shell so it keeps the shell font.
+  const portalRoot = document.querySelector('[data-wander-shell]') ?? document.body
 
   return createPortal(
     <div className="fixed inset-0 z-[90] flex justify-end">

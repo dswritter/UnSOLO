@@ -25,7 +25,7 @@ export function DetailPreviewLoading({ label }: { label: string }) {
       <div className="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-secondary">
-            <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-white/[0.06]" />
+            <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-foreground/[0.06]" />
             {preview?.image ? (
               <Image src={preview.image} alt="" fill priority sizes={preview.imageSizes} className="object-cover" />
             ) : null}

@@ -80,7 +80,7 @@ export function MobileChatBottomBar({
   return (
     <nav
       className={
-        'md:hidden fixed inset-x-2 bottom-2 z-[55] rounded-2xl border border-white/12 ' +
+        'md:hidden fixed inset-x-2 bottom-2 z-[55] rounded-2xl border border-foreground/12 ' +
         'bg-[color-mix(in_oklab,#0a0f14_82%,transparent)] backdrop-blur-2xl backdrop-saturate-150 ' +
         'shadow-[0_18px_48px_rgba(0,0,0,0.36)] ' +
         'supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.25rem)]'
@@ -91,14 +91,14 @@ export function MobileChatBottomBar({
         <Link
           href={homeHref}
           prefetch={false}
-          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold text-white/80 hover:bg-white/5 hover:text-white"
+          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold text-foreground/80 hover:bg-foreground/5 hover:text-foreground"
           aria-label="Home"
         >
           <Home className="h-5 w-5 stroke-[2]" />
           <span className="text-[9px] leading-none">Home</span>
         </Link>
 
-        <div className="h-9 w-px bg-white/10" aria-hidden />
+        <div className="h-9 w-px bg-foreground/10" aria-hidden />
 
         {/* Recent chats — horizontally scrollable avatar strip with golden ring
             for active status + green dot for online (parity with the look the
@@ -106,7 +106,7 @@ export function MobileChatBottomBar({
         <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex items-center gap-2.5 px-1">
             {sortedRooms.length === 0 ? (
-              <p className="px-2 text-[11px] text-white/55">No recent chats yet</p>
+              <p className="px-2 text-[11px] text-foreground/55">No recent chats yet</p>
             ) : (
               sortedRooms.map(r => {
                 const partner = r.dmProfile
@@ -130,8 +130,8 @@ export function MobileChatBottomBar({
                         (hasUnseenStatus
                           ? 'p-[2px] bg-gradient-to-tr from-primary via-amber-300 to-primary'
                           : isCurrent
-                            ? 'p-[2px] bg-white/30'
-                            : 'p-[1px] bg-white/10')
+                            ? 'p-[2px] bg-foreground/30'
+                            : 'p-[1px] bg-foreground/10')
                       }
                     >
                       <Avatar className="h-full w-full border-[2px] border-zinc-950">
@@ -158,12 +158,12 @@ export function MobileChatBottomBar({
           </div>
         </div>
 
-        <div className="h-9 w-px bg-white/10" aria-hidden />
+        <div className="h-9 w-px bg-foreground/10" aria-hidden />
 
         <Link
           href={statusHref}
           prefetch={false}
-          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold text-white/80 hover:bg-white/5 hover:text-white"
+          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[10px] font-semibold text-foreground/80 hover:bg-foreground/5 hover:text-foreground"
           aria-label="Statuses"
         >
           <Users className="h-5 w-5 stroke-[2]" />

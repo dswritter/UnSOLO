@@ -79,10 +79,10 @@ export default async function HostDashboardPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-black text-white">
+            <h1 className="text-2xl font-black text-foreground">
               Host <span className="text-primary">Dashboard</span>
             </h1>
-            <p className="text-sm text-white/75 mt-0.5">
+            <p className="text-sm text-foreground/75 mt-0.5">
               Host your own trips or experiences and invite travelers to join
             </p>
           </div>
@@ -99,10 +99,10 @@ export default async function HostDashboardPage() {
 
         {!payoutConfigured && (
           <div className="mb-6 rounded-xl border border-amber-300/50 bg-amber-500/15 p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-200 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-200 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-white">Add your payout details</p>
-              <p className="text-xs text-white/70 mt-0.5">
+              <p className="font-semibold text-sm text-foreground">Add your payout details</p>
+              <p className="text-xs text-foreground/70 mt-0.5">
                 You need a UPI ID or bank account on file before you can publish new listings and receive earnings.
               </p>
             </div>
@@ -112,9 +112,9 @@ export default async function HostDashboardPage() {
           </div>
         )}
 
-        <div className="mb-6 rounded-xl border border-white/25 bg-white/[0.06] p-4 text-xs">
-          <p className="font-semibold text-white">Fair-split refunds — your share is protected</p>
-          <p className="text-white/70 mt-1 leading-relaxed">
+        <div className="mb-6 rounded-xl border border-foreground/25 bg-foreground/[0.06] p-4 text-xs">
+          <p className="font-semibold text-foreground">Fair-split refunds — your share is protected</p>
+          <p className="text-foreground/70 mt-1 leading-relaxed">
             On cancellations, UnSOLO and you absorb the refund proportionally to our earnings. You only ever lose
             your fair portion — never the platform fee, promo codes, or referral credits.{' '}
             <Link href="/refund-policy" className="text-primary hover:underline">See refund policy</Link>.
@@ -128,7 +128,7 @@ export default async function HostDashboardPage() {
 
         {serviceListings && serviceListings.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-lg font-bold mb-3 text-white">Your Services</h2>
+            <h2 className="text-lg font-bold mb-3 text-foreground">Your Services</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {serviceListings.map((listing) => {
                 const deemphasized =
@@ -140,17 +140,17 @@ export default async function HostDashboardPage() {
                   className={cn(
                     'group rounded-xl border p-4 backdrop-blur-sm bg-[color-mix(in_oklab,var(--card)_88%,transparent)] transition-all duration-200',
                     deemphasized
-                      ? 'border-white/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-white/25'
+                      ? 'border-foreground/15 opacity-[0.52] grayscale-[0.35] hover:opacity-100 hover:grayscale-0 hover:border-foreground/25'
                       : listing.is_active
-                        ? 'border-white/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
-                        : 'border-white/25',
+                        ? 'border-foreground/25 hover:bg-[color-mix(in_oklab,var(--secondary)_40%,transparent)]'
+                        : 'border-foreground/25',
                     listing.is_active === false && 'border-red-400/30',
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold truncate text-white">{listing.title}</h3>
+                        <h3 className="font-semibold truncate text-foreground">{listing.title}</h3>
                         {listing.is_active === false && (
                           <span
                             className={cn(
@@ -162,19 +162,19 @@ export default async function HostDashboardPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-white/75 mt-0.5 capitalize">
+                      <p className="text-xs text-foreground/75 mt-0.5 capitalize">
                         {String(listing.type).replace('_', ' ')} · {countByListing[listing.id] || 0} item{countByListing[listing.id] === 1 ? '' : 's'}
                         {' · '}
                         {bookingCount} booking{bookingCount === 1 ? '' : 's'}
                       </p>
-                      <p className="text-[11px] text-white/55 mt-1 space-x-2">
+                      <p className="text-[11px] text-foreground/55 mt-1 space-x-2">
                         <span>
                           First published:{' '}
                           {listing.first_approved_at
                             ? formatDate(listing.first_approved_at)
                             : 'Not yet'}
                         </span>
-                        <span className="text-white/35">·</span>
+                        <span className="text-foreground/35">·</span>
                         <span>
                           Last edited:{' '}
                           {listing.updated_at ? formatDate(listing.updated_at) : '—'}

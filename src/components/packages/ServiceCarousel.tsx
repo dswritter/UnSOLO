@@ -40,14 +40,14 @@ export function ServiceCarousel({ title, listings, type }: ServiceCarouselProps)
           {/* Scroll buttons */}
           <button
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/3 -translate-y-1/2 z-10 bg-primary/80 hover:bg-primary text-white rounded-full p-2 shadow-lg transition-all"
+            className="absolute left-0 top-1/3 -translate-y-1/2 z-10 bg-primary/80 hover:bg-primary text-foreground rounded-full p-2 shadow-lg transition-all"
             aria-label="Scroll left"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/3 -translate-y-1/2 z-10 bg-primary/80 hover:bg-primary text-white rounded-full p-2 shadow-lg transition-all"
+            className="absolute right-0 top-1/3 -translate-y-1/2 z-10 bg-primary/80 hover:bg-primary text-foreground rounded-full p-2 shadow-lg transition-all"
             aria-label="Scroll right"
           >
             <ChevronRight className="h-5 w-5" />

@@ -311,7 +311,7 @@ export function ExploreClient({
     const renderSearchField = (id: string) => (
       <div role="search" className={cn(
         'flex h-9 items-center gap-2 rounded-full border pl-3 pr-1.5 transition-colors focus-within:ring-2 focus-within:ring-primary/40',
-        isWanderShell ? 'border-white/10 bg-white/5 hover:bg-white/10 focus-within:bg-white/10' : 'border-border bg-secondary',
+        isWanderShell ? 'border-foreground/10 bg-foreground/5 hover:bg-foreground/10 focus-within:bg-foreground/10' : 'border-border bg-secondary',
       )}>
         <label htmlFor={id} className="sr-only">Search {searchNoun}</label>
         {localSearch
@@ -323,7 +323,7 @@ export function ExploreClient({
           placeholder={`Search ${searchNoun}`}
           className="input-bare min-w-0 flex-1 border-0 bg-transparent text-sm text-foreground shadow-none outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden" />
         {searchDraft && <button type="button" onClick={() => handleSearchChange('')}
-          className="rounded-full p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground" aria-label="Clear search"><X className="h-3.5 w-3.5" /></button>}
+          className="rounded-full p-1 text-muted-foreground hover:bg-foreground/10 hover:text-foreground" aria-label="Clear search"><X className="h-3.5 w-3.5" /></button>}
       </div>
     )
 
@@ -396,7 +396,7 @@ export function ExploreClient({
           inset like a card, matching the home design. */}
       {isWanderShell ? (
         <div className="md:hidden sticky top-0 z-40 px-3 pt-2 pb-1">
-          <div className="rounded-2xl border border-white/16 bg-white/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+          <div className="rounded-2xl border border-foreground/16 bg-foreground/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
             <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
               {TABS.filter(t => t.id !== 'getting_around').map(tab => {
                 const Icon = tab.icon
@@ -408,7 +408,7 @@ export function ExploreClient({
                     onClick={() => handleTabChange(tab.id)}
                     className={cn(
                       'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
-                      active ? 'text-primary' : 'text-white/80 hover:text-white',
+                      active ? 'text-primary' : 'text-foreground/80 hover:text-foreground',
                     )}
                   >
                     <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
@@ -424,8 +424,8 @@ export function ExploreClient({
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         {isWanderShell ? (
           <div className="mb-4">
-            <h2 className="hidden lg:block text-2xl md:text-3xl font-black tracking-tight text-white">Explore</h2>
-            <p className="hidden lg:block mt-1 text-sm text-white/70">Search and filter the full catalog while you stay in Wander.</p>
+            <h2 className="hidden lg:block text-2xl md:text-3xl font-black tracking-tight text-foreground">Explore</h2>
+            <p className="hidden lg:block mt-1 text-sm text-foreground/70">Search and filter the full catalog while you stay in Wander.</p>
           </div>
         ) : null}
         {/* Desktop tabs (mobile uses the sticky strip above). */}
@@ -443,7 +443,7 @@ export function ExploreClient({
                     isWanderShell
                       ? activeTab === tab.id
                         ? 'bg-primary text-primary-foreground shadow-md'
-                        : 'bg-white/5 text-white/90 hover:bg-white/10'
+                        : 'bg-foreground/5 text-foreground/90 hover:bg-foreground/10'
                       : activeTab === tab.id
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
@@ -466,14 +466,14 @@ export function ExploreClient({
             className={cn(
               'mb-5 rounded-xl border px-4 py-3 text-sm',
               isWanderShell
-                ? 'border-white/20 bg-white/[0.06] text-white/90'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground/90'
                 : 'border-border bg-muted/50 text-foreground',
             )}
           >
             <p className="font-medium">
               We couldn&rsquo;t find an exact match for &ldquo;{params.q}&rdquo;{isTripsTab ? ' for this trip list' : ` in ${typeLabels[activeTab as ServiceListingType]}`}.
             </p>
-            <p className={cn('mt-1.5', isWanderShell ? 'text-white/70' : 'text-muted-foreground')}>
+            <p className={cn('mt-1.5', isWanderShell ? 'text-foreground/70' : 'text-muted-foreground')}>
               Here are more options you might like nearby or across the catalog — try refining your search to narrow them down.
             </p>
           </div>

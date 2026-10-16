@@ -461,9 +461,9 @@ export function ChatSidebar({
                     type="button"
                     onClick={e => handleTogglePin(e, room.id)}
                     aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
-                    className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 transition-colors"
+                    className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                   >
-                    <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
+                    <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-primary' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                   </button>
                   {unread > 0 ? (
                     <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
@@ -514,7 +514,7 @@ export function ChatSidebar({
                     </div>
                     {room.type !== 'direct' && (
                       <span className="text-[10px] font-medium">
-                        <span className="text-[#fcba03]">{room.type === 'trip' ? 'Trip' : 'Community'}</span>
+                        <span className="text-primary">{room.type === 'trip' ? 'Trip' : 'Community'}</span>
                         {room.tripLocation ? <span className="text-muted-foreground"> · {room.tripLocation}</span> : null}
                       </span>
                     )}
@@ -528,9 +528,9 @@ export function ChatSidebar({
                   type="button"
                   onClick={e => handleTogglePin(e, room.id)}
                   aria-label={isPinned ? 'Unpin conversation' : 'Pin conversation'}
-                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-[#fcba03] hover:bg-primary/10 transition-colors"
+                  className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 >
-                  <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-[#fcba03]' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
+                  <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-primary' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                 </button>
 
                 {unread > 0 ? (

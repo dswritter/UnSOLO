@@ -41,15 +41,15 @@ export function WanderRowFallback({ kind, title, activeTab }: { kind: ListingPre
 export function WanderRowSkeleton({ title }: { title: string }) {
   return (
     <section aria-label={`Loading ${title}`} aria-busy="true">
-      <div className="mb-4 h-7 w-48 animate-pulse rounded-md bg-white/10" />
+      <div className="mb-4 h-7 w-48 animate-pulse rounded-md bg-foreground/10" />
       <div className="-mx-4 flex gap-3 overflow-hidden px-4 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:px-0 lg:grid-cols-4">
         {[0, 1, 2, 3].map(i => (
-          <div key={i} className="basis-[78%] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] sm:basis-[60%] md:basis-auto">
-            <div className="aspect-[4/3] animate-pulse bg-white/[0.08]" />
+          <div key={i} className="basis-[78%] shrink-0 overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/[0.04] sm:basis-[60%] md:basis-auto">
+            <div className="aspect-[4/3] animate-pulse bg-foreground/[0.08]" />
             <div className="space-y-2 p-3">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-white/10" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-white/[0.07]" />
-              <div className="h-3 w-1/3 animate-pulse rounded bg-white/[0.07]" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-foreground/10" />
+              <div className="h-3 w-1/2 animate-pulse rounded bg-foreground/[0.07]" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-foreground/[0.07]" />
             </div>
           </div>
         ))}

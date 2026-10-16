@@ -34,7 +34,7 @@ export function ProfileStatusStories({
             <div className="h-14 w-14 rounded-lg border-2 border-dashed border-primary/50 flex items-center justify-center hover:border-primary transition-colors">
               <Plus className="h-6 w-6 text-primary" />
             </div>
-            <span className="text-[10px] text-white/75">Add</span>
+            <span className="text-[10px] text-foreground/75">Add</span>
           </button>
         ) : null}
 
@@ -55,13 +55,13 @@ export function ProfileStatusStories({
             ) : (
               /* text/link story — show a coloured placeholder */
               <div
-                className="h-14 w-14 rounded-lg flex items-center justify-center border border-border text-[11px] text-white/70"
+                className="h-14 w-14 rounded-lg flex items-center justify-center border border-border text-[11px] text-foreground/70"
                 style={{ background: s.bg_color || '#1a1a2e' }}
               >
                 {s.link_url ? '🔗' : '📝'}
               </div>
             )}
-            <span className="text-[10px] text-white/70">View</span>
+            <span className="text-[10px] text-foreground/70">View</span>
           </button>
         ))}
       </div>

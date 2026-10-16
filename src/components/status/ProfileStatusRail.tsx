@@ -17,7 +17,7 @@ export async function ProfileStatusRail({
 
   return (
     <section className="profile-24h-status-surface mb-6 rounded-xl border border-border/80 p-4">
-      <p className="text-xs font-semibold text-white/80 uppercase tracking-wide mb-3">24h status</p>
+      <p className="text-xs font-semibold text-foreground/80 uppercase tracking-wide mb-3">24h status</p>
       <ProfileStatusStories
         stories={stories}
         isOwn={isOwn}

@@ -7,7 +7,7 @@ import { WanderRowPreviewSeed } from '@/components/wander/WanderRowPreviewSeed'
 import { ChevronRight, ArrowRight } from 'lucide-react'
 import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
 import { listingScheduleTodayISO } from '@/lib/utils'
-import { packageHasUpcomingOpenDeparture, tripDepartureDateKey } from '@/lib/package-trip-calendar'
+import { packageHasUpcomingOpenDeparture, packageNextOpenDepartureKey, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 
 type ActivityWithItems = ServiceListing & {
   items: Array<{ id: string; name: string; price_paise: number; images: string[]; unit: string | null }>
@@ -28,18 +28,31 @@ function activityHasUpcomingOnExploreCalendar(listing: ServiceListing, todayStr:
   return sch.some((e) => tripDepartureDateKey(e.date) >= todayStr)
 }
 
+const DEPARTING_SOON_DAYS = 30
+
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 function SectionHeader({
   title,
+  subtitle,
   actionHref,
   actionLabel = 'View all',
 }: {
   title: string
+  subtitle?: string
   actionHref: string
   actionLabel?: string
 }) {
   return (
     <div className="flex items-end justify-between gap-4 mb-4">
-      <h2 className="text-xl md:text-2xl font-black tracking-tight">{title}</h2>
+      <div className="min-w-0">
+        <h2 className="text-xl md:text-2xl font-black tracking-tight">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+      </div>
       <Link
         href={actionHref}
         className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline shrink-0"
@@ -139,7 +152,13 @@ export function WanderListingSections({
 
   const tripsOpen = trips.filter((p) => packageHasUpcomingOpenDeparture(p, wanderTodayISO))
   const tripsPastOnly = trips.filter((p) => !packageHasUpcomingOpenDeparture(p, wanderTodayISO))
-  const tripsPopularOrdered = [...tripsOpen, ...tripsPastOnly]
+  const soonCutoff = addDaysISO(wanderTodayISO, DEPARTING_SOON_DAYS)
+  const nextKey = new Map(trips.map((p) => [p.id, packageNextOpenDepartureKey(p, wanderTodayISO)]))
+  const tripsSoon = tripsOpen
+    .filter((p) => { const k = nextKey.get(p.id); return k != null && k <= soonCutoff })
+    .sort((a, b) => (nextKey.get(a.id) ?? '').localeCompare(nextKey.get(b.id) ?? ''))
+  const soonIds = new Set(tripsSoon.map((p) => p.id))
+  const tripsPopularOrdered = [...tripsSoon, ...tripsOpen.filter((p) => !soonIds.has(p.id)), ...tripsPastOnly]
   const pastTripIds = new Set(tripsPastOnly.map((p) => p.id))
 
   const activitiesOpen = activities.filter((l) => activityHasUpcomingOnExploreCalendar(l, wanderTodayISO))
@@ -150,7 +169,16 @@ export function WanderListingSections({
   const sections = {
     trips: (
       <section key="trips">
-        <SectionHeader title="Popular trips" actionHref={tripsHref} actionLabel="View all trips" />
+        <SectionHeader
+          title={tripsSoon.length > 0 ? 'Departing soon' : 'Popular trips'}
+          subtitle={
+            tripsSoon.length > 0
+              ? `Open departures in the next ${DEPARTING_SOON_DAYS} days, then more to plan ahead`
+              : 'Group trips with a host and fellow solo travellers'
+          }
+          actionHref={tripsHref}
+          actionLabel="View all trips"
+        />
         {trips.length === 0 ? (
           <p className="text-sm text-muted-foreground">No trips to show yet.</p>
         ) : (
@@ -173,6 +201,7 @@ export function WanderListingSections({
       <section key="stays">
         <SectionHeader
           title={tripSupportCopy ? 'Stays near these trips' : 'Popular stays'}
+          subtitle="Homestays and hostels picked for solo travellers"
           actionHref={staysHref}
           actionLabel="View all stays"
         />
@@ -191,6 +220,7 @@ export function WanderListingSections({
       <section key="activities">
         <SectionHeader
           title={tripSupportCopy ? 'Activities you can add' : 'Popular activities'}
+          subtitle="Day plans, treks and experiences to add to your trip"
           actionHref={activitiesHref}
         />
         {activities.length === 0 ? (
@@ -213,6 +243,7 @@ export function WanderListingSections({
       <section key="rentals">
         <SectionHeader
           title={tripSupportCopy ? 'Useful rentals in the area' : 'Frequently booked rentals'}
+          subtitle="Bikes, cars and gear from local hosts"
           actionHref={rentalsHref}
         />
         {rentals.length === 0 ? (

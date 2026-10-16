@@ -107,7 +107,7 @@ export function LandingPromoDock({
       {visible.map((p) => {
         const tone =
           p.variant === 'success'
-            ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-50'
+            ? 'border-emerald-500/40 bg-emerald-950/90 text-emerald-800 dark:text-emerald-50'
             : p.variant === 'neutral'
               ? 'border-border bg-card/95 text-foreground'
               : 'border-primary/50 bg-gradient-to-br from-primary/20 to-amber-950/80 text-foreground'

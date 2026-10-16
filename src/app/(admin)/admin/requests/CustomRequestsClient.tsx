@@ -66,7 +66,7 @@ export function CustomRequestsClient({ requests: initial }: Props) {
           return (
             <div key={req.id} className="rounded-xl border border-border bg-card/50 p-5">
               {feedback[req.id] && (
-                <p className={`text-sm px-3 py-2 rounded-lg mb-3 ${feedback[req.id].startsWith('Error') ? 'bg-red-900/30 text-red-300' : 'bg-green-900/30 text-green-300'}`}>
+                <p className={`text-sm px-3 py-2 rounded-lg mb-3 ${feedback[req.id].startsWith('Error') ? 'bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-green-900/30 text-green-700 dark:text-green-300'}`}>
                   {feedback[req.id]}
                 </p>
               )}
@@ -89,11 +89,11 @@ export function CustomRequestsClient({ requests: initial }: Props) {
                     </div>
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Phone className="h-3.5 w-3.5" />
-                      <a href={`tel:${req.contact_number}`} className="hover:text-white">{req.contact_number}</a>
+                      <a href={`tel:${req.contact_number}`} className="hover:text-foreground">{req.contact_number}</a>
                     </div>
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Mail className="h-3.5 w-3.5" />
-                      <a href={`mailto:${req.contact_email}`} className="hover:text-white">{req.contact_email}</a>
+                      <a href={`mailto:${req.contact_email}`} className="hover:text-foreground">{req.contact_email}</a>
                     </div>
                   </div>
 

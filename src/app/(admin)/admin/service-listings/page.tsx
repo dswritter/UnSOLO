@@ -44,14 +44,14 @@ export default async function AdminServiceListingsPage({
     return (
       <div className="space-y-4">
         <AdminPageHeader title="Service listings" className="mb-0" />
-        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-100">
+        <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-5 text-sm text-rose-800 dark:text-rose-100">
           <p className="font-semibold text-base mb-2">Couldn&apos;t load this page</p>
           <ul className="list-disc pl-5 space-y-1 font-mono text-[12px]">
             {errors.map((msg, i) => (
               <li key={i} className="whitespace-pre-wrap break-all">{msg}</li>
             ))}
           </ul>
-          <p className="mt-3 text-white/55 text-xs">
+          <p className="mt-3 text-foreground/55 text-xs">
             Full stack trace in Vercel Function logs. If this persists, share the message above with engineering.
           </p>
         </div>

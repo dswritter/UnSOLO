@@ -245,7 +245,7 @@ export function StatusStoriesBar({
                 </Avatar>
                 {hasOwnStories && ownStoryCount > 1 ? (
                   <span
-                    className={`absolute -top-0.5 -right-0.5 min-w-[1.15rem] rounded-full bg-background text-foreground border-2 border-border dark:bg-zinc-900 dark:border-black dark:text-primary font-bold flex items-center justify-center z-[5] ${
+                    className={`absolute -top-0.5 -right-0.5 min-w-[1.15rem] rounded-full bg-background text-foreground border-2 border-border dark:bg-muted dark:border-black dark:text-primary font-bold flex items-center justify-center z-[5] ${
                       compact ? 'h-4 px-0.5 text-[9px]' : 'h-5 px-1 text-[10px]'
                     }`}
                   >
@@ -310,7 +310,7 @@ export function StatusStoriesBar({
                     } ${
                       allViewed
                         ? 'bg-muted border-border text-muted-foreground dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-400'
-                        : 'bg-background border-border text-foreground dark:bg-zinc-900 dark:border-black dark:text-primary'
+                        : 'bg-background border-border text-foreground dark:bg-muted dark:border-black dark:text-primary'
                     }`}
                   >
                     {count}

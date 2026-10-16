@@ -306,7 +306,7 @@ export default function HostVerifyPage() {
 
           {pendingChangeRequest && (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
-              <p className="text-xs font-semibold text-amber-300">Phone change pending approval</p>
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Phone change pending approval</p>
               <p className="text-xs text-muted-foreground">
                 New number: <span className="text-foreground font-medium">{pendingChangeRequest.newCountryCode} {pendingChangeRequest.newPhone}</span>
                 {' '}— our team will verify and update your profile.

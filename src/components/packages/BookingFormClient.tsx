@@ -625,7 +625,7 @@ export function BookingFormClient({
         <button
           onClick={() => setTab('fixed')}
           className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-            tab === 'fixed' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+            tab === 'fixed' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Fixed Dates
@@ -633,7 +633,7 @@ export function BookingFormClient({
         <button
           onClick={() => setTab('custom')}
           className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-            tab === 'custom' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+            tab === 'custom' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           Custom
@@ -641,7 +641,7 @@ export function BookingFormClient({
         <button
           onClick={() => setTab('group')}
           className={`flex-1 py-2 px-3 rounded-md text-xs font-medium transition-colors ${
-            tab === 'group' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-white'
+            tab === 'group' ? 'bg-primary text-black' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Users className="h-3 w-3 inline mr-1" />
@@ -1123,7 +1123,7 @@ export function BookingFormClient({
           <Button
             onClick={handleCustomRequest}
             disabled={customLoading}
-            className="w-full bg-secondary text-white font-bold hover:bg-secondary/80 border border-border"
+            className="w-full bg-secondary text-foreground font-bold hover:bg-secondary/80 border border-border"
             size="lg"
           >
             {customLoading ? 'Submitting...' : (

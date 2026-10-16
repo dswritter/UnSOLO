@@ -51,15 +51,15 @@ export function StopHostingPanel() {
 
   if (step === 'idle') {
     return (
-      <div className="mt-10 rounded-xl border border-white/10 bg-white/[0.03] p-5">
-        <h2 className="text-sm font-bold text-white/70 uppercase tracking-widest mb-1">Host Status</h2>
-        <p className="text-sm text-white/55 mb-4">
+      <div className="mt-10 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5">
+        <h2 className="text-sm font-bold text-foreground/70 uppercase tracking-widest mb-1">Host Status</h2>
+        <p className="text-sm text-foreground/55 mb-4">
           You can step down as a host if you have no active or upcoming bookings. Your profile, phone number, and email will remain unchanged.
         </p>
         <Button
           variant="outline"
           size="sm"
-          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
           onClick={handleInitiate}
         >
           <LogOut className="mr-2 h-4 w-4" />
@@ -71,8 +71,8 @@ export function StopHostingPanel() {
 
   if (step === 'checking') {
     return (
-      <div className="mt-10 rounded-xl border border-white/10 bg-white/[0.03] p-5">
-        <p className="text-sm text-white/60 animate-pulse">Checking for active bookings…</p>
+      <div className="mt-10 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-5">
+        <p className="text-sm text-foreground/60 animate-pulse">Checking for active bookings…</p>
       </div>
     )
   }
@@ -81,14 +81,14 @@ export function StopHostingPanel() {
     return (
       <div className="mt-10 rounded-xl border border-amber-400/30 bg-amber-500/10 p-5">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-300 shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
           <div className="space-y-2">
-            <p className="text-sm font-semibold text-amber-200">Cannot step down yet</p>
-            <p className="text-sm text-white/65">{blockedReason}</p>
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-200">Cannot step down yet</p>
+            <p className="text-sm text-foreground/65">{blockedReason}</p>
             <Button
               variant="outline"
               size="sm"
-              className="border-white/20 text-white/70 mt-1"
+              className="border-foreground/20 text-foreground/70 mt-1"
               onClick={() => setStep('idle')}
             >
               Dismiss
@@ -105,8 +105,8 @@ export function StopHostingPanel() {
       <div className="flex items-start gap-3">
         <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold text-red-300">Step down as host</p>
-          <p className="text-sm text-white/60 mt-1">
+          <p className="font-semibold text-red-700 dark:text-red-300">Step down as host</p>
+          <p className="text-sm text-foreground/60 mt-1">
             Your trips and services will be deactivated. Your profile, phone number, booking history, and email stay intact.
           </p>
         </div>
@@ -114,15 +114,15 @@ export function StopHostingPanel() {
 
       {/* Phone visibility choice */}
       <div className="space-y-2">
-        <p className="text-sm font-medium text-white/80">What should happen to your phone number?</p>
+        <p className="text-sm font-medium text-foreground/80">What should happen to your phone number?</p>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setKeepPhonePublic(true)}
             className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 text-sm transition-colors ${
               keepPhonePublic === true
-                ? 'border-green-500/50 bg-green-500/15 text-green-300'
-                : 'border-white/15 bg-white/[0.04] text-white/60 hover:border-white/25'
+                ? 'border-green-500/50 bg-green-500/15 text-green-700 dark:text-green-300'
+                : 'border-foreground/15 bg-foreground/[0.04] text-foreground/60 hover:border-foreground/25'
             }`}
           >
             <Globe className="h-4 w-4" />
@@ -135,7 +135,7 @@ export function StopHostingPanel() {
             className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 text-sm transition-colors ${
               keepPhonePublic === false
                 ? 'border-primary/50 bg-primary/10 text-primary'
-                : 'border-white/15 bg-white/[0.04] text-white/60 hover:border-white/25'
+                : 'border-foreground/15 bg-foreground/[0.04] text-foreground/60 hover:border-foreground/25'
             }`}
           >
             <Lock className="h-4 w-4" />
@@ -149,7 +149,7 @@ export function StopHostingPanel() {
         <Button
           variant="outline"
           size="sm"
-          className="border-white/20 text-white/70"
+          className="border-foreground/20 text-foreground/70"
           onClick={() => setStep('idle')}
           disabled={submitting}
         >

@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
 import { NavigationProgress } from '@/components/layout/NavigationProgress'
 import { QueryProvider } from '@/providers/QueryProvider'
+import { COLOR_MODE_BOOT_SCRIPT } from '@/lib/theme/color-mode'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,23 +30,6 @@ export const metadata: Metadata = {
   },
 };
 
-// Inline script that runs before paint to set dark/light class
-// This avoids the flash of wrong theme
-const themeScript = `
-(function(){
-  try {
-    var d = document.documentElement;
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      d.classList.add('dark');
-    } else {
-      d.classList.remove('dark');
-    }
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-      if (e.matches) { d.classList.add('dark'); } else { d.classList.remove('dark'); }
-    });
-  } catch(e){}
-})();
-`;
 
 export default function RootLayout({
   children,
@@ -55,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Suspense fallback={null}>

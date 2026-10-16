@@ -1,0 +1,55 @@
+/**
+ * Alpine shell backdrop + chrome vars (navbar / footer / inset panels).
+ * Day = misty sky + warm sun glow; dusk (.dark) = deep slate-blue night.
+ */
+
+:root {
+  --wander-nav-surface: color-mix(in oklab, white 78%, transparent);
+  --wander-nav-border: color-mix(in oklab, oklch(0.255 0.035 262) 8%, transparent);
+  --wander-nav-outer-border: oklch(0.255 0.035 262 / 0.08);
+  --wander-footer-surface: oklch(0.255 0.035 262);
+  --wander-footer-border: oklch(0.36 0.03 262 / 0.6);
+  --wander-footer-outer-border: oklch(0.36 0.03 262 / 0.6);
+  --wander-footer-muted: oklch(0.8 0.02 262);
+  --wander-frost-chrome-card: oklch(1 0 0);
+  --wander-frost-chrome-border: oklch(0.885 0.015 255);
+  --wander-inset-panel: oklch(0.94 0.012 255 / 0.85);
+}
+
+.dark {
+  --wander-nav-surface: color-mix(in oklab, oklch(0.2 0.022 262) 82%, transparent);
+  --wander-nav-border: color-mix(in oklab, white 10%, transparent);
+  --wander-nav-outer-border: oklch(1 0 0 / 0.08);
+  --wander-footer-surface: oklch(0.17 0.02 262);
+  --wander-footer-border: oklch(1 0 0 / 0.08);
+  --wander-footer-outer-border: oklch(1 0 0 / 0.08);
+  --wander-footer-muted: oklch(0.74 0.02 262);
+  --wander-frost-chrome-card: oklch(0.255 0.026 262);
+  --wander-frost-chrome-border: oklch(0.36 0.028 262);
+  --wander-inset-panel: oklch(0.17 0.02 262 / 0.75);
+}
+
+.wander-textured {
+  position: relative;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(1100px 520px at 78% -12%, rgba(255, 214, 120, 0.32), transparent 60%),
+    radial-gradient(900px 500px at 0% 8%, rgba(150, 185, 235, 0.32), transparent 60%),
+    linear-gradient(180deg, #f4f7fb 0%, #e6edf6 100%);
+  background-repeat: no-repeat;
+}
+
+.dark .wander-textured {
+  background-image:
+    radial-gradient(1200px 520px at 72% -10%, rgba(120, 150, 210, 0.22), transparent 60%),
+    radial-gradient(800px 420px at 0% 0%, rgba(252, 186, 3, 0.05), transparent 60%),
+    linear-gradient(180deg, #1b2230 0%, #121722 100%);
+}
+
+/* Tribe transcript: soft sky in day (the aurora backdrop is dusk-only) */
+html:not(.dark) .tribe-chat-scroll-pattern {
+  background: linear-gradient(180deg, #f2f6fb 0%, #e8eef6 100%);
+}
+html:not(.dark) .tribe-chat-scroll-pattern::before {
+  display: none;
+}

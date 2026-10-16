@@ -16,11 +16,11 @@ export default function AdminError({
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-6">
-      <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 text-sm text-red-200">
+      <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-5 text-sm text-red-700 dark:text-red-200">
         <p className="text-base font-bold mb-2">Something went wrong loading this page</p>
-        <p className="mb-3 text-white/70">{error.message || 'An unknown error occurred.'}</p>
+        <p className="mb-3 text-foreground/70">{error.message || 'An unknown error occurred.'}</p>
         {error.digest && (
-          <p className="text-[11px] text-white/45 font-mono mb-3">digest: {error.digest}</p>
+          <p className="text-[11px] text-foreground/45 font-mono mb-3">digest: {error.digest}</p>
         )}
         <button
           onClick={() => reset()}

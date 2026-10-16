@@ -12,33 +12,33 @@ export function WanderExploreSkeleton() {
     >
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         <div className="mb-4">
-          <div className="h-9 w-48 max-w-[80%] rounded-lg bg-white/10 animate-pulse" />
-          <div className="h-4 w-72 max-w-[90%] rounded mt-2 bg-white/5 animate-pulse" />
+          <div className="h-9 w-48 max-w-[80%] rounded-lg bg-foreground/10 animate-pulse" />
+          <div className="h-4 w-72 max-w-[90%] rounded mt-2 bg-foreground/5 animate-pulse" />
         </div>
         <div className="mb-6 flex flex-wrap gap-2">
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="h-9 w-[5.5rem] sm:w-24 rounded-full bg-white/10 animate-pulse"
+              className="h-9 w-[5.5rem] sm:w-24 rounded-full bg-foreground/10 animate-pulse"
             />
           ))}
         </div>
         <div className="flex gap-6 flex-1">
           <div className="hidden lg:block w-64 flex-shrink-0 space-y-3">
-            <div className="h-44 rounded-xl bg-white/10 animate-pulse" />
-            <div className="h-32 rounded-xl bg-white/5 animate-pulse" />
+            <div className="h-44 rounded-xl bg-foreground/10 animate-pulse" />
+            <div className="h-32 rounded-xl bg-foreground/5 animate-pulse" />
           </div>
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6 lg:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-white/10 overflow-hidden bg-white/[0.04]"
+                className="rounded-2xl border border-foreground/10 overflow-hidden bg-foreground/[0.04]"
               >
-                <div className="aspect-[4/3] bg-white/10 animate-pulse" />
+                <div className="aspect-[4/3] bg-foreground/10 animate-pulse" />
                 <div className="p-4 space-y-2">
-                  <div className="h-5 w-[80%] max-w-[14rem] rounded bg-white/10 animate-pulse" />
-                  <div className="h-4 w-[55%] max-w-[10rem] rounded bg-white/5 animate-pulse" />
-                  <div className="h-6 w-24 rounded bg-white/10 animate-pulse mt-3" />
+                  <div className="h-5 w-[80%] max-w-[14rem] rounded bg-foreground/10 animate-pulse" />
+                  <div className="h-4 w-[55%] max-w-[10rem] rounded bg-foreground/5 animate-pulse" />
+                  <div className="h-6 w-24 rounded bg-foreground/10 animate-pulse mt-3" />
                 </div>
               </div>
             ))}
