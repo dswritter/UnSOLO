@@ -7,7 +7,7 @@ export async function WanderMobileAccountSlotServer() {
   const { user } = await getRequestAuth()
   if (!user) return <>
     <ColorModeToggle className="h-8 w-8" />
-    <Link href="/login?redirectTo=%2F" className="rounded-full border border-white/14 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">Sign in</Link>
+    <Link href="/login?redirectTo=%2F" className="rounded-full border border-border bg-card/70 px-3 py-1.5 text-[11px] font-semibold text-foreground backdrop-blur-md">Sign in</Link>
   </>
 
   const profile = await getRequestProfile(user.id)

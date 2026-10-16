@@ -53,3 +53,13 @@ html:not(.dark) .tribe-chat-scroll-pattern {
 html:not(.dark) .tribe-chat-scroll-pattern::before {
   display: none;
 }
+
+/* Brand gold stays #fcba03 in both modes; on light surfaces a thin slate outline keeps it legible. */
+.brand-gold {
+  color: #fcba03;
+  -webkit-text-stroke: 0.04em rgba(27, 36, 54, 0.55);
+  paint-order: stroke fill;
+}
+.dark .brand-gold {
+  -webkit-text-stroke: 0;
+}

@@ -215,7 +215,7 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
       <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-4 border-b border-sidebar-border">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-lg font-black">
-            <span className="text-primary">UN</span><span className="text-foreground">SOLO</span>
+            <span className="brand-gold">UN</span><span className="text-foreground">SOLO</span>
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border bg-amber-500/15 text-amber-800 dark:text-amber-100 border-amber-500/35">
             {isAdmin ? 'Admin' : 'Staff'}

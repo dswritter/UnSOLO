@@ -69,7 +69,7 @@ export function AuthLoadingCard({
       >
         <div className="rounded-2xl border border-border bg-card/95 p-8 sm:p-9 shadow-sm dark:shadow-none dark:ring-1 dark:ring-border/60 text-center">
           <p className="text-3xl sm:text-4xl font-black tracking-tight">
-            <span className="text-primary">UN</span>
+            <span className="brand-gold">UN</span>
             <span className="text-foreground">SOLO</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1.5 sm:text-sm">Change the way you travel.</p>

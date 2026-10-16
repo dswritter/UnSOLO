@@ -74,9 +74,7 @@ export async function WanderHeroSection({
           quickLinks={QUICK_LINKS}
           belowHero={
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <Suspense fallback={<div className="h-44 animate-pulse rounded-[1.25rem] bg-foreground/[0.05]" aria-label="Loading community" />}>
-                <WanderCommunityPanel />
-              </Suspense>
+              <WanderCommunityPanel />
               <WanderContinuePanel />
             </div>
           }

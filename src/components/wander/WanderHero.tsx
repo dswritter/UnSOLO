@@ -38,7 +38,7 @@ export function WanderHero({
       {heroCopy.line1}
       <br />
       {heroCopy.line2Before}
-      <span className="text-primary">{heroCopy.line2Accent}</span>
+      <span className="brand-gold">{heroCopy.line2Accent}</span>
       {heroCopy.line2After}
     </h1>
   )
@@ -111,8 +111,8 @@ export function WanderHero({
     <section className="relative w-full">
       <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 lg:px-10">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(24rem,1fr)] lg:items-stretch">
-          {/* Photo card stays dusk-toned in both modes so copy over the image always reads */}
-          <div className="dark relative isolate flex min-h-[30rem] flex-col overflow-hidden rounded-[28px] text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+          {/* Photo fades into the page colour at the bottom, so copy sits on white in day and slate in dusk */}
+          <div className="relative isolate flex min-h-[30rem] flex-col overflow-hidden rounded-[28px] text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
             <Image
               src={heroImageUrl}
               alt=""
@@ -125,7 +125,7 @@ export function WanderHero({
               className="-z-10 object-cover object-center"
             />
             <div
-              className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-black/15 via-black/25 to-black/80"
+              className="pointer-events-none absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(0,0,0,0.22)_0%,transparent_28%,transparent_38%,color-mix(in_oklab,var(--background)_70%,transparent)_62%,var(--background)_88%)]"
               aria-hidden
             />
             <div className="flex flex-1 flex-col justify-between gap-6 p-6 lg:p-8">

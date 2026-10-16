@@ -263,7 +263,7 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <span className="text-2xl font-black tracking-tight">
-              <span className="text-primary">UN</span>
+              <span className="brand-gold">UN</span>
               <span className="text-foreground">SOLO</span>
             </span>
           </Link>

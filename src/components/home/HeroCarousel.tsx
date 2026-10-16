@@ -107,7 +107,7 @@ export function HeroCarousel({
                 India&apos;s #1 Solo Travel Community
               </Badge>
               <h1 className="text-5xl md:text-7xl font-black leading-none tracking-tight mb-6">
-                <span className="text-primary">UN</span><span className="text-white">SOLO</span>
+                <span className="brand-gold">UN</span><span className="text-white">SOLO</span>
               </h1>
               <p className="text-xl md:text-2xl text-white/90 font-medium mb-3">
                 Change the way you travel.

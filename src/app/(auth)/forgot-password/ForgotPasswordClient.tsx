@@ -39,7 +39,7 @@ export function ForgotPasswordClient() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
             <span className="text-4xl font-black tracking-tight">
-              <span className="text-primary">UN</span>
+              <span className="brand-gold">UN</span>
               <span className="text-foreground">SOLO</span>
             </span>
           </Link>

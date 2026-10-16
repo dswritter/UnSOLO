@@ -196,7 +196,7 @@ export function WanderMobileHeroSearch({
 
   return (
     <div className="md:hidden">
-      <section className="dark relative overflow-hidden border-b border-foreground/10 bg-background text-foreground">
+      <section className="relative overflow-hidden border-b border-foreground/10 bg-background text-foreground">
         <div className="absolute inset-0">
           <Image
             src={heroImageUrl}
@@ -205,9 +205,9 @@ export function WanderMobileHeroSearch({
             priority
             sizes="100vw"
             unoptimized={!isOptimizableImageUrl(heroImageUrl)}
-            className="object-cover opacity-60"
+            className="object-cover"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,20,0.18),rgba(6,12,20,0.84)_52%,rgba(6,12,20,0.98)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_oklab,var(--background)_40%,transparent)_0%,color-mix(in_oklab,var(--background)_82%,transparent)_42%,var(--background)_100%)]" />
         </div>
         <div className="relative z-[1] px-4 pb-4 pt-4">
           {/* Top row: eyebrow chip on the left, notifications + avatar on the right */}
@@ -229,7 +229,7 @@ export function WanderMobileHeroSearch({
               <>
                 <br />
                 {heroCopy.line2Before}
-                <span className="text-primary">{heroCopy.line2Accent}</span>
+                <span className="brand-gold">{heroCopy.line2Accent}</span>
                 {heroCopy.line2After}
               </>
             ) : null}
