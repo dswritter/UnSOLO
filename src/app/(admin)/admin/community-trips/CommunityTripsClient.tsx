@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,13 +13,14 @@ import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { packageDurationShortLabel } from '@/lib/package-trip-calendar'
 import { splitInclusiveCommunityPayment } from '@/lib/community-payment'
 import { toast } from 'sonner'
-import { Check, X, Eye, CreditCard, Star, ChevronDown, ChevronUp, Settings, Info, AlertTriangle, Zap } from 'lucide-react'
+import { Check, X, Eye, CreditCard, Star, ChevronRight, Settings, Info, AlertTriangle, Zap } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import Link from 'next/link'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
 import { HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
 import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
 import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 interface Props {
   /** Community packages; server merges `booking_count` for each row. */
@@ -45,6 +46,7 @@ export default function CommunityTripsClient({
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const closePanel = useCallback(() => setExpandedId(null), [])
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -426,7 +428,8 @@ export default function CommunityTripsClient({
             >
               {/* Header — two-row layout on mobile, single row on sm+ */}
               <button
-                onClick={() => setExpandedId(expanded ? null : trip.id)}
+                type="button"
+                onClick={() => setExpandedId(trip.id)}
                 className="w-full px-3 py-3 sm:px-4 text-left hover:bg-secondary/30 transition-colors"
               >
                 {/* Row 1: thumbnail + title + chevron */}
@@ -447,37 +450,32 @@ export default function CommunityTripsClient({
                     </div>
                   </div>
                   <div className="shrink-0 text-muted-foreground">
-                    {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <ChevronRight className="h-4 w-4" />
                   </div>
                 </div>
                 {/* Row 2: badges + price (clear of title, no overlap) */}
                 <div className="mt-2 ml-[52px] flex flex-wrap items-center gap-1.5">
                   <StatusPill status={trip.moderation_status} />
-                  {trip.host_assignment?.[0] && <Badge variant="secondary" className="text-[10px]">
-                    {trip.host_id ? 'Linked to host' : trip.host_assignment[0].status === 'conflict' ? 'Host contact conflict' : 'Awaiting host signup / verification'}
-                  </Badge>}
-                  {!trip.is_active && (
-                    <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px]">
-                      Hidden by Host
-                    </Badge>
-                  )}
-                  {trip.is_featured && (
-                    <Badge className="bg-primary/20 text-primary border-primary/40 text-[10px]">
-                      <Star className="h-3 w-3 mr-0.5 inline fill-primary" /> Featured
-                    </Badge>
-                  )}
-                  {trip.bookings_paused && (
-                    <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px]">
-                      ⏸ Paused
-                    </Badge>
-                  )}
+                  {!trip.host_id && trip.host_assignment?.[0] ? (
+                    trip.host_assignment[0].status === 'conflict'
+                      ? <StatusPill tone="danger" label="Host contact conflict" />
+                      : <StatusPill tone="neutral" label="Host not linked yet" />
+                  ) : null}
+                  {!trip.is_active && <StatusPill status="hidden" />}
+                  {trip.bookings_paused && <StatusPill tone="warning" label="Bookings paused" />}
+                  {trip.is_featured && <Star className="h-3.5 w-3.5 fill-primary text-primary" aria-label="Featured" />}
                   <span className="text-primary font-bold text-sm ml-auto">{formatPrice(trip.price_paise)}</span>
                 </div>
               </button>
 
-              {/* Expanded details */}
               {expanded && (
-                <div className="px-4 pb-4 border-t border-border pt-3 space-y-4">
+                <AdminSidePanel
+                  open
+                  onClose={closePanel}
+                  title={trip.title}
+                  subtitle={<span className="flex flex-wrap items-center gap-2"><StatusPill status={trip.moderation_status} />{dest?.name}, {dest?.state} · {formatPrice(trip.price_paise)} · {bookingCount} booking{bookingCount === 1 ? '' : 's'}</span>}
+                >
+                <div className="space-y-4">
                   {/* Host info */}
                   <HostListingAssignmentPanel kind="trip" listingId={trip.id} hostId={trip.host_id} assignment={trip.host_assignment?.[0]} />
                   <div className="flex items-center gap-3 bg-secondary/30 rounded-lg p-3">
@@ -717,6 +715,7 @@ export default function CommunityTripsClient({
                     </div>
                   )}
                 </div>
+                </AdminSidePanel>
               )}
             </div>
           )

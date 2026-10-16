@@ -8,7 +8,7 @@ export type AdminTab<K extends string> = { key: K; label: string; count?: number
 
 /** Status/segment tabs shared by every admin list. Pass `href` for URL-driven tabs, or `onChange` for local state. */
 export function AdminFilterTabs<K extends string>({ tabs, value, onChange, className }: {
-  tabs: AdminTab<K>[]
+  tabs: readonly AdminTab<K>[]
   value: K
   onChange?: (key: K) => void
   className?: string

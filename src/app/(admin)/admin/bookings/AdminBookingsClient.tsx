@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
 import { assignMemberPOC, assignExternalPOC, searchMembersForPOC, updateBookingStatus, sharePOCWithCustomer, sendBookingConfirmationEmail, sendBookingMessage, updateBookingNotes, adminDeleteBooking, getAdminBookings } from '@/actions/admin'
@@ -9,13 +9,14 @@ import { processCancellation, initiateRefund, markRefundComplete, recordOfflineR
 import { formatDiscountLabel } from '@/lib/checkout-promos'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Send, UserPlus, ChevronDown, ChevronUp, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee, Pencil } from 'lucide-react'
+import { Mail, Send, UserPlus, ChevronRight, StickyNote, AlertTriangle, Phone, AtSign, Trash2, IndianRupee, Pencil } from 'lucide-react'
 import { CancellationReviewPanel } from './CancellationReviewPanel'
 import { PartialCancelManager, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequestManager, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { packageDurationShortLabel, type PackageDurationDisplay } from '@/lib/package-trip-calendar'
 import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
 import { AdminFilterBar, AdminFilterTabs, AdminSearchInput } from '@/components/admin/ui/AdminFilters'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 interface Props {
   bookings: Booking[]
@@ -30,6 +31,14 @@ interface Props {
 }
 
 const STATUS_FILTERS = ['all', 'pending', 'confirmed', 'cancellation_requested', 'cancelled', 'completed'] as const
+
+const BOOKING_PANEL_TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'payments', label: 'Payments' },
+  { key: 'cancellations', label: 'Cancellations' },
+  { key: 'notes', label: 'Notes & messages' },
+] as const satisfies readonly { key: string; label: string }[]
+type BookingPanelTab = typeof BOOKING_PANEL_TABS[number]['key']
 
 export function AdminBookingsClient({
   bookings: initialBookings,
@@ -50,6 +59,9 @@ export function AdminBookingsClient({
   const [isLoadingMore, startLoadMore] = useTransition()
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [panelTab, setPanelTab] = useState<BookingPanelTab>('overview')
+  const openPanel = (id: string) => { setPanelTab('overview'); setExpandedId(id) }
+  const closePanel = useCallback(() => setExpandedId(null), [])
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<Record<string, string>>({})
   const [searchUser, setSearchUser] = useState('')
@@ -408,8 +420,11 @@ export function AdminBookingsClient({
             <div key={booking.id} className="rounded-xl border border-border bg-card/50 overflow-hidden">
               {/* Header row */}
               <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPanel(booking.id) } }}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
-                onClick={() => setExpandedId(isExpanded ? null : booking.id)}
+                onClick={() => openPanel(booking.id)}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <StatusPill status={booking.status} />
@@ -432,13 +447,19 @@ export function AdminBookingsClient({
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-primary font-bold">{formatPrice(booking.total_amount_paise)}</span>
                   <span className="text-xs text-muted-foreground">{booking.confirmation_code || '—'}</span>
-                  {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
 
-              {/* Expanded details */}
               {isExpanded && (
-                <div className="border-t border-border p-4 space-y-4">
+                <AdminSidePanel
+                  open
+                  onClose={closePanel}
+                  title={displayTitle}
+                  subtitle={<span className="flex flex-wrap items-center gap-2"><StatusPill status={booking.status} />{usr?.full_name || usr?.username || 'Unknown'} · {booking.confirmation_code || '—'} · {formatPrice(booking.total_amount_paise)}</span>}
+                  headerExtra={<AdminFilterTabs tabs={BOOKING_PANEL_TABS} value={panelTab} onChange={setPanelTab} />}
+                >
+                <div className="space-y-4">
                   {/* Feedback */}
                   {feedback[booking.id] && (
                     <p className={`text-sm px-3 py-2 rounded-lg border ${feedback[booking.id].startsWith('Error') ? 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700' : 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700'}`}>
@@ -446,6 +467,8 @@ export function AdminBookingsClient({
                     </p>
                   )}
 
+                  {panelTab === 'overview' && (
+                    <div className="space-y-4">
                   {/* Details grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
                     <div><span className="text-muted-foreground">Customer:</span> <span className="font-medium">{usr?.full_name || 'N/A'}</span> <span className="text-muted-foreground">(@{usr?.username})</span></div>
@@ -481,6 +504,57 @@ export function AdminBookingsClient({
                     />
                   )}
 
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                    {/* Change status */}
+                    <select
+                      className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs"
+                      defaultValue=""
+                      onChange={(e) => { if (e.target.value) handleStatusChange(booking.id, e.target.value) }}
+                      disabled={isPending}
+                    >
+                      <option value="" disabled>Change status...</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+
+                    {/* Assign POC — registered member or outsider */}
+                    <PocAssigner bookingId={booking.id} />
+
+                    {/* Send confirmation / status email (includes the message box if filled) */}
+                    {(booking.status === 'confirmed' || booking.status === 'completed' || booking.status === 'cancelled') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-border"
+                        onClick={() => handleSendConfirmation(booking.id)}
+                        disabled={isPending}
+                      >
+                        <Mail className="h-3 w-3" />
+                        {booking.status === 'completed' ? 'Email completion' : booking.status === 'cancelled' ? 'Email cancellation' : 'Send Confirmation'}
+                      </Button>
+                    )}
+
+                    {/* Share POC with customer */}
+                    {poc && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs gap-1 border-border"
+                        onClick={() => handleSharePOC(booking.id)}
+                        disabled={isPending}
+                      >
+                        <Send className="h-3 w-3" /> Share POC
+                        {booking.poc_shared_at && <span className="text-green-400 ml-1">✓</span>}
+                      </Button>
+                    )}
+                  </div>
+
+                    </div>
+                  )}
+                  {panelTab === 'payments' && (
+                    <div className="space-y-4">
                   {/* Payment — cash collected vs balance; record offline payments here */}
                   {(() => {
                     const total = booking.total_amount_paise || 0
@@ -691,53 +765,99 @@ export function AdminBookingsClient({
                     />
                   )}
 
-                  {/* Actions */}
-                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                    {/* Change status */}
-                    <select
-                      className="bg-secondary border border-border rounded-lg px-3 py-1.5 text-xs"
-                      defaultValue=""
-                      onChange={(e) => { if (e.target.value) handleStatusChange(booking.id, e.target.value) }}
-                      disabled={isPending}
-                    >
-                      <option value="" disabled>Change status...</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                  {/* Refund Tracking — admin-approved or traveler self-service */}
+                  {(booking.cancellation_status === 'approved' ||
+                    booking.cancellation_status === 'self_service') &&
+                    booking.refund_amount_paise &&
+                    booking.refund_amount_paise > 0 && (
+                    <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
+                      {booking.cancellation_status === 'self_service' && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Self-service cancellation — refund may already be initiated via Razorpay. Use the button below only if status is still pending.
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold">Refund: {formatPrice(booking.refund_amount_paise)}</span>
+                        <Badge className={
+                          booking.refund_status === 'completed' ? 'bg-green-900/50 text-green-300 border-green-700' :
+                          booking.refund_status === 'processing' ? 'bg-blue-900/50 text-blue-300 border-blue-700' :
+                          'bg-yellow-900/50 text-yellow-300 border-yellow-700'
+                        }>
+                          {booking.refund_status === 'completed' ? '✅ Refunded' :
+                           booking.refund_status === 'processing' ? '⏳ Processing' :
+                           '⏸ Pending'}
+                        </Badge>
+                      </div>
+                      {(booking as { refund_email_sent_at?: string | null }).refund_email_sent_at && (
+                        <p className="text-[11px] text-green-500">✉️ Refund receipt emailed to customer</p>
+                      )}
 
-                    {/* Assign POC — registered member or outsider */}
-                    <PocAssigner bookingId={booking.id} />
+                      {(!booking.refund_status || booking.refund_status === 'pending') && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                              onClick={() => handleInitiateRefund(booking.id)}
+                              disabled={isPending}
+                            >
+                              💳 Initiate Razorpay Refund
+                            </Button>
+                            <span className="text-[11px] text-muted-foreground">or</span>
+                            <input
+                              type="text"
+                              id={`offline-refund-note-${booking.id}`}
+                              placeholder="Offline note (e.g. UPI ref)"
+                              className="bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs w-44"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs gap-1 border-border"
+                              onClick={() => handleRecordOfflineRefund(booking.id)}
+                              disabled={isPending}
+                            >
+                              <IndianRupee className="h-3 w-3" /> Record offline refund
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Use <strong>Record offline refund</strong> when you settle the refund outside the app (cash / bank transfer). It marks the refund completed in one step and emails the customer a receipt — no Razorpay involved.
+                          </p>
+                        </div>
+                      )}
 
-                    {/* Send confirmation / status email (includes the message box if filled) */}
-                    {(booking.status === 'confirmed' || booking.status === 'completed' || booking.status === 'cancelled') && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs gap-1 border-border"
-                        onClick={() => handleSendConfirmation(booking.id)}
-                        disabled={isPending}
-                      >
-                        <Mail className="h-3 w-3" />
-                        {booking.status === 'completed' ? 'Email completion' : booking.status === 'cancelled' ? 'Email cancellation' : 'Send Confirmation'}
-                      </Button>
-                    )}
+                      {booking.refund_status === 'processing' && (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`refund-done-${booking.id}`}
+                            className="rounded border-border"
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                handleMarkRefundComplete(booking.id)
+                              }
+                            }}
+                            disabled={isPending}
+                          />
+                          <label htmlFor={`refund-done-${booking.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                            Mark refund as credited to customer
+                          </label>
+                          {booking.refund_razorpay_id && (
+                            <span className="text-[10px] text-muted-foreground font-mono ml-auto">{booking.refund_razorpay_id}</span>
+                          )}
+                        </div>
+                      )}
 
-                    {/* Share POC with customer */}
-                    {poc && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs gap-1 border-border"
-                        onClick={() => handleSharePOC(booking.id)}
-                        disabled={isPending}
-                      >
-                        <Send className="h-3 w-3" /> Share POC
-                        {booking.poc_shared_at && <span className="text-green-400 ml-1">✓</span>}
-                      </Button>
-                    )}
-                  </div>
+                      {booking.refund_status === 'completed' && (
+                        <p className="text-xs text-green-400">Refund credited to customer&apos;s account</p>
+                      )}
+                    </div>
+                  )}
 
+                    </div>
+                  )}
+                  {panelTab === 'cancellations' && (
+                    <div className="space-y-4">
                   {/* Partial (per-traveller) cancellations — review requests, or cancel some travellers directly */}
                   {!sl && (
                     <div className="pt-2 border-t border-border">
@@ -844,95 +964,6 @@ export function AdminBookingsClient({
                     />
                   )}
 
-                  {/* Refund Tracking — admin-approved or traveler self-service */}
-                  {(booking.cancellation_status === 'approved' ||
-                    booking.cancellation_status === 'self_service') &&
-                    booking.refund_amount_paise &&
-                    booking.refund_amount_paise > 0 && (
-                    <div className="p-3 rounded-lg border border-border bg-secondary/30 space-y-2">
-                      {booking.cancellation_status === 'self_service' && (
-                        <p className="text-[11px] text-muted-foreground">
-                          Self-service cancellation — refund may already be initiated via Razorpay. Use the button below only if status is still pending.
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold">Refund: {formatPrice(booking.refund_amount_paise)}</span>
-                        <Badge className={
-                          booking.refund_status === 'completed' ? 'bg-green-900/50 text-green-300 border-green-700' :
-                          booking.refund_status === 'processing' ? 'bg-blue-900/50 text-blue-300 border-blue-700' :
-                          'bg-yellow-900/50 text-yellow-300 border-yellow-700'
-                        }>
-                          {booking.refund_status === 'completed' ? '✅ Refunded' :
-                           booking.refund_status === 'processing' ? '⏳ Processing' :
-                           '⏸ Pending'}
-                        </Badge>
-                      </div>
-                      {(booking as { refund_email_sent_at?: string | null }).refund_email_sent_at && (
-                        <p className="text-[11px] text-green-500">✉️ Refund receipt emailed to customer</p>
-                      )}
-
-                      {(!booking.refund_status || booking.refund_status === 'pending') && (
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                              onClick={() => handleInitiateRefund(booking.id)}
-                              disabled={isPending}
-                            >
-                              💳 Initiate Razorpay Refund
-                            </Button>
-                            <span className="text-[11px] text-muted-foreground">or</span>
-                            <input
-                              type="text"
-                              id={`offline-refund-note-${booking.id}`}
-                              placeholder="Offline note (e.g. UPI ref)"
-                              className="bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs w-44"
-                            />
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs gap-1 border-border"
-                              onClick={() => handleRecordOfflineRefund(booking.id)}
-                              disabled={isPending}
-                            >
-                              <IndianRupee className="h-3 w-3" /> Record offline refund
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">
-                            Use <strong>Record offline refund</strong> when you settle the refund outside the app (cash / bank transfer). It marks the refund completed in one step and emails the customer a receipt — no Razorpay involved.
-                          </p>
-                        </div>
-                      )}
-
-                      {booking.refund_status === 'processing' && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id={`refund-done-${booking.id}`}
-                            className="rounded border-border"
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                handleMarkRefundComplete(booking.id)
-                              }
-                            }}
-                            disabled={isPending}
-                          />
-                          <label htmlFor={`refund-done-${booking.id}`} className="text-xs text-muted-foreground cursor-pointer">
-                            Mark refund as credited to customer
-                          </label>
-                          {booking.refund_razorpay_id && (
-                            <span className="text-[10px] text-muted-foreground font-mono ml-auto">{booking.refund_razorpay_id}</span>
-                          )}
-                        </div>
-                      )}
-
-                      {booking.refund_status === 'completed' && (
-                        <p className="text-xs text-green-400">Refund credited to customer&apos;s account</p>
-                      )}
-                    </div>
-                  )}
-
                   {/* Delete booking */}
                   {isDeletable && (
                     <div className="pt-2 border-t border-border">
@@ -949,6 +980,10 @@ export function AdminBookingsClient({
                     </div>
                   )}
 
+                    </div>
+                  )}
+                  {panelTab === 'notes' && (
+                    <div className="space-y-4">
                   {/* Admin notes */}
                   <div className="pt-2">
                     <label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
@@ -1006,7 +1041,10 @@ export function AdminBookingsClient({
                       </Button>
                     </div>
                   </div>
+                    </div>
+                  )}
                 </div>
+                </AdminSidePanel>
               )}
             </div>
           )

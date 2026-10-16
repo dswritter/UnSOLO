@@ -1,12 +1,13 @@
 'use client'
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useTransition, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Gift, Tag, Trophy, Users, ToggleLeft, ToggleRight, CreditCard, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDiscountLabel } from '@/lib/checkout-promos'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 interface Offer {
   id: string
@@ -131,7 +132,9 @@ interface Props {
 
 export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits, editOffer }: Props) {
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const closeCreateForm = useCallback(() => setShowCreateForm(false), [])
   const [showGrantForm, setShowGrantForm] = useState(false)
+  const closeGrantForm = useCallback(() => setShowGrantForm(false), [])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -162,18 +165,16 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
     <div className="space-y-6">
       {/* Action buttons */}
       <div className="flex gap-3">
-        <Button onClick={() => setShowCreateForm(!showCreateForm)} className="bg-primary text-primary-foreground">
+        <Button onClick={() => setShowCreateForm(true)} className="bg-primary text-primary-foreground">
           <Plus className="mr-2 h-4 w-4" /> Create Offer
         </Button>
-        <Button onClick={() => setShowGrantForm(!showGrantForm)} variant="outline" className="border-border">
+        <Button onClick={() => setShowGrantForm(true)} variant="outline" className="border-border">
           <CreditCard className="mr-2 h-4 w-4" /> Grant Credits
         </Button>
       </div>
 
-      {/* Create offer form */}
-      {showCreateForm && (
-        <form onSubmit={handleCreate} className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h3 className="font-bold">New Discount Offer</h3>
+      <AdminSidePanel open={showCreateForm} onClose={closeCreateForm} title="New discount offer">
+        <form onSubmit={handleCreate} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium">Name</label>
@@ -252,12 +253,11 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
             <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)} className="border-border">Cancel</Button>
           </div>
         </form>
-      )}
+      </AdminSidePanel>
 
       {/* Grant credits form */}
-      {showGrantForm && (
-        <form onSubmit={handleGrant} className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h3 className="font-bold">Grant Credits to User</h3>
+      <AdminSidePanel open={showGrantForm} onClose={closeGrantForm} title="Grant credits to a user">
+        <form onSubmit={handleGrant} className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium">Username</label>
@@ -279,7 +279,7 @@ export function DiscountsClient({ offers, createOffer, toggleOffer, grantCredits
             <Button type="button" variant="outline" onClick={() => setShowGrantForm(false)} className="border-border">Cancel</Button>
           </div>
         </form>
-      )}
+      </AdminSidePanel>
 
       {/* Offers list */}
       <div className="space-y-3">

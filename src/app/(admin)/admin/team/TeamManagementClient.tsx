@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { addTeamMember, removeTeamMember } from '@/actions/admin'
 import {
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { UserPlus, Trash2, Shield, Camera, MapPin, MessageCircle, Home, Sliders } from 'lucide-react'
+import { toast } from 'sonner'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 const ASSIGNABLE_ROLES: {
   value: UserRole
@@ -65,6 +67,8 @@ interface Props {
 
 export function TeamManagementClient({ teamMembers: initial }: Props) {
   const router = useRouter()
+  const [addOpen, setAddOpen] = useState(false)
+  const closeAdd = useCallback(() => setAddOpen(false), [])
   const confirmAction = useConfirm()
   const [identifier, setIdentifier] = useState('')
   const [selectedRole, setSelectedRole] = useState<UserRole>('field_person')
@@ -96,7 +100,8 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
       if (res.error) {
         setMessage({ type: 'error', text: res.error })
       } else {
-        setMessage({ type: 'success', text: `Team member added as ${ROLE_LABELS[selectedRole]}.` })
+        toast.success(`Team member added as ${ROLE_LABELS[selectedRole]}.`)
+        setAddOpen(false)
         setIdentifier('')
         setNotes('')
         setCustomLabel('')
@@ -124,11 +129,14 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
 
   return (
     <div className="space-y-8">
-      {/* Add member form */}
-      <div className="rounded-xl border border-border bg-card/50 p-6">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-primary" /> Add Team Member
-        </h2>
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => { setMessage(null); setAddOpen(true) }} className="gap-2 bg-primary text-primary-foreground">
+          <UserPlus className="h-4 w-4" /> Add team member
+        </Button>
+      </div>
+
+      <AdminSidePanel open={addOpen} onClose={closeAdd} title="Add team member">
+      <div>
 
         {message && (
           <p
@@ -253,6 +261,7 @@ export function TeamManagementClient({ teamMembers: initial }: Props) {
           })}
         </div>
       </div>
+      </AdminSidePanel>
 
       {/* Active members */}
       <div>

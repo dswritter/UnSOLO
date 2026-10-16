@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { formatPrice, type Package, type Destination, type JoinPreferences } from '@/types'
 import { maxInclusiveSpanDays, packageDurationFullLabel } from '@/lib/package-trip-calendar'
 import { normalizeTripDeparturePairs } from '@/lib/trip-departure-recurrence'
@@ -25,6 +25,7 @@ import { Plus, Eye, EyeOff, Star, Edit2, X, Upload, Image as ImageIcon, Check, U
 import { compactTripDuration } from '@/lib/listing-card-format'
 import { DestinationSearch } from '@/components/admin/DestinationSearch'
 import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 interface IncludesOption {
   id: string
@@ -82,7 +83,6 @@ export function PackagesManagementClient({ packages: initial, destinations: init
   const uploadAbortRef = useRef<AbortController | null>(null)
   const [uploading, setUploading] = useState(false)
   const [imageUrlInput, setImageUrlInput] = useState('')
-  const packageFormRef = useRef<HTMLDivElement>(null)
 
   function resetForm() {
     setForm({
@@ -177,14 +177,6 @@ export function PackagesManagementClient({ packages: initial, destinations: init
     setEditingId(pkg.id)
     setShowForm(true)
   }
-
-  useEffect(() => {
-    if (!showForm) return
-    const t = window.setTimeout(() => {
-      packageFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 80)
-    return () => window.clearTimeout(t)
-  }, [showForm, editingId])
 
   function handleSubmit() {
     const singleOk =
@@ -495,31 +487,26 @@ export function PackagesManagementClient({ packages: initial, destinations: init
         </p>
       )}
 
-      {/* Action buttons */}
-      <div className="flex gap-3">
+      <div className="flex justify-end">
         <Button
-          onClick={() => { resetForm(); setShowForm(!showForm) }}
+          onClick={() => { resetForm(); setShowForm(true) }}
           className="bg-primary text-black hover:bg-primary/90 gap-1"
         >
-          <Plus className="h-4 w-4" /> New Package
+          <Plus className="h-4 w-4" /> New trip
         </Button>
       </div>
 
-      {/* Package form */}
-      {showForm && (
-        <div
-          ref={packageFormRef}
-          className="rounded-xl border border-border bg-card p-6 space-y-6 shadow-sm"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="font-semibold text-lg text-foreground">{editingId ? 'Edit Package' : 'Create New Package'}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Aligned with the host trip form: pricing, descriptions, join rules, and gallery (cover = first image).</p>
-            </div>
-            <button type="button" onClick={resetForm} aria-label="Close form">
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </div>
+      <AdminSidePanel
+        open={showForm}
+        onClose={resetForm}
+        title={editingId ? 'Edit trip' : 'New UnSOLO trip'}
+        subtitle="Pricing, descriptions, join rules and gallery (the first image is the cover)."
+        className="max-w-3xl"
+      >
+        <div className="space-y-6">
+          {message?.type === 'error' && (
+            <p role="alert" className="rounded-lg bg-red-900/30 px-4 py-3 text-sm text-red-300">{message.text}</p>
+          )}
 
           {/* Basic info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1014,11 +1001,14 @@ export function PackagesManagementClient({ packages: initial, destinations: init
             disabled={isPending}
           />
 
-          <Button onClick={handleSubmit} disabled={isPending} className="bg-primary text-black hover:bg-primary/90">
-            {isPending ? 'Saving...' : editingId ? 'Update Package' : 'Create Package'}
-          </Button>
+          <div className="sticky bottom-0 -mx-5 flex justify-end gap-2 border-t border-border bg-background px-5 py-3">
+            <Button type="button" variant="outline" onClick={resetForm} disabled={isPending}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isPending} className="bg-primary text-black hover:bg-primary/90">
+              {isPending ? 'Saving…' : editingId ? 'Save changes' : 'Create trip'}
+            </Button>
+          </div>
         </div>
-      )}
+      </AdminSidePanel>
 
       {/* Package list */}
       <div className="space-y-3">

@@ -1,13 +1,14 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { Plus, Trash2, Eye, EyeOff, Pencil, X } from 'lucide-react'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 type Row = {
   id: string
@@ -44,6 +45,8 @@ const emptyDraft = {
 
 export default function PromoCardsClient({ initial }: { initial: Row[] }) {
   const [rows, setRows] = useState<Row[]>(initial)
+  const [createOpen, setCreateOpen] = useState(false)
+  const closeCreate = useCallback(() => setCreateOpen(false), [])
   const confirmAction = useConfirm()
   const [pending, startTransition] = useTransition()
   const [draft, setDraft] = useState(emptyDraft)
@@ -89,6 +92,7 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
       }
       toast.success('Card created')
       setDraft({ ...emptyDraft })
+      setCreateOpen(false)
       refresh()
     })
   }
@@ -156,8 +160,14 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
 
   return (
     <div className="space-y-10 max-w-2xl">
-      <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-        <h2 className="text-sm font-bold">New promo card</h2>
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => setCreateOpen(true)} className="gap-2 bg-primary text-primary-foreground">
+          <Plus className="h-4 w-4" /> New promo card
+        </Button>
+      </div>
+
+      <AdminSidePanel open={createOpen} onClose={closeCreate} title="New promo card">
+      <div className="space-y-3">
         <p className="text-xs text-muted-foreground leading-relaxed">
           Shown on the marketing home page. Signed-in users see it <strong className="text-foreground/90">above</strong> the
           chat button. Use an app path (<code className="text-[10px] bg-secondary px-1 rounded">/?search=1</code>) or a full
@@ -246,6 +256,7 @@ export default function PromoCardsClient({ initial }: { initial: Row[] }) {
           Add card
         </Button>
       </div>
+      </AdminSidePanel>
 
       <div className="space-y-2">
         <h2 className="text-sm font-bold">Existing cards</h2>

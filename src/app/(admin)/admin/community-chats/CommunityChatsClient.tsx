@@ -1,7 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ import {
 import { Trash2, Plus, Pencil, Power, PowerOff, ImageIcon, X, Maximize2 } from 'lucide-react'
 import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 async function uploadCommunityRoomCover(file: File): Promise<string | null> {
   if (file.size > UPLOAD_MAX_IMAGE_BYTES) {
@@ -45,6 +46,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
   const confirmAction = useConfirm()
   const [rooms, setRooms] = useState(initialRooms)
   const [creating, setCreating] = useState(false)
+  const closeCreate = useCallback(() => setCreating(false), [])
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [newImageUrl, setNewImageUrl] = useState<string | null>(null)
@@ -131,14 +133,13 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
         <p className="text-sm text-muted-foreground max-w-xl">
           Manage public community chat rooms (sidebar list). Disable a room to hide it from new joins; delete is permanent (admin only).
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={() => setCreating(c => !c)} className="shrink-0">
+        <Button type="button" variant="outline" size="sm" onClick={() => setCreating(true)} className="shrink-0">
           <Plus className="h-4 w-4 mr-1" /> New room
         </Button>
       </div>
 
-      {creating && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3 max-w-lg">
-          <p className="text-sm font-semibold">Create community room</p>
+      <AdminSidePanel open={creating} onClose={closeCreate} title="New community room">
+        <div className="space-y-3">
           <div className="flex gap-3 items-start">
             <input
               ref={createFileRef}
@@ -197,7 +198,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
             <Button size="sm" variant="ghost" type="button" onClick={() => setCreating(false)}>Cancel</Button>
           </div>
         </div>
-      )}
+      </AdminSidePanel>
 
       <div className="space-y-4">
         {rooms.map(room => (
@@ -210,7 +211,7 @@ export function CommunityChatsClient({ initialRooms }: { initialRooms: Community
           />
         ))}
         {rooms.length === 0 && !creating && (
-          <p className="text-sm text-muted-foreground">No general chat rooms yet. Create one above.</p>
+          <p className="text-sm text-muted-foreground">No community rooms yet. Use New room to create one.</p>
         )}
       </div>
     </div>

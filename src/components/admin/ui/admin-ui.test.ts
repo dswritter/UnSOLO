@@ -4,6 +4,7 @@ import { createElement as h, Fragment } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ConfirmProvider, useConfirm } from '@/components/admin/ui/ConfirmDialog'
 import { StatusPill } from '@/components/admin/ui/AdminPrimitives'
+import { AdminSidePanel } from '@/components/admin/ui/AdminSidePanel'
 
 afterEach(cleanup)
 
@@ -42,5 +43,28 @@ describe('StatusPill', () => {
     expect(screen.getByText('Live')).toBeTruthy()
     expect(screen.getByText('Hidden')).toBeTruthy()
     expect(screen.getByText('cancellation requested')).toBeTruthy()
+  })
+})
+
+describe('AdminSidePanel', () => {
+  it('renders in a dialog, closes on Escape and restores body scroll', async () => {
+    let closed = 0
+    const { rerender } = render(h(AdminSidePanel, { open: true, onClose: () => { closed++ }, title: 'Booking ABC' }, 'Body'))
+    expect(screen.getByRole('dialog').textContent).toContain('Booking ABC')
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(closed).toBe(1)
+    rerender(h(AdminSidePanel, { open: false, onClose: () => {}, title: 'Booking ABC' }, 'Body'))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('leaves Escape to an open confirm dialog', async () => {
+    let closed = 0
+    render(h(ConfirmProvider, null, h(AdminSidePanel, { open: true, onClose: () => { closed++ }, title: 'Panel' }, h(Harness, { onResult: () => {} }))))
+    fireEvent.click(screen.getByText('Trigger'))
+    await screen.findByRole('alertdialog')
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }) })
+    expect(closed).toBe(0)
   })
 })
