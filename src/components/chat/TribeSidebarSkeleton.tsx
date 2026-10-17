@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { SoundSettingsButton } from './SoundSettings'
 
 type TribeSidebarSkeletonLayout = 'desktop' | 'mobile'
 
@@ -23,16 +24,16 @@ export function TribeSidebarSkeleton({
         className,
       )}
     >
-      {/* Header — search + filters row + sound (matches ChatSidebar) */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="relative mb-3 h-9 w-full rounded-lg bg-foreground/5 animate-pulse" />
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-7 w-14 rounded-full bg-foreground/5 animate-pulse" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1">
+            {['All', 'DMs', 'Trips', 'Community'].map((label, index) => (
+              <span key={label} className={cn('px-2.5 py-1.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-primary text-black' : 'bg-secondary text-muted-foreground')}>
+                {label}
+              </span>
             ))}
           </div>
-          <div className="h-8 w-8 rounded-md bg-foreground/5 animate-pulse shrink-0" />
+          <SoundSettingsButton />
         </div>
       </div>
 
@@ -54,6 +55,9 @@ export function TribeSidebarSkeleton({
             <div className="h-3.5 w-3.5 rounded bg-foreground/5 animate-pulse shrink-0" />
           </div>
         ))}
+      </div>
+      <div className="shrink-0 border-t border-border px-4 py-3">
+        <div className="h-9 rounded-lg bg-foreground/5 animate-pulse" />
       </div>
     </div>
   )

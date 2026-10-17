@@ -28,34 +28,43 @@ export type SidebarRoomPageResult = {
   roomNameIndex: { id: string; name: string }[]
   /** Room ids pinned by this user (most recently pinned first). */
   pinnedRoomIds: string[]
+  mostRecentRoomId: string | null
 }
 
 export async function getSidebarRooms(
   supabase: SupabaseClient,
   userId: string,
-  pagination: { limit: number; offset: number } = DEFAULT_PAGE,
+  pagination: { limit: number; offset: number; type?: SidebarRoom['type']; roomId?: string } = DEFAULT_PAGE,
 ): Promise<SidebarRoomPageResult> {
-  const [{ data: memberRooms }, { data: generalRooms }, { data: pinRows }] = await Promise.all([
+  const [membershipResult, generalResult, pinsResult] = await Promise.all([
     supabase
       .from('chat_room_members')
       .select('room:chat_rooms(id, name, type, is_active, package_id, image_url, package:packages(title, images, destination:destinations(name, state)))')
       .eq('user_id', userId),
-    supabase
+    !pagination.type || pagination.type === 'general' ? supabase
       .from('chat_rooms')
       .select('id, name, type, is_active, image_url')
       .eq('type', 'general')
-      .eq('is_active', true),
+      .eq('is_active', true) : Promise.resolve({ data: [], error: null }),
     supabase
       .from('chat_sidebar_room_pins')
       .select('room_id, pinned_at')
       .eq('user_id', userId)
       .order('pinned_at', { ascending: false }),
   ])
+  if (membershipResult.error) throw membershipResult.error
+  if (generalResult.error) throw generalResult.error
+  if (pinsResult.error) throw pinsResult.error
+  const { data: memberRooms } = membershipResult
+  const { data: generalRooms } = generalResult
+  const { data: pinRows } = pinsResult
 
   const userRooms = (memberRooms || [])
     .map(m => m.room as unknown as Record<string, unknown>)
     .filter(Boolean)
     .filter(room => {
+      if (pagination.type && room['type'] !== pagination.type) return false
+      if (pagination.roomId && room['id'] !== pagination.roomId) return false
       if (String(room['type']) === 'general' && room['is_active'] === false) return false
       return true
     })
@@ -69,7 +78,11 @@ export async function getSidebarRooms(
   }
 
   const memberRoomIdSet = new Set(allRoomIds)
-  const extraGeneralRooms = (generalRooms || []).filter(r => !memberRoomIdSet.has(r.id))
+  const extraGeneralRooms = (generalRooms || []).filter(r =>
+    !memberRoomIdSet.has(r.id) &&
+    (!pagination.type || pagination.type === 'general') &&
+    (!pagination.roomId || r.id === pagination.roomId),
+  )
   for (const r of extraGeneralRooms) allRoomIds.push(r.id)
 
   const msgMap = new Map<string, { content: string; created_at: string; message_type: string; user_id?: string }>()
@@ -254,7 +267,8 @@ export async function getSidebarRooms(
   const paged = rooms.slice(offset, offset + limit)
   const roomNameIndex = rooms.map(r => ({ id: r.id, name: r.name }))
 
-  return { rooms: paged, total, roomNameIndex, pinnedRoomIds }
+  const mostRecentRoomId = [...rooms].sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''))[0]?.id ?? null
+  return { rooms: paged, total, roomNameIndex, pinnedRoomIds, mostRecentRoomId }
 }
 
 /**

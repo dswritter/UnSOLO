@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { useChatHistoryRefresh } from '@/hooks/useChatHistoryRefresh'
 import { setMobileChatComposerActive } from '@/hooks/useMobileChatComposerActive'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -59,7 +60,7 @@ function formatChatDayDividerLabel(messageDate: Date, now: Date): string {
 
 function ChatDateDivider({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-3 py-5 first:pt-2" role="separator" aria-label={label}>
+    <div className="flex items-center gap-3 py-2 first:pt-0" role="separator" aria-label={label}>
       <div className="h-px flex-1 bg-border/80" />
       <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground shrink-0">
         {label}
@@ -552,6 +553,8 @@ export function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const { refreshing: refreshingHistory, refreshHistory, consumeHistoryChange, pullHandlers } =
+    useChatHistoryRefresh(roomId, messages, scrollAreaRef, setMessages)
   const [showJumpButton, setShowJumpButton] = useState(false)
   /** Per-room: first paint scrolls to bottom; then "New messages" only when others post while scrolled up. */
   const jumpUiRef = useRef<{ initialized: boolean; prevLen: number }>({ initialized: false, prevLen: 0 })
@@ -688,6 +691,10 @@ export function ChatWindow({
   }, [roomId])
 
   useEffect(() => {
+    if (consumeHistoryChange()) {
+      jumpUiRef.current.prevLen = messages.length
+      return
+    }
     if (messages.length === 0) {
       setShowJumpButton(false)
       return
@@ -745,7 +752,7 @@ export function ChatWindow({
     if (appended && fromOther) {
       setShowJumpButton(true)
     }
-  }, [messages, currentUser.id, roomType])
+  }, [messages, currentUser.id, roomType, consumeHistoryChange])
 
   useEffect(() => {
     if (!emojiPickerForMessageId) return
@@ -1779,7 +1786,7 @@ export function ChatWindow({
       {/* Online members strip (group chats only) */}
       {!isDM && onlineCount > 0 && (
         <div className="px-4 py-1.5 border-b border-border/50 bg-secondary/20 flex items-center gap-1 overflow-x-auto scrollbar-hide">
-          <span className="text-[10px] text-green-400 font-medium shrink-0 mr-1">Online:</span>
+          <span className="text-[10px] text-green-700 dark:text-green-400 font-medium shrink-0 mr-1">Online:</span>
           {memberProfiles
             .filter(m => isUserOnline(m.id))
             .map(m => (
@@ -1873,7 +1880,7 @@ export function ChatWindow({
                     </div>
                   ) : null}
                   {isUserOnline(popupMember.id) && (
-                    <span className="text-[10px] text-green-400 font-medium">● Online now</span>
+                    <span className="text-[10px] text-green-700 dark:text-green-400 font-medium">● Online now</span>
                   )}
                 </div>
               </div>
@@ -1921,6 +1928,11 @@ export function ChatWindow({
 
       {/* Messages — bottom padding clears fixed composer; --chat-vv-inset adds keyboard overlap on mobile */}
       <div className="relative flex-1 min-h-0">
+      {refreshingHistory && (
+        <div role="status" className="absolute top-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs shadow-sm">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Refreshing messages…
+        </div>
+      )}
       {showJumpButton && (
         <button
           type="button"
@@ -1935,6 +1947,7 @@ export function ChatWindow({
       )}
       <div
         ref={scrollAreaRef}
+        {...pullHandlers}
         onScroll={() => {
           if (isNearBottom()) setShowJumpButton(false)
         }}
@@ -1942,23 +1955,22 @@ export function ChatWindow({
           // h-full fills the messages wrapper (flex-1 min-h-0 flex item).
           // overscroll-y-contain prevents the rubber-band bounce that was
           // exposing blank space below the last message on mobile.
-          'h-full overflow-y-auto overscroll-y-contain',
-          tribeShell ? 'relative isolate' : 'px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
+          'h-full overflow-y-auto overscroll-y-none',
+          tribeShell ? 'relative isolate tribe-chat-scroll-pattern' : 'px-4 py-4 max-md:pb-[calc(5.25rem+env(safe-area-inset-bottom)+var(--chat-vv-inset,0px))] md:pb-4',
         )}
         style={{ ['--chat-vv-inset' as string]: `${visualViewportBottomInset}px` }}
       >
-        {tribeShell ? (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-0 min-h-full overflow-hidden tribe-chat-scroll-pattern tribe-chat-pattern-bg"
-          />
-        ) : null}
         <div
           className={cn(
             tribeShell && 'relative z-[2] px-4 py-4',
           )}
         >
-        <div className="space-y-5">
+        <div className="space-y-2">
+          <div className="text-center">
+            <button type="button" disabled={refreshingHistory} onClick={() => void refreshHistory()} className="text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50">
+              Load earlier messages / refresh
+            </button>
+          </div>
           {messages.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">No messages yet. Say hello! 👋</p>
@@ -2879,7 +2891,7 @@ function MessageBubble({
           </Avatar>
         </div>
       )}
-      <div className={`max-w-[75%] gap-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+      <div data-emoji-strip-root={message.id} className={`max-w-[75%] gap-0.5 ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <div className="flex items-center gap-1 flex-wrap max-w-full mb-0">
             <Link href={profileUrl} className="text-xs text-muted-foreground font-medium hover:text-primary transition-colors flex items-center gap-1 min-w-0">
@@ -2915,23 +2927,9 @@ function MessageBubble({
             </span>
           ) : null}
         </div>
-        {showPin && onPinRequest && (message.message_type === 'text' || message.message_type === 'image') ? (
-          <button
-            type="button"
-            onClick={e => {
-              e.stopPropagation()
-              onPinRequest()
-            }}
-            className="flex items-center gap-0.5 text-[10px] text-primary font-medium hover:underline max-md:opacity-100 transition-opacity duration-150 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
-          >
-            <Pin className="h-3 w-3" />
-            Pin for everyone
-          </button>
-        ) : null}
-        {canReact && (
+        {canReact && (reactionAgg.length > 0 || emojiPickerOpen) && (
           <div
-            data-emoji-strip-root={message.id}
-            className="relative mt-0.5 w-full min-w-0 max-w-full min-h-[28px]"
+            className={cn('relative w-full min-w-0 max-w-full', reactionAgg.length > 0 ? 'mt-0.5 min-h-[28px]' : 'h-0')}
           >
             {/* Single horizontal row — never wraps; quick picker overlays without reflow */}
             <div
@@ -2964,23 +2962,11 @@ function MessageBubble({
                   )
                 })}
               </div>
-              <button
-                type="button"
-                className="relative z-50 inline-flex items-center justify-center h-6 w-6 shrink-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
-                onClick={e => {
-                  e.stopPropagation()
-                  setTouchLiftEmoji(null)
-                  onToggleEmojiPicker()
-                }}
-              >
-                <SmilePlus className="h-3 w-3" />
-              </button>
             </div>
             {emojiPickerOpen && (
               <div
-                className={`absolute top-0 z-40 flex w-[220px] min-h-[28px] items-center rounded-lg border border-border/70 bg-card/98 backdrop-blur-sm px-1 py-0.5 shadow-md ring-1 ring-primary/25 pointer-events-auto ${
-                  isOwn ? 'right-8' : 'left-0'
+                className={`absolute bottom-full mb-1 z-40 flex w-[220px] min-h-[28px] items-center rounded-lg border border-border/70 bg-card/98 backdrop-blur-sm px-1 py-0.5 shadow-md ring-1 ring-primary/25 pointer-events-auto ${
+                  isOwn ? 'right-0' : 'left-0'
                 }`}
                 aria-label="Quick reactions"
               >
@@ -3018,6 +3004,26 @@ function MessageBubble({
           </div>
         )}
         <div className={`flex items-center gap-1 flex-wrap ${isOwn ? 'justify-end' : ''}`}>
+          {canReact && (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center h-5 w-5 shrink-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+              title={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
+              aria-label={emojiPickerOpen ? 'Close reactions' : 'Add reaction'}
+              onClick={e => {
+                e.stopPropagation()
+                setTouchLiftEmoji(null)
+                onToggleEmojiPicker()
+              }}
+            >
+              <SmilePlus className="h-3 w-3" />
+            </button>
+          )}
+          {showPin && onPinRequest && (message.message_type === 'text' || message.message_type === 'image') && (
+            <button type="button" title="Pin for everyone" aria-label="Pin for everyone" onClick={e => { e.stopPropagation(); onPinRequest() }} className="inline-flex h-5 w-5 items-center justify-center text-primary md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+              <Pin className="h-3 w-3" />
+            </button>
+          )}
           <span className="text-[10px] text-muted-foreground">{timeAgo(message.created_at)}</span>
           {isOwn && readStatus && readStatus !== 'sending' && (
             <span className="flex items-center shrink-0">

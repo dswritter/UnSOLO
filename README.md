@@ -33,6 +33,20 @@ sticky above the results, and desktop filters remain visible in a separately
 scrollable sticky sidebar. Mobile search is available through the bottom action
 bar rather than a duplicate field above the results.
 
+## Community conversations
+
+Community renders the category controls before fetching conversation summaries.
+Each category (All, DMs, Trips, Community) pages independently in batches of eight,
+reusing matching conversations already loaded in other categories. Desktop opens
+the last-visited chat, or the most recently active chat if there is no saved choice.
+Other loaded chats' messages are warmed sequentially after the open chat.
+
+At the top of a transcript, pull down on touch devices or scroll further upward
+with a mouse/trackpad to refresh and fetch earlier messages, preserving the reading
+position. The "Load earlier messages / refresh" button offers the same action.
+Notification sound switches show explicit On/Off states and save each category's
+preference on the device.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

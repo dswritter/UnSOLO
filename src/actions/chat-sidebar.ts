@@ -12,7 +12,7 @@ const PAGE_SIZE = 8
 export async function loadActiveSidebarRoom(roomId: string): Promise<{ room: SidebarRoom | null; error?: string }> {
   const { supabase, user } = await getActionAuth()
   if (!user) return { room: null, error: 'Not authenticated' }
-  const { rooms } = await getSidebarRooms(supabase, user.id, { limit: Number.MAX_SAFE_INTEGER, offset: 0 })
+  const { rooms } = await getSidebarRooms(supabase, user.id, { limit: 1, offset: 0, roomId })
   return { room: rooms.find(room => room.id === roomId) ?? null }
 }
 
@@ -65,18 +65,21 @@ export async function toggleChatSidebarPin(roomId: string): Promise<{ error?: st
   return { pinned: true }
 }
 
-export async function loadMoreSidebarRooms(offset: number): Promise<{
+export async function loadMoreSidebarRooms(offset: number, type?: SidebarRoom['type']): Promise<{
   rooms: SidebarRoom[]
   total: number
   pinnedRoomIds: string[]
+  roomNameIndex?: { id: string; name: string }[]
+  mostRecentRoomId?: string | null
   error?: string
 }> {
   const { supabase, user } = await getActionAuth()
   if (!user) return { rooms: [], total: 0, pinnedRoomIds: [], error: 'Not authenticated' }
 
-  const { rooms, total, pinnedRoomIds } = await getSidebarRooms(supabase, user.id, {
+  const { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId } = await getSidebarRooms(supabase, user.id, {
     limit: PAGE_SIZE,
     offset: Math.max(0, offset),
+    ...(type ? { type } : {}),
   })
-  return { rooms, total, pinnedRoomIds }
+  return { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId }
 }

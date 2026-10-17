@@ -38,6 +38,7 @@ export function saveNotificationSettings(settings: Partial<NotificationSettings>
   const current = getNotificationSettings()
   const updated = { ...current, ...settings }
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(updated))
+  window.dispatchEvent(new Event('unsolo:notification-settings'))
 }
 
 // ── Audio Engine ─────────────────────────────────────────────

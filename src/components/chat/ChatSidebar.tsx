@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useId, useMemo, type MouseEvent } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { appendRoomMessageToCache } from '@/lib/chat/appendRoomMessageCache'
 import { prefetchRoomMessages } from '@/lib/chat/prefetchRoomMessages'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -14,12 +14,15 @@ import { NotificationPrompt } from './NotificationPrompt'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { startDirectMessage } from '@/actions/profile'
-import { loadActiveSidebarRoom, loadMoreSidebarRooms, toggleChatSidebarPin } from '@/actions/chat-sidebar'
+import { loadActiveSidebarRoom, toggleChatSidebarPin } from '@/actions/chat-sidebar'
+import { fetchSidebarRoomPage } from '@/lib/chat/fetchSidebarRooms'
 import { toast } from 'sonner'
 import { playNotificationSound, sendSystemNotification, preloadSound } from '@/lib/notifications/soundController'
 import { SoundSettingsButton } from './SoundSettings'
 import { DmSidebarAvatarMenu } from './DmSidebarAvatarMenu'
 import { prioritizeActiveConversation } from '@/lib/chat/sidebar-page'
+import { CommunityIndexDesktopRedirect } from './CommunityIndexDesktopRedirect'
+import { CommunityCrossRoomMessagePreview } from './CommunityCrossRoomMessagePreview'
 
 function normalizeRoomId(id: string) {
   return id.trim().toLowerCase()
@@ -72,10 +75,13 @@ interface ChatSidebarProps {
   basePath?: string
   /** Pinned room ids (most recently pinned first). */
   pinnedRoomIds?: string[]
+  autoOpenRecent?: boolean
+  showCrossRoomPreview?: boolean
 }
 
 const BACKGROUND_WARM_ROOMS = 8
 const BACKGROUND_WARM_DELAY_MS = 1200
+const EMPTY_PINNED_IDS: string[] = []
 
 export function ChatSidebar({
   rooms,
@@ -86,18 +92,52 @@ export function ChatSidebar({
   className = '',
   viewerUserId,
   basePath = '/community',
-  pinnedRoomIds: pinnedRoomIdsProp = [],
+  pinnedRoomIds: pinnedRoomIdsProp = EMPTY_PINNED_IDS,
+  autoOpenRecent = false,
+  showCrossRoomPreview = false,
 }: ChatSidebarProps) {
   const queryClient = useQueryClient()
-  const totalRoomCount = totalRoomCountProp ?? rooms.length
   const [localRooms, setLocalRooms] = useState(rooms)
   const [activeRoomPreview, setActiveRoomPreview] = useState<SidebarRoom | null>(initialActiveRoom)
   const [localPinnedIds, setLocalPinnedIds] = useState(pinnedRoomIdsProp)
   const pinInFlightRef = useRef<Set<string>>(new Set())
-  const [loadMoreLoading, setLoadMoreLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'direct' | 'trip' | 'general'>('all')
+  const conversations = useInfiniteQuery({
+    queryKey: ['chat-sidebar', viewerUserId, filter],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => fetchSidebarRoomPage(pageParam, filter === 'all' ? undefined : filter),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.rooms.length, 0)
+      return loaded < lastPage.total && lastPage.rooms.length ? loaded : undefined
+    },
+    initialData: filter === 'all' && rooms.length ? {
+      pages: [{ rooms, total: totalRoomCountProp ?? rooms.length, pinnedRoomIds: pinnedRoomIdsProp }],
+      pageParams: [0],
+    } : undefined,
+    staleTime: 60_000,
+  })
+  const [lastPageData, setLastPageData] = useState<typeof conversations.data | undefined>(undefined)
+  if (conversations.data !== lastPageData) {
+    setLastPageData(conversations.data)
+    if (conversations.data) {
+      const incoming = conversations.data.pages.flatMap(page => page.rooms)
+      setLocalRooms(previous => {
+        const merged = new Map(previous.map(room => [room.id, room]))
+        for (const room of incoming) {
+          const current = merged.get(room.id)
+          merged.set(room.id, current && (current.lastMessageAt ?? '') > (room.lastMessageAt ?? '')
+            ? { ...room, lastMessage: current.lastMessage, lastMessageAt: current.lastMessageAt }
+            : room)
+        }
+        return [...merged.values()]
+      })
+      setLocalPinnedIds(conversations.data.pages.at(-1)?.pinnedRoomIds ?? [])
+    }
+  }
+  const pageRooms = useMemo(() => conversations.data?.pages.flatMap(page => page.rooms) ?? rooms, [conversations.data, rooms])
+  const loadMoreLoading = conversations.isFetchingNextPage
   const [unreadCounts, setUnreadCounts] = useState<Map<string, number>>(new Map())
   const [userResults, setUserResults] = useState<{ id: string; username: string; full_name: string | null; avatar_url: string | null }[]>([])
   const [searchingUsers, setSearchingUsers] = useState(false)
@@ -138,19 +178,16 @@ export function ChatSidebar({
     return () => { cancelled = true }
   }, [currentActiveRoom, localRooms, activeRoomPreview])
 
-  // Sync with prop changes
-  useEffect(() => {
-    setLocalRooms(rooms)
-    setLocalPinnedIds(pinnedRoomIdsProp)
-  }, [rooms, pinnedRoomIdsProp])
-
   // Open room renders first; then warm the other conversations' messages one at a time.
   useEffect(() => {
     let cancelled = false
     const timer = window.setTimeout(() => {
       void (async () => {
         const active = currentActiveRoomRef.current ? normalizeRoomId(currentActiveRoomRef.current) : null
-        const ids = rooms.map(r => r.id).filter(id => normalizeRoomId(id) !== active).slice(0, BACKGROUND_WARM_ROOMS)
+        if (!active) return
+        await prefetchRoomMessages(queryClient, active)
+        if (cancelled) return
+        const ids = pageRooms.map(r => r.id).filter(id => normalizeRoomId(id) !== active).slice(0, BACKGROUND_WARM_ROOMS)
         for (const id of ids) {
           if (cancelled || document.visibilityState === 'hidden') return
           await prefetchRoomMessages(queryClient, id)
@@ -158,7 +195,7 @@ export function ChatSidebar({
       })()
     }, BACKGROUND_WARM_DELAY_MS)
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [rooms, queryClient])
+  }, [pageRooms, queryClient])
 
   // Preload notification sound on first interaction
   useEffect(() => { preloadSound() }, [])
@@ -233,13 +270,6 @@ export function ChatSidebar({
 
     return () => { supabase.removeChannel(channel) }
   }, [sidebarRealtimeId, queryClient])
-
-  const propsRoomsRef = useRef(rooms)
-  const propsPinnedRef = useRef(pinnedRoomIdsProp)
-  useEffect(() => {
-    propsRoomsRef.current = rooms
-    propsPinnedRef.current = pinnedRoomIdsProp
-  }, [rooms, pinnedRoomIdsProp])
 
   // Live updates when admins rename / disable community rooms
   useEffect(() => {
@@ -342,34 +372,18 @@ export function ChatSidebar({
     return prioritizeActiveConversation(sorted, currentActiveRoom)
   }, [localRooms, activeRoomPreview, currentActiveRoom, filter, search, localPinnedIds])
 
-  const canLoadMore = totalRoomCount > localRooms.length && !search.trim()
+  const canLoadMore = conversations.hasNextPage && !search.trim()
 
   async function onLoadMore() {
     if (loadMoreLoading || !canLoadMore) return
-    setLoadMoreLoading(true)
-    try {
-      const res = await loadMoreSidebarRooms(localRooms.length)
-      if (res.error) {
-        toast.error(res.error)
-        return
-      }
-      if (res.pinnedRoomIds) setLocalPinnedIds(res.pinnedRoomIds)
-      const have = new Set(localRooms.map(r => r.id))
-      const more = (res.rooms || []).filter(r => !have.has(r.id))
-      if (more.length) {
-        setLocalRooms(prev =>
-          sortSidebarRooms([...prev, ...more], res.pinnedRoomIds ?? localPinnedIdsRef.current),
-        )
-      }
-    } finally {
-      setLoadMoreLoading(false)
-    }
+    await conversations.fetchNextPage()
   }
 
   function handleTogglePin(e: MouseEvent<HTMLButtonElement>, roomId: string) {
     e.preventDefault()
     e.stopPropagation()
     if (pinInFlightRef.current.has(roomId)) return
+    const previousPins = localPinnedIds
     const norm = normalizeRoomId(roomId)
     const wasPinned = localPinnedIds.some(id => normalizeRoomId(id) === norm)
     const nextPins = wasPinned
@@ -383,10 +397,11 @@ export function ChatSidebar({
         const res = await toggleChatSidebarPin(roomId)
         if (res.error) {
           toast.error(res.error)
-          setLocalPinnedIds(propsPinnedRef.current)
-          setLocalRooms(sortSidebarRooms(propsRoomsRef.current, propsPinnedRef.current))
+          setLocalPinnedIds(previousPins)
+          setLocalRooms(previous => sortSidebarRooms(previous, previousPins))
           return
         }
+        await queryClient.invalidateQueries({ queryKey: ['chat-sidebar', viewerUserId] })
         router.refresh()
       } finally {
         pinInFlightRef.current.delete(roomId)
@@ -411,27 +426,34 @@ export function ChatSidebar({
         .limit(5)
 
       // Filter out users who already have a DM in the rooms list
-      const existingDmUserIds = new Set(rooms.filter(r => r.type === 'direct' && r.dmProfile).map(r => r.dmProfile!.id))
+      const existingDmUserIds = new Set(localRooms.filter(r => r.type === 'direct' && r.dmProfile).map(r => r.dmProfile!.id))
       const rows = (data || []) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
       setUserResults(rows.filter(u => !existingDmUserIds.has(u.id)))
       setSearchingUsers(false)
     }, 300)
 
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current) }
-  }, [search, rooms])
+  }, [search, localRooms])
 
   return (
     <div className={`flex flex-col ${className}`} role="region" aria-label="Your conversations">
+      {autoOpenRecent && (
+        <CommunityIndexDesktopRedirect roomId={conversations.data?.pages[0]?.mostRecentRoomId ?? pageRooms[0]?.id ?? null} listPath={basePath} roomPathPrefix={basePath} />
+      )}
+      {showCrossRoomPreview && (
+        <CommunityCrossRoomMessagePreview viewerUserId={viewerUserId} rooms={conversations.data?.pages[0]?.roomNameIndex ?? []} basePath={basePath} />
+      )}
       {/* Header: filter tabs only — search lives at the bottom */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1 min-w-0">
             {(['all', 'direct', 'trip', 'general'] as const).map(f => (
               <button
                 key={f}
                 type="button"
+                aria-pressed={filter === f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   filter === f
                     ? 'bg-primary text-black'
                     : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
@@ -450,7 +472,18 @@ export function ChatSidebar({
 
       {/* Room list — scrollable */}
       <div className="flex-1 overflow-y-auto overscroll-y-contain min-h-0">
-        {filtered.length === 0 && userResults.length === 0 && !searchingUsers ? (
+        {conversations.isFetching && !loadMoreLoading && (
+          <div role="status" className="flex items-center justify-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading conversations…
+          </div>
+        )}
+        {conversations.isError && (
+          <div role="alert" className="px-4 py-3 text-xs text-destructive">
+            Unable to load conversations.
+            <button type="button" onClick={() => void conversations.refetch()} className="ml-2 underline">Retry</button>
+          </div>
+        )}
+        {filtered.length === 0 && userResults.length === 0 && !searchingUsers && !conversations.isPending && !conversations.isError ? (
           <div className="px-4 py-12 text-center text-sm text-muted-foreground">
             <MessageCircle className="h-10 w-10 mx-auto mb-2 opacity-20" />
             <p>No conversations found</p>
