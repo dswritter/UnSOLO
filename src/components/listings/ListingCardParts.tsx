@@ -21,7 +21,7 @@ const BADGE_TONES: Record<TripCardBadge['tone'], string> = {
 export function ListingCardBadge({ badge }: { badge: TripCardBadge | null }) {
   if (!badge) return null
   return (
-    <span className={cn('absolute left-2.5 top-2.5 z-10 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none backdrop-blur-md', BADGE_TONES[badge.tone])}>
+    <span className={cn('absolute left-2 top-2 z-10 max-w-[calc(100%-3.25rem)] truncate rounded-full px-1.5 py-1 text-[9px] font-medium leading-none backdrop-blur-md md:left-2.5 md:top-2.5 md:px-2.5 md:text-[11px] md:font-semibold', BADGE_TONES[badge.tone])}>
       {badge.label}
     </span>
   )
@@ -39,10 +39,10 @@ export function ListingCardMedia({ children, muted = false }: { children: ReactN
 
 export function ListingCardPrice({ amount, suffix, from = false, muted = false }: { amount: string; suffix: string; from?: boolean; muted?: boolean }) {
   return (
-    <p className="min-w-0 truncate text-xs text-muted-foreground">
+    <p className="flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-[10px] leading-tight text-muted-foreground md:gap-x-1 md:text-xs">
       {from ? 'From ' : null}
-      <span className={cn('text-base font-bold', muted ? 'text-muted-foreground' : 'text-primary')}>{amount}</span>
-      {suffix ? ` / ${suffix}` : null}
+      <span className={cn('text-sm font-bold md:text-base', muted ? 'text-muted-foreground' : 'text-primary')}>{amount}</span>
+      {suffix ? <span className="whitespace-nowrap">/ {suffix}</span> : null}
     </p>
   )
 }
