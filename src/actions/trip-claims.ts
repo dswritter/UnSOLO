@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { ensureTripChatRoom, addTripChatMember } from '@/lib/chat/tripChatMembership'
-import { refreshTravelStatsForUser } from '@/lib/travel/refreshTravelStats'
+import { refreshTravelStatsForUser, syncReviewStatsForUser } from '@/lib/travel/refreshTravelStats'
 import type { TripTravellerClaim, Booking } from '@/types'
 
 const STAFF_ROLES = ['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder']
@@ -28,18 +28,9 @@ async function findCompletedBookingByCode(svc: Svc, packageId: string, code: str
   return data
 }
 
-/** Mirrors the leaderboard/achievement bump in actions/profile.ts submitReview — run once a review actually goes public. */
+/** Run once a review actually goes public. */
 async function bumpReviewStatsForUser(svc: Svc, userId: string) {
-  const { data: scores } = await svc.from('leaderboard_scores').select('*').eq('user_id', userId).single()
-  if (scores) {
-    await svc
-      .from('leaderboard_scores')
-      .update({ reviews_written: (scores.reviews_written || 0) + 1, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-  }
-  const { count } = await svc.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'approved')
-  if (count && count >= 5) await svc.from('user_achievements').upsert({ user_id: userId, achievement_key: 'reviewer_5' })
-  if (count && count >= 10) await svc.from('user_achievements').upsert({ user_id: userId, achievement_key: 'storyteller' })
+  await syncReviewStatsForUser(svc, userId)
 }
 
 async function notifyTripClaimSubmitted(

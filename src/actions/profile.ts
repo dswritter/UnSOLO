@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { syncReviewStatsForUser } from '@/lib/travel/refreshTravelStats'
 import { getActionAuth } from '@/lib/auth/action-auth'
 
 export async function updateProfile(formData: FormData) {
@@ -176,41 +177,7 @@ export async function submitReview(
 
   if (error) return { error: error.message }
 
-  // Update leaderboard
-  const { data: scores } = await supabase
-    .from('leaderboard_scores')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  if (scores) {
-    await supabase
-      .from('leaderboard_scores')
-      .update({
-        reviews_written: scores.reviews_written + 1,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('user_id', user.id)
-  }
-
-  // Award reviewer badge
-  const { count } = await supabase
-    .from('reviews')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-
-  if (count && count >= 5) {
-    await supabase.from('user_achievements').upsert({
-      user_id: user.id,
-      achievement_key: 'reviewer_5',
-    })
-  }
-  if (count && count >= 10) {
-    await supabase.from('user_achievements').upsert({
-      user_id: user.id,
-      achievement_key: 'storyteller',
-    })
-  }
+  await syncReviewStatsForUser(createServiceRoleClient(), user.id)
 
   revalidatePath(`/bookings`)
   return { success: true }

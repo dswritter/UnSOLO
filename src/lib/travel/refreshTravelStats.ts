@@ -33,6 +33,34 @@ export async function completedTripsForUser(svc: Svc, userId: string): Promise<C
   return [...rows.values()]
 }
 
+async function countApprovedReviews(svc: Svc, userId: string) {
+  const { count } = await svc
+    .from('reviews')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'approved')
+  return count || 0
+}
+
+/**
+ * Recount a user's public (approved) reviews and award review achievements.
+ * Always recounts rather than incrementing, so repeated calls never inflate it.
+ */
+export async function syncReviewStatsForUser(svc: Svc, userId: string) {
+  const reviews = await countApprovedReviews(svc, userId)
+  await svc
+    .from('leaderboard_scores')
+    .update({ reviews_written: reviews, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+  if (reviews >= 5) {
+    await svc.from('user_achievements').upsert({ user_id: userId, achievement_key: 'reviewer_5' }, { onConflict: 'user_id,achievement_key' })
+  }
+  if (reviews >= 10) {
+    await svc.from('user_achievements').upsert({ user_id: userId, achievement_key: 'storyteller' }, { onConflict: 'user_id,achievement_key' })
+  }
+  return reviews
+}
+
 /**
  * Recompute leaderboard trip inputs (total_score is generated) and award
  * trip-count achievements. Idempotent — safe to call from the completion cron,
@@ -42,17 +70,14 @@ export async function refreshTravelStatsForUser(svc: Svc, userId: string) {
   const trips = await completedTripsForUser(svc, userId)
   const destinationIds = new Set(trips.map((t) => t.package?.destination_id).filter(Boolean))
 
-  const { count: reviewCount } = await svc
-    .from('reviews')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
+  const reviewCount = await countApprovedReviews(svc, userId)
 
   await svc.from('leaderboard_scores').upsert(
     {
       user_id: userId,
       trips_completed: trips.length,
       destinations_count: destinationIds.size,
-      reviews_written: reviewCount || 0,
+      reviews_written: reviewCount,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },
