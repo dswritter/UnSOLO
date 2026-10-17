@@ -30,13 +30,13 @@ export function StatesExploredCard({
         {statesPrivate ? (
           <p className="text-sm text-muted-foreground">Explored states are private.</p>
         ) : count === 0 ? (
-          <div className="flex items-center gap-4">
-            <IndiaStatesMap visitedStates={[]} className="w-20 shrink-0 border-0 bg-transparent opacity-60" />
-            <p className="text-sm leading-snug text-muted-foreground">{emptyMessage}</p>
+          <div className="space-y-3">
+            <IndiaStatesMap visitedStates={[]} className="border-0 bg-transparent opacity-70" svgClassName="mx-auto max-h-[320px]" />
+            <p className="text-center text-sm leading-snug text-muted-foreground">{emptyMessage}</p>
           </div>
         ) : (
           <div className="space-y-3">
-            <IndiaStatesMap visitedStates={visitedStates} />
+            <IndiaStatesMap visitedStates={visitedStates} className="border-0 bg-transparent" svgClassName="mx-auto max-h-[340px]" />
             <div className="flex flex-wrap gap-1.5">
               {visitedStates.map((state) => (
                 <span key={state} className="rounded-md border border-primary/30 bg-primary/15 px-2 py-1 text-[11px] font-medium text-primary">

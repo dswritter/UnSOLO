@@ -48,10 +48,10 @@ function SectionHeader({
   actionLabel?: string
 }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-4">
+    <div className="mb-3.5 flex items-end justify-between gap-4">
       <div className="min-w-0">
-        <h2 className="text-xl md:text-2xl font-black tracking-tight">{title}</h2>
-        {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+        <h2 className="text-lg font-extrabold tracking-tight md:text-xl">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{subtitle}</p> : null}
       </div>
       <Link
         href={actionHref}
@@ -256,7 +256,7 @@ export function WanderListingSections({
   }
 
   return (
-    <div className="space-y-8 md:space-y-10">
+    <div className="flex flex-col divide-y divide-border/45 [&>section]:py-7 md:[&>section]:py-9 [&>section:first-child]:pt-0">
       {orderedTypes.map((type, idx) => (
         <div key={type} className="contents">
           {sections[type]}

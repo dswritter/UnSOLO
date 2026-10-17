@@ -13,11 +13,14 @@ export function IndiaStatesMap({
   forRasterExport = false,
   /** Max SVG height (px) when `forRasterExport` — share poster passes a larger value */
   rasterMaxHeightPx = 320,
+  svgClassName,
 }: {
   visitedStates: Iterable<string>
   className?: string
   forRasterExport?: boolean
   rasterMaxHeightPx?: number
+  /** Overrides the default on-screen `max-h-[220px]` cap on the SVG. */
+  svgClassName?: string
 }) {
   const visited = [...visitedStates]
   const data = indiaMap as { viewBox: string; locations: Loc[] }
@@ -45,7 +48,7 @@ export function IndiaStatesMap({
         viewBox={data.viewBox}
         className={cn(
           'h-auto w-full text-foreground',
-          !forRasterExport && 'max-h-[220px]',
+          !forRasterExport && (svgClassName ?? 'max-h-[220px]'),
         )}
         style={forRasterExport ? { display: 'block', maxHeight: rasterMaxHeightPx } : undefined}
         role="img"

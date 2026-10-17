@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { WanderExploreSection } from '@/components/wander/WanderExploreSection'
-import { WanderExploreSkeleton } from '@/components/wander/WanderExploreSkeleton'
+import { WanderExploreInstantFallback } from '@/components/wander/WanderExploreInstantFallback'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
 import { WanderHeroSection, WanderHeroSkeleton } from '@/components/wander/WanderHeroSection'
 import {
@@ -31,7 +31,9 @@ export async function WanderLandingPage({
 
       {isSearchMode ? (
         <div id="wander-explore" className="border-t border-border/50 scroll-mt-4">
-          <Suspense key={JSON.stringify(sp)} fallback={<WanderExploreSkeleton />}>
+          {/* No `key`: filter changes are transitions, so the current results stay
+              mounted and re-filter client-side while the server responds. */}
+          <Suspense fallback={<WanderExploreInstantFallback sp={sp} />}>
             <WanderExploreSection sp={sp} searchBasePath={searchBasePath} />
           </Suspense>
         </div>

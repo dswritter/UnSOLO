@@ -23,7 +23,10 @@ export type RegionTile = {
   /** Secondary line, e.g. country for non-Indian regions or top destinations. */
   caption: string
   tripCount: number
+  /** Host-uploaded trip photo first (we store and serve those), seeded destination art second. */
   imageUrl: string | null
+  /** Tried client-side when `imageUrl` fails to load. */
+  fallbackImageUrl: string | null
   /** Explore search term — must match `destinations.state` (or name) for the search RPC. */
   query: string
 }
@@ -73,7 +76,8 @@ export function buildRegionTiles(packages: DiscoveryPackage[], limit = 6): Regio
         label: g.label,
         caption,
         tripCount: g.count,
-        imageUrl: g.destinationImage ?? g.packageImage,
+        imageUrl: g.packageImage ?? g.destinationImage,
+        fallbackImageUrl: g.packageImage && g.destinationImage !== g.packageImage ? g.destinationImage : null,
         query: g.label,
       }
     })

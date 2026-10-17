@@ -26,6 +26,7 @@ function buildPackageFilters(searchParams: Record<string, string>): PublicPackag
     maxBudget: searchParams.maxBudget,
     maxDays: searchParams.maxDays,
     minDays: searchParams.minDays,
+    month: searchParams.month,
   }
 }
 

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { TribeRoomApplyHydration } from '@/components/chat/TribeRoomCoordinator'
 import type { ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { hashtagSlugFromRoomName } from '@/lib/chat/chatHashTags'
@@ -58,12 +58,25 @@ export async function TribeRoomHydrationLoader({
     ])
     let memberBookings: { user_id: string; status: string; travel_date: string }[] = []
     if (roomType === 'trip' && packageId) {
-      const { data: mb } = await supabase
-        .from('bookings')
-        .select('user_id, status, travel_date')
-        .eq('package_id', packageId)
-        .in('user_id', memberIds)
+      const svc = createServiceRoleClient()
+      const [{ data: mb }, { data: claims }] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('user_id, status, travel_date')
+          .eq('package_id', packageId)
+          .in('user_id', memberIds),
+        // Approved companions inherit the phase of the booking they travelled on.
+        svc
+          .from('trip_traveller_claims')
+          .select('claimant_id, booking:bookings(status, travel_date)')
+          .eq('package_id', packageId)
+          .eq('status', 'approved')
+          .in('claimant_id', memberIds),
+      ])
       memberBookings = mb || []
+      for (const c of (claims || []) as unknown as { claimant_id: string; booking: { status: string; travel_date: string } | null }[]) {
+        if (c.booking) memberBookings.push({ user_id: c.claimant_id, ...c.booking })
+      }
     }
     const requestMap = new Map((phoneRequests || []).map(r => [r.target_id, r.status]))
     const byUserBookings = new Map<string, { status: string; travel_date: string }[]>()

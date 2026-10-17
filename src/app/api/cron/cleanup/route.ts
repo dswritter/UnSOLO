@@ -7,6 +7,7 @@ import {
   APP_URL,
 } from '@/lib/constants'
 import { removeUserFromPackageTripChat } from '@/lib/chat/tripChatMembership'
+import { refreshTravelStatsForBooking } from '@/lib/travel/refreshTravelStats'
 import { sendTokenBalanceReminderEmail } from '@/lib/resend/emails'
 import { isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { JoinPreferences } from '@/types'
@@ -165,38 +166,9 @@ export async function POST(request: Request) {
       if (endDateStr <= today) {
         await supabase.from('bookings').update({ status: 'completed' }).eq('id', booking.id)
 
-        // Leaderboard inputs only — total_score is generated. Completed bookings only;
-        // trips_completed = count of bookings (25 pts per booking, regardless of group size).
-        const { data: completedRows } = await supabase
-          .from('bookings')
-          .select('package:packages(destination_id)')
-          .eq('user_id', booking.user_id)
-          .eq('status', 'completed')
-
-        const tripsCompleted = (completedRows || []).length
-
-        const allDestIds = new Set(
-          (completedRows || []).map(b => (b.package as unknown as { destination_id?: string })?.destination_id).filter(Boolean),
-        )
-
-        const { count: reviewCount } = await supabase
-          .from('reviews')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', booking.user_id)
-
-        await supabase.from('leaderboard_scores').upsert({
-          user_id: booking.user_id,
-          trips_completed: tripsCompleted,
-          destinations_count: allDestIds.size,
-          reviews_written: reviewCount || 0,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
-
-        // Award first trip badge
-        await supabase.from('user_achievements').upsert({
-          user_id: booking.user_id,
-          achievement_key: 'first_trip',
-        }, { onConflict: 'user_id,achievement_key' })
+        // Leaderboard inputs + first_trip badge for the booker and any approved
+        // companions (co-travellers who claimed this booking).
+        await refreshTravelStatsForBooking(supabase, booking.id, booking.user_id)
 
         // Send review reminder
         if (pkg?.slug) {

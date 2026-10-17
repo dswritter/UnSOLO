@@ -23,6 +23,8 @@ import {
   ProfileActivity, ProfileActivitySkeleton, ProfileHighlights, ProfileHighlightsSkeleton,
   ProfileShareFallback, ProfileShareSlot, ProfileSidebar, ProfileSidebarSkeleton, type ProfileSectionContext,
 } from './ProfileSections'
+import { ProfileConnections, ProfileEndSeparator } from './ProfileConnectionsSection'
+import { loadHostConnections, loadViewerRelation } from './profileConnections'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -53,7 +55,11 @@ export async function ProfileUsernameDetail({
   void loadAchievementKeys(profile.id)
   void loadReviews(profile.id)
   void loadHostedListings(profile.id)
-  if (viewerUserId && !isOwnProfile) void loadViewerPlaces(viewerUserId)
+  if (viewerUserId && !isOwnProfile) {
+    void loadViewerPlaces(viewerUserId)
+    void loadViewerRelation(profile.id, viewerUserId).catch(() => null)
+  }
+  void loadHostConnections(profile.id, isOwnProfile).catch(() => null)
 
   const needsPhoneRequest = Boolean(!isOwnProfile && profile.phone_number && viewerUserId && profile.phone_public !== true)
   const [statusStories, followData, phoneRequestStatus] = await Promise.all([
@@ -256,6 +262,10 @@ export async function ProfileUsernameDetail({
           <Suspense fallback={<ProfileActivitySkeleton />}>
             <ProfileActivity ctx={ctx} />
           </Suspense>
+
+          <Suspense fallback={null}>
+            <ProfileConnections ctx={ctx} />
+          </Suspense>
         </div>
 
         <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-6 lg:col-span-3 lg:self-start">
@@ -264,6 +274,7 @@ export async function ProfileUsernameDetail({
           </Suspense>
         </aside>
       </div>
+      <ProfileEndSeparator username={profile.username} />
     </div>
   )
 }

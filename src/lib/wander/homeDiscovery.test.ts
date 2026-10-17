@@ -37,9 +37,11 @@ describe('buildRegionTiles', () => {
       ['Himachal Pradesh', 2, 'Himachal Pradesh'],
       ['Uttarakhand', 1, 'Uttarakhand'],
     ])
-    expect(tiles[0]!.imageUrl).toBe('https://img/kasol.jpg')
+    expect(tiles[0]!.imageUrl).toBe('https://x.supabase.co/a.jpg')
+    expect(tiles[0]!.fallbackImageUrl).toBe('https://img/kasol.jpg')
     expect(tiles[0]!.caption).toBe('Kasol · Manali')
     expect(tiles[1]!.imageUrl).toBe('https://x.supabase.co/c.jpg')
+    expect(tiles[1]!.fallbackImageUrl).toBeNull()
   })
 
   it('falls back to destination name, shows the country abroad and skips unknown places', () => {

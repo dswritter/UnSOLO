@@ -29,10 +29,48 @@ import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { toggleInterest } from '@/actions/booking'
 import { loadMoreExploreListings } from '@/actions/explore-listings'
 import { appendUniqueById, matchesExploreSearch } from '@/lib/explore/local-search'
+import {
+  EXPLORE_PENDING_EVENT,
+  announceExploreNavigation,
+  exploreFilterKey,
+  exploreParamsFromHref,
+  exploreTabFromParams,
+  packageMatchesExploreParams,
+  serviceMatchesExploreParams,
+} from '@/lib/explore/optimistic-filter'
+import { readListingPreview } from '@/lib/explore/listing-preview-cache'
 import { useAuth } from '@/components/layout/AuthProvider'
 import { toast } from 'sonner'
 
 type TabType = 'trips' | 'stays' | 'activities' | 'rentals' | 'getting_around'
+type ListingPool = {
+  packages: Package[]
+  serviceListings: ServiceListingWithItems[]
+  spotsBooked: Record<string, number>
+  interestCounts: Record<string, number>
+}
+
+/** Listings painted on the home rows this session — lets filters/tab switches show matches instantly. */
+function readHomePreviewPool(): ListingPool {
+  const trips = readListingPreview('trips')
+  const services = (['rentals', 'activities', 'stays'] as const).flatMap(kind => readListingPreview(kind)?.listings ?? [])
+  return {
+    packages: trips?.packages ?? [],
+    serviceListings: services,
+    spotsBooked: trips?.spotsBooked ?? {},
+    interestCounts: trips?.interestCounts ?? {},
+  }
+}
+
+function mergePool(fresh: ListingPool, previous: ListingPool): ListingPool {
+  return {
+    packages: appendUniqueById(fresh.packages, previous.packages),
+    serviceListings: appendUniqueById(fresh.serviceListings, previous.serviceListings),
+    spotsBooked: { ...previous.spotsBooked, ...fresh.spotsBooked },
+    interestCounts: { ...previous.interestCounts, ...fresh.interestCounts },
+  }
+}
+
 type AppendedExplorePage = {
   key: string
   packages: Package[]
@@ -82,6 +120,11 @@ interface ExploreClientProps {
   pageVariant?: 'default' | 'wander'
   /** Shown when results omit the location/text filter because the strict search had no hits */
   searchFallback?: boolean
+  /**
+   * Streaming placeholder: `packages`/`serviceListings` are a cached snapshot, not
+   * server results. Matching items render immediately, filtered by `params`.
+   */
+  provisional?: boolean
 }
 
 export function ExploreClient({
@@ -99,6 +142,7 @@ export function ExploreClient({
   basePath = '/',
   pageVariant = 'default',
   searchFallback = false,
+  provisional = false,
 }: ExploreClientProps) {
   const isWanderShell = pageVariant === 'wander'
   const router = useRouter()
@@ -106,15 +150,11 @@ export function ExploreClient({
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   const [searchDrawerOpen, setSearchDrawerOpen] = useState(false)
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-  const [isTabPending, startTabTransition] = useTransition()
-  // isNavigating covers external navigations (sidebar/filter changes) that we
-  // don't initiate via startTabTransition. Cleared only when fresh props arrive.
-  const [isNavigating, setIsNavigating] = useState(false)
+  const [, startTabTransition] = useTransition()
   const { userId } = useAuth()
   const [interestedIds, setInterestedIds] = useState<Set<string>>(() => new Set(interestedPackageIds))
   const [interestCountMap, setInterestCountMap] = useState<Record<string, number>>(interestCounts)
   const [pendingInterestIds, setPendingInterestIds] = useState<Set<string>>(new Set())
-  const prevParamsRef = useRef<string>('')
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
   const [isMobile, setIsMobile] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -138,7 +178,9 @@ export function ExploreClient({
       next.delete('page')
       if (isWanderShell) next.set('search', '1')
       const suffix = next.toString()
-      router.replace(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false })
+      const href = suffix ? `${basePath}?${suffix}` : basePath
+      announceExploreNavigation(href)
+      router.replace(href, { scroll: false })
     }, 350)
     return () => window.clearTimeout(timer)
   }, [basePath, committedSearch, isWanderShell, router, searchDraft, searchParams])
@@ -197,30 +239,30 @@ export function ExploreClient({
     })
   }, [userId, interestedIds, pendingInterestIds, router])
 
-  // Detect navigations triggered externally (sidebar filters, search drawer).
-  // URL changes via useSearchParams happen before the server finishes
-  // re-rendering, so we set isNavigating here and only clear it once new
-  // props actually arrive (see the packages/serviceListings effect below).
+  // Filters navigate as transitions, so the previous results stay mounted until
+  // the server responds. Meanwhile re-filter every listing we've already seen
+  // against the *target* params so the grid reacts instantly.
+  const paramsKey = exploreFilterKey(params)
+  const [pending, setPending] = useState<{ from: string; params: Record<string, string> } | null>(null)
+  const latestParamsKey = useRef(paramsKey)
+  useEffect(() => { latestParamsKey.current = paramsKey }, [paramsKey])
   useEffect(() => {
-    const currentParams = searchParams.toString()
-    if (prevParamsRef.current !== '' && prevParamsRef.current !== currentParams) {
-      const previous = new URLSearchParams(prevParamsRef.current)
-      const current = new URLSearchParams(currentParams)
-      previous.delete('q')
-      previous.delete('page')
-      current.delete('q')
-      current.delete('page')
-      if (previous.toString() !== current.toString()) setIsNavigating(true)
+    function onPending(event: Event) {
+      const href = (event as CustomEvent<string>).detail
+      if (!href.startsWith(basePath)) return
+      setPending({ from: latestParamsKey.current, params: exploreParamsFromHref(href) })
     }
-    prevParamsRef.current = currentParams
-  }, [searchParams])
-
-  // New props = navigation complete. Safe to hide the skeleton.
-  useEffect(() => { setIsNavigating(false) }, [packages, serviceListings])
+    window.addEventListener(EXPLORE_PENDING_EVENT, onPending)
+    return () => window.removeEventListener(EXPLORE_PENDING_EVENT, onPending)
+  }, [basePath])
+  const pendingActive = !!pending && pending.from === paramsKey && exploreFilterKey(pending.params) !== paramsKey
+  const optimistic = provisional || pendingActive
+  const effectiveParams = pendingActive ? pending.params : params
+  const shownTab: TabType = pendingActive ? exploreTabFromParams(pending.params) : activeTab
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
-    const newParams = new URLSearchParams(searchParams)
+    const newParams = new URLSearchParams(effectiveParams)
     newParams.set('tab', tab)
     newParams.delete('q')
     newParams.delete('page')
@@ -232,33 +274,56 @@ export function ExploreClient({
     })
   }
 
-  // Show skeleton while any navigation is in-flight.
-  const isLoading = isTabPending || isNavigating
-
-  /** Call as soon as we initiate a filter URL change so the UI does not feel idle before searchParams catch up. */
-  const onExploreNavigationStart = useCallback(() => {
-    setIsNavigating(true)
-  }, [])
-
     const queryKey = JSON.stringify(Object.entries(params).filter(([key]) => key !== 'page').sort(([a], [b]) => a.localeCompare(b)))
     const currentAppend = appendedPage?.key === queryKey ? appendedPage : null
     const loadedPackages = currentAppend ? [...packages, ...currentAppend.packages] : packages
     const loadedServiceListings = currentAppend ? [...serviceListings, ...currentAppend.serviceListings] : serviceListings
+
+    const [poolState, setPoolState] = useState(() => ({
+      sources: [packages, serviceListings, appendedPage] as const,
+      // Provisional renders are part of SSR/hydration, so they must not read sessionStorage here.
+      pool: mergePool(
+        { packages, serviceListings, spotsBooked, interestCounts },
+        provisional ? { packages: [], serviceListings: [], spotsBooked: {}, interestCounts: {} } : readHomePreviewPool(),
+      ),
+    }))
+    if (poolState.sources[0] !== packages || poolState.sources[1] !== serviceListings || poolState.sources[2] !== appendedPage) {
+      setPoolState({
+        sources: [packages, serviceListings, appendedPage] as const,
+        pool: mergePool({
+          packages: loadedPackages,
+          serviceListings: loadedServiceListings,
+          spotsBooked: { ...spotsBooked, ...currentAppend?.spotsBooked },
+          interestCounts: { ...interestCounts, ...currentAppend?.interestCounts },
+        }, poolState.pool),
+      })
+    }
+    const pool = poolState.pool
+    const sourcePackages = optimistic
+      ? pool.packages.filter(pkg => packageMatchesExploreParams(pkg, effectiveParams, interestedIds))
+      : loadedPackages
+    const sourceServiceListings = optimistic
+      ? pool.serviceListings.filter(listing => serviceMatchesExploreParams(listing, effectiveParams, shownTab))
+      : loadedServiceListings
     const requestedSearch = searchDraft.trim()
     const localSearch = requestedSearch !== committedSearch.trim() ? requestedSearch : ''
-    const visiblePackages = localSearch ? loadedPackages.filter(pkg => matchesExploreSearch([
+    const visiblePackages = localSearch ? sourcePackages.filter(pkg => matchesExploreSearch([
       pkg.title, pkg.description, pkg.short_description, pkg.destination?.name, pkg.destination?.state, pkg.includes, pkg.metadata,
-    ], localSearch)) : loadedPackages
-    const visibleServiceListings = localSearch ? loadedServiceListings.filter(listing => matchesExploreSearch([
+    ], localSearch)) : sourcePackages
+    const visibleServiceListings = localSearch ? sourceServiceListings.filter(listing => matchesExploreSearch([
       listing.title, listing.description, listing.short_description, listing.location, listing.tags, listing.amenities, listing.metadata,
-    ], localSearch)) : loadedServiceListings
-    const isTripsTab = activeTab === 'trips'
+    ], localSearch)) : sourceServiceListings
+    const isTripsTab = shownTab === 'trips'
     const results = isTripsTab ? visiblePackages : visibleServiceListings
     const nextPage = currentAppend?.page ?? page
-    const canLoadMore = !localSearch && (currentAppend?.hasMore ?? hasMore)
+    const canLoadMore = !optimistic && !localSearch && (currentAppend?.hasMore ?? hasMore)
     const totalCount = currentAppend?.totalCount ?? resultCount
-    const visibleSpotsBooked = { ...spotsBooked, ...currentAppend?.spotsBooked }
-    const visibleInterestCounts = { ...interestCountMap, ...currentAppend?.interestCounts }
+    const visibleSpotsBooked = optimistic ? pool.spotsBooked : { ...spotsBooked, ...currentAppend?.spotsBooked }
+    const visibleInterestCounts = optimistic
+      ? { ...pool.interestCounts, ...interestCountMap }
+      : { ...interestCountMap, ...currentAppend?.interestCounts }
+    // Only fall back to skeletons when nothing we already have matches.
+    const isLoading = optimistic && results.length === 0
 
     const handleLoadMore = useCallback(async () => {
       if (loadingMoreRef.current || !canLoadMore) return
@@ -297,7 +362,7 @@ export function ExploreClient({
 
     useEffect(() => {
       const target = loadMoreRef.current
-      if (!target || isLoading || loadingMore || appendError || !canLoadMore || typeof IntersectionObserver === 'undefined') return
+      if (!target || optimistic || loadingMore || appendError || !canLoadMore || typeof IntersectionObserver === 'undefined') return
       const observer = new IntersectionObserver(entries => {
         if (entries.some(entry => entry.isIntersecting)) void handleLoadMore()
       }, {
@@ -306,7 +371,7 @@ export function ExploreClient({
       })
       observer.observe(target)
       return () => observer.disconnect()
-    }, [appendError, basePath, canLoadMore, handleLoadMore, isLoading, loadingMore])
+    }, [appendError, basePath, canLoadMore, handleLoadMore, optimistic, loadingMore])
 
     const handleSearchChange = (value: string) => {
       setSearchDraftState({ committed: committedSearch, value })
@@ -319,11 +384,13 @@ export function ExploreClient({
         next.delete('page')
         if (isWanderShell) next.set('search', '1')
         const suffix = next.toString()
-        router.replace(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false })
+        const href = suffix ? `${basePath}?${suffix}` : basePath
+        announceExploreNavigation(href)
+        router.replace(href, { scroll: false })
       }, 350)
     }
 
-    const searchNoun = activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType].toLowerCase()
+    const searchNoun = shownTab === 'trips' ? 'trips' : typeLabels[shownTab as ServiceListingType].toLowerCase()
     const renderSearchField = (id: string) => (
       <div role="search" className={cn(
         'flex h-9 items-center gap-2 rounded-full border pl-3 pr-1.5 transition-colors focus-within:ring-2 focus-within:ring-primary/40',
@@ -362,17 +429,17 @@ export function ExploreClient({
 
   const activitiesLiveListings = useMemo(
     () =>
-      activeTab === 'activities'
+      shownTab === 'activities'
           ? visibleServiceListings.filter((l) => activityExploreHasUpcomingDates(l, exploreCalendarToday))
         : ([] as ServiceListingWithItems[]),
-        [activeTab, visibleServiceListings, exploreCalendarToday],
+        [shownTab, visibleServiceListings, exploreCalendarToday],
   )
   const activitiesPastOnlyListings = useMemo(
     () =>
-      activeTab === 'activities'
+      shownTab === 'activities'
           ? visibleServiceListings.filter((l) => !activityExploreHasUpcomingDates(l, exploreCalendarToday))
         : ([] as ServiceListingWithItems[]),
-        [activeTab, visibleServiceListings, exploreCalendarToday],
+        [shownTab, visibleServiceListings, exploreCalendarToday],
   )
 
   /** Upcoming-first, past after — one grid so rows flow naturally (past uses tag + muted styling). */
@@ -386,7 +453,7 @@ export function ExploreClient({
     () => sortExploreItems(tripsDisplayOrder, sort, (p) => packageNextOpenDepartureKey(p, exploreCalendarToday)),
     [tripsDisplayOrder, sort, exploreCalendarToday],
   )
-  const filterChips = exploreFilterChips(params)
+  const filterChips = exploreFilterChips(effectiveParams)
   const searchNounSingular = isTripsTab ? 'trip' : searchNoun.replace(/ies$/, 'y').replace(/s$/, '')
   const pastTripPackageIds = useMemo(() => new Set(tripsPastPkgs.map((p) => p.id)), [tripsPastPkgs])
 
@@ -424,7 +491,7 @@ export function ExploreClient({
             <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
               {TABS.filter(t => t.id !== 'getting_around').map(tab => {
                 const Icon = tab.icon
-                const active = activeTab === tab.id
+                const active = shownTab === tab.id
                 return (
                   <button
                     key={tab.id}
@@ -451,7 +518,7 @@ export function ExploreClient({
           <div className="flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
             {TABS.map((tab) => {
               const Icon = tab.icon
-              const active = activeTab === tab.id
+              const active = shownTab === tab.id
               return (
                 <button
                   key={tab.id}
@@ -483,7 +550,7 @@ export function ExploreClient({
             )}
           >
             <p className="font-medium">
-              We couldn&rsquo;t find an exact match for &ldquo;{params.q}&rdquo;{isTripsTab ? ' for this trip list' : ` in ${typeLabels[activeTab as ServiceListingType]}`}.
+              We couldn&rsquo;t find an exact match for &ldquo;{params.q}&rdquo;{isTripsTab ? ' for this trip list' : ` in ${typeLabels[shownTab as ServiceListingType]}`}.
             </p>
             <p className={cn('mt-1.5', isWanderShell ? 'text-foreground/70' : 'text-muted-foreground')}>
               Here are more options you might like nearby or across the catalog — try refining your search to narrow them down.
@@ -543,17 +610,15 @@ export function ExploreClient({
         )}
 
         {/* Sidebar + Results Layout */}
-        <div className="flex flex-1 items-start gap-6 lg:gap-8">
+        <div className="flex flex-1 items-start gap-6 lg:min-h-[calc(100dvh-9.5rem)] lg:gap-8">
           {/* Desktop Sidebar - hidden on mobile */}
-          <div className="hidden w-60 shrink-0 self-stretch lg:block">
+          <div className="hidden w-64 shrink-0 self-stretch lg:block">
             <ExploreSidebar
-              params={params}
+              params={effectiveParams}
               resultCount={totalCount}
-              activeTab={activeTab}
-              isLoading={isLoading}
+              activeTab={shownTab}
               maxPackagePrice={maxPackagePrice}
               basePath={basePath}
-              onNavigationStart={onExploreNavigationStart}
             />
           </div>
 
@@ -562,10 +627,15 @@ export function ExploreClient({
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-sm font-medium text-muted-foreground" aria-live="polite">
-                  {isLoading ? 'Updating results…' : (
+                  {optimistic ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden />
+                      {results.length ? `${results.length}+ matching ${results.length === 1 ? searchNounSingular : searchNoun} · updating…` : `Finding ${searchNoun}…`}
+                    </span>
+                  ) : (
                     <>Showing <span className="font-bold text-foreground">{totalCount}</span> {totalCount === 1 ? searchNounSingular : searchNoun}</>
                   )}
-                  {params.q ? <span> for “<span className="font-semibold text-foreground">{params.q}</span>”</span> : null}
+                  {effectiveParams.q ? <span> for “<span className="font-semibold text-foreground">{effectiveParams.q}</span>”</span> : null}
                 </h2>
                 {filterChips.length > 0 ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -574,8 +644,7 @@ export function ExploreClient({
                         key={chip.id}
                         type="button"
                         onClick={() => {
-                          onExploreNavigationStart()
-                          pushExploreUrl(router, basePath, exploreHrefWithout(params, chip.clears, basePath))
+                          pushExploreUrl(router, basePath, exploreHrefWithout(effectiveParams, chip.clears, basePath))
                         }}
                         className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground hover:border-primary"
                         aria-label={`Remove filter ${chip.label}`}
@@ -586,8 +655,7 @@ export function ExploreClient({
                     <button
                       type="button"
                       onClick={() => {
-                        onExploreNavigationStart()
-                        pushExploreUrl(router, basePath, exploreHrefWithout(params, filterChips.flatMap((c) => c.clears), basePath))
+                        pushExploreUrl(router, basePath, exploreHrefWithout(effectiveParams, filterChips.flatMap((c) => c.clears), basePath))
                       }}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
@@ -621,20 +689,16 @@ export function ExploreClient({
               <div className="text-center py-24">
                 <Mountain className="h-16 w-16 text-primary/30 mx-auto mb-4" />
                 <h3 className="text-xl font-bold mb-2">
-                  No {activeTab === 'trips' ? 'trips' : typeLabels[activeTab as ServiceListingType]} found
+                  No {shownTab === 'trips' ? 'trips' : typeLabels[shownTab as ServiceListingType]} found
                 </h3>
                 <p className="text-muted-foreground mb-4">Try adjusting your filters</p>
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={isLoading}
-                  onClick={() => {
-                    onExploreNavigationStart()
-                    pushExploreUrl(router, basePath, basePath)
-                  }}
+                  onClick={() => pushExploreUrl(router, basePath, exploreHrefWithout(effectiveParams, filterChips.flatMap((c) => c.clears), basePath))}
                   className="gap-2"
                 >
-                  {isLoading ? 'Updating results…' : 'Clear filters'}
+                  Clear filters
                 </Button>
               </div>
             ) : isTripsTab ? (
@@ -666,7 +730,7 @@ export function ExploreClient({
                   />
                 ))}
               </div>
-            ) : activeTab === 'activities' ? (
+            ) : shownTab === 'activities' ? (
               <div className={serviceGridClassName}>
                 {sortExploreItems(activitiesDisplayOrder, sort).map((listing) => (
                   <ServiceListingCard
@@ -700,7 +764,7 @@ export function ExploreClient({
       {/* Mobile Action Bar & Drawers - hide when search is open */}
       {!searchDrawerOpen && (
         <MobileExploreActionBar
-          activeTab={activeTab}
+          activeTab={shownTab}
           onSearchClick={() => setSearchDrawerOpen(true)}
           onFilterClick={() => setFilterDrawerOpen(true)}
         />
@@ -713,20 +777,19 @@ export function ExploreClient({
         initialValue={params.q || ''}
         basePath={basePath}
         preserveWanderSearch={isWanderShell}
-        activeTab={(activeTab === 'trips' || activeTab === 'stays' || activeTab === 'activities' || activeTab === 'rentals') ? activeTab : undefined}
+        activeTab={(shownTab === 'trips' || shownTab === 'stays' || shownTab === 'activities' || shownTab === 'rentals') ? shownTab : undefined}
       />
 
       <FilterDrawer
         isOpen={filterDrawerOpen}
         onClose={() => setFilterDrawerOpen(false)}
-        params={params}
-        activeTab={activeTab}
-        resultCount={resultCount}
-        isLoading={isLoading}
+        params={effectiveParams}
+        activeTab={shownTab}
+        resultCount={totalCount}
+        isLoading={optimistic}
         maxPackagePrice={maxPackagePrice}
         basePath={basePath}
         preserveWanderSearch={isWanderShell}
-        onNavigationStart={onExploreNavigationStart}
       />
     </div>
   )

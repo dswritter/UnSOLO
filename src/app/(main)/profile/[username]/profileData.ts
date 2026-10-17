@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
 import { visitedPlaces } from '@/lib/profile/publicProfileSummary'
 
@@ -16,21 +16,51 @@ export type HostedListing = { id: string; title: string; href: string; kind: str
  */
 export const loadTravelActivity = cache(async (profileId: string) => {
   const supabase = await createClient()
-  const { data, count } = await supabase
-    .from('bookings')
-    .select('id, travel_date, status, package:packages(title, slug, destination:destinations(name, state))', { count: 'exact' })
-    .eq('user_id', profileId)
-    .in('status', ['confirmed', 'completed'])
-    .order('travel_date', { ascending: false })
-    .limit(50)
-  const bookings = (data ?? []) as unknown as ProfileBooking[]
+  const select = 'id, travel_date, status, package:packages(title, slug, destination:destinations(name, state))'
+  const [ownRes, claimed] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select(select, { count: 'exact' })
+      .eq('user_id', profileId)
+      .in('status', ['confirmed', 'completed'])
+      .order('travel_date', { ascending: false })
+      .limit(50),
+    loadClaimedTripBookings(profileId, select),
+  ])
+  const own = (ownRes.data ?? []) as unknown as ProfileBooking[]
+  const ownIds = new Set(own.map(b => b.id))
+  const extra = claimed.filter(b => !ownIds.has(b.id))
+  const bookings = [...own, ...extra].sort((a, b) => (b.travel_date || '').localeCompare(a.travel_date || ''))
   return {
-    tripsCount: count ?? bookings.length,
+    tripsCount: (ownRes.count ?? own.length) + extra.length,
     bookings,
     completed: bookings.filter(b => b.status === 'completed').slice(0, 10),
     states: visitedPlaces(bookings).states,
   }
 })
+
+/**
+ * Trips someone else booked where this user is an approved companion (trip
+ * claim). Bookings of other users are RLS-hidden, so read with the service
+ * role — only public trip fields are selected.
+ */
+async function loadClaimedTripBookings(profileId: string, select: string): Promise<ProfileBooking[]> {
+  try {
+    const svc = createServiceRoleClient()
+    const { data: claims } = await svc
+      .from('trip_traveller_claims')
+      .select('booking_id')
+      .eq('claimant_id', profileId)
+      .eq('status', 'approved')
+      .limit(50)
+    const ids = (claims ?? []).map(c => c.booking_id as string)
+    if (!ids.length) return []
+    const { data } = await svc.from('bookings').select(select).in('id', ids).in('status', ['confirmed', 'completed'])
+    return (data ?? []) as unknown as ProfileBooking[]
+  } catch {
+    return []
+  }
+}
 
 export const loadLeaderboard = cache(async (profileId: string) => {
   const supabase = await createClient()

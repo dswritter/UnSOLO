@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { ensureTripChatRoom, addTripChatMember } from '@/lib/chat/tripChatMembership'
+import { refreshTravelStatsForUser } from '@/lib/travel/refreshTravelStats'
 import type { TripTravellerClaim, Booking } from '@/types'
 
 const STAFF_ROLES = ['admin', 'super_admin', 'social_media_manager', 'field_person', 'chat_responder']
@@ -287,7 +288,7 @@ export async function processTripClaim(claimId: string, approve: boolean, note?:
   if (!claim) return { error: 'Request not found' }
   if (claim.status !== 'pending') return { error: 'This request has already been resolved.' }
 
-  const { data: booking } = await svc.from('bookings').select('id, user_id, package_id').eq('id', claim.booking_id).single()
+  const { data: booking } = await svc.from('bookings').select('id, user_id, package_id, status').eq('id', claim.booking_id).single()
   if (!booking) return { error: 'Booking not found' }
   const { data: pkg } = await svc.from('packages').select('id, title, host_id').eq('id', claim.package_id).single()
 
@@ -325,6 +326,9 @@ export async function processTripClaim(claimId: string, approve: boolean, note?:
       await svc.from('reviews').update({ status: 'approved', denial_reason: null }).eq('id', claim.linked_review_id)
       await bumpReviewStatsForUser(svc, claim.claimant_id)
     }
+
+    // Companion travelled on a completed trip → trip count, states, first_trip badge.
+    if (booking.status === 'completed') await refreshTravelStatsForUser(svc, claim.claimant_id)
 
     await svc.from('notifications').insert({
       user_id: claim.claimant_id,

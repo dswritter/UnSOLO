@@ -1,8 +1,8 @@
-import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, BadgeCheck, ChevronRight, Crown, MapPin, Medal, Mountain, Quote, Star } from 'lucide-react'
+import { ArrowRight, BadgeCheck, ChevronRight, Crown, MapPin, Medal, Quote, Star } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { WanderCarousel } from '@/components/wander/WanderCarousel'
+import { WanderCoverImage } from '@/components/wander/WanderCoverImage'
 import { WanderMyLeaderboardRank } from '@/components/wander/WanderDiscoveryClient'
 import { getInitials } from '@/lib/utils'
 import { wanderSearchHref } from '@/lib/routing/wanderLandingPath'
@@ -14,26 +14,8 @@ import {
   getWanderVibeBuckets,
 } from '@/lib/wander/wanderQueries'
 
-const OPTIMIZED_IMAGE_HOSTS = [/\.supabase\.co$/, /^images\.unsplash\.com$/, /^lh3\.googleusercontent\.com$/, /^avatars\.githubusercontent\.com$/]
-
-/** next/image only optimises allowlisted hosts; anything else (admin-pasted URLs) renders unoptimised. */
-function canOptimize(url: string): boolean {
-  try {
-    const { protocol, hostname } = new URL(url)
-    return protocol === 'https:' && OPTIMIZED_IMAGE_HOSTS.some(re => re.test(hostname))
-  } catch {
-    return false
-  }
-}
-
-function CoverImage({ src, sizes }: { src: string | null; sizes: string }) {
-  if (!src) {
-    return <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/25 via-primary/10 to-transparent">
-      <Mountain className="h-10 w-10 text-primary/40" />
-    </div>
-  }
-  return <Image src={src} alt="" fill sizes={sizes} unoptimized={!canOptimize(src)}
-    className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none" />
+function CoverImage(props: { src: string | null; fallbackSrc?: string | null; sizes: string }) {
+  return <WanderCoverImage {...props} />
 }
 
 function DiscoveryHeader({ eyebrow, title, subtitle, href, actionLabel = 'View all' }: {
@@ -47,8 +29,8 @@ function DiscoveryHeader({ eyebrow, title, subtitle, href, actionLabel = 'View a
     <div className="mb-4 flex items-end justify-between gap-4">
       <div className="min-w-0">
         {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">{eyebrow}</p> : null}
-        <h2 className="text-xl font-black tracking-tight md:text-2xl">{title}</h2>
-        {subtitle ? <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p> : null}
+        <h2 className="text-lg font-extrabold tracking-tight md:text-xl">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-xs text-muted-foreground md:text-sm">{subtitle}</p> : null}
       </div>
       {href ? (
         <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-primary hover:underline">
@@ -59,7 +41,7 @@ function DiscoveryHeader({ eyebrow, title, subtitle, href, actionLabel = 'View a
   )
 }
 
-const sectionClass = 'mt-10 md:mt-14'
+const sectionClass = 'mt-7 border-t border-border/45 pt-7 md:mt-9 md:pt-9'
 const tripsLabel = (n: number) => `${n} trip${n === 1 ? '' : 's'}`
 
 export async function WanderVibesSection() {
@@ -96,7 +78,7 @@ export async function WanderRegionsSection() {
         {regions.map((region, i) => (
           <Link key={region.key} href={wanderSearchHref({ tab: 'trips', q: region.query })}
             className={`group relative isolate flex flex-col justify-end overflow-hidden rounded-2xl border border-foreground/10 p-4 shadow-sm ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
-            <CoverImage src={region.imageUrl} sizes={i === 0 ? '(min-width: 768px) 50vw, 100vw' : '(min-width: 768px) 25vw, 50vw'} />
+            <CoverImage src={region.imageUrl} fallbackSrc={region.fallbackImageUrl} sizes={i === 0 ? '(min-width: 768px) 50vw, 100vw' : '(min-width: 768px) 25vw, 50vw'} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="relative flex items-end justify-between gap-2 text-white">
               <div className="min-w-0">

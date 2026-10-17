@@ -23,7 +23,7 @@ export function WanderHowItWorks() {
   const { userId, loading } = useAuth()
   if (loading || userId) return null
   return (
-    <section aria-labelledby="wander-how-it-works" className="mt-10 md:mt-14">
+    <section aria-labelledby="wander-how-it-works" className="mt-7 border-t border-border/45 pt-7 md:mt-9 md:pt-9">
       <div className="wander-frost-panel p-5 md:p-8">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">New here?</p>
         <h2 id="wander-how-it-works" className="mt-1 text-xl font-black tracking-tight md:text-2xl">How UnSOLO works</h2>
