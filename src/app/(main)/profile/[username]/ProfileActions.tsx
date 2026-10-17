@@ -1,30 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { UserPlus, UserMinus, MessageCircle, X } from 'lucide-react'
-import { followUser, unfollowUser, startDirectMessage } from '@/actions/profile'
+import { followUser, unfollowUser, startDirectMessage, getFollowList, type FollowListUser } from '@/actions/profile'
 import { getInitials } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { useFollowersCount } from './FollowersCountContext'
 
-type FollowUser = {
-  id: string
-  username: string
-  full_name: string | null
-  avatar_url: string | null
-}
-
 interface ProfileActionsProps {
   profileId: string
   isFollowing: boolean
   isLoggedIn: boolean
-  initialFollowingCount: number
-  followers: FollowUser[]
-  following: FollowUser[]
 }
 
 export function ProfileActions({
@@ -103,63 +94,72 @@ export function ProfileActions({
   )
 }
 
-/* Follow counts component — used for both own and other profiles */
+type FollowKind = 'followers' | 'following'
+
+/* Follow counts with an on-demand list modal — used for own and other profiles. */
 export function OwnProfileFollowCounts({
-  followersCount: initialFollowersCount,
-  followingCount,
-  followers,
-  following,
-  isOtherProfile = false,
   profileId,
-  isFollowing,
+  followersCount,
+  followingCount,
 }: {
+  profileId: string
   followersCount: number
   followingCount: number
-  followers: FollowUser[]
-  following: FollowUser[]
-  isOtherProfile?: boolean
-  profileId?: string
-  isFollowing?: boolean
 }) {
-  const [showModal, setShowModal] = useState<'followers' | 'following' | null>(null)
-  // On other profiles this is rendered inside a FollowersCountProvider (see
-  // ProfileUsernameDetail) so it reflects the Follow button's optimistic toggle
-  // instantly instead of only the array length from the initial server render.
+  const [showModal, setShowModal] = useState<FollowKind | null>(null)
+  const [lists, setLists] = useState<Partial<Record<FollowKind, FollowListUser[]>>>({})
+  const [loadingKind, setLoadingKind] = useState<FollowKind | null>(null)
+  // Shares the Follow button's optimistic count when rendered inside FollowersCountProvider.
   const followersCountCtx = useFollowersCount()
+  const displayFollowersCount = followersCountCtx?.count ?? followersCount
 
-  // For other profiles, prefer the shared live count; fall back to followers array length.
-  const displayFollowersCount =
-    initialFollowersCount === -1
-      ? (followersCountCtx?.count ?? followers.length)
-      : initialFollowersCount
+  async function open(kind: FollowKind) {
+    setShowModal(kind)
+    if (lists[kind]) return
+    setLoadingKind(kind)
+    try {
+      const users = await getFollowList(profileId, kind)
+      setLists(prev => ({ ...prev, [kind]: users }))
+    } catch {
+      toast.error('Could not load the list')
+    } finally {
+      setLoadingKind(null)
+    }
+  }
+
+  const users = showModal ? lists[showModal] : undefined
 
   return (
     <>
       <div className="flex gap-4 mb-3 text-sm">
-        <button onClick={() => setShowModal('followers')} className="hover:text-primary transition-colors">
+        <button type="button" onClick={() => void open('followers')} className="hover:text-primary transition-colors">
           <strong className="text-foreground">{displayFollowersCount}</strong> <span className="text-muted-foreground">followers</span>
         </button>
-        <button onClick={() => setShowModal('following')} className="hover:text-primary transition-colors">
+        <button type="button" onClick={() => void open('following')} className="hover:text-primary transition-colors">
           <strong className="text-foreground">{followingCount}</strong> <span className="text-muted-foreground">following</span>
         </button>
       </div>
 
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowModal(null)}>
-          <div className="bg-card border border-border rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label={showModal} className="bg-card border border-border rounded-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <h3 className="font-bold text-sm capitalize">{showModal}</h3>
-              <button onClick={() => setShowModal(null)} className="text-muted-foreground hover:text-foreground">
+              <button type="button" onClick={() => setShowModal(null)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="max-h-80 overflow-y-auto">
-              {(showModal === 'followers' ? followers : following).length === 0 ? (
+              {!users && loadingKind === showModal ? (
+                <div className="flex justify-center px-4 py-8 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading" />
+                </div>
+              ) : !users || users.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No {showModal} yet
                 </div>
               ) : (
-                (showModal === 'followers' ? followers : following).map((user) => (
+                users.map((user) => (
                   <Link
                     key={user.id}
                     href={`/profile/${user.username}`}

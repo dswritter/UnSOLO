@@ -368,32 +368,48 @@ export async function unfollowUser(targetUserId: string) {
 
 export async function getFollowData(profileId: string, viewerUserId: string | null) {
   const supabase = await createClient()
+  const viewerChecks = viewerUserId && viewerUserId !== profileId
 
-  const [
-    { count: followersCount },
-    { count: followingCount },
-    { data: followers },
-    { data: following },
-  ] = await Promise.all([
-    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profileId),
-    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profileId),
-    supabase.from('follows').select('*, follower:profiles!follows_follower_id_fkey(id, username, full_name, avatar_url)').eq('following_id', profileId).limit(50),
-    supabase.from('follows').select('*, following:profiles!follows_following_id_fkey(id, username, full_name, avatar_url)').eq('follower_id', profileId).limit(50),
+  const [followersRes, followingRes, isFollowingRes, followsYouRes] = await Promise.all([
+    supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', profileId),
+    supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', profileId),
+    viewerChecks
+      ? supabase.from('follows').select('id').eq('follower_id', viewerUserId).eq('following_id', profileId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    viewerChecks
+      ? supabase.from('follows').select('id').eq('follower_id', profileId).eq('following_id', viewerUserId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ])
 
-  let isFollowing = false
-  if (viewerUserId) {
-    const { data } = await supabase.from('follows').select('id').eq('follower_id', viewerUserId).eq('following_id', profileId).single()
-    isFollowing = !!data
-  }
-
   return {
-    followersCount: followersCount || 0,
-    followingCount: followingCount || 0,
-    followers: followers || [],
-    following: following || [],
-    isFollowing,
+    followersCount: followersRes.count || 0,
+    followingCount: followingRes.count || 0,
+    isFollowing: Boolean(isFollowingRes.data),
+    followsYou: Boolean(followsYouRes.data),
   }
+}
+
+export type FollowListUser = { id: string; username: string; full_name: string | null; avatar_url: string | null }
+
+/** Loaded on demand when the followers/following modal opens. */
+export async function getFollowList(profileId: string, kind: 'followers' | 'following'): Promise<FollowListUser[]> {
+  const supabase = await createClient()
+  if (kind === 'followers') {
+    const { data } = await supabase
+      .from('follows')
+      .select('follower:profiles!follows_follower_id_fkey(id, username, full_name, avatar_url)')
+      .eq('following_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    return (data ?? []).map(r => r.follower as unknown as FollowListUser | null).filter((u): u is FollowListUser => Boolean(u))
+  }
+  const { data } = await supabase
+    .from('follows')
+    .select('following:profiles!follows_following_id_fkey(id, username, full_name, avatar_url)')
+    .eq('follower_id', profileId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  return (data ?? []).map(r => r.following as unknown as FollowListUser | null).filter((u): u is FollowListUser => Boolean(u))
 }
 
 // ── Direct Messaging ─────────────────────────────────────────

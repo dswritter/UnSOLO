@@ -1,28 +1,28 @@
+import { Suspense } from 'react'
+import Link from 'next/link'
+import { CalendarDays, CheckCircle, Globe, Instagram, Lock, MapPin, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { TravelStats } from '@/components/profile/TravelStats'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProfileAvatarWithStatusMenu } from '@/components/profile/ProfileAvatarWithStatusMenu'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { MapPin, Star, Trophy, BookOpen, Instagram, Globe, CheckCircle, Lock, Phone } from 'lucide-react'
-import { getInitials, formatDate } from '@/lib/utils'
-import Link from 'next/link'
-import { ACHIEVEMENTS } from '@/types'
+import { getInitials } from '@/lib/utils'
 import type { Profile } from '@/types'
 import { getFollowData } from '@/actions/profile'
+import { getStatusStoriesForProfile } from '@/actions/statusStories'
+import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
+import { APP_URL } from '@/lib/constants'
+import { firstName, joinedLabel } from '@/lib/profile/publicProfileSummary'
 import { ProfileActions, OwnProfileFollowCounts } from './ProfileActions'
-import { ProfileSectionTabs } from '@/components/profile/ProfileSectionTabs'
 import { FollowersCountProvider } from './FollowersCountContext'
 import { PhoneRequestButton } from './PhoneRequestButton'
-import { ProfileStatusRail } from '@/components/status/ProfileStatusRail'
-import { getStatusStoriesForProfile } from '@/actions/statusStories'
-import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
-import { StatesExploredCard } from '@/components/profile/StatesExploredCard'
-import { LeaderboardRankLinkLabel, LeaderboardRankRowIcon } from '@/components/leaderboard/RankDisplay'
-import { ProfileSharePosterButton } from '@/components/profile/ProfileSharePoster'
-import { APP_URL } from '@/lib/constants'
-import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
+import {
+  loadAchievementKeys, loadHostedListings, loadLeaderboard, loadReviews, loadTravelActivity, loadViewerPlaces,
+} from './profileData'
+import {
+  ProfileActivity, ProfileActivitySkeleton, ProfileHighlights, ProfileHighlightsSkeleton,
+  ProfileShareFallback, ProfileShareSlot, ProfileSidebar, ProfileSidebarSkeleton, type ProfileSectionContext,
+} from './ProfileSections'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -44,560 +44,224 @@ export async function ProfileUsernameDetail({
   sharePosterShareTitle: string
   sharePosterShareText: string
 }) {
-  const supabase = await createClient()
   const isOwnProfile = viewerUserId === profile.id
+  const displayName = profile.full_name || profile.username
 
-  const statsBundlePromise = Promise.all([
-    supabase.from('bookings').select('*', { count: 'exact', head: true })
-      .eq('user_id', profile.id).in('status', ['confirmed', 'completed']),
-    supabase.from('user_achievements').select('*').eq('user_id', profile.id),
-    supabase.from('leaderboard_scores').select('*').eq('user_id', profile.id).single(),
-    supabase.from('reviews').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).order('created_at', { ascending: false }).limit(10),
-    supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).eq('status', 'completed').order('travel_date', { ascending: false }).limit(10),
-    supabase.from('bookings').select('*, package:packages(title, slug, destination:destinations(name, state))').eq('user_id', profile.id).in('status', ['confirmed', 'completed']).order('travel_date', { ascending: false }).limit(20),
-    supabase.from('service_listings').select('id, title, type, slug, destination:destinations(name, state)').eq('host_id', profile.id).eq('is_active', true).or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)').limit(6),
-    supabase.from('packages').select('id, title, slug, destination:destinations(name, state)').eq('host_id', profile.id).eq('is_active', true).limit(6),
-  ])
+  // Start the streamed sections' queries now so they overlap with the header's.
+  void loadTravelActivity(profile.id)
+  void loadLeaderboard(profile.id)
+  void loadAchievementKeys(profile.id)
+  void loadReviews(profile.id)
+  void loadHostedListings(profile.id)
+  if (viewerUserId && !isOwnProfile) void loadViewerPlaces(viewerUserId)
 
-  const [statusStoriesVisible, statsBundle, followData] = await Promise.all([
+  const needsPhoneRequest = Boolean(!isOwnProfile && profile.phone_number && viewerUserId && profile.phone_public !== true)
+  const [statusStories, followData, phoneRequestStatus] = await Promise.all([
     getStatusStoriesForProfile(profile.id, viewerUserId),
-    statsBundlePromise,
     getFollowData(profile.id, viewerUserId),
-  ])
-
-  const profileHasActiveStatus = statusStoriesVisible.length > 0
-
-  const [
-    { count: tripsCount },
-    { data: achievements },
-    { data: leaderboardScore },
-    { data: reviews },
-    { data: completedBookings },
-    { data: confirmedBookings },
-    { data: serviceListings },
-    { data: packages },
-  ] = statsBundle
-
-  const earnedKeys = new Set(achievements?.map((a) => a.achievement_key) || [])
-
-  const leaderboardScoreNum = leaderboardScore?.total_score
-
-  const [reverseFollowRes, myBookingsRes, phoneReqRes, leaderboardRank] = await Promise.all([
-    viewerUserId && !isOwnProfile
-      ? supabase
-          .from('follows')
-          .select('id')
-          .eq('follower_id', profile.id)
-          .eq('following_id', viewerUserId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    viewerUserId && !isOwnProfile
-      ? supabase
-          .from('bookings')
-          .select('package:packages(destination:destinations(name, state))')
-          .eq('user_id', viewerUserId)
-          .eq('status', 'completed')
-      : Promise.resolve({ data: null }),
-    !isOwnProfile && profile.phone_number && viewerUserId && profile.phone_public !== true
-      ? supabase
-          .from('phone_requests')
-          .select('status')
-          .eq('requester_id', viewerUserId)
-          .eq('target_id', profile.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    typeof leaderboardScoreNum === 'number'
-      ? getLeaderboardRankByScore(supabase, leaderboardScoreNum)
+    needsPhoneRequest
+      ? createClient().then(async (supabase) => {
+          const { data } = await supabase
+            .from('phone_requests')
+            .select('status')
+            .eq('requester_id', viewerUserId!)
+            .eq('target_id', profile.id)
+            .maybeSingle()
+          return (data?.status as string | undefined) ?? null
+        })
       : Promise.resolve(null),
   ])
 
-  const followsYou = Boolean(reverseFollowRes.data)
-
-  let mutualDestinations: string[] = []
-  if (viewerUserId && !isOwnProfile) {
-    const myBookings = myBookingsRes.data
-    const myDestKeys = new Set(
-      (myBookings || []).map(b => {
-        const dest = (b.package as { destination?: { name: string; state: string } } | null)?.destination
-        return dest ? `${dest.name}, ${dest.state}` : null
-      }).filter(Boolean) as string[],
-    )
-    const theirDestKeys = (confirmedBookings || []).map(b => {
-      const dest = (b.package as { destination?: { name: string; state: string } } | null)?.destination
-      return dest ? `${dest.name}, ${dest.state}` : null
-    }).filter(Boolean) as string[]
-    mutualDestinations = [...new Set(theirDestKeys.filter(d => myDestKeys.has(d)))]
-  }
-
-  let phoneVisible = false
-  let phoneNumber: string | null = profile.phone_number || null
-  let phoneRequestStatus: string | null = null
-  if (!isOwnProfile && phoneNumber) {
-    if (profile.phone_public === true) {
-      phoneVisible = true
-    } else if (viewerUserId) {
-      const req = phoneReqRes.data as { status?: string } | null
-      phoneRequestStatus = req?.status || null
-      phoneVisible = req?.status === 'approved'
-    }
-  }
-
-  const followerUsers = (followData.followers || []).map((f: Record<string, unknown>) => {
-    const u = f.follower as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-    return u
-  }).filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
-
-  const followingUsers = (followData.following || []).map((f: Record<string, unknown>) => {
-    const u = f.following as { id: string; username: string; full_name: string | null; avatar_url: string | null } | null
-    return u
-  }).filter(Boolean) as { id: string; username: string; full_name: string | null; avatar_url: string | null }[]
+  const phoneNumber = !isOwnProfile ? profile.phone_number || null : null
+  const phoneVisible = Boolean(phoneNumber && (profile.phone_public === true || phoneRequestStatus === 'approved'))
 
   const statusText = profile.status_text || 'Still deciding my next trip'
   const statusVisibility = profile.status_visibility || 'public'
   const canSeeStatus = statusVisibility === 'public' || isOwnProfile || followData.isFollowing
 
-  const tripsPrivate = Boolean(profile.trips_private && !isOwnProfile)
-  const statesPrivate = Boolean(profile.states_private && !isOwnProfile)
-
-  const uniqueStates = new Set<string>()
-  ;(confirmedBookings || []).forEach((b) => {
-    const dest = (b.package as { destination?: { state: string } } | null)?.destination
-    if (dest?.state) uniqueStates.add(dest.state)
-  })
-
-  const statItems = [
-    { icon: BookOpen, label: 'Trips', value: tripsCount || 0, private: tripsPrivate },
-    { icon: MapPin, label: 'States', value: uniqueStates.size || leaderboardScore?.destinations_count || 0, private: statesPrivate },
-    { icon: Star, label: 'Reviews', value: leaderboardScore?.reviews_written || 0, private: false },
-    { icon: Trophy, label: 'Score', value: leaderboardScore?.total_score || 0, private: false },
-  ] as const
-
-  const badgesCard = (
-    <Card className="bg-card border-border">
-      <CardContent className="p-5">
-        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-primary" /> Badges
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          {ACHIEVEMENTS.map((achievement) => {
-            const earned = earnedKeys.has(achievement.key)
-            return (
-              <div
-                key={achievement.key}
-                className={`p-3.5 rounded-xl border text-center transition-opacity ${
-                  earned
-                    ? 'border-primary/30 bg-primary/10'
-                    : 'border-border bg-secondary/50 opacity-40'
-                }`}
-                title={achievement.description}
-              >
-                <div className="text-3xl mb-1.5">{earned ? achievement.icon : '\u{1F512}'}</div>
-                <div className="text-sm font-medium leading-snug">{achievement.name}</div>
-              </div>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  const statsGrid = (
-    <div className="grid grid-cols-4 gap-3">
-      {statItems.map(({ icon: Icon, label, value, private: isPrivate }) => (
-        <div key={label} className="text-center">
-          <Icon className="h-4 w-4 text-primary mx-auto mb-1" />
-          <div className="text-xl font-black text-primary flex items-center justify-center gap-1">
-            {value}
-            {isPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-          </div>
-          <div className="text-xs text-muted-foreground">{label}</div>
-        </div>
-      ))}
-    </div>
-  )
-
-  const leaderboardRankRow =
-    leaderboardRank != null ? (
-      <div className="mt-4 flex items-center justify-between gap-2 rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
-        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <LeaderboardRankRowIcon rank={leaderboardRank} />
-          Leaderboard rank
-        </span>
-        <Link
-          href="/leaderboard"
-          className="text-sm font-black text-primary hover:underline tabular-nums inline-flex items-center"
-        >
-          <LeaderboardRankLinkLabel rank={leaderboardRank} />
-        </Link>
-      </div>
-    ) : null
-
-  const visitedStatesList = Array.from(uniqueStates)
-
-  const profileShareUrl = `${APP_URL.replace(/\/$/, '')}/profile/${profile.username}`
-  const sharePosterTrips =
-    !tripsPrivate && completedBookings
-      ? completedBookings.map((booking) => {
-          const pkg = booking.package as {
-            title: string
-            destination?: { name: string; state: string }
-          } | null
-          const place = [pkg?.destination?.name, pkg?.destination?.state].filter(Boolean).join(', ')
-          return {
-            title: pkg?.title || 'Trip',
-            place: place || 'India',
-            date: formatDate(booking.travel_date),
-          }
-        })
-      : []
-
-  const achievementsHeading = (
-    <div className="achievements-stats-wrap rounded-xl border border-border/80 bg-secondary/20 px-3 py-2.5">
-      <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-muted-foreground">
-        Achievements & stats
-      </p>
-    </div>
-  )
-
+  const ctx: ProfileSectionContext = {
+    profileId: profile.id,
+    username: profile.username,
+    displayName,
+    first: firstName(profile.full_name, profile.username),
+    avatarUrl: profile.avatar_url,
+    isOwnProfile,
+    viewerUserId,
+    tripsPrivate: Boolean(profile.trips_private && !isOwnProfile),
+    statesPrivate: Boolean(profile.states_private && !isOwnProfile),
+    completeness: profile,
+  }
+  const joined = joinedLabel(profile.created_at)
+  const initials = getInitials(displayName)
 
   return (
-    <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 sm:px-6 lg:px-10 xl:px-12 py-10">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:gap-8 xl:gap-10 lg:items-start">
+    <div className="mx-auto w-full max-w-[min(100%,88rem)] px-4 py-6 sm:px-6 sm:py-10 lg:px-10 xl:px-12">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-10 lg:items-start lg:gap-8 xl:gap-10">
         <div className="min-w-0 space-y-6 lg:col-span-7">
-          <div className="overflow-hidden bg-card border border-border rounded-2xl p-6 md:p-8">
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
             <div
               aria-hidden
-              className="-mx-6 -mt-6 mb-[-2.5rem] h-28 bg-[radial-gradient(600px_200px_at_80%_0%,rgba(252,186,3,0.35),transparent_60%),linear-gradient(120deg,#1b2436,#3b4a6b_55%,#7a8fb5)] md:-mx-8 md:-mt-8 md:h-36"
+              className="h-24 bg-[radial-gradient(600px_200px_at_80%_0%,rgba(252,186,3,0.35),transparent_60%),linear-gradient(120deg,#1b2436,#3b4a6b_55%,#7a8fb5)] md:h-32"
             />
-            <div className="relative flex flex-col sm:flex-row gap-6 items-start sm:[&>*:not(:first-child)]:pt-12">
-              {profile.avatar_url && viewerUserId ? (
-                <ProfileAvatarWithStatusMenu
-                  src={profile.avatar_url}
-                  fallback={getInitials(profile.full_name || profile.username)}
-                  hasActiveStatus={profileHasActiveStatus}
-                  statusStories={statusStoriesVisible}
-                  currentUserId={viewerUserId}
-                />
-              ) : profile.avatar_url ? (
-                <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0">
-                  <AvatarImage src={profile.avatar_url} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
-                    {getInitials(profile.full_name || profile.username)}
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <Avatar className="h-24 w-24 border-2 border-primary/40 flex-shrink-0">
-                  <AvatarFallback className="bg-primary/20 text-primary text-2xl font-black">
-                    {getInitials(profile.full_name || profile.username)}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-
+            <div className="px-5 pb-5 md:px-8 md:pb-7">
               <FollowersCountProvider initialCount={followData.followersCount}>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
-                  <div>
-                    <h1 className="text-2xl font-black flex items-center gap-2">
-                      {profile.full_name || profile.username}
-                      {profile.is_verified && (
-                        <CheckCircle className="h-5 w-5 text-primary fill-primary/20" />
-                      )}
-                    </h1>
-                    <p className="text-muted-foreground">@{profile.username}</p>
+                <div className="relative -mt-12">
+                <div className="w-fit">
+                  <div className="rounded-full bg-card p-1">
+                    {profile.avatar_url && viewerUserId ? (
+                      <ProfileAvatarWithStatusMenu
+                        src={profile.avatar_url}
+                        fallback={initials}
+                        hasActiveStatus={statusStories.length > 0}
+                        statusStories={statusStories}
+                        currentUserId={viewerUserId}
+                      />
+                    ) : (
+                      <Avatar className="h-24 w-24 border-2 border-primary/40">
+                        {profile.avatar_url ? <AvatarImage src={profile.avatar_url} alt="" /> : null}
+                        <AvatarFallback className="bg-primary/15 text-2xl font-black text-primary">{initials}</AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    <ProfileSharePosterButton
-                      displayName={profile.full_name || profile.username}
-                      username={profile.username}
-                      profileUrl={profileShareUrl}
-                      avatarUrl={profile.avatar_url}
-                      avatarInitials={getInitials(profile.full_name || profile.username)}
-                      trips={tripsCount ?? 0}
-                      states={uniqueStates.size || leaderboardScore?.destinations_count || 0}
-                      reviews={leaderboardScore?.reviews_written || 0}
-                      score={leaderboardScore?.total_score || 0}
-                      leaderboardRank={leaderboardRank}
-                      tripsStatHidden={tripsPrivate}
-                      statesStatHidden={statesPrivate}
-                      visitedStates={visitedStatesList}
-                      statesMapHidden={statesPrivate}
-                      tripsHidden={tripsPrivate}
-                      tripsList={sharePosterTrips}
-                      footerTagline={sharePosterFooterTagline}
-                      shareTitleTemplate={sharePosterShareTitle}
-                      shareTextTemplate={sharePosterShareText}
-                      earnedAchievementKeys={[...earnedKeys]}
-                    />
+                </div>
+
+                <div className="mt-3 min-w-0">
+                  <h1 className="flex flex-wrap items-center gap-2 text-2xl font-black leading-tight">
+                    <span className="break-words">{displayName}</span>
+                    {profile.is_verified ? <CheckCircle className="h-5 w-5 fill-primary/20 text-primary" aria-label="Verified" /> : null}
+                    {profile.is_host ? (
+                      <Badge variant="outline" className="border-primary/40 text-[10px] font-semibold uppercase tracking-wide text-primary">Host</Badge>
+                    ) : null}
+                  </h1>
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span>@{profile.username}</span>
+                    {joined ? (
+                      <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />{joined}</span>
+                    ) : null}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2 sm:absolute sm:right-0 sm:top-14 sm:mt-0 sm:justify-end">
+                    <Suspense fallback={<ProfileShareFallback />}>
+                      <ProfileShareSlot
+                        ctx={ctx}
+                        footerTagline={sharePosterFooterTagline}
+                        shareTitle={sharePosterShareTitle}
+                        shareText={sharePosterShareText}
+                        profileUrl={`${APP_URL.replace(/\/$/, '')}/profile/${profile.username}`}
+                      />
+                    </Suspense>
                     {isOwnProfile ? (
                       <Button variant="outline" size="sm" className="border-border" asChild>
-                        <Link href="/profile">Edit Profile</Link>
+                        <Link href="/profile">Edit profile</Link>
                       </Button>
                     ) : (
-                      <ProfileActions
-                        profileId={profile.id}
-                        isFollowing={followData.isFollowing}
-                        isLoggedIn={!!viewerUserId}
-                        initialFollowingCount={followData.followingCount}
-                        followers={followerUsers}
-                        following={followingUsers}
-                      />
+                      <ProfileActions profileId={profile.id} isFollowing={followData.isFollowing} isLoggedIn={!!viewerUserId} />
                     )}
                   </div>
+
+                  {!isOwnProfile && followData.followsYou && !followData.isFollowing ? (
+                    <p className="mt-2 inline-flex rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                      Follows you
+                    </p>
+                  ) : null}
+
+                  {profile.bio ? (
+                    <p className="mt-3 max-w-2xl whitespace-pre-line text-sm leading-relaxed text-foreground/85">{profile.bio}</p>
+                  ) : null}
+
+                  <div className="mt-3">
+                    <OwnProfileFollowCounts
+                      profileId={profile.id}
+                      followersCount={followData.followersCount}
+                      followingCount={followData.followingCount}
+                    />
+                  </div>
+
+                  {canSeeStatus && statusText ? (
+                    <p className="mb-3 flex items-center gap-1.5 text-sm italic text-muted-foreground">
+                      <span className="text-primary" aria-hidden="true">●</span> {statusText}
+                      {statusVisibility === 'followers' && !isOwnProfile ? (
+                        <span className="text-[10px] not-italic">(visible to followers)</span>
+                      ) : null}
+                    </p>
+                  ) : null}
+
+                  {(profile.location || profile.instagram_url || profile.website_url || phoneNumber) ? (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                      {profile.location ? (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.location)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 transition-colors hover:text-primary"
+                          title="Open in Google Maps"
+                        >
+                          <MapPin className="h-3.5 w-3.5 text-primary" /> {profile.location}
+                        </a>
+                      ) : null}
+                      {profile.instagram_url ? (
+                        <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 transition-colors hover:text-foreground">
+                          <Instagram className="h-3.5 w-3.5" /> Instagram
+                        </a>
+                      ) : null}
+                      {profile.website_url ? (
+                        <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 transition-colors hover:text-foreground">
+                          <Globe className="h-3.5 w-3.5" /> Website
+                        </a>
+                      ) : null}
+                      {phoneNumber ? (
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 text-primary" />
+                          {phoneVisible ? (
+                            <a href={`tel:${phoneNumber}`} className="transition-colors hover:text-primary">{phoneNumber}</a>
+                          ) : (
+                            <>
+                              <span>{phoneNumber.slice(0, 2)}****{phoneNumber.slice(-2)}</span>
+                              <Lock className="h-3 w-3" aria-hidden="true" />
+                              {phoneRequestStatus === 'pending' ? (
+                                <span className="text-[11px] text-amber-600 dark:text-amber-300">Request pending</span>
+                              ) : viewerUserId ? (
+                                <PhoneRequestButton targetId={profile.id} />
+                              ) : null}
+                            </>
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {profile.travel_style && profile.travel_style.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {profile.travel_style.map((style: string) => (
+                        <Badge key={style} variant="outline" className="border-border text-xs capitalize">{style}</Badge>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-
-                {profile.bio && (
-                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{profile.bio}</p>
-                )}
-
-                <OwnProfileFollowCounts
-                  followersCount={isOwnProfile ? followData.followersCount : -1}
-                  followingCount={followData.followingCount}
-                  followers={followerUsers}
-                  following={followingUsers}
-                  isOtherProfile={!isOwnProfile}
-                  profileId={profile.id}
-                  isFollowing={followData.isFollowing}
-                />
-
-                {canSeeStatus && statusText && (
-                  <div className="mb-3 text-sm text-muted-foreground italic flex items-center gap-1.5">
-                    <span className="text-primary">●</span> {statusText}
-                    {statusVisibility === 'followers' && !isOwnProfile && (
-                      <span className="text-[10px] text-zinc-500">(visible to followers)</span>
-                    )}
-                  </div>
-                )}
-
-                {!isOwnProfile && followsYou && !followData.isFollowing && (
-                  <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary font-medium">
-                    <span>Follows you</span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-muted-foreground">Follow back?</span>
-                  </div>
-                )}
-
-                {mutualDestinations.length > 0 && (
-                  <div className="mb-3 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/60 border border-border text-xs text-muted-foreground">
-                    <span>🌏</span>
-                    <span>You both traveled to <span className="text-foreground font-medium">{mutualDestinations.slice(0, 2).join(' & ')}{mutualDestinations.length > 2 ? ` +${mutualDestinations.length - 2} more` : ''}</span></span>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground mb-4">
-                  {profile.location && (
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile.location)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 hover:text-primary transition-colors"
-                      title="Open in Google Maps"
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-primary" /> {profile.location}
-                    </a>
-                  )}
-                  {profile.instagram_url && (
-                    <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      <Instagram className="h-3.5 w-3.5" /> Instagram
-                    </a>
-                  )}
-                  {profile.website_url && (
-                    <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors">
-                      <Globe className="h-3.5 w-3.5" /> Website
-                    </a>
-                  )}
                 </div>
-
-                {!isOwnProfile && phoneNumber && (
-                  <div className="flex items-center gap-2 text-sm mb-2">
-                    <Phone className="h-3.5 w-3.5 text-primary" />
-                    {phoneVisible ? (
-                      <a href={`tel:${phoneNumber}`} className="hover:text-primary transition-colors">{phoneNumber}</a>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{phoneNumber.slice(0, 2)}****{phoneNumber.slice(-2)}</span>
-                        <Lock className="h-3 w-3 text-zinc-500" />
-                        {phoneRequestStatus === 'pending' ? (
-                          <span className="text-[10px] text-yellow-400">Request pending</span>
-                        ) : phoneRequestStatus !== 'approved' && viewerUserId ? (
-                          <PhoneRequestButton targetId={profile.id} />
-                        ) : null}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {profile.travel_style && profile.travel_style.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {profile.travel_style.map((style: string) => (
-                      <Badge key={style} variant="outline" className="text-xs border-border capitalize">
-                        {style}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
               </FollowersCountProvider>
+
+              <div className="mt-5 border-t border-border pt-5">
+                <Suspense fallback={<ProfileHighlightsSkeleton />}>
+                  <ProfileHighlights ctx={ctx} />
+                </Suspense>
+              </div>
             </div>
-            <div className="mt-6 border-t border-border pt-5">
-              {statsGrid}
-              {leaderboardRankRow}
-            </div>
-          </div>
+          </section>
 
           {viewerUserId ? (
-            <ProfileStatusRail isOwn={isOwnProfile} stories={statusStoriesVisible} viewerId={viewerUserId} />
+            <ProfileStatusRail isOwn={isOwnProfile} stories={statusStories} viewerId={viewerUserId} />
           ) : null}
 
-          <ProfileSectionTabs
-            tabs={[
-              ...(completedBookings && completedBookings.length > 0
-                ? [{ id: 'trips', label: 'Trips', count: completedBookings.length, content: (
-                    <Card className="bg-card border-border">
-                      <CardContent className="p-5">
-                        <h2 className="font-bold mb-4 flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-primary" /> Travel History
-                          {tripsPrivate && <Lock className="h-3 w-3 text-muted-foreground" />}
-                        </h2>
-                        {tripsPrivate ? (
-                          <p className="text-sm text-muted-foreground">This user has made their travel history private.</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {completedBookings.map((booking) => {
-                              const pkg = booking.package as { title: string; slug: string; destination?: { name: string; state: string } } | null
-                              return (
-                                <Link key={booking.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
-                                  <div className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 transition-colors">
-                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-lg flex-shrink-0">
-                                      🏔️
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium truncate">{pkg?.title || 'Trip'}</div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {pkg?.destination?.name}, {pkg?.destination?.state} · {formatDate(booking.travel_date)}
-                                      </div>
-                                    </div>
-                                    <Badge className="text-xs bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
-                                  </div>
-                                </Link>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ) }]
-                : []),
-              ...(reviews && reviews.length > 0
-                ? [{ id: 'reviews', label: 'Reviews', count: reviews.length, content: (
-                    <Card className="bg-card border-border">
-                      <CardContent className="p-5">
-                        <h2 className="font-bold mb-4 flex items-center gap-2">
-                          <Star className="h-4 w-4 text-primary" /> Reviews
-                        </h2>
-                        <div className="space-y-4">
-                          {reviews.map((review) => {
-                            const pkg = review.package as { title: string; slug: string } | null
-                            return (
-                              <Link key={review.id} href={`/packages/${pkg?.slug || ''}`} target="_blank" rel="noopener noreferrer" className="block">
-                                <div className="border-b border-border pb-4 last:border-0 hover:bg-secondary/20 rounded-md px-2 -mx-2 py-2 transition-colors">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium">{pkg?.title}</span>
-                                    <div className="flex gap-0.5">
-                                      {Array.from({ length: 5 }).map((_, i) => (
-                                        <Star
-                                          key={i}
-                                          className={`h-3 w-3 ${i < review.rating ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
-                                        />
-                                      ))}
-                                    </div>
-                                  </div>
-                                  {review.body && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">{review.body}</p>
-                                  )}
-                                </div>
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) }]
-                : []),
-              ...(isOwnProfile && ((serviceListings?.length ?? 0) > 0 || (packages?.length ?? 0) > 0)
-                ? [{ id: 'listings', label: 'My listings', content: (
-                    <Card className="bg-card border-border">
-                      <CardContent className="p-5">
-                        <h2 className="font-bold mb-3 flex items-center gap-2">
-                          <BookOpen className="h-4 w-4 text-primary" /> My Listings
-                        </h2>
-                        <div className="space-y-2">
-                          {serviceListings?.map((listing) => {
-                            const dest = (listing.destination as unknown as { name: string; state: string } | null)
-                            return (
-                              <Link key={listing.id} href={`/listings/${listing.type}/${listing.slug}`} className="block">
-                                <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
-                                  <div className="text-sm">{listing.type === 'activities' ? '🎯' : listing.type === 'stays' ? '🏠' : listing.type === 'rentals' ? '🚗' : '✈️'}</div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium truncate">{listing.title}</div>
-                                    <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
-                                  </div>
-                                </div>
-                              </Link>
-                            )
-                          })}
-                          {packages?.map((pkg) => {
-                            const dest = (pkg.destination as unknown as { name: string; state: string } | null)
-                            return (
-                              <Link key={pkg.id} href={`/packages/${pkg.slug}`} className="block">
-                                <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-secondary/50 rounded transition-colors text-xs">
-                                  <div className="text-sm">🏔️</div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium truncate">{pkg.title}</div>
-                                    <div className="text-muted-foreground text-[11px]">{dest?.name}, {dest?.state}</div>
-                                  </div>
-                                </div>
-                              </Link>
-                            )
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ) }]
-                : []),
-            ]}
-          />
-
-
-
-
-          {(!completedBookings || completedBookings.length === 0) && (!reviews || reviews.length === 0) && (
-            <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground text-sm">
-                  {isOwnProfile ? 'Your travel story starts here. Explore destinations and book your next adventure!' : 'No trips completed yet.'}
-                </p>
-                {isOwnProfile && (
-                  <Button className="mt-4 bg-primary text-black font-bold" asChild>
-                    <Link href={WANDER_HOME_SEARCH_HREF}>Book Your Next Trip</Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <TravelStats userId={profile.id} isOwnProfile={isOwnProfile} deferToSidebar />
-
-          <div className="space-y-6 lg:hidden">
-            {achievementsHeading}
-            {badgesCard}
-            <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
-          </div>
+          <Suspense fallback={<ProfileActivitySkeleton />}>
+            <ProfileActivity ctx={ctx} />
+          </Suspense>
         </div>
 
-        <aside className="hidden min-w-0 lg:col-span-3 lg:flex lg:flex-col lg:gap-6 lg:sticky lg:top-20 xl:top-24 lg:self-start">
-          {achievementsHeading}
-          {badgesCard}
-          <StatesExploredCard visitedStates={visitedStatesList} statesPrivate={statesPrivate} />
+        <aside className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-6 lg:col-span-3 lg:self-start">
+          <Suspense fallback={<ProfileSidebarSkeleton />}>
+            <ProfileSidebar ctx={ctx} />
+          </Suspense>
         </aside>
       </div>
     </div>

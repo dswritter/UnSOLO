@@ -884,7 +884,7 @@ export function ProfileSharePosterButton(props: ProfileSharePosterProps) {
             variant="outline"
             size="sm"
             disabled={busy || preparingPoster}
-            className="border-border gap-1.5 min-w-[7.5rem]"
+            className="border-border gap-1.5 sm:min-w-[7.5rem]"
             onClick={() => void handleShareButtonClick()}
           >
             {busy || preparingPoster ? (

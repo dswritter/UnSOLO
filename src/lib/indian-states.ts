@@ -1,4 +1,4 @@
-/** Canonical list for profile / stats UI (aligned with TravelStats). */
+/** Canonical list for profile / stats UI. */
 export const INDIAN_STATES = [
   'Andhra Pradesh',
   'Arunachal Pradesh',
