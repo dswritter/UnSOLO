@@ -52,9 +52,9 @@ export async function getSidebarRooms(
       .eq('user_id', userId)
       .order('pinned_at', { ascending: false }),
   ])
-  if (membershipResult.error) throw membershipResult.error
-  if (generalResult.error) throw generalResult.error
-  if (pinsResult.error) throw pinsResult.error
+  if (membershipResult.error) console.error('getSidebarRooms: chat_room_members', membershipResult.error)
+  if (generalResult.error) console.error('getSidebarRooms: chat_rooms', generalResult.error)
+  if (pinsResult.error) console.error('getSidebarRooms: chat_sidebar_room_pins', pinsResult.error)
   const { data: memberRooms } = membershipResult
   const { data: generalRooms } = generalResult
   const { data: pinRows } = pinsResult

@@ -112,8 +112,8 @@ export function ChatSidebar({
       const loaded = pages.reduce((sum, page) => sum + page.rooms.length, 0)
       return loaded < lastPage.total && lastPage.rooms.length ? loaded : undefined
     },
-    initialData: filter === 'all' && rooms.length ? {
-      pages: [{ rooms, total: totalRoomCountProp ?? rooms.length, pinnedRoomIds: pinnedRoomIdsProp }],
+    initialData: filter === 'all' && totalRoomCountProp !== undefined ? {
+      pages: [{ rooms, total: totalRoomCountProp, pinnedRoomIds: pinnedRoomIdsProp }],
       pageParams: [0],
     } : undefined,
     staleTime: 60_000,
@@ -163,20 +163,23 @@ export function ChatSidebar({
   currentActiveRoomRef.current = currentActiveRoom
 
   useEffect(() => {
-    if (!currentActiveRoom || activeRoomPreview?.id === currentActiveRoom || localRooms.some(room => room.id === currentActiveRoom)) return
+    if (
+      !currentActiveRoom ||
+      conversations.isPending ||
+      activeRoomPreview?.id === currentActiveRoom ||
+      localRooms.some(room => room.id === currentActiveRoom)
+    ) return
     let cancelled = false
     void loadActiveSidebarRoom(currentActiveRoom).then(result => {
       if (cancelled) return
-      if (result.error) toast.error(result.error)
-      else setActiveRoomPreview(result.room)
+      if (result.room) setActiveRoomPreview(result.room)
     }).catch((error: unknown) => {
       if (!cancelled) {
         console.error('Unable to load active sidebar conversation', error)
-        toast.error('Unable to show the open conversation in the sidebar. Please retry.')
       }
     })
     return () => { cancelled = true }
-  }, [currentActiveRoom, localRooms, activeRoomPreview])
+  }, [currentActiveRoom, conversations.isPending, localRooms, activeRoomPreview])
 
   // Open room renders first; then warm the other conversations' messages one at a time.
   useEffect(() => {

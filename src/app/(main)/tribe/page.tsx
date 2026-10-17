@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
+import { getCachedSidebarRooms } from '@/lib/chat/getSidebarRooms'
 import { ChatSidebar } from '@/components/chat/ChatSidebar'
 import { CommunityIndexDesktopRedirect } from '@/components/chat/CommunityIndexDesktopRedirect'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
@@ -14,11 +15,20 @@ async function TribeIndexContent() {
   if (!user) redirect('/login')
 
   const messagingBasePath = await getMessagingBasePath()
+  const { rooms, total: totalRoomCount, pinnedRoomIds, mostRecentRoomId } = await getCachedSidebarRooms(user.id, { limit: 8, offset: 0 })
+  const firstRoomId = mostRecentRoomId ?? rooms[0]?.id ?? null
 
   return (
     <div className="flex flex-col h-full min-h-0 flex-1">
+      <CommunityIndexDesktopRedirect
+        roomId={firstRoomId}
+        listPath={messagingBasePath}
+        roomPathPrefix={messagingBasePath}
+      />
       <ChatSidebar
-        rooms={[]}
+        rooms={rooms}
+        totalRoomCount={totalRoomCount}
+        pinnedRoomIds={pinnedRoomIds}
         pageSize={8}
         viewerUserId={user.id}
         basePath={messagingBasePath}

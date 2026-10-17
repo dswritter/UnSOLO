@@ -10,10 +10,15 @@ const PAGE_SIZE = 8
 
 /** Resolve only from this viewer's permitted sidebar, never from an unrestricted room lookup. */
 export async function loadActiveSidebarRoom(roomId: string): Promise<{ room: SidebarRoom | null; error?: string }> {
-  const { supabase, user } = await getActionAuth()
-  if (!user) return { room: null, error: 'Not authenticated' }
-  const { rooms } = await getSidebarRooms(supabase, user.id, { limit: 1, offset: 0, roomId })
-  return { room: rooms.find(room => room.id === roomId) ?? null }
+  try {
+    const { supabase, user } = await getActionAuth()
+    if (!user) return { room: null, error: 'Not authenticated' }
+    const { rooms } = await getSidebarRooms(supabase, user.id, { limit: 1, offset: 0, roomId })
+    return { room: rooms.find(room => room.id === roomId) ?? null }
+  } catch (error) {
+    console.error('loadActiveSidebarRoom failed:', error)
+    return { room: null }
+  }
 }
 
 async function userCanPinRoom(
@@ -73,13 +78,18 @@ export async function loadMoreSidebarRooms(offset: number, type?: SidebarRoom['t
   mostRecentRoomId?: string | null
   error?: string
 }> {
-  const { supabase, user } = await getActionAuth()
-  if (!user) return { rooms: [], total: 0, pinnedRoomIds: [], error: 'Not authenticated' }
+  try {
+    const { supabase, user } = await getActionAuth()
+    if (!user) return { rooms: [], total: 0, pinnedRoomIds: [], error: 'Not authenticated' }
 
-  const { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId } = await getSidebarRooms(supabase, user.id, {
-    limit: PAGE_SIZE,
-    offset: Math.max(0, offset),
-    ...(type ? { type } : {}),
-  })
-  return { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId }
+    const { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId } = await getSidebarRooms(supabase, user.id, {
+      limit: PAGE_SIZE,
+      offset: Math.max(0, offset),
+      ...(type ? { type } : {}),
+    })
+    return { rooms, total, pinnedRoomIds, roomNameIndex, mostRecentRoomId }
+  } catch (error) {
+    console.error('loadMoreSidebarRooms failed:', error)
+    return { rooms: [], total: 0, pinnedRoomIds: [], error: 'Unable to load conversations' }
+  }
 }

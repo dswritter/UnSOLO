@@ -27,7 +27,7 @@ const general: SidebarRoom = { id: 'general-1', name: 'Budget Travel India', typ
 const page = (rooms: SidebarRoom[], total = rooms.length) => ({ rooms, total, pinnedRoomIds: [] })
 let client: QueryClient
 
-function mount(rooms: SidebarRoom[] = [], totalRoomCount = rooms.length) {
+function mount(rooms: SidebarRoom[] = [], totalRoomCount?: number) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(createElement(QueryClientProvider, { client },
     createElement(ChatSidebar, { rooms, totalRoomCount, viewerUserId: 'viewer' }),
