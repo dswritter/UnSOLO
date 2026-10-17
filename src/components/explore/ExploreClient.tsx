@@ -82,8 +82,6 @@ interface ExploreClientProps {
   pageVariant?: 'default' | 'wander'
   /** Shown when results omit the location/text filter because the strict search had no hits */
   searchFallback?: boolean
-  /** Rendering a cached home-row snapshot while the full result set streams in. */
-  previewPending?: boolean
 }
 
 export function ExploreClient({
@@ -101,7 +99,6 @@ export function ExploreClient({
   basePath = '/',
   pageVariant = 'default',
   searchFallback = false,
-  previewPending = false,
 }: ExploreClientProps) {
   const isWanderShell = pageVariant === 'wander'
   const router = useRouter()
@@ -121,6 +118,8 @@ export function ExploreClient({
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedPackage[]>([])
   const [isMobile, setIsMobile] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
+  const loadingMoreRef = useRef(false)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const [appendError, setAppendError] = useState<string | null>(null)
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [appendedPage, setAppendedPage] = useState<AppendedExplorePage | null>(null)
@@ -224,6 +223,7 @@ export function ExploreClient({
     const newParams = new URLSearchParams(searchParams)
     newParams.set('tab', tab)
     newParams.delete('q')
+    newParams.delete('page')
     if (isWanderShell) {
       newParams.set('search', '1')
     }
@@ -260,8 +260,9 @@ export function ExploreClient({
     const visibleSpotsBooked = { ...spotsBooked, ...currentAppend?.spotsBooked }
     const visibleInterestCounts = { ...interestCountMap, ...currentAppend?.interestCounts }
 
-    const handleLoadMore = async () => {
-      if (loadingMore || !canLoadMore) return
+    const handleLoadMore = useCallback(async () => {
+      if (loadingMoreRef.current || !canLoadMore) return
+      loadingMoreRef.current = true
       setLoadingMore(true)
       setAppendError(null)
       try {
@@ -289,9 +290,23 @@ export function ExploreClient({
       } catch (error) {
         setAppendError(error instanceof Error ? error.message : 'Could not load more listings')
       } finally {
+        loadingMoreRef.current = false
         setLoadingMore(false)
       }
-    }
+    }, [canLoadMore, nextPage, packages, page, params, queryKey, serviceListings])
+
+    useEffect(() => {
+      const target = loadMoreRef.current
+      if (!target || isLoading || loadingMore || appendError || !canLoadMore || typeof IntersectionObserver === 'undefined') return
+      const observer = new IntersectionObserver(entries => {
+        if (entries.some(entry => entry.isIntersecting)) void handleLoadMore()
+      }, {
+        root: basePath === '/' ? null : target.closest('[data-wander-main-scroll]'),
+        rootMargin: '0px 0px 240px 0px',
+      })
+      observer.observe(target)
+      return () => observer.disconnect()
+    }, [appendError, basePath, canLoadMore, handleLoadMore, isLoading, loadingMore])
 
     const handleSearchChange = (value: string) => {
       setSearchDraftState({ committed: committedSearch, value })
@@ -404,8 +419,8 @@ export function ExploreClient({
           away from the absolute top edge so it sits flush with a small
           inset like a card, matching the home design. */}
       {isWanderShell ? (
-        <div className="md:hidden sticky top-0 z-40 px-3 pt-2 pb-1">
-          <div className="rounded-2xl border border-foreground/16 bg-foreground/[0.07] backdrop-blur-2xl backdrop-saturate-150 shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+        <div className="md:hidden sticky top-0 z-40 bg-background/95 px-1 pt-2 pb-2 backdrop-blur-xl" data-explore-mobile-tabs>
+          <div className="rounded-2xl border border-foreground/16 bg-card/95 shadow-sm">
             <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
               {TABS.filter(t => t.id !== 'getting_around').map(tab => {
                 const Icon = tab.icon
@@ -432,7 +447,7 @@ export function ExploreClient({
 
       <div className={cn('flex flex-col', !isWanderShell && 'mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6')}>
         {/* `sticky!`: `.glass-card` sets position: relative outside Tailwind's layers. */}
-        <div className="glass-card sticky! top-3 z-30 mb-5 hidden items-center gap-3 p-2 md:flex">
+        <div className="glass-card sticky! top-[4.75rem] z-40 mb-5 hidden items-center gap-3 p-2 md:flex" data-explore-desktop-toolbar>
           <div className="flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
             {TABS.map((tab) => {
               const Icon = tab.icon
@@ -456,8 +471,6 @@ export function ExploreClient({
           </div>
           <div className="min-w-0 flex-1">{renderSearchField('explore-results-search')}</div>
         </div>
-
-        <div className="mb-4 md:hidden">{renderSearchField('explore-results-search-mobile')}</div>
 
         {params.q && searchFallback ? (
           <div
@@ -671,19 +684,12 @@ export function ExploreClient({
                 ))}
               </div>
             )}
-            {previewPending && !isLoading && (
-              <div className={cn(isTripsTab ? tripGridClassName : serviceGridClassName, 'mt-6')} aria-busy="true" aria-label="Loading more listings">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <SkeletonCard key={i} variant={isTripsTab ? 'trip' : 'service'} />
-                ))}
-              </div>
-            )}
             {!isLoading && canLoadMore && (
-              <div className="mt-8 flex flex-col items-center gap-2">
+              <div ref={loadMoreRef} className="mt-8 flex flex-col items-center gap-2">
                 <p className="text-xs text-muted-foreground">Showing {results.length} of {totalCount} listings</p>
                 {appendError && <p role="alert" className="text-sm text-red-400">{appendError}</p>}
                 <Button type="button" variant="outline" disabled={loadingMore} onClick={() => void handleLoadMore()} className="min-w-40 gap-2">
-                  {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading more…</> : 'Load more'}
+                  {loadingMore ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading more…</> : appendError ? 'Retry' : 'Load more'}
                 </Button>
               </div>
             )}
@@ -701,6 +707,7 @@ export function ExploreClient({
       )}
 
       <SearchDrawer
+        key={params.q || ''}
         isOpen={searchDrawerOpen}
         onClose={() => setSearchDrawerOpen(false)}
         initialValue={params.q || ''}

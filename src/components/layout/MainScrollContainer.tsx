@@ -14,12 +14,16 @@ const CHAT_ROUTE_PREFIXES = ['/community', '/tribe', '/chat', '/status']
 export function MainScrollContainer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isChatRoute = CHAT_ROUTE_PREFIXES.some(p => pathname?.startsWith(p))
+  // Home/Explore scroll with the document. An unbounded overflow-auto ancestor
+  // captures sticky positioning even though it never actually scrolls.
+  const isHome = pathname === '/'
 
   return (
     <main
       data-wander-main-scroll
       className={cn(
-        'flex h-0 min-h-0 flex-1 flex-col overflow-y-auto',
+        'flex min-h-0 flex-1 flex-col',
+        isHome ? 'overflow-visible' : 'h-0 overflow-y-auto',
         !isChatRoute && 'pb-[5.75rem] md:pb-0',
       )}
     >

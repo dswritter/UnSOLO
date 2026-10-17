@@ -160,9 +160,9 @@ export function ExploreSidebar({
   return (
     <div
       className={cn(
-        'border-r border-border p-4 overflow-y-auto max-h-[calc(100vh-120px)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        'sticky! top-[9.5rem] border-r border-border p-4 overflow-y-auto! max-h-[calc(100dvh-10.25rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         isWander
-          ? 'wander-frost-panel sticky! top-[5.25rem] rounded-2xl border border-foreground/10 p-5 max-h-[calc(100dvh-10.5rem)]'
+          ? 'wander-frost-panel rounded-2xl border border-foreground/10 p-5'
           : 'bg-background border-border',
       )}
     >

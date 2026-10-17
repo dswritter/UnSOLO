@@ -11,7 +11,7 @@ export function SkeletonCard({ variant = 'trip' }: SkeletonCardProps) {
     <div className="animate-pulse">
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         {/* Image skeleton */}
-        <div className="aspect-[9/16] bg-secondary md:aspect-[4/3]" />
+        <div className="aspect-video bg-secondary" />
 
         {/* Content skeleton */}
         <div className="p-4 space-y-3">

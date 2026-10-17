@@ -18,12 +18,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Mobile listing discovery
 
-Listing cards use uncropped 9:16 poster frames below 768px; desktop retains
-landscape cards. Homepage rows start with the cached preview and request
+Listing cards use 16:9 banner frames on all screen sizes, matching the host
+upload crop editor. Originals with other proportions are center-cropped for
+display. Homepage rows start with the cached preview and request
 additional public listing pages (eight cards at a time) only after the visitor swipes towards the row's end
 (or taps "Load more"). Preview IDs are deduplicated against subsequent pages.
 Each section's header keeps "View all" available without a large promotional
 tile in the row. Failed page requests offer an explicit retry.
+
+Explore ("View all") loads up to 20 results per batch, without first replaying
+the homepage preview. More results append as the visitor approaches the bottom;
+a Load more / Retry button is also available. Category/search controls stay
+sticky above the results, and desktop filters remain visible in a separately
+scrollable sticky sidebar. Mobile search is available through the bottom action
+bar rather than a duplicate field above the results.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

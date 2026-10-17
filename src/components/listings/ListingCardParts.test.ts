@@ -4,13 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { ListingCardMedia } from './ListingCardParts'
 
 describe('responsive listing media', () => {
-  it('reserves the full portrait poster ratio on phones and preserves desktop proportions', () => {
+  it('matches the host editor 16:9 banner ratio on every screen size', () => {
     const props = {
       children: createElement('img', { src: '/poster.webp', alt: 'Trip poster' }),
     }
     const html = renderToStaticMarkup(createElement(ListingCardMedia, props))
-    expect(html).toContain('aspect-[9/16]')
-    expect(html).toContain('md:aspect-[4/3]')
+    expect(html).toContain('aspect-video')
+    expect(html).not.toContain('aspect-[9/16]')
+    expect(html).not.toContain('md:aspect-')
     expect(html).toContain('overflow-hidden')
   })
 
@@ -18,6 +19,6 @@ describe('responsive listing media', () => {
     const props = { muted: true, children: 'Past poster' }
     const html = renderToStaticMarkup(createElement(ListingCardMedia, props))
     expect(html).toContain('[&amp;_img]:brightness-90')
-    expect(html).toContain('aspect-[9/16]')
+    expect(html).toContain('aspect-video')
   })
 })

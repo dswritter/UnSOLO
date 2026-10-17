@@ -27,7 +27,7 @@ export function WanderExploreSkeleton() {
                 key={i}
                 className="overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/[0.04]"
               >
-                <div className="aspect-[9/16] bg-foreground/10 animate-pulse md:aspect-[4/3]" />
+                <div className="aspect-video bg-foreground/10 animate-pulse" />
                 <div className="space-y-2 p-4">
                   <div className="h-5 w-[80%] max-w-[14rem] rounded bg-foreground/10 animate-pulse" />
                   <div className="h-4 w-[55%] max-w-[10rem] rounded bg-foreground/5 animate-pulse" />

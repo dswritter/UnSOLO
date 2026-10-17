@@ -4,8 +4,8 @@ import { getServiceListingsByType, type ServiceListingSearchFilters } from '@/ac
 import { getCachedExploreMaxPackagePrice, getCachedExplorePackagePage, getCachedPackageInterestCounts, getInterestedExplorePackagePage, type PublicPackageFilters } from '@/lib/explore/cachedPublicPackageData'
 import { getCachedPublicServiceItems } from '@/lib/explore/cachedPublicServiceData'
 
-export const EXPLORE_TRIP_PAGE_SIZE = 24
-export const EXPLORE_SERVICE_PAGE_SIZE = 12
+export const EXPLORE_TRIP_PAGE_SIZE = 20
+export const EXPLORE_SERVICE_PAGE_SIZE = 20
 
 export type ServiceListingWithItems = ServiceListing & {
   items: Array<{

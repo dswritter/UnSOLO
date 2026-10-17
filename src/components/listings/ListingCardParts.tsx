@@ -27,10 +27,10 @@ export function ListingCardBadge({ badge }: { badge: TripCardBadge | null }) {
   )
 }
 
-/** Portrait posters on phones; retain the compact landscape desktop cards. */
+/** Match the 16:9 banner crop offered by the host upload editor. */
 export function ListingCardMedia({ children, muted = false }: { children: ReactNode; muted?: boolean }) {
   return (
-    <div className={cn('relative aspect-[9/16] shrink-0 overflow-hidden bg-secondary md:aspect-[4/3]', muted && '[&_img]:brightness-90')}>
+    <div className={cn('relative aspect-video shrink-0 overflow-hidden bg-secondary', muted && '[&_img]:brightness-90')}>
       <div aria-hidden="true" className="absolute inset-0 animate-pulse bg-foreground/[0.06]" />
       {children}
     </div>

@@ -252,7 +252,7 @@ export function Navbar() {
   return (
     <nav
       className={cn(
-        'sticky top-0 z-50 border-b',
+        'sticky! top-0 z-50 border-b',
         pathname === '/' && 'max-md:hidden',
         onMobileChatRoom && 'max-md:hidden',
         isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',

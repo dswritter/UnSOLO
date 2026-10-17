@@ -45,7 +45,7 @@ export function WanderRowSkeleton({ title }: { title: string }) {
       <div className="-mx-4 flex gap-3 overflow-hidden px-4 md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:px-0 lg:grid-cols-4">
         {[0, 1, 2, 3].map(i => (
           <div key={i} className="w-[66vw] max-w-[17rem] shrink-0 overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/[0.04] sm:w-[15rem] md:w-auto md:max-w-none">
-            <div className="aspect-[9/16] animate-pulse bg-foreground/[0.08] md:aspect-[4/3]" />
+            <div className="aspect-video animate-pulse bg-foreground/[0.08]" />
             <div className="space-y-2 p-3">
               <div className="h-4 w-3/4 animate-pulse rounded bg-foreground/10" />
               <div className="h-3 w-1/2 animate-pulse rounded bg-foreground/[0.07]" />

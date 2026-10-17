@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { WanderExploreSection } from '@/components/wander/WanderExploreSection'
-import { WanderExploreFallback } from '@/components/wander/WanderExploreFallback'
+import { WanderExploreSkeleton } from '@/components/wander/WanderExploreSkeleton'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
 import { WanderHeroSection, WanderHeroSkeleton } from '@/components/wander/WanderHeroSection'
 import {
@@ -31,7 +31,7 @@ export async function WanderLandingPage({
 
       {isSearchMode ? (
         <div id="wander-explore" className="border-t border-border/50 scroll-mt-4">
-          <Suspense fallback={<WanderExploreFallback sp={sp} />}>
+          <Suspense key={JSON.stringify(sp)} fallback={<WanderExploreSkeleton />}>
             <WanderExploreSection sp={sp} searchBasePath={searchBasePath} />
           </Suspense>
         </div>

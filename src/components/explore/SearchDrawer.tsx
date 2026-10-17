@@ -56,6 +56,7 @@ export function SearchDrawer({
   }, [isOpen])
 
   useEffect(() => {
+    if (!isOpen) return
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current)
     }
@@ -64,12 +65,14 @@ export function SearchDrawer({
       if (typeof window !== 'undefined') {
         const trimmedInput = searchInput.trim()
         const params = new URLSearchParams(window.location.search)
+        if (trimmedInput === (params.get('q') || '').trim()) return
 
         if (trimmedInput) {
           params.set('q', trimmedInput)
         } else {
           params.delete('q')
         }
+        params.delete('page')
         if (preserveWanderSearch) {
           params.set('search', '1')
         }
@@ -83,7 +86,7 @@ export function SearchDrawer({
         clearTimeout(debounceTimerRef.current)
       }
     }
-  }, [searchInput, router, basePath, preserveWanderSearch])
+  }, [searchInput, router, basePath, preserveWanderSearch, isOpen])
 
   const handleClear = () => {
     setSearchInput('')
