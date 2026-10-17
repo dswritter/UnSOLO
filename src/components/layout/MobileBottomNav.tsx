@@ -2,32 +2,40 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
-import { Compass, Gift, MessageSquare, Tent, Trophy } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { CircleUserRound, Compass, Luggage, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './AuthProvider'
+import { MobileYouSheet } from './MobileYouSheet'
+import { activeMobileTab, myTripsHref, type MobileTabId } from './mobileNav'
 
 type NavItem = {
-  href: string
+  id: MobileTabId
+  href?: string
   label: string
   icon: typeof Compass
   badgeCount?: number
-  active: (pathname: string | null) => boolean
 }
+
+const noopSubscribe = () => () => {}
 
 export function MobileBottomNav() {
   const { userId, profile } = useAuth()
-  const isHost = !!profile?.is_host
   const pathname = usePathname()
+  const [sheetPath, setSheetPath] = useState<string | null>(null)
+  // Tied to the path it was opened on, so any navigation closes the sheet.
+  const sheetOpen = sheetPath !== null && sheetPath === pathname
+  const closeSheet = useCallback(() => setSheetPath(null), [])
 
   // ALL hooks must come before any conditional return (Rules of Hooks).
-  // isAndroidShell starts false so SSR and first hydration match; useEffect
-  // flips it true on the client when the UA token is present.
-  const [isAndroidShell, setIsAndroidShell] = useState(false)
-  useEffect(() => {
-    if (navigator.userAgent.includes('UnsoloAndroid')) setIsAndroidShell(true)
-  }, [])
+  // Server snapshot is false so SSR and hydration match; the client snapshot
+  // reads the UA token afterwards.
+  const isAndroidShell = useSyncExternalStore(
+    noopSubscribe,
+    () => navigator.userAgent.includes('UnsoloAndroid'),
+    () => false,
+  )
 
   // Unread message badge + conditional label. We mirror the Navbar's realtime
   // subscription so the user sees a counter on the mobile nav even though the
@@ -39,7 +47,9 @@ export function MobileBottomNav() {
   // Read current pathname inside the realtime handler without re-subscribing the
   // channel on every navigation (pathname is NOT in the effect deps below).
   const pathnameRef = useRef(pathname)
-  pathnameRef.current = pathname
+  useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
 
   useEffect(() => {
     if (!userId || isAndroidShell) return
@@ -106,11 +116,12 @@ export function MobileBottomNav() {
   }, [userId, isAndroidShell])
 
   // Clear the badge when the user actually walks into the chat section.
-  useEffect(() => {
-    if (pathname?.startsWith('/community') || pathname?.startsWith('/tribe')) {
-      setUnreadCount(0)
-    }
-  }, [pathname])
+  // Entering a chat route clears the badge (state adjusted during render).
+  const [clearedForPath, setClearedForPath] = useState<string | null>(null)
+  if ((pathname?.startsWith('/community') || pathname?.startsWith('/tribe')) && clearedForPath !== pathname) {
+    setClearedForPath(pathname)
+    if (unreadCount !== 0) setUnreadCount(0)
+  }
 
   // All early returns after all hooks.
   if (isAndroidShell) return null
@@ -124,80 +135,64 @@ export function MobileBottomNav() {
     pathname?.startsWith('/status')
   if (onChatRoute) return null
 
+  const activeTab = sheetOpen ? 'you' : activeMobileTab(pathname)
   const items: NavItem[] = [
+    { id: 'explore', href: '/', label: 'Explore', icon: Compass },
+    { id: 'trips', href: myTripsHref(!!userId), label: 'My Trips', icon: Luggage },
     {
-      href: '/leaderboard',
-      label: 'Leaderboard',
-      icon: Trophy,
-      active: (p) => p === '/leaderboard',
-    },
-    {
-      href: '/',
-      label: 'Explore',
-      icon: Compass,
-      active: (p) =>
-        p === '/' ||
-        Boolean(p?.startsWith('/packages')) ||
-        Boolean(p?.startsWith('/listings')) ||
-        Boolean(p?.startsWith('/booking/')) ||
-        Boolean(p?.startsWith('/book/')) ||
-        Boolean(p?.startsWith('/bookings')),
-    },
-    {
+      id: 'community',
       href: '/community',
-      // Once a user has joined any room (DM/community/trip), they're past the
-      // "discover travellers" stage — switch the label to "Community" since
-      // it's now their existing crowd, not new strangers.
-      label: hasRooms ? 'Community' : 'Meet Travellers',
+      // Once a user has joined any room they're past the "discover travellers"
+      // stage, so "Community" fits better than "Meet Travellers".
+      label: hasRooms ? 'Community' : 'Travellers',
       icon: MessageSquare,
       badgeCount: unreadCount,
-      active: (p) => p === '/community' || Boolean(p?.startsWith('/community/')) || p === '/tribe' || Boolean(p?.startsWith('/tribe/')),
     },
-    {
-      href: '/offers',
-      label: 'Offers',
-      icon: Gift,
-      active: (p) => p === '/offers',
-    },
-    {
-      href: isHost ? '/host' : '/host/verify',
-      label: isHost ? 'Hosting' : 'Become Host',
-      icon: Tent,
-      active: (p) => Boolean(p?.startsWith('/host')),
-    },
+    { id: 'you', label: 'You', icon: CircleUserRound },
   ]
 
+  const itemClass = (isActive: boolean) => cn(
+    'relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5 text-[11px] font-semibold transition-colors',
+    isActive ? 'text-primary' : 'text-foreground/72 hover:text-foreground',
+  )
+
   return (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-foreground/10 bg-card/95 backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.4rem)]">
-      <div className="grid grid-cols-5 gap-1 px-2 pb-1 pt-2">
-        {items.map(({ href, label, icon: Icon, active, badgeCount }) => {
-          const isActive = active(pathname)
-          return (
-            <Link
-              key={href}
-              href={href}
-              prefetch={false}
-              className={cn(
-                'relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 py-2 text-[10px] font-semibold transition-colors',
-                isActive ? 'text-primary' : 'text-foreground/72 hover:text-foreground',
-              )}
-            >
-              {/* Icon column is positioned so we can pin the unread badge to
-                  the top-right of the icon without it stealing space from the
-                  label below. */}
-              <span className="relative inline-flex">
-                <Icon className="h-4.5 w-4.5 shrink-0 stroke-[2]" />
+    <>
+      <nav aria-label="Primary" className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-foreground/10 bg-card/95 backdrop-blur-xl supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.4rem)]">
+        <div className="grid grid-cols-4 gap-1 px-3 pb-1 pt-1.5">
+          {items.map(({ id, href, label, icon: Icon, badgeCount }) => {
+            const isActive = activeTab === id
+            const content = <>
+              {/* Active pill behind the icon; the unread badge pins to its top-right. */}
+              <span className={cn('relative inline-flex h-7 w-12 items-center justify-center rounded-full transition-colors', isActive && 'bg-primary/15')}>
+                {id === 'you' && profile?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.avatar_url} alt="" className={cn('h-5 w-5 rounded-full object-cover', isActive && 'ring-2 ring-primary')} />
+                ) : (
+                  <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+                )}
                 {badgeCount && badgeCount > 0 ? (
-                  <span className="absolute -right-2 -top-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                  <span className="absolute -right-0.5 -top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
                     {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
                 ) : null}
               </span>
-              <span className="truncate text-center leading-tight">{label}</span>
-            </Link>
-          )
-        })}
-      </div>
-    </nav>
+              <span className="max-w-full truncate text-center leading-tight">{label}</span>
+            </>
+            return href ? (
+              <Link key={id} href={href} prefetch={false} aria-current={isActive ? 'page' : undefined} className={itemClass(isActive)}>
+                {content}
+              </Link>
+            ) : (
+              <button key={id} type="button" aria-haspopup="dialog" aria-expanded={sheetOpen}
+                onClick={() => setSheetPath(sheetOpen ? null : pathname)} className={itemClass(isActive)}>
+                {content}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+      <MobileYouSheet open={sheetOpen} onClose={closeSheet} profile={profile} signedIn={!!userId} />
+    </>
   )
 }
