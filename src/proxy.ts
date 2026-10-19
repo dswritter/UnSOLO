@@ -18,6 +18,7 @@ const PUBLIC_CONTENT = [
   '/contact',
   '/offers',
   '/profile',
+  '/hosts',
   '/host',
   '/become-host',
   '/community',

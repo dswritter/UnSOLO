@@ -22,7 +22,15 @@ export default async function ProfilePage({
 }: {
   params: Promise<{ username: string }>
 }) {
-  const { username } = await params
+  const { username: encodedUsername } = await params
+  let username: string
+  try {
+    // Next.js 16.2 passes dynamic segment values to pages URL-encoded.
+    username = decodeURIComponent(encodedUsername)
+  } catch (error) {
+    if (error instanceof URIError) notFound()
+    throw error
+  }
   const { supabase, user } = await getRequestAuth()
 
   const [profileRes, sharePosterRes] = await Promise.all([

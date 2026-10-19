@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getDynamicParam } from 'next/dist/shared/lib/router/utils/get-dynamic-param'
 
 const mocks = vi.hoisted(() => ({
   profile: vi.fn(), unlinkedHref: vi.fn(), redirect: vi.fn(), notFound: vi.fn(), auth: vi.fn(),
@@ -13,7 +14,11 @@ vi.mock('./ProfileUsernameDetail', () => ({ ProfileUsernameDetail: () => null })
 vi.mock('@/components/profile/ProfilePublicSkeleton', () => ({ ProfilePublicSkeleton: () => null }))
 import ProfilePage from './page'
 
-const params = Promise.resolve({ username: 'strangers tribe' })
+function routeParams(username: string) {
+  const segment = getDynamicParam({ username }, 'username', 'd', null, null)
+  return Promise.resolve({ username: String(segment.value) })
+}
+const params = routeParams('strangers tribe')
 beforeEach(() => {
   vi.resetAllMocks()
   const settings = { in: vi.fn().mockResolvedValue({ data: [] }) }
@@ -31,6 +36,21 @@ describe('profile route host resolution', () => {
     expect(mocks.profile).toHaveBeenCalledWith('strangers tribe')
     expect(mocks.redirect).not.toHaveBeenCalled()
     expect(mocks.notFound).not.toHaveBeenCalled()
+  })
+  it.each(['host%20name', 'host%name', 'host/#?', 'हिमालय यात्री'])(
+    'decodes %s exactly once without changing the stored username',
+    async username => {
+      mocks.profile.mockResolvedValue({ profile: { username }, ambiguous: false })
+      await expect(ProfilePage({ params: routeParams(username) })).resolves.toBeDefined()
+      expect(mocks.profile).toHaveBeenCalledWith(username)
+      expect(mocks.redirect).not.toHaveBeenCalled()
+    },
+  )
+  it('returns not found for malformed URL encoding before querying profiles', async () => {
+    await expect(ProfilePage({
+      params: Promise.resolve({ username: '%E0%A4%A' }),
+    })).rejects.toThrow('not found')
+    expect(mocks.profile).not.toHaveBeenCalled()
   })
   it('redirects a host display-name link to the actual account username', async () => {
     mocks.profile.mockResolvedValue({ profile: { username: 'strangers_tribe' }, ambiguous: false })

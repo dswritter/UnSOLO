@@ -42,6 +42,7 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 ## Public host profiles
 
 - Linked hosts open their account profile from trip and service listing host cards. Profile URLs encode the username, including spaces and special characters.
+- Next.js 16.2 supplies encoded dynamic parameters to pages. The profile route decodes the username exactly once before lookup and canonical-URL comparison; literal percent sequences in usernames are preserved.
 - Before account linking, public staff-created listings open a name-only host page at `/hosts/trip/<listing-id>` or `/hosts/service/<listing-id>`. These pages show only the host name and the public listing, never assignment email, phone, or internal status. They do not offer messaging or account-only social actions.
 - Unpublished listings do not expose a host page. Once ownership is linked, the same host URL redirects to the account profile.
 - Older `/profile/<host-name>` links resolve case-insensitive usernames or a unique registered host display name, then redirect to the canonical username URL. A unique unlinked assignment name can also redirect to its public host page. Ambiguous names remain not found rather than choosing another host.
