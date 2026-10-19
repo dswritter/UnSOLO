@@ -39,6 +39,14 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 - After the host verifies the matching contact, all linked trips and services appear in their **Host Dashboard** (`/host`). New staff-created listings go live after linking; older pending listings remain manageable there, but are not public until approved.
 - Create each additional listing separately using the **same host contact**. One host can own many trips and any mix of stays, activities, rentals and getting-around listings. There is no one-listing-per-host restriction. Reuse the same verified email/phone consistently to avoid splitting assignments across accounts.
 
+## Public host profiles
+
+- Linked hosts open their account profile from trip and service listing host cards. Profile URLs encode the username, including spaces and special characters.
+- Before account linking, public staff-created listings open a name-only host page at `/hosts/trip/<listing-id>` or `/hosts/service/<listing-id>`. These pages show only the host name and the public listing, never assignment email, phone, or internal status. They do not offer messaging or account-only social actions.
+- Unpublished listings do not expose a host page. Once ownership is linked, the same host URL redirects to the account profile.
+- Older `/profile/<host-name>` links resolve case-insensitive usernames or a unique registered host display name, then redirect to the canonical username URL. A unique unlinked assignment name can also redirect to its public host page. Ambiguous names remain not found rather than choosing another host.
+- This uses the `host_name` column from migration **111**. No additional database migration is required.
+
 ## Listing photos
 
 Under **Admin → Service Listings → Create Listing → Photos**, choose **Select listing photos** to upload multiple images in one selection. On desktop, use Ctrl/Cmd-click or Shift-click; on mobile, select multiple photos in the photo picker. JPEG, PNG, WebP and AVIF are supported, up to 5 MB per photo. Existing trip and host-service photo pickers also support multiple selection (host-service items retain their five-photo limit).

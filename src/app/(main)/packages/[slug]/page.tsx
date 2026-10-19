@@ -35,6 +35,7 @@ import { isCommunityDirectCheckout, isTokenDepositEnabled } from '@/lib/join-pre
 import { APP_URL } from '@/lib/constants'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { getUnlinkedHost } from '@/lib/listings/unlinked-host'
+import { hostProfileHref } from '@/lib/profile/host-profile'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -48,9 +49,10 @@ const GENDER_LABELS: Record<string, string> = {
   all: 'All genders welcome',
 }
 
-function HostProfileLink({ username, className, children }: { username: string; className?: string; children: React.ReactNode }) {
-  if (!username) return <span className={className}>{children}</span>
-  return <Link href={`/profile/${username}`} className={className}>{children}</Link>
+function HostProfileLink({ host, className, children }: { host: HostProfile & { profileHref?: string }; className?: string; children: React.ReactNode }) {
+  const href = hostProfileHref(host)
+  if (!href) return <span className={className}>{children}</span>
+  return <Link href={href} className={className}>{children}</Link>
 }
 
 function toAbsoluteUrl(value: string | null | undefined) {
@@ -453,7 +455,7 @@ export default async function PackageDetailPage({
               <div id="host" className="scroll-mt-20 bg-card border border-border rounded-xl p-6">
                 <h2 className="text-lg font-bold mb-4">Your Host</h2>
                 <div className="flex items-start gap-4">
-                  <HostProfileLink username={hostData.username}>
+                  <HostProfileLink host={hostData}>
                     {hostData.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -469,7 +471,7 @@ export default async function PackageDetailPage({
                   </HostProfileLink>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <HostProfileLink username={hostData.username} className="font-bold text-foreground hover:text-primary transition-colors">
+                      <HostProfileLink host={hostData} className="font-bold text-foreground hover:text-primary transition-colors">
                         {hostData.full_name || hostData.username}
                       </HostProfileLink>
                       {hostData.is_verified && (
@@ -772,7 +774,7 @@ export default async function PackageDetailPage({
                     {isCommunityTrip && hostData && (
                       <div className="flex justify-between">
                         <span>Hosted by</span>
-                        <HostProfileLink username={hostData.username} className="text-primary hover:underline">
+                        <HostProfileLink host={hostData} className="text-primary hover:underline">
                           {hostData.full_name || hostData.username}
                         </HostProfileLink>
                       </div>

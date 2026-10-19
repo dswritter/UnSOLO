@@ -14,6 +14,7 @@ import { startDirectMessage } from '@/actions/profile'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cn, listingScheduleTodayISO } from '@/lib/utils'
+import { hostProfileHref } from '@/lib/profile/host-profile'
 
 function stripMarkdown(text: string): string {
   return text
@@ -26,6 +27,7 @@ function stripMarkdown(text: string): string {
 type ListingHost = {
   id: string
   username: string
+  profileHref?: string
   full_name: string | null
   avatar_url: string | null
   phone_number?: string | null
@@ -72,6 +74,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   // individually clickable to select for booking.
 
   const router = useRouter()
+  const profileHref = host ? hostProfileHref(host) : null
   const [openingChat, setOpeningChat] = useState(false)
 
   async function handleMessageHost() {
@@ -534,9 +537,9 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                {host.username ? (
+                {profileHref ? (
                   <Link
-                    href={`/profile/${host.username}`}
+                    href={profileHref}
                     className="font-bold text-foreground hover:text-primary transition-colors"
                   >
                     {host.full_name || host.username}
@@ -551,15 +554,15 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                   </div>
                 )}
               </div>
-              {host.username ? (
+              {profileHref ? (
               <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                 <Link
-                  href={`/profile/${host.username}`}
+                  href={profileHref}
                   className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
                 >
                   View profile
                 </Link>
-                <button
+                {host.username ? <button
                   type="button"
                   onClick={handleMessageHost}
                   disabled={openingChat}
@@ -567,7 +570,7 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                 >
                   <MessageCircle className="h-4 w-4" />
                   {openingChat ? 'Opening…' : 'Message'}
-                </button>
+                </button> : null}
               </div>
               ) : null}
             </div>

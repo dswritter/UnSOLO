@@ -25,6 +25,7 @@ import {
 } from './ProfileSections'
 import { ProfileConnections, ProfileEndSeparator } from './ProfileConnectionsSection'
 import { loadHostConnections, loadViewerRelation } from './profileConnections'
+import { hostProfileHref } from '@/lib/profile/host-profile'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -153,7 +154,7 @@ export async function ProfileUsernameDetail({
                         footerTagline={sharePosterFooterTagline}
                         shareTitle={sharePosterShareTitle}
                         shareText={sharePosterShareText}
-                        profileUrl={`${APP_URL.replace(/\/$/, '')}/profile/${profile.username}`}
+                        profileUrl={`${APP_URL.replace(/\/$/, '')}${hostProfileHref(profile)}`}
                       />
                     </Suspense>
                     {isOwnProfile ? (

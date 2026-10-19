@@ -1,12 +1,14 @@
 export const revalidate = 30 // 30 seconds
 
 import { Suspense } from 'react'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { ProfileV2Shell } from '@/components/profile/ProfileV2Shell'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import type { Profile } from '@/types'
 import { ProfileUsernameDetail } from './ProfileUsernameDetail'
 import { ProfilePublicSkeleton } from '@/components/profile/ProfilePublicSkeleton'
+import { findPublicProfile, findUnlinkedHostProfileHref } from '@/lib/profile/public-host-profile'
+import { hostProfileHref } from '@/lib/profile/host-profile'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -24,7 +26,7 @@ export default async function ProfilePage({
   const { supabase, user } = await getRequestAuth()
 
   const [profileRes, sharePosterRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('username', username).single(),
+    findPublicProfile(username),
     supabase
       .from('platform_settings')
       .select('key, value')
@@ -35,8 +37,14 @@ export default async function ProfilePage({
       ]),
   ])
 
-  const profile = profileRes.data as ProfileRow | null
-  if (profileRes.error || !profile) notFound()
+  if (profileRes.ambiguous) notFound()
+  const profile = profileRes.profile as ProfileRow | null
+  if (!profile) {
+    const hostHref = await findUnlinkedHostProfileHref(username)
+    if (hostHref) redirect(hostHref)
+    notFound()
+  }
+  if (profile.username !== username) redirect(hostProfileHref(profile)!)
 
   const sharePosterRows = sharePosterRes.data
   const sharePosterByKey = Object.fromEntries(
