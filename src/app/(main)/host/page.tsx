@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { checkIsHost, getHostDashboardStats, getMyHostedTrips } from '@/actions/hosting'
 import { getPayoutDetails } from '@/actions/payout'
-import { getRequestAuth, getRequestProfile } from '@/lib/auth/request-session'
+import { getActionAuth } from '@/lib/auth/action-auth'
 import { hostAttentionItems, hostUpcomingDepartures, type HostAttentionTrip } from '@/lib/hosting/host-attention'
 import { formatDate, cn, listingScheduleTodayISO } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -26,27 +26,28 @@ export default async function HostDashboardPage() {
   if (!hostStatus.authenticated) redirect('/login')
   if (!hostStatus.isHost) redirect('/host/verify')
 
-  const [stats, trips, payout] = await Promise.all([
+  const { supabase, user } = await getActionAuth()
+  if (!user) redirect('/login')
+  const [stats, trips, payout, serviceListingsResult, profileResult] = await Promise.all([
     getHostDashboardStats(),
     getMyHostedTrips(),
     getPayoutDetails(),
+    supabase
+      .from('service_listings')
+      .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at, last_host_resubmit_at')
+      .eq('host_id', user.id)
+      .is('archived_at', null)
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('full_name, username').eq('id', user.id).single(),
   ])
+  if (serviceListingsResult.error) throw serviceListingsResult.error
+  if (profileResult.error) throw profileResult.error
+  const serviceListings = serviceListingsResult.data
 
   const payoutConfigured = !!(payout && !('error' in payout) && (
     (payout.upi_id && payout.upi_id.includes('@')) ||
     (payout.bank_account_number && payout.bank_ifsc)
   ))
-
-  // Fetch this host's service listings (stays/activities/rentals/getting_around).
-  const { supabase, user } = await getRequestAuth()
-  const { data: serviceListings } = user
-    ? await supabase
-        .from('service_listings')
-        .select('id, title, type, status, is_active, images, first_approved_at, updated_at, created_at, last_host_resubmit_at')
-        .eq('host_id', user.id)
-        .is('archived_at', null)
-        .order('created_at', { ascending: false })
-    : { data: null }
 
   // Best-effort item counts. Returns silently if the items table does not yet
   // exist (migration 049 not applied) so the dashboard still renders.
@@ -75,7 +76,7 @@ export default async function HostDashboardPage() {
     }
   }
 
-  const profile = user ? await getRequestProfile(user.id) : null
+  const profile = profileResult.data
   const firstName = (profile?.full_name || profile?.username || '').split(' ')[0]
   const attentionTrips = trips as unknown as HostAttentionTrip[]
   const attention = hostAttentionItems({

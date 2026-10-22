@@ -133,6 +133,8 @@ export function HostTripForm({
   staffDraftPayload,
   staffCreate = false,
   bootstrap,
+  serverAuthorized = false,
+  initialTrip,
 }: {
   editTripId?: string
   /** When set, load this draft from local storage; plain `/host/create` always starts blank. */
@@ -145,14 +147,17 @@ export function HostTripForm({
   staffCreate?: boolean
   /** Server-fetched options/limits; lets create flows render without client round trips. */
   bootstrap?: TripFormBootstrap
+  /** Only supplied by a server page after its access checks have passed. */
+  serverAuthorized?: boolean
+  initialTrip?: NonNullable<Awaited<ReturnType<typeof getHostTripDetail>>>
 }) {
   const router = useRouter()
   const isEdit = !!editTripId
   const isStaffDraft = !!staffDraftId
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [step, setStep] = useState(0)
-  // Staff create is authorized by its page and needs nothing else loaded.
-  const [loading, setLoading] = useState(!(bootstrap && staffCreate && !editTripId))
+  // Authorized create pages already supply everything needed for the first render.
+  const [loading, setLoading] = useState(!(bootstrap && (staffCreate || serverAuthorized) && !editTripId && !resumeDraftId))
   const [editModerationStatus, setEditModerationStatus] = useState<string | null>(null)
   const [editTripSlug, setEditTripSlug] = useState<string | null>(null)
   const [activePriceTierIndex, setActivePriceTierIndex] = useState(0)
@@ -325,10 +330,10 @@ export function HostTripForm({
       const sb = cc()
       const needsManageCheck = staffCreate || !!editTripId
       const [hostStatus, dests, includes, canManage, settingsRes] = await Promise.all([
-        checkIsHost(),
+        serverAuthorized ? Promise.resolve({ authenticated: true, isHost: true }) : checkIsHost(),
         bootstrap ? Promise.resolve(bootstrap.destinations) : getDestinationsPublic(),
         bootstrap ? Promise.resolve(bootstrap.includesOptions) : getIncludesOptionsPublic(),
-        needsManageCheck ? canManageAnyHostTrip() : Promise.resolve(false),
+        needsManageCheck && !serverAuthorized ? canManageAnyHostTrip() : Promise.resolve(false),
         bootstrap
           ? Promise.resolve(null)
           : sb.from('platform_settings').select('key, value').in('key', ['host_max_group_size', 'platform_fee_percent']),
@@ -357,7 +362,7 @@ export function HostTripForm({
       }
 
       if (editTripId) {
-        const tripData = await getHostTripDetail(editTripId)
+        const tripData = initialTrip ?? await getHostTripDetail(editTripId)
         if (!tripData) {
           toast.error('Trip not found')
           router.push('/host')
@@ -456,14 +461,14 @@ export function HostTripForm({
         const resuming = resumeDraftId ? getHostTripDraftById(resumeDraftId) : null
         const newId =
           typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `draft-${Date.now()}`
-        const sessionId = resuming ? resuming.id : newId
+        const sessionId = resuming?.id ?? resumeDraftId ?? newId
         setDraftSessionId(sessionId)
 
         // Prefer a newer CLOUD version of this draft (e.g. the onboarding team
         // edited it to help) over the local copy, and mirror it back to the device.
         let draftPayload: HostTripDraftPayload | null = resuming?.payload ?? null
         try {
-          const cloud = await getMyListingDraft('trip', sessionId)
+          const cloud = resumeDraftId ? await getMyListingDraft('trip', sessionId) : null
           if (cloud?.payload && (!resuming || new Date(cloud.updatedAt).getTime() > resuming.updatedAt)) {
             draftPayload = cloud.payload as unknown as HostTripDraftPayload
             upsertHostTripDraft(sessionId, draftPayload)
@@ -483,7 +488,7 @@ export function HostTripForm({
       setLoading(false)
     }
     load()
-  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate, bootstrap])
+  }, [router, editTripId, resumeDraftId, isStaffDraft, staffDraftId, staffDraftPayload, hydrateTripDraft, staffCreate, bootstrap, initialTrip, serverAuthorized])
 
   const minListPricePaise = useMemo(() => {
     const amounts = priceRows

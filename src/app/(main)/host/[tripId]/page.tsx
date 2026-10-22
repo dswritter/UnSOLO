@@ -46,44 +46,40 @@ export default async function ManageTripPage({
 
   if (!trip) notFound()
 
-  // Partial (per-traveller) cancellations for this trip's roster bookings.
+  const supabase = await createClient()
+  const interestsPromise = supabase
+    .from('package_interests')
+    .select('user_id, user:profiles(username, full_name, avatar_url)')
+    .eq('package_id', tripId)
+
   const partialByBooking: Record<string, PartialCancellationRow[]> = {}
+  const changesByBooking: Record<string, ChangeRequestRow[]> = {}
   const rosterIds = roster.map((r) => r.bookingId)
-  if (rosterIds.length) {
+  const cancellationDetails = async () => {
+    if (!rosterIds.length) return
     const svc = createServiceRoleClient()
-    const { data: pcRows } = await svc
-      .from('booking_partial_cancellations')
-      .select('*')
-      .in('booking_id', rosterIds)
-      .order('created_at', { ascending: false })
+    const [{ data: pcRows, error: pcError }, { data: crRows, error: crError }] = await Promise.all([
+      svc.from('booking_partial_cancellations')
+        .select('*').in('booking_id', rosterIds).order('created_at', { ascending: false }),
+      svc.from('booking_change_requests')
+        .select('*').in('booking_id', rosterIds).order('created_at', { ascending: false }),
+    ])
+    if (pcError) throw pcError
+    if (crError) throw crError
     for (const r of (pcRows || []) as PartialCancellationRow[]) {
       ;(partialByBooking[r.booking_id] ||= []).push(r)
     }
-  }
-
-  // Change requests (traveller edits + tier changes) on this trip's bookings.
-  const changesByBooking: Record<string, ChangeRequestRow[]> = {}
-  if (rosterIds.length) {
-    const svc = createServiceRoleClient()
-    const { data: crRows } = await svc
-      .from('booking_change_requests')
-      .select('*')
-      .in('booking_id', rosterIds)
-      .order('created_at', { ascending: false })
     for (const r of (crRows || []) as ChangeRequestRow[]) {
       ;(changesByBooking[r.booking_id] ||= []).push(r)
     }
   }
+  const [interestsResult] = await Promise.all([interestsPromise, cancellationDetails()])
+  if (interestsResult.error) throw interestsResult.error
+  const interests = interestsResult.data
   const tripVariantLabels = Array.isArray((trip as { price_variants?: unknown }).price_variants)
     ? ((trip as { price_variants: Array<{ description?: string }> }).price_variants).map((v) => String(v?.description ?? ''))
     : []
 
-  // Get interest data
-  const supabase = await createClient()
-  const { data: interests } = await supabase
-    .from('package_interests')
-    .select('user_id, user:profiles(username, full_name, avatar_url)')
-    .eq('package_id', tripId)
   const interestCount = interests?.length || 0
 
   const pendingRequests = (requests || []).filter((r: { status: string }) => r.status === 'pending')

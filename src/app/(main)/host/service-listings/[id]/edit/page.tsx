@@ -1,5 +1,5 @@
 import { redirect, notFound } from 'next/navigation'
-import { checkIsHost, getDestinationsPublic } from '@/actions/hosting'
+import { getDestinationsPublic } from '@/actions/hosting'
 import { listServiceListingItems } from '@/actions/host-service-listing-items'
 import { listItemUnavailabilityByListing } from '@/actions/host-service-item-unavailability'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
@@ -29,17 +29,16 @@ export default async function EditServiceListingPage({ params, searchParams }: P
   const { supabase, user } = await getRequestAuth()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, is_host')
     .eq('id', user.id)
     .maybeSingle()
+  if (profileError) throw profileError
   const isAdmin = profile?.role === 'admin'
 
   if (!isAdmin) {
-    const hostStatus = await checkIsHost()
-    if (!hostStatus.authenticated) redirect('/login')
-    if (!hostStatus.isHost) redirect('/host/verify')
+    if (!profile?.is_host) redirect('/host/verify')
   }
 
   const { data: listing } = await supabase

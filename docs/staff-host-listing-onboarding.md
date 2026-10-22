@@ -48,6 +48,15 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 - Older `/profile/<host-name>` links resolve case-insensitive usernames or a unique registered host display name, then redirect to the canonical username URL. A unique unlinked assignment name can also redirect to its public host page. Ambiguous names remain not found rather than choosing another host.
 - This uses the `host_name` column from migration **111**. No additional database migration is required.
 
+## Hosting page loading
+
+- Verification status and payout details load together on the server, so **Become a host** renders its current step without waiting for browser hydration and two subsequent server-action requests.
+- Dashboard host checks are deduplicated within a render only. Statistics and independent dashboard queries run concurrently; private verification, payout, and booking data are not shared in a persistent cache.
+- Trip creation and editing receive options and server-authorized initial data from their pages rather than repeating access checks and trip reads after hydration. Mutation actions still check permissions. Resumed drafts continue checking the cloud for newer staff edits; a fresh trip does not query the cloud for its newly generated draft ID.
+- Resuming a cloud-only trip draft preserves its requested ID even when no local copy exists. Failed OTP requests show an error and allow retrying instead of leaving the verification button stuck.
+- Service creation loads destinations and the latest draft concurrently. Trip management loads cancellation/change details and interests concurrently.
+- No database migration is required. Validate with a signed-in host on staging: open verification, dashboard, create trip, edit trip, create service, edit service, payout and manage trip; confirm redirects and host/staff permissions still apply.
+
 ## Listing photos
 
 Under **Admin → Service Listings → Create Listing → Photos**, choose **Select listing photos** to upload multiple images in one selection. On desktop, use Ctrl/Cmd-click or Shift-click; on mobile, select multiple photos in the photo picker. JPEG, PNG, WebP and AVIF are supported, up to 5 MB per photo. Existing trip and host-service photo pickers also support multiple selection (host-service items retain their five-photo limit).

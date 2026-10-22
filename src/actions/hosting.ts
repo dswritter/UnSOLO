@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { cache } from 'react'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { APP_URL, JOIN_PAYMENT_DEADLINE_HOURS } from '@/lib/constants'
@@ -91,15 +92,22 @@ export async function toggleHostTripDateClosed(
 
 // ── Helpers ─────────────────────────────────────────────────
 
-async function requireHost() {
+const getHostAccess = cache(async () => {
   const { supabase, user } = await getActionAuth()
-  if (!user) throw new Error('Not authenticated')
-  const { data: profile } = await supabase
+  if (!user) return { supabase, user, isHost: false }
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('is_host, is_phone_verified, is_email_verified')
     .eq('id', user.id)
     .single()
-  if (!profile?.is_host) throw new Error('Host verification required')
+  if (error) throw error
+  return { supabase, user, isHost: !!profile?.is_host }
+})
+
+async function requireHost() {
+  const { supabase, user, isHost } = await getHostAccess()
+  if (!user) throw new Error('Not authenticated')
+  if (!isHost) throw new Error('Host verification required')
   return { supabase, user }
 }
 
@@ -508,35 +516,41 @@ export async function getMyHostedTrips() {
 export async function getHostDashboardStats() {
   const { supabase, user } = await requireHost()
 
-  const { count: totalTrips } = await supabase
-    .from('packages')
-    .select('*', { count: 'exact', head: true })
-    .eq('host_id', user.id)
+  const [totalTripsResult, activeTripsResult, pendingRequestsResult, earningsResult] = await Promise.all([
+    supabase
+      .from('packages')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', user.id),
 
-  const { count: activeTrips } = await supabase
-    .from('packages')
-    .select('*', { count: 'exact', head: true })
-    .eq('host_id', user.id)
-    .eq('is_active', true)
+    supabase
+      .from('packages')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', user.id)
+      .eq('is_active', true),
 
-  const { count: pendingRequests } = await supabase
-    .from('join_requests')
-    .select('*, trip:packages!inner(host_id)', { count: 'exact', head: true })
-    .eq('trip.host_id', user.id)
-    .eq('status', 'pending')
+    supabase
+      .from('join_requests')
+      .select('*, trip:packages!inner(host_id)', { count: 'exact', head: true })
+      .eq('trip.host_id', user.id)
+      .eq('status', 'pending'),
 
-  const { data: earnings } = await supabase
-    .from('host_earnings')
-    .select('host_paise, payout_status')
-    .eq('host_id', user.id)
+    supabase
+      .from('host_earnings')
+      .select('host_paise, payout_status')
+      .eq('host_id', user.id),
+  ])
+  for (const result of [totalTripsResult, activeTripsResult, pendingRequestsResult, earningsResult]) {
+    if (result.error) throw result.error
+  }
+  const earnings = earningsResult.data
 
   const totalEarned = (earnings || []).reduce((sum, e) => sum + e.host_paise, 0)
   const pendingPayout = (earnings || []).filter(e => e.payout_status === 'pending').reduce((sum, e) => sum + e.host_paise, 0)
 
   return {
-    totalTrips: totalTrips || 0,
-    activeTrips: activeTrips || 0,
-    pendingRequests: pendingRequests || 0,
+    totalTrips: totalTripsResult.count || 0,
+    activeTrips: activeTripsResult.count || 0,
+    pendingRequests: pendingRequestsResult.count || 0,
     totalEarned,
     pendingPayout,
   }
@@ -1006,14 +1020,8 @@ export async function getHostTripDetail(tripId: string) {
 }
 
 export async function checkIsHost() {
-  const { supabase, user } = await getActionAuth()
-  if (!user) return { authenticated: false, isHost: false }
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_host')
-    .eq('id', user.id)
-    .single()
-  return { authenticated: true, isHost: !!profile?.is_host }
+  const { user, isHost } = await getHostAccess()
+  return { authenticated: !!user, isHost }
 }
 
 // ── Earnings ────────────────────────────────────────────────

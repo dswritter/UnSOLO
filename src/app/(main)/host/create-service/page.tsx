@@ -47,11 +47,12 @@ export default async function CreateServiceListingPage({
   }
 
   // Fetch destinations
-  const destinations = await getDestinationsPublic()
-
   // Resume the host's most recent in-progress draft of this type (also picks up any
   // edits our onboarding team made to it).
-  const resume = await getMyLatestServiceDraft(type)
+  const [destinations, resume] = await Promise.all([
+    getDestinationsPublic(),
+    getMyLatestServiceDraft(type),
+  ])
 
   const typeLabels: Record<ServiceListingType, string> = {
     stays: 'Stay',

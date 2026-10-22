@@ -30,12 +30,24 @@ async function getOtpSendNotBefore(
   const now = Date.now()
   const oneHourAgoIso = new Date(now - 60 * 60 * 1000).toISOString()
 
-  const { data: hourlyRows } = await supabase
-    .from('phone_otp_verifications')
-    .select('created_at')
-    .eq('user_id', userId)
-    .gte('created_at', oneHourAgoIso)
-    .order('created_at', { ascending: true })
+  const [{ data: hourlyRows, error: hourlyError }, { data: lastRow, error: lastError }] = await Promise.all([
+    supabase
+      .from('phone_otp_verifications')
+      .select('created_at')
+      .eq('user_id', userId)
+      .gte('created_at', oneHourAgoIso)
+      .order('created_at', { ascending: true }),
+
+    supabase
+      .from('phone_otp_verifications')
+      .select('created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  if (hourlyError) throw hourlyError
+  if (lastError) throw lastError
 
   let notBeforeMs = 0
 
@@ -43,14 +55,6 @@ async function getOtpSendNotBefore(
     const oldest = new Date(hourlyRows[0].created_at).getTime()
     notBeforeMs = Math.max(notBeforeMs, oldest + 60 * 60 * 1000)
   }
-
-  const { data: lastRow } = await supabase
-    .from('phone_otp_verifications')
-    .select('created_at')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
 
   if (lastRow) {
     const last = new Date(lastRow.created_at).getTime()
@@ -209,7 +213,7 @@ export async function checkVerificationStatus() {
   const { supabase, user } = await getActionAuth()
   if (!user) return null
 
-  const [{ data: profile }, { data: pendingChange }] = await Promise.all([
+  const [{ data: profile, error: profileError }, { data: pendingChange, error: pendingError }, otpCooldownUntil] = await Promise.all([
     supabase
       .from('profiles')
       .select('is_phone_verified, is_email_verified, is_host, phone_number, phone_country_code, phone_verified_method')
@@ -223,18 +227,20 @@ export async function checkVerificationStatus() {
       .order('requested_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    getOtpSendNotBefore(supabase, user.id),
   ])
+  if (profileError) throw profileError
+  if (pendingError) throw pendingError
 
   const isEmailVerified = !!user.email_confirmed_at
 
   if (isEmailVerified && !profile?.is_email_verified) {
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ is_email_verified: true })
       .eq('id', user.id)
+    if (error) throw error
   }
-
-  const otpCooldownUntil = await getOtpSendNotBefore(supabase, user.id)
 
   return {
     isPhoneVerified: profile?.is_phone_verified || false,

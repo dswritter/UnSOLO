@@ -17,10 +17,14 @@ export default async function CreateTripPage({
   const { user } = await getRequestAuth()
   if (!user) redirect('/login')
 
-  if (!(await hasPayoutConfigured(user.id))) {
+  const [payoutConfigured, bootstrap] = await Promise.all([
+    hasPayoutConfigured(user.id),
+    getTripFormBootstrap(),
+  ])
+  if (!payoutConfigured) {
     redirect(`/host/payout?returnTo=${encodeURIComponent('/host/create')}`)
   }
 
   const { draft } = await searchParams
-  return <HostTripForm bootstrap={await getTripFormBootstrap()} resumeDraftId={draft} />
+  return <HostTripForm bootstrap={bootstrap} serverAuthorized resumeDraftId={draft} />
 }
