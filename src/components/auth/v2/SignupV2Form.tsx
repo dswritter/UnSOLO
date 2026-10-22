@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useRef, Suspense, useEffect } from 'react'
+import { useState, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { signUp, signInWithGoogle, resendSignupConfirmationEmail } from '@/actions/auth'
 import { isLikelyNextRedirectError } from '@/lib/navigation/nextRedirect'
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Gift, Mail, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
-import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
+import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
   'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/40'
@@ -31,16 +31,6 @@ function SignupV2FormInner() {
   const redirectTo = searchParams.get('redirectTo') || '/'
   const passwordRef = useRef<HTMLInputElement>(null)
   const confirmPasswordRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || window.innerWidth >= 1024) return
-    const t = window.setTimeout(() => {
-      const el = document.getElementById('auth-v2-signup-email')
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      el instanceof HTMLElement && el.focus()
-    }, 120)
-    return () => window.clearTimeout(t)
-  }, [])
 
   async function handleGoogleSignUp() {
     if (googleBusy || googleAttempts >= 2) return
@@ -177,7 +167,7 @@ function SignupV2FormInner() {
         <h2 className="text-lg font-bold text-foreground md:text-xl">
           <span className="text-primary">Sign up</span> to continue
         </h2>
-        <p className="mt-1 text-sm text-foreground/50">Join the community and start exploring.</p>
+        <p className="mt-1 hidden text-sm text-foreground/50 sm:block">Join the community and start exploring.</p>
       </div>
 
       <AuthV2Tabs active="signup" />
@@ -192,14 +182,19 @@ function SignupV2FormInner() {
         </div>
       )}
 
+      <AuthGoogleOption busy={googleBusy} attempts={googleAttempts} error={googleError}
+        onClick={() => void handleGoogleSignUp()} />
+
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {refCode && <input type="hidden" name="referralCode" value={refCode} />}
         <input type="hidden" name="redirectTo" value={redirectTo} />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground/80">Full name</label>
+            <label htmlFor="auth-v2-full-name" className="text-xs font-medium text-foreground/80">Full name</label>
             <Input
+              id="auth-v2-full-name"
+              autoComplete="name"
               name="fullName"
               placeholder="e.g. River Walker"
               required
@@ -207,8 +202,10 @@ function SignupV2FormInner() {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground/80">Username</label>
+            <label htmlFor="auth-v2-username" className="text-xs font-medium text-foreground/80">Username</label>
             <Input
+              id="auth-v2-username"
+              autoComplete="username"
               name="username"
               placeholder="e.g. summit_seeker"
               required
@@ -217,7 +214,7 @@ function SignupV2FormInner() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground/80">Email</label>
+          <label htmlFor="auth-v2-signup-email" className="text-xs font-medium text-foreground/80">Email</label>
           <Input
             id="auth-v2-signup-email"
             name="email"
@@ -229,10 +226,11 @@ function SignupV2FormInner() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground/80">Password</label>
+          <label htmlFor="auth-v2-signup-password" className="text-xs font-medium text-foreground/80">Password</label>
           <div className="relative">
             <Input
               ref={passwordRef}
+              id="auth-v2-signup-password"
               name="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
@@ -252,10 +250,11 @@ function SignupV2FormInner() {
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground/80">Confirm password</label>
+          <label htmlFor="auth-v2-confirm-password" className="text-xs font-medium text-foreground/80">Confirm password</label>
           <div className="relative">
             <Input
               ref={confirmPasswordRef}
+              id="auth-v2-confirm-password"
               name="confirmPassword"
               type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
@@ -281,62 +280,9 @@ function SignupV2FormInner() {
         </Button>
       </form>
 
-      <div className="relative my-5">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-foreground/10" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="rounded-full bg-card px-3 text-muted-foreground">or continue with</span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        disabled={!!loading || googleBusy || googleAttempts >= 2}
-        className="h-11 w-full border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5"
-        onClick={() => void handleGoogleSignUp()}
-      >
-        <GoogleMark className="mr-2 h-4 w-4" />
-        {googleBusy ? '…' : 'Continue with Google'}
-      </Button>
-
-      {googleError ? (
-        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-700/95 dark:text-red-200/95 space-y-2">
-          <p>{googleError}</p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {googleAttempts < 2 ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-9 border-foreground/25 bg-transparent text-foreground hover:bg-foreground/10"
-                disabled={googleBusy}
-                onClick={() => void handleGoogleSignUp()}
-              >
-                Try Google again
-              </Button>
-            ) : (
-              <p className="text-[11px] text-foreground/55">Continue with email above to create your account.</p>
-            )}
-            <button
-              type="button"
-              className="text-left text-[11px] font-semibold text-primary hover:underline sm:text-right"
-              onClick={() => {
-                const el = document.getElementById('auth-v2-signup-email')
-                el?.focus()
-                el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-              }}
-            >
-              Use email sign-up instead
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <p className="text-[11px] text-foreground/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
 
-      <p className="mt-4 text-center text-sm text-foreground/50">
+      <p className="mt-4 hidden text-center text-sm text-foreground/50 sm:block">
         Already have an account?{' '}
         <Link
           href={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}

@@ -1,4 +1,3 @@
-import { AuthProvider } from '@/components/layout/AuthProvider'
 import { Navbar } from '@/components/layout/Navbar'
 import { PresenceTracker } from '@/components/layout/PresenceTracker'
 import { FooterWrapper } from '@/components/layout/FooterWrapper'
@@ -28,7 +27,6 @@ export default function MainLayout({
       data-wander-shell=""
       className="flex min-h-dvh flex-col bg-background text-foreground"
     >
-      <AuthProvider>
         <Navbar />
         {/*
           h-0 + flex-1: keeps main a bounded flex slice so child routes (e.g. leaderboard) can
@@ -45,7 +43,6 @@ export default function MainLayout({
           <SignInPrompt />
         </Suspense>
         <FooterWrapper />
-      </AuthProvider>
     </div>
   )
 }

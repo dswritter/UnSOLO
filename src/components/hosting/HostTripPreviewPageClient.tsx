@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
+import { TripMeetingPoint } from '@/components/hosting/TripMeetingPoint'
 import {
   TRIP_PREVIEW_HANDOFF_KEY,
   TRIP_PREVIEW_SESSION_KEY,
@@ -157,6 +158,7 @@ export function HostTripPreviewPageClient() {
 
             <div>
               <h1 className="text-3xl font-black tracking-tight">{data.title || 'Untitled trip'}</h1>
+              <TripMeetingPoint point={data.meetingPoint} address={data.meetingAddress} />
               {data.shortDescription ? (
                 <p className="mt-2 text-lg text-muted-foreground">{data.shortDescription}</p>
               ) : null}

@@ -36,6 +36,7 @@ import { APP_URL } from '@/lib/constants'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { getUnlinkedHost } from '@/lib/listings/unlinked-host'
 import { hostProfileHref } from '@/lib/profile/host-profile'
+import { TripMeetingPoint } from '@/components/hosting/TripMeetingPoint'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -366,6 +367,7 @@ export default async function PackageDetailPage({
               <MapPin className="h-4 w-4 text-primary" />
               {package_.destination?.name}, {package_.destination?.state}
             </div>
+            <TripMeetingPoint point={package_.metadata?.meeting_point} address={package_.metadata?.meeting_address} />
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-tight text-foreground">
               {package_.title}
             </h1>

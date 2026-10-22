@@ -1,3 +1,5 @@
+import type { ListingPin } from '@/lib/listing-location'
+
 /**
  * Payload for `/host/trip-preview`, written from HostTripForm before opening the preview.
  * Use localStorage for the handoff: `sessionStorage` is per-tab, so `window.open(..., '_blank')`
@@ -25,6 +27,8 @@ export type HostTripPreviewPayload = {
   images: string[]
   interestTags: string[]
   destination: { id: string; name: string; state: string } | null
+  meetingAddress?: string
+  meetingPoint?: ListingPin | null
   /** @deprecated use standardFlow + tokenDepositEnabled */
   paymentTiming?: string
   standardFlow?: 'after_host_approval' | 'pay_on_booking'

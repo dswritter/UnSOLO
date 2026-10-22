@@ -24,8 +24,10 @@ export function DraggablePinMap({ lat, lon, onChange }: Props) {
     // Leaflet mutates the container — bail if already initialised.
     if (mapRef.current) return
 
+    let cancelled = false
     // Dynamic import so Next.js doesn't try to SSR leaflet.
     import('leaflet').then((L) => {
+      if (cancelled || !containerRef.current) return
       // Leaflet's default icon images break under webpack — fix with CDN paths.
       delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
       L.Icon.Default.mergeOptions({
@@ -70,6 +72,7 @@ export function DraggablePinMap({ lat, lon, onChange }: Props) {
     })
 
     return () => {
+      cancelled = true
       mapRef.current?.remove()
       mapRef.current = null
       markerRef.current = null

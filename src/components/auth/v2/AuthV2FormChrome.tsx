@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { Shield } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 type Tab = 'login' | 'signup'
 
@@ -67,9 +68,38 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
 
 export function AuthV2SecurityFooter() {
   return (
-    <p className="mt-6 flex items-start gap-2 text-[11px] leading-relaxed text-foreground/45">
+    <p className="mt-4 flex items-start justify-center gap-2 text-[11px] leading-relaxed text-foreground/60">
       <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
-      <span>Your data is secure with us. We never share your information.</span>
+      <span>Secure sign-in. Your details stay private.</span>
     </p>
+  )
+}
+
+export function AuthGoogleOption({ busy, attempts, error, onClick }: {
+  busy: boolean
+  attempts: number
+  error: string | null
+  onClick: () => void
+}) {
+  return (
+    <div className="mb-4 space-y-3">
+      <Button type="button" variant="outline" disabled={busy || attempts >= 2}
+        className="h-11 w-full border-foreground/25 bg-background/70 text-foreground hover:bg-foreground/5"
+        onClick={onClick}>
+        <GoogleMark className="mr-2 h-4 w-4" />
+        {busy ? 'Connecting to Google...' : 'Continue with Google'}
+      </Button>
+      {error && (
+        <div role="alert" className="rounded-lg border border-red-500/35 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-200">
+          <p>{error}</p>
+          <p className="mt-1">You can also continue with email below.</p>
+        </div>
+      )}
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="h-px flex-1 bg-foreground/15" />
+        <span>or use email</span>
+        <div className="h-px flex-1 bg-foreground/15" />
+      </div>
+    </div>
   )
 }

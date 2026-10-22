@@ -55,7 +55,20 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 - Trip creation and editing receive options and server-authorized initial data from their pages rather than repeating access checks and trip reads after hydration. Mutation actions still check permissions. Resumed drafts continue checking the cloud for newer staff edits; a fresh trip does not query the cloud for its newly generated draft ID.
 - Resuming a cloud-only trip draft preserves its requested ID even when no local copy exists. Failed OTP requests show an error and allow retrying instead of leaving the verification button stuck.
 - Service creation loads destinations and the latest draft concurrently. Trip management loads cancellation/change details and interests concurrently.
+- Admin navigation no longer refreshes the router on every page change: that invalidated Next.js's back/forward cache, including previously visited Hosting pages. Review actions and relevant realtime events still refresh affected queues. Confirmed departures from the trip form use client navigation instead of reloading the document.
+- Authentication state is shared above the site/admin route groups. Sign-out clears this device's cookies, identity, cached profile and query data immediately, then revokes the captured session remotely. Remote failures are reported without signing the device back in.
 - No database migration is required. Validate with a signed-in host on staging: open verification, dashboard, create trip, edit trip, create service, edit service, payout and manage trip; confirm redirects and host/staff permissions still apply.
+
+## Admin and host locations
+
+- Admin service creation/editing uses the host destination search, including adding new destinations and selecting multiple service locations. Exact coordinates can be selected using an address search, device location, Google Maps share link or a draggable map pin.
+- Host and staff-created trips support an optional exact meeting point, alongside the trip's primary destination. The address and pin are stored in package metadata, survive local/cloud drafts and edits, and appear in the preview and public trip page. Cancelling a map adjustment does not change the saved pin.
+- Existing listings remain valid without a meeting point. No migration is required.
+
+## Mobile authentication
+
+- Google sign-in appears before email fields on both login and signup. Mobile hides the large statistics card, leaves an unobstructed campfire scene above the compact form, and does not automatically scroll to or focus an input.
+- Email/password, password visibility, password reset, email verification, referral codes and return URLs remain available. Desktop keeps the two-column scene and statistics.
 
 ## Listing photos
 

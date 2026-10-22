@@ -13,7 +13,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }))
 vi.mock('@supabase/supabase-js', () => ({ createClient: mocks.reviewClient }))
 
-import { createHostedTrip } from './hosting'
+import { createHostedTrip, createHostDestination } from './hosting'
 import { createServiceListing } from './admin-service-listings'
 
 const tripInput: Parameters<typeof createHostedTrip>[0] = {
@@ -36,14 +36,16 @@ function query(table: string, scope: 'user' | 'staff' | 'review') {
   const result = () => ({
     data: table === 'profiles' ? (scope === 'review' ? [{ id: 'admin-id' }] : mocks.profile)
       : table === 'team_members' ? mocks.membership
-      : table === 'destinations' ? [{ id: 'destination-id' }]
+      : table === 'destinations' ? columns === 'id, name, state'
+        ? { id: 'destination-id', name: 'Manali', state: 'Himachal Pradesh' }
+        : [{ id: 'destination-id' }]
       : inserted && ['packages', 'service_listings'].includes(table) ? { id: 'listing-id', slug: 'created-slug' }
       : null,
     error: null,
   })
   const chain = {
     select: vi.fn((value: string) => { columns = value; return chain }),
-    eq: vi.fn(() => chain), in: vi.fn(() => chain),
+    eq: vi.fn(() => chain), in: vi.fn(() => chain), ilike: vi.fn(() => chain),
     maybeSingle: vi.fn(async () => result()),
     single: vi.fn(async () => result()),
     insert: vi.fn((payload: unknown) => { inserted = true; mocks.insert(scope, table, payload); return chain }),
@@ -103,6 +105,24 @@ describe('staff-created listing approval actions', () => {
       body: 'Ordinary Host submitted "Community trip" for moderation.', link: '/admin/community-trips',
     })
     expect(mocks.update).toHaveBeenCalledWith('user', 'profiles', { phone_public: true })
+  })
+  it('persists an exact meeting point for staff-created trips', async () => {
+    mocks.profile.role = 'admin'
+    const metadata = { meeting_address: 'Manali bus station', meeting_point: { lat: 32.25, lon: 77.2, label: 'Bus station' } }
+    await createHostedTrip({ ...tripInput, metadata, host_contact: { email: 'host@example.com' } })
+    expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', expect.objectContaining({
+      p_listing: expect.objectContaining({ metadata }),
+    }))
+  })
+  it('allows service-only staff to use destination search without granting trip permissions', async () => {
+    mocks.profile.role = 'custom'
+    mocks.profile.is_host = false
+    mocks.membership = { role: 'custom', is_active: true, custom_permissions: ['service_listings'] }
+    expect(await createHostDestination('Manali', 'Himachal Pradesh')).toEqual({
+      success: true, id: 'destination-id', name: 'Manali', state: 'Himachal Pradesh',
+    })
+    await expect(createHostedTrip({ ...tripInput, host_contact: { email: 'host@example.com' } }))
+      .rejects.toThrow('Host verification required')
   })
 
   it.each(['stays', 'activities', 'rentals', 'getting_around'] as const)('staff %s contact creation overrides frontend status/activity flags', async type => {

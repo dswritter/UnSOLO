@@ -1,3 +1,5 @@
+import type { ListingPin } from '@/lib/listing-location'
+
 /** Browser drafts for /host/create — multiple drafts per device, 30-day retention. */
 
 /** @deprecated migrated into v2 store */
@@ -20,6 +22,8 @@ export type HostTripCreateDraftV1 = {
   shortDescription: string
   /** Optional search synonyms stored under packages.metadata.search_keywords. */
   searchKeywords?: string
+  meetingAddress?: string
+  meetingPoint?: ListingPin | null
   priceRows: { rupees: string; compareRupees?: string; facilities: string }[]
   tripDays: string
   tripNights: string
@@ -100,6 +104,8 @@ export function isHostTripCreateDraftNonEmpty(
     | 'description'
     | 'shortDescription'
     | 'searchKeywords'
+    | 'meetingAddress'
+    | 'meetingPoint'
     | 'tripDays'
     | 'tripNights'
     | 'maxGroupSize'
@@ -120,6 +126,7 @@ export function isHostTripCreateDraftNonEmpty(
   if (d.description.trim()) return true
   if (d.shortDescription.trim()) return true
   if (d.searchKeywords?.trim()) return true
+  if (d.meetingAddress?.trim() || d.meetingPoint) return true
   if (d.tripDays.trim() || d.tripNights.trim()) return true
   if (d.minAge.trim() || d.maxAge.trim() || d.minTripsCompleted.trim()) return true
   if (d.interestTags.length > 0) return true

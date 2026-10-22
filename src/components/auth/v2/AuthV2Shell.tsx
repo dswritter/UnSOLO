@@ -48,15 +48,15 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
         {/* Left: wordmark, headline, frosted stats — over tent */}
         <div
           className={cn(
-            'flex min-h-[17rem] w-full min-w-0 flex-1 flex-col p-4 sm:p-5 md:p-8 lg:min-h-dvh lg:w-[48%] lg:max-w-[52%] lg:py-10',
+            'flex min-h-[11rem] w-full min-w-0 flex-none flex-col p-4 sm:p-5 md:p-8 lg:min-h-dvh lg:flex-1 lg:w-[48%] lg:max-w-[52%] lg:py-10',
             'lg:pr-4',
           )}
         >
           <AuthV2TopBar />
-          <div className="mt-6 min-w-0 sm:mt-8 md:mt-10 lg:mt-12">
+          <div className="mt-3 min-w-0 sm:mt-4 lg:mt-12">
             <h1 className="text-balance pr-1">{h.title}</h1>
           </div>
-          <div className="mt-auto w-full min-w-0 pt-6 lg:pt-8">
+          <div className="mt-auto hidden w-full min-w-0 pt-8 lg:block">
             <div
               className={cn(
                 'w-full max-w-full rounded-2xl border border-foreground/15 bg-card/80 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.35)]',
@@ -77,13 +77,13 @@ export function AuthV2Shell({ mode, children, stats, rating }: ShellProps) {
         <div
           className={cn(
             'flex w-full flex-1 flex-col justify-stretch',
-            'px-4 pb-6 pt-3 lg:min-h-dvh lg:w-[52%] lg:min-w-0 lg:justify-center lg:px-10 lg:py-8 xl:px-14',
+            'px-4 pb-5 pt-0 lg:min-h-dvh lg:w-[52%] lg:min-w-0 lg:justify-center lg:px-10 lg:py-8 xl:px-14',
             'min-h-0',
           )}
         >
           <div
             className={cn(
-              'mx-auto w-full max-w-md rounded-2xl border border-foreground/10 bg-card/80 p-5 shadow-2xl shadow-black/20 dark:shadow-black/50 backdrop-blur-md',
+              'mx-auto w-full max-w-md rounded-2xl border border-foreground/10 bg-card/90 p-4 shadow-2xl shadow-black/20 dark:shadow-black/50 backdrop-blur-md',
               'lg:mx-0 lg:ml-auto lg:max-w-lg lg:rounded-3xl lg:p-8 lg:py-9',
             )}
           >

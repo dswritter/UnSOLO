@@ -19,7 +19,7 @@ type Result = {
 }
 
 interface Props {
-  destinations: Destination[]
+  destinations: Pick<Destination, 'id' | 'name' | 'state'>[]
   /** Excluded from results (already-selected IDs). */
   excludeIds?: string[]
   /** Called when a destination is picked (existing or newly created). */

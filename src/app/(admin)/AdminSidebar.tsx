@@ -108,7 +108,6 @@ interface AdminSidebarProps {
 
 // Pages whose loaders write (team role sync) are only prefetched on intent.
 const NO_FULL_PREFETCH = new Set(['/admin/team'])
-const BACKGROUND_REFRESH_AFTER_MS = 20_000
 const SETTINGS_NAV_ITEM = navGroups.flatMap(group => group.items).find(item => item.href === '/admin/settings')!
 const NOTIFICATION_REFRESH_PATHS = ['/admin/bookings', '/admin/requests', '/admin/service-listings', '/admin/trip-claims', '/admin/community-trips'] as const
 const EMPTY_COUNTS = { bookings: 0, requests: 0, serviceListings: 0, communityTrips: 0, notificationsResolved: 0 }
@@ -144,17 +143,6 @@ export function AdminSidebar({ role, name, userId, customPermissions = [] }: Adm
 
   const pathnameRef = useRef(pathname)
   useEffect(() => { pathnameRef.current = pathname }, [pathname])
-
-  // Prefetched pages open instantly from cache; refresh them in the background so data stays current.
-  const lastFreshAt = useRef(new Map<string, number>())
-  useEffect(() => {
-    const now = Date.now()
-    const isFirst = lastFreshAt.current.size === 0
-    const last = lastFreshAt.current.get(pathname)
-    lastFreshAt.current.set(pathname, now)
-    if (isFirst || NO_FULL_PREFETCH.has(pathname)) return
-    if (last === undefined || now - last > BACKGROUND_REFRESH_AFTER_MS) router.refresh()
-  }, [pathname, router])
 
   // Actions taken on the current page (no navigation) also clear queues; re-check periodically and on focus.
   useEffect(() => {

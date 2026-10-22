@@ -48,6 +48,8 @@ import { TripDepartureScheduleEditor } from '@/components/hosting/TripDepartureS
 import { normalizeTripDeparturePairs, type TripDeparturePair } from '@/lib/trip-departure-recurrence'
 import { tripSubmissionCopy } from '@/lib/trip-submission-copy'
 import { parseSearchKeywords } from '@/lib/explore/search-metadata'
+import { ListingLocationPicker } from '@/components/hosting/ListingLocationPicker'
+import { readListingPin, type ListingPin } from '@/lib/listing-location'
 
 const DRAFT_RETENTION_DAYS = Math.round(HOST_TRIP_DRAFT_MAX_AGE_MS / (24 * 60 * 60 * 1000))
 import {
@@ -173,6 +175,9 @@ export function HostTripForm({
   const [description, setDescription] = useState('')
   const [shortDescription, setShortDescription] = useState('')
   const [searchableDetails, setSearchableDetails] = useState('')
+  const [meetingAddress, setMeetingAddress] = useState('')
+  const [meetingPoint, setMeetingPoint] = useState<ListingPin | null>(null)
+  const [savedMetadata, setSavedMetadata] = useState<Record<string, unknown>>({})
 
   const [priceRows, setPriceRows] = useState<{ rupees: string; compareRupees: string; facilities: string }[]>([
     { rupees: '', compareRupees: '', facilities: '' },
@@ -250,6 +255,8 @@ export function HostTripForm({
     setDescription(draft.description ?? '')
     setShortDescription(draft.shortDescription ?? '')
     setSearchableDetails(draft.searchKeywords ?? '')
+    setMeetingAddress(draft.meetingAddress ?? '')
+    setMeetingPoint(readListingPin(draft.meetingPoint))
     setPriceRows(
       Array.isArray(draft.priceRows) && draft.priceRows.length > 0
         ? draft.priceRows.map((r) => ({
@@ -376,6 +383,9 @@ export function HostTripForm({
         setDescription(tripData.description || '')
         setShortDescription(tripData.short_description || '')
         const tripMetadata = tripData.metadata as Record<string, unknown> | null
+        setSavedMetadata(tripMetadata ?? {})
+        setMeetingAddress(typeof tripMetadata?.meeting_address === 'string' ? tripMetadata.meeting_address : '')
+        setMeetingPoint(readListingPin(tripMetadata?.meeting_point))
         const storedKeywords = tripMetadata?.search_keywords
         setSearchableDetails(Array.isArray(storedKeywords) ? storedKeywords.filter((value): value is string => typeof value === 'string').join(', ') : '')
         const pv = tripData.price_variants as PriceVariant[] | null
@@ -524,6 +534,8 @@ export function HostTripForm({
       title,
       destinationId,
       destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
+      meetingAddress,
+      meetingPoint,
       description,
       shortDescription,
       searchKeywords: searchableDetails,
@@ -559,6 +571,8 @@ export function HostTripForm({
     description,
     shortDescription,
     searchableDetails,
+    meetingAddress,
+    meetingPoint,
     priceRows,
     tripDays,
     tripNights,
@@ -744,15 +758,7 @@ export function HostTripForm({
   }, [isEdit, loading])
 
   function assignOrPush(href: string) {
-    try {
-      const url =
-        href.startsWith('http://') || href.startsWith('https://')
-          ? href
-          : `${window.location.origin}${href.startsWith('/') ? href : `/${href}`}`
-      window.location.assign(url)
-    } catch {
-      window.location.assign(href)
-    }
+    router.push(href)
   }
 
   function requestNavigateAway(href: string) {
@@ -1228,7 +1234,12 @@ export function HostTripForm({
         destination_id: destinationId,
         description: description.trim(),
         short_description: shortDescription.trim() || null,
-        metadata: { search_keywords: parseSearchKeywords(searchableDetails) },
+        metadata: {
+          ...savedMetadata,
+          search_keywords: parseSearchKeywords(searchableDetails),
+          meeting_address: meetingAddress.trim(),
+          meeting_point: meetingPoint,
+        },
         price_paise: pricePaise,
         compare_at_price_paise: compareAtPricePaise,
         price_variants,
@@ -1463,6 +1474,12 @@ export function HostTripForm({
                     )
                   }
                 />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold">Meeting point (optional)</h3>
+                <ListingLocationPicker address={meetingAddress} onAddressChange={setMeetingAddress}
+                  pin={meetingPoint} onPinChange={setMeetingPoint} />
               </div>
 
               <div>
@@ -2396,6 +2413,8 @@ export function HostTripForm({
                       images,
                       interestTags,
                       destination: dest ? { id: dest.id, name: dest.name, state: dest.state } : null,
+                      meetingAddress,
+                      meetingPoint,
                       standardFlow,
                       tokenDepositEnabled,
                       tokenAmountRupees,

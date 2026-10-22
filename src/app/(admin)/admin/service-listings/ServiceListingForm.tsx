@@ -15,6 +15,8 @@ import { HostListingContactFields, HostListingAssignmentPanel } from '@/componen
 import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
 import { ListingPhotoUpload } from '@/components/admin/ListingPhotoUpload'
 import { parseSearchKeywords } from '@/lib/explore/search-metadata'
+import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
+import { ListingLocationPicker } from '@/components/hosting/ListingLocationPicker'
 
 const AMENITIES_BY_TYPE = {
   stays: [
@@ -71,7 +73,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const [loading, setLoading] = useState(false)
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [addingLocation, setAddingLocation] = useState(false)
+  const [knownDestinations, setKnownDestinations] = useState<Pick<Destination, 'id' | 'name' | 'state'>[]>(destinations)
   const [onBehalf, setOnBehalf] = useState(false)
   const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
 
@@ -89,8 +91,8 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         ? [listing.destination_id]
         : []) as string[],
     location: listing?.location || '',
-    latitude: listing?.latitude || null,
-    longitude: listing?.longitude || null,
+    latitude: listing?.latitude ?? null,
+    longitude: listing?.longitude ?? null,
     max_guests_per_booking: listing?.max_guests_per_booking || null,
     quantity_available: listing?.quantity_available || null,
     images: listing?.images || [],
@@ -239,7 +241,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <label className="block text-sm font-medium text-foreground">Locations</label>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {formData.destination_ids.map(id => {
-                const d = destinations.find(x => x.id === id)
+                const d = knownDestinations.find(x => x.id === id)
                 if (!d) return null
                 return (
                   <span
@@ -262,55 +264,31 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 )
               })}
 
-              {addingLocation ? (
-                <select
-                  autoFocus
-                  value=""
-                  onChange={(e) => {
-                    const v = e.target.value
-                    if (v) {
-                      setFormData(prev => ({ ...prev, destination_ids: [...prev.destination_ids, v] }))
-                    }
-                    setAddingLocation(false)
-                  }}
-                  onBlur={() => setAddingLocation(false)}
-                  className="rounded border border-border px-2 py-1 text-sm"
-                >
-                  <option value="">Pick a destination...</option>
-                  {destinations
-                    .filter(d => !formData.destination_ids.includes(d.id))
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                </select>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAddingLocation(true)}
-                  className="rounded border border-border px-3 py-1 text-sm hover:bg-secondary/60"
-                >
-                  + Add location
-                </button>
-              )}
             </div>
+            <HostDestinationSearch
+              destinations={knownDestinations}
+              excludeIds={formData.destination_ids}
+              placeholder="Add a location in India..."
+              onPick={destination => {
+                setKnownDestinations(previous => previous.some(row => row.id === destination.id) ? previous : [...previous, destination])
+                setFormData(previous => ({ ...previous, destination_ids: [...new Set([...previous.destination_ids, destination.id])] }))
+              }}
+            />
             {formData.destination_ids.length === 0 && (
               <p className="mt-1 text-xs text-muted-foreground">At least one location is required.</p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-foreground">Location (Human-readable)</label>
-            <input
-              type="text"
-              required
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              placeholder="e.g., Manali, Himachal Pradesh"
-              className="mt-1 block w-full rounded border border-border px-3 py-2"
-            />
-          </div>
+          <ListingLocationPicker
+            address={formData.location}
+            onAddressChange={location => setFormData(previous => ({ ...previous, location }))}
+            pin={formData.latitude !== null && formData.longitude !== null
+              ? { lat: formData.latitude, lon: formData.longitude, label: formData.location || 'Saved map pin' } : null}
+            onPinChange={pin => setFormData(previous => ({
+              ...previous, latitude: pin?.lat ?? null, longitude: pin?.lon ?? null,
+              location: previous.location || pin?.label || '',
+            }))}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -318,7 +296,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               <input
                 type="number"
                 step="0.000001"
-                value={formData.latitude || ''}
+                value={formData.latitude ?? ''}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -333,7 +311,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               <input
                 type="number"
                 step="0.000001"
-                value={formData.longitude || ''}
+                value={formData.longitude ?? ''}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -1200,4 +1178,3 @@ function ActivityScheduleEditor({ schedule, onChange }: ActivityScheduleEditorPr
     </section>
   )
 }
-

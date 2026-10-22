@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { AuthV2SecurityFooter, AuthV2Tabs, GoogleMark } from '@/components/auth/v2/AuthV2FormChrome'
+import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components/auth/v2/AuthV2FormChrome'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 const inputClass =
@@ -69,19 +69,6 @@ function LoginV2FormInner() {
   }, [verified])
 
   useEffect(() => {
-    // Skip auto-focus on Android shell — programmatic focus suppresses the
-    // system autofill dropdown before the user can tap to trigger it.
-    if (typeof window === 'undefined' || window.innerWidth >= 1024) return
-    if (navigator.userAgent.includes('UnsoloAndroid')) return
-    const t = window.setTimeout(() => {
-      const el = document.getElementById('auth-v2-email')
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      el instanceof HTMLElement && el.focus()
-    }, 120)
-    return () => window.clearTimeout(t)
-  }, [])
-
-  useEffect(() => {
     if (!loading) return
     setQuoteIndex(Math.floor(Math.random() * TRAVEL_QUOTES.length))
     const interval = setInterval(() => {
@@ -126,7 +113,7 @@ function LoginV2FormInner() {
         <h2 className="text-lg font-bold text-foreground md:text-xl">
           <span className="text-primary">Log in</span> to continue
         </h2>
-        <p className="mt-1 text-sm text-foreground/50">Access your account and pick up where you left off.</p>
+        <p className="mt-1 hidden text-sm text-foreground/50 sm:block">Access your account and pick up where you left off.</p>
       </div>
 
       <AuthV2Tabs active="login" />
@@ -152,6 +139,9 @@ function LoginV2FormInner() {
           </p>
         </div>
       ) : null}
+
+      <AuthGoogleOption busy={googleBusy} attempts={googleAttempts} error={googleError}
+        onClick={() => void handleGoogleSignIn()} />
 
       <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-3.5">
         <input type="hidden" name="redirectTo" value={redirectTo} />
@@ -209,60 +199,7 @@ function LoginV2FormInner() {
         </Button>
       </form>
 
-      <div className="relative my-5">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-foreground/10" />
-        </div>
-        <div className="relative flex justify-center text-xs">
-          <span className="rounded-full bg-card px-3 text-muted-foreground">or continue with</span>
-        </div>
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        disabled={googleBusy || googleAttempts >= 2}
-        className="h-11 w-full border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5"
-        onClick={() => void handleGoogleSignIn()}
-      >
-        <GoogleMark className="mr-2 h-4 w-4" />
-        {googleBusy ? '…' : 'Continue with Google'}
-      </Button>
-
-      {googleError ? (
-        <div className="mt-3 rounded-lg border border-red-500/35 bg-red-500/10 px-3 py-2.5 text-left text-xs text-red-700/95 dark:text-red-200/95 space-y-2">
-          <p>{googleError}</p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {googleAttempts < 2 ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-9 border-foreground/25 bg-transparent text-foreground hover:bg-foreground/10"
-                disabled={googleBusy}
-                onClick={() => void handleGoogleSignIn()}
-              >
-                Try Google again
-              </Button>
-            ) : (
-              <p className="text-[11px] text-foreground/55">Use your email and password above to sign in.</p>
-            )}
-            <button
-              type="button"
-              className="text-left text-[11px] font-semibold text-primary hover:underline sm:text-right"
-              onClick={() => {
-                const el = document.getElementById('auth-v2-email')
-                el?.focus()
-                el?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-              }}
-            >
-              Use email login instead
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <p className="mt-4 text-center text-sm text-foreground/50">
+      <p className="mt-4 hidden text-center text-sm text-foreground/50 sm:block">
         Don&apos;t have an account?{' '}
         <Link
           href={`/signup${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}

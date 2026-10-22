@@ -93,4 +93,13 @@ describe('server-bootstrapped trip forms', () => {
     await screen.findByDisplayValue('Cloud-only trek')
     expect(mocks.cloud).toHaveBeenCalledWith('trip', 'cloud-draft')
   })
+  it('restores a saved meeting point when resuming a trip draft', async () => {
+    upsertHostTripDraft('mapped-draft', {
+      ...emptyHostTripCreateDraftFields(), meetingAddress: 'Manali bus station',
+      meetingPoint: { lat: 32.25, lon: 77.2, label: 'Bus station' },
+    })
+    render(createElement(HostTripForm, { bootstrap, serverAuthorized: true, resumeDraftId: 'mapped-draft' }))
+    await screen.findByDisplayValue('Manali bus station')
+    expect(screen.getByRole('link', { name: /Bus station/ }).getAttribute('href')).toContain('32.25,77.2')
+  })
 })

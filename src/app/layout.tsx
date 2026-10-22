@@ -6,6 +6,7 @@ import { Suspense } from 'react'
 import { NavigationProgress } from '@/components/layout/NavigationProgress'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { COLOR_MODE_BOOT_SCRIPT } from '@/lib/theme/color-mode'
+import { AuthProvider } from '@/components/layout/AuthProvider'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,7 +46,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider><AuthProvider>{children}</AuthProvider></QueryProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

@@ -119,7 +119,7 @@ const HOSTING_STAFF_ROLES: UserRole[] = ['admin', 'social_media_manager', 'field
  * SERVICE-ROLE client for the manage-any path so non-admin staff writes aren't
  * blocked by RLS; a host editing their own trip keeps their own client.
  */
-async function requireHostOrAdmin() {
+async function requireHostOrAdmin(allowServiceListingStaff = false) {
   const { supabase: userClient, user } = await getActionAuth()
   if (!user) throw new Error('Not authenticated')
   const svc = createServiceRoleClient()
@@ -142,6 +142,7 @@ async function requireHostOrAdmin() {
           ? (membership!.custom_permissions as AdminPermissionKey[])
           : []
       canManageAnyTrip = hasAdminPermission(effRole, perms, 'community_trips')
+        || (allowServiceListingStaff && hasAdminPermission(effRole, perms, 'service_listings'))
     }
   }
 
@@ -942,7 +943,7 @@ export async function withdrawJoinRequest(joinRequestId: string) {
 
 /** Hosts cannot INSERT destinations via the anon client (RLS). Creates row with service role after host check. */
 export async function createHostDestination(name: string, state: string) {
-  const { supabase } = await requireHostOrAdmin()
+  const { supabase } = await requireHostOrAdmin(true)
   const trimName = name.trim()
   const trimState = state.trim()
   if (!trimName || !trimState) return { error: 'Destination name and state are required' }
