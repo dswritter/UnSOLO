@@ -17,6 +17,7 @@ import { ListingPhotoUpload } from '@/components/admin/ListingPhotoUpload'
 import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { ListingLocationPicker } from '@/components/hosting/ListingLocationPicker'
+import { SERVICE_UNIT_OPTIONS, serviceUnitOptions } from '@/lib/service-units'
 
 const AMENITIES_BY_TYPE = {
   stays: [
@@ -84,7 +85,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
     short_description: listing?.short_description || '',
     price_paise: listing?.price_paise || 0,
     price_variants: (listing?.price_variants || []) as PriceVariant[],
-    unit: (listing?.unit || 'per_night') as ServiceListing['unit'],
+    unit: (listing?.unit || SERVICE_UNIT_OPTIONS[listing?.type || 'stays'][0].value) as ServiceListing['unit'],
     destination_ids: (listing?.destination_ids && listing.destination_ids.length > 0
       ? listing.destination_ids
       : listing?.destination_id
@@ -201,7 +202,12 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <select
               required
               value={type}
-              onChange={(e) => setType(e.target.value as ServiceListingType)}
+              onChange={(e) => {
+                const next = e.target.value as ServiceListingType
+                setType(next)
+                setFormData(prev => SERVICE_UNIT_OPTIONS[next].some(o => o.value === prev.unit)
+                  ? prev : { ...prev, unit: SERVICE_UNIT_OPTIONS[next][0].value })
+              }}
               className="mt-1 block w-full rounded border border-border px-3 py-2"
             >
               <option value="stays">Stays</option>
@@ -379,12 +385,9 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
                 }
                 className="mt-1 block w-full rounded border border-border px-3 py-2"
               >
-                <option value="per_night">Per Night</option>
-                <option value="per_person">Per Person</option>
-                <option value="per_day">Per Day</option>
-                <option value="per_hour">Per Hour</option>
-                <option value="per_week">Per Week</option>
-                <option value="per_month">Per Month</option>
+                {serviceUnitOptions(type, listing?.unit).map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
           </div>

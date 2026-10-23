@@ -38,6 +38,21 @@ describe('shared listing map picker', () => {
     expect(onPinChange).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+  it('lists multiple address matches and previews the chosen one before saving', async () => {
+    const onPinChange = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: async () => ({ features: [
+        { geometry: { coordinates: [77.18, 32.24] }, properties: { name: 'Old Manali', state: 'Himachal Pradesh' } },
+        { geometry: { coordinates: [77.19, 32.25] }, properties: { name: 'Mall Road', city: 'Manali' } },
+      ] }),
+    }))
+    render(createElement(ListingLocationPicker, { address: 'Manali', pin: null, onAddressChange: vi.fn(), onPinChange, pinRequired: true }))
+    expect(screen.getByText(/required so guests can navigate/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Find on map' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Mall Road, Manali' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use this pin' }))
+    expect(onPinChange).toHaveBeenCalledWith({ lat: 32.25, lon: 77.19, label: 'Mall Road, Manali' })
+  })
   it('accepts zero coordinates and rejects invalid persisted pins', () => {
     expect(readListingPin({ lat: 0, lon: 0, label: 'Origin' })).toEqual({ lat: 0, lon: 0, label: 'Origin' })
     for (const value of [null, { lat: 91, lon: 0, label: '' }, { lat: 0, lon: NaN, label: '' }, { lat: '32', lon: 77, label: '' }]) {

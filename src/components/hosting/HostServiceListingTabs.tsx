@@ -1,22 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
-import dynamic from 'next/dynamic'
 import { saveListingDraft, saveListingDraftAsStaff, markListingDraftSubmitted } from '@/actions/listing-drafts'
 
-const DraggablePinMap = dynamic(
-  () => import('@/components/ui/DraggablePinMap').then(m => ({ default: m.DraggablePinMap })),
-  { ssr: false, loading: () => <div className="h-[300px] rounded-lg bg-secondary animate-pulse" /> },
-)
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, MapPin, Loader2, Check, Link as LinkIcon, ChevronDown, LocateFixed } from 'lucide-react'
+import { Building2, Package, Eye, ChevronLeft, ChevronRight, X, Star, ExternalLink, Save, Loader2, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { HostSubmittingOverlay } from '@/components/host/HostSubmittingOverlay'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
+import { ListingLocationPicker } from '@/components/hosting/ListingLocationPicker'
+import { reverseGeocode } from '@/lib/geocode-search'
+import { SERVICE_UNIT_OPTIONS } from '@/lib/service-units'
 import { CoHostSection } from '@/components/hosting/CoHostSection'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
+import { HostListingContactFields } from '@/components/admin/HostListingContactFields'
+import { createServiceListingForHost } from '@/actions/admin-service-listings'
+import type { HostListingContactInput } from '@/lib/host-listing-contact'
 import {
   createHostServiceListing,
   updateHostServiceListing,
@@ -62,6 +63,8 @@ interface CreateProps extends BaseProps {
   /** Admin/onboarding staff editing a host's cloud draft via the full form. */
   staffDraftId?: string
   staffDraftPayload?: HostServiceListingPreviewPayload
+  /** Staff creating a published listing on a host's behalf (admin panel). */
+  staffCreate?: boolean
   /** Host resuming their own cloud draft (picks up any staff edits). */
   resumeLocalId?: string
   resumePayload?: HostServiceListingPreviewPayload
@@ -104,12 +107,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     itemNamePlaceholder: 'e.g., Deluxe Room / 1BHK Suite / MudHouse / Penthouse',
     defaultUnit: 'per_night',
     suggestedAmenities: ['WiFi', 'Kitchen', 'Bathroom', 'AC', 'Parking'],
-    unitOptions: [
-      { value: 'per_night', label: 'Per night' },
-      { value: 'per_day', label: 'Per day' },
-      { value: 'per_week', label: 'Per week' },
-      { value: 'per_month', label: 'Per month' },
-    ],
+    unitOptions: SERVICE_UNIT_OPTIONS.stays,
   },
   activities: {
     heading: 'Activity',
@@ -119,11 +117,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     itemNamePlaceholder: 'e.g., Sunset Trek / Paragliding / Photography Walk',
     defaultUnit: 'per_person',
     suggestedAmenities: ['Guide included', 'Equipment provided', 'Snacks', 'Photos included'],
-    unitOptions: [
-      { value: 'per_person', label: 'Per person' },
-      { value: 'per_hour', label: 'Per hour' },
-      { value: 'per_day', label: 'Per day' },
-    ],
+    unitOptions: SERVICE_UNIT_OPTIONS.activities,
   },
   rentals: {
     heading: 'Rental',
@@ -135,12 +129,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
       'e.g., Quechua 2-person tent / Sleeping bag −5°C / Yamaha R15 (silver)',
     defaultUnit: 'per_day',
     suggestedAmenities: ['Pickup available', 'Deposit or ID required', 'Includes accessories', 'Sizing or setup help'],
-    unitOptions: [
-      { value: 'per_day', label: 'Per day' },
-      { value: 'per_hour', label: 'Per hour' },
-      { value: 'per_week', label: 'Per week' },
-      { value: 'per_month', label: 'Per month' },
-    ],
+    unitOptions: SERVICE_UNIT_OPTIONS.rentals,
   },
   getting_around: {
     heading: 'Transport Service',
@@ -150,11 +139,7 @@ const TYPE_CONFIG: Record<ServiceListingType, {
     itemNamePlaceholder: 'e.g., Airport pickup / Manali → Kasol drop',
     defaultUnit: 'per_day',
     suggestedAmenities: ['Airport service', 'On-time pickup', 'AC vehicle'],
-    unitOptions: [
-      { value: 'per_day', label: 'Per trip / per day' },
-      { value: 'per_hour', label: 'Per hour' },
-      { value: 'per_person', label: 'Per person' },
-    ],
+    unitOptions: SERVICE_UNIT_OPTIONS.getting_around,
   },
 }
 
@@ -301,6 +286,10 @@ export function HostServiceListingTabs(props: Props) {
   const resumeLocalId = mode === 'create' ? props.resumeLocalId : undefined
   const cloudPayload = mode === 'create' ? (props.staffDraftPayload ?? props.resumePayload) : undefined
   const isStaffDraft = !!staffDraftId
+  const staffCreate = mode === 'create' && !!props.staffCreate
+  const exitHref = staffCreate ? '/admin/service-listings' : '/host'
+  const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
+  const hasHostContact = !!(hostContact.email?.trim() || hostContact.phone?.trim())
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
@@ -330,216 +319,6 @@ export function HostServiceListingTabs(props: Props) {
   type ValidationError = { label: string; fieldId: string }
   const [validationPopup, setValidationPopup] = useState<ValidationError[] | null>(null)
 
-  // ── Address map preview ───────────────────────────────────────────────
-  type GeoResult = { lat: string; lon: string; display_name: string }
-  const [mapPreview, setMapPreview] = useState<{ lat: number; lon: number; displayName: string } | null>(null)
-  const [geocoding, setGeocoding] = useState(false)
-  const [geoSuggestions, setGeoSuggestions] = useState<GeoResult[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [mapsUrlInput, setMapsUrlInput] = useState('')
-  const [showMapsUrl, setShowMapsUrl] = useState(false)
-  const [mapsUrlLoading, setMapsUrlLoading] = useState(false)
-  const suggestionsRef = useRef<HTMLDivElement>(null)
-
-  // Close suggestions dropdown on outside click
-  useEffect(() => {
-    function onOutside(e: MouseEvent) {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false)
-      }
-    }
-    document.addEventListener('mousedown', onOutside)
-    return () => document.removeEventListener('mousedown', onOutside)
-  }, [])
-
-  function openMapAt(r: GeoResult) {
-    setShowSuggestions(false)
-    setGeoSuggestions([])
-    setMapPreview({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), displayName: r.display_name })
-  }
-
-  /** Build a readable address string from Photon's structured fields */
-  function buildDisplayName(p: Record<string, string | undefined>): string {
-    const parts: string[] = []
-    if (p.name) parts.push(p.name)
-    if (p.housenumber && p.street) parts.push(`${p.housenumber} ${p.street}`)
-    else if (p.street) parts.push(p.street)
-    const city = p.city || p.district || p.locality || p.town || p.village
-    if (city && city !== p.name) parts.push(city)
-    if (p.state && p.state !== city) parts.push(p.state)
-    if (p.country) parts.push(p.country)
-    return parts.join(', ')
-  }
-
-  /** Photon (Komoot) search — better fuzzy matching than Nominatim */
-  async function photonSearch(q: string): Promise<GeoResult[]> {
-    try {
-      const res = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=5&lang=en`,
-      )
-      if (!res.ok) return []
-      const data = await res.json() as {
-        features?: Array<{
-          geometry: { coordinates: [number, number] }
-          properties: Record<string, string | undefined>
-        }>
-      }
-      return (data.features || []).map(f => ({
-        lat: String(f.geometry.coordinates[1]),
-        lon: String(f.geometry.coordinates[0]),
-        display_name: buildDisplayName(f.properties),
-      })).filter(r => r.display_name)
-    } catch { return [] }
-  }
-
-  /** Nominatim fallback search */
-  async function nominatimSearch(q: string, indiaBias = false): Promise<GeoResult[]> {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1${indiaBias ? '&countrycodes=in' : ''}`,
-        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
-      )
-      if (!res.ok) return []
-      return res.json() as Promise<GeoResult[]>
-    } catch { return [] }
-  }
-
-  async function previewLocationOnMap() {
-    const addr = location.trim()
-    if (!addr) { toast.error('Enter an address first'); return }
-    setGeocoding(true)
-    setGeoSuggestions([])
-    setShowSuggestions(false)
-    try {
-      // 1. Photon with full query (best fuzzy matcher)
-      let data = await photonSearch(addr)
-
-      // 2. Photon with progressive simplification — drops the most specific
-      //    token (often a POI name that isn't in OSM) and retries
-      if (data.length === 0) {
-        const tokens = addr.split(/[,\s]+/).filter(Boolean)
-        for (let keep = tokens.length - 1; keep >= 2 && data.length === 0; keep--) {
-          const simplified = tokens.slice(-keep).join(' ')
-          data = await photonSearch(simplified)
-        }
-      }
-
-      // 3. Nominatim fallbacks
-      if (data.length === 0) data = await nominatimSearch(addr, true)
-      if (data.length === 0) data = await nominatimSearch(addr, false)
-
-      if (data.length === 0) {
-        toast.error('Address not found — try pasting a Google Maps link below')
-        setShowMapsUrl(true)
-        return
-      }
-      if (data.length === 1) {
-        openMapAt(data[0])
-      } else {
-        setGeoSuggestions(data)
-        setShowSuggestions(true)
-      }
-    } catch {
-      toast.error('Could not load map preview')
-    } finally {
-      setGeocoding(false)
-    }
-  }
-
-  /** Extract coords from a Google Maps long URL (client-side, no fetch needed) */
-  function parseGoogleMapsCoords(url: string): { lat: number; lon: number } | null {
-    // Precise POI pin: !3d{lat}!4d{lon}
-    const d = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/)
-    if (d) return { lat: parseFloat(d[1]), lon: parseFloat(d[2]) }
-    // Viewport center: @lat,lon
-    const at = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-    if (at) return { lat: parseFloat(at[1]), lon: parseFloat(at[2]) }
-    // ?q=lat,lon
-    const q = url.match(/[?&](?:q|query|ll)=(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-    if (q) return { lat: parseFloat(q[1]), lon: parseFloat(q[2]) }
-    return null
-  }
-
-  async function reverseGeocode(lat: number, lon: number): Promise<string> {
-    try {
-      const rev = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-        { headers: { 'Accept-Language': 'en', 'User-Agent': 'UnSOLO/1.0 (https://unsolo.in)' } },
-      )
-      const data: { display_name?: string } = await rev.json()
-      return data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`
-    } catch {
-      return `${lat.toFixed(5)}, ${lon.toFixed(5)}`
-    }
-  }
-
-  async function handleMapsUrl() {
-    const raw = mapsUrlInput.trim()
-    if (!raw) return
-    setMapsUrlLoading(true)
-    try {
-      let coords: { lat: number; lon: number } | null = null
-
-      // For long URLs, parse client-side first (fast, no server call)
-      if (!/maps\.app\.goo\.gl|goo\.gl\/maps/.test(raw)) {
-        coords = parseGoogleMapsCoords(raw)
-      }
-
-      // For short URLs — or if the long URL had no inline coords — hit the
-      // server resolver which uses a mobile UA to get the real canonical URL
-      if (!coords) {
-        const res = await fetch(`/api/resolve-maps-url?url=${encodeURIComponent(raw)}`)
-        const json = await res.json() as { url?: string; lat?: number; lon?: number; error?: string }
-        if (typeof json.lat === 'number' && typeof json.lon === 'number') {
-          coords = { lat: json.lat, lon: json.lon }
-        } else if (json.url) {
-          coords = parseGoogleMapsCoords(json.url)
-        }
-        if (!coords) throw new Error(json.error || 'No coordinates found in this link')
-      }
-
-      const displayName = await reverseGeocode(coords.lat, coords.lon)
-      setMapPreview({ lat: coords.lat, lon: coords.lon, displayName })
-      setMapsUrlInput('')
-      setShowMapsUrl(false)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not process that link')
-    } finally {
-      setMapsUrlLoading(false)
-    }
-  }
-
-  /** Use device geolocation + reverse-geocode to populate the address */
-  function useCurrentLocation() {
-    if (!('geolocation' in navigator)) {
-      toast.error('Geolocation is not supported by your browser')
-      return
-    }
-    setGeocoding(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        try {
-          const displayName = await reverseGeocode(latitude, longitude)
-          setMapPreview({ lat: latitude, lon: longitude, displayName })
-        } finally {
-          setGeocoding(false)
-        }
-      },
-      (err) => {
-        setGeocoding(false)
-        if (err.code === err.PERMISSION_DENIED) {
-          toast.error('Location permission denied — enable it in your browser settings')
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          toast.error('Location unavailable — try again in an open area')
-        } else {
-          toast.error('Could not get your current location')
-        }
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    )
-  }
-
   // ── Business tab state ────────────────────────────────────────────────
   const [knownDestinations, setKnownDestinations] = useState<Destination[]>(destinations)
   const [addingLocation, setAddingLocation] = useState(false)
@@ -552,7 +331,7 @@ export function HostServiceListingTabs(props: Props) {
   })
   const [location, setLocation] = useState(initialListing?.location || cloudPayload?.location || '')
   const [pinLatLon, setPinLatLon] = useState<{ lat: number; lon: number } | null>(
-    initialListing?.latitude && initialListing?.longitude
+    initialListing?.latitude != null && initialListing?.longitude != null
       ? { lat: initialListing.latitude as number, lon: initialListing.longitude as number }
       : cloudPayload?.pinLat != null && cloudPayload?.pinLon != null
         ? { lat: cloudPayload.pinLat, lon: cloudPayload.pinLon }
@@ -736,6 +515,7 @@ export function HostServiceListingTabs(props: Props) {
   const amenitiesAll = Array.from(new Set([...config.suggestedAmenities, ...amenities]))
 
   function validBusinessTab(): string | null {
+    if (staffCreate && !hasHostContact) return 'Enter the host’s email or phone'
     if (!title.trim()) return 'Please enter a name'
     if (destinationIds.length === 0) return 'Please add at least one location'
     // Stays and rentals need a map pin so travelers can navigate with GPS.
@@ -765,6 +545,7 @@ export function HostServiceListingTabs(props: Props) {
 
   function collectBusinessErrors(): ValidationError[] {
     const errs: ValidationError[] = []
+    if (staffCreate && !hasHostContact) errs.push({ label: 'Host email or phone', fieldId: 'field-host-contact' })
     if (!title.trim()) errs.push({ label: 'Business / property name', fieldId: 'field-title' })
     if (destinationIds.length === 0) errs.push({ label: 'Location (add at least one destination)', fieldId: 'field-location' })
     if ((type === 'stays' || type === 'rentals') && !pinLatLon)
@@ -1035,7 +816,8 @@ export function HostServiceListingTabs(props: Props) {
   const cloudInFlightRef = useRef(false)
 
   const saveServiceDraftToCloud = useCallback(async () => {
-    if (mode === 'edit' || !serviceDraftId) return
+    // Staff creating for a host publish directly; never write the staff member's own draft.
+    if (mode === 'edit' || staffCreate || !serviceDraftId) return
     const payload = buildPayloadRef.current()
     if (!payload.title.trim() && !payload.destinationId) return // nothing meaningful yet
     if (cloudInFlightRef.current) return
@@ -1065,13 +847,13 @@ export function HostServiceListingTabs(props: Props) {
     } finally {
       cloudInFlightRef.current = false
     }
-  }, [mode, serviceDraftId, isStaffDraft, staffDraftId])
+  }, [mode, staffCreate, serviceDraftId, isStaffDraft, staffDraftId])
 
   const clearServiceCloudDraft = useCallback(async () => {
-    if (mode === 'edit' || !serviceDraftId) return
+    if (mode === 'edit' || staffCreate || !serviceDraftId) return
     try { await markListingDraftSubmitted('service', serviceDraftId) } catch { /* best-effort */ }
     try { window.sessionStorage.removeItem('unsolo_service_draft_id') } catch { /* ignore */ }
-  }, [mode, serviceDraftId])
+  }, [mode, staffCreate, serviceDraftId])
 
   const prevCloudStepRef = useRef(step)
   useEffect(() => {
@@ -1116,26 +898,28 @@ export function HostServiceListingTabs(props: Props) {
         amenities: (isRental || isStay) ? (i.amenities || []) : null,
       }))
 
-      let result: Awaited<ReturnType<typeof createHostServiceListing>> | undefined
+      const listingInput = {
+        title: title.trim(),
+        description: description.trim() || null,
+        short_description: shortDescription.trim() || null,
+        type,
+        unit,
+        destination_ids: destinationIds,
+        location: location.trim() || null,
+        latitude: pinLatLon?.lat ?? null,
+        longitude: pinLatLon?.lon ?? null,
+        // Rentals & stays: master amenities empty — each item owns its own.
+        amenities: isRental || isStay ? [] : amenities,
+        tags,
+        metadata: { search_keywords: parseSearchKeywords(searchableDetails) },
+        items: payload,
+        ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
+      }
+      let result: { error?: string; success?: boolean } | undefined
       try {
-        result = await createHostServiceListing({
-          title: title.trim(),
-          description: description.trim() || null,
-          short_description: shortDescription.trim() || null,
-          type,
-          unit,
-          destination_ids: destinationIds,
-          location: location.trim() || null,
-          latitude: pinLatLon?.lat ?? null,
-          longitude: pinLatLon?.lon ?? null,
-          // Rentals & stays: master amenities empty — each item owns its own.
-          amenities: isRental || isStay ? [] : amenities,
-          tags,
-          metadata: { search_keywords: parseSearchKeywords(searchableDetails) },
-          host_id: userId,
-          items: payload,
-          ...(type === 'activities' ? { event_schedule: buildEventSchedulePayload() } : {}),
-        })
+        result = staffCreate
+          ? await createServiceListingForHost({ ...listingInput, host_contact: hostContact })
+          : await createHostServiceListing({ ...listingInput, host_id: userId })
       } catch {
         toast.error('Submission failed. Please try again.')
         return
@@ -1143,27 +927,29 @@ export function HostServiceListingTabs(props: Props) {
         setSaving(false)
         setCreateSubmitOverlayOpen(false)
       }
-
       if (!result) return
 
+      const successMessage = staffCreate
+        ? 'Listing published for the host. They can claim it with this email or phone.'
+        : 'Listing submitted for review!'
       if (createSubmitCancelledRef.current) {
-        if (!('error' in result && result.error)) {
-          toast.success('Your listing was submitted for review.')
+        if (!result.error) {
+          toast.success(staffCreate ? successMessage : 'Your listing was submitted for review.')
           setSavedSnapshot(serializeFormState())
           await clearServiceCloudDraft()
-          window.location.replace(`${window.location.origin}/host`)
+          window.location.replace(`${window.location.origin}${exitHref}`)
         }
         return
       }
 
-      if ('error' in result && result.error) {
+      if (result.error) {
         toast.error(result.error)
         return
       }
-      toast.success('Listing submitted for review!')
+      toast.success(successMessage)
       setSavedSnapshot(serializeFormState())
       await clearServiceCloudDraft()
-      window.location.replace(`${window.location.origin}/host`)
+      window.location.replace(`${window.location.origin}${exitHref}`)
     } finally {
       submitCreateInFlightRef.current = false
     }
@@ -1480,8 +1266,13 @@ export function HostServiceListingTabs(props: Props) {
       {/* Business tab */}
       {step === 0 && (
         <div className="space-y-6 bg-card border border-border rounded-xl p-6">
+          {staffCreate && (
+            <div id="field-host-contact">
+              <HostListingContactFields listingKind="service" disabled={saving} value={hostContact} onChange={setHostContact} />
+            </div>
+          )}
           <div id="field-location" className="space-y-2">
-            <label className="text-sm font-semibold">Locations *</label>
+            <label className="text-sm text-muted-foreground block">Destinations *</label>
             <div className="flex flex-wrap items-center gap-2">
               {destinationIds.map(id => {
                 const d = knownDestinations.find(x => x.id === id)
@@ -1554,133 +1345,20 @@ export function HostServiceListingTabs(props: Props) {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold">
-              Address details <span className="text-xs font-normal text-muted-foreground">(optional)</span>
-            </label>
-            <div className="relative" ref={suggestionsRef}>
-              <input
-                id="field-address"
-                type="text"
-                placeholder="Building / floor / landmark (optional)"
-                value={location}
-                onChange={(e) => { setLocation(e.target.value); setShowSuggestions(false) }}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); previewLocationOnMap() } }}
-                className="w-full px-3 py-2 pr-20 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
-              />
-              <button
-                type="button"
-                onClick={useCurrentLocation}
-                disabled={geocoding}
-                className="absolute right-9 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
-                title="Use my current location"
-              >
-                <LocateFixed className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={previewLocationOnMap}
-                disabled={geocoding || !location.trim()}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
-                title="Search this address on the map"
-              >
-                {geocoding ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-              </button>
-
-              {/* Multi-result suggestions dropdown */}
-              {showSuggestions && geoSuggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-30 rounded-lg border border-border bg-card shadow-lg overflow-hidden">
-                  {geoSuggestions.map((r, i) => {
-                    const parts = r.display_name.split(', ')
-                    const primary = parts.slice(0, 2).join(', ')
-                    const secondary = parts.slice(2).join(', ')
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => openMapAt(r)}
-                        className="w-full text-left px-3 py-2.5 hover:bg-primary/10 transition-colors border-b border-border last:border-0"
-                      >
-                        <p className="text-sm font-medium truncate">{primary}</p>
-                        {secondary && <p className="text-xs text-muted-foreground truncate">{secondary}</p>}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Google Maps URL fallback */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowMapsUrl(v => !v)}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors mt-1"
-              >
-                <LinkIcon className="h-3 w-3" />
-                Paste a Google Maps link instead
-                <ChevronDown className={`h-3 w-3 transition-transform ${showMapsUrl ? 'rotate-180' : ''}`} />
-              </button>
-              {showMapsUrl && (
-                <div className="mt-2 flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://maps.app.goo.gl/... or google.com/maps/place/..."
-                    value={mapsUrlInput}
-                    onChange={(e) => setMapsUrlInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleMapsUrl() } }}
-                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:border-primary text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleMapsUrl}
-                    disabled={mapsUrlLoading || !mapsUrlInput.trim()}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors whitespace-nowrap"
-                  >
-                    {mapsUrlLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />}
-                    Use link
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Map pin — separate required field for stays/rentals. Holds the
-                coordinates used for GPS navigation, independent of the free-text
-                address above (which is for building / floor / landmark info). */}
-            <div className="pt-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Map pin{(type === 'stays' || type === 'rentals') && (
-                  <span className="text-red-500 ml-0.5">*</span>
-                )}
-              </label>
-              {pinLatLon ? (
-                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/30">
-                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${pinLatLon.lat},${pinLatLon.lon}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-primary hover:underline truncate block"
-                      title="Open in Google Maps"
-                    >
-                      {pinDisplayName || 'Saved map pin'}
-                    </a>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {pinLatLon.lat.toFixed(5)}, {pinLatLon.lon.toFixed(5)} · Opens in Google Maps
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setPinLatLon(null); setPinDisplayName(null) }}
-                    className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-colors"
-                    title="Remove pin"
-                    aria-label="Remove map pin"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <h3 className="text-sm font-semibold">
+              {type === 'stays' || type === 'rentals' ? 'Exact location *' : 'Exact location (optional)'}
+            </h3>
+            <ListingLocationPicker
+              addressInputId="field-address"
+              address={location}
+              onAddressChange={setLocation}
+              pinRequired={type === 'stays' || type === 'rentals'}
+              pin={pinLatLon ? { ...pinLatLon, label: pinDisplayName || location.trim() || 'Saved map pin' } : null}
+              onPinChange={pin => {
+                setPinLatLon(pin ? { lat: pin.lat, lon: pin.lon } : null)
+                setPinDisplayName(pin?.label ?? null)
+              }}
+            />
           </div>
 
           <div className="space-y-2">
@@ -2535,14 +2213,16 @@ export function HostServiceListingTabs(props: Props) {
                   </Button>
                 ) : (
                   <Button type="button" onClick={() => void submitCreate()} disabled={saving} className="flex-1">
-                    {saving ? 'Submitting…' : 'Submit for review'}
+                    {saving ? 'Submitting…' : staffCreate ? 'Publish for host' : 'Submit for review'}
                   </Button>
                 )}
               </div>
               <p className="text-xs text-muted-foreground text-center">
                 {isStaffDraft
                   ? 'Your edits save to the host’s draft; they finish and submit it for review.'
-                  : 'An admin will review your listing and notify you on approval.'}
+                  : staffCreate
+                    ? 'Staff-created listings go live immediately and are linked when the host signs in.'
+                    : 'An admin will review your listing and notify you on approval.'}
               </p>
             </div>
           )}
@@ -2627,78 +2307,14 @@ export function HostServiceListingTabs(props: Props) {
             type="button"
             variant="outline"
             onClick={() => {
-              if (isDirty) { setPendingNav('/host'); return }
-              router.push('/host')
+              if (isDirty) { setPendingNav(exitHref); return }
+              router.push(exitHref)
             }}
           >
-            Back to host dashboard
+            {staffCreate ? 'Back to service listings' : 'Back to host dashboard'}
           </Button>
         )}
       </div>
-
-      {/* Map preview modal — interactive draggable-pin map */}
-      {mapPreview && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setMapPreview(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="w-full max-w-lg rounded-xl border border-border bg-card p-5 space-y-3 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-base">Adjust pin location</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Drag the pin to the exact spot</p>
-              </div>
-              <button type="button" onClick={() => setMapPreview(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground line-clamp-2">{mapPreview.displayName}</p>
-            <DraggablePinMap
-              lat={mapPreview.lat}
-              lon={mapPreview.lon}
-              onChange={(newLat, newLon, displayName) => {
-                // Only update the preview while dragging — the pin isn't
-                // committed to the form until "Use this location" is clicked,
-                // so closing the modal doesn't leak an unintended pin.
-                setMapPreview({ lat: newLat, lon: newLon, displayName })
-              }}
-            />
-            <div className="flex flex-wrap justify-between items-center gap-2 pt-1">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${mapPreview.lat},${mapPreview.lon}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Google Maps
-              </a>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setPinLatLon({ lat: mapPreview.lat, lon: mapPreview.lon })
-                    setPinDisplayName(mapPreview.displayName)
-                    setMapPreview(null)
-                  }}
-                >
-                  Use this pin
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setMapPreview(null)}>
-                  Close
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Validation popup — lists empty required fields; clicking an error scrolls to it */}
       {validationPopup && (

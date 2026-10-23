@@ -9,6 +9,8 @@ import { hasAdminPermission } from '@/types'
 import { minPricePaiseFromVariants, type PriceVariant } from '@/lib/package-pricing'
 import { fetchServiceBookingCountsForListings } from '@/lib/service-listing-booking-stats'
 import { normalizeHostListingContact, hostListingAssignmentRows, type HostListingContactInput, type HostListingAssignment } from '@/lib/host-listing-contact'
+import { sanitizeEventSchedule, serviceListingItemRows, summarizeServiceListingItems } from '@/lib/service-listing-items'
+import type { HostServiceItemDraft } from '@/actions/host-service-listings'
 
 /**
  * Allow anyone whose role grants the `service_listings` permission.
@@ -238,6 +240,86 @@ export async function createServiceListing(input: {
   revalidateTag(SERVICE_LISTINGS_TAG, 'max')
 
   return data as ServiceListing
+}
+
+/**
+ * Staff create a service listing for a host with the same items, per-item units
+ * (hourly/daily/weekly/monthly etc.) and location fields as the host form.
+ */
+export async function createServiceListingForHost(input: {
+  title: string
+  description: string | null
+  short_description: string | null
+  type: ServiceListingType
+  unit: ServiceListing['unit']
+  destination_ids: string[]
+  location: string | null
+  latitude?: number | null
+  longitude?: number | null
+  amenities: string[]
+  tags: string[]
+  metadata: ServiceListingMetadata | null
+  items: HostServiceItemDraft[]
+  host_contact: HostListingContactInput
+  event_schedule?: ServiceEventScheduleEntry[] | null
+}): Promise<{ error: string } | { success: true; id: string }> {
+  let auth: Awaited<ReturnType<typeof requireAdmin>>
+  try { auth = await requireAdmin() } catch (e) { return { error: e instanceof Error ? e.message : 'Unauthorized' } }
+  const { supabase, user } = auth
+
+  let contact: ReturnType<typeof normalizeHostListingContact>
+  try { contact = normalizeHostListingContact(input.host_contact) } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Invalid host contact' }
+  }
+
+  const destinationIds = Array.from(new Set(input.destination_ids.filter(Boolean)))
+  if (destinationIds.length === 0) return { error: 'Please pick at least one location' }
+  const { data: dests } = await supabase.from('destinations').select('id').in('id', destinationIds)
+  if (!dests || dests.length !== destinationIds.length) return { error: 'One or more locations could not be found' }
+
+  const summary = summarizeServiceListingItems(input)
+  if ('error' in summary) return summary
+
+  const slug = `${input.title.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}-${Date.now()}`
+  const { data, error } = await supabase.rpc('create_delegated_host_listing', {
+    p_kind: 'service',
+    p_contact: contact,
+    p_staff_id: user.id,
+    p_listing: {
+      title: input.title,
+      slug,
+      description: input.description,
+      short_description: input.short_description,
+      type: input.type,
+      price_paise: summary.price_paise,
+      unit: summary.unit,
+      destination_id: destinationIds[0],
+      destination_ids: destinationIds,
+      location: input.location,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      amenities: summary.amenities,
+      tags: input.tags.length > 0 ? input.tags : null,
+      images: summary.images,
+      metadata: input.metadata,
+      is_featured: false,
+      event_schedule: input.type === 'activities' ? sanitizeEventSchedule(input.event_schedule) : null,
+    },
+  })
+  if (error || !data?.id) return { error: error?.message || 'Failed to create listing' }
+
+  const { error: itemsError } = await supabase.from('service_listing_items')
+    .insert(serviceListingItemRows(data.id, input.type, summary.items))
+  if (itemsError) {
+    // Remove the half-created listing (its assignment cascades) so staff can retry.
+    await supabase.from('service_listings').delete().eq('id', data.id)
+    return { error: `Failed to save items: ${itemsError.message || itemsError.code || 'unknown'}` }
+  }
+
+  revalidatePath('/admin/service-listings')
+  revalidatePath('/host')
+  revalidateTag(SERVICE_LISTINGS_TAG, 'max')
+  return { success: true, id: data.id as string }
 }
 
 export async function updateServiceListing(

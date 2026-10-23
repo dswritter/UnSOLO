@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
+import { sanitizeEventSchedule, serviceListingItemRows, summarizeServiceListingItems } from '@/lib/service-listing-items'
 import type {
   ServiceEventScheduleEntry,
   ServiceListingType,
@@ -71,54 +72,6 @@ const HOST_SERVICE_OPERATIONAL_FIELDS = new Set<string>([
   // a lapsed schedule shouldn't drag the listing back through admin review.
   'event_schedule',
 ])
-
-const TIME_RE = /^\d{2}:\d{2}$/
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-/**
- * Validate + normalise an `event_schedule` payload. Returns null for empty,
- * which the column treats as "ongoing / non-date-specific". Drops malformed
- * entries silently rather than throwing, so a single bad row from the UI
- * doesn't block a save.
- */
-function sanitizeEventSchedule(raw: unknown): ServiceEventScheduleEntry[] | null {
-  if (!Array.isArray(raw)) return null
-  const seenDates = new Set<string>()
-  const entries: ServiceEventScheduleEntry[] = []
-
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue
-    const date = (item as { date?: unknown }).date
-    if (typeof date !== 'string' || !DATE_RE.test(date)) continue
-    if (seenDates.has(date)) continue
-    seenDates.add(date)
-
-    const rawSlots = (item as { slots?: unknown }).slots
-    if (rawSlots == null) {
-      entries.push({ date, slots: null })
-      continue
-    }
-    if (!Array.isArray(rawSlots)) {
-      entries.push({ date, slots: null })
-      continue
-    }
-    const slots: { start: string; end: string }[] = []
-    for (const s of rawSlots) {
-      if (!s || typeof s !== 'object') continue
-      const start = (s as { start?: unknown }).start
-      const end = (s as { end?: unknown }).end
-      if (typeof start !== 'string' || !TIME_RE.test(start)) continue
-      if (typeof end !== 'string' || !TIME_RE.test(end)) continue
-      if (start >= end) continue // end must be strictly after start
-      slots.push({ start, end })
-    }
-    slots.sort((a, b) => a.start.localeCompare(b.start))
-    entries.push({ date, slots: slots.length > 0 ? slots : null })
-  }
-
-  entries.sort((a, b) => a.date.localeCompare(b.date))
-  return entries.length > 0 ? entries : null
-}
 
 /** True when the user is primary host or an accepted co-host on this listing. */
 async function userCanEditServiceListing(
@@ -210,46 +163,9 @@ export async function createHostServiceListing(input: {
     }
     const primaryDestinationId = destinationIds[0]
 
-    // Validate items: need at least one.
-    const items = input.items.filter(i => i.name.trim().length > 0)
-    if (items.length === 0) {
-      return { error: 'Please add at least one item to your listing' }
-    }
-    if (items.length > 100) {
-      return { error: 'A listing can hold at most 100 items' }
-    }
-    for (const item of items) {
-      if (item.images.length > 5) {
-        return { error: `"${item.name}": max 5 photos per item` }
-      }
-      if (item.price_paise < 0 || item.quantity_available < 0 || item.max_per_booking < 1) {
-        return { error: `"${item.name}" has invalid price, quantity, or max` }
-      }
-    }
-
-    // Derive master-level price/images from items: min price for discovery
-    // sort, and the first item that actually has photos (not strictly
-    // items[0]) so the hero never ends up empty when a host leaves the
-    // lead item's photos blank but uploads images on subsequent items.
-    const minPricePaise = Math.min(...items.map(i => i.price_paise))
-    const firstItemWithImages = items.find(i => i.images.length > 0)
-    const heroImages = firstItemWithImages?.images.slice(0, 5) ?? []
-
-    // Rentals & stays: each item owns its unit + amenities. Master unit gets
-    // the cheapest item's unit so "from ₹X / unit" discovery cards stay coherent.
-    // Master amenities stays null — item cards render their own.
-    let effectiveMasterUnit: ServiceUnit = input.unit
-    let effectiveMasterAmenities: string[] = input.amenities
-    if (input.type === 'rentals' || input.type === 'stays') {
-      const cheapest = items.reduce((a, b) => (a.price_paise <= b.price_paise ? a : b))
-      if (cheapest.unit) effectiveMasterUnit = cheapest.unit
-      effectiveMasterAmenities = []
-      for (const item of items) {
-        if (!item.unit) {
-          return { error: `"${item.name}": please pick a pricing unit` }
-        }
-      }
-    }
+    const summary = summarizeServiceListingItems(input)
+    if ('error' in summary) return summary
+    const { items } = summary
 
     // Generate slug from title
     const slug = input.title
@@ -269,8 +185,8 @@ export async function createHostServiceListing(input: {
         description: input.description,
         short_description: input.short_description,
         type: input.type,
-        price_paise: minPricePaise,
-        unit: effectiveMasterUnit,
+        price_paise: summary.price_paise,
+        unit: summary.unit,
         destination_id: primaryDestinationId,
         destination_ids: destinationIds,
         location: input.location,
@@ -278,9 +194,9 @@ export async function createHostServiceListing(input: {
         longitude: input.longitude ?? null,
         max_guests_per_booking: null,
         quantity_available: null,
-        amenities: effectiveMasterAmenities.length > 0 ? effectiveMasterAmenities : null,
+        amenities: summary.amenities,
         tags: input.tags.length > 0 ? input.tags : null,
-        images: heroImages.length > 0 ? heroImages : null,
+        images: summary.images,
         metadata: input.metadata,
         host_id: input.host_id,
         is_active: true,
@@ -305,25 +221,7 @@ export async function createHostServiceListing(input: {
     // key means the insert works on databases that don't yet have the column.
     const { error: itemsError } = await supabase
       .from('service_listing_items')
-      .insert(items.map((item, idx) => {
-        const row: Record<string, unknown> = {
-          service_listing_id: data.id,
-          name: item.name.trim(),
-          description: item.description?.trim() || null,
-          price_paise: item.price_paise,
-          quantity_available: item.quantity_available,
-          max_per_booking: item.max_per_booking,
-          images: item.images,
-          position_order: idx,
-          // Rentals & stays carry per-item unit/amenities; other types leave these null.
-          unit: input.type === 'rentals' || input.type === 'stays' ? (item.unit ?? null) : null,
-          amenities: input.type === 'rentals' || input.type === 'stays' ? (item.amenities ?? []) : null,
-        }
-        if (input.type === 'stays' && item.weekend_price_paise != null) {
-          row.weekend_price_paise = item.weekend_price_paise
-        }
-        return row
-      }))
+      .insert(serviceListingItemRows(data.id, input.type, items))
 
     if (itemsError) {
       console.error('Items insert error:', itemsError)

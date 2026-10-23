@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   serviceClient: vi.fn(), reviewClient: vi.fn(), insert: vi.fn(), update: vi.fn(),
   profile: { role: 'user', is_host: true, full_name: 'Ordinary Host', username: 'host' },
   membership: null as null | { role: string; is_active: boolean; custom_permissions: string[] },
+  itemsError: null as null | { message: string }, remove: vi.fn(),
 }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }))
 vi.mock('@/lib/auth/action-auth', () => ({ getActionAuth: mocks.auth }))
@@ -14,7 +15,7 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@supabase/supabase-js', () => ({ createClient: mocks.reviewClient }))
 
 import { createHostedTrip, createHostDestination } from './hosting'
-import { createServiceListing } from './admin-service-listings'
+import { createServiceListing, createServiceListingForHost } from './admin-service-listings'
 
 const tripInput: Parameters<typeof createHostedTrip>[0] = {
   title: 'Community trip', destination_id: 'destination-id', description: 'A trip',
@@ -41,9 +42,10 @@ function query(table: string, scope: 'user' | 'staff' | 'review') {
         : [{ id: 'destination-id' }]
       : inserted && ['packages', 'service_listings'].includes(table) ? { id: 'listing-id', slug: 'created-slug' }
       : null,
-    error: null,
+    error: table === 'service_listing_items' ? mocks.itemsError : null,
   })
   const chain = {
+    delete: vi.fn(() => { mocks.remove(scope, table); return chain }),
     select: vi.fn((value: string) => { columns = value; return chain }),
     eq: vi.fn(() => chain), in: vi.fn(() => chain), ilike: vi.fn(() => chain),
     maybeSingle: vi.fn(async () => result()),
@@ -66,6 +68,7 @@ describe('staff-created listing approval actions', () => {
     vi.clearAllMocks()
     mocks.profile = { role: 'user', is_host: true, full_name: 'Ordinary Host', username: 'host' }
     mocks.membership = null
+    mocks.itemsError = null
     mocks.auth.mockResolvedValue({ user: { id: 'actor-id' }, supabase: { from: mocks.userFrom } })
     mocks.userFrom.mockImplementation(table => query(table, 'user'))
     mocks.staffFrom.mockImplementation(table => query(table, 'staff'))
@@ -221,5 +224,51 @@ describe('staff-created listing approval actions', () => {
     expect(mocks.reviewClient).not.toHaveBeenCalled()
     expect(mocks.insert).not.toHaveBeenCalled()
     expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  describe('host-form service creation by staff', () => {
+    const rentalInput: Parameters<typeof createServiceListingForHost>[0] = {
+      title: 'Leh Bike Hub', description: null, short_description: null, type: 'rentals', unit: 'per_day',
+      destination_ids: ['destination-id'], location: 'Main Bazaar', latitude: 34.16, longitude: 77.58,
+      amenities: ['ignored'], tags: [], metadata: null, host_contact: { email: 'Host@Example.com' },
+      items: [
+        { name: 'Scooter', description: null, price_paise: 50000, quantity_available: 1, max_per_booking: 2, images: ['a.jpg'], unit: 'per_hour', amenities: ['Helmet'] },
+        { name: 'Bike (monthly)', description: null, price_paise: 2500000, quantity_available: 1, max_per_booking: 1, images: [], unit: 'per_month', amenities: [] },
+      ],
+    }
+
+    it('publishes rentals with per-item hourly and monthly units for the host contact', async () => {
+      mocks.profile.role = 'host_onboarding_staff'
+      expect(await createServiceListingForHost(rentalInput)).toEqual({ success: true, id: 'listing-id' })
+      expect(mocks.rpc).toHaveBeenCalledWith('create_delegated_host_listing', {
+        p_kind: 'service', p_staff_id: 'actor-id', p_contact: { email: 'host@example.com', phone: null, name: null },
+        p_listing: expect.objectContaining({
+          type: 'rentals', price_paise: 50000, unit: 'per_hour', amenities: null, images: ['a.jpg'],
+          latitude: 34.16, longitude: 77.58, destination_id: 'destination-id',
+        }),
+      })
+      expect(mocks.insert).toHaveBeenCalledWith('staff', 'service_listing_items', [
+        expect.objectContaining({ service_listing_id: 'listing-id', name: 'Scooter', unit: 'per_hour', amenities: ['Helmet'], position_order: 0 }),
+        expect.objectContaining({ name: 'Bike (monthly)', unit: 'per_month', position_order: 1 }),
+      ])
+    })
+
+    it('rejects items without a pricing unit and requires a host contact', async () => {
+      mocks.profile.role = 'admin'
+      const noUnit = { ...rentalInput, items: [{ ...rentalInput.items[0], unit: null }] }
+      expect(await createServiceListingForHost(noUnit)).toEqual({ error: '"Scooter": please pick a pricing unit' })
+      expect('error' in await createServiceListingForHost({ ...rentalInput, host_contact: {} })).toBe(true)
+      expect(mocks.rpc).not.toHaveBeenCalled()
+    })
+
+    it('rolls back the listing when items fail and refuses staff without service permission', async () => {
+      mocks.profile.role = 'admin'
+      mocks.itemsError = { message: 'boom' }
+      expect(await createServiceListingForHost(rentalInput)).toEqual({ error: 'Failed to save items: boom' })
+      expect(mocks.remove).toHaveBeenCalledWith('staff', 'service_listings')
+
+      mocks.profile.role = 'chat_responder'
+      expect('error' in await createServiceListingForHost(rentalInput)).toBe(true)
+    })
   })
 })

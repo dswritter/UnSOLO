@@ -61,7 +61,9 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 
 ## Admin and host locations
 
-- Admin service creation/editing uses the host destination search, including adding new destinations and selecting multiple service locations. Exact coordinates can be selected using an address search, device location, Google Maps share link or a draggable map pin.
+- **Admin → Service Listings → Create** (`/admin/service-listings/create?type=stays|activities|rentals`) opens the same multi-step form hosts use, plus the host email/phone fields. Staff can add multiple items with their own pricing unit (rentals: per hour, day, week or month), photos and amenities. Publishing calls `createServiceListingForHost`, which creates the approved delegated listing and its items, and removes the listing again if the items cannot be saved. The listing is linked when the host signs in with that contact. Staff-created listings never write a cloud draft.
+- Platform listings without a host remain available from the same page (`?mode=platform`) using the original admin form. That form and admin editing offer only the pricing units valid for the listing type, while keeping a legacy saved unit selectable.
+- Trips, stays, activities, rentals and admin forms share one location picker (`ListingLocationPicker`): address search with multiple matches, device location, Google Maps share link and a draggable pin confirmed only by **Use this pin**. Stays and rentals require the pin.
 - Host and staff-created trips support an optional exact meeting point, alongside the trip's primary destination. The address and pin are stored in package metadata, survive local/cloud drafts and edits, and appear in the preview and public trip page. Cancelling a map adjustment does not change the saved pin.
 - Existing listings remain valid without a meeting point. No migration is required.
 
