@@ -14,7 +14,7 @@ import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/40'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
 
 const TRAVEL_QUOTES = [
   'The world is a book, and those who do not travel read only one page.',
@@ -22,8 +22,6 @@ const TRAVEL_QUOTES = [
   'Not all those who wander are lost.',
 ]
 
-const inputPlaceholderClass =
-  'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
 
 function LoginV2FormInner() {
   const searchParams = useSearchParams()
@@ -109,11 +107,11 @@ function LoginV2FormInner() {
 
   return (
     <>
-      <div className="mb-1">
+      <div className="mb-1 hidden sm:block">
         <h2 className="text-lg font-bold text-foreground md:text-xl">
           <span className="text-primary">Log in</span> to continue
         </h2>
-        <p className="mt-1 hidden text-sm text-foreground/50 sm:block">Access your account and pick up where you left off.</p>
+        <p className="mt-1 text-sm text-foreground/50">Access your account and pick up where you left off.</p>
       </div>
 
       <AuthV2Tabs active="login" />
@@ -143,10 +141,10 @@ function LoginV2FormInner() {
       <AuthGoogleOption busy={googleBusy} attempts={googleAttempts} error={googleError}
         onClick={() => void handleGoogleSignIn()} />
 
-      <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-3.5">
+      <form onSubmit={handleEmailSubmit} ref={formRef} className="space-y-2.5">
         <input type="hidden" name="redirectTo" value={redirectTo} />
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground/80" htmlFor="auth-v2-email">
+        <div>
+          <label className="sr-only" htmlFor="auth-v2-email">
             Email
           </label>
           <Input
@@ -154,23 +152,15 @@ function LoginV2FormInner() {
             name="email"
             type="email"
             autoComplete="email"
-            placeholder="hello@unsolo.in"
+            placeholder="Email address"
             required
-            className={`${inputClass} ${inputPlaceholderClass}`}
+            className={`${inputClass}`}
           />
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <label className="text-xs font-medium text-foreground/80" htmlFor="auth-v2-password">
-              Password
-            </label>
-            <Link
-              href={`/forgot-password${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Forgot?
-            </Link>
-          </div>
+        <div>
+          <label className="sr-only" htmlFor="auth-v2-password">
+            Password
+          </label>
           <div className="relative">
             <Input
               ref={passwordRef}
@@ -178,8 +168,9 @@ function LoginV2FormInner() {
               name="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
+              placeholder="Password"
               required
-              className={`${inputClass} pr-10 ${inputPlaceholderClass}`}
+              className={`${inputClass} pr-10`}
             />
             <button
               type="button"
@@ -190,10 +181,18 @@ function LoginV2FormInner() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
+          <div className="mt-1.5 text-right">
+            <Link
+              href={`/forgot-password${redirectTo !== '/' ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ''}`}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </div>
         <Button
           type="submit"
-          className="mt-1 h-11 w-full bg-[#fcba03] text-base font-extrabold text-black shadow-lg shadow-[#fcba03]/20 hover:bg-[#fcba03]/90"
+          className="h-11 w-full bg-[#fcba03] text-base font-extrabold text-black shadow-lg shadow-[#fcba03]/20 hover:bg-[#fcba03]/90"
         >
           Log In
         </Button>

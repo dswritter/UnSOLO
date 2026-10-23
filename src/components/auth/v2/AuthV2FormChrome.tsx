@@ -43,7 +43,7 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
   const loginHref = `/login${suffix ? `?${suffix}` : ''}`
 
   return (
-    <div className="mb-5 flex w-full border-b border-foreground/10">
+    <div className="mb-3 flex w-full border-b sm:mb-5 border-foreground/10">
       <Link
         href={loginHref}
         className={cn(
@@ -68,7 +68,7 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
 
 export function AuthV2SecurityFooter() {
   return (
-    <p className="mt-4 flex items-start justify-center gap-2 text-[11px] leading-relaxed text-foreground/60">
+    <p className="mt-3 hidden items-start justify-center gap-2 text-[11px] leading-relaxed text-foreground/60 sm:mt-4 sm:flex">
       <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground/50" />
       <span>Secure sign-in. Your details stay private.</span>
     </p>
@@ -82,7 +82,7 @@ export function AuthGoogleOption({ busy, attempts, error, onClick }: {
   onClick: () => void
 }) {
   return (
-    <div className="mb-4 space-y-3">
+    <div className="mb-3 space-y-2.5 sm:mb-4 sm:space-y-3">
       <Button type="button" variant="outline" disabled={busy || attempts >= 2}
         className="h-11 w-full border-foreground/25 bg-background/70 text-foreground hover:bg-foreground/5"
         onClick={onClick}>

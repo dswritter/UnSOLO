@@ -1,25 +1,18 @@
-import { Suspense, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { AuthNightScene } from '@/components/auth/v2/AuthNightScene'
 import { ColorModeToggle } from '@/components/layout/ColorModeToggle'
-import { AuthMetrics, AuthMetricsSkeleton } from '@/components/auth/v2/AuthMetrics'
+import { AuthMetrics } from '@/components/auth/v2/AuthMetrics'
 import { AuthV2TopBar } from '@/components/auth/v2/AuthV2TopBar'
 import { cn } from '@/lib/utils'
 
 type Mode = 'login' | 'signup'
 
-const HERO: Record<Mode, { eyebrow: string; title: ReactNode }> = {
-  login: {
-    eyebrow: 'Good to see you again',
-    title: <>Welcome back to <span className="brand-gold">Unsolo</span></>,
-  },
-  signup: {
-    eyebrow: 'Your next trip starts here',
-    title: <>Create your <span className="brand-gold">Unsolo</span> account</>,
-  },
+const HERO: Record<Mode, ReactNode> = {
+  login: <>Welcome back to <span className="brand-gold">Unsolo</span></>,
+  signup: <>Create your <span className="brand-gold">Unsolo</span> account</>,
 }
 
 export function AuthV2Shell({ mode, children }: { mode: Mode; children: ReactNode }) {
-  const h = HERO[mode]
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden text-foreground">
       <AuthNightScene />
@@ -30,16 +23,13 @@ export function AuthV2Shell({ mode, children }: { mode: Mode; children: ReactNod
         {/* Mobile: sized so the campfire stays visible above the card. */}
         <div className="flex h-[19rem] w-full min-w-0 flex-none flex-col px-4 pt-5 sm:px-5 lg:h-auto lg:min-h-dvh lg:w-[48%] lg:max-w-[52%] lg:flex-1 lg:p-8 lg:py-10 lg:pr-4">
           <AuthV2TopBar />
-          <div className="mt-4 min-w-0 lg:mt-14">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-foreground/55 lg:text-xs">{h.eyebrow}</p>
-            <h1 className="mt-1 text-balance text-[1.7rem] font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-3xl md:text-4xl lg:text-5xl">
-              {h.title}
+          <div className="mt-3 min-w-0 lg:mt-14">
+            <h1 className="text-balance text-[1.7rem] font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-3xl md:text-4xl lg:text-5xl">
+              {HERO[mode]}
             </h1>
           </div>
           <div className="mt-3 w-full lg:mt-auto lg:max-w-xl">
-            <Suspense fallback={<AuthMetricsSkeleton />}>
-              <AuthMetrics />
-            </Suspense>
+            <AuthMetrics />
           </div>
         </div>
 

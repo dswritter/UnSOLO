@@ -30,3 +30,19 @@ describe('Google-first authentication', () => {
     })
   }
 })
+
+describe('compact email forms', () => {
+  it('login uses accessible placeholder hints and keeps password recovery', () => {
+    render(createElement(LoginV2Form))
+    expect(screen.getByLabelText('Email')).toHaveProperty('placeholder', 'Email address')
+    expect(screen.getByLabelText('Password')).toHaveProperty('placeholder', 'Password')
+    expect(screen.getByRole('link', { name: 'Forgot password?' })).toBeTruthy()
+  })
+
+  it('signup reveals confirm password only after a password is entered', () => {
+    render(createElement(SignupV2Form))
+    expect(screen.queryByLabelText('Confirm password')).toBeNull()
+    fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'secret12' } })
+    expect(screen.getByLabelText('Confirm password')).toHaveProperty('placeholder', 'Confirm password')
+  })
+})

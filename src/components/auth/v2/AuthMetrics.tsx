@@ -1,8 +1,20 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { Users, Star, Compass, Smile, type LucideIcon } from 'lucide-react'
-import { getAuthHeroMetrics, type AuthHeroMetrics } from '@/lib/wander/wanderQueries'
+import type { AuthHeroMetrics } from '@/lib/wander/wanderQueries'
+import {
+  AUTH_METRICS_SESSION_KEY,
+  AUTH_METRICS_STORAGE_KEY,
+  needsAuthMetricsRefresh,
+  parseAuthMetrics,
+  readCachedAuthMetrics,
+} from '@/lib/auth-metrics-cache'
 import { cn } from '@/lib/utils'
 
 type Metric = { id: string; value: string; label: string; icon: LucideIcon }
+
+const FETCH_TIMEOUT_MS = 8000
 
 function compact(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M+`
@@ -56,13 +68,56 @@ export function AuthMetricsSkeleton({ className }: { className?: string }) {
   )
 }
 
-export async function AuthMetrics({ className }: { className?: string }) {
-  let items: Metric[]
-  try {
-    items = authMetricItems(await getAuthHeroMetrics())
-  } catch (error) {
-    console.error('Auth metrics unavailable:', error)
-    return null
-  }
-  return <AuthMetricsRow items={items} className={className} />
+function isReloadNavigation() {
+  const nav = performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined
+  return nav?.type === 'reload'
+}
+
+type State = { status: 'loading' } | { status: 'ready'; metrics: AuthHeroMetrics } | { status: 'unavailable' }
+
+/** Shows the browser-cached copy instantly and only refetches when it is due. */
+export function AuthMetrics({ className }: { className?: string }) {
+  const [state, setState] = useState<State>({ status: 'loading' })
+
+  useEffect(() => {
+    let cached = null
+    let sessionSeen = false
+    try {
+      cached = readCachedAuthMetrics(localStorage)
+      sessionSeen = sessionStorage.getItem(AUTH_METRICS_SESSION_KEY) === '1'
+    } catch { /* storage blocked: fall back to network */ }
+    // Hydrating from browser storage is an external-system sync.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (cached) setState({ status: 'ready', metrics: cached.metrics })
+    if (!needsAuthMetricsRefresh({ cached, now: Date.now(), sessionSeen, reload: isReloadNavigation() })) return
+
+    let disposed = false
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+    fetch('/api/auth-metrics', { signal: controller.signal })
+      .then(res => (res.ok ? res.json() : null))
+      .then((body: unknown) => {
+        const metrics = parseAuthMetrics(body)
+        if (!metrics) throw new Error('Invalid metrics response')
+        try {
+          localStorage.setItem(AUTH_METRICS_STORAGE_KEY, JSON.stringify({ savedAt: Date.now(), metrics }))
+          sessionStorage.setItem(AUTH_METRICS_SESSION_KEY, '1')
+        } catch { /* storage full or blocked */ }
+        if (!disposed) setState({ status: 'ready', metrics })
+      })
+      .catch(() => {
+        // Keep showing an older copy; otherwise drop the row rather than spin forever.
+        if (!disposed && !cached) setState({ status: 'unavailable' })
+      })
+      .finally(() => clearTimeout(timeout))
+    return () => {
+      disposed = true
+      clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [])
+
+  if (state.status === 'loading') return <AuthMetricsSkeleton className={className} />
+  if (state.status === 'unavailable') return null
+  return <AuthMetricsRow items={authMetricItems(state.metrics)} className={className} />
 }

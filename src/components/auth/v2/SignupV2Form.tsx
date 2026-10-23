@@ -12,9 +12,7 @@ import { toast } from 'sonner'
 import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/40 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/40'
-const inputPlaceholderClass =
-  'placeholder:transition-opacity focus:placeholder:opacity-0 focus:placeholder:duration-150'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
 
 function SignupV2FormInner() {
   const [loading, setLoading] = useState<false | 'email'>(false)
@@ -23,6 +21,7 @@ function SignupV2FormInner() {
   const [googleAttempts, setGoogleAttempts] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordStarted, setPasswordStarted] = useState(false)
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null)
   const [resendBusy, setResendBusy] = useState(false)
   const submitLockRef = useRef(false)
@@ -121,6 +120,14 @@ function SignupV2FormInner() {
     setLoading('email')
     try {
       const formData = new FormData(e.currentTarget)
+      if (!formData.has('confirmPassword')) {
+        // Password managers can fill the password without an input event.
+        setPasswordStarted(true)
+        toast.error('Please confirm your password')
+        setLoading(false)
+        submitLockRef.current = false
+        return
+      }
       if (formData.get('password') !== formData.get('confirmPassword')) {
         toast.error('Passwords do not match')
         if (passwordRef.current) passwordRef.current.value = ''
@@ -163,11 +170,11 @@ function SignupV2FormInner() {
 
   return (
     <>
-      <div className="mb-1">
+      <div className="mb-1 hidden sm:block">
         <h2 className="text-lg font-bold text-foreground md:text-xl">
           <span className="text-primary">Sign up</span> to continue
         </h2>
-        <p className="mt-1 hidden text-sm text-foreground/50 sm:block">Join the community and start exploring.</p>
+        <p className="mt-1 text-sm text-foreground/50">Join the community and start exploring.</p>
       </div>
 
       <AuthV2Tabs active="signup" />
@@ -185,48 +192,48 @@ function SignupV2FormInner() {
       <AuthGoogleOption busy={googleBusy} attempts={googleAttempts} error={googleError}
         onClick={() => void handleGoogleSignUp()} />
 
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form onSubmit={handleSubmit} className="space-y-2.5">
         {refCode && <input type="hidden" name="referralCode" value={refCode} />}
         <input type="hidden" name="redirectTo" value={redirectTo} />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label htmlFor="auth-v2-full-name" className="text-xs font-medium text-foreground/80">Full name</label>
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+          <div>
+            <label htmlFor="auth-v2-full-name" className="sr-only">Full name</label>
             <Input
               id="auth-v2-full-name"
               autoComplete="name"
               name="fullName"
-              placeholder="e.g. River Walker"
+              placeholder="Full name"
               required
-              className={`${inputClass} ${inputPlaceholderClass}`}
+              className={`${inputClass}`}
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="auth-v2-username" className="text-xs font-medium text-foreground/80">Username</label>
+          <div>
+            <label htmlFor="auth-v2-username" className="sr-only">Username</label>
             <Input
               id="auth-v2-username"
               autoComplete="username"
               name="username"
-              placeholder="e.g. summit_seeker"
+              placeholder="Username"
               required
-              className={`${inputClass} ${inputPlaceholderClass}`}
+              className={`${inputClass}`}
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor="auth-v2-signup-email" className="text-xs font-medium text-foreground/80">Email</label>
+        <div>
+          <label htmlFor="auth-v2-signup-email" className="sr-only">Email</label>
           <Input
             id="auth-v2-signup-email"
             name="email"
             type="email"
             autoComplete="email"
-            placeholder="hello@unsolo.in"
+            placeholder="Email address"
             required
-            className={`${inputClass} ${inputPlaceholderClass}`}
+            className={`${inputClass}`}
           />
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor="auth-v2-signup-password" className="text-xs font-medium text-foreground/80">Password</label>
+        <div>
+          <label htmlFor="auth-v2-signup-password" className="sr-only">Password</label>
           <div className="relative">
             <Input
               ref={passwordRef}
@@ -234,10 +241,11 @@ function SignupV2FormInner() {
               name="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
-              placeholder="At least 8 characters"
+              placeholder="Password (8+ characters)"
+              onInput={e => { if (e.currentTarget.value) setPasswordStarted(true) }}
               minLength={8}
               required
-              className={`${inputClass} pr-10 ${inputPlaceholderClass}`}
+              className={`${inputClass} pr-10`}
             />
             <button
               type="button"
@@ -249,8 +257,9 @@ function SignupV2FormInner() {
             </button>
           </div>
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor="auth-v2-confirm-password" className="text-xs font-medium text-foreground/80">Confirm password</label>
+        {passwordStarted && (
+        <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+          <label htmlFor="auth-v2-confirm-password" className="sr-only">Confirm password</label>
           <div className="relative">
             <Input
               ref={confirmPasswordRef}
@@ -258,8 +267,9 @@ function SignupV2FormInner() {
               name="confirmPassword"
               type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
+              placeholder="Confirm password"
               required
-              className={`${inputClass} pr-10 ${inputPlaceholderClass}`}
+              className={`${inputClass} pr-10`}
             />
             <button
               type="button"
@@ -271,6 +281,7 @@ function SignupV2FormInner() {
             </button>
           </div>
         </div>
+        )}
         <Button
           type="submit"
           disabled={!!loading || googleBusy}
@@ -280,7 +291,7 @@ function SignupV2FormInner() {
         </Button>
       </form>
 
-      <p className="text-[11px] text-foreground/40 text-center mt-3">By creating an account, you agree to our terms and privacy policy.</p>
+      <p className="mt-2.5 text-center text-[11px] text-foreground/45 sm:mt-3">By creating an account, you agree to our terms and privacy policy.</p>
 
       <p className="mt-4 hidden text-center text-sm text-foreground/50 sm:block">
         Already have an account?{' '}

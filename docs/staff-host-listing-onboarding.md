@@ -68,7 +68,8 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 ## Mobile authentication
 
 - Google sign-in appears before email fields on both login and signup. Mobile leaves an unobstructed campfire scene above the compact form, and does not automatically scroll to or focus an input.
-- Community metrics (travellers, hosts, rating, happy customers) stream in one row after the form renders. Unavailable or zero values are hidden rather than shown as placeholders; if metrics fail, sign-in remains usable.
+- Community metrics (travellers, hosts, rating, happy customers) load in one row after the form renders, from `/api/auth-metrics` (CDN-cached for an hour). The browser keeps its copy in `localStorage` and only refetches on a reload, a newly opened tab/browser session, or after 24 hours. Unavailable or zero values are hidden; if metrics fail (8s timeout), the row disappears and sign-in remains usable.
+- Email forms use placeholder hints with screen-reader labels; signup reveals the confirm-password field once a password is entered.
 - Email/password, password visibility, password reset, email verification, referral codes and return URLs remain available. Desktop keeps the two-column scene and statistics.
 
 ## Listing photos
