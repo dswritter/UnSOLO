@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ client: vi.fn(), service: vi.fn(), getUser: vi.fn(), rpc: vi.fn() }))
+const mocks = vi.hoisted(() => ({ client: vi.fn(), service: vi.fn(), getClaims: vi.fn(), rpc: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.client, createServiceRoleClient: mocks.service }))
 vi.mock('@/lib/auth/admin-permissions', () => ({
   STAFF_ROLES: ['admin', 'social_media_manager', 'field_person', 'chat_responder', 'host_onboarding_staff', 'custom'],
@@ -49,24 +49,24 @@ describe('staff host contact search', () => {
     profile = { role: 'admin' }
     membership = null
     fail = null
-    mocks.client.mockResolvedValue({ auth: { getUser: mocks.getUser }, from: (table: string) => builder(table, false) })
+    mocks.client.mockResolvedValue({ auth: { getClaims: mocks.getClaims }, from: (table: string) => builder(table, false) })
     mocks.service.mockImplementation(() => {
       expect(calls.map(call => call.table)).toContain('profiles')
       expect(calls.map(call => call.table)).toContain('team_members')
       return { rpc: mocks.rpc }
     })
-    mocks.getUser.mockResolvedValue({ data: { user: { id: 'staff-1' } }, error: null })
+    mocks.getClaims.mockResolvedValue({ data: { claims: { sub: 'staff-1' } }, error: null })
     mocks.rpc.mockResolvedValue({ data: [], error: null })
   })
 
   it('rejects unauthenticated requests before permissions or private database access', async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: null }, error: null })
+    mocks.getClaims.mockResolvedValue({ data: null, error: null })
     await expect(searchHostListingContacts('service', '')).rejects.toThrow('Not authenticated')
     expect(calls).toEqual([])
     expect(mocks.service).not.toHaveBeenCalled()
   })
-  it('fails closed when getUser returns an error, even with a user', async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: 'staff-1' } }, error: { message: 'expired' } })
+  it('fails closed when JWT verification returns an error, even with claims', async () => {
+    mocks.getClaims.mockResolvedValue({ data: { claims: { sub: 'staff-1' } }, error: { message: 'expired' } })
     await expect(searchHostListingContacts('trip', '')).rejects.toThrow('Not authenticated')
     expect(mocks.service).not.toHaveBeenCalled()
   })
@@ -80,7 +80,7 @@ describe('staff host contact search', () => {
     profile = { role }
     await expect(searchHostListingContacts('service', '')).resolves.toEqual([])
     await expect(searchHostListingContacts('trip', '')).resolves.toEqual([])
-    expect(mocks.getUser).toHaveBeenCalledTimes(2)
+    expect(mocks.getClaims).toHaveBeenCalledTimes(2)
     expect(mocks.service).toHaveBeenCalledTimes(2)
   })
   it('uses active staff membership when the profile role has not synced', async () => {

@@ -1,12 +1,19 @@
 'use client'
 
 import { useId, useState } from 'react'
+import { UserRound } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { PHONE_COUNTRY_CODES } from '@/lib/utils'
 import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
 import { updateHostListingContact } from '@/actions/host-listing-assignments'
 import { HostListingContactPicker } from './HostListingContactPicker'
 
+type Selected = { label: string; detail: string; registered: boolean }
+
+/**
+ * Progressive host step: search first, then either a compact card for an existing
+ * host or the email/phone/display-name fields for a new, unregistered host.
+ */
 export function HostListingContactFields({ listingKind, value, onChange, disabled = false }: {
   listingKind: 'service' | 'trip'
   value: HostListingContactInput
@@ -14,45 +21,86 @@ export function HostListingContactFields({ listingKind, value, onChange, disable
   disabled?: boolean
 }) {
   const phoneId = useId()
+  const [selected, setSelected] = useState<Selected | null>(null)
+  const [mode, setMode] = useState<'search' | 'existing' | 'new'>(
+    () => (value.email?.trim() || value.phone?.trim() ? 'new' : 'search'))
+
+  function reset() {
+    setSelected(null)
+    setMode('search')
+    onChange({ email: '', phone: '', countryCode: '+91' })
+  }
+
   return (
     <fieldset disabled={disabled} className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-      <legend className="px-1 text-sm font-semibold">Host contact — creating on their behalf</legend>
-      <HostListingContactPicker listingKind={listingKind} value={value} onChange={onChange} disabled={disabled} />
-      <p className="text-xs text-muted-foreground">
-        Choose a host above or enter their email or phone (at least one). You can reuse the same host for multiple listings of any type. An existing verified account is linked immediately;
-        otherwise, listings link automatically when they verify the same contact after signup.
-        Contact details are private. If the contacts belong to different accounts, staff must correct them.
-        New staff-created listings are approved and published immediately as community listings under the display name; email and phone stay private. The host gets access once their verified account is linked.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm font-medium sm:col-span-2">
+      <legend className="px-1 text-sm font-semibold">Host</legend>
+
+      {mode === 'search' && (
+        <HostListingContactPicker listingKind={listingKind} disabled={disabled}
+          onSelect={(option, contact) => {
+            setSelected({
+              label: option.label,
+              detail: [option.email, option.phone].filter(Boolean).join(' · '),
+              registered: option.source === 'registered',
+            })
+            setMode('existing')
+            onChange(contact)
+          }}
+          onNewHost={() => { setMode('new'); onChange({ email: '', phone: '', countryCode: '+91' }) }} />
+      )}
+
+      {mode === 'existing' && selected && (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary px-3 py-2.5">
+          <UserRound aria-hidden className="h-4 w-4 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{selected.label}</p>
+            <p className="truncate text-xs text-muted-foreground">{selected.detail}</p>
+          </div>
+          <button type="button" onClick={reset} className="text-sm font-medium text-primary hover:underline">Change</button>
+        </div>
+      )}
+
+      {/* Only hosts without an account need a public name; registered hosts use their profile. */}
+      {(mode === 'new' || (mode === 'existing' && selected && !selected.registered)) && (
+        <label className="block text-sm font-medium">
           Host display name
           <input type="text" autoComplete="off" maxLength={80} value={value.name || ''}
             onChange={(e) => onChange({ ...value, name: e.target.value })}
-            placeholder="Shown to travellers as the host" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
+            placeholder="Shown to travellers" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
         </label>
-        <label className="block text-sm font-medium">
-          Host email
-          <input type="email" autoComplete="off" value={value.email || ''}
-            onChange={(e) => onChange({ ...value, email: e.target.value })}
-            placeholder="host@example.com" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
-        </label>
-        <div>
-          <label className="block text-sm font-medium" htmlFor={phoneId}>Host phone</label>
-          <div className="mt-1 flex gap-2">
-            <select aria-label="Host phone country code" value={value.countryCode || '+91'}
-              onChange={(e) => onChange({ ...value, countryCode: e.target.value })}
-              className="rounded-lg border border-border bg-secondary px-2 py-2">
-              {Object.entries(PHONE_COUNTRY_CODES).map(([code, rule]) => (
-                <option key={code} value={code}>{rule.name} {code}</option>
-              ))}
-            </select>
-            <input id={phoneId} type="tel" autoComplete="off" value={value.phone || ''}
-              onChange={(e) => onChange({ ...value, phone: e.target.value })}
-              placeholder="Mobile number" className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3 py-2" />
+      )}
+
+      {mode === 'new' && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm font-medium">
+              Host email
+              <input type="email" autoComplete="off" value={value.email || ''}
+                onChange={(e) => onChange({ ...value, email: e.target.value })}
+                placeholder="host@example.com" className="mt-1 w-full rounded-lg border border-border bg-secondary px-3 py-2" />
+            </label>
+            <div>
+              <label className="block text-sm font-medium" htmlFor={phoneId}>Host phone</label>
+              <div className="mt-1 flex gap-2">
+                <select aria-label="Host phone country code" value={value.countryCode || '+91'}
+                  onChange={(e) => onChange({ ...value, countryCode: e.target.value })}
+                  className="rounded-lg border border-border bg-secondary px-2 py-2">
+                  {Object.entries(PHONE_COUNTRY_CODES).map(([code, rule]) => (
+                    <option key={code} value={code}>{rule.name} {code}</option>
+                  ))}
+                </select>
+                <input id={phoneId} type="tel" autoComplete="off" value={value.phone || ''}
+                  onChange={(e) => onChange({ ...value, phone: e.target.value })}
+                  placeholder="Mobile number" className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3 py-2" />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+          <p className="text-xs text-muted-foreground">Email or phone required. Kept private.</p>
+          <button type="button" onClick={reset} className="text-sm font-medium text-primary hover:underline">
+            Search existing hosts instead
+          </button>
+        </>
+      )}
     </fieldset>
   )
 }

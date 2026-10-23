@@ -89,7 +89,7 @@ export function ListingPhotoUpload({ onUploaded, onBusyChange, disabled = false 
           void upload(files)
         }} />
       <p id={`${id}-help`} className="text-xs text-muted-foreground">
-        Select multiple photos at once. On desktop, use Ctrl/Cmd-click or Shift-click. JPEG, PNG, WebP or AVIF, up to 5 MB each. Uploaded photos are added to your existing photos in selection order.
+        JPEG, PNG, WebP or AVIF, up to 5 MB each.
       </p>
       {busy && <div className="flex flex-wrap items-center gap-3">
         <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>

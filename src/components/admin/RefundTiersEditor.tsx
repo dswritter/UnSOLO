@@ -76,9 +76,7 @@ export function RefundTiersEditor({
       ) : null}
 
       <p className="text-[11px] text-muted-foreground">
-        Each row is a band of <strong className="text-foreground/80">days before departure</strong>. Leave{' '}
-        <strong className="text-foreground/80">Max days</strong> empty for an open-ended band (e.g. “30+ days”). Rows
-        appear on the public refund policy page in this order — use arrows to reorder.
+        Days before departure. Leave Max days empty for “30+ days”.
       </p>
 
       <div className="space-y-3">

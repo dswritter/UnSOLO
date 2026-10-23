@@ -290,6 +290,7 @@ export function HostServiceListingTabs(props: Props) {
   const exitHref = staffCreate ? '/admin/service-listings' : '/host'
   const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
   const hasHostContact = !!(hostContact.email?.trim() || hostContact.phone?.trim())
+  const hostStepDone = !staffCreate || hasHostContact
 
   const initialListing = mode === 'edit' ? props.listing : null
   const initialItems = mode === 'edit' ? props.initialItems : []
@@ -1240,8 +1241,8 @@ export function HostServiceListingTabs(props: Props) {
         }}
       />
     <div className="space-y-6">
-      {/* Stepper */}
-      <div className="flex flex-wrap gap-2">
+      {/* Stepper — staff see the remaining steps only once a host is chosen. */}
+      {hostStepDone && <div className="flex flex-wrap gap-2">
         {STEPS.map((s, idx) => {
           const Icon = s.icon
           const active = idx === step
@@ -1261,7 +1262,7 @@ export function HostServiceListingTabs(props: Props) {
             </button>
           )
         })}
-      </div>
+      </div>}
 
       {/* Business tab */}
       {step === 0 && (
@@ -1271,6 +1272,7 @@ export function HostServiceListingTabs(props: Props) {
               <HostListingContactFields listingKind="service" disabled={saving} value={hostContact} onChange={setHostContact} />
             </div>
           )}
+          {hostStepDone && <>
           <div id="field-location" className="space-y-2">
             <label className="text-sm text-muted-foreground block">Destinations *</label>
             <div className="flex flex-wrap items-center gap-2">
@@ -1392,7 +1394,6 @@ export function HostServiceListingTabs(props: Props) {
           {!isRental && !isActivity && !isStay && (
             <div className="space-y-2">
               <label className="text-sm font-semibold">Pricing unit *</label>
-              <p className="text-xs text-muted-foreground">Applied to every item under this listing.</p>
               <select
                 value={unit}
                 onChange={(e) => setUnit(e.target.value as Unit)}
@@ -1476,7 +1477,6 @@ export function HostServiceListingTabs(props: Props) {
               value={searchableDetails} onChange={event => setSearchableDetails(event.target.value)}
               placeholder="Synonyms, seasons, audience, specialty, vehicle features, or other terms guests might search for"
               className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-            <p className="text-xs text-muted-foreground">Comma-separate extra terms. Searchable details are stored with your listing metadata.</p>
           </div>
 
           {type === 'activities' && (() => {
@@ -1487,9 +1487,6 @@ export function HostServiceListingTabs(props: Props) {
               <div className="space-y-3 pt-2 border-t border-border/60">
                 <div>
                   <label className="text-sm font-semibold">Is this a date-specific activity?</label>
-                  <p className="text-xs text-muted-foreground">
-                    Date-specific activities auto-hide from Explore once every date passes. Leave off for ongoing offerings.
-                  </p>
                   <div className="mt-2 flex gap-2">
                     {[{v: false, l: 'No, ongoing'}, {v: true, l: 'Yes, specific dates'}].map(opt => (
                       <button
@@ -1514,9 +1511,6 @@ export function HostServiceListingTabs(props: Props) {
                 {isDateSpecific && (
                   <div>
                     <label className="text-sm font-semibold">Multiple time slots per date?</label>
-                    <p className="text-xs text-muted-foreground">
-                      Off = one all-day session per date. On = add specific start/end times travelers can book.
-                    </p>
                     <div className="mt-2 flex gap-2">
                       {[{v: false, l: 'No'}, {v: true, l: 'Yes'}].map(opt => (
                         <button
@@ -1672,6 +1666,7 @@ export function HostServiceListingTabs(props: Props) {
               isPrimaryHost={props.listing.host_id === userId}
             />
           )}
+          </>}
         </div>
       )}
 
@@ -1682,7 +1677,7 @@ export function HostServiceListingTabs(props: Props) {
             <div>
               <h3 className="font-semibold">Items</h3>
               <p className="text-xs text-muted-foreground">
-                Add up to 100 items. Each item can have up to 5 photos.
+                Up to 100 items, 5 photos each.
                 {typeof listingBookingCount === 'number' && (
                   <>
                     {' '}
@@ -1737,9 +1732,6 @@ export function HostServiceListingTabs(props: Props) {
                 <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-3 py-2">
                   <div>
                     <p className="text-sm font-medium text-foreground">Stock status</p>
-                    <p className="text-xs text-muted-foreground">
-                      Mark this item out of stock without hiding it or sending it for admin review.
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -1892,9 +1884,6 @@ export function HostServiceListingTabs(props: Props) {
                 {isStay && (
                   <div>
                     <label className="text-xs font-semibold">Weekend rate (₹) — optional</label>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Charged for Saturday &amp; Sunday nights. Leave blank to use the weekday price every day.
-                    </p>
                     <input
                       type="number"
                       min="0"
@@ -2289,7 +2278,7 @@ export function HostServiceListingTabs(props: Props) {
       )}
 
       {/* Nav */}
-      <div className="flex justify-between pt-2">
+      {hostStepDone && <div className="flex justify-between pt-2">
         <Button
           type="button"
           variant="outline"
@@ -2314,7 +2303,7 @@ export function HostServiceListingTabs(props: Props) {
             {staffCreate ? 'Back to service listings' : 'Back to host dashboard'}
           </Button>
         )}
-      </div>
+      </div>}
 
       {/* Validation popup — lists empty required fields; clicking an error scrolls to it */}
       {validationPopup && (

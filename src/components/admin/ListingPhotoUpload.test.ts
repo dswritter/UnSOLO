@@ -29,7 +29,7 @@ describe('multiple listing photo uploads', () => {
     const { input } = mount()
     expect(input.multiple).toBe(true)
     expect(input.accept).toBe('image/jpeg,image/png,image/webp,image/avif')
-    expect(screen.getByText(/Select multiple photos at once/)).toBeDefined()
+    expect(screen.getByText(/up to 5 MB each/)).toBeDefined()
   })
   it('uploads every selected file in order using service listing permissions', async () => {
     upload.mockResolvedValueOnce(response('https://images.example.com/one.webp'))

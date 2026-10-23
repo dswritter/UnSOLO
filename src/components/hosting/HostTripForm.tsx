@@ -164,6 +164,7 @@ export function HostTripForm({
   const [editTripSlug, setEditTripSlug] = useState<string | null>(null)
   const [activePriceTierIndex, setActivePriceTierIndex] = useState(0)
   const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
+  const hostContactReady = !!(hostContact.email?.trim() || hostContact.phone?.trim())
 
   // Data
   const [destinations, setDestinations] = useState<Destination[]>(bootstrap?.destinations ?? [])
@@ -1089,7 +1090,7 @@ export function HostTripForm({
     switch (step) {
       case 0:
         return !!title.trim() && !!destinationId && !!description.trim()
-          && (!staffCreate || !!(hostContact.email?.trim() || hostContact.phone?.trim()))
+          && (!staffCreate || hostContactReady)
       case 1: {
         let pairs: TripDeparturePair[]
         try { pairs = normalizeTripDeparturePairs(scheduleRows) } catch { return false }
@@ -1387,18 +1388,11 @@ export function HostTripForm({
               </>
             )}
           </h1>
-          {isEdit && (
-            <p className="text-muted-foreground mt-1">
-              Update any part of your listing. Operational changes (dates, capacity, trip length, times) go live without admin review on approved trips.
-            </p>
-          )}
           {isEdit && editModerationStatus === 'approved' && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 mt-4">
               <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-amber-700 dark:text-amber-400">
-                This trip is live. Adding dates, changing max group size, trip days/nights, or departure/return times
-                saves immediately with no downtime. If you change title, description, price, photos, destination,
-                difficulty, includes, or join settings, we may send it for a quick admin review while it stays visible.
+                Live trip: date, capacity and timing changes apply instantly. Other edits may get a quick review while it stays visible.
               </p>
             </div>
           )}
@@ -1451,6 +1445,8 @@ export function HostTripForm({
 
               {staffCreate && <HostListingContactFields listingKind="trip" disabled={isSubmitting} value={hostContact} onChange={setHostContact} />}
 
+              {(!staffCreate || hostContactReady) && <>
+
               <div>
                 <label className="text-sm text-muted-foreground mb-1.5 block">Trip Title *</label>
                 <Input
@@ -1500,7 +1496,6 @@ export function HostTripForm({
                   maxLength={1200} rows={3}
                   placeholder="Add synonyms and details travelers may search for: season, activity, terrain, audience, transport, region…"
                   className="w-full resize-y rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
-                <p className="mt-1 text-xs text-muted-foreground">Comma-separate extra terms. These are saved with trip metadata and included in Explore search.</p>
               </div>
 
               <div>
@@ -1520,6 +1515,7 @@ export function HostTripForm({
                   className="w-full bg-secondary border border-border rounded-lg px-3 py-2 text-sm resize-y min-h-[120px]"
                 />
               </div>
+              </>}
             </div>
           )}
 
@@ -1622,22 +1618,14 @@ export function HostTripForm({
                   </div>
                 )}
                 {priceRows.length >= 2 && (
-                  <p className="text-xs text-muted-foreground">
-                    Listing shows the lowest tier; travelers choose their option when booking.
-                  </p>
+                  <p className="text-xs text-muted-foreground">Lowest tier is shown on the listing.</p>
                 )}
                 {activeTierSplit && activeTierPricePaise != null && (
                   <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm space-y-1.5">
                     <p className="font-semibold text-foreground">How your list price splits</p>
                     <p className="text-xs text-muted-foreground">
-                      Travelers pay the price you list — nothing extra is added at checkout. UnSOLO keeps a{' '}
-                      {platformFeePercent}% platform fee from that amount; the rest is your estimated payout below.
+                      {platformFeePercent}% platform fee is deducted from your list price.
                     </p>
-                    {priceRows.length >= 2 && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Showing the tier you&apos;re editing (click a tier to compare).
-                      </p>
-                    )}
                     <ul className="text-xs space-y-0.5 pt-1">
                       <li className="flex justify-between gap-2">
                         <span className="text-muted-foreground">
@@ -1654,11 +1642,6 @@ export function HostTripForm({
                         <span className="tabular-nums">{formatPrice(activeTierSplit.hostPaise)}</span>
                       </li>
                     </ul>
-                    {priceRows.length >= 2 && (
-                      <p className="text-[10px] text-muted-foreground pt-1">
-                        Same logic applies to each tier: fee is taken from that tier&apos;s price.
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
@@ -1856,11 +1839,11 @@ export function HostTripForm({
             <div className="space-y-5">
               <h2 className="text-lg font-bold">Trip Images</h2>
               <p className="text-sm text-muted-foreground">
-                Add at least one image. Use 16:9 ratio photos for best display (e.g. 1920×1080).
+                At least one 16:9 photo.
               </p>
               {images.length >= 2 && (
                 <p className="text-xs text-muted-foreground">
-                  First image is the cover. Right-click an image (desktop) or press and hold (mobile) on any other image to make it the cover.
+                  First image is the cover. Long-press or right-click to change.
                 </p>
               )}
 
@@ -2002,9 +1985,6 @@ export function HostTripForm({
 
                 {/* Standard: join-request flow OR immediate full payment (choose one) */}
                 <div className="rounded-xl border border-border bg-secondary/25 p-3 sm:p-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Either gate the trip with join requests, or let travelers book and pay from the trip page right away.
-                  </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
@@ -2043,8 +2023,7 @@ export function HostTripForm({
                     Token deposit — optional add-on
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Turn on to require a per-person deposit first; travelers settle the rest from My Trips or can pay in
-                    full at checkout. Works with request-first or immediate booking.
+                    Per-person deposit; the rest is paid later.
                   </p>
                   <button
                     type="button"
@@ -2076,9 +2055,6 @@ export function HostTripForm({
                       className="bg-secondary border-border"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Charged once per guest at checkout. Wallet credits and promos apply to the full trip total.
-                  </p>
                 </div>
               )}
               {standardFlow === 'pay_on_booking' && (

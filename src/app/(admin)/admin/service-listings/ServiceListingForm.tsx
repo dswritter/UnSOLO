@@ -11,8 +11,8 @@ import type {
 } from '@/types'
 import type { PriceVariant } from '@/lib/package-pricing'
 import { createServiceListing, updateServiceListing } from '@/actions/admin-service-listings'
-import { HostListingContactFields, HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
-import type { HostListingContactInput, HostListingAssignment } from '@/lib/host-listing-contact'
+import { HostListingAssignmentPanel } from '@/components/admin/HostListingContactFields'
+import type { HostListingAssignment } from '@/lib/host-listing-contact'
 import { ListingPhotoUpload } from '@/components/admin/ListingPhotoUpload'
 import { parseSearchKeywords } from '@/lib/explore/search-metadata'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
@@ -75,8 +75,6 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [knownDestinations, setKnownDestinations] = useState<Pick<Destination, 'id' | 'name' | 'state'>[]>(destinations)
-  const [onBehalf, setOnBehalf] = useState(false)
-  const [hostContact, setHostContact] = useState<HostListingContactInput>({ email: '', phone: '', countryCode: '+91' })
 
   const [formData, setFormData] = useState({
     title: listing?.title || '',
@@ -119,7 +117,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
       if (listing) {
         await updateServiceListing(listing.id, formData)
       } else {
-        await createServiceListing({ ...formData, type, host_contact: onBehalf ? hostContact : undefined })
+        await createServiceListing({ ...formData, type })
       }
       // Hard navigation: client router.push/refresh can leave this page mounted and the button stuck on "Saving...".
       window.location.assign('/admin/service-listings')
@@ -147,27 +145,8 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         </div>
       )}
 
-      {listing ? (
+      {listing && (
         <HostListingAssignmentPanel kind="service" listingId={listing.id} hostId={listing.host_id} assignment={listing.host_assignment?.[0]} />
-      ) : (
-        <section className="space-y-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <div>
-            <h2 className="text-lg font-semibold">Create a service listing for a host</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create stays, activities, rentals and getting-around listings on behalf of a host.
-              Leave the option unchecked to create a listing without delegated host contact.
-            </p>
-          </div>
-          <label className="flex items-center gap-2 text-sm font-semibold">
-            <input type="checkbox" checked={onBehalf} disabled={loading} aria-describedby="service-host-contact-help" onChange={(e) => setOnBehalf(e.target.checked)} />
-            Create on behalf of a host
-          </label>
-          <p id="service-host-contact-help" className="text-sm text-muted-foreground">
-            The same host can own multiple listings, including trips and services. Search and pick
-            an existing host or previous listing contact, or enter a new host&apos;s email or phone.
-          </p>
-          {onBehalf && <HostListingContactFields listingKind="service" disabled={loading} value={hostContact} onChange={setHostContact} />}
-        </section>
       )}
 
       {/* Basic Info */}
@@ -396,7 +375,6 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <label className="text-sm font-medium text-foreground">
               Price Variants (Optional - for multi-tier pricing)
             </label>
-            <p className="text-xs text-muted-foreground">Add multiple tiers like &quot;Basic ₹5000, Deluxe ₹7500&quot;</p>
             {formData.price_variants.map((variant, idx) => (
               <div key={idx} className="mt-2 flex gap-2">
                 <input
@@ -458,7 +436,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
         <h2 className="text-lg font-semibold">Photos</h2>
         <ListingPhotoUpload disabled={loading} onBusyChange={setUploadingPhotos}
           onUploaded={urls => setFormData(prev => ({ ...prev, images: [...prev.images.map(url => url.trim()).filter(Boolean), ...urls] }))} />
-        <p className="text-xs text-muted-foreground">Or paste image URLs below, one per line. At least one photo is required. The first photo is the cover; reorder the lines to change it.</p>
+        <p className="text-xs text-muted-foreground">Or paste URLs, one per line. First is the cover.</p>
         <textarea aria-label="Listing photo URLs" rows={4} disabled={loading || uploadingPhotos} value={formData.images.join('\n')}
           onChange={(e) => setFormData({ ...formData, images: e.target.value.split('\n') })}
           onBlur={() => setFormData((prev) => ({ ...prev, images: prev.images.map((url) => url.trim()).filter(Boolean) }))}
@@ -474,7 +452,6 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           } }))}
           placeholder="Synonyms, activity styles, vehicle features, season, audience, or other terms guests may search for…"
           className="w-full rounded-lg border border-border bg-secondary px-3 py-2 text-sm" />
-        <p className="text-xs text-muted-foreground">These terms are stored as listing metadata and included in Explore search.</p>
       </section>
 
       {/* Capacity & Inventory */}
@@ -602,12 +579,9 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
 
       {/* Moderation */}
       <section>
-        <h2 className="mb-4 text-lg font-semibold">{!listing && onBehalf ? 'Publication' : 'Moderation'}</h2>
+        <h2 className="mb-4 text-lg font-semibold">Moderation</h2>
         <div className="space-y-3">
-          {!listing && onBehalf ? <p className="text-sm text-muted-foreground">
-            This listing is approved when you create it; no separate review is required.
-            It becomes active once the host’s verified account is linked. Until then, it is not public.
-          </p> : <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={formData.is_active}
@@ -615,7 +589,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               className="rounded border-border"
             />
             <span className="text-sm font-medium">Active</span>
-          </label>}
+          </label>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -626,7 +600,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
             <span className="text-sm font-medium">Featured</span>
           </label>
 
-          {(!onBehalf || listing) && <div>
+          <div>
             <label className="block text-sm font-medium text-foreground">Status</label>
             <select
               value={formData.status}
@@ -643,7 +617,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
               <option value="rejected">Rejected</option>
               <option value="archived">Archived</option>
             </select>
-          </div>}
+          </div>
         </div>
       </section>
 
@@ -654,7 +628,7 @@ export function ServiceListingForm({ destinations, listing }: ServiceListingForm
           disabled={loading || uploadingPhotos}
           className="rounded-lg bg-blue-600 px-6 py-2 font-medium text-white hover:bg-blue-700 disabled:opacity-70 disabled:text-white"
         >
-          {loading ? 'Saving...' : listing ? 'Update Listing' : onBehalf ? 'Create listing for a host' : 'Create listing'}
+          {loading ? 'Saving...' : listing ? 'Update Listing' : 'Create listing'}
         </button>
         <button
           type="button"
@@ -1051,9 +1025,6 @@ function ActivityScheduleEditor({ schedule, onChange }: ActivityScheduleEditorPr
               Yes, specific dates
             </button>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ongoing activities are bookable on any date. Date-specific activities only allow the dates you list below.
-          </p>
         </div>
 
         {isDateSpecific && (

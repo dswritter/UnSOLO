@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createElement, useState } from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { HostListingContactInput } from '@/lib/host-listing-contact'
 import type { HostListingContactOption } from '@/lib/host-listing-search'
@@ -34,137 +34,125 @@ function mount(kind: 'service' | 'trip' = 'service', initial: HostListingContact
   render(createElement(Harness))
   return changed
 }
-function open() {
-  fireEvent.click(screen.getByRole('button', { name: 'Choose or search an existing host' }))
-}
+const search = () => screen.getByRole('combobox', { name: 'Search hosts' })
+function open() { fireEvent.focus(search()) }
 
-describe('staff reusable host contact picker', () => {
-  it('does not search before opening and keeps manual entry available', () => {
-    const changed = mount()
-    expect(searchHosts).not.toHaveBeenCalled()
-    fireEvent.change(screen.getByLabelText('Host email'), { target: { value: 'new@example.com' } })
-    expect(changed).toHaveBeenLastCalledWith({ email: 'new@example.com' })
-  })
-  it.each(['service', 'trip'] as const)('loads global suggestions with %s authorization', async kind => {
-    mount(kind)
+describe('progressive host contact step', () => {
+  it('starts with search only, preloads hosts once and shows them on focus', async () => {
+    mount()
+    expect(screen.queryByLabelText('Host email')).toBeNull()
+    expect(screen.queryByLabelText('Host display name')).toBeNull()
+    await waitFor(() => expect(searchHosts).toHaveBeenCalledWith('service', ''))
     open()
-    expect(screen.getByRole('combobox', { name: 'Search hosts' })).toBe(document.activeElement)
-    await screen.findByRole('option', { name: /Asha Sharma/ })
-    expect(searchHosts).toHaveBeenLastCalledWith(kind, '')
-    expect(screen.getByText('Registered host')).toBeDefined()
-    expect(screen.getByText('Previous listing contact')).toBeDefined()
+    expect(await screen.findByRole('option', { name: /Asha Sharma/ })).toBeDefined()
+    expect(searchHosts).toHaveBeenCalledTimes(1)
   })
-  it('fills the contact fields, normalizes the phone and does not submit a listing', async () => {
+
+  it.each(['service', 'trip'] as const)('searches with %s authorization', async kind => {
+    mount(kind)
+    await waitFor(() => expect(searchHosts).toHaveBeenLastCalledWith(kind, ''))
+  })
+
+  it('selecting a registered host shows a compact card without display name or contact inputs', async () => {
     const changed = mount()
     open()
     fireEvent.click(await screen.findByRole('option', { name: /Asha Sharma/ }))
     expect(changed).toHaveBeenLastCalledWith({ email: 'asha@example.com', phone: '9876543210', countryCode: '+91' })
-    expect((screen.getByLabelText('Host email') as HTMLInputElement).value).toBe('asha@example.com')
-    expect((screen.getByLabelText('Host phone') as HTMLInputElement).value).toBe('9876543210')
+    expect(screen.getByText('Asha Sharma')).toBeDefined()
+    expect(screen.queryByLabelText('Host display name')).toBeNull()
+    expect(screen.queryByLabelText('Host email')).toBeNull()
     expect(screen.queryByRole('combobox', { name: 'Search hosts' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Asha Sharma' })).toBe(document.activeElement)
   })
-  it('reuses a previous trip contact in a new service listing without pretending it is verified', async () => {
-    const changed = mount('service', { email: 'other@example.com', phone: '9876543210', countryCode: '+91' })
+
+  it('asks for a display name only for an unregistered previous contact', async () => {
+    const changed = mount()
     open()
     fireEvent.click(await screen.findByRole('option', { name: /Mountain trip/ }))
     expect(changed).toHaveBeenLastCalledWith({ email: 'future@example.com', phone: '', countryCode: '+91' })
-    expect((screen.getByLabelText('Host phone') as HTMLInputElement).value).toBe('')
+    expect(screen.getByLabelText('Host display name')).toBeDefined()
+    expect(screen.queryByLabelText('Host email')).toBeNull()
   })
+
+  it('Change returns to search and clears the contact', async () => {
+    const changed = mount()
+    open()
+    fireEvent.click(await screen.findByRole('option', { name: /Asha Sharma/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    expect(changed).toHaveBeenLastCalledWith({ email: '', phone: '', countryCode: '+91' })
+    expect(search()).toBeDefined()
+  })
+
   it('selects the correct supported country for an international host', async () => {
     searchHosts.mockResolvedValue([{ ...host, phone: '+9779812345678' }])
     const changed = mount()
     open()
     fireEvent.click(await screen.findByRole('option', { name: /Asha Sharma/ }))
     expect(changed).toHaveBeenLastCalledWith({ email: 'asha@example.com', phone: '9812345678', countryCode: '+977' })
-    expect((screen.getByLabelText('Host phone country code') as HTMLSelectElement).value).toBe('+977')
   })
-  it('keeps a usable email without copying an unsupported phone', async () => {
-    searchHosts.mockResolvedValue([{ ...host, phone: '+14155552671' }])
+
+  it('keeps a usable email without copying an unsupported phone, and disables unusable contacts', async () => {
+    searchHosts.mockResolvedValue([{ ...host, phone: '+14155552671' }, { ...prior, email: null, phone: '+14155552671' }])
     const changed = mount()
     open()
     fireEvent.click(await screen.findByRole('option', { name: /Asha Sharma/ }))
     expect(changed).toHaveBeenLastCalledWith({ email: 'asha@example.com', phone: '', countryCode: '+91' })
-  })
-  it('does not select a phone-only contact that the existing form cannot validate', async () => {
-    searchHosts.mockResolvedValue([{ ...host, email: null, phone: '+14155552671' }])
-    const changed = mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
     open()
-    const option = await screen.findByRole('option', { name: /Asha Sharma/ }) as HTMLButtonElement
-    expect(option.disabled).toBe(true)
-    fireEvent.click(option)
-    expect(changed).not.toHaveBeenCalled()
+    expect((await screen.findByRole('option', { name: /Mountain trip/ }) as HTMLButtonElement).disabled).toBe(true)
   })
-  it('supports keyboard selection and Escape without submitting the parent form', async () => {
-    const changed = mount()
-    open()
-    await screen.findByRole('option', { name: /Asha Sharma/ })
-    const input = screen.getByRole('combobox', { name: 'Search hosts' })
-    fireEvent.keyDown(input, { key: 'ArrowDown' })
-    expect(screen.getByRole('option', { name: /Asha Sharma/ }).getAttribute('aria-selected')).toBe('true')
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(changed).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByRole('button', { name: 'Asha Sharma' }))
-    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Search hosts' }), { key: 'Escape' })
-    expect(screen.queryByRole('combobox', { name: 'Search hosts' })).toBeNull()
-  })
-  it('debounces searches and only sends the final query', async () => {
+
+  it('filters already-loaded hosts instantly while typing and debounces the server search', async () => {
     mount()
-    open()
-    await screen.findByRole('option', { name: /Asha Sharma/ })
-    const input = screen.getByRole('combobox', { name: 'Search hosts' })
-    fireEvent.change(input, { target: { value: 'ash' } })
-    fireEvent.change(input, { target: { value: 'asha@example.com' } })
-    await waitFor(() => expect(searchHosts).toHaveBeenLastCalledWith('service', 'asha@example.com'))
-    expect(searchHosts.mock.calls.some(call => call[1] === 'ash')).toBe(false)
-  })
-  it('ignores stale results after a later query has completed', async () => {
-    let resolveOld: (options: HostListingContactOption[]) => void = () => {}
-    searchHosts.mockImplementation((_kind: string, query: string) => query === 'old'
-      ? new Promise<HostListingContactOption[]>(resolve => { resolveOld = resolve })
-      : Promise.resolve(query === 'new' ? [prior] : [host]))
-    mount()
-    open()
-    await screen.findByRole('option', { name: /Asha Sharma/ })
-    const input = screen.getByRole('combobox', { name: 'Search hosts' })
-    fireEvent.change(input, { target: { value: 'old' } })
-    await waitFor(() => expect(searchHosts).toHaveBeenLastCalledWith('service', 'old'))
-    fireEvent.change(input, { target: { value: 'new' } })
-    await screen.findByRole('option', { name: /Mountain trip/ })
-    await act(async () => resolveOld([host]))
-    expect(screen.queryByRole('option', { name: /Asha Sharma/ })).toBeNull()
+    await waitFor(() => expect(searchHosts).toHaveBeenCalledTimes(1))
+    fireEvent.change(search(), { target: { value: 'mount' } })
     expect(screen.getByRole('option', { name: /Mountain trip/ })).toBeDefined()
+    expect(screen.queryByRole('option', { name: /Asha Sharma/ })).toBeNull()
+    fireEvent.change(search(), { target: { value: 'asha@example.com' } })
+    expect(screen.getByRole('option', { name: /Asha Sharma/ })).toBeDefined()
+    await waitFor(() => expect(searchHosts).toHaveBeenLastCalledWith('service', 'asha@example.com'))
+    expect(searchHosts.mock.calls.some(call => call[1] === 'mount')).toBe(false)
   })
-  it('retains manual contacts on lookup failure and offers a retry', async () => {
-    searchHosts.mockRejectedValueOnce(new Error('Unable to search host contacts'))
-    mount('service', { email: 'keep@example.com' })
+
+  it('supports keyboard selection and Escape', async () => {
+    const changed = mount()
     open()
+    await screen.findByRole('option', { name: /Asha Sharma/ })
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: /Asha Sharma/ }).getAttribute('aria-selected')).toBe('true')
+    fireEvent.keyDown(search(), { key: 'Enter' })
+    expect(changed).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    open()
+    fireEvent.keyDown(search(), { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('shows a retry on lookup failure', async () => {
+    searchHosts.mockRejectedValueOnce(new Error('Unable to search host contacts'))
+    mount()
     expect((await screen.findByRole('alert')).textContent).toContain('Unable to search host contacts')
-    expect((screen.getByLabelText('Host email') as HTMLInputElement).value).toBe('keep@example.com')
-    fireEvent.click(screen.getByRole('button', { name: 'Retry host search' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    open()
     await screen.findByRole('option', { name: /Asha Sharma/ })
   })
-  it('provides an empty state and explicit new-host entry', async () => {
-    searchHosts.mockResolvedValue([])
-    const changed = mount('service', { email: 'old@example.com' })
-    open()
-    await screen.findByText('No matching hosts. Enter a new host’s email or phone below.')
-    fireEvent.click(screen.getByRole('button', { name: 'Enter a new host manually' }))
-    expect(changed).toHaveBeenLastCalledWith({ email: '', phone: '', countryCode: '+91' })
-    expect(screen.queryByRole('combobox', { name: 'Search hosts' })).toBeNull()
+
+  it('New host reveals name, email and phone fields', async () => {
+    const changed = mount()
+    fireEvent.click(screen.getByRole('button', { name: 'New host' }))
+    fireEvent.change(screen.getByLabelText('Host email'), { target: { value: 'new@example.com' } })
+    expect(changed).toHaveBeenLastCalledWith({ email: 'new@example.com', phone: '', countryCode: '+91' })
+    expect(screen.getByLabelText('Host display name')).toBeDefined()
+    expect(screen.getByLabelText('Host phone')).toBeDefined()
   })
-  it('clears the selected-host label when contact details are manually changed', async () => {
-    mount()
-    open()
-    fireEvent.click(await screen.findByRole('option', { name: /Asha Sharma/ }))
-    fireEvent.change(screen.getByLabelText('Host email'), { target: { value: 'different@example.com' } })
-    expect(screen.getByRole('button', { name: 'Choose or search an existing host' })).toBeDefined()
+
+  it('opens directly on contact fields when a contact already exists', () => {
+    mount('service', { email: 'keep@example.com' })
+    expect((screen.getByLabelText('Host email') as HTMLInputElement).value).toBe('keep@example.com')
   })
-  it('disables the picker while saving without requesting private contacts', () => {
+
+  it('does not request private contacts while disabled', () => {
     mount('service', {}, true)
-    const button = screen.getByRole('button', { name: 'Choose or search an existing host' }) as HTMLButtonElement
-    expect(button.disabled).toBe(true)
-    fireEvent.click(button)
+    expect((search() as HTMLInputElement).disabled).toBe(true)
     expect(searchHosts).not.toHaveBeenCalled()
   })
 })

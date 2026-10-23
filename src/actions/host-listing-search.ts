@@ -13,12 +13,15 @@ export async function searchHostListingContacts(kind: 'service' | 'trip', query:
   if (kind !== 'service' && kind !== 'trip') throw new Error('Invalid listing kind')
   const term = hostSearchQuery(query)
   const supabase = await createClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) throw new Error('Not authenticated')
+  // Verified JWT claims: local signature check with asymmetric keys (falls back to
+  // an Auth round-trip otherwise), so typing doesn't cost an Auth request each time.
+  const { data: claimsData, error: authError } = await supabase.auth.getClaims()
+  const userId = claimsData?.claims.sub
+  if (authError || !userId) throw new Error('Not authenticated')
 
   const [profileResult, membershipResult] = await Promise.all([
-    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
-    supabase.from('team_members').select('role, is_active, custom_permissions').eq('user_id', user.id).maybeSingle(),
+    supabase.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    supabase.from('team_members').select('role, is_active, custom_permissions').eq('user_id', userId).maybeSingle(),
   ])
   if (profileResult.error || membershipResult.error) throw new Error('Unable to authorize host search')
   const profile = profileResult.data

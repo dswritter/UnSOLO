@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TripFormBootstrap } from '@/lib/hosting/trip-form-bootstrap'
 import { emptyHostTripCreateDraftFields, upsertHostTripDraft } from '@/lib/host-trip-create-draft'
@@ -24,7 +24,10 @@ vi.mock('@/actions/listing-drafts', () => ({
   getMyListingDraft: mocks.cloud, saveListingDraft: vi.fn(), saveListingDraftAsStaff: vi.fn(),
   markListingDraftSubmitted: vi.fn(),
 }))
-vi.mock('@/components/admin/HostListingContactFields', () => ({ HostListingContactFields: () => null }))
+vi.mock('@/components/admin/HostListingContactFields', () => ({
+  HostListingContactFields: ({ onChange }: { onChange: (v: { phone: string }) => void }) =>
+    createElement('button', { type: 'button', onClick: () => onChange({ phone: '9876543210' }) }, 'Pick host'),
+}))
 vi.mock('@/components/hosting/TripImageCropModal', () => ({ TripImageCropModal: () => null }))
 vi.mock('@/components/ui/ImageUploadOverlay', () => ({ ImageUploadOverlay: () => null }))
 import { HostTripForm } from './HostTripForm'
@@ -52,6 +55,12 @@ describe('server-bootstrapped trip forms', () => {
     expect(html).toContain('<input')
     expect(html).not.toContain('animate-spin')
     expect(mocks.host).not.toHaveBeenCalled()
+  })
+  it('staff see trip fields only after choosing a host', () => {
+    render(createElement(HostTripForm, { bootstrap, staffCreate: true }))
+    expect(screen.queryByPlaceholderText('e.g. Kasol Backpacking Adventure')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick host' }))
+    expect(screen.getByPlaceholderText('e.g. Kasol Backpacking Adventure')).toBeTruthy()
   })
   it('does not repeat authorization, option or cloud reads for a fresh server-authorized create', async () => {
     render(createElement(HostTripForm, { bootstrap, serverAuthorized: true }))

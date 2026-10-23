@@ -16,7 +16,8 @@ vi.mock('@/actions/listing-drafts', () => ({
   saveListingDraft: mocks.saveDraft, saveListingDraftAsStaff: mocks.saveDraft, markListingDraftSubmitted: vi.fn(),
 }))
 vi.mock('@/components/admin/HostListingContactFields', () => ({
-  HostListingContactFields: () => createElement('p', null, 'Host contact fields'),
+  HostListingContactFields: ({ onChange }: { onChange: (v: { email: string }) => void }) =>
+    createElement('button', { type: 'button', onClick: () => onChange({ email: 'host@example.com' }) }, 'Pick host'),
 }))
 vi.mock('@/components/hosting/HostDestinationSearch', () => ({ HostDestinationSearch: () => null }))
 vi.mock('@/components/hosting/CoHostSection', () => ({ CoHostSection: () => null }))
@@ -29,22 +30,23 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('staff creating a rental for a host', () => {
-  it('uses the host form with contact fields, shared map picker and rental units', () => {
-    render(createElement(HostServiceListingTabs, { mode: 'create', staffCreate: true, type: 'rentals', destinations: [], userId: 'staff-id' }))
-    expect(screen.getByText('Host contact fields')).toBeTruthy()
+  const props = { mode: 'create' as const, staffCreate: true, type: 'rentals' as const, destinations: [], userId: 'staff-id' }
+
+  it('asks for the host first, then reveals the shared location picker and steps', () => {
+    render(createElement(HostServiceListingTabs, props))
+    expect(screen.queryByText('Exact location *')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Items/ })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick host' }))
     expect(screen.getByText('Exact location *')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Find on map' })).toBeTruthy()
-    cleanup()
-    render(createElement(HostServiceListingTabs, { mode: 'create', staffCreate: true, type: 'rentals', destinations: [], userId: 'staff-id', initialTab: 1 }))
-    const options = [...document.querySelectorAll('option')].map(o => o.textContent)
-    expect(options).toEqual(expect.arrayContaining(['Per hour', 'Per day', 'Per week', 'Per month']))
+    expect(screen.getByRole('button', { name: /Items/ })).toBeTruthy()
+    expect(mocks.saveDraft).not.toHaveBeenCalled()
   })
 
-  it('blocks publishing until a host contact is entered and never saves a staff draft', async () => {
-    render(createElement(HostServiceListingTabs, { mode: 'create', staffCreate: true, type: 'rentals', destinations: [], userId: 'staff-id' }))
-    fireEvent.click(screen.getByRole('button', { name: /Review/ }))
-    expect(await screen.findByText(/Host email or phone/)).toBeTruthy()
+  it('offers hourly, daily, weekly and monthly rental units', () => {
+    render(createElement(HostServiceListingTabs, { ...props, initialTab: 1 }))
+    const options = [...document.querySelectorAll('option')].map(o => o.textContent)
+    expect(options).toEqual(expect.arrayContaining(['Per hour', 'Per day', 'Per week', 'Per month']))
     expect(mocks.staffCreate).not.toHaveBeenCalled()
-    expect(mocks.saveDraft).not.toHaveBeenCalled()
   })
 })
