@@ -67,7 +67,8 @@ Migration 107 safely adds the missing column, fills only missing timestamps from
 
 ## Mobile authentication
 
-- Google sign-in appears before email fields on both login and signup. Mobile hides the large statistics card, leaves an unobstructed campfire scene above the compact form, and does not automatically scroll to or focus an input.
+- Google sign-in appears before email fields on both login and signup. Mobile leaves an unobstructed campfire scene above the compact form, and does not automatically scroll to or focus an input.
+- Community metrics (travellers, hosts, rating, happy customers) stream in one row after the form renders. Unavailable or zero values are hidden rather than shown as placeholders; if metrics fail, sign-in remains usable.
 - Email/password, password visibility, password reset, email verification, referral codes and return URLs remain available. Desktop keeps the two-column scene and statistics.
 
 ## Listing photos

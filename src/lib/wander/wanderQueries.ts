@@ -378,6 +378,30 @@ export async function getWanderStats(): Promise<WanderStats> {
   return { soloTravelers, destinations, bookings, happyPercent }
 }
 
+export type AuthHeroMetrics = {
+  travellers: number
+  hosts: number
+  rating: number | null
+  reviewCount: number
+  happyPercent: number
+}
+
+/** Non-critical login/signup metrics; streamed after the form renders. */
+export const getAuthHeroMetrics = unstable_cache(async (): Promise<AuthHeroMetrics> => {
+  const [metrics, hosts] = await Promise.all([
+    getCachedWanderHeroMetrics(),
+    svc().from('profiles').select('id', { count: 'exact', head: true }).eq('is_host', true),
+  ])
+  if (hosts.error) throw hosts.error
+  return {
+    travellers: metrics.soloTravelers,
+    hosts: hosts.count ?? 0,
+    rating: metrics.overallRating,
+    reviewCount: metrics.reviewCount,
+    happyPercent: metrics.happyPercent,
+  }
+}, ['auth-hero-metrics-v1'], { revalidate: 300, tags: ['wander-hero-metrics'] })
+
 export type RaterPreview = { userId: string; avatar_url: string | null; username: string; full_name: string | null }
 
 export type WanderRatingHero = {

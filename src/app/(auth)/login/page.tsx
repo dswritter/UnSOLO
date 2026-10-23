@@ -1,15 +1,12 @@
 import { AuthV2Shell } from '@/components/auth/v2/AuthV2Shell'
 import { LoginV2Form } from '@/components/auth/v2/LoginV2Form'
-import { getWanderRatingHero, getWanderStats } from '@/lib/wander/wanderQueries'
 
-/** Wander stats use service-role DB work; SSG at build time can time out on Vercel. */
+/** Metrics stream in after the form; force-dynamic avoids build-time service-role queries. */
 export const dynamic = 'force-dynamic'
 
-export default async function LoginPage() {
-  const [stats, rating] = await Promise.all([getWanderStats(), getWanderRatingHero()])
-
+export default function LoginPage() {
   return (
-    <AuthV2Shell mode="login" stats={stats} rating={rating}>
+    <AuthV2Shell mode="login">
       <LoginV2Form />
     </AuthV2Shell>
   )

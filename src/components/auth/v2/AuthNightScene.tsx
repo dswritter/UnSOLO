@@ -47,7 +47,7 @@ function pine(x: number, base: number, h: number) {
 export function AuthNightScene() {
   return (
     <svg
-      className="auth-scene pointer-events-none absolute inset-x-0 top-0 h-[14rem] w-full lg:fixed lg:inset-0 lg:h-full"
+      className="auth-scene pointer-events-none absolute inset-x-0 top-0 h-[21rem] w-full lg:fixed lg:inset-0 lg:h-full"
       viewBox="0 0 1600 1000"
       preserveAspectRatio="xMidYMax slice"
       aria-hidden
