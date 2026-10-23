@@ -1,3 +1,4 @@
+import type { RentalExtrasDraft } from '@/lib/rental-pricing'
 /**
  * Payload for `/host/service-listing-preview`, written from HostServiceListingTabs
  * before opening the preview. Uses localStorage because `window.open(..., '_blank')`
@@ -30,5 +31,8 @@ export type HostServiceListingPreviewPayload = {
     images: string[]
     unit?: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month' | null
     amenities?: string[] | null
+    /** Rentals only: optional extras (rupees / 'HH:MM'); absent until the host adds them. */
+    rentalExtras?: RentalExtrasDraft
   }[]
 }
+

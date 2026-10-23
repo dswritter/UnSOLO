@@ -20,6 +20,7 @@ import {
 } from '@/lib/checkout-promos'
 import { createClient } from '@/lib/supabase/client'
 import type { ServiceListing, ServiceListingItem } from '@/types'
+import { quoteRentalLine, rentalRateChoices, type RentalRateOption } from '@/lib/rental-pricing'
 
 declare global {
   interface Window {
@@ -59,6 +60,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   const [promoValidating, setPromoValidating] = useState(false)
   const [showPromoInput, setShowPromoInput] = useState(false)
   const [availablePromos, setAvailablePromos] = useState<CheckoutPromoRow[]>([])
+  const [rates, setRates] = useState<Record<string, RentalRateOption>>({})
 
   useEffect(() => {
     getUserCredits().then(data => setUserCredits(data.credits))
@@ -67,15 +69,18 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
   }, [promoScope.hostId, promoScope.listingType, promoScope.serviceListingId])
 
   const cartEntries = Object.entries(cart).filter(([, qty]) => qty > 0)
-  const cartItemDetails = cartEntries.map(([itemId, qty]) => {
-    const item = items.find(i => i.id === itemId)!
-    return { item, qty }
-  }).filter(e => e.item)
+  const cartItemDetails = cartEntries.flatMap(([itemId, qty]) => {
+    const item = items.find(i => i.id === itemId)
+    if (!item) return []
+    const choices = rentalRateChoices(item)
+    const line = quoteRentalLine(item, rates[itemId], qty, rentalDays)
+    if ('error' in line) return []
+    return [{ item, qty, choices, line }]
+  })
 
-  const grossPaise = cartItemDetails.reduce(
-    (sum, { item, qty }) => sum + item.price_paise * qty * rentalDays,
-    0,
-  )
+  const grossPaise = cartItemDetails.reduce((sum, { line }) => sum + line.rentalPaise, 0)
+  // Refundable deposits sit outside promos and credits.
+  const depositPaise = cartItemDetails.reduce((sum, { line }) => sum + line.depositPaise, 0)
 
   // Mixed cart: percent applies to the gross; free_guests frees one average-priced unit.
   const cartTotalQty = cartItemDetails.reduce((sum, { qty }) => sum + qty, 0)
@@ -89,6 +94,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
     : 0
 
   const finalAmount = Math.max(0, grossPaise - promoDiscount - creditsUsed)
+  const payNowPaise = finalAmount + depositPaise
 
   function clearPromo() {
     setPromoSpec(null)
@@ -125,7 +131,7 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
 
     const res = await createRentalCartOrder(
       listing.id,
-      cartItemDetails.map(({ item, qty }) => ({ itemId: item.id, quantity: qty })),
+      cartItemDetails.map(({ item, qty, line }) => ({ itemId: item.id, quantity: qty, rate: line.option })),
       { check_in_date: checkInDate, rental_days: rentalDays, applyCredits, promoCode: promoCode || undefined },
     )
     setLoading(false)
@@ -188,15 +194,22 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
           <ShoppingCart className="h-3.5 w-3.5" /> Your cart
         </p>
-        {cartItemDetails.map(({ item, qty }) => (
-          <div key={item.id} className="flex justify-between items-start text-sm">
-            <div>
-              <span className="font-medium">{item.name}</span>
-              <span className="text-muted-foreground text-xs ml-1">× {qty}</span>
+        {cartItemDetails.map(({ item, qty, choices, line }) => (
+          <div key={item.id} className="space-y-1 text-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="font-medium">{item.name}</span>
+                <span className="text-muted-foreground text-xs ml-1">× {qty}</span>
+              </div>
+              <span className="text-muted-foreground text-xs shrink-0">{formatPrice(line.rentalPaise)}</span>
             </div>
-            <span className="text-muted-foreground text-xs shrink-0">
-              {formatPrice(item.price_paise * qty * rentalDays)}
-            </span>
+            {choices.length > 1 && (
+              <select aria-label={`Rate for ${item.name}`} value={line.option}
+                onChange={e => setRates(prev => ({ ...prev, [item.id]: e.target.value as RentalRateOption }))}
+                className="w-full rounded-lg border border-border bg-secondary px-2 py-1.5 text-xs">
+                {choices.map(c => <option key={c.option} value={c.option}>{c.label} · {formatPrice(c.pricePaise)}</option>)}
+              </select>
+            )}
           </div>
         ))}
       </div>
@@ -297,10 +310,10 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
 
       {/* Price breakdown */}
       <div className="bg-secondary/50 rounded-lg p-3 space-y-1 text-sm">
-        {cartItemDetails.map(({ item, qty }) => (
+        {cartItemDetails.map(({ item, qty, line }) => (
           <div key={item.id} className="flex justify-between text-muted-foreground text-xs">
-            <span>{item.name} × {qty} × {rentalDays}d</span>
-            <span>{formatPrice(item.price_paise * qty * rentalDays)}</span>
+            <span>{item.name} × {qty} × {rentalDays}{line.option === 'full_day' ? ' × 24h' : line.option === 'daytime' ? ' daytime' : 'd'}</span>
+            <span>{formatPrice(line.rentalPaise)}</span>
           </div>
         ))}
         {promoDiscount > 0 && (
@@ -315,9 +328,15 @@ export function RentalCartCheckout({ listing, items, cart }: RentalCartCheckoutP
             <span>-{formatPrice(creditsUsed)}</span>
           </div>
         )}
+        {depositPaise > 0 && (
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Refundable deposit</span>
+            <span>{formatPrice(depositPaise)}</span>
+          </div>
+        )}
         <div className="flex justify-between font-bold text-foreground pt-1 border-t border-border">
           <span>Total</span>
-          <span className="text-primary">{formatPrice(finalAmount)}</span>
+          <span className="text-primary">{formatPrice(payNowPaise)}</span>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useConfirm } from '@/components/admin/ui/ConfirmDialog'
+import { RentalDepositPanel } from '@/components/admin/RentalDepositPanel'
 import { useState, useEffect, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatPrice, formatDate, type Booking, type Profile } from '@/types'
@@ -764,6 +765,18 @@ export function AdminBookingsClient({
                       onApplied={(f) => setRows(prev => prev.map(b => b.id === booking.id ? ({ ...b, ...f } as Booking) : b))}
                     />
                   )}
+
+                  {(() => {
+                    const dep = booking as { security_deposit_paise?: number | null; security_deposit_status?: string | null; security_deposit_refunded_paise?: number | null; security_deposit_note?: string | null }
+                    if (!dep.security_deposit_paise) return null
+                    return (
+                      <RentalDepositPanel bookingId={booking.id} depositPaise={dep.security_deposit_paise}
+                        status={dep.security_deposit_status ?? null} refundedPaise={dep.security_deposit_refunded_paise}
+                        note={dep.security_deposit_note}
+                        canSettle={booking.status === 'confirmed' || booking.status === 'completed'}
+                        onSettled={f => setRows(prev => prev.map(b => b.id === booking.id ? ({ ...b, ...f } as Booking) : b))} />
+                    )
+                  })()}
 
                   {/* Refund Tracking — admin-approved or traveler self-service */}
                   {(booking.cancellation_status === 'approved' ||

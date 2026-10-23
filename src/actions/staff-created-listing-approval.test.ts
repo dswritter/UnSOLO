@@ -253,6 +253,21 @@ describe('staff-created listing approval actions', () => {
       ])
     })
 
+    it('stores optional 24-hour, daytime and deposit pricing only for items that add them', async () => {
+      mocks.profile.role = 'admin'
+      const withExtras = { ...rentalInput, items: [
+        { ...rentalInput.items[0], rental_extras: { fullDayPricePaise: 160000, securityDepositPaise: 200000 } },
+        rentalInput.items[1],
+      ] }
+      await createServiceListingForHost(withExtras)
+      const rows = mocks.insert.mock.calls.find(call => call[1] === 'service_listing_items')![2] as Record<string, unknown>[]
+      expect(rows[0]).toMatchObject({ full_day_price_paise: 160000, security_deposit_paise: 200000 })
+      expect(rows[0]).not.toHaveProperty('daytime_price_paise')
+      expect(rows[1]).not.toHaveProperty('security_deposit_paise')
+      const badDaytime = { ...rentalInput, items: [{ ...rentalInput.items[0], rental_extras: { daytimePricePaise: 75000, daytimeStart: '21:00', daytimeEnd: '08:00' } }] }
+      expect(await createServiceListingForHost(badDaytime)).toEqual({ error: '"Scooter": Daytime end must be after the start time' })
+    })
+
     it('rejects items without a pricing unit and requires a host contact', async () => {
       mocks.profile.role = 'admin'
       const noUnit = { ...rentalInput, items: [{ ...rentalInput.items[0], unit: null }] }

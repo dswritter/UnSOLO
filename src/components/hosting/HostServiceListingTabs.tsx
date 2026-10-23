@@ -10,8 +10,10 @@ import { Button } from '@/components/ui/button'
 import { HostSubmittingOverlay } from '@/components/host/HostSubmittingOverlay'
 import { HostDestinationSearch } from '@/components/hosting/HostDestinationSearch'
 import { ListingLocationPicker } from '@/components/hosting/ListingLocationPicker'
+import { RentalExtrasEditor } from '@/components/hosting/RentalExtrasEditor'
 import { reverseGeocode } from '@/lib/geocode-search'
 import { SERVICE_UNIT_OPTIONS } from '@/lib/service-units'
+import { rentalExtrasDraftFromRow, rentalExtrasInputFromDraft, rentalExtrasRow, type RentalExtrasDraft } from '@/lib/rental-pricing'
 import { CoHostSection } from '@/components/hosting/CoHostSection'
 import { TripDescriptionMarkdownToolbar } from '@/components/ui/TripDescriptionMarkdownToolbar'
 import { TripDescriptionDisplay } from '@/components/ui/TripDescriptionDisplay'
@@ -162,6 +164,8 @@ type DraftItem = {
   unit?: Unit
   /** Rentals & stays: per-item. */
   amenities?: string[]
+  /** Rentals only: optional rate options / deposit, present only once added. */
+  rentalExtras?: RentalExtrasDraft
 }
 
 function emptyDraft(type: ServiceListingType): DraftItem {
@@ -202,6 +206,7 @@ function draftFromPayloadItem(it: HostServiceListingPreviewPayload['items'][numb
     images: Array.isArray(it.images) ? it.images : [],
     unit: (it.unit as Unit) ?? base.unit,
     amenities: Array.isArray(it.amenities) ? it.amenities : base.amenities,
+    ...(type === 'rentals' && it.rentalExtras ? { rentalExtras: { ...it.rentalExtras } } : {}),
   }
 }
 
@@ -226,6 +231,7 @@ function itemFromRow(
   if (type === 'rentals') {
     draft.unit = (row.unit as Unit) || TYPE_CONFIG.rentals.defaultUnit
     draft.amenities = row.amenities || []
+    draft.rentalExtras = rentalExtrasDraftFromRow(row)
   } else if (type === 'activities') {
     draft.unit = (row.unit as Unit) || TYPE_CONFIG.activities.defaultUnit
   } else if (type === 'stays') {
@@ -436,6 +442,7 @@ export function HostServiceListingTabs(props: Props) {
       images: i.images,
       unit: i.unit ?? null,
       amenities: i.amenities ?? null,
+      rentalExtras: i.rentalExtras ?? null,
     })),
   })
 
@@ -540,6 +547,10 @@ export function HostServiceListingTabs(props: Props) {
       if (needsImages && i.images.length === 0) return `"${i.name || 'Item'}" needs at least one photo`
       if (i.images.length > 5) return `"${i.name || 'Item'}" has more than 5 photos`
       if ((isRental || isActivity || isStay) && !i.unit) return `"${i.name || 'Item'}" needs a pricing unit`
+      if (isRental) {
+        const extras = rentalExtrasRow(rentalExtrasInputFromDraft(i.rentalExtras))
+        if ('error' in extras) return `"${i.name || 'Item'}": ${extras.error}`
+      }
     }
     return null
   }
@@ -567,6 +578,10 @@ export function HostServiceListingTabs(props: Props) {
         errs.push({ label: `At least one photo for "${label}"`, fieldId: `item-images-${item.localKey}` })
       if ((isRental || isActivity || isStay) && !item.unit)
         errs.push({ label: `Pricing unit for "${label}"`, fieldId: `item-price-${item.localKey}` })
+      if (isRental) {
+        const extras = rentalExtrasRow(rentalExtrasInputFromDraft(item.rentalExtras))
+        if ('error' in extras) errs.push({ label: `${extras.error} for "${label}"`, fieldId: `item-extras-${item.localKey}` })
+      }
     }
     return errs
   }
@@ -774,6 +789,7 @@ export function HostServiceListingTabs(props: Props) {
         images: it.images,
         unit: (isRental || isActivity || isStay) ? (it.unit ?? config.defaultUnit) : null,
         amenities: (isRental || isStay) ? (it.amenities ?? []) : null,
+        ...(isRental && it.rentalExtras ? { rentalExtras: it.rentalExtras } : {}),
       })),
     }
   }, [destinations, destinationIds, items, isRental, isStay, isActivity, config, unit, type, title, shortDescription, description, location, pinLatLon, amenities, tagsInput, searchableDetails])
@@ -897,6 +913,7 @@ export function HostServiceListingTabs(props: Props) {
         images: i.images,
         unit: (isRental || isActivity || isStay) ? (i.unit || config.defaultUnit) : null,
         amenities: (isRental || isStay) ? (i.amenities || []) : null,
+        ...(isRental ? { rental_extras: rentalExtrasInputFromDraft(i.rentalExtras) } : {}),
       }))
 
       const listingInput = {
@@ -1013,6 +1030,7 @@ export function HostServiceListingTabs(props: Props) {
           max_per_booking: draft.quantity,
           images: draft.images,
           is_out_of_stock: draft.isOutOfStock,
+          ...(isRental ? { rental_extras: rentalExtrasInputFromDraft(draft.rentalExtras) } : {}),
           ...(isRental || isStay
             ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
             : isActivity
@@ -1036,6 +1054,7 @@ export function HostServiceListingTabs(props: Props) {
           images: draft.images,
           position_order: items.findIndex(i => i.localKey === draft.localKey),
           is_out_of_stock: draft.isOutOfStock,
+          ...(isRental ? { rental_extras: rentalExtrasInputFromDraft(draft.rentalExtras) } : {}),
           ...(isRental || isStay
             ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
             : isActivity
@@ -1107,6 +1126,7 @@ export function HostServiceListingTabs(props: Props) {
             max_per_booking: draft.quantity,
             images: draft.images,
             is_out_of_stock: draft.isOutOfStock,
+            ...(isRental ? { rental_extras: rentalExtrasInputFromDraft(draft.rentalExtras) } : {}),
             ...(isRental || isStay
               ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
               : isActivity
@@ -1132,6 +1152,7 @@ export function HostServiceListingTabs(props: Props) {
             images: draft.images,
             position_order: items.findIndex(i => i.localKey === draft.localKey),
             is_out_of_stock: draft.isOutOfStock,
+            ...(isRental ? { rental_extras: rentalExtrasInputFromDraft(draft.rentalExtras) } : {}),
             ...(isRental || isStay
               ? { unit: draft.unit || config.defaultUnit, amenities: draft.amenities || [] }
               : isActivity
@@ -1878,6 +1899,11 @@ export function HostServiceListingTabs(props: Props) {
                   <p className="text-xs text-red-500 font-medium">
                     &quot;Max per order&quot; ({draft.quantity}) cannot exceed &quot;Total available&quot; ({draft.maxPerBooking}). Reduce max per order.
                   </p>
+                )}
+
+                {isRental && (
+                  <RentalExtrasEditor id={`item-extras-${draft.localKey}`} value={draft.rentalExtras}
+                    onChange={rentalExtras => updateDraft(draft.localKey, { rentalExtras })} />
                 )}
 
                 {/* Stays-only: optional weekend (Sat/Sun) rate. Empty = same as weekday. */}

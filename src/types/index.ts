@@ -500,6 +500,14 @@ export type ServiceListingItem = {
   unit?: 'per_night' | 'per_person' | 'per_day' | 'per_hour' | 'per_week' | 'per_month' | null
   /** Rentals only: per-item amenities (one bike has GPS, another doesn't). Null on non-rentals. */
   amenities?: string[] | null
+  /** Rentals only (migration 118): optional 24-hour rate. */
+  full_day_price_paise?: number | null
+  /** Rentals only: optional daytime rate for daytime_start–daytime_end ('HH:MM'). */
+  daytime_price_paise?: number | null
+  daytime_start?: string | null
+  daytime_end?: string | null
+  /** Rentals only: refundable deposit per unit, charged on top of the rental. */
+  security_deposit_paise?: number | null
   created_at: string
   updated_at: string
 }

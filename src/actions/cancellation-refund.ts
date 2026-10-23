@@ -27,6 +27,9 @@ type BookingCore = {
   service_listing_id: string | null
   booking_type: string | null
   razorpay_payment_ids?: CapturedPayment[] | null
+  /** Rentals (migration 118): refundable deposit collected on top of the rental. */
+  security_deposit_paise?: number | null
+  security_deposit_status?: string | null
   package?: { host_id: string | null } | null
   service_listing?: { type: string | null } | null
 }
@@ -59,7 +62,9 @@ export type CancellationQuote = {
   grossRefundPaise: number
   /** Non-refundable payment-gateway charge deducted from the refund. */
   gatewayFeePaise: number
-  /** Final amount refunded to the customer = grossRefundPaise − gatewayFeePaise. */
+  /** Rentals: still-held security deposit, returned in full on cancellation. */
+  securityDepositRefundPaise: number
+  /** Final amount refunded to the customer = grossRefundPaise − gatewayFeePaise + securityDepositRefundPaise. */
   netRefundPaise: number
 }
 
@@ -107,20 +112,27 @@ export async function quoteCancellationRefund(
 
   // Gateway-fee inputs (cash collected + captured payments) — used to deduct the
   // non-refundable transaction charge from whatever gross refund we land on.
-  const amountPaidPaise = (booking.deposit_paise ?? booking.total_amount_paise) || 0
+  const bookingPaidPaise = (booking.deposit_paise ?? booking.total_amount_paise) || 0
+  // A held rental deposit is never subject to cancellation tiers: it is returned in full.
+  const securityDepositRefundPaise = booking.security_deposit_status === 'held'
+    ? Math.max(0, booking.security_deposit_paise ?? 0) : 0
+  const amountPaidPaise = bookingPaidPaise + securityDepositRefundPaise
   const payments = Array.isArray(booking.razorpay_payment_ids) ? booking.razorpay_payment_ids : []
   const feeSettings = await loadGatewayFeeSettings()
   const finalize = (
-    base: Omit<CancellationQuote, 'amountPaidPaise' | 'grossRefundPaise' | 'gatewayFeePaise' | 'netRefundPaise'>,
+    base: Omit<CancellationQuote, 'amountPaidPaise' | 'grossRefundPaise' | 'gatewayFeePaise' | 'netRefundPaise' | 'securityDepositRefundPaise'>,
   ): CancellationQuote => {
-    const grossRefundPaise = Math.min(base.totalRefundPaise, Math.max(0, amountPaidPaise))
+    const grossRefundPaise = Math.min(base.totalRefundPaise, Math.max(0, bookingPaidPaise))
     const ded = computeGatewayFeeDeduction({
       payments,
       grossRefundPaise,
       deductEnabled: feeSettings.deductEnabled,
       fallbackPercent: feeSettings.fallbackPercent,
     })
-    return { ...base, amountPaidPaise, grossRefundPaise, gatewayFeePaise: ded.gatewayFeePaise, netRefundPaise: ded.netRefundPaise }
+    return {
+      ...base, amountPaidPaise, grossRefundPaise, gatewayFeePaise: ded.gatewayFeePaise, securityDepositRefundPaise,
+      netRefundPaise: ded.netRefundPaise + securityDepositRefundPaise,
+    }
   }
 
   const { data: earning } = (await svc
@@ -230,6 +242,8 @@ export type TravelerCancellationPreview = {
   grossRefundPaise: number
   /** Non-refundable payment-gateway charge deducted. */
   gatewayFeePaise: number
+  /** Rentals: held security deposit returned in full. */
+  securityDepositRefundPaise: number
   /** Razorpay can refund to the original payment method when this is true */
   canAutoRefund: boolean
 }
@@ -275,6 +289,7 @@ export async function getTravelerCancellationPreview(
       amountPaidPaise: quote.amountPaidPaise,
       grossRefundPaise: quote.grossRefundPaise,
       gatewayFeePaise: quote.gatewayFeePaise,
+      securityDepositRefundPaise: quote.securityDepositRefundPaise,
       canAutoRefund: Boolean(row.stripe_payment_intent) && quote.netRefundPaise > 0,
     },
   }

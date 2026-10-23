@@ -10,6 +10,7 @@ import { sendServiceBookingConfirmedEmail } from '@/lib/resend/emails'
 import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 import { itemHasDateBlock } from '@/lib/service-item-unavailability'
 import { incrementPromoOfferUsed, validateScopedPromoCode } from '@/lib/checkout-promos'
+import { RENTAL_EXTRA_COLUMNS, quoteRentalLine, type RentalItemPricing, type RentalRateOption } from '@/lib/rental-pricing'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -17,6 +18,38 @@ const razorpay = new Razorpay({
 })
 
 type SupabaseFromCreateClient = Awaited<ReturnType<typeof createClient>>
+
+/** Optional rental rates/deposit (migration 118); empty when the columns don't exist yet. */
+async function loadRentalExtras(supabase: SupabaseFromCreateClient, itemIds: string[]) {
+  const map = new Map<string, Partial<RentalItemPricing>>()
+  if (itemIds.length === 0) return map
+  const { data, error } = await supabase
+    .from('service_listing_items')
+    .select(`id, ${RENTAL_EXTRA_COLUMNS}`)
+    .in('id', itemIds)
+  if (error || !data) return map
+  for (const row of data as unknown as Array<{ id: string } & Partial<RentalItemPricing>>) map.set(row.id, row)
+  return map
+}
+
+/** Booking columns for the chosen rate and deposit, only when used (older DBs lack them). */
+/** Deposits held on bookings; empty before migration 118 is applied. */
+async function loadBookingDeposits(supabase: SupabaseFromCreateClient, bookingIds: string[]) {
+  if (bookingIds.length === 0) return 0
+  const { data, error } = await supabase.from('bookings').select('security_deposit_paise').in('id', bookingIds)
+  if (error || !data) return 0
+  return (data as Array<{ security_deposit_paise: number | null }>).reduce((sum, b) => sum + (b.security_deposit_paise ?? 0), 0)
+}
+
+function rentalBookingColumns(option: RentalRateOption, depositPaise: number) {
+  const cols: Record<string, unknown> = {}
+  if (option !== 'standard') cols.rental_rate_option = option
+  if (depositPaise > 0) {
+    cols.security_deposit_paise = depositPaise
+    cols.security_deposit_status = 'held'
+  }
+  return cols
+}
 
 async function deductInventory(
   supabase: SupabaseFromCreateClient,
@@ -88,6 +121,8 @@ export async function createServiceListingOrder(
     booking_slot_end?: string
     /** Rentals only: number of days/nights. Used to multiply price and compute check_out_date. */
     rental_days?: number
+    /** Rentals only: standard unit rate, 24-hour or daytime (when the item offers them). */
+    rental_rate_option?: RentalRateOption
   },
 ) {
   try {
@@ -150,13 +185,14 @@ export async function createServiceListingOrder(
     let unitPricePaise: number = listing.price_paise
     let itemId: string | null = null
     let weekendPricePaise: number | null = null
+    let rentalItem: RentalItemPricing | null = null
     if (bookingData.service_listing_item_id) {
       // First, the core item fields. weekend_price_paise (migration 076) is
       // selected separately so the booking still works if the column hasn't
       // been applied yet.
       const { data: item, error: itemError } = await supabase
         .from('service_listing_items')
-        .select('id, service_listing_id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock')
+        .select('id, service_listing_id, price_paise, unit, quantity_available, max_per_booking, is_active, is_out_of_stock')
         .eq('id', bookingData.service_listing_item_id)
         .single()
       if (itemError || !item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
@@ -170,6 +206,7 @@ export async function createServiceListingOrder(
       }
       unitPricePaise = item.price_paise
       itemId = item.id
+      rentalItem = { price_paise: item.price_paise, unit: item.unit }
       // Optional weekend rate — falls back to weekday price when the column
       // doesn't exist or wasn't set.
       const { data: weekendRow } = await supabase
@@ -203,6 +240,26 @@ export async function createServiceListingOrder(
       if (totalPaise === 0) totalPaise = unitPricePaise * bookingData.quantity
     } else {
       totalPaise = unitPricePaise * bookingData.quantity * rentalDays
+    }
+
+    // Rentals: the chosen rate (standard / 24-hour / daytime) sets the price, and
+    // any refundable deposit is charged on top, outside promos, credits and fees.
+    let rentalRate: RentalRateOption = 'standard'
+    let securityDepositPaise = 0
+    if (listing.type === 'rentals' && rentalItem && itemId) {
+      const extras = (await loadRentalExtras(supabase, [itemId])).get(itemId) ?? {}
+      const line = quoteRentalLine({ ...rentalItem, ...extras }, bookingData.rental_rate_option, bookingData.quantity, rentalDays)
+      if ('error' in line) return { error: line.error }
+      rentalRate = line.option
+      unitPricePaise = line.unitPaise
+      totalPaise = line.rentalPaise
+      securityDepositPaise = line.depositPaise
+      if (line.window) {
+        slotStart = line.window.start
+        slotEnd = line.window.end
+      }
+    } else if (bookingData.rental_rate_option && bookingData.rental_rate_option !== 'standard') {
+      return { error: 'This rate is not offered for the selected item' }
     }
 
     // Compute checkout date for rentals when not explicitly provided
@@ -258,6 +315,7 @@ export async function createServiceListingOrder(
     }
 
     const finalAmount = Math.max(0, totalPaise - discountPaise - creditsUsed)
+    const chargePaise = finalAmount + securityDepositPaise
 
     // Build insert payload. Only include promo columns when they have values
     // — older databases may be missing migration 039 (promo_offer_id) or 061
@@ -281,6 +339,7 @@ export async function createServiceListingOrder(
         wallet_deducted_paise: creditsUsed,
         booking_slot_start: slotStart,
         booking_slot_end: slotEnd,
+        ...rentalBookingColumns(rentalRate, securityDepositPaise),
         ...extras,
       }
       if (appliedPromoCode) base.promo_code = appliedPromoCode
@@ -288,8 +347,8 @@ export async function createServiceListingOrder(
       return base
     }
 
-    // If amount is 0, create instant booking without Razorpay
-    if (finalAmount === 0) {
+    // If nothing is payable (no rental charge or deposit), book instantly without Razorpay
+    if (chargePaise === 0) {
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert(buildInsertPayload({
@@ -328,7 +387,7 @@ export async function createServiceListingOrder(
 
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: finalAmount,
+      amount: chargePaise,
       currency: 'INR',
       receipt: `sl-${Date.now()}`,
       notes: {
@@ -357,7 +416,7 @@ export async function createServiceListingOrder(
     return {
       orderId: order.id,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-      amount: finalAmount,
+      amount: chargePaise,
       currency: 'INR',
       bookingId: booking.id,
       prefill: {
@@ -570,6 +629,7 @@ export async function confirmServiceListingPayment(
           amountPaise: booking.amount_paise ?? 0,
           bookingId: booking.id,
           itemName,
+          securityDepositPaise: await loadBookingDeposits(supabase, [booking.id]),
         })
       }
     } catch (err) {
@@ -587,7 +647,7 @@ export async function confirmServiceListingPayment(
 
 export async function createRentalCartOrder(
   listingId: string,
-  cartItems: { itemId: string; quantity: number }[],
+  cartItems: { itemId: string; quantity: number; rate?: RentalRateOption }[],
   bookingData: {
     check_in_date: string
     rental_days: number
@@ -619,16 +679,22 @@ export async function createRentalCartOrder(
       id: string
       quantity: number
       pricePaise: number
+      rentalPaise: number
+      depositPaise: number
+      option: RentalRateOption
+      window?: { start: string; end: string }
       max_per_booking: number | null
       quantity_available: number | null
     }
     const validated: ValidatedItem[] = []
+    let depositTotalPaise = 0
+    const extrasById = await loadRentalExtras(supabase, cartItems.map(ci => ci.itemId))
 
     for (const ci of cartItems) {
       if (ci.quantity < 1) continue
       const { data: item } = await supabase
         .from('service_listing_items')
-        .select('id, price_paise, quantity_available, max_per_booking, is_active, is_out_of_stock, service_listing_id')
+        .select('id, price_paise, unit, quantity_available, max_per_booking, is_active, is_out_of_stock, service_listing_id')
         .eq('id', ci.itemId)
         .single()
       if (!item || !item.is_active || item.is_out_of_stock || item.service_listing_id !== listingId) {
@@ -643,8 +709,17 @@ export async function createRentalCartOrder(
       if (await itemHasDateBlock(ci.itemId, bookingData.check_in_date, checkOutDate)) {
         return { error: 'One of the selected items is unavailable for the chosen dates' }
       }
-      grossPaise += item.price_paise * ci.quantity * rentalDays
-      validated.push({ id: ci.itemId, quantity: ci.quantity, pricePaise: item.price_paise, max_per_booking: item.max_per_booking, quantity_available: item.quantity_available })
+      const line = quoteRentalLine(
+        { price_paise: item.price_paise, unit: item.unit, ...(extrasById.get(item.id) ?? {}) }, ci.rate, ci.quantity, rentalDays,
+      )
+      if ('error' in line) return { error: line.error }
+      grossPaise += line.rentalPaise
+      depositTotalPaise += line.depositPaise
+      validated.push({
+        id: ci.itemId, quantity: ci.quantity, pricePaise: line.unitPaise, rentalPaise: line.rentalPaise,
+        depositPaise: line.depositPaise, option: line.option, window: line.window,
+        max_per_booking: item.max_per_booking, quantity_available: item.quantity_available,
+      })
     }
 
     if (!validated.length) return { error: 'Cart is empty' }
@@ -690,10 +765,12 @@ export async function createRentalCartOrder(
     }
 
     const finalAmount = Math.max(0, grossPaise - discountPaise - creditsUsed)
+    // Refundable deposits are collected on top of the discounted rental charge.
+    const chargePaise = finalAmount + depositTotalPaise
 
     // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: finalAmount,
+      amount: chargePaise,
       currency: 'INR',
       receipt: `rc-${Date.now()}`,
       notes: { listing_id: listingId, user_id: user.id },
@@ -703,7 +780,7 @@ export async function createRentalCartOrder(
     // Distribute discount/credits proportionally by item gross
     const bookingIds: string[] = []
     for (const v of validated) {
-      const itemGross = v.pricePaise * v.quantity * rentalDays
+      const itemGross = v.rentalPaise
       const ratio = grossPaise > 0 ? itemGross / grossPaise : 1 / validated.length
       const itemDiscount = Math.round(discountPaise * ratio)
       const itemCredits = Math.round(creditsUsed * ratio)
@@ -727,6 +804,8 @@ export async function createRentalCartOrder(
         status: 'pending',
         payment_status: 'pending',
         razorpay_order_id: order.id,
+        ...(v.window ? { booking_slot_start: v.window.start, booking_slot_end: v.window.end } : {}),
+        ...rentalBookingColumns(v.option, v.depositPaise),
       }
       if (appliedPromoCode) cartPayload.promo_code = appliedPromoCode
       if (promoOfferId) cartPayload.promo_offer_id = promoOfferId
@@ -748,7 +827,7 @@ export async function createRentalCartOrder(
     return {
       orderId: order.id,
       keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-      amount: finalAmount,
+      amount: chargePaise,
       currency: 'INR',
       bookingIds,
       prefill: { email: user.email },
@@ -909,7 +988,13 @@ export async function confirmRentalCartPayment(
             .eq('id', user.id)
             .single()
 
-          // Build cart summary from all booking rows + their items
+          const totalPaid = bookings.reduce((s, b) => s + (b.amount_paise ?? 0), 0)
+          const rentalDays = firstBooking.check_in_date && firstBooking.check_out_date
+            ? inclusiveDaysBetween(firstBooking.check_in_date, firstBooking.check_out_date)
+            : undefined
+
+          // Build cart summary from all booking rows + their items. The unit price is
+          // derived from the booked gross so 24-hour / daytime rates show correctly.
           const cartSummary: { name: string; qty: number; pricePaise: number }[] = []
           for (const b of bookings) {
             if (b.service_listing_item_id) {
@@ -918,14 +1003,11 @@ export async function confirmRentalCartPayment(
                 .select('name, price_paise')
                 .eq('id', b.service_listing_item_id)
                 .single()
-              if (item) cartSummary.push({ name: item.name, qty: b.quantity ?? 1, pricePaise: item.price_paise })
+              const qty = b.quantity ?? 1
+              const units = qty * (rentalDays ?? 1)
+              if (item) cartSummary.push({ name: item.name, qty, pricePaise: b.gross_paise ? Math.round(b.gross_paise / units) : item.price_paise })
             }
           }
-
-          const totalPaid = bookings.reduce((s, b) => s + (b.amount_paise ?? 0), 0)
-          const rentalDays = firstBooking.check_in_date && firstBooking.check_out_date
-            ? inclusiveDaysBetween(firstBooking.check_in_date, firstBooking.check_out_date)
-            : undefined
 
           await sendServiceBookingConfirmedEmail({
             customerEmail: user.email,
@@ -940,6 +1022,7 @@ export async function confirmRentalCartPayment(
             bookingId: firstBooking.id,
             cartSummary: cartSummary.length > 0 ? cartSummary : undefined,
             rentalDays,
+            securityDepositPaise: await loadBookingDeposits(supabase, bookings.map(b => b.id)),
           })
         }
       }

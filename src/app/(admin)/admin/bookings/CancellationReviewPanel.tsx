@@ -130,6 +130,9 @@ export function CancellationReviewPanel({
             {quote.gatewayFeePaise > 0 && (
               <div className="flex justify-between text-amber-500"><span>Less: gateway / transaction charges</span><span className="tabular-nums">− {formatPrice(quote.gatewayFeePaise)}</span></div>
             )}
+            {quote.securityDepositRefundPaise > 0 && (
+              <div className="flex justify-between"><span className="text-muted-foreground">Security deposit (full refund)</span><span className="tabular-nums">+ {formatPrice(quote.securityDepositRefundPaise)}</span></div>
+            )}
             <div className="flex justify-between font-bold text-primary"><span>Net refund (suggested)</span><span className="tabular-nums">{formatPrice(quote.netRefundPaise)}</span></div>
           </div>
         </div>

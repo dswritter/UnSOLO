@@ -2010,6 +2010,10 @@ export async function confirmTravelerCancellation(
       refund_amount_paise: refundPaise,
       refund_note: 'Traveler self-service cancellation per policy.',
       refund_status: refundPaise > 0 ? 'pending' : null,
+      // The held rental deposit is part of this refund.
+      ...(quote.securityDepositRefundPaise > 0
+        ? { security_deposit_status: 'refunded', security_deposit_refunded_paise: quote.securityDepositRefundPaise, security_deposit_settled_at: new Date().toISOString() }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', bookingId)
@@ -2035,8 +2039,10 @@ export async function confirmTravelerCancellation(
       .eq('status', 'requested')
   } catch { /* non-critical */ }
 
-  if (refundPaise > 0) {
-    const splitRes = await applyRefundSplitToEarningSystem(bookingId, tierPercent, refundPaise)
+  // Host earnings only cover the rental charge; the returned deposit is not part of them.
+  const rentalRefundPaise = Math.max(0, refundPaise - quote.securityDepositRefundPaise)
+  if (rentalRefundPaise > 0) {
+    const splitRes = await applyRefundSplitToEarningSystem(bookingId, tierPercent, rentalRefundPaise)
     if (!splitRes.ok) {
       console.error('applyRefundSplitToEarningSystem failed', splitRes.error)
     }
@@ -2990,16 +2996,20 @@ export async function processCancellation(
   if (!profile || !['admin', 'social_media_manager', 'field_person', 'chat_responder'].includes(profile.role)) return { error: 'Unauthorized' }
 
   // Validate refund amount
+  let heldSecurityDepositPaise = 0
   if (approve && refundAmountPaise !== undefined) {
+    // select('*') so the rental deposit columns (migration 118) are optional.
     const { data: bookingCheck } = await supabase
       .from('bookings')
-      .select('total_amount_paise, deposit_paise')
+      .select('*')
       .eq('id', bookingId)
       .single()
     if (bookingCheck) {
       // Cap at what was actually paid. For token bookings deposit_paise < total_amount_paise;
-      // for full-payment bookings deposit_paise equals total_amount_paise.
-      const amountActuallyPaid = bookingCheck.deposit_paise ?? bookingCheck.total_amount_paise
+      // for full-payment bookings deposit_paise equals total_amount_paise. A held rental
+      // security deposit was collected on top and is refundable too.
+      heldSecurityDepositPaise = bookingCheck.security_deposit_status === 'held' ? (bookingCheck.security_deposit_paise ?? 0) : 0
+      const amountActuallyPaid = (bookingCheck.deposit_paise ?? bookingCheck.total_amount_paise) + heldSecurityDepositPaise
       if (refundAmountPaise > amountActuallyPaid) {
         return { error: `Refund amount cannot exceed amount actually paid (₹${(amountActuallyPaid / 100).toLocaleString('en-IN')})` }
       }
@@ -3020,6 +3030,14 @@ export async function processCancellation(
     updateData.refund_amount_paise = refundAmountPaise || 0
     updateData.refund_note = adminNote || null
     updateData.refund_status = 'pending' // new: tracks refund progress
+    // The refund returns the held rental deposit first; the remainder is the rental refund.
+    if (heldSecurityDepositPaise > 0) {
+      const depositReturned = Math.min(refundAmountPaise || 0, heldSecurityDepositPaise)
+      updateData.security_deposit_status = depositReturned >= heldSecurityDepositPaise ? 'refunded'
+        : depositReturned > 0 ? 'partially_refunded' : 'retained'
+      updateData.security_deposit_refunded_paise = depositReturned
+      updateData.security_deposit_settled_at = new Date().toISOString()
+    }
   }
 
   const { error } = await supabase
@@ -3044,10 +3062,11 @@ export async function processCancellation(
 
   // Pro-rata split: write host/platform refund shares to host_earnings so the
   // host sees exactly which portion came out of their earnings.
-  if (approve && typeof refundAmountPaise === 'number' && refundAmountPaise > 0) {
+  const rentalRefundPaise = Math.max(0, (refundAmountPaise ?? 0) - heldSecurityDepositPaise)
+  if (approve && rentalRefundPaise > 0) {
     try {
       const { applyRefundSplitToEarning } = await import('@/actions/cancellation-refund')
-      await applyRefundSplitToEarning(bookingId, tierPercent ?? 0, refundAmountPaise)
+      await applyRefundSplitToEarning(bookingId, tierPercent ?? 0, rentalRefundPaise)
     } catch (err) {
       console.error('applyRefundSplitToEarning failed', err)
       // Non-fatal: the booking is already marked cancelled. Admins can re-run if needed.

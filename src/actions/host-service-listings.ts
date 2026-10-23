@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
+import type { RentalExtrasInput } from '@/lib/rental-pricing'
 import { sanitizeEventSchedule, serviceListingItemRows, summarizeServiceListingItems } from '@/lib/service-listing-items'
 import type {
   ServiceEventScheduleEntry,
@@ -114,6 +115,8 @@ export type HostServiceItemDraft = {
   unit?: ServiceUnit | null
   /** Rentals only: item-level amenities. Null on other types. */
   amenities?: string[] | null
+  /** Rentals only: optional 24-hour / daytime rates and security deposit. */
+  rental_extras?: RentalExtrasInput | null
 }
 
 export async function createHostServiceListing(input: {

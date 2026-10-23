@@ -7,6 +7,7 @@ import { getActionAuth } from '@/lib/auth/action-auth'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { SERVICE_LISTINGS_TAG } from '@/lib/cache-tags'
 import type { ServiceListingItem } from '@/types'
+import { CLEARED_RENTAL_EXTRAS, rentalExtrasRow, type RentalExtrasInput } from '@/lib/rental-pricing'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -195,6 +196,8 @@ export async function createServiceListingItem(input: {
   unit?: ItemUnit | null
   amenities?: string[] | null
   is_out_of_stock?: boolean
+  /** Rentals only: optional 24-hour / daytime rates and security deposit. */
+  rental_extras?: RentalExtrasInput | null
 }) {
   const ctx = await requireHostOfListing(input.service_listing_id)
   if ('error' in ctx) return { error: ctx.error }
@@ -226,6 +229,10 @@ export async function createServiceListingItem(input: {
   if (input.weekend_price_paise != null) {
     insertRow.weekend_price_paise = input.weekend_price_paise
   }
+  // Extras are only written when added, so items save before migration 118.
+  const extras = rentalExtrasRow(input.rental_extras ?? {})
+  if ('error' in extras) return { error: extras.error as string }
+  Object.assign(insertRow, extras)
 
   const { data, error } = await ctx.supabase
     .from('service_listing_items')
@@ -266,6 +273,8 @@ export async function updateServiceListingItem(
     is_out_of_stock: boolean
     unit: ItemUnit | null
     amenities: string[] | null
+    /** Rentals only: the full set of extras; omitted options are cleared. */
+    rental_extras: RentalExtrasInput | null
   }>,
 ) {
   const { supabase, user } = await getActionAuth()
@@ -290,10 +299,24 @@ export async function updateServiceListingItem(
     return { error: 'Item name is required' }
   }
 
+  const { rental_extras: extrasInput, ...rest } = patch
+  let extrasPatch: Record<string, unknown> = {}
+  if (extrasInput !== undefined) {
+    const extras = rentalExtrasRow(extrasInput ?? {})
+    if ('error' in extras) return { error: extras.error as string }
+    if (Object.keys(extras).length > 0) {
+      extrasPatch = { ...CLEARED_RENTAL_EXTRAS, ...extras }
+    } else {
+      // Clearing is best-effort so items without extras still save before migration 118.
+      await supabase.from('service_listing_items').update(CLEARED_RENTAL_EXTRAS).eq('id', itemId)
+    }
+  }
+
   const { data, error } = await supabase
     .from('service_listing_items')
     .update({
-      ...patch,
+      ...rest,
+      ...extrasPatch,
       name: patch.name?.trim(),
       description: patch.description === undefined ? undefined : patch.description?.trim() || null,
       updated_at: new Date().toISOString(),

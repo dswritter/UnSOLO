@@ -545,6 +545,8 @@ export interface ServiceBookingConfirmedEmailInput {
   /** Optional custom message included in the email. */
   message?: string | null
   rentalDays?: number
+  /** Rentals: refundable deposit charged on top of amountPaise. */
+  securityDepositPaise?: number
 }
 
 function fmtDate(iso: string): string {
@@ -572,7 +574,7 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
   const {
     customerEmail, customerName, listingTitle, listingType,
     location, checkInDate, checkOutDate, quantity, amountPaise,
-    bookingId, cartSummary, itemName, message, rentalDays,
+    bookingId, cartSummary, itemName, message, rentalDays, securityDepositPaise,
   } = input
 
   const itemRow = itemName && !cartSummary
@@ -582,7 +584,6 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
   const greeting = (customerName?.trim()) || 'there'
   const typeLabel = TYPE_LABEL[listingType] ?? listingType
   const shortRef = bookingId.slice(-8).toUpperCase()
-  const totalStr = fmtInr(amountPaise)
 
   const dateRow = checkOutDate && checkOutDate !== checkInDate
     ? `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Pick-up</td><td style="padding:10px 8px;">${fmtDate(checkInDate)}</td></tr>
@@ -632,9 +633,10 @@ export async function sendServiceBookingConfirmedEmail(input: ServiceBookingConf
             ${dateRow}
             ${durationRow}
             ${qtyRow}
+            ${securityDepositPaise ? `<tr style="border-top:1px solid #333"><td style="padding:10px 8px;font-weight:bold;">Refundable deposit</td><td style="padding:10px 8px;">${fmtInr(securityDepositPaise)}</td></tr>` : ''}
             <tr style="border-top:1px solid #333">
               <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;">Total Paid</td>
-              <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;font-size:18px;">${totalStr}</td>
+              <td style="padding:10px 8px;font-weight:bold;color:#FFC22E;font-size:18px;">${fmtInr(amountPaise + (securityDepositPaise ?? 0))}</td>
             </tr>
           </table>
         </div>

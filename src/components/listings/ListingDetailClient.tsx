@@ -7,6 +7,7 @@ import type { ServiceListing, ServiceListingItem } from '@/types'
 import { formatPrice } from '@/types'
 import { ListingBookingForm } from './ListingBookingForm'
 import { RentalCartCheckout } from './RentalCartCheckout'
+import { rentalRateChoices } from '@/lib/rental-pricing'
 import { Suspense, useState } from 'react'
 import { ImageLightbox } from '@/components/ui/ImageLightbox'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
@@ -311,6 +312,12 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
                 {formatPrice(item.price_paise)}
                 {item.unit ? ` / ${item.unit.replace('per_', '').replace('_', ' ')}` : ''}
               </p>
+              {rentalRateChoices(item).slice(1).map(choice => (
+                <p key={choice.option} className="text-xs text-muted-foreground">{formatPrice(choice.pricePaise)} · {choice.label}</p>
+              ))}
+              {item.security_deposit_paise ? (
+                <p className="text-xs text-muted-foreground">+ {formatPrice(item.security_deposit_paise)} refundable deposit</p>
+              ) : null}
               {!soldOut && item.quantity_available != null && (
                 <p className="text-xs text-emerald-400">{item.quantity_available} available</p>
               )}

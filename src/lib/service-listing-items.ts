@@ -1,5 +1,6 @@
 import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 import type { HostServiceItemDraft } from '@/actions/host-service-listings'
+import { rentalExtrasRow } from '@/lib/rental-pricing'
 
 const TIME_RE = /^\d{2}:\d{2}$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -28,6 +29,10 @@ export function summarizeServiceListingItems(input: {
   if (items.length === 0) return { error: 'Please add at least one item to your listing' }
   if (items.length > 100) return { error: 'A listing can hold at most 100 items' }
   for (const item of items) {
+    if (input.type === 'rentals') {
+      const extras = rentalExtrasRow(item.rental_extras ?? {})
+      if ('error' in extras) return { error: `"${item.name}": ${extras.error}` }
+    }
     if (item.images.length > 5) return { error: `"${item.name}": max 5 photos per item` }
     if (item.price_paise < 0 || item.quantity_available < 0 || item.max_per_booking < 1) {
       return { error: `"${item.name}" has invalid price, quantity, or max` }
@@ -77,6 +82,11 @@ export function serviceListingItemRows(listingId: string, type: ServiceListingTy
     }
     // Omit the column unless used, so inserts work before migration 076.
     if (type === 'stays' && item.weekend_price_paise != null) row.weekend_price_paise = item.weekend_price_paise
+    // Extras are validated in summarizeServiceListingItems and only written when added (migration 118).
+    if (type === 'rentals') {
+      const extras = rentalExtrasRow(item.rental_extras ?? {})
+      if (!('error' in extras)) Object.assign(row, extras)
+    }
     return row
   })
 }

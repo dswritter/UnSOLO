@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { formatRentalTime } from '@/lib/rental-pricing'
 import Image from 'next/image'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -679,7 +680,23 @@ export function BookingsClient({
                               <Users className="h-3 w-3" /> {booking.quantity} {listing?.type === 'stays' ? 'room(s)' : 'unit(s)'}
                             </span>
                           )}
+                          {(() => {
+                            const b = booking as { rental_rate_option?: string | null; booking_slot_start?: string | null; booking_slot_end?: string | null }
+                            if (b.rental_rate_option === 'full_day') return <span>24-hour rate</span>
+                            if (b.rental_rate_option === 'daytime' && b.booking_slot_start && b.booking_slot_end) {
+                              return <span>Daytime {formatRentalTime(b.booking_slot_start)} – {formatRentalTime(b.booking_slot_end)}</span>
+                            }
+                            return null
+                          })()}
                         </div>
+                        {(() => {
+                          const d = booking as { security_deposit_paise?: number | null; security_deposit_status?: string | null; security_deposit_refunded_paise?: number | null; security_deposit_note?: string | null }
+                          if (!d.security_deposit_paise) return null
+                          const status = d.security_deposit_status === 'held' ? 'held, refunded after return'
+                            : d.security_deposit_status === 'refunded' ? 'refunded'
+                              : `${formatPrice(d.security_deposit_refunded_paise ?? 0)} refunded${d.security_deposit_note ? ` (${d.security_deposit_note})` : ''}`
+                          return <p className="mb-3 text-xs text-muted-foreground">Security deposit {formatPrice(d.security_deposit_paise)}: {status}</p>
+                        })()}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="font-bold text-primary text-sm">{formatPrice(booking.total_amount_paise)}</span>
                           <Link href={`/listings/${listing?.type}/${listing?.slug}`} className="flex">
@@ -1729,6 +1746,9 @@ function CancelRequester({
                     <div className="flex justify-between"><span>Refund @ {preview.tierPercent}% (per policy)</span><span className="tabular-nums text-foreground">{formatPrice(preview.grossRefundPaise)}</span></div>
                     {preview.gatewayFeePaise > 0 && (
                       <div className="flex justify-between text-amber-500"><span>Less: gateway / transaction charges</span><span className="tabular-nums">− {formatPrice(preview.gatewayFeePaise)}</span></div>
+                    )}
+                    {preview.securityDepositRefundPaise > 0 && (
+                      <div className="flex justify-between"><span>Security deposit (full refund)</span><span className="tabular-nums text-foreground">+ {formatPrice(preview.securityDepositRefundPaise)}</span></div>
                     )}
                     <div className="flex justify-between font-semibold pt-0.5 border-t border-border/60"><span className="text-foreground">You receive</span><span className="text-primary tabular-nums">{formatPrice(preview.estimatedRefundPaise)}</span></div>
                   </div>
