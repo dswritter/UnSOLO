@@ -59,7 +59,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Trip chat</h2>
           <p className="text-foreground/60 text-sm">Currently this trip is not live.</p>
-          <Button asChild className="bg-[#fcba03] text-black font-bold">
+          <Button asChild className="bg-foreground text-background font-bold">
             <Link href={WANDER_HOME_SEARCH_HREF}>Browse trips</Link>
           </Button>
         </div>
@@ -113,7 +113,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
           <h2 className="text-xl font-bold">Private Conversation</h2>
           <p className="text-foreground/60 text-sm">You don&apos;t have access to this chat.</p>
-          <Button asChild className="bg-[#fcba03] text-black font-bold">
+          <Button asChild className="bg-foreground text-background font-bold">
             <Link href={listPath}>Back</Link>
           </Button>
         </div>
@@ -144,7 +144,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
           <p className="text-foreground/60 text-sm">
             This chat is for travelers with an active, upcoming, ongoing, or completed booking for this trip.
           </p>
-          <Button asChild className="bg-[#fcba03] text-black font-bold">
+          <Button asChild className="bg-foreground text-background font-bold">
             <Link href={bookHref}>{packageSlug ? 'Book this trip' : 'Browse trips'}</Link>
           </Button>
         </div>

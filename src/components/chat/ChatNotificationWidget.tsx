@@ -622,7 +622,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   if (dismissed && notifications.length === 0) return null
 
   const iconBtn =
-    'rounded-lg p-1.5 text-foreground/65 transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#fcba03]/60'
+    'rounded-lg p-1.5 text-foreground/65 transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/60'
 
   return (
     <div className="fixed bottom-20 right-6 z-50 flex flex-col items-end gap-1.5 pointer-events-none md:bottom-6">
@@ -732,7 +732,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                             <div
                               className={`break-words rounded-2xl px-3 py-1.5 text-sm text-foreground shadow-inner backdrop-blur-md ${
                                 isOwn
-                                  ? `rounded-tr-sm border border-[#fcba03]/45 bg-[#fcba03]/18 ${isPending ? 'opacity-90' : ''}`
+                                  ? `rounded-tr-sm border border-border bg-accent ${isPending ? 'opacity-90' : ''}`
                                   : 'rounded-tl-sm border border-foreground/15 bg-foreground/10'
                               }`}
                             >
@@ -830,7 +830,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
                   onChange={e => onReplyInputChange(e.target.value)}
                   onFocus={() => { setUserInteracting(true); if (autoMinimizeTimerRef.current) { clearTimeout(autoMinimizeTimerRef.current); autoMinimizeTimerRef.current = null } }}
                   placeholder={`Reply in ${activeRoom.name}...`}
-                  className="flex-1 rounded-xl border border-foreground/20 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-[#fcba03]/55 focus:outline-none focus:ring-1 focus:ring-[#fcba03]/40"
+                  className="flex-1 rounded-xl border border-foreground/20 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus:border-border focus:outline-none focus:ring-1 focus:ring-foreground/40"
                 />
                 <button
                   type="submit"

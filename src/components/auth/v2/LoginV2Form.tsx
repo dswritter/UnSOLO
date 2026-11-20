@@ -12,9 +12,10 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components/auth/v2/AuthV2FormChrome'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
+import { OtpSignIn } from '@/components/auth/v2/OtpSignIn'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[color:var(--pc-blue)] focus-visible:!ring-2 focus-visible:!ring-[color:var(--pc-blue)]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
 
 const TRAVEL_QUOTES = [
   'The world is a book, and those who do not travel read only one page.',
@@ -93,7 +94,7 @@ function LoginV2FormInner() {
   if (loading) {
     return (
       <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
-        <div className="h-10 w-10 border-[3px] border-[#fcba03] border-t-transparent rounded-full animate-spin" />
+        <div className="h-10 w-10 border-[3px] border-foreground border-t-transparent rounded-full animate-spin" />
         <p className="mt-5 text-sm text-foreground/60">Preparing your journey, please hold on…</p>
         <p key={quoteIndex} className="mt-6 max-w-sm text-sm italic text-primary/90">
           &ldquo;{TRAVEL_QUOTES[quoteIndex]}&rdquo;
@@ -109,7 +110,7 @@ function LoginV2FormInner() {
     <>
       <div className="mb-1 hidden sm:block">
         <h2 className="text-lg font-bold text-foreground md:text-xl">
-          <span className="text-primary">Log in</span> to continue
+          Log in to continue
         </h2>
         <p className="mt-1 text-sm text-foreground/50">Access your account and pick up where you left off.</p>
       </div>
@@ -123,14 +124,14 @@ function LoginV2FormInner() {
           <div className="space-y-2">
             <p className="text-sm font-bold text-emerald-500">Email verified</p>
             <p className="text-xs text-foreground/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
-            <Button className="w-full h-9 bg-[#fcba03] text-black text-sm font-bold hover:bg-[#fcba03]/90" asChild>
+            <Button className="w-full h-9 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90" asChild>
               <Link href={redirectTo || WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
           </div>
         </div>
       ) : null}
       {showVerifiedNoSession ? (
-        <div className="mb-4 rounded-xl border border-[#fcba03]/30 bg-[#fcba03]/10 p-4 text-left">
+        <div className="mb-4 rounded-xl border border-border bg-accent p-4 text-left">
           <p className="text-sm font-bold text-primary">Email verified</p>
           <p className="text-xs text-foreground/60 mt-1 leading-relaxed">
             Sign in below with the email and password you used to register.
@@ -192,11 +193,13 @@ function LoginV2FormInner() {
         </div>
         <Button
           type="submit"
-          className="h-11 w-full bg-[#fcba03] text-base font-extrabold text-black shadow-lg shadow-[#fcba03]/20 hover:bg-[#fcba03]/90"
+          className="h-11 w-full bg-foreground text-base font-semibold text-background hover:bg-foreground/90"
         >
-          Log In
+          Log in
         </Button>
       </form>
+
+      <OtpSignIn redirectTo={redirectTo} />
 
       <p className="mt-4 hidden text-center text-sm text-foreground/50 sm:block">
         Don&apos;t have an account?{' '}

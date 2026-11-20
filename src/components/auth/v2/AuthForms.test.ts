@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ google: vi.fn() }))
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('redirectTo=%2Fhost&ref=FRIEND') }))
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('redirectTo=%2Fhost&ref=FRIEND'), useRouter: () => ({ replace: vi.fn(), refresh: vi.fn(), push: vi.fn() }) }))
 vi.mock('@/actions/auth', () => ({
   signIn: vi.fn(), signUp: vi.fn(), signInWithGoogle: mocks.google, resendSignupConfirmationEmail: vi.fn(),
 }))

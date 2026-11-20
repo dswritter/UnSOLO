@@ -427,7 +427,7 @@ export function NotificationBell({
                   <span
                     className={cn(
                       'h-2 w-2 rounded-full flex-shrink-0 mt-2',
-                      wanderNav ? 'bg-[#fcba03]' : 'bg-primary',
+                      wanderNav ? 'bg-destructive' : 'bg-destructive',
                     )}
                   />
                 )}

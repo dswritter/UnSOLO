@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { AuthV2SecurityFooter, AuthV2Tabs, AuthGoogleOption } from '@/components/auth/v2/AuthV2FormChrome'
 
 const inputClass =
-  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[#fcba03]/50 focus-visible:!ring-2 focus-visible:!ring-[#fcba03]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
+  'h-11 min-h-11 !border !border-foreground/20 !bg-background !text-foreground !placeholder:text-foreground/55 shadow-inner !shadow-black/20 focus-visible:!border-[color:var(--pc-blue)] focus-visible:!ring-2 focus-visible:!ring-[color:var(--pc-blue)]/30 dark:!bg-background dark:!text-foreground dark:!placeholder:text-foreground/55'
 
 function SignupV2FormInner() {
   const [loading, setLoading] = useState<false | 'email'>(false)
@@ -53,7 +53,7 @@ function SignupV2FormInner() {
   if (loading === 'email') {
     return (
       <div className="flex min-h-[320px] flex-col items-center justify-center py-8 text-center">
-        <div className="h-10 w-10 border-[3px] border-[#fcba03] border-t-transparent rounded-full animate-spin" />
+        <div className="h-10 w-10 border-[3px] border-foreground border-t-transparent rounded-full animate-spin" />
         <p className="mt-5 text-sm text-foreground/60">Setting up your adventure, please hold on…</p>
         <p className="text-xs text-foreground/40 mt-3 max-w-sm leading-relaxed">
           We&apos;ll email you a confirmation link. After you verify, you can sign in and start exploring.
@@ -65,7 +65,7 @@ function SignupV2FormInner() {
   if (pendingVerificationEmail) {
     return (
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#fcba03]/30 bg-[#fcba03]/10">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-border bg-accent">
           <Mail className="h-7 w-7 text-primary" />
         </div>
         <h2 className="mt-4 text-lg font-bold text-foreground">Verify your email</h2>
@@ -94,7 +94,7 @@ function SignupV2FormInner() {
           >
             {resendBusy ? 'Sending…' : 'Resend email'}
           </Button>
-          <Button type="button" className="bg-[#fcba03] text-black font-bold" asChild>
+          <Button type="button" className="bg-foreground text-background font-bold" asChild>
             <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}${refCode ? `&ref=${encodeURIComponent(refCode)}` : ''}`}>Go to sign in</Link>
           </Button>
         </div>
@@ -180,7 +180,7 @@ function SignupV2FormInner() {
       <AuthV2Tabs active="signup" />
 
       {refCode && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#fcba03]/30 bg-[#fcba03]/10 p-3">
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-accent p-3">
           <Gift className="h-5 w-5 text-primary shrink-0" />
           <div className="text-left">
             <p className="text-sm font-bold text-primary">You&apos;ve been invited!</p>
@@ -285,7 +285,7 @@ function SignupV2FormInner() {
         <Button
           type="submit"
           disabled={!!loading || googleBusy}
-          className="h-11 w-full bg-[#fcba03] text-base font-extrabold text-black shadow-lg shadow-[#fcba03]/20 hover:bg-[#fcba03]/90"
+          className="h-11 w-full bg-foreground text-base font-semibold text-background hover:bg-foreground/90"
         >
           Create account
         </Button>

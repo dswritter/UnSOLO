@@ -48,7 +48,7 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
         href={loginHref}
         className={cn(
           'min-w-0 flex-1 pb-2.5 text-center text-sm font-bold transition',
-          active === 'login' ? 'border-b-2 border-[#fcba03] text-foreground' : 'text-foreground/45 hover:text-foreground/80',
+          active === 'login' ? 'border-b-2 border-foreground text-foreground' : 'text-foreground/45 hover:text-foreground/80',
         )}
       >
         Log in
@@ -57,7 +57,7 @@ export function AuthV2Tabs({ active }: { active: Tab }) {
         href={signupHref}
         className={cn(
           'min-w-0 flex-1 pb-2.5 text-center text-sm font-bold transition',
-          active === 'signup' ? 'border-b-2 border-[#fcba03] text-foreground' : 'text-foreground/45 hover:text-foreground/80',
+          active === 'signup' ? 'border-b-2 border-foreground text-foreground' : 'text-foreground/45 hover:text-foreground/80',
         )}
       >
         Sign up

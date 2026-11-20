@@ -40,7 +40,7 @@ function PodiumSlot({
       className={cn(
         'flex flex-col items-center rounded-2xl border border-foreground/15 bg-foreground/[0.05] px-3 py-4 text-center shadow-[0_12px_44px_rgba(0,0,0,0.2)] backdrop-blur-[42px] backdrop-saturate-150 sm:px-4',
         emphasis === 'tall' &&
-          'z-[1] border-[#fcba03]/35 bg-[#fcba03]/[0.07] py-5 shadow-[0_12px_40px_rgba(0,0,0,0.2)] sm:py-7',
+          'z-[1] border-border bg-accent py-5 shadow-[0_12px_40px_rgba(0,0,0,0.2)] sm:py-7',
         emphasis === 'short' && 'opacity-95',
       )}
     >
@@ -50,12 +50,12 @@ function PodiumSlot({
       <Link href={`/profile/${entry.profile?.username}`} className="group flex flex-col items-center gap-2">
         <Avatar
           className={cn(
-            'shrink-0 border-2 border-foreground/15 transition group-hover:border-[#fcba03]/40',
+            'shrink-0 border-2 border-foreground/15 transition group-hover:border-border',
             emphasis === 'tall' ? 'h-14 w-14 sm:h-[4.5rem] sm:w-[4.5rem]' : 'h-11 w-11 sm:h-14 sm:w-14',
           )}
         >
           <AvatarImage src={entry.profile?.avatar_url || ''} />
-          <AvatarFallback className="bg-[#fcba03]/20 text-xs font-bold text-primary sm:text-sm">
+          <AvatarFallback className="bg-accent text-xs font-bold text-primary sm:text-sm">
             {getInitials(name)}
           </AvatarFallback>
         </Avatar>
@@ -63,7 +63,7 @@ function PodiumSlot({
           <div className="flex flex-wrap items-center justify-center gap-1">
             <span className="line-clamp-2 text-xs font-bold text-foreground group-hover:underline sm:text-sm">{name}</span>
             {isMe ? (
-              <span className="shrink-0 rounded-full bg-[#fcba03]/20 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+              <span className="shrink-0 rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold text-primary">
                 You
               </span>
             ) : null}
@@ -250,7 +250,7 @@ export function LeaderboardV2Client({
           <div className="hidden md:block shrink-0">
             <div className="flex items-start gap-3 lg:pt-1">
               <div
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#fcba03]/35 bg-[#fcba03]/10"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-border bg-accent"
                 style={{ color: GOLD }}
               >
                 <Trophy className="h-6 w-6" strokeWidth={2} />
@@ -306,7 +306,7 @@ export function LeaderboardV2Client({
                 className={cn(
                   'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                   view === 'alltime'
-                    ? 'bg-[#fcba03] text-[#0a0a0a] shadow-md shadow-[#fcba03]/20'
+                    ? 'bg-foreground text-background'
                     : 'border border-foreground/15 bg-card/50 text-foreground/70 hover:border-foreground/25 hover:text-foreground',
                 )}
               >
@@ -318,7 +318,7 @@ export function LeaderboardV2Client({
                 className={cn(
                   'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                   view === 'monthly'
-                    ? 'bg-[#fcba03] text-[#0a0a0a] shadow-md shadow-[#fcba03]/20'
+                    ? 'bg-foreground text-background'
                     : 'border border-foreground/15 bg-card/50 text-foreground/70 hover:border-foreground/25 hover:text-foreground',
                 )}
               >
@@ -339,7 +339,7 @@ export function LeaderboardV2Client({
                     'h-11 w-full min-w-0 rounded-xl border border-foreground/10 bg-card/80 py-2.5 pl-10 pr-4 text-sm shadow-inner outline-none transition',
                     'text-foreground !text-foreground placeholder:text-foreground/40 caret-white',
                     '[&:-webkit-autofill]:!text-foreground [&:-webkit-autofill]:!shadow-[0_0_0_1000px_rgb(9_9_11_/_0.85)_inset]',
-                    'focus:border-[#fcba03]/40 focus:ring-2 focus:ring-[#fcba03]/20',
+                    'focus:border-border focus:ring-2 focus:ring-foreground/20',
                   )}
                   autoComplete="off"
                   autoCapitalize="off"
@@ -412,7 +412,7 @@ export function LeaderboardV2Client({
                             key={entry.user_id}
                             className={cn(
                               'border-b border-foreground/[0.06] transition-colors',
-                              isMe ? 'bg-[#fcba03]/8' : 'hover:bg-white/[0.04]',
+                              isMe ? 'bg-accent' : 'hover:bg-white/[0.04]',
                             )}
                           >
                             <td className="px-3 py-3 pl-4 align-middle sm:px-4">
@@ -427,7 +427,7 @@ export function LeaderboardV2Client({
                               >
                                 <Avatar className="h-9 w-9 shrink-0 border border-foreground/10">
                                   <AvatarImage src={entry.profile?.avatar_url || ''} />
-                                  <AvatarFallback className="bg-[#fcba03]/20 text-xs font-bold text-primary">
+                                  <AvatarFallback className="bg-accent text-xs font-bold text-primary">
                                     {getInitials(name)}
                                   </AvatarFallback>
                                 </Avatar>
@@ -437,7 +437,7 @@ export function LeaderboardV2Client({
                                       {name}
                                     </span>
                                     {isMe ? (
-                                      <span className="rounded-full bg-[#fcba03]/20 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                                      <span className="rounded-full bg-accent px-1.5 py-0.5 text-[9px] font-bold text-primary">
                                         You
                                       </span>
                                     ) : null}
@@ -482,7 +482,7 @@ export function LeaderboardV2Client({
                 <button
                   type="button"
                   onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, rawList.length))}
-                  className="rounded-full border border-[#fcba03]/35 bg-[#fcba03]/10 px-5 py-2 text-sm font-bold text-primary transition hover:bg-[#fcba03]/20"
+                  className="rounded-full border border-border bg-accent px-5 py-2 text-sm font-bold text-primary transition hover:bg-accent"
                 >
                   Load more
                 </button>
@@ -509,7 +509,7 @@ export function LeaderboardV2Client({
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
               <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
                 <p className="text-lg font-bold leading-snug text-white sm:text-xl">
-                  Every journey earns you <span className="text-[#fcba03]">points</span>. Keep exploring. Keep climbing.
+                  Every journey earns you <span className="text-primary">points</span>. Keep exploring. Keep climbing.
                 </p>
               </div>
             </div>
@@ -547,13 +547,13 @@ export function LeaderboardV2Client({
 
         {stickyMyEntry ? (
           <div className="sticky bottom-0 z-[2] px-4 pb-4 sm:px-6 lg:px-10">
-            <div className="mx-auto w-full max-w-[1100px] overflow-x-auto rounded-2xl border border-[#fcba03]/30 bg-card/92 shadow-[0_-10px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl">
-              <div className="border-b border-[#fcba03]/20 px-4 py-2 text-xs font-semibold text-primary">
+            <div className="mx-auto w-full max-w-[1100px] overflow-x-auto rounded-2xl border border-border bg-card/92 shadow-[0_-10px_30px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+              <div className="border-b border-border px-4 py-2 text-xs font-semibold text-primary">
                 You&apos;re at
               </div>
               <table className="w-full min-w-[640px] text-left text-sm">
                 <tbody>
-                  <tr className="bg-[#fcba03]/5">
+                  <tr className="bg-accent">
                     <td className="px-3 py-3 pl-4 sm:px-4">
                       <div className="flex w-10 justify-center sm:w-12">
                         <LeaderboardRankBadge rank={myRank} />
@@ -563,7 +563,7 @@ export function LeaderboardV2Client({
                       <Link href={`/profile/${myEntry.profile?.username}`} className="flex min-w-0 items-center gap-2.5">
                         <Avatar className="h-9 w-9 border border-foreground/10">
                           <AvatarImage src={myEntry.profile?.avatar_url || ''} />
-                          <AvatarFallback className="bg-[#fcba03]/20 text-xs font-bold text-primary">
+                          <AvatarFallback className="bg-accent text-xs font-bold text-primary">
                             {getInitials(myEntry.profile?.full_name || myEntry.profile?.username || 'You')}
                           </AvatarFallback>
                         </Avatar>

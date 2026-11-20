@@ -144,7 +144,7 @@ export async function WanderReviewsSection() {
             <div className="group relative h-36 shrink-0 overflow-hidden">
               <CoverImage src={review.imageUrl} sizes="320px" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-2 left-3 flex gap-0.5 text-[#fcba03]" aria-label="5 out of 5 stars">
+              <div className="absolute bottom-2 left-3 flex gap-0.5 text-primary" aria-label="5 out of 5 stars">
                 {[0, 1, 2, 3, 4].map(i => <Star key={i} className="h-4 w-4 fill-current" />)}
               </div>
             </div>
@@ -175,7 +175,7 @@ export async function WanderReviewsSection() {
 }
 
 const PODIUM_STYLES = [
-  { icon: Crown, ring: 'ring-[#fcba03]', badge: 'bg-[#fcba03] text-black' },
+  { icon: Crown, ring: 'ring-foreground', badge: 'bg-foreground text-background' },
   { icon: Medal, ring: 'ring-slate-300', badge: 'bg-slate-300 text-black' },
   { icon: Medal, ring: 'ring-amber-700', badge: 'bg-amber-700 text-white' },
 ]

@@ -252,10 +252,10 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'all'
               ? w
-                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-primary'
+                ? 'bg-accent border-border text-primary'
                 : 'bg-primary/10 border-primary/40 text-primary'
               : w
-                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-[#fcba03]/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-border'
                 : 'bg-card border-border hover:border-primary/20',
           )}
         >
@@ -303,10 +303,10 @@ export function HostTripsList({ stats, trips: initialTrips, wanderHost = false }
             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors',
             filter === 'earned'
               ? w
-                ? 'bg-[#fcba03]/20 border-[#fcba03]/55 text-primary'
+                ? 'bg-accent border-border text-primary'
                 : 'bg-primary/10 border-primary/40 text-primary'
               : w
-                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-[#fcba03]/35'
+                ? 'border-foreground/20 bg-foreground/[0.06] text-foreground hover:border-border'
                 : 'bg-card border-border hover:border-primary/20',
           )}
         >
