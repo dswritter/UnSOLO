@@ -10,9 +10,12 @@ import { readFlags } from '@/lib/tribe/flags'
 import { dispatchPendingPushes } from '@/lib/push/dispatch'
 import { trackServerEvent } from '@/lib/analytics/server'
 
+/** Only images we stored ourselves (via /uploads) — no third-party URLs (tracking pixels, hotlinks). */
+const storagePrefix = () => `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}/storage/v1/object/public/images/`
+const OwnImageUrl = z.string().url().max(1000).refine((u) => u.startsWith(storagePrefix()), 'Upload photos through UnSOLO')
 const MediaIn = z.object({
-  url: z.string().url().max(1000), thumbUrl: z.string().url().max(1000).nullable().optional(),
-  lqip: z.string().max(2000).nullable().optional(), width: z.number().int().positive().max(20000).nullable().optional(),
+  url: OwnImageUrl, thumbUrl: OwnImageUrl.nullable().optional(),
+  lqip: z.string().max(2000).regex(/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/=]+$/).nullable().optional(), width: z.number().int().positive().max(20000).nullable().optional(),
   height: z.number().int().positive().max(20000).nullable().optional(), bytes: z.number().int().positive().max(2_097_152).optional(),
 })
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
