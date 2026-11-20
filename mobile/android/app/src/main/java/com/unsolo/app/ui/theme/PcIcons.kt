@@ -105,5 +105,7 @@ object PcIcons {
     val Bed by lazy { stroke("bed", "M3,6V19M3,15.5H21V19M21,15.5V11.5a2.5,2.5 0 0,0 -2.5,-2.5H10V15.5", "M8.5,11.5a1.75,1.75 0 1,1 -3.5,0a1.75,1.75 0 1,1 3.5,0z") }
     val Hike by lazy { stroke("hike", "M15,4.5a1.75,1.75 0 1,1 -3.5,0a1.75,1.75 0 1,1 3.5,0z", "M8,21L11,14L14.5,16.5V21", "M7.5,11.5L10,8L14,8.5L16.5,12H19", "M11,14L12.5,8.2", "M19,9.5V21") }
     val Motorcycle by lazy { stroke("motorcycle", "M9,16a3,3 0 1,1 -6,0a3,3 0 1,1 6,0z", "M21,16a3,3 0 1,1 -6,0a3,3 0 1,1 6,0z", "M6,16L9.5,10H15L18,16", "M13.5,6H16L18,16", "M9.5,10L12,13") }
+    /** Armchair: the seat cue in ring centres. */
+    val Seat by lazy { stroke("seat", "M6,10V7a2,2 0 0,1 2,-2H16a2,2 0 0,1 2,2V10", "M4,11a2,2 0 0,1 2,2V14.5H18V13a2,2 0 0,1 4,0V18H2V13a2,2 0 0,1 2,-2Z", "M5,18V20M19,18V20") }
     val Microphone by lazy { stroke("microphone", "M9,6a3,3 0 0,1 6,0V11a3,3 0 0,1 -6,0Z", "M5.5,11a6.5,6.5 0 0,0 13,0", "M12,17.5V21") }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -217,6 +218,7 @@ fun SeatRing(
     centerUser: UserLite? = null,
     centerLabel: Pair<String, String>? = null,
     centerLabelSize: Dp? = null,
+    centerIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     badge: RingBadge? = null,
     waiting: UserLite? = null,
     dots: Boolean = true,
@@ -302,6 +304,12 @@ fun SeatRing(
                             val rad = max(6f, g.d * 0.34f) * px
                             drawCircle(c.raised, rad, Offset(x * px, y * px))
                             drawCircle(openCol, rad, Offset(x * px, y * px), style = Stroke(2.5f * px))
+                        } else if (size.value >= 64f) {
+                            // Seat cue: each open seat gets a small marker on the open track, so the ring reads as seats.
+                            val (x, y) = g.point(g.mid(i))
+                            val rad = max(2.4f, g.wO * 1.35f) * px
+                            drawCircle(c.raised, rad, Offset(x * px, y * px))
+                            drawCircle(openCol, rad, Offset(x * px, y * px), style = Stroke(max(1.2f, g.wO * 0.75f) * px))
                         }
                         1 -> if (!plan) arc(takenCol, a0, sweep, g.wT)
                             else if (!(dots && g.showDots && people.getOrNull(i) != null)) {
@@ -358,9 +366,10 @@ fun SeatRing(
             val onPhoto = photo != null || centerUser?.avatarUrl != null
             Column(
                 Modifier.align(Alignment.Center)
-                    .then(if (onPhoto) Modifier.clip(CircleShape).background(c.raised.copy(alpha = 0.9f)).padding(horizontal = 14.dp, vertical = 8.dp) else Modifier),
+                    .then(if (onPhoto) Modifier.clip(RoundedCornerShape(28.dp)).background(c.raised.copy(alpha = 0.9f)).padding(horizontal = if (size.value >= 120f) 18.dp else 12.dp, vertical = 8.dp) else Modifier),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                if (centerIcon != null) PcIcon(centerIcon, null, tint = c.ink2, size = (if (size.value < 120f) 13f else 20f).dp)
                 Text(centerLabel.first, style = Pc.type.numLarge.copy(fontSize = fs.sp, lineHeight = (fs * 0.98f).sp), color = c.ink, textAlign = TextAlign.Center, maxLines = 1)
                 if (centerLabel.second.isNotBlank()) Text(centerLabel.second, style = Pc.type.smallStrong.copy(fontSize = (if (size.value < 120f) 11f else 13f).sp, lineHeight = 14.sp), color = c.ink2, textAlign = TextAlign.Center, maxLines = 1)
             }
@@ -409,6 +418,7 @@ fun SeatRing(
     centerUser: UserLite? = null,
     centerLabel: Pair<String, String>? = null,
     centerLabelSize: Dp? = null,
+    centerIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     badge: RingBadge? = null,
     dots: Boolean = true,
     animate: Boolean = true,
@@ -417,7 +427,7 @@ fun SeatRing(
 ) = SeatRing(
     total = data.total, taken = data.taken, size = size, modifier = modifier, you = data.you, plan = plan, women = women, past = past,
     people = data.people, showFaces = data.coTraveller, me = data.me, photo = photo, centerUser = centerUser, centerLabel = centerLabel,
-    centerLabelSize = centerLabelSize, badge = badge, waiting = data.waiting, dots = dots, animate = animate, spinOnAppear = spinOnAppear, onClick = onClick,
+    centerLabelSize = centerLabelSize, centerIcon = centerIcon, badge = badge, waiting = data.waiting, dots = dots, animate = animate, spinOnAppear = spinOnAppear, onClick = onClick,
 )
 
 /** A ring sitting on a surface-coloured disc (for overlapping photos). */

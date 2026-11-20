@@ -24,6 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -108,6 +111,10 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
         .flatMapLatest { slug -> if (slug == null) flowOf(null to null) else g.explore.observeTrip(slug) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null to null)
     val suggestions = g.explore.observeSuggestions().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    /** Open community plans (not your own), for "Plans looking for people". */
+    val plans: StateFlow<List<Post>> = g.tribe.observeFeed(PostKind.PLAN).map { st ->
+        st.items.filterIsInstance<com.unsolo.app.data.PostItem>().map { it.post }.filter { it.kind == PostKind.PLAN && it.status == "live" && !it.viewer.isAuthor }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val saved = g.settings.data.map { it.savedTrips }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val refreshing = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
@@ -121,6 +128,7 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
             hero.map { it.first?.slug }.filterNotNull().distinctUntilChanged().collect { g.explore.refreshTrip(it) }
         }
         viewModelScope.launch { g.explore.refreshSuggestions(g.location.last?.lat, g.location.last?.lng) }
+        viewModelScope.launch { g.tribe.refreshFeed(PostKind.PLAN) }
         // Faces are only sent to signed-in viewers: refetch when the session changes.
         viewModelScope.launch {
             g.account.isSignedIn.drop(1).distinctUntilChanged().collect {
@@ -161,6 +169,8 @@ fun ExploreScreen(nav: AppNav) {
     val hero by vm.hero.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
     val saved by vm.saved.collectAsStateWithLifecycle()
+    val plans by vm.plans.collectAsStateWithLifecycle()
+    val me by vm.me.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val window by vm.window.collectAsStateWithLifecycle()
     vm.openOnly.collectAsStateWithLifecycle(); vm.price.collectAsStateWithLifecycle()
@@ -200,10 +210,18 @@ fun ExploreScreen(nav: AppNav) {
                         TripCard(t, t.slug in saved, onSave = { vm.toggleSave(t.slug) }, onOpen = { nav.to(Routes.trip(t.slug)) }, onTake = { takeSeat(nav, t, "explore") })
                     }
                 }
-                val planning = hero.second?.planningCount
-                val first = items.first()
-                if (planning != null && planning >= 3) item(key = "bridge", contentType = "bridge") {
-                    TribeBridgeRow(planning, first.place?.name ?: first.title, hero.second?.stories?.size ?: 0, hero.second?.goingFaces.orEmpty()) { nav.tab(Routes.TRIBE) }
+            }
+            // Plans looking for people: one row that leads with the invite card, then open plans.
+            if (category == "trips" && query.isBlank()) {
+                item(key = "plans-h", contentType = "section") { SectionHeader("Plans looking for people", Modifier.padding(top = 8.dp)) }
+                item(key = "plans", contentType = "plans") {
+                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        item(key = "invite") {
+                            PlanInviteCard(plans.size, plans.map { it.author }.distinctBy { it.id }.take(3),
+                                onStart = { if (nav.requirePhone()) nav.to(Routes.compose(PostKind.PLAN)) }, onTribe = { nav.tab(Routes.TRIBE) })
+                        }
+                        items(plans.take(6), key = { "plan-" + it.id }) { p -> ExplorePlanCard(p, me?.user?.id) { nav.to(Routes.post(p.id)) } }
+                    }
                 }
             }
             if (category == "trips" && query.isBlank()) item(key = "sugg", contentType = "rail") {
@@ -347,7 +365,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         }
         Row(Modifier.padding(horizontal = 8.dp).overlapUp(44.dp), verticalAlignment = Alignment.Top) {
             RingMount {
-                SeatRing(ring, PcTokens.ringCard, centerLabel = "$open" to (if (ring.full) "full" else "open"), centerLabelSize = 26.dp)
+                SeatRing(ring, PcTokens.ringCard, centerLabel = (if (ring.full) "${ring.total}/${ring.total}" else "$open") to seatsLeftWord(open, ring.full), centerLabelSize = if (ring.full) 17.dp else 22.dp, centerIcon = PcIcons.Seat)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp, top = 50.dp)) {
                 Text(t.title, style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -579,7 +597,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 Box(Modifier.fillMaxWidth().overlapUp(116.dp), contentAlignment = Alignment.Center) {
                     RingMount(pad = 6.dp, color = c.paper) {
                         SeatRing(ring, PcTokens.ringHero, photo = t.image, badge = t.host?.let { RingBadge(it) },
-                            centerLabel = (if (ring.full) "Full" else "${ring.total - ring.filled}") to (if (ring.full) "${ring.total}/${ring.total}" else "of ${ring.total} open"),
+                            centerLabel = (if (ring.full) "${ring.total}/${ring.total}" else "${ring.total - ring.filled}") to (if (ring.full) "full" else "of ${ring.total} ${if (ring.total - ring.filled == 1) "seat" else "seats"} left"), centerIcon = PcIcons.Seat,
                             centerLabelSize = 40.dp, spinOnAppear = ring.full, onClick = { whoSheet = true })
                     }
                 }
@@ -783,5 +801,95 @@ fun StoryRailCard(s: Post, onClick: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(s.title ?: s.body, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text("${s.author.firstName} · ${s.reactions.love} loved", style = Pc.type.small, color = c.ink2, maxLines = 1)
+    }
+}
+
+
+/** Centre word under the seat count. */
+fun seatsLeftWord(open: Int, full: Boolean) = when { full -> "full"; open == 1 -> "seat left"; else -> "seats left" }
+
+/**
+ * Invite card that leads "Plans looking for people": your gold seat at the top of a six-seat
+ * ring while the other five fill in one by one (looping), a gently pulsing + in the centre.
+ * Static under reduced motion.
+ */
+@Composable
+fun PlanInviteCard(planning: Int, faces: List<UserLite>, onStart: () -> Unit, onTribe: () -> Unit) {
+    val c = Pc.colors
+    Column(Modifier.width(316.dp).raisedCard().padding(16.dp)) {
+        Text("Going somewhere? Post a plan.", style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink)
+        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Travellers heading your way ask to join. No booking, no money.", style = Pc.type.small, color = c.ink2)
+                Spacer(Modifier.height(12.dp))
+                PcButton("Start a plan", onStart, height = BtnSmall, icon = PcIcons.Plus)
+            }
+            Spacer(Modifier.width(12.dp))
+            InviteRing(Modifier.size(112.dp))
+        }
+        if (planning > 0) Row(Modifier.padding(top = 4.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Open Tribe", onClick = onTribe).defaultMinSize(minHeight = 48.dp).padding(end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            if (faces.isNotEmpty()) { FaceStack(faces, size = 22.dp); Spacer(Modifier.width(8.dp)) }
+            Text("$planning planning in Tribe →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = c.accentInk, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun InviteRing(modifier: Modifier = Modifier) {
+    val c = Pc.colors
+    val reduce = Pc.reduceMotion
+    val n = 6
+    val g = remember { RingGeometry(112f, n, badge = false) }
+    // One 4.4s loop: seats 1..5 fade in with staggered delays, hold, then reset.
+    val t = if (reduce) 0.6f else androidx.compose.animation.core.rememberInfiniteTransition(label = "invite").animateFloat(
+        0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(4400, easing = androidx.compose.animation.core.LinearEasing)), label = "t").value
+    val pulse = if (reduce) 1f else androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse").animateFloat(
+        1f, 1.08f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse), label = "s").value
+    Box(modifier.semantics { contentDescription = "A plan circle filling up around your seat" }, contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val px = density
+            val rr = g.r * px
+            val tl = androidx.compose.ui.geometry.Offset(center.x - rr, center.y - rr)
+            val sz = androidx.compose.ui.geometry.Size(rr * 2, rr * 2)
+            val rot = -g.seg / 2f // centre seat 0 at 12 o'clock
+            fun arc(col: Color, i: Int, w: Float, alpha: Float = 1f) = drawArc(col, g.a0(i) + rot, g.a1(i) - g.a0(i), false, tl, sz, alpha = alpha,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(w * px, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            drawArc(c.seatOpen, g.trackStart + rot, g.trackSweep, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(g.wO * px, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+            for (i in 1 until n) {
+                val startAt = 0.08f + (i - 1) * 0.13f
+                val a = if (reduce) (if (i <= 2) 1f else 0f) else ((t - startAt) / 0.08f).coerceIn(0f, 1f) * (if (t > 0.92f) ((1f - t) / 0.08f).coerceIn(0f, 1f) else 1f)
+                if (a > 0f) arc(c.taken, i, g.wT, a)
+            }
+            arc(c.ink, 0, g.wT + 3f)
+            arc(c.gold, 0, g.wT)
+        }
+        Box(Modifier.size(44.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }.clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) {
+            PcIcon(PcIcons.Plus, null, tint = c.ink, size = 22.dp)
+        }
+    }
+}
+
+/** Compact open plan for the Explore row. */
+@Composable
+private fun ExplorePlanCard(p: Post, meId: String?, onOpen: () -> Unit) {
+    val c = Pc.colors
+    Column(Modifier.width(280.dp).pencilledCard().clickable(onClickLabel = "Open plan", onClick = onOpen).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Avatar(p.author, 28.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(p.author.firstName, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.weight(1f), maxLines = 1)
+            if (p.audience == "women") Tag("Women only", TagKind.Women, height = 22.dp)
+        }
+        Text(p.title ?: "Plan", style = Pc.type.title3, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            com.unsolo.app.ui.tribe.PlanRing(p, 80.dp, meId)
+            Spacer(Modifier.width(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.fact, color = c.ink2)
+                p.place?.name?.let { Text(it.substringBefore(','), style = Pc.type.fact, color = c.ink2, maxLines = 1) }
+                SeatCaption(p.spotsTotal ?: p.seats.size, p.memberCount, plan = true)
+            }
+        }
     }
 }
