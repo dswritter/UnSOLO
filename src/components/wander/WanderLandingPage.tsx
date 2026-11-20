@@ -8,6 +8,7 @@ import {
   WanderListingRowsSkeleton,
 } from '@/components/wander/WanderListingRowsServer'
 import { TribeBridgeRow } from '@/components/tribe/TribeBridgeRow'
+import { DeparturesTable } from '@/components/tribe/DeparturesTable'
 
 export async function WanderLandingPage({
   searchParams,
@@ -45,6 +46,9 @@ export async function WanderLandingPage({
           </Suspense>
           <Suspense fallback={null}>
             <TribeBridgeRow />
+          </Suspense>
+          <Suspense fallback={null}>
+            <DeparturesTable />
           </Suspense>
           <Suspense fallback={<WanderListingRowsSkeleton />}>
             <WanderListingRowsServer activeTab={activeTab} />
