@@ -1,13 +1,25 @@
 import SwiftUI
 
 enum FeedFilter: String, CaseIterable, Hashable {
-    case all, plan, story, ask
+    case all, plan, story, ask, poll
     var label: String {
         switch self {
         case .all: "For you"
         case .plan: "Plans"
         case .story: "Stories"
-        case .ask: "Asks"
+        case .ask: "Questions"
+        case .poll: "Polls"
+        }
+    }
+    /// Server feed key. Polls are asks that carry a poll, filtered on the client.
+    var feedKey: String { self == .poll ? "ask" : rawValue }
+
+    func includes(_ item: FeedItem) -> Bool {
+        guard case .post(let p) = item else { return self == .all }
+        switch self {
+        case .ask: return p.kind == .ask && p.poll == nil
+        case .poll: return p.kind == .ask && p.poll != nil
+        default: return true
         }
     }
 }
@@ -19,7 +31,7 @@ struct TribeFeedView: View {
     @State private var place: String?
 
     private var items: [FeedItem] {
-        let all = app.tribe.items(for: filter.rawValue)
+        let all = app.tribe.items(for: filter.feedKey).filter { filter.includes($0) }
         guard let place else { return all }
         return all.filter { item in
             if case .post(let p) = item { return p.place?.name.localizedCaseInsensitiveContains(place) ?? false }
@@ -39,6 +51,7 @@ struct TribeFeedView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 AppHeader(title: "Tribe")
+                StoryRail().padding(.top, 2)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(FeedFilter.allCases, id: \.self) { f in
@@ -48,39 +61,45 @@ struct TribeFeedView: View {
                         }
                         placeMenu
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 16)
                 }
-                .padding(.top, 4)
+                .padding(.top, 10)
                 .padding(.bottom, 6)
                 if items.isEmpty {
-                    if case .failed = app.tribe.feedState[filter.rawValue] {
+                    if case .failed = app.tribe.feedState[filter.feedKey] {
                         EmptyState(symbol: "wifi.slash", title: "Couldn't load the Tribe", message: "Pull to try again.")
-                    } else if app.tribe.feedState[filter.rawValue] == .loading || app.tribe.feeds[filter.rawValue] == nil {
-                        ProgressView().tint(Pc.ink).frame(maxWidth: .infinity).padding(40)
+                    } else if app.tribe.feedState[filter.feedKey] == .loading || app.tribe.feeds[filter.feedKey] == nil {
+                        ProgressView().tint(Pc.pine).frame(maxWidth: .infinity).padding(40)
                     } else {
-                        EmptyState(symbol: "person.3", title: "Nothing here yet", message: "Be the first: post a plan, a story or an ask.")
+                        EmptyState(symbol: "person.3", title: "Nothing here yet", message: "Be the first: post a plan, a story or a question.")
                     }
                 }
-                LazyVStack(spacing: 14) {
+                LazyVStack(spacing: 12) {
                     ForEach(items) { item in
                         FeedCard(item: item)
                             .onAppear {
-                                if item.id == items.last?.id { Task { await app.tribe.loadMore(key: filter.rawValue) } }
+                                if item.id == items.last?.id { Task { await app.tribe.loadMore(key: filter.feedKey) } }
                             }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 8)
-                if !items.isEmpty { CaughtUpFooter(departures: app.tribe.feeds[filter.rawValue]?.nextDepartures ?? []) }
+                .padding(.horizontal, 14)
+                .padding(.top, 6)
+                if !items.isEmpty { CaughtUpFooter(departures: app.tribe.feeds[filter.feedKey]?.nextDepartures ?? []) }
             }
         }
-        .refreshable { await app.tribe.refreshFeed(key: filter.rawValue) }
+        .refreshable { await app.tribe.refreshFeed(key: filter.feedKey) }
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
-        .task(id: filter) { await app.tribe.refreshFeed(key: filter.rawValue) }
+        .task(id: filter) { await app.tribe.refreshFeed(key: filter.feedKey) }
+        .task { if app.tribe.feeds["all"] == nil, filter != .all { await app.tribe.refreshFeed(key: "all") } }
         .onAppear {
             #if DEBUG
-            if DebugLaunch.startScreen == "tribeStories" { filter = .story }
+            switch DebugLaunch.startScreen {
+            case "tribeStories": filter = .story
+            case "tribePlans": filter = .plan
+            case "tribePolls": filter = .poll
+            default: break
+            }
             #endif
         }
     }
@@ -91,14 +110,15 @@ struct TribeFeedView: View {
             ForEach(places, id: \.self) { p in Button(p) { place = p } }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "mappin").font(.system(size: 12, weight: .semibold))
-                Text(place ?? "All places").pcFont(.small, weight: .medium).lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+                Image(systemName: "mappin").font(.system(size: 13, weight: .bold))
+                Text(place ?? "All places").font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .heavy))
             }
-            .foregroundStyle(Pc.ink)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 38)
-            .background(Capsule().fill(Pc.tonal))
+            .foregroundStyle(place == nil ? Pc.ink : Pc.onPine)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 40)
+            .background(Capsule().fill(place == nil ? Pc.raised : Pc.pine))
+            .overlay { if place == nil { Capsule().strokeBorder(Pc.rule, lineWidth: 1) } }
             .frame(minHeight: PcTokens.touch)
             .contentShape(Capsule())
         }
@@ -106,12 +126,65 @@ struct TribeFeedView: View {
     }
 }
 
-struct FeedSeparator: View {
+// MARK: - Story rail
+
+/// Authors with stories in the feed: one arc per story (pine unseen, rule seen). "Your story" is gold with a +.
+struct StoryRail: View {
+    @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
+    @Environment(SessionStore.self) private var session
+
+    struct Entry: Identifiable {
+        let author: UserLite
+        let stories: [Post]
+        var id: String { author.id }
+    }
+
+    static func entries(_ app: AppModel, excluding me: String?) -> [Entry] {
+        let stories = app.tribe.posts.values.filter { $0.kind == .story && !$0.isLocal && $0.status == .live && !app.tribe.blockedUserIds.contains($0.author.id) }
+        let byAuthor = Dictionary(grouping: stories) { $0.author.id }
+        return byAuthor.values
+            .compactMap { list -> Entry? in
+                let sorted = list.sorted { $0.createdAt < $1.createdAt }
+                guard let a = sorted.first?.author, a.id != me else { return nil }
+                return Entry(author: a, stories: sorted)
+            }
+            .sorted { ($0.stories.last?.createdAt ?? .distantPast) > ($1.stories.last?.createdAt ?? .distantPast) }
+    }
+
     var body: some View {
-        Rectangle().fill(Pc.rule.opacity(0.7)).frame(height: 8)
-            .overlay(alignment: .top) { HairlineRule(color: Pc.rule2) }
-            .overlay(alignment: .bottom) { HairlineRule(color: Pc.rule2) }
-            .accessibilityHidden(true)
+        let entries = Self.entries(app, excluding: session.user?.id)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                Button {
+                    app.requireVerified("Sign in to share a story") { router.openCompose(.story) }
+                } label: {
+                    item(StoryRing(user: session.user, size: 64, isMine: true), name: "Your story")
+                }
+                .buttonStyle(.pcPress)
+                .accessibilityLabel("Add your story")
+                ForEach(Array(entries.enumerated()), id: \.element.id) { i, e in
+                    let seen = e.stories.filter { app.marks.seenStories.contains($0.id) }.count
+                    Button {
+                        router.storyViewer = StoryViewerItem(authorIds: entries.map(\.author.id), start: i)
+                    } label: {
+                        item(StoryRing(user: e.author, segments: e.stories.count, seen: seen, size: 64), name: e.author.firstName)
+                    }
+                    .buttonStyle(.pcPress)
+                    .accessibilityLabel("\(e.author.name)'s stories, \(e.stories.count - seen) new")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func item<R: View>(_ ring: R, name: String) -> some View {
+        VStack(spacing: 5) {
+            ring
+            Text(name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink2).lineLimit(1)
+        }
+        .frame(width: 66)
     }
 }
 
@@ -136,7 +209,7 @@ struct FeedCard: View {
             .accessibilityElement(children: .contain)
             .accessibilityAction(named: "Open") { if !p.isLocal { router.push(.post(id: p.id)) } }
         case .placedTrip(let t):
-            PlacedTripCard(trip: t)
+            TripCard(trip: t)
         }
     }
 }
@@ -146,38 +219,47 @@ struct FeedCard: View {
 struct AuthorRow: View {
     let post: Post
     var subtitle: String?
+    var showsKindTag = true
     @Environment(Router.self) private var router
 
     var body: some View {
         HStack(spacing: 10) {
-            Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 40) }
-                .buttonStyle(.plain)
+            Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 36) }
+                .buttonStyle(.pcPress)
+                .frame(minWidth: PcTokens.touch, minHeight: PcTokens.touch)
+                .padding(.horizontal, -6)
                 .accessibilityLabel("Open \(post.author.name)'s profile")
             VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    Text(post.author.name).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+                HStack(spacing: 5) {
+                    Text(post.author.name).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     if post.author.isIdVerified { VerifiedBadge() }
                     if post.author.isHost && post.kind != .plan { PcTag(text: "Host", style: .host) }
+                    Text("· \(post.isLocal ? "now" : Fmt.relative(post.createdAt))").font(.system(size: 13)).foregroundStyle(Pc.ink3).lineLimit(1)
                 }
-                Text(subtitle ?? defaultSubtitle).pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                Text(subtitle ?? defaultSubtitle).font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
             }
-            Spacer()
-            PcTag(text: post.kind.label, style: post.kind == .plan ? .kindDashed : .kind)
+            Spacer(minLength: 4)
+            if showsKindTag { kindTag }
+        }
+    }
+
+    @ViewBuilder private var kindTag: some View {
+        switch post.kind {
+        case .plan:
+            if post.audience == .women { PcTag(text: "Women only", style: .women) }
+        case .ask:
+            PcTag(text: post.poll == nil ? "Question" : "Poll", style: .verified, icon: post.poll == nil ? "questionmark.circle.fill" : "chart.bar.fill")
+        case .story:
+            EmptyView()
         }
     }
 
     private var defaultSubtitle: String {
-        let city = post.place?.name.components(separatedBy: ",").first ?? ""
-        let when = post.isLocal ? "now" : Fmt.relative(post.createdAt)
+        let city = post.place?.name.components(separatedBy: ",").first
         switch post.kind {
-        case .story:
-            if post.trip != nil {
-                let c = Fmt.calendar.dateComponents([.month], from: post.createdAt)
-                let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-                return "Went with UnSOLO · \(months[(c.month ?? 1) - 1])"
-            }
-            return "\(city) · \(when)"
-        default: return city.isEmpty ? when : "\(city) · \(when)"
+        case .plan: return "Plan · looking for people"
+        case .story: return ["Story", post.trip?.title ?? city].compactMap { $0 }.joined(separator: " · ")
+        case .ask: return ["Asking the Tribe", city].compactMap { $0 }.joined(separator: " · ")
         }
     }
 }
@@ -191,17 +273,17 @@ struct LocalStateBar: View {
             HStack(spacing: 10) {
                 switch s.state {
                 case "failed":
-                    Image(systemName: "exclamationmark.triangle").foregroundStyle(Pc.red)
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Pc.red)
                     Text("Not sent").pcFont(.small, weight: .semibold).foregroundStyle(Pc.red)
                     Spacer()
                     Button("Retry") { app.tribe.retryFailed(postId) }.buttonStyle(.pc(.outline, compact: true))
                     Button("Discard") { app.tribe.discardLocal(postId) }.buttonStyle(.pc(.danger))
                 case "held":
                     Image(systemName: "hourglass").foregroundStyle(Pc.goldInk)
-                    Text("Held for review · only you can see this").pcFont(.small, weight: .semibold).foregroundStyle(Pc.goldInk)
+                    Text("Held for review · only you can see this").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink)
                     Spacer()
                 default:
-                    ProgressView().controlSize(.small).tint(Pc.ink)
+                    ProgressView().controlSize(.small).tint(Pc.pine)
                     Text(app.connectivity.isOnline ? (s.progress > 0 && s.progress < 1 ? "Uploading photos · \(Int(s.progress * 100))%" : "Sending…") : "Waiting for connection")
                         .pcFont(.small).foregroundStyle(Pc.ink2)
                     Spacer()
@@ -210,7 +292,7 @@ struct LocalStateBar: View {
             }
             .padding(.horizontal, 12)
             .frame(minHeight: 40)
-            .background(Pc.goldBg, in: Pc.shape(Pc.radius))
+            .background(Pc.selected, in: Pc.shape(Pc.radius))
             .accessibilityElement(children: .combine)
         }
     }
@@ -220,34 +302,30 @@ struct LocalStateBar: View {
 
 struct PlanCard: View {
     let post: Post
+    var ringSize: CGFloat = 112
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        let counts = SeatCounts(plan: post)
         VStack(alignment: .leading, spacing: 10) {
             AuthorRow(post: post)
             LocalStateBar(postId: post.id)
-            CommunityPlanLabel()
-            Text(post.displayTitle).pcFont(.title1).foregroundStyle(Pc.ink).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            Text(post.body).pcFont(.body).foregroundStyle(Pc.ink).lineLimit(3).multilineTextAlignment(.leading)
-            FactsRow(facts: planFacts(post))
-            HStack(alignment: .center, spacing: 12) {
-                SeatRow(seats: SeatBuilder.planSeats(post), cellSize: PcTokens.seatSmall, spacing: 6, maxCells: 8)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(post.memberCount) in · \(post.openSpots) open").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink)
-                    Text("incl. organiser").pcFont(.small).foregroundStyle(Pc.ink2)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(post.displayTitle).font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
+                    .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Text(post.body).font(.system(size: 14)).foregroundStyle(Pc.ink2).lineLimit(3).multilineTextAlignment(.leading)
+            }
+            HStack(alignment: .center, spacing: 14) {
+                SeatRing(seats: RingSeats.plan(post), size: ringSize, plan: true, womenOnly: post.audience == .women,
+                         dots: .none, centre: .user(post.author), waiting: post.viewer?.membership == .requested ? app.session.user : nil)
+                VStack(alignment: .leading, spacing: 8) {
+                    FactsRow(facts: planFacts(post))
+                    SeatCaption(counts: counts, noun: "spots")
+                    JoinButton(post: post, compact: true)
                 }
-                .fixedSize()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if let cost = post.estCostText {
-                Text(cost + (post.audience == .verified ? " · verified only" : post.audience == .women ? " · women only" : ""))
-                    .pcFont(.small).foregroundStyle(Pc.ink2)
-            }
-            HStack(spacing: 16) {
-                Label("\(post.reactions.wantToGo) want to go", systemImage: "mappin.and.ellipse").labelStyle(CountLabelStyle())
-                Label("\(post.commentCount)", systemImage: "bubble.left").labelStyle(CountLabelStyle())
-                Spacer()
-                JoinButton(post: post, compact: true)
-            }
+            .padding(.top, 2)
         }
         .padding(16)
         .pcPencilled()
@@ -255,24 +333,29 @@ struct PlanCard: View {
 }
 
 func planFacts(_ post: Post) -> [Fact] {
-    [
-        Fact(symbol: "calendar", text: Fmt.range(post.startsOn, post.endsOn)),
-        Fact(symbol: "mappin", text: post.place?.name.components(separatedBy: ",").first ?? "Open"),
-        Fact(symbol: "person.2", text: "\(post.openSpots) of \(post.spotsTotal ?? post.memberCount) open"),
-    ]
+    var facts = [Fact(symbol: "calendar", text: Fmt.range(post.startsOn, post.endsOn))]
+    if let a = Fmt.day(post.startsOn), let b = Fmt.day(post.endsOn),
+       let n = Fmt.calendar.dateComponents([.day], from: a, to: b).day, n >= 0 {
+        facts.append(Fact(symbol: "clock", text: n == 0 ? "1 day" : "\(n + 1) days"))
+    }
+    if let place = post.place?.name.components(separatedBy: ",").first { facts.append(Fact(symbol: "mappin", text: place)) }
+    if let cost = post.estCostText {
+        facts.append(Fact(symbol: "wallet.bifold", text: cost.replacingOccurrences(of: "Est. ", with: "~")))
+    }
+    return facts
 }
 
 struct CountLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 6) {
-            configuration.icon.font(.system(size: 15))
-            configuration.title.pcFont(.small, weight: .semibold)
+            configuration.icon.font(.system(size: 18, weight: .bold))
+            configuration.title.font(.system(size: 14, weight: .bold)).monospacedDigit()
         }
-        .foregroundStyle(Pc.ink)
+        .foregroundStyle(Pc.ink2)
     }
 }
 
-/// "Ask to join" with all membership states. Outline (pencilled) — never the ink "Take a seat".
+/// "Request to join" with all membership states (pine, compact in feeds).
 struct JoinButton: View {
     let post: Post
     var compact = false
@@ -285,64 +368,145 @@ struct JoinButton: View {
             if post.isLocal {
                 EmptyView()
             } else if v?.isAuthor == true {
-                Text("Your plan").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
+                PcTag(text: "Your plan", style: .organiser)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark").pcFont(.small, weight: .semibold).foregroundStyle(Pc.green)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.pine)
             } else if v?.membership == .requested {
                 HStack(spacing: 6) {
-                    Image(systemName: "clock")
+                    Image(systemName: "clock.fill")
                     Text("Requested")
                 }
-                .pcFont(.small, weight: .semibold)
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(Pc.ink)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 40)
-                .background(Capsule().fill(Pc.tonal))
+                .background(Capsule().fill(Pc.selected))
+                .overlay(Capsule().strokeBorder(Pc.stroke, lineWidth: 1.5))
             } else if let reason = v?.joinBlockedReason, reason != .phoneRequired {
                 Text(reason.message).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
             } else if post.openSpots == 0 {
-                Text("Full").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
+                PcTag(text: "Full", style: .full)
             } else {
-                Button("Ask to join") {
-                    app.requireVerified("Sign in to ask to join") {
+                Button("Request to join") {
+                    app.requireVerified("Sign in to request to join") {
                         router.pendingJoinPostId = post.id
                         if router.path(router.tab).last != .post(id: post.id) { router.push(.post(id: post.id)) }
                     }
                 }
-                .buttonStyle(.pc(.outline, compact: compact))
+                .buttonStyle(.pc(.primary, compact: compact))
             }
         }
     }
 }
 
-// MARK: - Story card (photos first)
+// MARK: - Story card (photo first)
 
 struct StoryCard: View {
     let post: Post
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            AuthorRow(post: post)
-            LocalStateBar(postId: post.id)
-            Text(post.displayTitle).pcFont(.title2).foregroundStyle(Pc.ink).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            if !post.media.isEmpty { PhotoMosaic(media: post.media) }
-            if let trip = post.trip { LinkedTripCard(trip: trip) }
-            HStack(spacing: 16) {
-                ReactionToggle(post: post, kind: .wantToGo, showLabel: true)
-                Label("\(post.commentCount)", systemImage: "bubble.left").labelStyle(CountLabelStyle())
-                Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            AuthorRow(post: post).padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 8)
+            LocalStateBar(postId: post.id).padding(.horizontal, 16)
+            if let first = post.media.first {
+                PcAsyncImage(media: first)
+                    .frame(height: 210)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .overlay(alignment: .bottomTrailing) {
+                        if post.media.count > 1 {
+                            Label("\(post.media.count)", systemImage: "square.on.square").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                                .padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(PcTokens.light.scrim)).padding(10)
+                        }
+                    }
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(post.displayTitle).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
+                    if post.title != nil {
+                        Text(post.body).font(.system(size: 14.5)).foregroundStyle(Pc.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                    }
+                }
+                if let trip = post.trip { NextDepartureLink(trip: trip) }
+                ReactionsBar(post: post)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+        }
+        .clipShape(Pc.shape())
+        .pcCard()
+    }
+}
+
+/// Heart (love), comments, share … save.
+struct ReactionsBar: View {
+    let post: Post
+    var showsSave = true
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        HStack(spacing: 18) {
+            ReactionToggle(post: post, kind: .love)
+            Label("\(post.commentCount)", systemImage: "bubble.left").labelStyle(CountLabelStyle())
+                .accessibilityLabel("\(post.commentCount) comments")
+            ShareLink(item: DeepLink.post(id: post.id).webURL, subject: Text(post.displayTitle)) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 17, weight: .bold)).foregroundStyle(Pc.ink2)
+                    .frame(minWidth: 32, minHeight: PcTokens.touch)
+            }
+            .accessibilityLabel("Share")
+            Spacer()
+            if showsSave {
                 Button { app.requireVerified("Sign in to save posts") { app.tribe.toggleSave(post.id) } } label: {
-                    Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 17)).foregroundStyle(Pc.ink)
+                    Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(post.viewer?.saved == true ? Pc.pine : Pc.ink2)
                         .frame(width: PcTokens.touch, height: PcTokens.touch)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pcPress)
+                .disabled(post.isLocal)
                 .accessibilityLabel(post.viewer?.saved == true ? "Saved" : "Save")
             }
         }
-        .padding(16)
-        .pcCard()
     }
+}
+
+/// "Next departure · Fri 18 Dec · 3 seats left · ₹8,499 · Take a seat →" with a mini arc.
+struct NextDepartureLink: View {
+    let trip: TripLite
+    var label = "Next departure"
+    @Environment(Router.self) private var router
+
+    var body: some View {
+        let counts = SeatCounts(trip: trip)
+        Button { router.push(.trip(slug: trip.slug)) } label: {
+            HStack(spacing: 10) {
+                MiniArc(counts: counts, size: 38)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(label) · \(Fmt.weekdayDayMonth(trip.nextDeparture))").font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1).minimumScaleFactor(0.85)
+                    Text("\(counts.isFull ? "Full" : "\(counts.open) seat\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))")
+                        .font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                Text(counts.isFull ? "See →" : "Take a seat →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.pine).fixedSize()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: PcTokens.touch)
+            .background(Pc.tonal, in: Pc.shape(16))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pcPress)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(trip.title), \(Fmt.weekdayDayMonth(trip.nextDeparture)), \(counts.accessibilityText()), \(Fmt.rupees(trip.priceFromPaise)). Take a seat")
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// Legacy name used by post detail.
+struct LinkedTripCard: View {
+    let trip: TripLite
+    var body: some View { NextDepartureLink(trip: trip) }
 }
 
 struct PhotoMosaic: View {
@@ -376,31 +540,6 @@ struct PhotoMosaic: View {
     }
 }
 
-/// "HOSTED TRIP · BOOKABLE" — the printed (solid) counterpart inside a story.
-struct LinkedTripCard: View {
-    let trip: TripLite
-    @Environment(Router.self) private var router
-
-    var body: some View {
-        HStack(spacing: 10) {
-            PcAsyncImage(media: trip.image, targetSize: CGSize(width: 52, height: 52))
-                .frame(width: 52, height: 52)
-                .clipShape(Pc.shape(Pc.imageRadius))
-            VStack(alignment: .leading, spacing: 2) {
-                Overline(text: "Hosted trip · bookable").lineLimit(1).minimumScaleFactor(0.7)
-                Text(trip.title).pcFont(.bodyStrong).foregroundStyle(Pc.ink).lineLimit(1)
-                Text("\(Fmt.rupees(trip.priceFromPaise)) · \(Fmt.dayMonth(trip.nextDeparture)) · \(trip.seatsLeft ?? 0) left")
-                    .pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Button("Take a seat") { router.push(.trip(slug: trip.slug)) }
-                .buttonStyle(.pc(.primary, compact: true))
-        }
-        .padding(10)
-        .background(Pc.tonal, in: Pc.shape(Pc.radius))
-    }
-}
-
 struct ReactionToggle: View {
     let post: Post
     let kind: ReactionKind
@@ -410,20 +549,24 @@ struct ReactionToggle: View {
     var body: some View {
         let on = post.myReactions.contains(kind)
         Button {
-            app.requireVerified("Sign in to react") { app.tribe.toggleReaction(post.id, kind) }
+            app.requireVerified("Sign in to react") { withAnimation(.snappy) { app.tribe.toggleReaction(post.id, kind) } }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: on ? kind.symbol + ".fill" : kind.symbol).font(.system(size: 15))
-                Text(showLabel ? "\(post.reactions[kind]) \(kind.label.lowercased())" : "\(post.reactions[kind])").pcFont(.small, weight: .semibold)
+                Image(systemName: on ? symbol + ".fill" : symbol).font(.system(size: 18, weight: .bold))
+                    .contentTransition(.symbolEffect(.replace))
+                Text(showLabel ? "\(post.reactions[kind]) \(kind.label.lowercased())" : "\(post.reactions[kind])").font(.system(size: 14, weight: .bold)).monospacedDigit()
             }
-            .foregroundStyle(Pc.ink)
+            .foregroundStyle(on ? onColor : Pc.ink2)
             .frame(minHeight: PcTokens.touch)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pcPress)
         .disabled(post.isLocal)
         .accessibilityLabel("\(kind.label), \(post.reactions[kind])")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
+
+    private var symbol: String { kind == .helpful ? "arrow.up.circle" : kind.symbol }
+    private var onColor: Color { kind == .love ? Pc.red : Pc.pine }
 }
 
 // MARK: - Ask card
@@ -431,64 +574,111 @@ struct ReactionToggle: View {
 struct AskCard: View {
     let post: Post
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             AuthorRow(post: post)
             LocalStateBar(postId: post.id)
-            Text(post.displayTitle).pcFont(.title2).foregroundStyle(Pc.ink).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            if !post.body.isEmpty, post.title != nil {
-                Text(post.body).pcFont(.body).foregroundStyle(Pc.ink).lineLimit(2)
+            Text(post.displayTitle).font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
+                .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            if !post.body.isEmpty, post.title != nil, post.body != post.title {
+                Text(post.body).font(.system(size: 14)).foregroundStyle(Pc.ink2).lineLimit(2)
             }
             if let poll = post.poll { PollView(post: post, poll: poll) }
+            if let answer = hostAnswer { HostAnswer(comment: answer) }
             HStack(spacing: 16) {
-                ReactionToggle(post: post, kind: .helpful, showLabel: true)
+                ReactionToggle(post: post, kind: .helpful)
                 Label("\(post.commentCount) answer\(post.commentCount == 1 ? "" : "s")", systemImage: "bubble.left").labelStyle(CountLabelStyle())
                 Spacer()
+                if !post.isLocal {
+                    Button("Answer") { router.push(.post(id: post.id)) }.buttonStyle(.pc(.quiet, compact: true))
+                }
             }
         }
         .padding(16)
         .pcCard()
+        .task(id: post.id) {
+            // The host's answer is highlighted on the card; comments come from the post endpoint (cached after the first load).
+            guard post.kind == .ask, !post.isLocal, post.commentCount > 0 else { return }
+            if app.tribe.comments[post.id] == nil { app.tribe.loadComments(post.id) }
+            if app.tribe.comments[post.id]?.isEmpty ?? true { await app.tribe.refreshPost(post.id) }
+        }
+    }
+
+    private var hostAnswer: Comment? {
+        (app.tribe.comments[post.id] ?? []).first { $0.author.isHost && $0.author.id != post.author.id && $0.pollChoice == nil }
     }
 }
 
+/// Host answer highlight: pine left rule, HOST badge.
+struct HostAnswer: View {
+    let comment: Comment
+    var body: some View {
+        HStack(spacing: 12) {
+            Capsule().fill(Pc.pine).frame(width: 3)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Avatar(user: comment.author, size: 20)
+                    Text(comment.author.name).font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    PcTag(text: "Host", style: .host)
+                    Text("· answered").font(.system(size: 12)).foregroundStyle(Pc.ink3)
+                }
+                Text(comment.body).font(.system(size: 14)).foregroundStyle(Pc.ink).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Tap-to-vote rows; after voting, result bars grow and your choice is gold.
 struct PollView: View {
     let post: Post
     let poll: Poll
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        VStack(spacing: 8) {
+        let voted = poll.myChoice != nil
+        VStack(spacing: 7) {
             ForEach(poll.options) { o in
                 let share = poll.totalVotes > 0 ? Double(o.votes) / Double(poll.totalVotes) : 0
                 let mine = poll.myChoice == o.id
                 Button {
-                    guard poll.myChoice == nil, !post.isLocal else { return }
-                    app.requireVerified("Sign in to vote") { app.tribe.vote(post.id, option: o) }
+                    guard !voted, !post.isLocal else { return }
+                    app.requireVerified("Sign in to vote") { withAnimation(.easeOut(duration: 0.45)) { app.tribe.vote(post.id, option: o) } }
                 } label: {
                     ZStack(alignment: .leading) {
-                        GeometryReader { geo in
-                            Rectangle().fill(mine ? Pc.ink.opacity(0.16) : Pc.ink.opacity(0.07)).frame(width: poll.myChoice == nil ? 0 : geo.size.width * share)
+                        if voted {
+                            GeometryReader { geo in
+                                Rectangle().fill(mine ? Pc.selected : Pc.tonalStrong).frame(width: max(0, geo.size.width * share))
+                            }
                         }
-                        HStack {
-                            if mine { Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)) }
-                            Text(o.label).pcFont(.bodyStrong, weight: mine ? .semibold : .regular)
+                        HStack(spacing: 6) {
+                            if mine { Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.goldInk) }
+                            Text(o.label).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pc.ink).lineLimit(1)
                             Spacer()
-                            if poll.myChoice != nil { Text("\(o.votes)").pcFont(.bodyStrong).monospacedDigit() }
+                            if voted { Text("\(Int((share * 100).rounded()))%").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink) }
                         }
-                        .foregroundStyle(Pc.ink)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, 14)
                     }
-                    .frame(minHeight: PcTokens.touch)
-                    .background(Pc.tonal)
-                    .clipShape(Pc.shape(Pc.radius))
+                    .frame(minHeight: 44)
+                    .background(voted ? Pc.tonal : Pc.raised)
+                    .clipShape(Pc.shape(14))
+                    .overlay {
+                        if mine { Pc.shape(14).strokeBorder(Pc.gold, lineWidth: 2) }
+                        else if !voted { Pc.shape(14).strokeBorder(Pc.rule, lineWidth: 1.5) }
+                    }
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("\(o.label), \(o.votes) votes")
+                .buttonStyle(.pcPress)
+                .disabled(voted)
+                .accessibilityLabel(voted ? "\(o.label), \(Int((share * 100).rounded())) percent\(mine ? ", your vote" : "")" : "Vote for \(o.label)")
                 .accessibilityAddTraits(mine ? .isSelected : [])
             }
-            Text(poll.myChoice == nil ? "\(poll.totalVotes) votes · tap to vote" : "\(poll.totalVotes) votes · you voted")
-                .pcFont(.small).foregroundStyle(Pc.ink2).frame(maxWidth: .infinity, alignment: .leading)
+            Text(voted ? "\(poll.totalVotes) votes · you voted" : "\(poll.totalVotes) votes · tap to vote")
+                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Pc.ink3).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 2)
         }
     }
 }
@@ -497,40 +687,7 @@ struct PollView: View {
 
 struct PlacedTripCard: View {
     let trip: TripLite
-    @Environment(Router.self) private var router
-
-    var body: some View {
-        Button { router.push(.trip(slug: trip.slug)) } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Overline(text: "UnSOLO hosted trip")
-                    Spacer()
-                    if let host = trip.host { PcTag(text: host.name, style: .host) }
-                }
-                PcAsyncImage(media: trip.image)
-                    .frame(height: 160)
-                    .clipShape(Pc.shape(Pc.imageRadius))
-                Text(trip.title).pcFont(.title2).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
-                FactsRow(facts: [
-                    Fact(symbol: "calendar", text: Fmt.weekdayDayMonth(trip.nextDeparture)),
-                    Fact(symbol: "clock", text: Fmt.duration(trip.durationDays)),
-                    Fact(symbol: "person.2", text: "\(trip.seatsLeft ?? 0) left", emphasis: (trip.seatsLeft ?? 0) <= 3),
-                ])
-                SeatRow(seats: SeatBuilder.tripSeats(trip), cellSize: 26, spacing: 5, maxCells: 14)
-                HStack {
-                    Text(Fmt.rupees(trip.priceFromPaise)).pcFont(.title2).monospacedDigit().foregroundStyle(Pc.ink)
-                    Text("/ person").pcFont(.small).foregroundStyle(Pc.ink2)
-                    Spacer()
-                    Text("Take a seat").pcFont(.bodyStrong).foregroundStyle(Pc.onInk).padding(.horizontal, 18)
-                        .frame(minHeight: 44).background(Capsule().fill(Pc.ink))
-                }
-            }
-            .padding(16)
-            .pcCard()
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .contain)
-    }
+    var body: some View { TripCard(trip: trip) }
 }
 
 // MARK: - End of feed
@@ -542,7 +699,7 @@ struct CaughtUpFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 6) {
-                Image(systemName: "checkmark").font(.system(size: 22, weight: .semibold)).foregroundStyle(Pc.ink)
+                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.pine)
                     .frame(width: 56, height: 56).background(Circle().fill(Pc.tonal))
                 Text("You're caught up").pcFont(.title2).foregroundStyle(Pc.ink)
                 Text("New plans and stories show up here. Meanwhile, these leave soon.").pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
@@ -550,14 +707,15 @@ struct CaughtUpFooter: View {
             .frame(maxWidth: .infinity)
             .padding(24)
             if !departures.isEmpty {
-                Overline(text: "Next departures").padding(.horizontal, 24).padding(.bottom, 6)
+                Overline(text: "Leaving soon").padding(.horizontal, 24).padding(.bottom, 4)
                 VStack(spacing: 0) {
                     ForEach(Array(departures.enumerated()), id: \.element.id) { i, t in
-                        DepartureRow(trip: t, category: .trips, showsDivider: i < departures.count - 1) { router.push(.trip(slug: t.slug)) }
+                        TripListRow(trip: t, showsDivider: i < departures.count - 1) { router.push(.trip(slug: t.slug)) }
                     }
                 }
+                .padding(.horizontal, 12)
                 .pcCard()
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 14)
             }
             Color.clear.frame(height: 24)
         }

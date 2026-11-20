@@ -2,7 +2,7 @@ import SafariServices
 import SwiftUI
 
 /// Tab container: Explore · Tribe · (+) Post · My trips · You. Each tab keeps its own NavigationStack alive.
-/// The Passenger Chart tab bar is drawn by hand (flat paper bar, ink rule, ink "Post" pill) and hides on pushed screens.
+/// The Full Circle tab bar is drawn by hand (material bar, hairline, raised pine +) and hides on pushed screens.
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
@@ -22,16 +22,21 @@ struct RootView: View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) { StatusBanners() }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // The bar is an overlay; each tab's root view reserves its height with a safe-area inset
+        // (insets on this ZStack don't reach into the UIKit-backed NavigationStacks).
+        .overlay(alignment: .bottom) {
             if router.isAtRoot { PcTabBar() }
         }
-        .overlay(alignment: .bottom) { ToastView().padding(.bottom, router.isAtRoot ? 84 : 96) }
+        .overlay(alignment: .bottom) { ToastView().padding(.bottom, router.isAtRoot ? 140 : 96) }
         .pcScreen()
         .sheet(isPresented: $router.showPostSheet) {
-            PostTypeSheet().presentationDetents([.height(520), .large]).presentationDragIndicator(.visible).pcSheet()
+            PostTypeSheet().presentationDetents([.height(470), .large]).presentationDragIndicator(.visible).pcSheet()
         }
         .fullScreenCover(item: $router.composer) { kind in
             ComposerHost(kind: kind).environment(app).environment(router).environment(session)
+        }
+        .fullScreenCover(item: $router.storyViewer) { item in
+            StoryViewer(item: item).environment(app).environment(router).environment(session)
         }
         .sheet(item: $router.safari) { item in SafariView(url: item.url).ignoresSafeArea().presentationCornerRadius(PcTokens.radiusSheet) }
         .sheet(isPresented: $router.authSheet, onDismiss: { if !session.isSignedIn { router.afterGate = nil } }) {
@@ -80,9 +85,10 @@ struct TabStack: View {
     var body: some View {
         NavigationStack(path: Binding(get: { router.path(tab) }, set: { router.paths[tab] = $0 })) {
             root
+                .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: PcTokens.tabBar) }
                 .navigationDestination(for: Route.self) { RouteView(route: $0) }
         }
-        .tint(Pc.ink)
+        .tint(Pc.pine)
     }
 
     @ViewBuilder private var root: some View {
@@ -116,23 +122,25 @@ struct RouteView: View {
 
 // MARK: - Tab bar
 
+/// Explore · Tribe · (+) · My trips · You. The selected tab sits in a tonal pill with a pine icon;
+/// the centre + is a raised pine circle that opens "What are you sharing?".
 struct PcTabBar: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
     @Environment(SessionStore.self) private var session
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             item(.explore)
             item(.tribe, badge: app.tribe.pendingRequestCount + session.unreadNotifications)
             postButton
             item(.trips, badge: app.trips.myTrips.upcoming.count + app.trips.myTrips.plans.count)
             youItem
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 6)
-        .background(.bar)
-        .overlay(alignment: .top) { HairlineRule(color: Pc.rule.opacity(0.5)) }
+        .padding(.horizontal, 6)
+        .padding(.top, 7)
+        .frame(height: PcTokens.tabBar, alignment: .top)
+        .pcBarBackground()
     }
 
     private func item(_ tab: AppTab, badge: Int = 0) -> some View {
@@ -141,25 +149,28 @@ struct PcTabBar: View {
             VStack(spacing: 3) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: selected ? tab.selectedSymbol : tab.symbol)
-                        .font(.system(size: 21, weight: selected ? .semibold : .regular))
-                        .frame(width: 32, height: 28)
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(selected ? Pc.pine : Pc.ink3)
+                        .frame(width: 54, height: 30)
+                        .background { if selected { Capsule().fill(Pc.tonal) } }
                     if badge > 0 {
                         Text("\(min(badge, 99))")
-                            .font(.system(size: 11, weight: .bold).monospacedDigit())
-                            .foregroundStyle(.white)
+                            .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
+                            .foregroundStyle(Pc.onPine)
                             .padding(.horizontal, 5)
                             .frame(minWidth: 18, minHeight: 18)
-                            .background(Capsule().fill(Pc.red))
-                            .offset(x: 10, y: -5)
+                            .background(Capsule().fill(Pc.pine))
+                            .background(Capsule().fill(Pc.paper).padding(-2))
+                            .offset(x: 2, y: -4)
                     }
                 }
-                Text(tab.title).font(.system(size: 12, weight: selected ? .semibold : .medium))
+                Text(tab.title).font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
-            .foregroundStyle(selected ? Pc.ink : Pc.ink3)
-            .frame(maxWidth: .infinity, minHeight: 50)
+            .frame(maxWidth: .infinity, minHeight: 52)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pcPress)
         .accessibilityLabel(badge > 0 ? "\(tab.title), \(badge) new" : tab.title)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
@@ -167,34 +178,40 @@ struct PcTabBar: View {
     private var postButton: some View {
         Button { app.requireVerified("Sign in to post") { router.showPostSheet = true } } label: {
             Image(systemName: "plus")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Pc.onInk)
-                .frame(width: 48, height: 48)
-                .background(Circle().fill(Pc.ink))
-                .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
-                .frame(maxWidth: .infinity, minHeight: 50)
+                .font(.system(size: 22, weight: .heavy))
+                .foregroundStyle(Pc.onPine)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(Pc.pine))
+                .background(Circle().fill(Pc.paper).padding(-4))
+                .shadow(color: PcTokens.light.pine.opacity(0.35), radius: 10, y: 4)
+                .offset(y: -14)
+                .frame(maxWidth: .infinity, minHeight: 52)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Post a plan, story or ask")
+        .buttonStyle(.pcPress)
+        .accessibilityLabel("Share a plan, story, question or poll")
     }
 
     private var youItem: some View {
         let selected = router.tab == .you
         return Button { router.select(.you) } label: {
             VStack(spacing: 3) {
-                if let user = session.user {
-                    Avatar(user: user, size: 28, ring: selected ? Pc.ink : .clear)
-                } else {
-                    Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 22)).frame(width: 32, height: 28)
+                Group {
+                    if let user = session.user {
+                        Avatar(user: user, size: 26, ring: selected ? Pc.pine : .clear)
+                    } else {
+                        Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(selected ? Pc.pine : Pc.ink3)
+                    }
                 }
-                Text("You").font(.system(size: 12, weight: selected ? .semibold : .medium))
+                .frame(width: 54, height: 30)
+                .background { if selected { Capsule().fill(Pc.tonal) } }
+                Text("You").font(.system(size: 11, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
-            .foregroundStyle(selected ? Pc.ink : Pc.ink3)
-            .frame(maxWidth: .infinity, minHeight: 50)
+            .frame(maxWidth: .infinity, minHeight: 52)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pcPress)
         .accessibilityLabel("You")
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
@@ -202,7 +219,8 @@ struct PcTabBar: View {
 
 // MARK: - Header
 
-/// Root-screen header: wordmark or large condensed title, with Messages + Activity on every tab.
+/// Root-screen header: wordmark or large rounded title, then the trailing slot and the
+/// Activity + Messages glance icons (with badges).
 struct AppHeader<Trailing: View>: View {
     var title: String?
     var showsWordmark = false
@@ -214,23 +232,23 @@ struct AppHeader<Trailing: View>: View {
     var body: some View {
         HStack(spacing: 0) {
             if showsWordmark {
-                Wordmark(height: 30)
+                Wordmark(height: 28)
             } else if let title {
-                Text(title).pcFont(.display).foregroundStyle(Pc.ink).accessibilityAddTraits(.isHeader)
+                Text(title).pcFont(.display, weight: .heavy).foregroundStyle(Pc.ink).accessibilityAddTraits(.isHeader)
             }
             Spacer(minLength: 8)
             trailing
-            Button { app.requireSignIn("Sign in to see your messages") { router.push(.messages) } } label: {
-                BadgeIcon(systemName: "envelope", count: 0, dot: session.unreadMessages > 0, label: "Messages")
-            }
-            .buttonStyle(.plain)
             Button { app.requireSignIn("Sign in to see your activity") { router.push(.activity) } } label: {
                 BadgeIcon(systemName: "bell", count: 0, dot: session.unreadNotifications > 0 || app.tribe.pendingRequestCount > 0, label: "Activity")
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.pcPress)
+            Button { app.requireSignIn("Sign in to see your messages") { router.push(.messages) } } label: {
+                BadgeIcon(systemName: "bubble.left.and.bubble.right", count: session.unreadMessages, label: "Messages")
+            }
+            .buttonStyle(.pcPress)
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 6)
+        .padding(.leading, 20)
+        .padding(.trailing, 8)
         .frame(minHeight: PcTokens.topBar)
     }
 }
@@ -270,6 +288,7 @@ struct ToastView: View {
                 .padding(.vertical, 12)
                 .background(Capsule().fill(Pc.ink))
                 .padding(.horizontal, 20)
+                .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .accessibilityAddTraits(.updatesFrequently)
         }
@@ -284,7 +303,7 @@ struct SafariView: UIViewControllerRepresentable {
         let c = SFSafariViewController.Configuration()
         c.entersReaderIfAvailable = false
         let vc = SFSafariViewController(url: url, configuration: c)
-        vc.preferredControlTintColor = UIColor(Pc.ink)
+        vc.preferredControlTintColor = UIColor(Pc.pine)
         vc.dismissButtonStyle = .close
         return vc
     }

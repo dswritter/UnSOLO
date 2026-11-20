@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MyTripsView: View {
-    enum Segment: Hashable { case upcoming, past }
+    enum Segment: Hashable { case upcoming, plans, past }
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
     @Environment(SessionStore.self) private var session
@@ -16,18 +16,21 @@ struct MyTripsView: View {
                 if !session.isSignedIn {
                     signedOut
                 } else {
-                    PcSegmented(items: [(.upcoming, "Upcoming · \(my.upcoming.count + my.plans.count + my.requested.count)"), (.past, "Past · \(my.past.count)")],
-                                selection: $segment)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 12)
-                    if segment == .upcoming { upcoming } else { past }
+                    ChipTabs(items: [(.upcoming, "Upcoming · \(my.upcoming.count)"), (.plans, "Plans · \(my.plans.count + my.requested.count)"), (.past, "Past · \(my.past.count)")],
+                             selection: $segment)
+                        .padding(.bottom, 8)
+                    switch segment {
+                    case .upcoming: upcoming
+                    case .plans: plans
+                    case .past: past
+                    }
                 }
             }
         }
         .refreshable { await app.trips.refresh() }
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
-        .task {
+        .task(id: session.isSignedIn) {
             await app.trips.refresh()
             await app.chat.refreshChats()
         }
@@ -35,102 +38,112 @@ struct MyTripsView: View {
 
     private var signedOut: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your bookings, plans and trip chats live here.").pcFont(.body).foregroundStyle(Pc.ink)
+            Text("Your bookings, plans and trip circles live here.").pcFont(.body).foregroundStyle(Pc.ink)
             Button("Sign in") { router.authSheet = true }.buttonStyle(.pc(.primary, fullWidth: true))
         }
-        .padding(16)
+        .padding(20)
     }
 
     @ViewBuilder private var upcoming: some View {
-        if my.upcoming.isEmpty && my.plans.isEmpty && my.requested.isEmpty {
+        if my.upcoming.isEmpty {
             EmptyState(symbol: "ticket", title: "No trips yet", message: "Take a seat on a hosted trip or join a plan in the Tribe.")
-            Button("Explore departures") { router.select(.explore) }.buttonStyle(.pc(.outline, fullWidth: true)).padding(16)
+            Button("Explore departures") { router.select(.explore) }.buttonStyle(.pc(.outline, fullWidth: true)).padding(.horizontal, 20)
         }
-        ForEach(my.upcoming) { b in TicketCard(booking: b).padding(.horizontal, 20).padding(.bottom, 14) }
-        if !my.plans.isEmpty {
-            SectionHeader(title: "Plans you're in").padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 8)
-            ForEach(my.plans) { p in PlanTripCard(post: app.tribe.posts[p.id] ?? p).padding(.horizontal, 20).padding(.bottom, 10) }
+        VStack(spacing: 12) {
+            ForEach(my.upcoming) { b in TicketCard(booking: b) }
+            if let last = my.past.first(where: { $0.storyPrompt == true }) { PastTripCard(booking: last) }
         }
-        if !my.requested.isEmpty {
-            SectionHeader(title: "Requested").padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 8)
-            ForEach(my.requested) { p in PlanTripCard(post: app.tribe.posts[p.id] ?? p).padding(.horizontal, 20).padding(.bottom, 10) }
+        .padding(.horizontal, 14)
+        Color.clear.frame(height: 20)
+    }
+
+    @ViewBuilder private var plans: some View {
+        if my.plans.isEmpty && my.requested.isEmpty {
+            EmptyState(symbol: "person.3", title: "No plans yet", message: "Plans you organise, join or request show up here.")
         }
-        if let last = my.past.first(where: { $0.storyPrompt == true }) {
-            SectionHeader(title: "Last trip").padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 8)
-            PastTripRow(booking: last, showsDivider: false).pcCard().padding(.horizontal, 20)
+        VStack(spacing: 12) {
+            ForEach(my.plans) { p in PlanTripCard(post: app.tribe.posts[p.id] ?? p) }
+            ForEach(my.requested) { p in PlanTripCard(post: app.tribe.posts[p.id] ?? p) }
         }
+        .padding(.horizontal, 14)
         Color.clear.frame(height: 20)
     }
 
     @ViewBuilder private var past: some View {
         if my.past.isEmpty { EmptyState(symbol: "clock.arrow.circlepath", title: "No past trips yet") }
-        VStack(spacing: 0) { ForEach(my.past) { b in PastTripRow(booking: b) } }
-            .pcCard().padding(.horizontal, 20)
+        VStack(spacing: 12) { ForEach(my.past) { b in PastTripCard(booking: b) } }
+            .padding(.horizontal, 14)
+        Color.clear.frame(height: 20)
     }
 }
 
-/// Ticket stub: countdown in days, booking code, balance, trip chat.
+/// Booked trip: your circle (faces of co-travellers, your gold seat, host badge, trip photo in the centre),
+/// countdown, booking code and balance, and "Meet the circle" (trip chat).
 struct TicketCard: View {
     let booking: Booking
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
+    @Environment(SessionStore.self) private var session
 
     var body: some View {
         let days = Fmt.daysUntil(booking.travelDate) ?? 0
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 0) {
+        let trip = booking.trip
+        let counts = SeatCounts(trip: trip)
+        let others = trip.goingFaces.filter { $0.id != trip.host?.id && $0.id != session.user?.id }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
+                SeatRing(seats: RingSeats.trip(trip, you: session.user), size: 132, dots: .faces,
+                         badge: trip.host.map { RingBadge(user: $0, kind: .host) }, centre: .photo(trip.image))
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(String(format: "%02d", max(0, days))).font(.system(size: 44, weight: .semibold).width(.condensed).monospacedDigit()).foregroundStyle(Pc.ink)
-                        Text(days == 1 ? "day to go" : "days to go").pcFont(.small).foregroundStyle(Pc.ink2)
-                    }
-                    Text(booking.trip.title).pcFont(.title2).foregroundStyle(Pc.ink).lineLimit(2)
-                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guests) seat\(booking.guests == 1 ? "" : "s") · hosted").pcFont(.small).foregroundStyle(Pc.ink2)
+                    PcTag(text: days <= 0 ? "Today" : "In \(days) day\(days == 1 ? "" : "s")", style: .verified, icon: "calendar.badge.checkmark")
+                    Text(trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
+                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guests) seat\(booking.guests == 1 ? "" : "s")").pcFont(.small).foregroundStyle(Pc.ink2)
+                    SeatCaption(counts: counts, font: .system(size: 12.5, weight: .semibold))
                 }
-                .padding(14)
                 Spacer(minLength: 0)
-                PcAsyncImage(media: booking.trip.image).frame(width: 92, height: 92)
-                    .clipShape(Pc.shape(Pc.imageRadius))
-                    .padding(14)
             }
-            .fixedSize(horizontal: false, vertical: true)
-            HairlineRule(dashed: true, color: Pc.rule2).padding(.horizontal, 14)
+            if !others.isEmpty {
+                HStack(spacing: 10) {
+                    FaceStack(users: Array(others.prefix(4)), size: 30)
+                    Text(ListFormatter.localizedString(byJoining: others.prefix(3).map(\.firstName) + ["you"]))
+                        .pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                }
+            }
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Booking code").pcFont(.label).foregroundStyle(Pc.ink2)
-                    Text(booking.confirmationCode ?? "—").pcFont(.bodyStrong).monospacedDigit().foregroundStyle(Pc.ink)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Booking code").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
+                    Text(booking.confirmationCode ?? "—").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(Pc.ink)
                 }
                 Spacer()
                 if booking.balancePaise > 0 {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Balance").pcFont(.label).foregroundStyle(Pc.ink2)
-                        Text(Fmt.rupees(booking.balancePaise)).pcFont(.bodyStrong).monospacedDigit().foregroundStyle(Pc.ink)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("Balance").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
+                        Text(Fmt.rupees(booking.balancePaise)).font(PcFont.rounded(16, .bold)).foregroundStyle(Pc.ink)
                     }
                     Button("Pay") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("bookings")) }
                         .buttonStyle(.pc(.outline, compact: true))
                 } else {
-                    PcTag(text: "\(Fmt.rupees(booking.paidPaise)) paid", style: .paid)
+                    PcTag(text: "\(Fmt.rupees(booking.paidPaise)) paid", style: .paid, icon: "checkmark.circle.fill")
                 }
             }
-            .padding(14)
+            .padding(12)
+            .background(Pc.tonal, in: Pc.shape(Pc.radius))
             if let room = booking.chatRoomId {
-                HairlineRule().padding(.horizontal, 14)
+                let unread = app.chat.chats.first { $0.id == room }?.unread ?? 0
                 Button { router.push(.chat(roomId: room, title: booking.trip.title)) } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "bubble.left").foregroundStyle(Pc.ink)
-                        Text("Trip chat").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-                        Spacer()
-                        let unread = app.chat.chats.first { $0.id == room }?.unread ?? 0
-                        if unread > 0 { CountPill(count: unread) }
-                        Image(systemName: "chevron.right").foregroundStyle(Pc.ink)
+                    HStack(spacing: 8) {
+                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                        Text("Meet the circle")
+                        if unread > 0 {
+                            Text("\(unread)").font(.system(size: 12, weight: .heavy)).monospacedDigit()
+                                .foregroundStyle(Pc.pine).padding(.horizontal, 7).frame(minHeight: 20).background(Capsule().fill(Pc.onPine))
+                        }
                     }
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 52)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pc(.primary, fullWidth: true))
             }
         }
+        .padding(16)
         .pcCard()
         .contentShape(Rectangle())
         .onTapGesture { router.push(.trip(slug: booking.trip.slug)) }
@@ -138,45 +151,75 @@ struct TicketCard: View {
     }
 }
 
-/// Pencilled (dashed) plan card in My trips.
+/// Past trip: desaturated ring, "Went · date", and a prompt to post a story.
+struct PastTripCard: View {
+    let booking: Booking
+    @Environment(Router.self) private var router
+    @Environment(SessionStore.self) private var session
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                SeatRing(seats: RingSeats.trip(booking.trip, you: session.user), size: 96, past: true, dots: .none, centre: .photo(booking.trip.image))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Went · \(Fmt.dayMonth(booking.travelDate))").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink3)
+                    Text(booking.trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
+                    Text("\(booking.guests) seat\(booking.guests == 1 ? "" : "s") · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            if booking.storyPrompt == true {
+                Button { router.openCompose(.story, tripSlug: booking.trip.slug) } label: {
+                    Label("Post a story · +20 pts", systemImage: "camera.fill")
+                }
+                .buttonStyle(.pc(.quiet, fullWidth: true, compact: true))
+            }
+        }
+        .padding(16)
+        .pcCard()
+        .contentShape(Rectangle())
+        .onTapGesture { router.push(.trip(slug: booking.trip.slug)) }
+        .accessibilityElement(children: .contain)
+    }
+}
+
+/// Pencilled (dashed) plan card in My trips, with the plan ring.
 struct PlanTripCard: View {
     let post: Post
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
+    @Environment(SessionStore.self) private var session
 
     var body: some View {
         let isOrganiser = post.viewer?.isAuthor == true
+        let requested = post.viewer?.membership == .requested && !isOrganiser
         let requests = (app.tribe.requests[post.id] ?? []).filter { $0.state == .requested }.count
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(post.displayTitle).pcFont(.title3).foregroundStyle(Pc.ink)
-                Spacer()
-                Text(Fmt.range(post.startsOn, post.endsOn)).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
-            }
-            HStack(spacing: 6) {
-                if isOrganiser { PcTag(text: "Organiser", style: .organiser) }
-                if post.viewer?.membership == .requested && !isOrganiser {
-                    Label("Requested · waiting for \(post.author.firstName)", systemImage: "clock").pcFont(.small).foregroundStyle(Pc.ink)
-                } else {
-                    Text("\(post.memberCount) of \(post.spotsTotal ?? post.memberCount)\(isOrganiser && requests > 0 ? " · \(requests) request\(requests == 1 ? "" : "s")" : "")")
-                        .pcFont(.small).foregroundStyle(Pc.ink2)
-                }
-            }
-            SeatRow(seats: SeatBuilder.planSeats(post), cellSize: SeatBuilder.planSeats(post).count > 8 ? 28 : PcTokens.seatSmall, spacing: 6)
-            if post.viewer?.membership == .approved || isOrganiser {
-                HairlineRule()
-                Button { router.push(.post(id: post.id)) } label: {
-                    HStack {
-                        Image(systemName: "bubble.left")
-                        Text(isOrganiser && requests > 0 ? "Review requests" : "Open plan").pcFont(.bodyStrong)
-                        Spacer()
-                        Image(systemName: "chevron.right")
+        let counts = SeatCounts(plan: post)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                SeatRing(seats: RingSeats.plan(post), size: 104, plan: true, womenOnly: post.audience == .women,
+                         dots: .none, centre: .user(post.author), waiting: requested ? session.user : nil)
+                    .padding(.trailing, requested ? 18 : 0)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        if isOrganiser { PcTag(text: "Organiser", style: .organiser) }
+                        if post.audience == .women { PcTag(text: "Women only", style: .women) }
                     }
-                    .foregroundStyle(Pc.ink)
-                    .frame(minHeight: PcTokens.touch)
-                    .contentShape(Rectangle())
+                    Text(post.displayTitle).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
+                    Text(Fmt.range(post.startsOn, post.endsOn)).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
+                    if requested {
+                        Label("Waiting for \(post.author.firstName)", systemImage: "clock.fill").font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink)
+                    } else {
+                        SeatCaption(counts: counts, noun: "spots", font: .system(size: 12.5, weight: .semibold))
+                    }
                 }
-                .buttonStyle(.plain)
+                Spacer(minLength: 0)
+            }
+            if post.viewer?.membership == .approved || isOrganiser {
+                Button { router.push(.post(id: post.id)) } label: {
+                    Label(isOrganiser && requests > 0 ? "Review \(requests) request\(requests == 1 ? "" : "s")" : "Open plan", systemImage: isOrganiser && requests > 0 ? "person.badge.clock.fill" : "arrow.right")
+                }
+                .buttonStyle(.pc(.quiet, fullWidth: true, compact: true))
             }
         }
         .padding(16)
@@ -195,14 +238,14 @@ struct PastTripRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(spacing: 0) {
-                Text(Fmt.dayNumber(booking.travelDate)).pcFont(.title1).monospacedDigit().foregroundStyle(Pc.ink)
-                Text(Fmt.monthShort(booking.travelDate)).font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink2)
+                Text(Fmt.dayNumber(booking.travelDate)).font(PcFont.rounded(22)).foregroundStyle(Pc.ink)
+                Text(Fmt.monthShort(booking.travelDate)).font(.system(size: 11, weight: .heavy)).foregroundStyle(Pc.ink2)
             }
             .frame(width: 44)
             PcAsyncImage(media: booking.trip.image, targetSize: CGSize(width: 60, height: 60)).frame(width: 60, height: 60)
                 .clipShape(Pc.shape(Pc.imageRadius))
             VStack(alignment: .leading, spacing: 2) {
-                Text(booking.trip.title).pcFont(.bodyStrong).foregroundStyle(Pc.ink).lineLimit(2)
+                Text(booking.trip.title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2)
                 Text(booking.storyPrompt == true ? "Share it with your group · +20 pts" : "Booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2)
             }
             Spacer(minLength: 4)
@@ -210,7 +253,7 @@ struct PastTripRow: View {
                 Button("Post story") { router.openCompose(.story, tripSlug: booking.trip.slug) }
                     .buttonStyle(.pc(.primary, compact: true))
             } else {
-                Image(systemName: "chevron.right").foregroundStyle(Pc.ink2)
+                MiniArc(counts: SeatCounts(trip: booking.trip))
             }
         }
         .padding(.horizontal, 14)

@@ -81,7 +81,7 @@ struct ProfileContent: View {
             } else if case .failed(let m) = app.profiles.state[username] {
                 EmptyState(symbol: "person.crop.circle.badge.exclamationmark", title: "Profile unavailable", message: m)
             } else {
-                ProgressView().tint(Pc.ink).frame(maxWidth: .infinity).padding(40)
+                ProgressView().tint(Pc.pine).frame(maxWidth: .infinity).padding(40)
             }
         }
         .task {
@@ -168,7 +168,7 @@ struct ProfileContent: View {
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(.system(size: 26, weight: .semibold).width(.condensed).monospacedDigit()).foregroundStyle(Pc.ink)
+            Text(value).font(PcFont.rounded(26)).foregroundStyle(Pc.ink)
             Text(label).pcFont(.small).foregroundStyle(Pc.ink2)
         }
         .padding(14)
@@ -217,9 +217,10 @@ struct ProfileContent: View {
 
     private func planRow(_ p: Post) -> some View {
         Button { if !p.isLocal { router.push(.post(id: p.id)) } } label: {
-            HStack {
+            HStack(spacing: 12) {
+                MiniArc(counts: SeatCounts(plan: p), womenOnly: p.audience == .women)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(p.displayTitle).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+                    Text(p.displayTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
                     Text("Plan · \(p.memberCount) of \(p.spotsTotal ?? 0) · \(p.openSpots) spots open").pcFont(.small).foregroundStyle(Pc.ink2)
                     if let s = app.tribe.local[p.id]?.state { Text(s == "held" ? "Held for review" : s.capitalized).pcFont(.small, weight: .semibold).foregroundStyle(Pc.goldInk) }
                 }
@@ -229,7 +230,7 @@ struct ProfileContent: View {
             .padding(14)
             .pcPencilled()
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pcPress)
     }
 
     @ViewBuilder private var plansList: some View {

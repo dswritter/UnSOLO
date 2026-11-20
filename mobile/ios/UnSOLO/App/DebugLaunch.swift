@@ -6,7 +6,8 @@ import Foundation
 /// Arguments: -startScreen <name>, -resetState YES, -demoSignedIn YES|NO, -landingPrompt YES|NO, -demoMode NO.
 /// Screens: explore, search, tripDetail, tripStories, tribe, tribeStories, postSheet, planComposer, storyComposer, askComposer,
 ///          planDetail, planDetailJoined, storyDetail, askDetail, activity, messages, chat, trips, you, profile,
-///          settings, host, offerForm, offer, welcome, phoneVerify, landingPrompt, publishPlan, publishHeld
+///          settings, host, offerForm, offer, welcome, phoneVerify, landingPrompt, publishPlan, publishHeld,
+///          exploreSearch, whosGoing, tripFull, tribePlans, tribePolls, pollComposer, storyViewer
 enum DebugLaunch {
     static var startScreen: String? { UserDefaults.standard.string(forKey: "startScreen") }
 
@@ -30,6 +31,7 @@ enum DebugLaunch {
                 defaults.removeObject(forKey: key)
             }
             await app.auth.signOut()
+            app.marks.reset()
         }
         let wantsSignedIn = defaults.object(forKey: "demoSignedIn").map { _ in defaults.bool(forKey: "demoSignedIn") } ?? (startScreen != nil && startScreen != "welcome")
         if app.isDemo, wantsSignedIn, await !app.auth.isSignedIn {
@@ -52,7 +54,22 @@ enum DebugLaunch {
         let spiti = ids.posts["spiti"] ?? ""
         switch screen {
         case "explore": r.tab = .explore
-        case "search": r.tab = .explore
+        case "search", "exploreSearch": r.tab = .explore
+        case "whosGoing":
+            r.tab = .explore
+            await app.explore.refreshDetail("chalo-himachal")
+            r.push(.trip(slug: "chalo-himachal"))
+        case "tripFull":
+            r.tab = .explore
+            await app.explore.refreshDetail("bhutan-thunder-dragon")
+            r.push(.trip(slug: "bhutan-thunder-dragon"))
+        case "tribePlans", "tribePolls": r.tab = .tribe
+        case "pollComposer": r.tab = .tribe; r.composer = .poll
+        case "storyViewer":
+            r.tab = .tribe
+            await app.tribe.refreshFeed(key: "all")
+            let authors = StoryRail.entries(app, excluding: app.session.user?.id).map(\.author.id)
+            if !authors.isEmpty { r.storyViewer = StoryViewerItem(authorIds: authors, start: 0) }
         case "tripDetail", "tripStories":
             r.tab = .explore
             await app.explore.refreshDetail("chalo-himachal")

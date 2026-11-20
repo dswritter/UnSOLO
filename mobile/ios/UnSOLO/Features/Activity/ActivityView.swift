@@ -15,9 +15,8 @@ struct ActivityView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 Text("Activity").pcFont(.display).foregroundStyle(Pc.ink).padding(.horizontal, 20).padding(.top, 4)
-                PcSegmented(items: [(.all, "All"), (.requests, pending.isEmpty ? "Requests" : "Requests · \(pending.count)")], selection: $segment)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
+                ChipTabs(items: [(.all, "All"), (.requests, pending.isEmpty ? "Requests" : "Requests · \(pending.count)")], selection: $segment)
+                    .padding(.vertical, 8)
                 if segment == .all { allList } else { requestsList }
             }
         }
@@ -53,7 +52,7 @@ struct ActivityView: View {
             }
         }
         .pcCard()
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 14)
     }
 
     private func pendingFor(_ n: AppNotification) -> [(Post, JoinRequest)] {
@@ -72,7 +71,10 @@ struct ActivityView: View {
                     Spacer()
                     Text(Fmt.range(plan.startsOn, plan.endsOn)).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
                 }
-                SeatRow(seats: SeatBuilder.planSeats(plan), cellSize: PcTokens.seatSmall, spacing: 6)
+                HStack(spacing: 12) {
+                    SeatRing(seats: RingSeats.plan(plan), size: 64, plan: true, womenOnly: plan.audience == .women, dots: .none, centre: .user(plan.author))
+                    SeatCaption(counts: SeatCounts(plan: plan), noun: "spots")
+                }
                 ForEach(pending.filter { $0.0.id == plan.id }, id: \.1.user.id) { _, r in JoinRequestRow(postId: plan.id, request: r) }
             }
             .padding(16)
@@ -92,11 +94,11 @@ struct NotificationRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Circle().fill(notification.isRead ? .clear : Pc.ink).frame(width: 6, height: 6).padding(.top, 18)
+            Circle().fill(notification.isRead ? .clear : Pc.pine).frame(width: 8, height: 8).padding(.top, 17)
                 .accessibilityHidden(true)
             icon
             VStack(alignment: .leading, spacing: 4) {
-                Text(notification.title).pcFont(.bodyStrong, weight: notification.isRead ? .regular : .semibold).foregroundStyle(Pc.ink)
+                Text(notification.title).font(.system(size: 15, weight: notification.isRead ? .medium : .bold)).foregroundStyle(Pc.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 4) {
                     if let body = notification.body { Text(body).lineLimit(2) }
@@ -139,7 +141,7 @@ struct NotificationRow: View {
         if let approved = app.activity.decisions[notification.id] {
             Label(approved ? "Approved" : "Declined", systemImage: approved ? "checkmark" : "xmark")
                 .pcFont(.small, weight: .semibold)
-                .foregroundStyle(approved ? Pc.green : Pc.ink2)
+                .foregroundStyle(approved ? Pc.pine : Pc.ink2)
                 .padding(.top, 4)
         } else {
             HStack(spacing: 8) {
@@ -165,8 +167,8 @@ struct NotificationRow: View {
         case .tags: "tag"
         case .system: "info.circle"
         }
-        return Image(systemName: symbol).font(.system(size: 16, weight: .medium)).foregroundStyle(notification.type == "host_offer" ? Pc.goldInk : Pc.ink)
+        return Image(systemName: symbol).font(.system(size: 16, weight: .bold)).foregroundStyle(notification.type == "host_offer" ? PcTokens.light.onGold : Pc.pine)
             .frame(width: 40, height: 40)
-            .background(Circle().fill(notification.type == "host_offer" ? Pc.goldBg : Pc.tonal))
+            .background(Circle().fill(notification.type == "host_offer" ? Pc.gold : Pc.tonal))
     }
 }

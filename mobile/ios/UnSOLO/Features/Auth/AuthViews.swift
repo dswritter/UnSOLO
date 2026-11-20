@@ -19,13 +19,17 @@ struct WelcomeView: View {
                     Text(router.authReason ?? "Find your people, then take a seat.").pcFont(.display).foregroundStyle(Pc.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("Browse freely. You'll need an account to post, join plans, message and book.").pcFont(.body).foregroundStyle(Pc.ink2)
-                    SeatRow(seats: [Seat(state: .host, user: nil), Seat(state: .member, user: nil), Seat(state: .member, user: nil),
-                                    Seat(state: .held, user: nil), Seat(state: .open, user: nil), Seat(state: .open, user: nil)], cellSize: PcTokens.seat)
-                        .padding(.vertical, 6)
-                        .accessibilityHidden(true)
+                    HStack(spacing: 14) {
+                        SeatRing(seats: [.taken(nil), .taken(nil), .taken(nil), .you(nil), .open, .open, .open, .open], size: 96, dots: .none,
+                                 centreLabel: ("4", "open"))
+                        Text("Every trip is a circle of people you can see into before you join.").pcFont(.small).foregroundStyle(Pc.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 6)
+                    .accessibilityHidden(true)
                     Button { google() } label: {
                         HStack(spacing: 10) {
-                            if googleBusy { ProgressView().tint(Pc.ink) } else { GoogleMark() }
+                            if googleBusy { ProgressView().tint(Pc.pine) } else { GoogleMark() }
                             Text("Continue with Google")
                         }
                         .frame(maxWidth: .infinity)
@@ -62,7 +66,7 @@ struct WelcomeView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.ink) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.pine) } }
         }
     }
 
@@ -260,7 +264,7 @@ struct PhoneVerifyView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.ink) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.pine) } }
         }
     }
 

@@ -71,8 +71,16 @@ enum Route: Hashable {
 }
 
 enum ComposeKind: String, Identifiable {
-    case plan, story, ask
+    /// `ask` is a question; `poll` is an ask that starts with poll options.
+    case plan, story, ask, poll
     var id: String { rawValue }
+}
+
+/// Full-screen story viewer: one entry per author on the story rail, starting at `start`.
+struct StoryViewerItem: Identifiable, Equatable {
+    let authorIds: [String]
+    let start: Int
+    var id: String { authorIds.joined(separator: ",") + "#\(start)" }
 }
 
 struct SafariItem: Identifiable, Equatable {
@@ -89,6 +97,7 @@ final class Router {
     var composer: ComposeKind?
     var composerTripSlug: String?
     var safari: SafariItem?
+    var storyViewer: StoryViewerItem?
     var authSheet = false
     var authReason: String?
     var phoneSheet = false

@@ -3,53 +3,56 @@ import SwiftUI
 
 // MARK: - Post type sheet
 
+/// "What are you sharing?": Plan, Story, Question, Poll as 2×2 tiles.
 struct PostTypeSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("What are you posting?").pcFont(.title1).foregroundStyle(Pc.ink).padding(.top, 24)
+        VStack(alignment: .leading, spacing: 14) {
+            SheetHeader(title: "What are you sharing?", subtitle: "Everything goes to the Tribe.")
+                .padding(.top, 26)
             if !app.flags.tribePostingEnabled {
                 Text("Posting is paused for a little while. You can still browse and reply.").pcFont(.small).foregroundStyle(Pc.red)
             }
-            option(.plan, icon: "person.2", title: "Plan a trip or meetup", subtitle: "People ask to join, and a group chat opens", dashed: true)
-            option(.story, icon: "photo", title: "Share a story", subtitle: "Photos from a trip. Tag the trip and who went", dashed: false)
-            option(.ask, icon: "questionmark.circle", title: "Ask the Tribe", subtitle: "A question, with an optional poll", dashed: false)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                tile(.plan, icon: "person.3.fill", title: "Plan", subtitle: "Find people for a trip you're planning")
+                tile(.story, icon: "camera.fill", title: "Story", subtitle: "Photos from a trip, stays on your profile")
+                tile(.ask, icon: "questionmark.bubble.fill", title: "Question", subtitle: "Ask travellers and hosts")
+                tile(.poll, icon: "chart.bar.fill", title: "Poll", subtitle: "Let the Tribe vote")
+            }
             HStack(alignment: .top, spacing: 10) {
                 PcTag(text: "Host", style: .host)
-                Text("Selling a trip, stay or rental? List it in **Hosting**. Tribe is for travellers, so promotional posts are removed.")
-                    .pcFont(.small).foregroundStyle(Pc.ink)
+                Text("Selling a trip, stay or rental? List it in **Hosting**. Promotional posts are removed from the Tribe.")
+                    .pcFont(.small).foregroundStyle(Pc.ink2).fixedSize(horizontal: false, vertical: true)
             }
-            .padding(12)
-            .background(Pc.goldBg, in: Pc.shape(Pc.radius))
+            .padding(.horizontal, 4)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
-        .pcScreen()
+        .background(Pc.raised.ignoresSafeArea())
         .onAppear { Task { await app.analytics.track("screen.view", screen: "compose") } }
     }
 
-    private func option(_ kind: ComposeKind, icon: String, title: String, subtitle: String, dashed: Bool) -> some View {
+    private func tile(_ kind: ComposeKind, icon: String, title: String, subtitle: String) -> some View {
         Button { router.openCompose(kind) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: icon).font(.system(size: 18, weight: .medium)).foregroundStyle(Pc.ink)
-                    .frame(width: 46, height: 46)
-                    .background(Circle().fill(dashed ? Color.clear : Pc.tonal))
-                    .overlay { if dashed { Circle().strokeBorder(Pc.rule2, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])) } }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-                    Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(Pc.ink)
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon).font(.system(size: 19, weight: .bold)).foregroundStyle(Pc.pine)
+                    .frame(width: 42, height: 42)
+                    .background(Pc.tonal, in: Pc.shape(14))
+                Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
+                Text(subtitle).font(.system(size: 13)).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading)
+                    .lineLimit(2, reservesSpace: true)
             }
             .padding(14)
-            .frame(minHeight: 72)
-            .pcCard()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Pc.raised, in: Pc.shape(22))
+            .overlay(Pc.shape(22).strokeBorder(Pc.rule, lineWidth: 1))
+            .contentShape(Pc.shape(22))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pcPress)
         .disabled(!app.flags.tribePostingEnabled)
+        .accessibilityLabel("\(title): \(subtitle)")
     }
 }
 
@@ -59,13 +62,15 @@ struct ComposerHost: View {
         switch kind {
         case .plan: PlanComposer()
         case .story: StoryComposer()
-        case .ask: AskComposer()
+        case .ask: AskComposer(startsWithPoll: false)
+        case .poll: AskComposer(startsWithPoll: true)
         }
     }
 }
 
 // MARK: - Shared composer chrome
 
+/// Close (×) on the left, centred title, and **Publish in a bottom bar** that rides above the keyboard.
 struct ComposerScaffold<Content: View, Leading: View>: View {
     let title: String
     let primary: String
@@ -92,7 +97,13 @@ struct ComposerScaffold<Content: View, Leading: View>: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Pc.paper, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.tint(Pc.ink) } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image(systemName: "xmark").fontWeight(.bold) }
+                        .tint(Pc.ink)
+                        .accessibilityLabel("Close")
+                }
+            }
         }
     }
 }
@@ -143,8 +154,9 @@ struct PhotosField: View {
                         ForEach(Array(photos.enumerated()), id: \.offset) { i, d in
                             LocalThumb(data: d).frame(width: 88, height: 88).overlay(alignment: .topTrailing) {
                                 Button { photos.remove(at: i) } label: {
-                                    Image(systemName: "xmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.onInk)
-                                        .frame(width: 22, height: 22).background(Circle().fill(Pc.ink))
+                                    Image(systemName: "xmark").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                                        .frame(width: 24, height: 24).background(Circle().fill(PcTokens.light.scrim))
+                                        .frame(width: 40, height: 40).contentShape(Rectangle())
                                 }
                                 .padding(4)
                                 .accessibilityLabel("Remove photo \(i + 1)")
@@ -154,7 +166,7 @@ struct PhotosField: View {
                     }
                 }
             }
-            if loading { ProgressView().tint(Pc.ink) }
+            if loading { ProgressView().tint(Pc.pine) }
         }
         .onChange(of: items) { _, newItems in
             guard !newItems.isEmpty else { return }
@@ -173,12 +185,13 @@ struct PhotosField: View {
         let title = photos.isEmpty ? "Add photos" : "Add"
         return PhotosPicker(selection: $items, maxSelectionCount: Swift.max(1, max - photos.count), matching: .images, photoLibrary: .shared()) {
             VStack(spacing: 4) {
-                Image(systemName: "plus").font(.system(size: 16))
-                Text(title).font(.footnote)
+                Image(systemName: "plus").font(.system(size: 17, weight: .bold))
+                Text(title).font(.system(size: 13, weight: .bold))
             }
-            .foregroundStyle(Pc.ink2)
+            .foregroundStyle(Pc.pine)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(Pc.shape(Pc.radius).strokeBorder(Pc.rule2, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            .background(Pc.tonal, in: Pc.shape(Pc.imageRadius))
+            .overlay(Pc.shape(Pc.imageRadius).strokeBorder(Pc.rule2, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
             .contentShape(Rectangle())
         }
         .accessibilityLabel("Add photos")
@@ -205,6 +218,8 @@ func moneyHint(_ text: String) -> Bool { DemoModeration.screen(text).prompts.con
 
 // MARK: - Plan composer
 
+/// New plan: a live ring preview at the top (changes with "how many people", turns rose for women only),
+/// then the fields; Publish sits in the bottom bar.
 struct PlanComposer: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
@@ -214,52 +229,85 @@ struct PlanComposer: View {
     @State private var place = ""
     @State private var start = Calendar.current.date(byAdding: .day, value: 14, to: Date()) ?? Date()
     @State private var end = Calendar.current.date(byAdding: .day, value: 16, to: Date()) ?? Date()
-    @State private var spots = 4
+    @State private var spots = 5
     @State private var cost = ""
+    @State private var womenOnly = false
     @State private var audience: Audience = .verified
     @State private var meeting = ""
     @State private var details = ""
     @State private var photos: [Data] = []
 
+    private var finalAudience: Audience { womenOnly ? .women : audience }
     private var canSubmit: Bool {
         title.trimmingCharacters(in: .whitespaces).count >= 4 && !place.trimmingCharacters(in: .whitespaces).isEmpty &&
             details.trimmingCharacters(in: .whitespaces).count >= 10 && end >= start && womenOnlyAllowed
     }
-    private var womenOnlyAllowed: Bool { audience != .women || (session.me?.user.isIdVerified ?? false) }
+    private var womenOnlyAllowed: Bool { !womenOnly || (session.me?.user.isIdVerified ?? false) }
+    private var days: Int { max(1, (Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0) + 1) }
+    private var me: UserLite {
+        session.user ?? UserLite(id: "me", username: "you", name: "You", avatarUrl: nil, isPhoneVerified: true, isIdVerified: false, isHost: false)
+    }
 
     var body: some View {
-        ComposerScaffold(title: "New plan", primary: "Publish plan", canSubmit: canSubmit, onSubmit: publish) {
-            Text(audience == .anyone ? "Visible to everyone" : "Visible to \(audience.label.lowercased())").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+        ComposerScaffold(title: "New plan", primary: "Publish", canSubmit: canSubmit, onSubmit: publish) {
+            Text(finalAudience == .anyone ? "Visible to everyone" : "Visible to \(finalAudience.label.lowercased())").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
             Text("You can edit or cancel anytime").pcFont(.small).foregroundStyle(Pc.ink2)
         } content: {
-            FormRow(label: "Title") { PcTextField(placeholder: "Tosh & Kalga weekend", text: $title, style: .title3) }
-            FormRow(label: "Where") {
-                HStack { Image(systemName: "mappin").foregroundStyle(Pc.ink); PcTextField(placeholder: "Tosh, Parvati Valley", text: $place, style: .bodyStrong) }
+            VStack(spacing: 6) {
+                SeatRing(seats: [.taken(me)] + Array(repeating: .open, count: max(1, spots - 1)), size: 132, plan: true,
+                         womenOnly: womenOnly, dots: .none, centre: .user(me),
+                         accessibilityText: "Preview: you and \(spots - 1) open spots\(womenOnly ? ", women only" : "")")
+                    .animation(.snappy(duration: PcTokens.motionStandard), value: spots)
+                    .animation(.easeInOut(duration: PcTokens.motionStandard), value: womenOnly)
+                (Text("Live preview · ").foregroundStyle(Pc.ink2) + Text("you + \(spots - 1) spot\(spots == 2 ? "" : "s")").fontWeight(.bold).foregroundStyle(womenOnly ? Pc.rose : Pc.ink))
+                    .font(.system(size: 13, weight: .semibold))
             }
-            FormRow(label: "When") {
+            .frame(maxWidth: .infinity)
+            .padding(.top, 14)
+            .padding(.bottom, 4)
+            FormRow(label: "Title") { PcTextField(placeholder: "Spiti in mid-January, slow and cold", text: $title, style: .title3) }
+            FormRow(label: "Where to?") {
+                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.pine); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
+            }
+            FormRow(label: "When · \(days) day\(days == 1 ? "" : "s")") {
                 HStack {
-                    Image(systemName: "calendar").foregroundStyle(Pc.ink)
                     DatePicker("Starts", selection: $start, in: Date()..., displayedComponents: .date).labelsHidden()
-                    Text("–").pcFont(.num)
+                    Text("–").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink2)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: .date).labelsHidden()
+                    Spacer(minLength: 0)
                 }
-                .tint(Pc.ink)
+                .tint(Pc.pine)
             }
-            FormRow(label: "Group size") {
+            FormRow(label: "People you're looking for") {
                 HStack {
-                    Text("\(spots) people").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-                    Text("including you").pcFont(.small).foregroundStyle(Pc.ink2)
+                    Text("\(spots - 1) more").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+                    Text("· \(spots) with you").pcFont(.small).foregroundStyle(Pc.ink2)
                     Spacer()
-                    Stepper("Group size", value: $spots, in: 2...12).labelsHidden()
+                    PcStepper(value: Binding(get: { spots - 1 }, set: { spots = $0 + 1 }), range: 1...11, label: "People you're looking for")
                 }
             }
-            FormRow(label: "Rough cost each", hint: moneyHint(cost) ? "Charging for this? List it as a hosted trip instead. Plans can't take payments." : "Split among yourselves. UnSOLO doesn't take payments for plans.") {
-                PcTextField(placeholder: "₹4,500, split among yourselves", text: $cost, style: .num)
+            FormRow(label: "Budget each", hint: moneyHint(cost) ? "Charging for this? List it as a hosted trip instead. Plans can't take payments." : "Split among yourselves. UnSOLO doesn't take payments for plans.") {
+                PcTextField(placeholder: "~₹20,000", text: $cost, style: .bodyStrong)
             }
-            FormRow(label: "Who can join", hint: audience == .women && !womenOnlyAllowed ? "Women-only plans need you to be ID-verified first (Settings → Verification)." : "Women-only plans need everyone verified, joiners too. 18+ only.") {
-                FlowLayout {
-                    ForEach([Audience.verified, .women, .anyone], id: \.self) { a in
-                        PcChip(text: a.label, selected: audience == a) { audience = a }
+            VStack(alignment: .leading, spacing: 6) {
+                PcToggleRow(title: "Women only", subtitle: "Only women can see and join · ID check", icon: "figure.stand.dress",
+                            tint: Pc.rose, titleColor: Pc.rose, isOn: $womenOnly.animation())
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(womenOnly ? Pc.roseSoft : Pc.raised, in: Pc.shape(Pc.radius))
+                    .overlay(Pc.shape(Pc.radius).strokeBorder(womenOnly ? Pc.rose.opacity(0.5) : Pc.rule, lineWidth: 1))
+                if womenOnly && !womenOnlyAllowed {
+                    Text("Women-only plans need you to be ID-verified first (Settings → Verification).").pcFont(.small).foregroundStyle(Pc.red).padding(.horizontal, 6)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 10)
+            if !womenOnly {
+                FormRow(label: "Who can join", hint: "Everyone needs to be 18+. Joining is always by request, with an intro.") {
+                    FlowLayout(spacing: 8, lineSpacing: 0) {
+                        ForEach([Audience.verified, .anyone], id: \.self) { a in
+                            PcChip(text: a.label, selected: audience == a) { audience = a }
+                        }
                     }
                 }
             }
@@ -267,44 +315,14 @@ struct PlanComposer: View {
             FormRow(label: "Meeting point", hint: "Stays hidden until you approve someone.") {
                 PcTextField(placeholder: "Majnu ka Tilla, gate 2 · Thu 19:30", text: $meeting)
             }
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("I approve each request").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-                    Text("Joining is always by request, with an intro").pcFont(.small).foregroundStyle(Pc.ink2)
-                }
-                Spacer()
-                Toggle("Approve each request", isOn: .constant(true)).labelsHidden().disabled(true).tint(Pc.ink)
-            }
-            .padding(16)
-            .pcCard()
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
             FormRow(label: "Photos (optional)") { PhotosField(photos: $photos) }
-            VStack(alignment: .leading, spacing: 8) {
-                Overline(text: "Preview in the feed")
-                PlanCard(post: previewPost).allowsHitTesting(false)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 18)
         }
-    }
-
-    private var previewPost: Post {
-        let me = session.user ?? UserLite(id: "me", username: "you", name: "You", avatarUrl: nil, isPhoneVerified: true, isIdVerified: false, isHost: false)
-        var seats = [Seat(state: .you, user: me)]
-        for _ in 1..<spots { seats.append(Seat(state: .open, user: nil)) }
-        return Post(id: "preview", kind: .plan, author: me, title: title.isEmpty ? "Your plan title" : title, body: details.isEmpty ? "A line about the plan." : details,
-                    place: Place(name: place.isEmpty ? "Somewhere" : place, slug: nil, lat: nil, lng: nil),
-                    startsOn: Fmt.ymd(start), endsOn: Fmt.ymd(end), spotsTotal: spots, memberCount: 1, audience: audience,
-                    estCostText: cost.isEmpty ? nil : "Est. \(cost) each", media: [], trip: nil, poll: nil, reactions: .zero, myReactions: [],
-                    commentCount: 0, status: .live, seats: seats, createdAt: Date(), updatedAt: Date(),
-                    viewer: Viewer(isAuthor: true, membership: .approved, saved: false, canJoin: false, joinBlockedReason: .ownPlan), meetingPoint: nil)
     }
 
     private func publish() {
         let draft = ComposeDraft(kind: .plan, title: title.trimmingCharacters(in: .whitespaces), body: details.trimmingCharacters(in: .whitespacesAndNewlines),
                                  place: Place(name: place.trimmingCharacters(in: .whitespaces), slug: nil, lat: nil, lng: nil),
-                                 startsOn: Fmt.ymd(start), endsOn: Fmt.ymd(end), spotsTotal: spots, audience: audience,
+                                 startsOn: Fmt.ymd(start), endsOn: Fmt.ymd(end), spotsTotal: spots, audience: finalAudience,
                                  estCostText: cost.isEmpty ? nil : "Est. \(cost) each", meetingPoint: meeting.isEmpty ? nil : meeting, photos: photos)
         app.tribe.publish(draft)
         router.tab = .tribe
@@ -388,7 +406,7 @@ struct StoryComposer: View {
                         Text("Under “From people who went”").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                 }
-                .tint(Pc.ink)
+                .tint(Pc.pine)
                 .padding(16)
                 .pcCard()
                 .padding(.horizontal, 20)
@@ -413,9 +431,10 @@ struct StoryComposer: View {
     }
 }
 
-// MARK: - Ask composer
+// MARK: - Ask composer (question / poll)
 
 struct AskComposer: View {
+    var startsWithPoll = false
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
@@ -424,6 +443,7 @@ struct AskComposer: View {
     @State private var details = ""
     @State private var hasPoll = false
     @State private var options = ["", ""]
+    @FocusState private var focusedOption: Int?
 
     private var cleanOptions: [String] { options.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
     private var canSubmit: Bool {
@@ -431,54 +451,65 @@ struct AskComposer: View {
     }
 
     var body: some View {
-        ComposerScaffold(title: "Ask the Tribe", primary: "Post", canSubmit: canSubmit, onSubmit: publish) {
-            Text("Most asks get a reply in ~3h").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-            Text("The best answer is pinned to the top").pcFont(.small).foregroundStyle(Pc.ink2)
+        ComposerScaffold(title: startsWithPoll ? "New poll" : "New question", primary: "Publish", canSubmit: canSubmit, onSubmit: publish) {
+            Text(hasPoll ? "Open for 3 days" : "Most questions get a reply in ~3h").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+            Text(hasPoll ? "\(cleanOptions.count) of 2–4 options" : "Hosts answer with their HOST tag").pcFont(.small).foregroundStyle(Pc.ink2)
         } content: {
-            FormRow(label: "Your question") { PcTextField(placeholder: "Kasol solo in early December: which stay is better for meeting people?", text: $question, style: .title2, axis: .vertical) }
-            FormRow(label: "Place") { HStack { Image(systemName: "mappin"); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) } }
-            FormRow(label: "More detail (optional)") { PcTextField(placeholder: "Dates, budget, what you're after", text: $details, axis: .vertical) }
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle(isOn: $hasPoll.animation()) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Add a poll").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
-                        Text("2–4 options, open for 3 days").pcFont(.small).foregroundStyle(Pc.ink2)
-                    }
-                }
-                .tint(Pc.ink)
-                if hasPoll {
+            FormRow(label: "Question") {
+                PcTextField(placeholder: startsWithPoll ? "Pickup point for the 27 Nov Bir trip?" : "Kasol solo in early December: which stay is better for meeting people?",
+                            text: $question, style: .title3, axis: .vertical)
+            }
+            if hasPoll {
+                VStack(alignment: .leading, spacing: 8) {
                     ForEach(options.indices, id: \.self) { i in
-                        HStack(spacing: 12) {
-                            Text("\(i + 1)").pcFont(.code, weight: .regular).foregroundStyle(Pc.ink2)
-                            TextField("Option \(i + 1)", text: $options[i]).pcFont(.bodyStrong)
+                        HStack(spacing: 10) {
+                            Text("\(i + 1)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(Pc.pine)
+                                .frame(width: 26, height: 26).background(Circle().fill(Pc.tonal))
+                            TextField(i < 2 ? "Option \(i + 1)" : "Option \(i + 1) (optional)", text: $options[i])
+                                .font(.system(size: 15, weight: .semibold))
+                                .focused($focusedOption, equals: i)
                             if options.count > 2 {
-                                Button { options.remove(at: i) } label: { Image(systemName: "minus.circle") }.buttonStyle(.plain)
-                                    .accessibilityLabel("Remove option \(i + 1)")
+                                Button { options.remove(at: i) } label: {
+                                    Image(systemName: "minus.circle.fill").font(.system(size: 18)).foregroundStyle(Pc.ink3)
+                                        .frame(width: 40, height: 40).contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Remove option \(i + 1)")
                             }
                         }
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: PcTokens.touch + 4)
-                        .pcField(focused: !options[i].isEmpty)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 4)
+                        .frame(minHeight: 50)
+                        .pcField(focused: focusedOption == i)
                     }
                     if options.count < 4 {
-                        Button { options.append("") } label: {
-                            HStack { Image(systemName: "plus"); Text("Add option") }
-                                .pcFont(.body).foregroundStyle(Pc.ink2)
-                                .padding(.horizontal, 12)
-                                .frame(maxWidth: .infinity, minHeight: PcTokens.touch, alignment: .leading)
-                                .overlay(Pc.shape(Pc.radius).strokeBorder(Pc.rule2, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                        Button { options.append(""); focusedOption = options.count - 1 } label: {
+                            Label("Add option", systemImage: "plus.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.pine)
+                                .frame(minHeight: PcTokens.touch)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.pcPress)
+                        .padding(.leading, 6)
                     }
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
             }
-            .padding(16)
-            .pcCard()
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            Text("No links or prices in answers. Phone numbers are hidden automatically.").pcFont(.small).foregroundStyle(Pc.ink2)
+            if !startsWithPoll {
+                PcToggleRow(title: "Add a poll", subtitle: "2–4 options, open for 3 days", icon: "chart.bar.fill", isOn: $hasPoll.animation())
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .pcField()
+                    .padding(.horizontal, 18)
+                    .padding(.top, 10)
+            }
+            FormRow(label: "Place (optional)") {
+                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.pine); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
+            }
+            FormRow(label: "More detail (optional)") { PcTextField(placeholder: "Dates, budget, what you're after", text: $details, axis: .vertical) }
+            Text("No links or prices in answers. Phone numbers are hidden automatically.").pcFont(.small).foregroundStyle(Pc.ink3)
                 .padding(.horizontal, 24).padding(.vertical, 12)
         }
+        .onAppear { if startsWithPoll { hasPoll = true } }
     }
 
     private func publish() {

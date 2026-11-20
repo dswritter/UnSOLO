@@ -32,6 +32,8 @@ final class AppModel {
     let activity: ActivityRepo
     let chat: ChatRepo
     let profiles: ProfileRepo
+    /// Saved trips and watched stories (device only).
+    let marks = LocalMarks()
 
     var isDemo: Bool
     /// First launch could not reach the server, so demo data is shown.
