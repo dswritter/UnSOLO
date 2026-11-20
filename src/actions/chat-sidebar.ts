@@ -39,7 +39,7 @@ async function userCanPinRoom(
 }
 
 function revalidateTribeSidebars() {
-  revalidatePath('/tribe', 'layout')
+  revalidatePath('/community', 'layout')
   revalidatePath('/community', 'layout')
 }
 

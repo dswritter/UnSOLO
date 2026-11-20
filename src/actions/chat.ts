@@ -8,9 +8,9 @@ import { assertMessageSendRateLimit } from '@/lib/server-rate-limit'
 
 function revalidateChatRoutes(roomId: string) {
   revalidatePath('/community', 'layout')
-  revalidatePath('/tribe', 'layout')
+  revalidatePath('/community', 'layout')
   revalidatePath(`/community/${roomId}`)
-  revalidatePath(`/tribe/${roomId}`)
+  revalidatePath(`/community/${roomId}`)
 }
 
 export async function sendMessage(roomId: string, content: string) {

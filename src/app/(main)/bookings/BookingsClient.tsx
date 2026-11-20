@@ -51,7 +51,7 @@ async function goToTripChat(
   if (!packageId) return
   const res = await openTripChat(packageId)
   if ('error' in res && res.error) { toast.error(res.error); return }
-  if ('roomId' in res && res.roomId) router.push(`/tribe/${res.roomId}`)
+  if ('roomId' in res && res.roomId) router.push(`/community/${res.roomId}`)
 }
 
 function tripCalFromPackage(

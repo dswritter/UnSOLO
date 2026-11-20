@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useRef } from 'react'
-import { ChevronRight, Gift, LogIn, LogOut, Moon, Pencil, Shield, Sun, Tent, Trophy, User, X } from 'lucide-react'
+import { ChevronRight, Gift, LogIn, LogOut, Moon, Pencil, Settings, Shield, Sun, Tent, Trophy, User, X } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useColorMode } from '@/components/layout/ColorModeToggle'
 import { useSignOut } from '@/hooks/useSignOut'
@@ -17,6 +17,7 @@ const ICONS: Record<YouMenuItem['id'], typeof User> = {
   leaderboard: Trophy,
   offers: Gift,
   referrals: Gift,
+  settings: Settings,
   admin: Shield,
 }
 

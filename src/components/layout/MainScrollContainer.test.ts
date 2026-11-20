@@ -15,7 +15,7 @@ describe('main scroll ownership', () => {
     expect(html).not.toContain(' h-0 ')
   })
 
-  it.each(['/leaderboard', '/tribe/room'])('preserves bounded inner scrolling on %s', pathname => {
+  it.each(['/leaderboard', '/community/room'])('preserves bounded inner scrolling on %s', pathname => {
     usePathname.mockReturnValue(pathname)
     const html = renderToStaticMarkup(createElement(MainScrollContainer, null, 'Content'))
     expect(html).toContain('h-0 overflow-y-auto')

@@ -56,7 +56,7 @@ export function ClaimedTripsSection({ bookings }: { bookings: Booking[] }) {
                     View trip →
                   </Link>
                 )}
-                <Link href="/tribe" className="text-xs text-muted-foreground hover:text-foreground">
+                <Link href="/community" className="text-xs text-muted-foreground hover:text-foreground">
                   Trip chat is in your Community inbox
                 </Link>
               </div>

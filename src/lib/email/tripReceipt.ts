@@ -105,7 +105,7 @@ export async function sendTripBookingReceipt(bookingId: string, opts?: { message
 
     const tripUrl = pkg.slug ? `${APP_URL}/packages/${pkg.slug}` : undefined
     const roomId = await ensureTripChatRoom(svc, booking.package_id as string)
-    const tripChatUrl = roomId ? `${APP_URL}/tribe/${roomId}` : `${APP_URL}/bookings`
+    const tripChatUrl = roomId ? `${APP_URL}/community/${roomId}` : `${APP_URL}/bookings`
 
     const contact = await resolveTripReceiptContact(svc, pkg)
     await sendBookingConfirmation({

@@ -8,6 +8,7 @@ import { BottomShellNav } from '@/components/layout/BottomShellNav'
 import { SignInPrompt } from '@/components/layout/SignInPrompt'
 import { MainScrollContainer } from '@/components/layout/MainScrollContainer'
 import { Suspense } from 'react'
+import { AppRuntime } from '@/components/runtime/AppRuntime'
 
 /**
  * Static app shell. This layout deliberately reads NO cookies or headers, so it
@@ -43,6 +44,9 @@ export default function MainLayout({
           <SignInPrompt />
         </Suspense>
         <FooterWrapper />
+        <Suspense fallback={null}>
+          <AppRuntime />
+        </Suspense>
     </div>
   )
 }

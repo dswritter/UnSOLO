@@ -9,8 +9,12 @@ describe('activeMobileTab', () => {
     ['/book/abc', 'explore'],
     ['/bookings', 'trips'],
     ['/booking/123', 'trips'],
-    ['/community', 'community'],
-    ['/tribe/room', 'community'],
+    ['/tribe', 'tribe'],
+    ['/tribe/p/abc', 'tribe'],
+    ['/tribe/new', 'post'],
+    ['/activity', 'tribe'],
+    ['/community', null],
+    ['/settings', 'you'],
     ['/profile/asha', 'you'],
     ['/host/verify', 'you'],
     ['/leaderboard', 'you'],
@@ -41,7 +45,7 @@ describe('youMenuItems', () => {
 
   it('traveller: profile, become-host, discovery and referrals', () => {
     const items = youMenuItems({ username: 'asha', isHost: false, role: 'user' })
-    expect(ids(items)).toEqual(['profile', 'edit-profile', 'hosting', 'leaderboard', 'offers', 'referrals'])
+    expect(ids(items)).toEqual(['profile', 'edit-profile', 'hosting', 'leaderboard', 'offers', 'referrals', 'settings'])
     expect(items[0]!.href).toBe('/profile/asha')
     expect(items[2]!.href).toBe('/host/verify')
   })

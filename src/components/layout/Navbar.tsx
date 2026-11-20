@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { Trophy, Compass, LogOut, User, BookOpen, Shield, Users, Gift, Pencil, Tent, MessageSquare, ChevronDown } from 'lucide-react'
+import { Trophy, Compass, LogOut, User, BookOpen, Shield, Gift, Pencil, Tent, MessageSquare, ChevronDown, Plus, Ticket, UsersRound, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -74,13 +74,10 @@ export function Navbar() {
     Boolean(pathname?.startsWith('/chat/'))
 
   function navLinkActive(href: string): boolean {
+    if (href === '/tribe') return pathname === '/tribe' || Boolean(pathname?.startsWith('/tribe/'))
+    if (href === '/bookings') return pathname === '/bookings' || Boolean(pathname?.startsWith('/bookings/'))
     if (href === '/community') {
-      return (
-        pathname === '/community' ||
-        Boolean(pathname?.startsWith('/community/')) ||
-        pathname === '/tribe' ||
-        Boolean(pathname?.startsWith('/tribe/'))
-      )
+      return pathname === '/community' || Boolean(pathname?.startsWith('/community/'))
     }
     if (href === '/') {
       return pathname === '/'
@@ -242,10 +239,13 @@ export function Navbar() {
     )
   }
 
+  // Passenger Chart IA: Explore (book) · Tribe (community posts) · My trips. Post, Messages and
+  // Activity sit on the right of every page; Leaderboard and Hosting live under the avatar menu.
+  void hasRooms
   const navLinks = [
     { href: '/', label: 'Explore', icon: Compass },
-    { href: '/community', label: hasRooms ? 'Community' : 'Meet Travellers', icon: MessageSquare, showBadge: true },
-    { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+    { href: '/tribe', label: 'Tribe', icon: UsersRound },
+    { href: user ? '/bookings' : '/login?redirectTo=%2Fbookings', label: 'My trips', icon: Ticket },
   ]
   const hostActive = Boolean(pathname?.startsWith('/host'))
 
@@ -262,16 +262,13 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl font-black tracking-tight">
-              <span className="brand-gold">UN</span>
-              <span className="text-foreground">SOLO</span>
-            </span>
+            <span className="pc-wordmark text-[22px]" aria-label="UnSOLO"><b>UN</b>SOLO</span>
           </Link>
 
           {/* Desktop Nav — bottom-aligned so the active underline reads like screenshot tabs */}
           <div className="hidden md:flex items-end justify-center gap-8 flex-1 self-stretch min-h-16">
-            {navLinks.map(({ href, label, icon: Icon, showBadge }) => {
-              const isActive = navLinkActive(href)
+            {navLinks.map(({ href, label, icon: Icon }) => {
+              const isActive = navLinkActive(href.split('?')[0])
               const isTribeLink = href === '/community'
               return (
               <Link
@@ -286,20 +283,15 @@ export function Navbar() {
                   isTribeLink && isTribeNavPending && 'opacity-80',
                   isWanderShell
                     ? isActive
-                      ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
-                      : 'text-foreground/80 hover:text-primary border-b-[3px] border-transparent border-solid -mb-px'
+                      ? 'text-foreground font-semibold border-b-[3px] border-foreground border-solid -mb-px'
+                      : 'text-foreground/70 hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px'
                     : isActive
-                      ? 'text-primary border-b-[3px] border-primary border-solid -mb-px'
+                      ? 'text-foreground font-semibold border-b-[3px] border-foreground border-solid -mb-px'
                       : 'text-muted-foreground hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px',
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {label}
-                {showBadge && unreadChatCount > 0 && (
-                  <span className="absolute -top-2 -right-3 h-4 min-w-[16px] px-1 bg-primary text-primary-foreground text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {unreadChatCount > 99 ? '99+' : unreadChatCount}
-                  </span>
-                )}
               </Link>
             )
             })}
@@ -315,15 +307,24 @@ export function Navbar() {
           )}
 
           {/* Right side */}
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-1 md:gap-2">
+            <Link href="/tribe/new" prefetch={false} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-label="Create a post">
+              <Plus className="h-4 w-4" aria-hidden /> Post
+            </Link>
+            {user && (
+              <Link href="/community" prefetch={false} onMouseEnter={prefetchTribeRoutes} className="pc-iconbtn" aria-label={unreadChatCount > 0 ? `Messages, ${unreadChatCount} unread` : 'Messages'}>
+                <MessageSquare className="h-5 w-5" aria-hidden />
+                {unreadChatCount > 0 && <span className="pc-badge">{unreadChatCount > 99 ? '99+' : unreadChatCount}</span>}
+              </Link>
+            )}
             <Link
               href="/host"
               prefetch
               className={cn(
-                'relative hidden items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors md:inline-flex',
+                'relative hidden items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors lg:inline-flex',
                 hostActive
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card/60 text-foreground hover:border-primary/60',
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-border bg-transparent text-foreground hover:border-foreground/60',
               )}
             >
               <Tent className="h-4 w-4" />
@@ -351,7 +352,7 @@ export function Navbar() {
                       <span className="inline-flex min-w-0 max-w-full items-center gap-2">
                         <Avatar className="h-8 w-8 shrink-0 border-2 border-foreground/20 sm:h-9 sm:w-9">
                           <AvatarImage src={user.avatar_url || ''} alt={user.full_name || user.username} />
-                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                          <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
                             {getInitials(user.full_name || user.username)}
                           </AvatarFallback>
                         </Avatar>
@@ -408,9 +409,21 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
+                      onClick={() => router.push('/leaderboard')}
+                    >
+                      <Trophy className="mr-3 h-4 w-4" /> Leaderboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
+                      onClick={() => router.push('/settings')}
+                    >
+                      <Settings className="mr-3 h-4 w-4" /> Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className={cn('py-2.5 text-sm', isWanderShell && 'text-foreground/95 focus:bg-foreground/10 focus:text-foreground')}
                       onClick={() => router.push('/referrals')}
                     >
-                      <Gift className={cn('mr-3 h-4 w-4', isWanderShell && 'text-primary')} /> Refer & Earn
+                      <Gift className="mr-3 h-4 w-4" /> Refer & Earn
                     </DropdownMenuItem>
                     {user.role && user.role !== 'user' && (
                       <DropdownMenuItem
@@ -441,8 +454,8 @@ export function Navbar() {
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/login">Sign In</Link>
                 </Button>
-                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                  <Link href="/signup">Join Free</Link>
+                <Button size="sm" asChild>
+                  <Link href="/signup">Join free</Link>
                 </Button>
               </div>
             )}

@@ -103,6 +103,9 @@ export type NotificationItem = {
   link: string | null
   isRead: boolean
   createdAt: string
+  /** Present for Tribe events so clients can act inline (e.g. approve a join request). */
+  postId?: string | null
+  actorId?: string | null
 }
 
 // ── Row selections ────────────────────────────────────────────────────────
@@ -196,6 +199,8 @@ export function toNotification(r: Row): NotificationItem {
     link: str(r.link),
     isRead: r.is_read === true,
     createdAt: String(r.created_at),
+    postId: str(meta.post_id),
+    actorId: str(meta.actor_id),
   }
 }
 

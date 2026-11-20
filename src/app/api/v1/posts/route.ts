@@ -17,7 +17,7 @@ const MediaIn = z.object({
 })
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
-export const PostIn = z.object({
+const PostIn = z.object({
   clientId: z.string().uuid(),
   kind: z.enum(['plan', 'story', 'ask']),
   title: z.string().trim().max(120).nullable().optional(),

@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
       { source: '/profile_v2', destination: '/profile', permanent: true },
       { source: '/profile_v2/edit', destination: '/profile', permanent: true },
       { source: '/profile_v2/:username', destination: '/profile/:username', permanent: true },
+      // Tribe became the community feed; chat moved to /community. Keep old chat links
+      // (emails, notifications, bookmarks) working: /tribe/<room uuid> → /community/<room uuid>.
+      {
+        source: '/tribe/:roomId([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})',
+        destination: '/community/:roomId',
+        permanent: false,
+      },
     ]
   },
   async headers() {
@@ -18,12 +25,7 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  async rewrites() {
-    return [
-      { source: '/community', destination: '/tribe' },
-      { source: '/community/:path*', destination: '/tribe/:path*' },
-    ]
-  },
+
   images: {
     // Explicit allowlist — prevents the Next.js image optimizer from being
     // used as an open proxy for arbitrary external URLs.

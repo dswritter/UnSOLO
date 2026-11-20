@@ -28,6 +28,11 @@ const PUBLIC_CONTENT = [
   '/bookings',
   '/notifications',
   '/referrals',
+  '/activity',
+  '/settings',
+  '/offline',
+  // Dev-only visual preview of signed-in screens (the page itself 404s in production).
+  ...(process.env.NODE_ENV !== 'production' ? ['/dev'] : []),
 ]
 
 const UNSOLO_HOSTS = new Set(['unsolo.in', 'www.unsolo.in'])

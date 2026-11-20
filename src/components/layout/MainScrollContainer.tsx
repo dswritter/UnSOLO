@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-const CHAT_ROUTE_PREFIXES = ['/community', '/tribe', '/chat', '/status']
+const CHAT_ROUTE_PREFIXES = ['/community', '/chat', '/status']
 
 /**
  * Next only resets scroll when the new segment's first node is outside the

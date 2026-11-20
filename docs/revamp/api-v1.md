@@ -54,7 +54,8 @@ HostOffer  { id, postId, host: UserLite, pricePaise, includes: string[], notes|n
 Booking    { id, status, travelDate, guests, totalPaise, paidPaise, balancePaise, confirmationCode|null,
              trip: TripLite, chatRoomId|null }
 Notification { id, type, category: "plans"|"replies"|"messages"|"trips"|"tags"|"system", title, body|null,
-               link|null /* internal path, e.g. /tribe/p/<id> */, isRead, createdAt }
+               link|null /* internal path, e.g. /tribe/p/<id> */, isRead, createdAt,
+               postId?: uuid, actorId?: uuid /* Tribe events, for inline actions */ }
 Preferences { landingTab: "explore"|"tribe"|"trips", notify: { push: {plans,replies,messages,trips,tags,marketing},
               email: {...}, quietHours: { from: "22:00", to: "07:00" } }, interests: string[],
               suggestByLocation, suggestByGender, shareLocation, dataSaver }

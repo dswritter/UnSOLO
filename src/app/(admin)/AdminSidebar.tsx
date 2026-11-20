@@ -32,6 +32,9 @@ import {
   MessagesSquare,
   IndianRupee,
   Megaphone,
+  Flag,
+  BarChart3,
+  ToggleRight,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
@@ -79,11 +82,13 @@ const navGroups: { label: string | null; items: NavItem[] }[] = [
     items: [
       { href: '/admin/community-chats', label: 'Community chats', icon: MessageCircle, roles: ['admin', 'social_media_manager', 'chat_responder'], permissionKey: 'community_chats' },
       { href: '/admin/trip-groups', label: 'Trip groups', icon: MessagesSquare, roles: ['admin', 'social_media_manager'], permissionKey: 'community_trips' },
+      { href: '/admin/moderation', label: 'Tribe moderation', icon: Flag, roles: ['admin', 'social_media_manager', 'chat_responder'], permissionKey: 'moderation' },
     ],
   },
   {
     label: 'Growth',
     items: [
+      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3, roles: ['admin'], permissionKey: 'analytics' },
       { href: '/admin/revenue', label: 'Revenue', icon: IndianRupee, roles: ['admin'], permissionKey: 'revenue' },
       { href: '/admin/discounts', label: 'Discounts', icon: Tag, roles: ['admin'], permissionKey: 'discounts' },
       { href: '/admin/offers', label: 'Offers page', icon: Sparkles, roles: ['admin'], permissionKey: 'offers' },
@@ -94,6 +99,7 @@ const navGroups: { label: string | null; items: NavItem[] }[] = [
     label: 'System',
     items: [
       { href: '/admin/whatsapp', label: 'WhatsApp', icon: Phone, roles: ['admin'], permissionKey: 'whatsapp' },
+      { href: '/admin/controls', label: 'App controls', icon: ToggleRight, roles: ['admin'], permissionKey: 'settings' },
       { href: '/admin/settings', label: 'Settings', icon: Settings, roles: ['admin'], permissionKey: 'settings' },
     ],
   },

@@ -128,7 +128,7 @@ export function ChatNotificationWidget({ userId }: { userId: string }) {
   useFocusTrap(miniPanelOpen, miniPanelTrapRef)
   const threadFetchGenRef = useRef(0)
   const pathname = usePathname()
-  const chatListBase = pathname?.startsWith('/tribe') ? '/tribe' : '/community'
+  const chatListBase = '/community'
 
   const isOnChatPage =
     pathname?.startsWith('/chat') || pathname?.startsWith('/community') || pathname?.startsWith('/tribe')

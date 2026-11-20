@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import type { ReactNode } from 'react'
 import { Suspense } from 'react'
-import { Plus_Jakarta_Sans } from 'next/font/google'
 import { redirect } from 'next/navigation'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { CommunitySidebarSection } from '@/components/chat/CommunitySidebarSection'
@@ -14,15 +13,7 @@ import { TribeSidebarSkeleton } from '@/components/chat/TribeSidebarSkeleton'
 import { TribeMessagingContainer } from '@/components/chat/TribeMessagingContainer'
 import { cn } from '@/lib/utils'
 
-const tribeSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-wander',
-})
-
-/**
- * /tribe — same chat behavior as /community, with Wander’s forest + gold theme (no extra mockup left rail).
- */
+/** /community — Messages: trip groups, plan groups, community rooms and DMs. */
 /** Streams the recent-rooms strip so the chat shell never waits on the room list. */
 async function MobileChatBottomBarServer({ userId, basePath }: { userId: string; basePath: string }) {
   const { rooms } = await getCachedSidebarRooms(userId, { limit: 12, offset: 0 })
@@ -39,7 +30,6 @@ export default async function TribeLayout({ children }: { children: ReactNode })
     <div
       className={cn(
         'wander-theme wander-textured min-h-full w-full flex',
-        tribeSans.variable,
       )}
     >
       <TribeMessageCacheBootstrap />

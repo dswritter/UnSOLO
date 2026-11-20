@@ -19,6 +19,7 @@ export function useSignOut() {
   return () => {
     if (pending.current) return pending.current
     const supabase = createClient()
+    clearDeviceState()
     const accessToken = clearLocalSession()
     queryClient.clear()
     router.replace('/')
@@ -41,4 +42,19 @@ export function useSignOut() {
     })().catch(reportFailure).finally(() => { pending.current = null })
     return pending.current
   }
+}
+
+/**
+ * Device privacy on sign-out: drop the offline outbox and cached pages/images, and unsubscribe this
+ * browser from web push (the server deletes the token on its next 410). Best-effort, never throws.
+ */
+function clearDeviceState() {
+  try {
+    for (const k of ['unsolo.outbox.v1', 'unsolo.landingTab', 'unsolo.tabVisits']) localStorage.removeItem(k)
+  } catch { /* storage unavailable */ }
+  try {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+    navigator.serviceWorker.controller?.postMessage('unsolo:signed-out')
+    void navigator.serviceWorker.getRegistration().then((reg) => reg?.pushManager?.getSubscription()).then((sub) => sub?.unsubscribe()).catch(() => undefined)
+  } catch { /* ignore */ }
 }

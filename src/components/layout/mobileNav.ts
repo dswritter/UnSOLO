@@ -1,9 +1,10 @@
 /**
- * Mobile bottom-nav model: four primary tabs plus a "You" sheet that holds the
- * secondary destinations (leaderboard, offers, hosting, account).
+ * Mobile bottom-nav model (Passenger Chart IA): Explore · Tribe · (+) Post · My trips · You.
+ * Messages (/community) and Activity open from header icons; "You" is a sheet with the
+ * secondary destinations (leaderboard, offers, hosting, settings, account).
  */
 
-export type MobileTabId = 'explore' | 'trips' | 'community' | 'you'
+export type MobileTabId = 'explore' | 'tribe' | 'post' | 'trips' | 'you'
 
 const startsWithAny = (pathname: string, prefixes: string[]) =>
   prefixes.some(prefix => pathname === prefix || pathname.startsWith(`${prefix}/`))
@@ -11,8 +12,9 @@ const startsWithAny = (pathname: string, prefixes: string[]) =>
 export function activeMobileTab(pathname: string | null): MobileTabId | null {
   if (!pathname) return null
   if (startsWithAny(pathname, ['/bookings', '/booking'])) return 'trips'
-  if (startsWithAny(pathname, ['/community', '/tribe'])) return 'community'
-  if (startsWithAny(pathname, ['/profile', '/host', '/leaderboard', '/offers', '/referrals'])) return 'you'
+  if (pathname === '/tribe/new') return 'post'
+  if (startsWithAny(pathname, ['/tribe', '/activity'])) return 'tribe'
+  if (startsWithAny(pathname, ['/profile', '/host', '/leaderboard', '/offers', '/referrals', '/settings'])) return 'you'
   if (pathname === '/' || startsWithAny(pathname, ['/packages', '/listings', '/book'])) return 'explore'
   return null
 }
@@ -22,7 +24,7 @@ export function myTripsHref(signedIn: boolean): string {
 }
 
 export type YouMenuItem = {
-  id: 'profile' | 'edit-profile' | 'hosting' | 'leaderboard' | 'offers' | 'referrals' | 'admin'
+  id: 'profile' | 'edit-profile' | 'hosting' | 'leaderboard' | 'offers' | 'referrals' | 'settings' | 'admin'
   label: string
   description?: string
   href: string
@@ -43,7 +45,10 @@ export function youMenuItems(viewer: { username: string | null; isHost: boolean;
     { id: 'leaderboard', label: 'Leaderboard', description: 'Top travellers and your rank', href: '/leaderboard' },
     { id: 'offers', label: 'Offers', description: 'Deals and bundles', href: '/offers' },
   )
-  if (viewer) items.push({ id: 'referrals', label: 'Refer & earn', href: '/referrals' })
+  if (viewer) {
+    items.push({ id: 'referrals', label: 'Refer & earn', href: '/referrals' })
+    items.push({ id: 'settings', label: 'Settings', description: 'Start page, notifications, location, privacy', href: '/settings' })
+  }
   if (viewer?.role && viewer.role !== 'user') items.push({ id: 'admin', label: 'Admin panel', href: '/admin' })
   return items
 }
