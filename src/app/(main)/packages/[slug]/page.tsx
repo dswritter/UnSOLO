@@ -37,6 +37,7 @@ import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import { getUnlinkedHost } from '@/lib/listings/unlinked-host'
 import { hostProfileHref } from '@/lib/profile/host-profile'
 import { TripMeetingPoint } from '@/components/hosting/TripMeetingPoint'
+import { TripTribeSection } from '@/components/tribe/TripTribeSection'
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: 'bg-green-500/20 text-green-400 border-green-500/30',
@@ -438,6 +439,16 @@ export default async function PackageDetailPage({
                 </div>
               ))}
             </div>
+
+            <Suspense fallback={null}>
+              <TripTribeSection
+                packageId={package_.id}
+                departureDates={package_.departure_dates ?? null}
+                maxGroupSize={package_.max_group_size ?? null}
+                hostId={package_.host_id ?? null}
+                placeName={(package_ as unknown as { destination?: { name?: string } | null }).destination?.name ?? null}
+              />
+            </Suspense>
 
             <nav aria-label="Trip sections" className="sticky top-0 z-20 -mx-1 flex gap-1 overflow-x-auto rounded-2xl border border-border/70 bg-background/85 p-1 backdrop-blur-md scrollbar-hide">
               {[

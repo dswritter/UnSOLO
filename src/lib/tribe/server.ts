@@ -10,10 +10,10 @@ import { HOST_OFFER_SELECT } from './offers'
 export type FeedPage = { posts: Post[]; nextDepartures: TripLite[]; demo: boolean; signedIn: boolean; viewerId: string | null }
 
 /** First page of the feed for server rendering (client continues via /api/v1/feed). */
-export async function getFeedPage(kind?: 'plan' | 'story' | 'ask'): Promise<FeedPage> {
+export async function getFeedPage(kind?: 'plan' | 'story' | 'ask', place?: string): Promise<FeedPage> {
   const { supabase, user } = await getRequestAuth()
   try {
-    const { data, error } = await supabase.rpc('tribe_feed', { p_kind: kind ?? null, p_limit: 20 })
+    const { data, error } = await supabase.rpc('tribe_feed', { p_kind: kind ?? null, p_place: place ?? null, p_limit: 20 })
     if (error) throw error
     const ids = ((data ?? []) as { post_id: string }[]).map((r) => r.post_id)
     const viewer = await loadViewer(supabase, user?.id)
@@ -24,7 +24,7 @@ export async function getFeedPage(kind?: 'plan' | 'story' | 'ask'): Promise<Feed
     return { posts, nextDepartures: trips.items, demo: false, signedIn: !!user, viewerId: user?.id ?? null }
   } catch (e) {
     if (shouldUseDemo(e)) {
-      const posts = kind ? DEMO_POSTS.filter((p) => p.kind === kind) : DEMO_POSTS
+      const posts = DEMO_POSTS.filter((p) => (!kind || p.kind === kind) && (!place || p.place?.slug === place))
       return { posts, nextDepartures: [DEMO_TRIP], demo: true, signedIn: !!user, viewerId: user?.id ?? null }
     }
     if (isMissingSchema(e)) return { posts: [], nextDepartures: [], demo: false, signedIn: !!user, viewerId: user?.id ?? null }

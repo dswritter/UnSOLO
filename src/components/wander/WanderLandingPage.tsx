@@ -7,6 +7,7 @@ import {
   WanderListingRowsServer,
   WanderListingRowsSkeleton,
 } from '@/components/wander/WanderListingRowsServer'
+import { TribeBridgeRow } from '@/components/tribe/TribeBridgeRow'
 
 export async function WanderLandingPage({
   searchParams,
@@ -41,6 +42,9 @@ export async function WanderLandingPage({
         <>
           <Suspense fallback={<WanderHeroSkeleton />}>
             <WanderHeroSection activeTab={activeTab} searchBasePath={searchBasePath} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <TribeBridgeRow />
           </Suspense>
           <Suspense fallback={<WanderListingRowsSkeleton />}>
             <WanderListingRowsServer activeTab={activeTab} />

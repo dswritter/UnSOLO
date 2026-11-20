@@ -10,11 +10,13 @@ export const metadata: Metadata = {
   description: 'Find people going your way. Community plans, trip stories and questions from India’s solo travellers.',
 }
 
-export default async function TribePage() {
-  const page = await getFeedPage()
+export default async function TribePage({ searchParams }: { searchParams: Promise<{ place?: string }> }) {
+  const { place: rawPlace } = await searchParams
+  const place = rawPlace && /^[a-z0-9-]{1,60}$/.test(rawPlace) ? rawPlace : undefined
+  const page = await getFeedPage(undefined, place)
   return (
     <>
-      <FeedClient initial={page.posts} nextDepartures={page.nextDepartures} signedIn={page.signedIn} demo={page.demo} />
+      <FeedClient place={place} initial={page.posts} nextDepartures={page.nextDepartures} signedIn={page.signedIn} demo={page.demo} />
       <LandingPrompt tab="tribe" signedIn={page.signedIn} />
     </>
   )

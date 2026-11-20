@@ -20,7 +20,8 @@ const FILTERS: { id: Kind; label: string }[] = [
   { id: 'ask', label: 'Asks' },
 ]
 
-export function FeedClient({ initial, nextDepartures: initialDepartures, signedIn, demo }: {
+export function FeedClient({ initial, nextDepartures: initialDepartures, signedIn, demo, place }: {
+  place?: string
   initial: Post[]
   nextDepartures: TripLite[]
   signedIn: boolean
@@ -48,6 +49,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
     try {
       const q = new URLSearchParams()
       if (k !== 'all') q.set('kind', k)
+      if (place) q.set('place', place)
       if (after && after !== 'more') q.set('cursor', after)
       if (near) { q.set('lat', String(near.lat)); q.set('lng', String(near.lng)) }
       const r = await apiFetch<FeedResponse>(`/feed?${q}`)
@@ -60,7 +62,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
     } finally {
       setLoading(false)
     }
-  }, [coords, demo, initial])
+  }, [coords, demo, initial, place])
 
   useEffect(() => {
     if (demo) return
@@ -124,6 +126,9 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
           </div>
           <Link href={signedIn ? '/tribe/new' : '/login?redirectTo=%2Ftribe%2Fnew'} className="pc-btn pc-btn-sm md:hidden"><Plus className="h-4 w-4" aria-hidden /> Post</Link>
         </div>
+        {place && (
+          <p className="mb-3 text-sm">Showing <strong className="capitalize">{place.replace(/-/g, ' ')}</strong> · <Link href="/tribe" className="pc-link">Show everywhere</Link></p>
+        )}
         <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide lg:hidden" role="toolbar" aria-label="Filter posts">
           {FILTERS.map((f) => (
             <button key={f.id} type="button" className="pc-chip" aria-pressed={kind === f.id} onClick={() => choose(f.id)}>{f.label}</button>
