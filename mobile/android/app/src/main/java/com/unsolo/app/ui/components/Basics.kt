@@ -187,7 +187,7 @@ fun CountBadge(count: Int, modifier: Modifier = Modifier) {
 
 @Composable
 fun LinkText(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, style: TextStyle = Pc.type.bodyStrong) {
-    Text(text, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = Pc.colors.pine,
+    Text(text, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = Pc.colors.accentInk,
         modifier = modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onClick).defaultMinSize(minHeight = 44.dp).wrapContentHeight())
 }
 
@@ -240,7 +240,7 @@ fun PcButton(
     val scale by animateFloatAsState(if (pressed && !reduce) 0.97f else 1f, tween(PcTokens.motionFast), label = "press")
     val bg = when (kind) {
         BtnKind.Primary -> if (enabled) (if (pressed) c.pine.copy(alpha = 0.88f) else c.pine) else c.tonal
-        BtnKind.Outline -> if (dashed) Color.Transparent else if (pressed) c.pineSoft else c.tonal
+        BtnKind.Outline -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Line -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Ghost -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Danger -> if (pressed) c.red.copy(alpha = 0.08f) else Color.Transparent
@@ -266,7 +266,7 @@ fun PcButton(
                 .scale(scale)
                 .clip(shape)
                 .background(bg)
-                .then(if (kind == BtnKind.Line) Modifier.border(1.5.dp, if (enabled) c.rule2 else c.rule, shape) else Modifier)
+                .then(if ((kind == BtnKind.Line || kind == BtnKind.Outline) && !dashed) Modifier.border(1.5.dp, if (enabled) c.ink else c.rule, shape) else Modifier)
                 .then(if (dashed) Modifier.dashedBorder(c.rule2, radius = height / 2, width = 1.5.dp, on = 5.dp, off = 4.dp) else Modifier)
                 .padding(horizontal = if (kind == BtnKind.Ghost) 12.dp else if (small) 18.dp else 24.dp),
             horizontalArrangement = Arrangement.Center,
@@ -297,7 +297,7 @@ fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageV
         TagKind.Host -> c.gold to c.onGold
         TagKind.Organiser -> c.raised to c.ink
         TagKind.Women -> c.roseSoft to c.rose
-        TagKind.Verified -> c.tonal to c.pine
+        TagKind.Verified -> c.tonal to c.accentInk
         TagKind.Full -> c.goldBg to (if (Pc.isDark) c.full else c.goldInk)
         TagKind.Muted -> c.tonal to c.ink2
         else -> c.tonal to c.ink2
@@ -324,7 +324,7 @@ fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageV
 
 @Composable
 fun VerifiedMark(modifier: Modifier = Modifier) {
-    PcIcon(PcIcons.SealCheck, "Verified", modifier, tint = Pc.colors.pine, size = 16.dp)
+    PcIcon(PcIcons.SealCheck, "Verified", modifier, tint = Pc.colors.accentInk, size = 16.dp)
 }
 
 // ---------- Facts row (calendar · clock · wallet) ----------
@@ -377,7 +377,7 @@ fun Avatar(user: UserLite?, size: Dp = 40.dp, modifier: Modifier = Modifier, squ
                 contentDescription = user.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
             )
         } else if (user != null) {
-            Text(user.initials, style = Pc.type.smallStrong.copy(fontSize = (size.value * 0.36f).coerceIn(11f, 24f).sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.pine)
+            Text(user.initials, style = Pc.type.smallStrong.copy(fontSize = (size.value * 0.36f).coerceIn(11f, 24f).sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.accentInk)
         } else {
             PcIcon(PcIcons.User, "Guest", tint = c.ink2, size = size * 0.5f)
         }
@@ -446,7 +446,8 @@ fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier =
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(width = 46.dp, height = 28.dp).clip(CircleShape).background(track)) {
-            Box(Modifier.offset(x = x, y = 3.dp).size(22.dp).clip(CircleShape).background(Color.White))
+            // On the yellow track the knob is black (white on yellow is ~1.6:1).
+            Box(Modifier.offset(x = x, y = 3.dp).size(22.dp).clip(CircleShape).background(if (checked && onColor == c.pine) c.onPine else Color.White))
         }
     }
 }
@@ -497,12 +498,12 @@ fun FieldRow(
         Text(label, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = labelColor)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) { PcIcon(icon, null, size = 18.dp, tint = c.pine); Spacer(Modifier.width(8.dp)) }
+            if (icon != null) { PcIcon(icon, null, size = 18.dp, tint = c.accentInk); Spacer(Modifier.width(8.dp)) }
             Box(Modifier.weight(1f).defaultMinSize(minHeight = 28.dp), contentAlignment = Alignment.CenterStart) {
                 if (value.isEmpty()) Text(placeholder, style = style, color = c.ink3)
                 BasicTextField(
                     value = value, onValueChange = { if (it.length <= maxLength) onValue(it) }, singleLine = singleLine,
-                    textStyle = style.copy(color = c.ink), cursorBrush = SolidColor(c.pine),
+                    textStyle = style.copy(color = c.ink), cursorBrush = SolidColor(c.ink),
                     keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -533,11 +534,11 @@ fun BoxedInput(value: String, onValue: (String) -> Unit, placeholder: String, mo
     val focused by src.collectIsFocusedAsState()
     val shape = RoundedCornerShape(if (singleLine && minLines <= 1) PcTokens.radiusPill else RadiusField)
     Row(modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clip(shape).background(c.raised)
-        .border(if (focused) 1.5.dp else 1.dp, if (focused) c.pine else c.rule, shape).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        .border(if (focused) 1.5.dp else 1.dp, if (focused) c.ink else c.rule, shape).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (leadingIcon != null) { PcIcon(leadingIcon, null, size = 18.dp, tint = c.ink2); Spacer(Modifier.width(10.dp)) }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) Text(placeholder, style = style, color = c.ink3, maxLines = if (singleLine) 1 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis)
-            BasicTextField(value, onValue, singleLine = singleLine, minLines = minLines, textStyle = style.copy(color = c.ink), cursorBrush = SolidColor(c.pine),
+            BasicTextField(value, onValue, singleLine = singleLine, minLines = minLines, textStyle = style.copy(color = c.ink), cursorBrush = SolidColor(c.ink),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType), interactionSource = src, modifier = Modifier.fillMaxWidth())
         }
     }
@@ -585,7 +586,7 @@ fun NavRow(title: String, subtitle: String? = null, icon: ImageVector? = null, o
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (danger) c.red.copy(alpha = 0.08f) else c.tonal), contentAlignment = Alignment.Center) {
-                PcIcon(icon, null, tint = if (danger) c.red else c.pine, size = 20.dp)
+                PcIcon(icon, null, tint = if (danger) c.red else c.accentInk, size = 20.dp)
             }
             Spacer(Modifier.width(14.dp))
         }
@@ -593,7 +594,7 @@ fun NavRow(title: String, subtitle: String? = null, icon: ImageVector? = null, o
             Text(title, style = Pc.type.bodyStrong, color = if (danger) c.red else c.ink)
             if (subtitle != null) Text(subtitle, style = Pc.type.small, color = c.ink2)
         }
-        if (trailing != null) Text(trailing, style = Pc.type.smallStrong, color = c.pine, modifier = Modifier.padding(end = 6.dp))
+        if (trailing != null) Text(trailing, style = Pc.type.smallStrong, color = c.accentInk, modifier = Modifier.padding(end = 6.dp))
         if (!danger) PcIcon(PcIcons.ChevronRight, null, tint = c.ink3, size = 18.dp)
     }
 }

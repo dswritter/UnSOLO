@@ -106,7 +106,7 @@ class AppNav(
         val url = if (pathOrUrl.startsWith("https://")) pathOrUrl else DeepLinks.WEB + pathOrUrl
         val uri = Uri.parse(url)
         if (uri.host != "unsolo.in" && uri.host != "www.unsolo.in") return
-        val colors = CustomTabColorSchemeParams.Builder().setToolbarColor((if (dark) 0xFF0B1A15 else 0xFFF4FAF7).toInt()).build()
+        val colors = CustomTabColorSchemeParams.Builder().setToolbarColor((if (dark) 0xFF0F0F0F else 0xFFFAFAF7).toInt()).build()
         runCatching {
             CustomTabsIntent.Builder().setShowTitle(true).setDefaultColorSchemeParams(colors).build().launchUrl(context, uri)
         }.onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }

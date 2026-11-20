@@ -199,7 +199,7 @@ fun TribeScreen(nav: AppNav) {
             if (f.caughtUp) {
                 item(key = "caught", contentType = "end") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(48.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.pine) }
+                        Box(Modifier.size(48.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.accentInk) }
                         Spacer(Modifier.height(10.dp))
                         Text("You're caught up", style = Pc.type.title2, color = c.ink)
                         Text("New plans and stories show up here. Meanwhile, the next departures:", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 32.dp), textAlign = TextAlign.Center)
@@ -487,7 +487,7 @@ private fun PlanBody(p: Post) {
             style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp),
         )
         Row(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.tonal).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Shield, null, size = 18.dp, tint = c.pine)
+            PcIcon(PcIcons.Shield, null, size = 18.dp, tint = c.accentInk)
             Spacer(Modifier.width(10.dp))
             Text("Meet first in a public place. Share the plan with someone you trust.", style = Pc.type.small, color = c.ink)
         }
@@ -505,7 +505,7 @@ private fun Reactions(p: Post, onReact: (String) -> Unit) {
         ).forEach { (spec, count) ->
             val (k, label, icon) = spec
             val on = k in p.myReactions
-            val tint = if (on) (if (k == ReactionKind.LOVE) c.rose else c.pine) else c.ink2
+            val tint = if (on) (if (k == ReactionKind.LOVE) c.rose else c.accentInk) else c.ink2
             Box(Modifier.height(48.dp).clickable(role = Role.Checkbox, onClickLabel = label) { onReact(k) }, contentAlignment = Alignment.Center) {
                 Row(Modifier.height(38.dp).clip(CircleShape).background(if (on) (if (k == ReactionKind.LOVE) c.roseSoft else c.pineSoft) else c.raised)
                     .border(1.dp, if (on) Color.Transparent else c.rule, CircleShape).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -520,12 +520,12 @@ private fun Reactions(p: Post, onReact: (String) -> Unit) {
     }
 }
 
-/** The host's top answer, pinned above the thread with a pine rule. */
+/** The host's top answer, pinned above the thread with a gold (host) rule. */
 @Composable
 private fun HostAnswer(cm: Comment) {
     val c = Pc.colors
     Row(Modifier.padding(horizontal = Gutter, vertical = 8.dp).height(IntrinsicSize.Min)) {
-        Box(Modifier.width(3.dp).fillMaxHeight().clip(CircleShape).background(c.pine))
+        Box(Modifier.width(3.dp).fillMaxHeight().clip(CircleShape).background(c.gold))
         Column(Modifier.padding(start = 12.dp, top = 2.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Avatar(cm.author, 20.dp)
@@ -612,7 +612,7 @@ fun RequestRow(r: JoinRequestItem, onDecide: (String, Boolean) -> Unit, onProfil
                 PcButton("Decline", { onDecide(r.user.id, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
                 PcButton("Approve", { onDecide(r.user.id, true) }, Modifier.weight(1f), height = BtnSmall)
             }
-            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.pine)
+            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.accentInk)
             else -> Text(r.state.replaceFirstChar { it.uppercase() }, style = Pc.type.smallStrong, color = c.ink2)
         }
     }

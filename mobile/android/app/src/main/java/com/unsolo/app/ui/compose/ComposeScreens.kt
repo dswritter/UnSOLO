@@ -95,7 +95,7 @@ private fun KindTile(icon: ImageVector, title: String, sub: String, modifier: Mo
     val shape = RoundedCornerShape(22.dp)
     Column(modifier.heightIn(min = 132.dp).clip(shape).background(c.raised).border(1.dp, c.rule, shape).clickable(role = Role.Button, onClickLabel = "New $title", onClick = onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.pine, size = 21.dp) }
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.accentInk, size = 21.dp) }
         Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 16.sp), color = c.ink)
         Text(sub, style = Pc.type.small, color = c.ink2)
     }
@@ -236,13 +236,13 @@ fun ComposeScreen(kindArg: String, nav: AppNav) {
                 override fun isSelectableYear(year: Int) = year >= LocalDate.now().year
             },
         )
-        val colors = DatePickerDefaults.colors(containerColor = c.raised, selectedDayContainerColor = c.pine, selectedDayContentColor = c.onPine, todayDateBorderColor = c.pine, dayInSelectionRangeContainerColor = c.pineSoft, todayContentColor = c.ink)
+        val colors = DatePickerDefaults.colors(containerColor = c.raised, selectedDayContainerColor = c.pine, selectedDayContentColor = c.onPine, todayDateBorderColor = c.ink, dayInSelectionRangeContainerColor = c.pineSoft, todayContentColor = c.ink)
         DatePickerDialog(onDismissRequest = { dates = false }, colors = colors, confirmButton = {
             TextButton({
                 state.selectedStartDateMillis?.let { vm.startsOn = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
                 vm.endsOn = state.selectedEndDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() } ?: vm.startsOn
                 dates = false
-            }) { Text("Done", style = Pc.type.bodyStrong, color = c.pine) }
+            }) { Text("Done", style = Pc.type.bodyStrong, color = c.accentInk) }
         }, dismissButton = { TextButton({ dates = false }) { Text("Cancel", style = Pc.type.body, color = c.ink) } }) {
             DateRangePicker(state, Modifier.weight(1f), colors = colors, showModeToggle = false)
         }
@@ -265,7 +265,7 @@ private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: S
     Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = 26.dp), contentAlignment = Alignment.CenterStart) {
         if (value.isEmpty()) Text(placeholder, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3.copy(alpha = 0.72f))
         androidx.compose.foundation.text.BasicTextField(value, { if (it.length <= maxLength) onValue(it) }, singleLine = singleLine, textStyle = style.copy(color = c.ink),
-            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.pine), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth())
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.ink), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -285,7 +285,7 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
     Field("Title") { InlineInput(vm.title, { vm.title = it }, "Tosh & Kalga weekend", 90) }
     Field("Where to?") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.pine); Spacer(Modifier.width(6.dp))
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.accentInk); Spacer(Modifier.width(6.dp))
             InlineInput(vm.place, { vm.place = it }, "Spiti Valley", 80)
         }
     }
@@ -343,7 +343,7 @@ private fun PhotoStrip(photos: List<Uri>, onAdd: () -> Unit, onRemove: (Uri) -> 
                 }
             }
             if (photos.size < 6) Column(Modifier.size(84.dp).pencilledCard(radius = 16.dp).clickable(role = Role.Button, onClickLabel = "Add photos", onClick = onAdd), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                PcIcon(PcIcons.Camera, null, size = 20.dp, tint = c.pine)
+                PcIcon(PcIcons.Camera, null, size = 20.dp, tint = c.accentInk)
                 Text("Add photos", style = Pc.type.label, color = c.ink2)
             }
         }
@@ -363,7 +363,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
         past.forEach { b ->
             val sel = vm.trip?.id == b.trip.id
             val shape = RoundedCornerShape(16.dp)
-            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(shape).background(if (sel) c.pineSoft else c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.pine else c.rule, shape)
+            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(shape).background(if (sel) c.pineSoft else c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.ink else c.rule, shape)
                 .clickable { vm.trip = if (sel) null else b.trip; vm.tagged.clear() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ProgressiveImage(b.trip.image, Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)))
                 Spacer(Modifier.width(10.dp))
@@ -371,7 +371,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
                     Text(b.trip.title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
                     Text("Went · ${Fmt.dayMonth(b.travelDate)} · ${b.trip.host?.name.orEmpty()}", style = Pc.type.small, color = c.ink2)
                 }
-                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.pine)
+                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.accentInk)
             }
         }
         if (vm.trip == null) { Spacer(Modifier.height(4.dp)); BoxedInput(vm.place, { vm.place = it.take(80) }, "Or a place", leadingIcon = PcIcons.Pin) }
@@ -385,7 +385,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
                     val on = u in vm.tagged
                     Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Checkbox, onClickLabel = if (on) "Untag ${u.firstName}" else "Tag ${u.firstName}") { if (on) vm.tagged.remove(u) else vm.tagged.add(u) }.padding(4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(50.dp).clip(CircleShape).border(2.dp, if (on) c.pine else Color.Transparent, CircleShape).padding(3.dp)) {
+                        Box(Modifier.size(50.dp).clip(CircleShape).border(2.dp, if (on) c.ink else Color.Transparent, CircleShape).padding(3.dp)) {
                             Avatar(u, 44.dp, Modifier.alpha(if (on) 1f else 0.55f))
                             if (on) Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.onPine, size = 11.dp) }
                         }
@@ -418,15 +418,15 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
             }
         }
         if (vm.pollOptions.size < 4) Row(Modifier.clip(CircleShape).clickable(role = Role.Button) { vm.pollOptions.add("") }.defaultMinSize(minHeight = 44.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.PlusCircle, null, size = 20.dp, tint = c.pine)
+            PcIcon(PcIcons.PlusCircle, null, size = 20.dp, tint = c.accentInk)
             Spacer(Modifier.width(6.dp))
-            Text("Add option", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp), color = c.pine)
+            Text("Add option", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp), color = c.accentInk)
         }
         Text("Polls stay open for 3 days. Everyone sees the results after voting.", style = Pc.type.small, color = c.ink2)
     }
     Field("Place") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.pine); Spacer(Modifier.width(6.dp))
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.accentInk); Spacer(Modifier.width(6.dp))
             InlineInput(vm.place, { vm.place = it }, "Kasol, Parvati Valley", 80)
         }
     }

@@ -177,18 +177,18 @@ fun PcBottomBar(selected: String?, tabs: List<TabSpec>, me: UserLite?, onSelect:
                 tabs.forEachIndexed { i, t ->
                     if (i == 2) Spacer(Modifier.weight(1f))
                     val isSel = selected == t.route
-                    val pill by animateColorAsState(if (isSel) c.tonal else Color.Transparent, tween(PcTokens.motionStandard), label = "pill")
+                    val pill by animateColorAsState(if (isSel) c.pineSoft else Color.Transparent, tween(PcTokens.motionStandard), label = "pill")
                     Column(
                         Modifier.weight(1f).fillMaxHeight().clickable(role = Role.Tab, onClickLabel = t.label) { onSelect(t.route) }.semantics { this.selected = isSel },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         Box(Modifier.size(width = 52.dp, height = 30.dp).clip(CircleShape).background(pill), contentAlignment = Alignment.Center) {
-                            if (t.route == "you" && me != null) Avatar(me, 24.dp, border = if (isSel) c.pine else Color.Transparent)
-                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.pine else c.ink3, size = 23.dp)
+                            if (t.route == "you" && me != null) Avatar(me, 24.dp, border = if (isSel) c.ink else Color.Transparent)
+                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.accentInk else c.ink3, size = 23.dp)
                             if (t.badge > 0) CountBadge(t.badge, Modifier.align(Alignment.TopEnd).offset(4.dp, (-6).dp))
                         }
                         Spacer(Modifier.height(3.dp))
-                        Text(t.label, style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.ink else c.ink3, maxLines = 1)
+                        Text(t.label, style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.accentInk else c.ink3, maxLines = 1)
                     }
                 }
             }
@@ -205,7 +205,7 @@ private fun PostTab(onPost: () -> Unit, modifier: Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(60.dp).clip(CircleShape).background(c.paper), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(52.dp).shadow(6.dp, CircleShape, ambientColor = c.pine.copy(alpha = 0.3f), spotColor = c.pine.copy(alpha = 0.45f)).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(52.dp).shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.2f), spotColor = Color.Black.copy(alpha = 0.3f)).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
                 PcIcon(PcIcons.Plus, null, tint = c.onPine, size = 26.dp)
             }
         }

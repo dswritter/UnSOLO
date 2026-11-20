@@ -113,7 +113,7 @@ fun ActivityScreen(nav: AppNav) {
                             n.type in JoinTypes && n.postId != null && n.actorId != null -> when {
                                 decided[n.id] != null || (actorState != null && actorState != "requested") -> {
                                     val ok = decided[n.id] ?: (actorState == "approved")
-                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.pine else Pc.colors.ink2)
+                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.accentInk else Pc.colors.ink2)
                                 }
                                 else -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     PcButton("Decline", { vm.decideFrom(n, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
@@ -160,7 +160,7 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, actions: @Co
         Row(verticalAlignment = Alignment.Top) {
             Box {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(if (n.isRead) c.tonal else c.pineSoft), contentAlignment = Alignment.Center) {
-                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.pine)
+                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.accentInk)
                 }
                 if (!n.isRead) Box(Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp).size(12.dp).clip(CircleShape).background(c.raised).padding(2.dp).clip(CircleShape).background(c.rose))
             }
@@ -253,7 +253,7 @@ private fun ChatAvatar(ch: ChatSummary, circle: CircleInfo?, size: androidx.comp
     val c = Pc.colors
     when {
         circle != null -> SeatRing(circle.total, circle.othersTaken, size, you = if (circle.you) YouSeat.You else YouSeat.None, plan = circle.plan, women = circle.women, past = circle.past, photo = ch.image, dots = false, animate = false)
-        ch.type != "direct" -> Box(Modifier.size(size).clip(CircleShape).border(2.dp, c.pine, CircleShape).padding(4.dp)) { if (ch.image != null) ProgressiveImage(ch.image, Modifier.fillMaxSize().clip(CircleShape)) else Avatar(UserLite("x", name = ch.name), size - 8.dp) }
+        ch.type != "direct" -> Box(Modifier.size(size).clip(CircleShape).border(2.dp, c.taken, CircleShape).padding(4.dp)) { if (ch.image != null) ProgressiveImage(ch.image, Modifier.fillMaxSize().clip(CircleShape)) else Avatar(UserLite("x", name = ch.name), size - 8.dp) }
         ch.image != null -> ProgressiveImage(ch.image, Modifier.size(size).clip(CircleShape))
         else -> Avatar(UserLite("x", name = ch.name), size)
     }

@@ -151,10 +151,11 @@ data class RingData(
  * HELD the dashed one. A request from [meId] waits outside the ring; other people's requests
  * still count as open seats.
  */
-fun ringFromSeats(seats: List<Seat>, meId: String? = null, hostIsBadge: Boolean = false): RingData {
-    // Hosted trips: the API lists the host as an extra seat (total + 1); the host is the badge, not a seat.
+fun ringFromSeats(seats: List<Seat>, meId: String? = null, seatsTotal: Int? = null): RingData {
+    // Hosted trips: /trips/{slug} lists the host as an extra seat (seatsTotal + 1). The host is the badge,
+    // not a seat, so drop that entry only when the list is longer than the trip's seat count.
     @Suppress("NAME_SHADOWING")
-    val seats = if (hostIsBadge) seats.filter { it.state != SeatState.HOST } else seats
+    val seats = if (seatsTotal != null && seats.size > seatsTotal) seats.filter { it.state != SeatState.HOST } else seats
     val taken = seats.filter { it.state == SeatState.HOST || it.state == SeatState.ORGANISER }.map { it.user } +
         seats.filter { it.state == SeatState.MEMBER }.map { it.user }
     val youSeat = seats.firstOrNull { it.state == SeatState.YOU }
@@ -233,7 +234,7 @@ fun SeatRing(
     val full = filled >= n && total > 0
     val g = remember(size, n, badge != null) { RingGeometry(size.value, n, badge != null) }
 
-    val takenCol = when { full -> c.full; women -> c.rose; else -> c.pine }.let { if (past) it.desaturated() else it }
+    val takenCol = when { full -> c.full; women -> c.rose; else -> c.taken }.let { if (past) it.desaturated() else it }
     val openCol = (if (women) c.roseOpen else c.seatOpen).let { if (past) it.desaturated() else it }
     val goldCol = if (past) c.gold.desaturated() else c.gold
     val strokeCol = c.ink
@@ -274,7 +275,7 @@ fun SeatRing(
             when {
                 photo != null -> ProgressiveImage(photo, Modifier.fillMaxSize(), colorFilter = if (past) grayscale else null)
                 centerUser?.avatarUrl != null -> AsyncImage(ImageRequest.Builder(LocalContext.current).data(centerUser.avatarUrl).build(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, colorFilter = if (past) grayscale else null)
-                centerUser != null && centerLabel == null -> Text(centerUser.initials, style = Pc.type.numLarge.copy(fontSize = (g.r0 * 0.6f).coerceIn(10f, 40f).sp), color = c.pine, modifier = Modifier.align(Alignment.Center))
+                centerUser != null && centerLabel == null -> Text(centerUser.initials, style = Pc.type.numLarge.copy(fontSize = (g.r0 * 0.6f).coerceIn(10f, 40f).sp), color = c.accentInk, modifier = Modifier.align(Alignment.Center))
             }
         }
 
@@ -344,7 +345,7 @@ fun SeatRing(
                         } else {
                             val label = if (isYou) "You" else person?.initials.orEmpty()
                             Text(label, style = Pc.type.label.copy(fontSize = max(8f, dd * (if (isYou) 0.3f else 0.36f)).sp, fontWeight = FontWeight.Bold),
-                                color = if (isYou) c.onGold else if (full) c.onGold else Color.White, maxLines = 1, softWrap = false)
+                                color = if (isYou) c.onGold else if (full || women) Color.White else c.raised, maxLines = 1, softWrap = false)
                         }
                     }
                 }
@@ -435,7 +436,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
     val n = total.coerceAtLeast(1)
     val k = taken.coerceIn(0, n)
     val full = k >= n && total > 0
-    val prog = when { full -> c.full; women -> c.rose; else -> c.pine }.let { if (past) it.desaturated() else it }
+    val prog = when { full -> c.full; women -> c.rose; else -> c.taken }.let { if (past) it.desaturated() else it }
     val open = (if (women) c.roseOpen else c.seatOpen).let { if (past) it.desaturated() else it }
     Box(modifier.size(size).semantics { contentDescription = "$k of $total seats taken" }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
@@ -450,7 +451,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
 }
 
 /**
- * Story ring: one arc per story, pine for unseen and rule2 for seen; yours is gold. The avatar
+ * Story ring: one arc per story, gold for unseen and rule for seen; yours is ink with a +. The avatar
  * sits 6dp inside.
  */
 @Composable
@@ -465,7 +466,7 @@ fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Mo
             val span = 360f / segs
             for (i in 0 until segs) {
                 val isSeen = !mine && i < seen
-                val col = if (mine) c.gold else if (isSeen) c.rule2 else c.pine
+                val col = if (mine) c.ink else if (isSeen) c.rule else c.gold
                 val w = (if (isSeen) 2f else 3f).dp.toPx()
                 if (segs == 1) drawCircle(col, rr, center, style = Stroke(w))
                 else drawArc(col, -90f + i * span + gapDeg / 2f, span - gapDeg, false, tl, Size(rr * 2, rr * 2), style = Stroke(w, cap = StrokeCap.Round))

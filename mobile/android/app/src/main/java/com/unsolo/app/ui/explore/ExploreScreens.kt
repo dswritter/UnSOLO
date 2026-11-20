@@ -261,8 +261,8 @@ fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, mo
         Spacer(Modifier.weight(1f))
         Box(Modifier.size(44.dp).clip(CircleShape).background(c.pine).semantics { contentDescription = "Filters" }, contentAlignment = Alignment.Center) {
             PcIcon(PcIcons.Sliders, null, tint = c.onPine, size = 20.dp)
-            if (filters > 0) Box(Modifier.align(Alignment.TopEnd).size(16.dp).clip(CircleShape).background(c.gold), contentAlignment = Alignment.Center) {
-                Text("$filters", style = Pc.type.label.copy(fontSize = 10.sp, fontWeight = FontWeight.ExtraBold), color = c.onGold)
+            if (filters > 0) Box(Modifier.align(Alignment.TopEnd).size(16.dp).clip(CircleShape).background(c.onPine), contentAlignment = Alignment.Center) {
+                Text("$filters", style = Pc.type.label.copy(fontSize = 10.sp, fontWeight = FontWeight.ExtraBold), color = c.pine)
             }
         }
     }
@@ -339,7 +339,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
     Column(modifier.fillMaxWidth().raisedCard().clickable(onClickLabel = "Open ${t.title}", onClick = onOpen).padding(8.dp)) {
         Box(Modifier.fillMaxWidth().height(196.dp).clip(RoundedCornerShape(PcTokens.radiusImage))) {
             ProgressiveImage(t.image, Modifier.fillMaxSize(), t.title)
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(70.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x470B1A15)))))
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(70.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x47111111)))))
             DateChip(t.nextDeparture, Modifier.align(Alignment.TopStart).padding(12.dp))
             GlassButton(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", onSave, Modifier.align(Alignment.TopEnd).padding(6.dp), tint = if (saved) c.rose else c.ink)
             if (label != null) Text(label, style = Pc.type.label.copy(fontWeight = FontWeight.Bold), color = c.ink,
@@ -380,7 +380,7 @@ fun TribeBridgeRow(count: Int, place: String, stories: Int, faces: List<UserLite
             Text("$count people are planning ${place.substringBefore(',')}", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (stories > 0) "$stories stories from people who went · Tribe" else "See their plans in Tribe", style = Pc.type.small, color = c.ink2)
         }
-        PcIcon(PcIcons.ArrowRight, null, size = 18.dp, tint = c.pine)
+        PcIcon(PcIcons.ArrowRight, null, size = 18.dp, tint = c.accentInk)
     }
 }
 
@@ -392,7 +392,7 @@ private fun SuggestionRail(items: List<Suggestion>, onNearMe: () -> Unit, onTap:
         LazyRow(contentPadding = PaddingValues(horizontal = Gutter, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "near") {
                 Column(Modifier.width(150.dp).height(128.dp).clip(RoundedCornerShape(PcTokens.radiusCard)).background(c.tonal).clickable(onClickLabel = "Suggestions near you", onClick = onNearMe).padding(16.dp)) {
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(c.raised), contentAlignment = Alignment.Center) { PcIcon(PcIcons.NearMe, null, size = 20.dp, tint = c.pine) }
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(c.raised), contentAlignment = Alignment.Center) { PcIcon(PcIcons.NearMe, null, size = 20.dp, tint = c.accentInk) }
                     Spacer(Modifier.weight(1f))
                     Text("Near you", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
                     Text("Approximate location", style = Pc.type.small, color = c.ink2)
@@ -404,7 +404,7 @@ private fun SuggestionRail(items: List<Suggestion>, onNearMe: () -> Unit, onTap:
                     ?: s.post?.let { p -> "Plan · ${Fmt.range(p.startsOn, p.endsOn)}" } ?: ""
                 val plan = s.type == "plan"
                 Column(Modifier.width(210.dp).height(128.dp).then(if (plan) Modifier.pencilledCard() else Modifier.raisedCard()).clickable { onTap(s) }.padding(16.dp)) {
-                    Text(s.reason, style = Pc.type.label, color = c.pine, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(s.reason, style = Pc.type.label, color = c.accentInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(6.dp))
                     Text(title, style = Pc.type.title3, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.weight(1f))
@@ -454,7 +454,7 @@ fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: S
             Text(listOfNotNull(t.seatsLeft?.let { if (it == 0) "Full" else "$it seat${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
         }
         Box(Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onTake).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-            Text("Take a seat →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp), color = c.pine, maxLines = 1)
+            Text("Take a seat →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp), color = c.accentInk, maxLines = 1)
         }
     }
 }
@@ -550,7 +550,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
     val images = detail?.images?.ifEmpty { null } ?: listOfNotNull(t.image)
     val date = selected ?: t.nextDeparture
     val dep = detail?.departures?.firstOrNull { it.date == date }
-    val ring = if (date == t.nextDeparture && !detail?.seats.isNullOrEmpty()) ringFromSeats(detail!!.seats, me?.user?.id, hostIsBadge = true)
+    val ring = if (date == t.nextDeparture && !detail?.seats.isNullOrEmpty()) ringFromSeats(detail!!.seats, me?.user?.id, seatsTotal = dep?.seatsTotal ?: t.seatsTotal)
         else if (dep != null) ringFromCounts(dep.seatsTotal, dep.seatsLeft) else ringFromCounts(t.seatsTotal, t.seatsLeft)
     val left = dep?.seatsLeft ?: t.seatsLeft ?: (ring.total - ring.filled)
     val coverH = (LocalConfiguration.current.screenHeightDp * 0.45f).dp
@@ -564,8 +564,8 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 val pager = rememberPagerState { images.size.coerceAtLeast(1) }
                 Box(Modifier.fillMaxWidth().height(coverH)) {
                     HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i -> ProgressiveImage(images.getOrNull(i), Modifier.fillMaxSize(), t.title) }
-                    Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(140.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x590B1A15)))))
-                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(110.dp).background(Brush.verticalGradient(listOf(Color(0x400B1A15), Color.Transparent))))
+                    Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(140.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x59111111)))))
+                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(110.dp).background(Brush.verticalGradient(listOf(Color(0x40111111), Color.Transparent))))
                     Row(Modifier.statusBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp).fillMaxWidth()) {
                         GlassButton(PcIcons.Back, "Back", { nav.back() })
                         Spacer(Modifier.weight(1f))
@@ -629,7 +629,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                             val sel = d.date == date
                             val full = d.seatsLeft <= 0
                             val shape = RoundedCornerShape(RadiusField)
-                            Row(Modifier.fillMaxWidth().clip(shape).background(c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.pine else c.rule, shape)
+                            Row(Modifier.fillMaxWidth().clip(shape).background(c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.ink else c.rule, shape)
                                 .clickable(role = Role.RadioButton) { vm.selectedDate.value = d.date }.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 MiniArc(d.seatsTotal, d.seatsTotal - d.seatsLeft, size = 38.dp)
                                 Spacer(Modifier.width(12.dp))
@@ -637,7 +637,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                                     Text(Fmt.dowDayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = c.ink)
                                     Text(if (full) "Full" else "${d.seatsLeft} open", style = Pc.type.small, color = if (full) c.full else c.ink2)
                                 }
-                                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", tint = c.pine, size = 22.dp)
+                                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", tint = c.accentInk, size = 22.dp)
                             }
                         }
                     }
@@ -651,7 +651,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                         includes.forEachIndexed { i, inc ->
                             if (i > 0) InsetRule(start = 52.dp)
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(24.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, size = 14.dp, tint = c.pine) }
+                                Box(Modifier.size(24.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, size = 14.dp, tint = c.accentInk) }
                                 Spacer(Modifier.width(12.dp))
                                 Text(inc, style = Pc.type.body, color = c.ink)
                             }

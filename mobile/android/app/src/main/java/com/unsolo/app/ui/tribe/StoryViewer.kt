@@ -168,7 +168,7 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val caption = post.title ?: post.body.take(90)
             if (caption.isNotBlank()) Text(caption, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp), color = Color.White,
-                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x6B0B1A15)).padding(horizontal = 14.dp, vertical = 10.dp))
+                modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
             val t = post.trip
             val plan = plans[post.author.id]
             when {
@@ -186,7 +186,7 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
                 )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f).height(48.dp).clip(CircleShape).background(Color(0x6B0B1A15)).border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.weight(1f).height(48.dp).clip(CircleShape).background(Color(0x6B111111)).border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                     if (text.isEmpty()) Text("Reply to ${post.author.firstName}…", style = Pc.type.body.copy(fontSize = 14.sp), color = Color.White.copy(alpha = 0.85f))
                     BasicTextField(text, { text = it.take(1000) }, singleLine = true, textStyle = Pc.type.body.copy(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White),
                         interactionSource = src, modifier = Modifier.fillMaxWidth())
@@ -216,13 +216,13 @@ private fun StoryLink(lead: @Composable () -> Unit, title: String, sub: String, 
             Text(sub, style = Pc.type.label.copy(fontWeight = FontWeight.Medium), color = c.ink2, maxLines = 1)
         }
         Spacer(Modifier.width(10.dp))
-        Text(cta, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold), color = c.pine, maxLines = 1)
+        Text(cta, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold), color = c.accentInk, maxLines = 1)
     }
 }
 
 @Composable
 private fun QuickReact(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, tint: Color, onClick: () -> Unit) {
-    Box(Modifier.padding(start = 6.dp).size(48.dp).clip(CircleShape).background(Color(0x6B0B1A15)).clickable(role = Role.Button, onClickLabel = label, onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(start = 6.dp).size(48.dp).clip(CircleShape).background(Color(0x6B111111)).clickable(role = Role.Button, onClickLabel = label, onClick = onClick), contentAlignment = Alignment.Center) {
         PcIcon(icon, label, tint = tint, size = 24.dp)
     }
 }

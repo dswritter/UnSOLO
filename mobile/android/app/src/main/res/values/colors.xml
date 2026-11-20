@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Full Circle base / ink / sun (design/tokens.json). Used before Compose draws (window, splash). -->
-    <color name="pc_paper">#F4FAF7</color>
-    <color name="pc_ink">#0B1A15</color>
+    <!-- Base / ink / primary yellow (design/tokens.json). Used before Compose draws (window, splash, launcher). -->
+    <color name="pc_paper">#FAFAF7</color>
+    <color name="pc_ink">#111111</color>
     <color name="pc_gold">#FCBA12</color>
-    <color name="pc_pine">#0E5A47</color>
-    <color name="pc_pine_launcher">#0E5A47</color>
+    <color name="pc_launcher_bg">#111111</color>
 </resources>

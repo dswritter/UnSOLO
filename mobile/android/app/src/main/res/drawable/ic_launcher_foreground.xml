@@ -1,9 +1,9 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <!-- Full Circle: three taken seats, your gold seat, and the open track (on a pine background). -->
-    <path android:strokeColor="#7FB8A3" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M56.44,34.15 A20,20 0 1,1 51.56,34.15" />
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M56.44,34.15 A20,20 0 0,1 69.97,41.96" />
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M72.41,46.19 A20,20 0 0,1 72.41,61.81" />
-    <path android:strokeColor="#FFFFFF" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M69.97,66.04 A20,20 0 0,1 56.44,73.85" />
-    <path android:strokeColor="#0B1A15" android:strokeWidth="9" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M51.56,73.85 A20,20 0 0,1 38.03,66.04" />
+    <!-- UnSOLO launcher: three taken seats (off-white), your gold seat and the open track, on a black background. -->
+    <path android:strokeColor="#6B6860" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M56.44,34.15 A20,20 0 1,1 51.56,34.15" />
+    <path android:strokeColor="#F5F3EE" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M56.44,34.15 A20,20 0 0,1 69.97,41.96" />
+    <path android:strokeColor="#F5F3EE" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M72.41,46.19 A20,20 0 0,1 72.41,61.81" />
+    <path android:strokeColor="#F5F3EE" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M69.97,66.04 A20,20 0 0,1 56.44,73.85" />
+    <path android:strokeColor="#111111" android:strokeWidth="9" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M51.56,73.85 A20,20 0 0,1 38.03,66.04" />
     <path android:strokeColor="#FCBA12" android:strokeWidth="6" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M51.56,73.85 A20,20 0 0,1 38.03,66.04" />
 </vector>
