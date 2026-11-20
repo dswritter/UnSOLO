@@ -49,11 +49,14 @@ describe('119–121: Tribe community, trust & safety, platform', () => {
       ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
       CREATE POLICY "System can create notifications" ON notifications FOR INSERT WITH CHECK (true);
       CREATE POLICY "Users see own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
-      CREATE TABLE messages(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), room_id uuid, user_id uuid, content text);
+      CREATE TABLE messages(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), room_id uuid, user_id uuid, content text,
+        message_type text DEFAULT 'text', created_at timestamptz DEFAULT now());
+      CREATE TABLE message_read_receipts(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), message_id uuid, user_id uuid,
+        read_at timestamptz DEFAULT now(), UNIQUE(message_id, user_id));
       CREATE TABLE chat_rooms(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL, type text,
         package_id uuid, created_by uuid, is_active boolean DEFAULT true);
       CREATE TABLE chat_room_members(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), room_id uuid, user_id uuid,
-        UNIQUE(room_id, user_id));
+        last_read timestamptz DEFAULT now(), UNIQUE(room_id, user_id));
       CREATE TABLE join_requests(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), trip_id uuid, user_id uuid,
         status text, message text, payment_deadline timestamptz, UNIQUE(trip_id, user_id));
       CREATE TABLE bookings(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, status text,
@@ -206,6 +209,13 @@ describe('119–121: Tribe community, trust & safety, platform', () => {
     const a = await as<{ r: { open_reports: number } }>(admin, `SELECT admin_analytics_overview(30) AS r`)
     expect(Number(a.rows[0].r.open_reports)).toBeGreaterThan(0)
     await expect(as(joiner, `SELECT admin_analytics_overview(30)`)).rejects.toThrow(/staff only/)
+  })
+
+  it('refuses to create DM rooms or read receipts on behalf of someone else', async () => {
+    await expect(as(joiner, `SELECT get_or_create_dm_room($1, $2)`, [organiser, woman])).rejects.toThrow(/not allowed/)
+    const r = await as<{ id: string }>(joiner, `SELECT get_or_create_dm_room($1, $2) AS id`, [joiner, host])
+    expect(r.rows[0].id).toBeTruthy()
+    await expect(as(joiner, `SELECT mark_room_messages_read($1, $2)`, [r.rows[0].id, host])).rejects.toThrow(/not allowed/)
   })
 
   it('expires stale requests and past plans', async () => {

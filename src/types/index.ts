@@ -46,6 +46,8 @@ export type AdminPermissionKey =
   | 'team'
   | 'phone_verifications'
   | 'trip_claims'
+  | 'moderation'
+  | 'analytics'
 
 export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   users: 'Manage Users',
@@ -64,13 +66,15 @@ export const ADMIN_PERMISSION_LABELS: Record<AdminPermissionKey, string> = {
   team: 'Team Management',
   phone_verifications: 'Phone Verifications (Foreign hosts)',
   trip_claims: 'Trip Claims & Companion Reviews',
+  moderation: 'Tribe Moderation (reports, hide/remove, sanctions)',
+  analytics: 'Analytics Dashboard',
 }
 
 /** Default permissions for each non-admin staff role. Admin always gets all. */
 export const ROLE_DEFAULT_PERMISSIONS: Partial<Record<UserRole, AdminPermissionKey[]>> = {
-  social_media_manager: ['bookings', 'requests', 'community_chats'],
+  social_media_manager: ['bookings', 'requests', 'community_chats', 'moderation'],
   field_person: ['bookings', 'requests'],
-  chat_responder: ['bookings', 'community_chats'],
+  chat_responder: ['bookings', 'community_chats', 'moderation'],
   host_onboarding_staff: ['service_listings', 'community_trips', 'phone_verifications', 'trip_claims'],
   user: [],
   // 'custom' resolved at runtime from team_members.custom_permissions

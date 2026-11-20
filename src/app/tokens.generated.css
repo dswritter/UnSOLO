@@ -1,0 +1,57 @@
+/* Generated from design/tokens.json by scripts/gen-design-tokens.mjs. Do not edit. */
+:root {
+  --pc-paper: #F4F0E6;
+  --pc-raised: #FBF9F3;
+  --pc-ink: #16181C;
+  --pc-ink2: #5F5B53;
+  --pc-ink3: #8C877C;
+  --pc-rule: #D8D1C1;
+  --pc-rule2: #B9B09B;
+  --pc-gold: #FCBA12;
+  --pc-gold-ink: #7A5800;
+  --pc-gold-bg: rgba(252, 186, 18, 0.18);
+  --pc-blue: #1E4FA0;
+  --pc-red: #B8321C;
+  --pc-green: #1F6E46;
+  --pc-on-ink: #F4F0E6;
+  --pc-on-gold: #16181C;
+  --pc-space-xs: 4px;
+  --pc-space-s: 8px;
+  --pc-space-m: 12px;
+  --pc-space-l: 16px;
+  --pc-space-xl: 24px;
+  --pc-space-xxl: 32px;
+  --pc-radius-s: 4px;
+  --pc-radius-m: 6px;
+  --pc-radius-pill: 999px;
+  --pc-touch: 44px;
+  --pc-seat: 36px;
+  --pc-seat-small: 28px;
+  --pc-seat-table: 16px;
+  --pc-hairline: 1px;
+  --pc-tab-bar: 64px;
+  --pc-top-bar: 56px;
+  --pc-motion-fast: 150ms;
+  --pc-motion-standard: 220ms;
+  --pc-motion-stamp: 340ms;
+  --pc-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --pc-ease-press: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --pc-content-max: 1280px;
+}
+.dark {
+  --pc-paper: #14161A;
+  --pc-raised: #1C1F24;
+  --pc-ink: #F1ECE0;
+  --pc-ink2: #AEA899;
+  --pc-ink3: #7E796E;
+  --pc-rule: #2E323A;
+  --pc-rule2: #474C56;
+  --pc-gold: #FCBA12;
+  --pc-gold-ink: #FCBA12;
+  --pc-gold-bg: rgba(252, 186, 18, 0.16);
+  --pc-blue: #7FA6E8;
+  --pc-red: #F07A62;
+  --pc-green: #6BC79A;
+  --pc-on-ink: #14161A;
+  --pc-on-gold: #16181C;
+}

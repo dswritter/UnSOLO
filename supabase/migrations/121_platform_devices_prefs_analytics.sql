@@ -362,4 +362,65 @@ RETURNS JSONB LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $
 $$;
 GRANT EXECUTE ON FUNCTION public.sync_changes(TIMESTAMPTZ) TO authenticated;
 
+-- ── Chat: idempotent sends from offline apps ─────────────────────────────
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_id ON messages (user_id, client_id) WHERE client_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_messages_room_created ON messages (room_id, created_at DESC);
+
+-- ── SECURITY FIX: these SECURITY DEFINER functions trusted the caller-supplied user id, so any
+-- signed-in user could create DM rooms between two other people (and add them) or write read
+-- receipts as someone else. Callers in src/ already pass their own id; require that.
+CREATE OR REPLACE FUNCTION get_or_create_dm_room(user_a UUID, user_b UUID)
+RETURNS UUID AS $$
+DECLARE
+  v_room_id UUID;
+BEGIN
+  IF auth.role() <> 'service_role' AND auth.uid() IS DISTINCT FROM user_a THEN
+    RAISE EXCEPTION 'not allowed';
+  END IF;
+  IF user_a = user_b THEN RAISE EXCEPTION 'cannot message yourself'; END IF;
+  IF public.is_blocked_between(user_a, user_b) THEN RAISE EXCEPTION 'not allowed'; END IF;
+
+  SELECT cr.id INTO v_room_id
+  FROM chat_rooms cr
+  WHERE cr.type = 'direct'
+    AND EXISTS (SELECT 1 FROM chat_room_members crm WHERE crm.room_id = cr.id AND crm.user_id = user_a)
+    AND EXISTS (SELECT 1 FROM chat_room_members crm2 WHERE crm2.room_id = cr.id AND crm2.user_id = user_b);
+
+  IF v_room_id IS NOT NULL THEN
+    RETURN v_room_id;
+  END IF;
+
+  INSERT INTO chat_rooms (name, type, created_by, is_active)
+  VALUES ('Direct Message', 'direct', user_a, true)
+  RETURNING id INTO v_room_id;
+
+  INSERT INTO chat_room_members (room_id, user_id) VALUES (v_room_id, user_a);
+  INSERT INTO chat_room_members (room_id, user_id) VALUES (v_room_id, user_b);
+
+  RETURN v_room_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION mark_room_messages_read(p_room_id UUID, p_user_id UUID)
+RETURNS void AS $$
+BEGIN
+  IF auth.role() <> 'service_role' AND auth.uid() IS DISTINCT FROM p_user_id THEN
+    RAISE EXCEPTION 'not allowed';
+  END IF;
+  INSERT INTO message_read_receipts (message_id, user_id)
+  SELECT m.id, p_user_id
+  FROM messages m
+  WHERE m.room_id = p_room_id
+    AND m.user_id != p_user_id
+    AND m.message_type != 'system'
+    AND NOT EXISTS (
+      SELECT 1 FROM message_read_receipts r
+      WHERE r.message_id = m.id AND r.user_id = p_user_id
+    )
+  ON CONFLICT (message_id, user_id) DO NOTHING;
+  UPDATE chat_room_members SET last_read = now() WHERE room_id = p_room_id AND user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
 NOTIFY pgrst, 'reload schema';

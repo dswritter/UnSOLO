@@ -11,12 +11,12 @@ import { refreshTravelStatsForBooking } from '@/lib/travel/refreshTravelStats'
 import { sendTokenBalanceReminderEmail } from '@/lib/resend/emails'
 import { isTokenDepositEnabled } from '@/lib/join-preferences'
 import type { JoinPreferences } from '@/types'
+import { isAuthorizedCron } from '@/lib/cron/auth'
 
 export async function POST(request: Request) {
   // Protect with secret
-  const authHeader = request.headers.get('authorization')
-  const secret = process.env.CRON_SECRET || 'unsolo-cron-secret'
-  if (authHeader !== `Bearer ${secret}`) {
+  // No hard-coded fallback: an unset CRON_SECRET must not leave this endpoint open.
+  if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
