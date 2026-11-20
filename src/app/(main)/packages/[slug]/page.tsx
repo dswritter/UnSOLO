@@ -808,9 +808,9 @@ export default async function PackageDetailPage({
           {isHost ? (
             <Link href="/host" className="pc-btn pc-btn-outline">Host dashboard</Link>
           ) : !user ? (
-            <Link href={`/login?redirectTo=/packages/${package_.slug}`} className="pc-btn">Take a seat</Link>
+            <Link href={`/login?redirectTo=/packages/${package_.slug}`} className="pc-btn pc-btn-sun">Take a seat</Link>
           ) : (
-            <a href="#trip-booking-card" className="pc-btn" aria-disabled={bookingsPaused || undefined}>
+            <a href="#trip-booking-card" className="pc-btn pc-btn-sun" aria-disabled={bookingsPaused || undefined}>
               {isCommunityTrip && !communityDirectCheckout ? 'Request a seat' : 'Take a seat'}
             </a>
           )}

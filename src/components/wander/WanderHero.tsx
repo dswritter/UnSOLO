@@ -109,7 +109,7 @@ export function WanderHero({
 
   return (
     <section className="relative w-full">
-      <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 pt-5 pb-2 sm:px-6 md:pt-6 lg:px-10">
+      <div className="mx-auto w-full max-w-[1440px] px-4 pt-5 pb-2 sm:px-6 md:pt-6 lg:px-10">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(24rem,1fr)] lg:items-stretch">
           {/* Photo fades into the page colour at the bottom, so copy sits on white in day and slate in dusk */}
           <div className="relative isolate flex min-h-[30rem] flex-col overflow-hidden rounded-[28px] text-foreground shadow-[0_24px_60px_rgba(15,23,42,0.22)]">

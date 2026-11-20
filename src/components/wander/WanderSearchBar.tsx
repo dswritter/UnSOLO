@@ -409,14 +409,14 @@ export function WanderSearchBar({
                 : 'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
               isPanel
                 ? tab === id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  ? 'bg-foreground text-background shadow-sm'
                   : 'text-muted-foreground hover:bg-card hover:text-foreground'
                 : isWander
                 ? tab === id
-                  ? 'bg-primary text-primary-foreground shadow-md'
+                  ? 'bg-foreground text-background shadow-md'
                   : 'bg-foreground/5 text-foreground/90 hover:bg-foreground/10 hover:text-foreground'
                 : tab === id
-                  ? 'bg-primary text-primary-foreground shadow-md'
+                  ? 'bg-foreground text-background shadow-md'
                   : 'bg-secondary/60 text-muted-foreground hover:text-foreground hover:bg-secondary',
             )}
           >

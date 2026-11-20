@@ -29,7 +29,7 @@ export async function DeparturesTable({ aside }: { aside?: React.ReactNode } = {
   const list = later.length >= 4 ? later : items.slice(Math.max(0, items.length - 5))
   return (
     <>
-      <section aria-labelledby="leaving-soon-h" className="mx-auto w-full max-w-[min(100%,1920px)] mt-4 md:mt-8 md:px-6 lg:px-10">
+      <section aria-labelledby="leaving-soon-h" className="mx-auto w-full max-w-[1440px] mt-4 md:mt-8 md:px-6 lg:px-10">
         <div className="pc-section-h px-4 pb-3 md:px-0">
           <div>
             <h2 id="leaving-soon-h" className="md:text-[34px]">Leaving soon</h2>
@@ -44,7 +44,7 @@ export async function DeparturesTable({ aside }: { aside?: React.ReactNode } = {
           {soon.map((t, i) => <TripRingCard key={t.id} trip={t} ringSize={100} priority={i < 3} />)}
         </div>
       </section>
-      <section aria-labelledby="this-month-h" className="mx-auto w-full max-w-[min(100%,1920px)] mt-8 grid gap-8 px-4 md:mt-12 md:px-6 lg:grid-cols-[1.55fr_1fr] lg:px-10">
+      <section aria-labelledby="this-month-h" className="mx-auto w-full max-w-[1440px] mt-8 grid gap-8 px-4 md:mt-12 md:px-6 lg:grid-cols-[1.55fr_1fr] lg:px-10">
         <div className="min-w-0">
           <div className="pc-section-h mb-1">
             <h2 id="this-month-h">Next few weeks</h2>

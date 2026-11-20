@@ -155,7 +155,7 @@ export function MobileBottomNav() {
 
   const itemClass = (isActive: boolean) => cn(
     'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 px-1 pt-1 text-[11.5px] font-semibold transition-colors [-webkit-tap-highlight-color:transparent]',
-    isActive ? 'text-[color:var(--pc-accent-ink)]' : 'text-[color:var(--pc-ink2)] hover:text-foreground',
+    isActive ? 'text-foreground' : 'text-[color:var(--pc-ink2)] hover:text-foreground',
   )
 
   return (
@@ -170,7 +170,7 @@ export function MobileBottomNav() {
               <span className="fc-tab-post" aria-hidden><Icon className="h-6 w-6 stroke-[2.5]" /></span>
               <span className="sr-only">{label}</span>
             </> : <>
-              <span className={cn('relative inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors', isActive && 'bg-[color:var(--pc-pine-soft)]')}>
+              <span className={cn('relative inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors', isActive && 'bg-[color:var(--pc-tonal)]')}>
                 {id === 'you' && profile?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.avatar_url} alt="" className={cn('h-6 w-6 rounded-full object-cover', isActive && 'ring-2 ring-[color:var(--pc-ink)]')} />

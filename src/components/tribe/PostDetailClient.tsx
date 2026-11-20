@@ -334,7 +334,7 @@ function PlanBarAction({ post, openSpots, signedIn, onJoin, onWithdraw }: { post
         <b className="block text-[14px]">{openSpots > 0 ? `${openSpots} ${openSpots === 1 ? 'spot' : 'spots'} open` : 'Plan is full'}</b>
         <span className="block truncate text-[12px] text-muted-foreground">By request · {firstName(post.author)} decides</span>
       </span>
-      <button type="button" className="pc-btn" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
+      <button type="button" className="pc-btn pc-btn-sun" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
     </>
   )
 }

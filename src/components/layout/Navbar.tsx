@@ -260,7 +260,7 @@ export function Navbar() {
         isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
     >
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
@@ -311,11 +311,11 @@ export function Navbar() {
           {/* Right side */}
           <div className="flex items-center gap-1 md:gap-2">
             {user ? (
-              <button type="button" onClick={() => setComposeOpen(true)} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-haspopup="dialog" aria-label="Create a post">
+              <button type="button" onClick={() => setComposeOpen(true)} className="pc-btn pc-btn-sm pc-btn-outline hidden md:inline-flex" aria-haspopup="dialog" aria-label="Create a post">
                 <Plus className="h-4 w-4" aria-hidden /> Post
               </button>
             ) : (
-              <Link href="/login?redirectTo=%2Ftribe%2Fnew" prefetch={false} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-label="Create a post">
+              <Link href="/login?redirectTo=%2Ftribe%2Fnew" prefetch={false} className="pc-btn pc-btn-sm pc-btn-outline hidden md:inline-flex" aria-label="Create a post">
                 <Plus className="h-4 w-4" aria-hidden /> Post
               </Link>
             )}
@@ -462,7 +462,7 @@ export function Navbar() {
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/login">Sign In</Link>
                 </Button>
-                <Button size="sm" variant="outline" asChild>
+                <Button size="sm" className="bg-[color:var(--pc-gold)] font-bold text-[color:var(--pc-on-gold)] hover:bg-[color:var(--pc-gold)]/90" asChild>
                   <Link href="/signup">Join free</Link>
                 </Button>
               </div>

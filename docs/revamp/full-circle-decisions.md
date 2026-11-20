@@ -15,10 +15,33 @@ The dark-green base and green buttons were dropped. The palette is now **UnSOLO 
 
 The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
 
+## Yellow only where it's essential (user request)
+
+The rule was tightened after review against Airbnb and MakeMyTrip, which use colour sparingly.
+
+**Yellow (`.pc-btn-sun`, shadcn `brand`) is kept for:**
+- the one main action on a screen: "Take a seat" in the trip page's bottom bar, "Request to join" in a plan's bottom bar, Publish, the Explore search button, "Show trips" in the search sheet, and "Join free" for signed-out visitors;
+- the centre **+** button;
+- your own seat on the ring;
+- the HOST badge;
+- unseen story rings.
+
+**Everything else is black, white or grey:**
+- the default `.pc-btn` and shadcn Button are ink;
+- trip-card CTAs are quiet grey pills;
+- selected chips and tabs are ink;
+- tags are grey;
+- the header "Post" button is an ink outline;
+- send buttons, switches and your own chat bubble are ink.
+
+Older admin and host screens that already used yellow buttons before the revamp are unchanged.
+
+**Desktop width:** the navbar, footer and every Explore section share one centred 1440px container with side padding, instead of running full width.
+
 ## Explore listings (user request)
 
 - **"Trips by vibe" tiles are 16:9.** They were 4:5, which cropped hosts' landscape photos. On mobile they are a sideways-scrolling row; on desktop, 3 per row.
-- **New sections use the full page width:** "Find your circle", "Leaving soon", "Next few weeks" and the plans section use the same full-width container as the listing rows (up to 1920px). "Leaving soon" shows 4 cards per row on wide screens.
+- **Same width for every section:** "Find your circle", "Leaving soon", "Next few weeks" and the plans section use the same centred 1440px container as the listing rows, the navbar and the footer. "Leaving soon" shows 4 cards per row on wide screens.
 - **"New" is computed.** It marks the 6 most recently published listings of each type (stays, rentals, activities), by first approval time. When a new listing is published, the oldest of those 6 loses the badge (`src/lib/listings/newest.ts`, with tests). It shows as a pill on the photo. Cards without reviews no longer have a "★ New" text line.
 
 ## Shared rules (all platforms)

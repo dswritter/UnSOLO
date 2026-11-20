@@ -309,7 +309,7 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
             <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground" aria-live="polite">
               {busy ? 'Publishing…' : uploading ? 'Uploading photos…' : hint ?? (kind === 'plan' ? `${place.trim()}${startsOn ? ` · ${dateRange(startsOn, endsOn || null)}` : ''}` : 'Ready to post')}
             </span>
-            <button type="submit" className="pc-btn" disabled={!valid || busy || uploading}>
+            <button type="submit" className="pc-btn pc-btn-sun" disabled={!valid || busy || uploading}>
               {busy ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Publishing</> : 'Publish'}
             </button>
           </div>

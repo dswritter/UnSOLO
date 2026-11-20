@@ -67,7 +67,7 @@ export function TripRingCard({ trip: t, ringSize = 88, className, priority }: { 
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="pc-price">{rupees(t.priceFromPaise)}<small>/person</small></span>
-          <span className={cn('pc-btn pc-btn-sm', full && 'pc-btn-outline')}>{full ? 'Notify me' : 'Take a seat'}</span>
+          <span className="pc-btn pc-btn-sm pc-btn-quiet">{full ? 'Notify me' : 'Take a seat'}</span>
         </div>
       </div>
     </article>

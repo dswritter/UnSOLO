@@ -59,7 +59,7 @@ async function WanderStatusInterludeServer() {
 /** The shell resolves immediately; each row streams when its own data is ready. */
 export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab }) {
   return <div className="border-t border-border/50">
-    <div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
       <div className="md:hidden"><WanderRecentlyViewedStrip /></div>
       <WanderListingsSectionsWrapper
         trips={<Suspense fallback={<WanderRowFallback kind="trips" title="popular trips" activeTab={activeTab} />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
@@ -90,7 +90,7 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
 }
 
 export function WanderListingRowsSkeleton() {
-  return <div className="border-t border-border/50"><div className="mx-auto w-full max-w-[min(100%,1920px)] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
+  return <div className="border-t border-border/50"><div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
     {[0, 1, 2].map(i => <div key={i} className="mb-8 animate-pulse"><div className="mb-3 h-5 w-36 rounded-md bg-foreground/10" />
       <div className="flex gap-3 overflow-hidden">{[0, 1, 2].map(j => <div key={j} className="h-52 w-52 shrink-0 rounded-2xl bg-foreground/[0.07]" />)}</div>
     </div>)}

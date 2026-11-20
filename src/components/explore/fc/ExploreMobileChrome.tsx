@@ -161,7 +161,7 @@ export function ExploreSearchDock() {
             </button>
             <div className="sticky bottom-0 -mx-4 mt-4 flex gap-3 border-t border-border bg-[color:var(--pc-raised)] px-4 pb-1 pt-3">
               <button type="button" className="pc-btn pc-btn-quiet" onClick={() => { setWhere(''); setMonth('') }}>Clear</button>
-              <button type="button" className="pc-btn flex-1" onClick={go} disabled={pending}>
+              <button type="button" className="pc-btn pc-btn-sun flex-1" onClick={go} disabled={pending}>
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Search className="h-4 w-4" aria-hidden />}
                 {pending ? 'Searching…' : `Show ${TABS.find((t) => t.id === tab)?.label.toLowerCase()}`}
               </button>

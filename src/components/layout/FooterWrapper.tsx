@@ -36,7 +36,7 @@ export function FooterWrapper() {
         'dark footer-wander-surface hidden md:block border-t mt-auto border-[color:var(--wander-footer-outer-border)] text-foreground',
       )}
     >
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10 py-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
           <div>
             <h4 className={cn('font-bold mb-3', isWander ? 'text-foreground' : 'text-foreground')}>UnSOLO</h4>

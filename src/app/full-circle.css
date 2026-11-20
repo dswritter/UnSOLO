@@ -43,18 +43,20 @@
 
 /* ── Buttons: pine pills ── */
 .pc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 999px;
-  font: 700 16px/1 var(--font-sans); background: var(--pc-pine); color: var(--pc-on-pine); border: 1.5px solid var(--pc-pine); cursor: pointer; white-space: nowrap;
+  font: 700 16px/1 var(--font-sans); background: var(--pc-ink); color: var(--pc-raised); border: 1.5px solid var(--pc-ink); cursor: pointer; white-space: nowrap;
   transition: transform var(--pc-motion-fast) var(--pc-ease-press), opacity var(--pc-motion-fast), background-color var(--pc-motion-fast); -webkit-tap-highlight-color: transparent; }
-.pc-btn:hover { background: color-mix(in oklab, var(--pc-pine) 88%, var(--pc-ink)); }
+.pc-btn:hover { background: color-mix(in oklab, var(--pc-ink) 86%, var(--pc-raised)); }
 .pc-btn:active { transform: scale(0.97); }
 .pc-btn:disabled, .pc-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; transform: none; }
 .pc-btn-outline { background: transparent; color: var(--pc-ink); border: 1.5px solid var(--pc-ink); }
-.pc-btn-outline:hover { background: var(--pc-pine-soft); }
+.pc-btn-outline:hover { background: var(--pc-tonal); }
 .pc-btn-quiet { background: var(--pc-tonal); color: var(--pc-ink); border: 1.5px solid transparent; }
-.pc-btn-quiet:hover { background: var(--pc-pine-soft); }
+.pc-btn-quiet:hover { background: color-mix(in oklab, var(--pc-tonal) 70%, var(--pc-rule)); }
 .pc-btn-danger { background: transparent; color: var(--pc-red); border: 1.5px solid var(--pc-red); }
 .pc-btn-danger:hover { background: color-mix(in oklab, var(--pc-red) 8%, transparent); }
-.pc-btn-sun { background: var(--pc-gold); color: var(--pc-on-gold); border-color: var(--pc-gold); }
+/* The one yellow action per screen (UnSOLO yellow is reserved for what users must see first). */
+.pc-btn-sun, .pc-btn.pc-btn-sun { background: var(--pc-gold); color: var(--pc-on-gold); border-color: var(--pc-gold); }
+.pc-btn.pc-btn-sun:hover { background: color-mix(in oklab, var(--pc-gold) 88%, #000); }
 .pc-btn-sm { min-height: 40px; padding: 0 16px; font-size: 14px; }
 .pc-btn-block { width: 100%; }
 .pc-iconbtn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--pc-ink); position: relative; flex: none;
@@ -82,17 +84,17 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
   transition: background-color var(--pc-motion-fast), border-color var(--pc-motion-fast), transform var(--pc-motion-fast) var(--pc-ease-press); -webkit-tap-highlight-color: transparent; }
 .pc-chip:hover { border-color: var(--pc-rule2); }
 .pc-chip:active { transform: scale(0.97); }
-.pc-chip[aria-pressed='true'], .pc-chip[aria-checked='true'], .pc-chip[aria-selected='true'], .pc-chip.is-on { background: var(--pc-pine); color: var(--pc-on-pine); border-color: var(--pc-pine); }
+.pc-chip[aria-pressed='true'], .pc-chip[aria-checked='true'], .pc-chip[aria-selected='true'], .pc-chip.is-on { background: var(--pc-ink); color: var(--pc-raised); border-color: var(--pc-ink); }
 .pc-chip .pc-count { font-variant-numeric: tabular-nums; font-size: 12px; opacity: 0.75; }
 
 /* ── Tags ── */
 .pc-tag { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 999px; font: 700 11px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .pc-tag-host { background: var(--pc-gold); color: var(--pc-on-gold); }
 .pc-tag-organiser { background: var(--pc-ink); color: var(--pc-paper); }
-.pc-tag-hosted { background: var(--pc-pine-soft); color: var(--pc-accent-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.pc-tag-hosted { background: var(--pc-tonal); color: var(--pc-ink2); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .pc-tag-plan { border: 1.5px dashed var(--pc-rule2); color: var(--pc-ink2); }
 .pc-tag-women { background: var(--pc-rose-soft); color: var(--pc-rose); }
-.pc-tag-verified { background: var(--pc-pine-soft); color: var(--pc-accent-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.pc-tag-verified { background: var(--pc-tonal); color: var(--pc-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
 
 /* ── Seat ring (SVG drawn by <SeatRing>) ── */
 .fc-ring { position: relative; flex: none; display: inline-block; }
@@ -270,7 +272,7 @@ a:active > .fc-tab-post, button:active > .fc-tab-post { transform: scale(0.94); 
 .fc-searchpanel > * { width: 100%; max-width: none; }
 .fc-ring-center.on-photo > div { background: rgba(255,255,255,0.92); color: #111111; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 10px 16px; }
 .dark .fc-ring-center.on-photo > div { background: rgba(26,26,26,0.92); color: #F5F3EE; }
-.fc-ring-center.on-photo span { color: var(--pc-accent-ink); }
+.fc-ring-center.on-photo span { color: var(--pc-ink2); }
 }
 @layer components {
 .fc-glass-interest button { min-height: 44px; min-width: 44px; border-radius: 999px; background: rgba(255,255,255,0.86) !important; color: #111111 !important;

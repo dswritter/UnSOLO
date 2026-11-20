@@ -45,7 +45,7 @@ const noopSubscribe = () => () => {}
 export function WanderExploreInstantFallback({ sp }: { sp: Record<string, string> }) {
   const snapshot = useSyncExternalStore(noopSubscribe, readSnapshot, () => EMPTY)
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 pb-8 pt-4 sm:px-6 md:pt-5 lg:px-8">
+    <div className="mx-auto w-full max-w-[1440px] px-4 pb-8 pt-4 sm:px-6 md:pt-5 lg:px-10">
       <ExploreClient
         provisional
         packages={snapshot.packages}
