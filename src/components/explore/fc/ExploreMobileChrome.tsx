@@ -117,7 +117,7 @@ export function ExploreSearchDock() {
     <>
       <div className="pc-dock md:hidden" role="search">
         <button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 self-stretch text-left" aria-haspopup="dialog">
-          <Search className="h-5 w-5 shrink-0 text-[color:var(--pc-pine)]" strokeWidth={2.4} aria-hidden />
+          <Search className="h-5 w-5 shrink-0 text-[color:var(--pc-accent-ink)]" strokeWidth={2.4} aria-hidden />
           <span className="min-w-0">
             <span className="block truncate text-[15px] font-bold leading-tight">{where.trim() || 'Where to?'}</span>
             <span className="block truncate text-[12.5px] leading-tight text-muted-foreground">{monthLabel} · {TABS.find((t) => t.id === tab)?.label}</span>

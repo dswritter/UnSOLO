@@ -2505,7 +2505,7 @@ export function ChatWindow({
             <button
               type="button"
               onClick={() => setPollDialogOpen(true)}
-              className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-pine)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
+              className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-accent-ink)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
               title="Create a poll"
             >
               <BarChart2 className="h-4 w-4 text-primary" />
@@ -2523,7 +2523,7 @@ export function ChatWindow({
               setShowPackagePicker(true)
               void refreshShareList(shareKind, pkgSearch)
             }}
-            className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-pine)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
+            className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-accent-ink)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
             title="Share trips, stays, activities, or rentals"
           >
             <Share2 className="h-4 w-4 text-primary" />

@@ -406,6 +406,8 @@ export type ServiceListing = {
   review_count: number
   created_at: string
   updated_at: string
+  /** Among the newest published listings of its type (computed server-side, lib/listings/newest.ts). */
+  is_new?: boolean
   destination?: Destination
   host?: HostProfile
 }

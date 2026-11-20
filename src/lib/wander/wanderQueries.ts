@@ -15,7 +15,8 @@ import {
   DEFAULT_WANDER_TRUST_BADGE_TEXT,
 } from '@/lib/wander/wander-defaults'
 import { sanitizeAdminPublicHref } from '@/lib/wander/safe-public-link'
-import { getCachedPublicServiceItems } from '@/lib/explore/cachedPublicServiceData'
+import { getCachedPublicServiceItems, getNewestServiceListingIds } from '@/lib/explore/cachedPublicServiceData'
+import { markNewListings } from '@/lib/listings/newest'
 import {
   buildRegionTiles,
   buildVibeBuckets,
@@ -550,14 +551,14 @@ export const getWanderActivityRow = unstable_cache(async function (): Promise<Se
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  const listings = ((data || []) as ServiceListing[]).map(withoutExploreSearchDocument)
+  const listings = markNewListings(((data || []) as ServiceListing[]).map(withoutExploreSearchDocument), await getNewestServiceListingIds())
   const todayISO = listingScheduleTodayISO()
   return wanderLandingPrioritizeThenCap(
     listings,
     l => wanderActivityListingHasUpcoming(l, todayISO),
     WANDER_LANDING_ROW_SLOTS,
   )
-}, ['wander-activity-row'], { revalidate: 60 })
+}, ['wander-activity-row-v2'], { revalidate: 60 })
 
 export const getWanderStayRow = unstable_cache(async function (): Promise<ServiceListing[]> {
   const supabase = svc()
@@ -572,9 +573,9 @@ export const getWanderStayRow = unstable_cache(async function (): Promise<Servic
     .order('review_count', { ascending: false })
     .limit(30)
   if (error || !data) return []
-  const listings = ((data || []) as ServiceListing[]).map(withoutExploreSearchDocument)
+  const listings = markNewListings(((data || []) as ServiceListing[]).map(withoutExploreSearchDocument), await getNewestServiceListingIds())
   return wanderLandingPrioritizeThenCap(listings, () => true, WANDER_LANDING_ROW_SLOTS)
-}, ['wander-stay-row'], { revalidate: 60 })
+}, ['wander-stay-row-v2'], { revalidate: 60 })
 
 export const getWanderRentalRow = unstable_cache(async function (): Promise<ServiceListing[]> {
   const supabase = svc()
@@ -599,7 +600,7 @@ export const getWanderRentalRow = unstable_cache(async function (): Promise<Serv
     if (!row.service_listing_id) continue
     counts.set(row.service_listing_id, (counts.get(row.service_listing_id) || 0) + 1)
   }
-  const publicListings = (listings as ServiceListing[]).map(withoutExploreSearchDocument)
+  const publicListings = markNewListings((listings as ServiceListing[]).map(withoutExploreSearchDocument), await getNewestServiceListingIds())
   const sorted = [...publicListings].sort((a, b) => {
     const ca = counts.get(a.id) || 0
     const cb = counts.get(b.id) || 0
@@ -608,7 +609,7 @@ export const getWanderRentalRow = unstable_cache(async function (): Promise<Serv
     return (b.average_rating || 0) - (a.average_rating || 0)
   })
   return wanderLandingPrioritizeThenCap(sorted, () => true, WANDER_LANDING_ROW_SLOTS)
-}, ['wander-rental-row'], { revalidate: 60 })
+}, ['wander-rental-row-v2'], { revalidate: 60 })
 
 export async function getWanderServiceItemsForListings(
   listings: ServiceListing[],

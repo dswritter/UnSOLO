@@ -8,19 +8,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Full Circle: legacy `blue-*` utilities (old info/link accents across older screens) follow the pine scale. */
+/* Full Circle: legacy `blue-*` utilities (old info/link accents across older screens) follow a gold-ink scale. */
 @theme {
-  --color-blue-50: #EEF7F3;
-  --color-blue-100: #D9EEE5;
-  --color-blue-200: #B4DCCB;
-  --color-blue-300: #86C4AB;
-  --color-blue-400: #55A688;
-  --color-blue-500: #2F8A6C;
-  --color-blue-600: #1C7058;
-  --color-blue-700: #0E5A47;
-  --color-blue-800: #0B4839;
-  --color-blue-900: #0A3A2F;
-  --color-blue-950: #05211A;
+  --color-blue-50: #FFF9E8;
+  --color-blue-100: #FFF4D1;
+  --color-blue-200: #FFE6A3;
+  --color-blue-300: #FDD060;
+  --color-blue-400: #E9A800;
+  --color-blue-500: #B07A00;
+  --color-blue-600: #946600;
+  --color-blue-700: #7A5800;
+  --color-blue-800: #5F4400;
+  --color-blue-900: #443100;
+  --color-blue-950: #261B00;
 }
 
 @theme inline {
@@ -73,7 +73,8 @@
 
 /* ── Full Circle (docs/revamp/design-system.md). Tokens come from design/tokens.json
    (src/app/tokens.generated.css); shadcn names map onto them so every existing component follows.
-   Pine is the primary colour. Sun gold is reserved for *you*, the HOST badge and the wordmark. */
+   UnSOLO yellow (`--pc-pine` token, kept name) is the primary FILL with black text on it; accent text uses
+   --pc-accent-ink; taken seats use --pc-taken (ink). */
 :root {
   --background: var(--pc-paper);
   --foreground: var(--pc-ink);
@@ -84,7 +85,7 @@
   --primary: var(--pc-pine);
   --primary-foreground: var(--pc-on-pine);
   /* `.text-primary` (emphasis text) → pine */
-  --primary-ink: var(--pc-pine);
+  --primary-ink: var(--pc-accent-ink);
   --secondary: var(--pc-tonal);
   --secondary-foreground: var(--pc-ink);
   --muted: var(--pc-tonal);
@@ -94,12 +95,12 @@
   --destructive: var(--pc-red);
   --border: var(--pc-rule);
   --input: var(--pc-rule2);
-  --ring: var(--pc-pine);
+  --ring: var(--pc-ink);
   --brand: var(--pc-gold);
   --brand-foreground: var(--pc-on-gold);
-  --link: var(--pc-pine);
+  --link: var(--pc-accent-ink);
   --success: var(--pc-green);
-  --chart-1: var(--pc-pine);
+  --chart-1: var(--pc-accent-ink);
   --chart-2: var(--pc-seat-open);
   --chart-3: var(--pc-green);
   --chart-4: var(--pc-gold-ink);
@@ -112,7 +113,7 @@
   --sidebar-accent: var(--pc-pine-soft);
   --sidebar-accent-foreground: var(--pc-ink);
   --sidebar-border: var(--pc-rule);
-  --sidebar-ring: var(--pc-pine);
+  --sidebar-ring: var(--pc-ink);
   --motion-duration-1: var(--pc-motion-fast);
   --motion-duration-2: var(--pc-motion-standard);
   --motion-ease-standard: var(--pc-ease-standard);
@@ -128,7 +129,7 @@
 }
 
 .dark {
-  --primary-ink: var(--pc-pine);
+  --primary-ink: var(--pc-accent-ink);
   --glass-shadow: none;
   --glass-highlight: transparent;
 }

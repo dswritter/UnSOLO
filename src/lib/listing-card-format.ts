@@ -36,7 +36,7 @@ export function unitShortLabel(unit: string | null | undefined): string {
   return unit.replace(/^per_/, '').replace(/_/g, ' ')
 }
 
-export type TripCardBadge = { label: string; tone: 'past' | 'urgent' | 'featured' | 'community' }
+export type TripCardBadge = { label: string; tone: 'past' | 'urgent' | 'featured' | 'community' | 'new' }
 
 /** Cards show at most one badge; highest-signal wins. */
 export function primaryTripBadge(input: {

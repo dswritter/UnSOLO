@@ -45,7 +45,7 @@ export function LandingPrompt({ tab, signedIn }: { tab: Tab; signedIn: boolean }
     try { await apiFetch('/me/landing-suggestion/dismiss', { method: 'POST' }) } catch { /* ignore */ }
   }
   return (
-    <div role="dialog" aria-label="Start page" className="pc-card fixed inset-x-3 bottom-[calc(var(--pc-tab-bar)+16px+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md p-4 shadow-[0_10px_30px_rgba(11,26,21,0.18)] md:bottom-6">
+    <div role="dialog" aria-label="Start page" className="pc-card fixed inset-x-3 bottom-[calc(var(--pc-tab-bar)+16px+env(safe-area-inset-bottom))] z-40 mx-auto max-w-md p-4 shadow-[0_10px_30px_rgba(17,17,17,0.18)] md:bottom-6">
       <button type="button" onClick={dismiss} className="pc-iconbtn absolute right-1 top-1" aria-label="Not now"><X className="h-4 w-4" /></button>
       <p className="pr-8 font-bold">You open {LABEL[suggest]} the most.</p>
       <p className="mt-1 text-sm text-muted-foreground">Start UnSOLO on {LABEL[suggest]} every time you open it? You can change this in Settings.</p>

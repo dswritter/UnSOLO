@@ -21,7 +21,7 @@ export function PlanMiniCard({ post: p, ringSize = 96 }: { post: Post; ringSize?
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1 text-[14px] font-bold">
             <span className="truncate">{p.author.name.split(' ')[0]}</span>
-            {p.author.isIdVerified && <BadgeCheck className="h-4 w-4 shrink-0 text-[color:var(--pc-pine)]" aria-label="ID verified" />}
+            {p.author.isIdVerified && <BadgeCheck className="h-4 w-4 shrink-0 text-[color:var(--pc-accent-ink)]" aria-label="ID verified" />}
           </span>
           <span className="block text-[12.5px] text-muted-foreground">Plan · looking for people</span>
         </span>

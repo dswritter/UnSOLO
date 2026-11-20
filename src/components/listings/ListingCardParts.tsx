@@ -16,13 +16,19 @@ const BADGE_TONES: Record<TripCardBadge['tone'], string> = {
   urgent: 'bg-red-500/90 text-white',
   featured: 'bg-primary text-primary-foreground',
   community: 'bg-black/60 text-white',
+  new: 'bg-white/95 text-[#111111]',
 }
 
-export function ListingCardBadge({ badge }: { badge: TripCardBadge | null }) {
-  if (!badge) return null
+export function ListingCardBadge({ badge, extra }: { badge: TripCardBadge | null; extra?: TripCardBadge | null }) {
+  const list = [badge, extra].filter(Boolean) as TripCardBadge[]
+  if (list.length === 0) return null
   return (
-    <span className={cn('absolute left-2 top-2 z-10 max-w-[calc(100%-3.25rem)] truncate rounded-full px-1.5 py-1 text-[9px] font-medium leading-none backdrop-blur-md md:left-2.5 md:top-2.5 md:px-2.5 md:text-[11px] md:font-semibold', BADGE_TONES[badge.tone])}>
-      {badge.label}
+    <span className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-3.25rem)] gap-1 md:left-2.5 md:top-2.5">
+      {list.map((b) => (
+        <span key={b.tone} className={cn('truncate rounded-full px-1.5 py-1 text-[9px] font-medium leading-none backdrop-blur-md md:px-2.5 md:text-[11px] md:font-semibold', BADGE_TONES[b.tone])}>
+          {b.label}
+        </span>
+      ))}
     </span>
   )
 }

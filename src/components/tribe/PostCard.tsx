@@ -28,7 +28,7 @@ export function AuthorRow({ user, sub, extra, trailing, size = 36 }: { user: Use
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <Link href={`/profile/${user.username}`} className="truncate text-[14.5px] font-bold hover:underline">{user.name}</Link>
-          {user.isIdVerified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[color:var(--pc-pine)] text-[color:var(--pc-raised)]" aria-label="ID verified" />}
+          {user.isIdVerified && <BadgeCheck className="h-4 w-4 shrink-0 fill-[color:var(--pc-accent-ink)] text-[color:var(--pc-raised)]" aria-label="ID verified" />}
           {extra}
         </div>
         <div className="truncate text-[12.5px] text-[color:var(--pc-ink3)]">{sub}</div>
@@ -176,7 +176,7 @@ export function TripStub({ trip, placed }: { trip: TripLite; placed?: boolean })
   return (
     <Link href={`/packages/${trip.slug}`} className={cn('pc-card flex items-center gap-3 p-2.5 pr-4 transition-colors hover:border-[color:var(--pc-rule2)]', !placed && 'mt-0')}>
       <span className="fc-av h-14 w-14 rounded-2xl">
-        {trip.image ? <ProgressiveImage media={trip.image} alt="" className="h-full w-full" /> : <MapPin className="h-5 w-5 text-[color:var(--pc-pine)]" aria-hidden />}
+        {trip.image ? <ProgressiveImage media={trip.image} alt="" className="h-full w-full" /> : <MapPin className="h-5 w-5 text-[color:var(--pc-accent-ink)]" aria-hidden />}
       </span>
       <span className="min-w-0 flex-1">
         {placed && <span className="pc-tag pc-tag-hosted fc-tag-sm mb-1">Hosted trip</span>}

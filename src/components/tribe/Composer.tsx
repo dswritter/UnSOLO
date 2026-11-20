@@ -233,7 +233,7 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
               </Field>
               <ToggleField name="Women only" label={<span className="inline-flex items-center gap-1 text-[color:var(--pc-rose)]"><Venus className="h-3.5 w-3.5" aria-hidden />Women only</span>}
                 hint="Only ID-verified women can join" rose on={audience === 'women'} onChange={(v) => setAudience(v ? 'women' : 'anyone')} />
-              <ToggleField name="Verified travellers only" label={<span className="inline-flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5 text-[color:var(--pc-pine)]" aria-hidden />Verified travellers only</span>}
+              <ToggleField name="Verified travellers only" label={<span className="inline-flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5 text-[color:var(--pc-accent-ink)]" aria-hidden />Verified travellers only</span>}
                 hint="People with a verified ID" on={audience === 'verified'} onChange={(v) => setAudience(v ? 'verified' : 'anyone')} />
               {(audience !== 'anyone' || spots >= 5) && <p className="px-1 text-xs text-muted-foreground">Women-only plans and plans of 5 or more need a verified ID, so joiners know who they’re meeting.</p>}
               <Field label="Meeting point (only approved people see this)">
@@ -292,7 +292,7 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
                   </div>
                 ))}
                 {photos.length < 6 && (
-                  <button type="button" onClick={() => fileRef.current?.click()} className="grid aspect-square place-items-center rounded-[16px] border-[1.5px] border-dashed border-[color:var(--pc-rule2)] text-[color:var(--pc-pine)] transition-colors hover:bg-[color:var(--pc-pine-soft)]">
+                  <button type="button" onClick={() => fileRef.current?.click()} className="grid aspect-square place-items-center rounded-[16px] border-[1.5px] border-dashed border-[color:var(--pc-rule2)] text-[color:var(--pc-accent-ink)] transition-colors hover:bg-[color:var(--pc-pine-soft)]">
                     <Camera className="h-6 w-6" aria-hidden /><span className="sr-only">Add photos</span>
                   </button>
                 )}

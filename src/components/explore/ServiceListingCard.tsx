@@ -117,7 +117,10 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
           sizes={CARD_IMAGE_SIZES}
           className="object-cover transition-transform duration-300 md:group-hover:scale-[1.03] motion-reduce:transition-none"
         />
-        <ListingCardBadge badge={muted ? { label: 'Past', tone: 'past' } : listing.is_featured ? { label: 'Featured', tone: 'featured' } : null} />
+        <ListingCardBadge
+          badge={muted ? { label: 'Past', tone: 'past' } : listing.is_featured ? { label: 'Featured', tone: 'featured' } : null}
+          extra={!muted && listing.is_new ? { label: 'New', tone: 'new' } : null}
+        />
         {active ? (
           <>
             <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/60 to-transparent" />
@@ -147,18 +150,21 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
         <h3 className={cn('line-clamp-2 text-xs font-semibold leading-snug md:text-[15px] md:font-bold', muted ? 'text-muted-foreground' : 'text-foreground')}>
           {listing.title}
         </h3>
-        {location || detail ? (
+        {location || detail || optionCount > 1 ? (
           <p className="mt-1 flex min-w-0 gap-1 text-[10px] leading-snug text-muted-foreground md:text-xs">
             {location ? <span className="truncate">{location}</span> : null}
             {detail ? <span className="shrink-0 capitalize">{location ? '· ' : ''}{detail}</span> : null}
+            {optionCount > 1 ? <span className="shrink-0">{location || detail ? '· ' : ''}{optionCount} options</span> : null}
           </p>
         ) : null}
-        <p className="mt-1 flex flex-wrap items-center gap-1 text-[10px] leading-snug text-muted-foreground md:text-xs">
-          <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400 md:h-3 md:w-3" aria-hidden="true" />
-          {rating ? <span className="font-medium text-foreground">{rating}</span> : <span>New</span>}
-          {rating && listing.review_count > 0 ? <span>({listing.review_count})</span> : null}
-          {optionCount > 1 ? <span>· {optionCount} options</span> : null}
-        </p>
+        {/* Rating only when there is one; "New" is a badge on the photo, not a text line. */}
+        {rating ? (
+          <p className="mt-1 flex items-center gap-1 text-[10px] leading-snug text-muted-foreground md:text-xs">
+            <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400 md:h-3 md:w-3" aria-hidden="true" />
+            <span className="font-medium text-foreground">{rating}</span>
+            {listing.review_count > 0 ? <span>({listing.review_count})</span> : null}
+          </p>
+        ) : null}
         <div className="mt-auto pt-2 md:pt-3">
           <ListingCardPrice amount={formatPrice(listing.price_paise)} suffix={unitShortLabel(listing.unit)} from muted={muted} />
         </div>

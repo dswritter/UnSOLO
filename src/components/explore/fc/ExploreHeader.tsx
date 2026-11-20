@@ -21,11 +21,11 @@ export async function ExploreHeader() {
         </div>
         <Suspense fallback={null}><ExploreSearchDock /></Suspense>
       </div>
-      <div className="mx-auto hidden max-w-[1280px] px-6 pt-10 md:block">
+      <div className="mx-auto w-full max-w-[min(100%,1920px)] hidden px-6 pt-10 md:block lg:px-10">
         <h1 className="pc-display text-[46px]">Find your circle</h1>
         <p className="mt-2 text-[17px] text-muted-foreground">Small group trips across India. See who’s going before you book.</p>
         <div className="fc-searchpanel mt-6">
-          <WanderSearchBar listedActivities={listedActivities} variant="wander" layout="row" wanderSearchBasePath="/" />
+          <WanderSearchBar listedActivities={listedActivities} variant="wander" layout="row" wanderSearchBasePath="/" className="max-w-none" />
         </div>
       </div>
     </>

@@ -331,7 +331,7 @@ export function Navbar() {
               className={cn(
                 'relative hidden h-10 items-center gap-1.5 rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors lg:inline-flex',
                 hostActive
-                  ? 'border-[color:var(--pc-pine)] bg-[color:var(--pc-pine-soft)] text-[color:var(--pc-pine)]'
+                  ? 'border-[color:var(--pc-ink)] bg-[color:var(--pc-pine-soft)] text-foreground'
                   : 'border-border bg-transparent text-foreground hover:border-[color:var(--pc-rule2)]',
               )}
             >

@@ -467,13 +467,13 @@ export function BookingsClient({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={nextTrip.package.images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />
             ) : null}
-            <span className="absolute left-3 top-3 inline-flex h-8 items-center rounded-full bg-white/95 px-3 text-[13px] font-bold text-[#0B1A15] shadow-sm">
+            <span className="absolute left-3 top-3 inline-flex h-8 items-center rounded-full bg-white/95 px-3 text-[13px] font-bold text-[#111111] shadow-sm">
               {daysToNextTrip === 0 ? 'Departs today' : `Departs in ${daysToNextTrip} day${daysToNextTrip === 1 ? '' : 's'}`}
             </span>
           </div>
           <div className="flex flex-col gap-3 p-5">
             <div>
-              <p className="pc-eyebrow text-[color:var(--pc-pine)]">Your next trip</p>
+              <p className="pc-eyebrow text-[color:var(--pc-accent-ink)]">Your next trip</p>
               <h2 className="mt-1.5 text-[24px] leading-tight text-foreground">{nextTrip.package.title}</h2>
               <p className="text-sm text-muted-foreground">{formatDate(nextTrip.travel_date!)}</p>
             </div>

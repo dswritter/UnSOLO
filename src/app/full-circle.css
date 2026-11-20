@@ -13,9 +13,9 @@
     font-family: var(--font-sans), system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
   }
-  a.pc-link, .pc-link { color: var(--pc-pine); font-weight: 600; text-underline-offset: 3px; }
+  a.pc-link, .pc-link { color: var(--pc-accent-ink); font-weight: 600; text-underline-offset: 3px; }
   a.pc-link:hover, .pc-link:hover { text-decoration: underline; }
-  :focus-visible { outline: 2px solid var(--pc-pine); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--pc-ink); outline-offset: 2px; }
 }
 
 @layer components {
@@ -39,7 +39,7 @@
 .pc-pencilled .pc-rule { border-top-style: dashed; border-top-color: var(--pc-rule); }
 .pc-section-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .pc-section-h h2 { font-size: 22px; line-height: 1.1; }
-.pc-section-h a { font: 600 14px/1 var(--font-sans); color: var(--pc-pine); }
+.pc-section-h a { font: 700 14px/1 var(--font-sans); color: var(--pc-accent-ink); }
 
 /* ── Buttons: pine pills ── */
 .pc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 999px;
@@ -48,7 +48,7 @@
 .pc-btn:hover { background: color-mix(in oklab, var(--pc-pine) 88%, var(--pc-ink)); }
 .pc-btn:active { transform: scale(0.97); }
 .pc-btn:disabled, .pc-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; transform: none; }
-.pc-btn-outline { background: transparent; color: var(--pc-pine); border: 1.5px solid var(--pc-pine); }
+.pc-btn-outline { background: transparent; color: var(--pc-ink); border: 1.5px solid var(--pc-ink); }
 .pc-btn-outline:hover { background: var(--pc-pine-soft); }
 .pc-btn-quiet { background: var(--pc-tonal); color: var(--pc-ink); border: 1.5px solid transparent; }
 .pc-btn-quiet:hover { background: var(--pc-pine-soft); }
@@ -62,8 +62,8 @@
 .pc-iconbtn:hover { background: var(--pc-tonal); }
 .pc-iconbtn:active { transform: scale(0.94); }
 /* Round button floating on a photo */
-.pc-glassbtn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: #0B1A15; background: rgba(255,255,255,0.86);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(11,26,21,0.18); flex: none; }
+.pc-glassbtn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: #111111; background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(17,17,17,0.18); flex: none; }
 .pc-glassbtn:active { transform: scale(0.94); }
 .pc-badge { position: absolute; top: 4px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pc-red); color: #fff;
   font: 700 10px/18px var(--font-sans); text-align: center; box-shadow: 0 0 0 2px var(--pc-paper); }
@@ -74,7 +74,7 @@
 .pc-input::placeholder { color: var(--pc-ink3); }
 textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .pc-input:hover { border-color: var(--pc-rule2); }
-.pc-input:focus { outline: none; border-color: var(--pc-pine); box-shadow: 0 0 0 3px color-mix(in oklab, var(--pc-pine) 22%, transparent); }
+.pc-input:focus { outline: none; border-color: var(--pc-ink); box-shadow: 0 0 0 3px color-mix(in oklab, var(--pc-gold) 35%, transparent); }
 
 /* ── Chips ── */
 .pc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--pc-rule);
@@ -89,10 +89,10 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .pc-tag { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 999px; font: 700 11px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .pc-tag-host { background: var(--pc-gold); color: var(--pc-on-gold); }
 .pc-tag-organiser { background: var(--pc-ink); color: var(--pc-paper); }
-.pc-tag-hosted { background: var(--pc-pine-soft); color: var(--pc-pine); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.pc-tag-hosted { background: var(--pc-pine-soft); color: var(--pc-accent-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
 .pc-tag-plan { border: 1.5px dashed var(--pc-rule2); color: var(--pc-ink2); }
 .pc-tag-women { background: var(--pc-rose-soft); color: var(--pc-rose); }
-.pc-tag-verified { background: var(--pc-pine-soft); color: var(--pc-pine); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.pc-tag-verified { background: var(--pc-pine-soft); color: var(--pc-accent-ink); text-transform: none; letter-spacing: 0; font-size: 12px; }
 
 /* ── Seat ring (SVG drawn by <SeatRing>) ── */
 .fc-ring { position: relative; flex: none; display: inline-block; }
@@ -100,7 +100,7 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-ring.is-past > svg { filter: grayscale(0.85); opacity: 0.75; }
 .fc-ring-track { stroke: var(--pc-seat-open); }
 .fc-ring.is-women .fc-ring-track { stroke: var(--pc-rose-open); }
-.fc-ring-taken { stroke: var(--pc-pine); }
+.fc-ring-taken { stroke: var(--pc-taken); }
 .fc-ring.is-women .fc-ring-taken { stroke: var(--pc-rose); }
 .fc-ring.is-full .fc-ring-taken { stroke: var(--pc-full); }
 .fc-ring-you { stroke: var(--pc-gold); }
@@ -111,11 +111,11 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-ring-disc { fill: var(--pc-tonal); }
 .fc-ring.is-full .fc-ring-disc { fill: var(--pc-gold-bg); }
 .fc-ring-dot-halo { fill: var(--pc-raised); }
-.fc-ring-dot { fill: var(--pc-pine); }
+.fc-ring-dot { fill: var(--pc-taken); }
 .fc-ring.is-women .fc-ring-dot { fill: var(--pc-rose); }
 .fc-ring.is-full .fc-ring-dot { fill: var(--pc-full); }
-.fc-ring-dot-text { fill: #fff; font-family: var(--font-sans); font-weight: 700; }
-.fc-ring.is-full .fc-ring-dot-text { fill: #0B1A15; }
+.fc-ring-dot-text { fill: var(--pc-raised); font-family: var(--font-sans); font-weight: 700; }
+.fc-ring.is-full .fc-ring-dot-text { fill: #111111; }
 .fc-ring-you-dot { fill: var(--pc-gold); }
 .fc-ring-you-dot-halo { fill: var(--pc-ink); }
 .fc-ring-you-dot-text { fill: var(--pc-on-gold); font-family: var(--font-sans); font-weight: 800; }
@@ -123,7 +123,7 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-ring.is-spin > svg { animation: fc-spin 700ms var(--pc-ease-standard) both; }
 .fc-ring-center { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
 .fc-ring-center > div { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; padding: 8px 12px; border-radius: 999px; }
-.fc-ring-center.on-photo > div { background: rgba(11,26,21,0.55); color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.fc-ring-center.on-photo > div { background: rgba(17,17,17,0.55); color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
 .fc-ring-center b { font: 800 1em/1 var(--font-heading), sans-serif; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .fc-ring-center span { font: 700 max(10px, 0.34em)/1.1 var(--font-sans); letter-spacing: 0.02em; margin-top: 2px; text-transform: lowercase; }
 .fc-ring-badge { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 3px;
@@ -144,14 +144,14 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-mini svg { position: absolute; inset: 0; }
 .fc-mini b { position: relative; font: 700 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; color: var(--pc-ink); }
 .fc-mini-track { stroke: var(--pc-seat-open); }
-.fc-mini-fill { stroke: var(--pc-pine); }
+.fc-mini-fill { stroke: var(--pc-taken); }
 .fc-mini.is-full .fc-mini-fill { stroke: var(--pc-full); }
 .fc-mini.is-women .fc-mini-fill { stroke: var(--pc-rose); }
 
 /* Story ring (Tribe) */
-.fc-story-seg { stroke: var(--pc-pine); }
+.fc-story-seg { stroke: var(--pc-gold); }
 .fc-story-seg.is-seen { stroke: var(--pc-rule); }
-.fc-story-seg.is-you { stroke: var(--pc-gold); }
+.fc-story-seg.is-you { stroke: var(--pc-ink); }
 
 /* ── Legacy seat chips, still used for small avatar stacks ── */
 .pc-seatrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -166,7 +166,7 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .pc-seat[data-state='you'] { background: var(--pc-gold); color: var(--pc-on-gold); box-shadow: 0 0 0 2px var(--pc-raised), 0 0 0 3.5px var(--pc-ink); }
 .pc-seat[data-state='requested'] { opacity: 0.6; }
 .pc-seat[data-state='held'] { background: var(--pc-gold-bg); border: 2px dashed var(--pc-gold); animation: pc-held 1.6s ease-in-out infinite; }
-.pc-seat[data-state='member'][data-anon='true'] { background: var(--pc-pine); }
+.pc-seat[data-state='member'][data-anon='true'] { background: var(--pc-taken); }
 .pc-seat.is-stamped { animation: pc-stamp var(--pc-motion-stamp) cubic-bezier(.2,1.6,.4,1) both; }
 .pc-avstack { display: flex; }
 .pc-avstack > * + * { margin-left: -10px; }
@@ -175,7 +175,7 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 /* Fill gauge (tables) */
 .pc-gauge { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .pc-gauge-track { position: relative; flex: 1 1 auto; max-width: 160px; height: 6px; border-radius: 999px; background: var(--pc-tonal); overflow: hidden; }
-.pc-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--pc-pine); }
+.pc-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--pc-taken); }
 .pc-gauge-label, .pc-gauge-empty { font: 600 12px/1.2 var(--font-sans); font-variant-numeric: tabular-nums; color: var(--muted-foreground); white-space: nowrap; }
 
 /* ── Progressive images: blurred LQIP/thumb underneath, full fades in ── */
@@ -202,7 +202,7 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 /* ── Search dock: floating pill above the mobile tab bar ── */
 .pc-dock { position: fixed; left: 12px; right: 12px; z-index: 44; bottom: calc(var(--pc-tab-bar) + 10px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 6px 0 18px; border-radius: 999px; background: var(--pc-raised);
-  border: 1px solid var(--pc-rule); box-shadow: 0 6px 24px rgba(11, 26, 21, 0.16); }
+  border: 1px solid var(--pc-rule); box-shadow: 0 6px 24px rgba(17, 17, 17, 0.16); }
 .dark .pc-dock { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
 
 /* ── Bottom sheet ── */
@@ -210,8 +210,8 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .pc-sheet-grab { width: 40px; height: 5px; border-radius: 999px; background: var(--pc-rule); margin: 10px auto 6px; }
 
 /* Charts (admin) */
-:root { --pc-chart: #0E5A47; }
-.dark { --pc-chart: #3FB58E; }
+:root { --pc-chart: #7A5800; }
+.dark { --pc-chart: #FCBA12; }
 }
 
 @keyframes pc-stamp { 0% { transform: scale(1.5); opacity: 0.2 } 60% { transform: scale(0.94) } 100% { transform: scale(1); opacity: 1 } }
@@ -235,11 +235,11 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-tcard-photo { position: relative; height: 196px; background: var(--pc-tonal); overflow: hidden; }
 .fc-tcard-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 600ms var(--pc-ease-standard); }
 .fc-tcard:hover .fc-tcard-photo img { transform: scale(1.03); }
-.fc-tcard-photo::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgba(11,26,21,0.28)); pointer-events: none; }
+.fc-tcard-photo::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgba(17,17,17,0.28)); pointer-events: none; }
 .fc-tcard-wash { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #fff;
-  background: linear-gradient(135deg, #2F7D62, #0E5A47); font: 800 30px/1 var(--font-heading), sans-serif; letter-spacing: -0.03em; }
+  background: linear-gradient(135deg, #2A2A2A, #111111); font: 800 30px/1 var(--font-heading), sans-serif; letter-spacing: -0.03em; }
 .fc-datechip { position: absolute; left: 12px; top: 12px; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 48px; height: 52px;
-  border-radius: 16px; background: rgba(255,255,255,0.94); color: #0B1A15; box-shadow: 0 2px 10px rgba(11,26,21,0.16); }
+  border-radius: 16px; background: rgba(255,255,255,0.94); color: #111111; box-shadow: 0 2px 10px rgba(17,17,17,0.16); }
 .fc-datechip b { font: 800 20px/1 var(--font-heading), sans-serif; letter-spacing: -0.02em; }
 .fc-datechip span { font: 700 11px/1.2 var(--font-sans); text-transform: uppercase; letter-spacing: 0.04em; }
 .fc-fullchip { position: absolute; right: 12px; top: 12px; z-index: 1; height: 28px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 999px;
@@ -268,13 +268,13 @@ a:active > .fc-tab-post, button:active > .fc-tab-post { transform: scale(0.94); 
 
 @layer components {
 .fc-searchpanel > * { width: 100%; max-width: none; }
-.fc-ring-center.on-photo > div { background: rgba(255,255,255,0.92); color: #0B1A15; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 10px 16px; }
-.dark .fc-ring-center.on-photo > div { background: rgba(19,38,31,0.92); color: #E8F2EC; }
-.fc-ring-center.on-photo span { color: var(--pc-pine); }
+.fc-ring-center.on-photo > div { background: rgba(255,255,255,0.92); color: #111111; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 10px 16px; }
+.dark .fc-ring-center.on-photo > div { background: rgba(26,26,26,0.92); color: #F5F3EE; }
+.fc-ring-center.on-photo span { color: var(--pc-accent-ink); }
 }
 @layer components {
-.fc-glass-interest button { min-height: 44px; min-width: 44px; border-radius: 999px; background: rgba(255,255,255,0.86) !important; color: #0B1A15 !important;
-  backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(11,26,21,0.18); border: 0 !important; }
+.fc-glass-interest button { min-height: 44px; min-width: 44px; border-radius: 999px; background: rgba(255,255,255,0.86) !important; color: #111111 !important;
+  backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(17,17,17,0.18); border: 0 !important; }
 }
 @layer components {
 .fc-ring-openmark { fill: var(--pc-raised); stroke: var(--pc-seat-open); stroke-width: 2; }

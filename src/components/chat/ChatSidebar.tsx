@@ -595,7 +595,7 @@ export function ChatSidebar({
                     </div>
                     {room.type !== 'direct' && (
                       <span className="text-[10px] font-medium">
-                        <span className="text-[color:var(--pc-pine)]">{room.type === 'trip' ? 'Trip circle' : 'Community'}</span>
+                        <span className="text-[color:var(--pc-accent-ink)]">{room.type === 'trip' ? 'Trip circle' : 'Community'}</span>
                         {room.tripLocation ? <span className="text-muted-foreground"> · {room.tripLocation}</span> : null}
                       </span>
                     )}

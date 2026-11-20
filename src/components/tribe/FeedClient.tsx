@@ -164,7 +164,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
                   <Link href={`/community/${c.id}`} className="fc-chat-row py-1.5">
                     <span className="fc-av h-9 w-9">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {c.image ? <img src={c.image.thumbUrl ?? c.image.url} alt="" /> : <UsersRound className="h-4 w-4 text-[color:var(--pc-pine)]" aria-hidden />}
+                      {c.image ? <img src={c.image.thumbUrl ?? c.image.url} alt="" /> : <UsersRound className="h-4 w-4 text-[color:var(--pc-accent-ink)]" aria-hidden />}
                     </span>
                     <b className="min-w-0 flex-1 truncate text-[14px]">{c.name}</b>
                     {c.unread > 0 && <span className="fc-unread">{c.unread}</span>}
@@ -268,7 +268,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
                 {trending.map((a, i) => (
                   <li key={a.id}>
                     <Link href={`/tribe/p/${a.id}`} className="flex gap-3 rounded-2xl px-1 py-2 hover:bg-[color:var(--pc-tonal)]">
-                      <span className="pc-price w-4 shrink-0 text-[16px] text-[color:var(--pc-pine)]">{i + 1}</span>
+                      <span className="pc-price w-4 shrink-0 text-[16px] text-[color:var(--pc-accent-ink)]">{i + 1}</span>
                       <span className="min-w-0">
                         <span className="line-clamp-2 text-[14px] font-semibold leading-snug">{a.body}</span>
                         <span className="text-[12px] text-muted-foreground">{a.poll ? `${a.poll.options.reduce((s, o) => s + o.votes, 0)} votes` : `${a.commentCount} answers`}</span>

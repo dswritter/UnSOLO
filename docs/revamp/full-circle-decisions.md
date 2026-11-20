@@ -5,6 +5,22 @@ This branch, `main_revamped_v2`, implements the approved Full Circle direction o
 - The spec is in [design-system.md](design-system.md).
 - Per-platform working notes and screenshots are in `.oil-ui/full-circle/`, a local folder that is not committed.
 
+## Palette update (user request)
+
+The dark-green base and green buttons were dropped. The palette is now **UnSOLO yellow (`#FCBA12`)** plus shades of white, black and yellow.
+
+- **Yellow is the fill:** buttons, selected chips and the + tab, always with black text on it.
+- **Dark gold `#7A5800` is accent text**, because yellow text on white is only 1.7:1.
+- **Taken seats are ink**, so the yellow *you* arc stays distinct.
+
+The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
+
+## Explore listings (user request)
+
+- **"Trips by vibe" tiles are 16:9.** They were 4:5, which cropped hosts' landscape photos. On mobile they are a sideways-scrolling row; on desktop, 3 per row.
+- **New sections use the full page width:** "Find your circle", "Leaving soon", "Next few weeks" and the plans section use the same full-width container as the listing rows (up to 1920px). "Leaving soon" shows 4 cards per row on wide screens.
+- **"New" is computed.** It marks the 6 most recently published listings of each type (stays, rentals, activities), by first approval time. When a new listing is published, the oldest of those 6 loses the badge (`src/lib/listings/newest.ts`, with tests). It shows as a pill on the photo. Cards without reviews no longer have a "★ New" text line.
+
 ## Shared rules (all platforms)
 
 | Decision | Why |

@@ -50,11 +50,12 @@ export async function WanderVibesSection() {
   return (
     <section aria-label="Trips by vibe" className={sectionClass}>
       <DiscoveryHeader eyebrow="Pick your mood" title="Trips by vibe" subtitle="Jump straight to the kind of trip you're craving." />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
+      {/* Host photos are 16:9 banners: tiles keep that shape (mobile: swipe row, desktop: 3 per row). */}
+      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3">
         {vibes.map(vibe => (
           <Link key={vibe.id} href={wanderSearchHref({ tab: 'trips', ...vibe.params })}
-            className="group relative isolate flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl border border-foreground/10 p-3 shadow-sm md:p-4">
-            <CoverImage src={vibe.imageUrl} sizes="(min-width: 1280px) 16vw, (min-width: 768px) 33vw, 50vw" />
+            className="group relative isolate flex aspect-video w-[82%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[24px] border border-foreground/10 p-4 md:w-auto md:p-5">
+            <CoverImage src={vibe.imageUrl} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 82vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
             <div className="relative text-white">
               <span className="mb-1.5 inline-flex rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold backdrop-blur">{tripsLabel(vibe.tripCount)}</span>
@@ -227,8 +228,8 @@ export function WanderDiscoverySkeleton({ variant }: { variant: 'grid' | 'row' |
     <div className={`${sectionClass} animate-pulse`} aria-hidden>
       <div className="mb-4 h-6 w-48 rounded-md bg-foreground/10" />
       {variant === 'grid' ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
-          {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="aspect-[4/5] rounded-2xl bg-foreground/[0.07]" />)}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="aspect-video rounded-[24px] bg-foreground/[0.07]" />)}
         </div>
       ) : variant === 'row' ? (
         <div className="flex gap-3 overflow-hidden md:gap-4">

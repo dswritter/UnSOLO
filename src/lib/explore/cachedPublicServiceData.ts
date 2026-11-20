@@ -2,6 +2,7 @@ import { unstable_cache } from 'next/cache'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
+import { markNewListings, newestIdsByType } from '@/lib/listings/newest'
 
 export type PublicServiceFilters = {
   destination_id?: string
@@ -45,8 +46,9 @@ export const getCachedPublicServiceListings = unstable_cache(async (
     .order('id', { ascending: true })
     .range(offset, offset + limit - 1)
   if (error) throw error
-  return { listings: (data || []) as unknown as ServiceListing[], total: count || 0, page, limit }
-}, ['explore-public-service-listings-v1'], { revalidate: 30, tags: ['explore-public-service-listings'] })
+  const newest = await getNewestServiceListingIds()
+  return { listings: markNewListings((data || []) as unknown as ServiceListing[], newest), total: count || 0, page, limit }
+}, ['explore-public-service-listings-v2'], { revalidate: 30, tags: ['explore-public-service-listings'] })
 
 export type PublicServiceItem = {
   id: string
@@ -78,3 +80,18 @@ export const getCachedPublicServiceItems = unstable_cache(async (listingIds: str
     service_listing_id: row.service_listing_id,
   }))
 }, ['explore-public-service-items-v1'], { revalidate: 30, tags: ['explore-public-service-items'] })
+/** Ids of the newest published listings per type (see lib/listings/newest.ts). Empty on error. */
+async function loadNewestServiceListingIds(): Promise<string[]> {
+  const { data, error } = await createPublicClient().from('service_listings')
+    .select('id, type, first_approved_at, created_at')
+    .eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .order('created_at', { ascending: false })
+    .limit(300)
+  if (error || !data) return []
+  return [...newestIdsByType(data as { id: string; type: string; first_approved_at: string | null; created_at: string }[])]
+}
+const getNewestServiceListingIdList = unstable_cache(loadNewestServiceListingIds, ['newest-service-listing-ids-v1'], { revalidate: 300, tags: ['explore-public-service-listings'] })
+export async function getNewestServiceListingIds(): Promise<Set<string>> {
+  return new Set(await getNewestServiceListingIdList())
+}

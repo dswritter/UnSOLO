@@ -24,18 +24,21 @@ The token *names* are kept from Passenger Chart so existing code keeps compiling
 
 | Role | Light | Dark |
 |---|---|---|
-| Base (`paper`) | `#F4FAF7` | `#0B1A15` |
-| Surface (`raised`) | `#FFFFFF` | `#13261F` |
-| Text (`ink` / `ink2` / `ink3`) | `#0B1A15` / `#4A5E56` / `#62766E` | `#E8F2EC` / `#A5BDB2` / `#8AA398` |
-| Border (`rule`) | `#D5E5DD` | `#23392F` |
-| Primary (`pine`), with text on it (`onPine`) | `#0E5A47`, white | `#3FB58E`, `#0B1A15` |
-| Sun (`gold`) | `#FCBA12` | `#FCBA12` |
-| Open seat (`seatOpen`) | `#5E8C7A` | `#4E7A69` |
+| Base (`paper`) | `#FAFAF7` | `#0F0F0F` |
+| Surface (`raised`) | `#FFFFFF` | `#1A1A1A` |
+| Text (`ink` / `ink2` / `ink3`) | `#111111` / `#55524C` / `#6B6760` | `#F5F3EE` / `#B5B1A8` / `#8F8B82` |
+| Border (`rule`) | `#E7E4DD` | `#2C2B28` |
+| Primary fill (`pine`, name kept), with text on it (`onPine`) | `#FCBA12` UnSOLO yellow, `#111111` | `#FCBA12`, `#111111` |
+| Accent text, links (`accentInk`) | `#7A5800` | `#FCBA12` |
+| Taken seats (`taken`) | `#111111` | `#F5F3EE` |
+| Open seat (`seatOpen`) | `#8F8B82` | `#6B6860` |
 | Women only (`rose`) | `#C9466A` | `#E36C8D` |
 | Sold out (`full`) | `#B07A00` | `#E0A526` |
 
-- **Pine** is the primary colour: buttons, taken seats, selected chips and links.
-- **Sun gold** marks only three things: *you* (your seat, your vote, your story ring), the HOST badge and the brand wordmark.
+- **UnSOLO yellow** is the primary *fill*: buttons, selected chips, the + tab, your own chat bubbles. It always carries black text. It is never used as text, an icon or a line on a light surface (1.7:1). Accent text uses `accentInk`.
+- **Seats:** taken seats are ink arcs. *You* is the yellow arc with an ink under-stroke, so it stays distinct. The HOST badge is yellow.
+- **Outline buttons, focus rings and selected outlines** are ink.
+- Older names in this doc ("pine") refer to the `pine` token, which is now the yellow primary fill.
 - **Rose** always comes with the "Women only" label and an icon.
 - **Type:**
   - **Bricolage Grotesque 800** for headings and prices.
@@ -115,7 +118,7 @@ Desktop web keeps a top navigation bar, since reach doesn't apply.
 
 | Component | Web class or component | Notes |
 |---|---|---|
-| Primary button | `.pc-btn` | Pine pill, 52px (`.pc-btn-sm` is 40px) |
+| Primary button | `.pc-btn` | Yellow pill with black text, 52px (`.pc-btn-sm` is 40px) |
 | Secondary button | `.pc-btn-outline` / `.pc-btn-quiet` | 1.5px pine outline / tonal fill |
 | Chip | `.pc-chip` | 40px pill. Selected is a pine fill |
 | Card | `.pc-card` (also `.pc-surface`, `.pc-printed`) | Surface, 28px radius, 1px rule |

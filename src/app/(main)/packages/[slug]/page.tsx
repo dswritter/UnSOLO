@@ -376,7 +376,7 @@ export default async function PackageDetailPage({
               <h1 className="text-[28px] leading-[1.1]">{package_.title}</h1>
               <p className="mt-1.5 text-[15px] text-muted-foreground">
                 {placeLine}{hostName ? <> · hosted by <span className="font-semibold text-foreground">{hostName}</span></> : null}
-                {hostData?.is_verified && <ShieldCheck className="ml-1 inline h-4 w-4 text-[color:var(--pc-pine)]" aria-label="Verified host" />}
+                {hostData?.is_verified && <ShieldCheck className="ml-1 inline h-4 w-4 text-[color:var(--pc-accent-ink)]" aria-label="Verified host" />}
               </p>
             </div>
           } />

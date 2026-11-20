@@ -85,7 +85,7 @@ export function ActivityClient({ initial, initialCursor }: { initial: Notificati
                     <p className="mt-1 text-xs font-semibold text-[color:var(--pc-ink3)]">{ago(n.createdAt)}</p>
                   </Link>
                   {isJoin && n.postId && n.actorId && (
-                    decided[n.id] ? <p className="mt-2 text-sm font-semibold text-[color:var(--pc-pine)]">{decided[n.id] === 'approved' ? 'Approved · they can see the plan chat now' : 'Declined'}</p> : (
+                    decided[n.id] ? <p className="mt-2 text-sm font-semibold text-[color:var(--pc-accent-ink)]">{decided[n.id] === 'approved' ? 'Approved · they can see the plan chat now' : 'Declined'}</p> : (
                       <div className="mt-2.5 flex gap-2">
                         <button type="button" className="pc-btn pc-btn-sm" onClick={() => decide(n, 'approve')}>Approve</button>
                         <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={() => decide(n, 'decline')}>Decline</button>

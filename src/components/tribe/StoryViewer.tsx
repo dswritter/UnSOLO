@@ -148,7 +148,7 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
                   {story.trip.nextDeparture ? `Next ${dateRange(story.trip.nextDeparture, null)} · ` : ''}{story.trip.seatsLeft != null ? `${story.trip.seatsLeft} seats left · ` : ''}{rupees(story.trip.priceFromPaise)}
                 </span>
               </span>
-              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-pine)]">Take a seat →</b>
+              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Take a seat →</b>
             </Link>
           ) : plan ? (
             <Link href={`/tribe/p/${plan.id}`} className="fc-viewer-link" onClick={onClose}>
@@ -157,7 +157,7 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
                 <b className="block truncate">{plan.title ?? plan.place?.name}</b>
                 <span className="block truncate text-[12px] text-muted-foreground">{story.author.name.split(' ')[0]}’s next plan · {Math.max((plan.spotsTotal ?? 0) - plan.memberCount, 0)} spots</span>
               </span>
-              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-pine)]">Join →</b>
+              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Join →</b>
             </Link>
           ) : null}
         </div>

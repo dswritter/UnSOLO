@@ -152,7 +152,7 @@ function PhoneSection({ me }: { me: Me }) {
   }
   return (
     <Section id="phone" title="Phone verification" icon={Phone} hint="Needed to post, comment or join plans. Your number is never shown on Tribe.">
-      {stage === 'done' ? <p className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pc-pine-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--pc-pine)]"><ShieldCheck className="h-4 w-4" aria-hidden />Verified{me.phone ? ` · ${me.phone.replace(/\d(?=\d{4})/g, '•')}` : ''}</p> : (
+      {stage === 'done' ? <p className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pc-pine-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--pc-accent-ink)]"><ShieldCheck className="h-4 w-4" aria-hidden />Verified{me.phone ? ` · ${me.phone.replace(/\d(?=\d{4})/g, '•')}` : ''}</p> : (
         <div className="space-y-2">
           <div className="flex gap-2">
             <input className="pc-input" inputMode="tel" autoComplete="tel" placeholder="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Mobile number" />

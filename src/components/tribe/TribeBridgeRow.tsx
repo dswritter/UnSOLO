@@ -34,7 +34,7 @@ export async function TribeBridgeRow({ layout = 'row' }: { layout?: 'row' | 'asi
   )
   if (plans.length === 0) {
     return (
-      <section aria-label="Tribe" className={layout === 'row' ? 'mx-auto mt-8 max-w-[1280px] px-4 md:px-6' : ''}>
+      <section aria-label="Tribe" className={layout === 'row' ? 'mx-auto w-full max-w-[min(100%,1920px)] mt-8 px-4 md:px-6 lg:px-10' : ''}>
         {header}
         <div className="pc-pencilled flex flex-col items-start gap-3 p-5">
           <p className="pc-kicker">Community plans · not bookings</p>
