@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Figtree } from "next/font/google";
+import { Figtree } from "next/font/google";
 import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
@@ -9,17 +9,13 @@ import { COLOR_MODE_BOOT_SCRIPT } from '@/lib/theme/color-mode'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 
 // Full Circle type: Figtree (body, labels, numbers with tabular figures) + Bricolage Grotesque (headings, prices).
+// Bricolage is loaded with a plain Google Fonts stylesheet (see <head>): its multi-axis font files fail
+// next/font's build-time download on Vercel (Turbopack "Can't resolve …/internal/font/google/font").
 const figtree = Figtree({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-sans",
-});
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["700", "800"],
-  display: "swap",
-  variable: "--font-fc-display",
 });
 
 export const viewport: Viewport = {
@@ -50,9 +46,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${figtree.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${figtree.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOT_SCRIPT }} />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* eslint-disable-next-line @next/next/no-page-custom-font -- app-wide display font, loaded once in the root layout */}
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700..800&display=swap" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Suspense fallback={null}>

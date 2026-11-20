@@ -17,7 +17,7 @@ This branch, `main_revamped_v2`, implements the approved Full Circle direction o
 | **Explore leads with people and departures:** "Leaving soon" photo-first ring cards, then the departures list, then plans looking for people. The marketing hero is gone. | The approved direction. The old hero showed zero stats when empty. |
 | **Key names stay:** token names (`paper`, `ink`, …) and the web `pc-` class prefix are kept and given new values. | Three codebases compile against them. Restyling moves every screen at once, with no rename churn. |
 | **Legacy colours:** the legacy web `blue-*` colours map to a pine scale. | Older admin and host screens used blue for "info" and "verified". |
-| **Fonts:** web uses Bricolage Grotesque and Figtree (`next/font`). Android uses Google downloadable fonts with a system fallback. iOS uses SF Pro Rounded and SF Pro. | No font files are added to the repo. iOS can't use downloadable Google fonts. |
+| **Fonts:** web uses Figtree through `next/font` and Bricolage Grotesque through a Google Fonts stylesheet. Bricolage's multi-axis font files broke `next/font`'s build-time download on Vercel. Android uses Google downloadable fonts with a system fallback. iOS uses SF Pro Rounded and SF Pro. | No font files are added to the repo. iOS can't use downloadable Google fonts. |
 | **Icons:** web uses lucide and iOS uses SF Symbols (bold). Android uses inline vectors redrawn at a bold weight. | No new icon dependency was added. |
 
 The thumb-reach layout:

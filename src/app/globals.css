@@ -28,7 +28,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-sans);
-  --font-heading: var(--font-fc-display);
+  --font-heading: 'Bricolage Grotesque', var(--font-sans);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-link: var(--link);
