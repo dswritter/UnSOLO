@@ -118,6 +118,15 @@ struct SeatRow: View {
     var columns: Int? = nil
 
     var body: some View {
+        if !seats.isEmpty && seats.allSatisfy({ $0.state == .open }) {
+            // Nobody booked yet: one quiet line instead of a row of empty outlines.
+            Text("All \(seats.count) seats open · be the first").pcFont(.small).foregroundStyle(Pc.ink2)
+        } else {
+            filled
+        }
+    }
+
+    private var filled: some View {
         VStack(alignment: .leading, spacing: 8) {
             FlowLayout(spacing: spacing, lineSpacing: spacing) {
                 ForEach(Array(visible.enumerated()), id: \.offset) { _, seat in

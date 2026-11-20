@@ -14,6 +14,9 @@ export function SeatRow({ seats, size = 'md', max, className, stampIndex }: {
   className?: string
   stampIndex?: number
 }) {
+  if (seats.length > 0 && seats.every((s) => s.state === 'open')) {
+    return <span className={cn('pc-gauge-empty block', className)}>All {seats.length} seats open · be the first</span>
+  }
   const shown = max ? seats.slice(0, max) : seats
   const more = max && seats.length > max ? seats.length - max : 0
   return (
@@ -42,6 +45,26 @@ export function SeatCell({ seat, size = 'md', stamped }: { seat: Seat; size?: 'm
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={u.avatarUrl} alt="" loading="lazy" decoding="async" />
         : <span aria-hidden>{initials(u.name)}</span>)}
+    </span>
+  )
+}
+
+/**
+ * Count-only seat summary for lists (departures): a slim fill bar plus "3 going · 9 open".
+ * With nobody booked yet it renders a single "All 12 seats open" line instead of a row of empty outlines.
+ */
+export function SeatGauge({ total, left, className, showLabel = true }: { total: number | null; left: number | null; className?: string; showLabel?: boolean }) {
+  const t = Math.max(total ?? 0, 0)
+  if (t === 0) return null
+  const l = Math.min(Math.max(left ?? t, 0), t)
+  const taken = t - l
+  if (taken === 0) {
+    return <span className={cn('pc-gauge-empty', className)}>All {t} seats open · be the first</span>
+  }
+  return (
+    <span className={cn('pc-gauge', className)} role="img" aria-label={`${taken} of ${t} seats taken`}>
+      <span className="pc-gauge-track" aria-hidden><span className="pc-gauge-fill" style={{ width: `${Math.round((taken / t) * 100)}%` }} /></span>
+      {showLabel && <span className="pc-gauge-label">{l === 0 ? 'Full' : `${taken} going · ${l} open`}</span>}
     </span>
   )
 }

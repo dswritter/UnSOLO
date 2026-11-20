@@ -2,15 +2,9 @@ import Link from 'next/link'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { loadUpcomingTrips } from '@/lib/tribe/trips'
-import type { Seat, TripLite } from '@/lib/tribe/models'
-import { SeatRow } from './SeatRow'
+import type { TripLite } from '@/lib/tribe/models'
+import { SeatGauge } from './SeatRow'
 import { rupees } from './format'
-
-function strip(t: TripLite): Seat[] {
-  const total = Math.min(t.seatsTotal ?? 12, 16)
-  const taken = Math.max(total - (t.seatsLeft ?? total), 0)
-  return Array.from({ length: total }, (_, i) => ({ state: i < taken ? 'member' : 'open', user: null }))
-}
 
 function day(iso: string) {
   const d = new Date(`${iso}T00:00:00Z`)
@@ -46,7 +40,7 @@ export async function DeparturesTable() {
                 <td><span className="pc-mono block text-lg font-semibold leading-none">{d.dd}</span><span className="text-xs text-muted-foreground">{d.mon} · {d.dow}</span></td>
                 <td className="min-w-0"><Link href={`/packages/${t.slug}`} className="font-semibold hover:underline">{t.title}</Link>
                   <span className="block text-xs text-muted-foreground">{t.place?.name ?? ''}{t.host ? ` · hosted by ${t.host.name}` : ' · UnSOLO trip'}</span></td>
-                <td><SeatRow seats={strip(t)} size="xs" className="gap-[3px]" /><span className="pc-mono mt-1 block text-xs text-muted-foreground">{t.seatsLeft} of {t.seatsTotal} left</span></td>
+                <td><SeatGauge total={t.seatsTotal} left={t.seatsLeft} /></td>
                 <td className="pc-mono text-sm">{t.durationDays}D</td>
                 <td className="pc-mono text-right font-semibold">{rupees(t.priceFromPaise)}</td>
                 <td className="text-right"><Link href={`/packages/${t.slug}`} className="pc-btn pc-btn-sm">Take a seat</Link></td>
@@ -63,7 +57,7 @@ export async function DeparturesTable() {
               <Link href={`/packages/${t.slug}`} className="grid grid-cols-[52px_1fr_auto] items-center gap-3 py-3">
                 <span><span className="pc-mono block text-lg font-semibold leading-none">{d.dd}</span><span className="text-xs text-muted-foreground">{d.mon}</span></span>
                 <span className="min-w-0"><span className="block truncate font-semibold">{t.title}</span>
-                  <SeatRow seats={strip(t)} size="xs" className="mt-1 gap-[3px]" /></span>
+                  <SeatGauge total={t.seatsTotal} left={t.seatsLeft} showLabel={false} className="mt-1.5" /></span>
                 <span className="pc-mono text-right text-sm font-semibold">{rupees(t.priceFromPaise)}<span className="block text-xs font-normal text-muted-foreground">{t.seatsLeft} left</span></span>
               </Link>
             </li>

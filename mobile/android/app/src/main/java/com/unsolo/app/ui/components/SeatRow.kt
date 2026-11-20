@@ -92,6 +92,7 @@ fun SeatCell(seat: Seat, size: Dp = PcTokens.seat, modifier: Modifier = Modifier
  */
 @Composable
 fun SeatRow(seats: List<Seat>, modifier: Modifier = Modifier, perRow: Int? = null, gap: Dp = 8.dp, maxCell: Dp = PcTokens.seat, onSeat: ((Seat) -> Unit)? = null) {
+    if (allOpen(seats)) { AllSeatsOpen(seats.size, modifier); return }
     if (seats.size > 16) { CollapsedSeats(seats, modifier); return }
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val fit = ((maxWidth + gap) / (maxCell + gap)).toInt().coerceAtLeast(1)
@@ -109,6 +110,7 @@ fun SeatRow(seats: List<Seat>, modifier: Modifier = Modifier, perRow: Int? = nul
 /** Compact dot strip for list rows (Explore departures, host hub). */
 @Composable
 fun SeatStrip(seats: List<Seat>, modifier: Modifier = Modifier, cell: Dp = 12.dp, max: Int = 14) {
+    if (allOpen(seats)) { AllSeatsOpen(seats.size, modifier); return }
     BoxWithConstraints(modifier) {
         val gap = 4.dp
         val fit = ((maxWidth + gap) / (cell + gap)).toInt().coerceAtLeast(1)
@@ -128,6 +130,14 @@ fun SeatStrip(seats: List<Seat>, modifier: Modifier = Modifier, cell: Dp = 12.dp
             if (hidden > 0) Text("+${seats.size - (shown - 2).coerceAtLeast(1)}", style = Pc.type.label, color = Pc.colors.ink2)
         }
     }
+}
+
+private fun allOpen(seats: List<Seat>) = seats.isNotEmpty() && seats.all { it.state == SeatState.OPEN }
+
+/** Nobody booked yet: one quiet line instead of a row of empty outlines. */
+@Composable
+private fun AllSeatsOpen(total: Int, modifier: Modifier) {
+    Text("All $total seats open · be the first", style = Pc.type.small, color = Pc.colors.ink2, modifier = modifier)
 }
 
 /** Seat strip from counts only (TripLite gives seatsLeft/seatsTotal, not seats). */
