@@ -106,8 +106,13 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
       <button type="button" className="fc-viewer-nav" style={{ left: 'max(16px, calc(50% - 300px))' }} onClick={prev} disabled={pos.g === 0 && pos.s === 0} aria-label="Previous story"><ChevronLeft /></button>
       <div ref={stageRef} tabIndex={-1} className="fc-viewer-stage outline-none">
         {story.media[0]
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img key={`img-${story.id}`} src={story.media[0].url} alt={story.title ?? `Story by ${story.author.name}`} className="fc-viewer-bg" draggable={false} />
+          ? <>
+              {/* Small version first, the full photo covers it when it arrives. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {(story.media[0].thumbUrl ?? story.media[0].lqip) && <img key={`low-${story.id}`} src={(story.media[0].thumbUrl ?? story.media[0].lqip)!} alt="" aria-hidden className="fc-viewer-bg" draggable={false} />}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img key={`img-${story.id}`} src={story.media[0].url} alt={story.title ?? `Story by ${story.author.name}`} className="fc-viewer-bg" draggable={false} />
+            </>
           : <div className="fc-viewer-textbg" aria-hidden />}
         <div className="fc-viewer-shade" aria-hidden />
 
@@ -145,10 +150,10 @@ export function StoryViewer({ groups, startGroup, onClose, onSeen, plans, signed
               <span className="min-w-0">
                 <b className="block truncate">{story.trip.title}</b>
                 <span className="block truncate text-[12px] text-muted-foreground">
-                  {story.trip.nextDeparture ? `Next ${dateRange(story.trip.nextDeparture, null)} · ` : ''}{story.trip.seatsLeft != null ? `${story.trip.seatsLeft} seats left · ` : ''}{rupees(story.trip.priceFromPaise)}
+                  {story.trip.nextDeparture ? `Next ${dateRange(story.trip.nextDeparture, null)} · ` : ''}{story.trip.seatsLeft != null ? `${story.trip.seatsLeft} ${story.trip.seatsLeft === 1 ? 'spot' : 'spots'} left · ` : ''}{rupees(story.trip.priceFromPaise)}
                 </span>
               </span>
-              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Take a seat →</b>
+              <b className="ml-1 shrink-0 text-[13px] text-[color:var(--pc-accent-ink)]">Grab a spot →</b>
             </Link>
           ) : plan ? (
             <Link href={`/tribe/p/${plan.id}`} className="fc-viewer-link" onClick={onClose}>

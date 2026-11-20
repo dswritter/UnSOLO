@@ -1,8 +1,11 @@
+import Image from 'next/image'
 import Link from 'next/link'
-import { Armchair, BadgeCheck, CalendarDays } from 'lucide-react'
+import { BadgeCheck, CalendarDays } from 'lucide-react'
 import type { TripLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
-import { MiniArc, SeatRing, segsFromCounts } from '@/components/tribe/SeatRing'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
+import { MiniArc, SeatRing, segsFromCounts, spotsCenter } from '@/components/tribe/SeatRing'
 import { rupees } from '@/components/tribe/format'
 
 function dayParts(iso: string | null) {
@@ -16,6 +19,8 @@ function dayParts(iso: string | null) {
 }
 
 const tripImage = (t: TripLite) => t.image?.thumbUrl ?? t.image?.url ?? null
+const fullImage = (t: TripLite) => t.image?.url ?? t.image?.thumbUrl ?? null
+const CARD_SIZES = '(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 88vw'
 
 function seatLine(t: TripLite) {
   const n = t.seatsTotal ?? 0
@@ -24,7 +29,7 @@ function seatLine(t: TripLite) {
   if (n === 0) return null
   if (k <= 0) return <><strong>Be first in the circle</strong></>
   if (left <= 0) return <><strong>Full</strong> · {n}/{n}</>
-  return <><strong>{k} going</strong> · {left} of {n} open</>
+  return <><strong>{k} going</strong></>
 }
 
 /**
@@ -36,14 +41,17 @@ export function TripRingCard({ trip: t, ringSize = 88, className, priority }: { 
   const left = t.seatsLeft ?? n
   const full = n > 0 && left <= 0
   const d = dayParts(t.nextDeparture)
-  const img = tripImage(t)
+  const photo = fullImage(t)
   return (
     <article className={cn('fc-tcard group relative', className)}>
       <Link href={`/packages/${t.slug}`} className="absolute inset-0 z-[1] rounded-[inherit]" aria-label={`${t.title}${d ? `, leaves ${d.dow} ${d.dd} ${d.mon}` : ''}`} />
       <div className="fc-tcard-photo">
-        {img
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={img} alt="" loading={priority ? 'eager' : 'lazy'} decoding="async" />
+        {photo
+          ? <>
+              {/* Thumb paints at once; the resized full photo covers it when it arrives. */}
+              <LowResUnderlay src={photo} low={t.image?.thumbUrl} eager={priority} />
+              <Image src={photo} alt="" fill sizes={CARD_SIZES} priority={priority} unoptimized={!isOptimizableImageUrl(photo)} className="object-cover" />
+            </>
           : <span className="fc-tcard-wash" aria-hidden>{t.place?.name ?? t.title}</span>}
         {d && <span className="fc-datechip"><b>{d.dd}</b><span>{d.mon}</span></span>}
         {full && <span className="fc-fullchip">Full circle</span>}
@@ -51,7 +59,7 @@ export function TripRingCard({ trip: t, ringSize = 88, className, priority }: { 
       <div className="fc-tcard-main">
         {n > 0 && (
           <SeatRing segs={segsFromCounts(n, left)} size={ringSize} showDots={false}
-            center={full ? { big: `${n}/${n}`, small: 'full', fontSize: ringSize * 0.22 } : { big: String(left), small: left === 1 ? 'seat left' : 'seats left', fontSize: ringSize * 0.27, icon: <Armchair /> }} className="fc-tcard-ring" />
+            center={spotsCenter(n, left, ringSize * 0.27)} className="fc-tcard-ring" />
         )}
         <div className="min-w-0 flex-1 pt-11">
           <h3 className="truncate text-[19px] leading-tight">{t.title}</h3>
@@ -67,7 +75,7 @@ export function TripRingCard({ trip: t, ringSize = 88, className, priority }: { 
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="pc-price">{rupees(t.priceFromPaise)}<small>/person</small></span>
-          <span className="pc-btn pc-btn-sm pc-btn-quiet">{full ? 'Notify me' : 'Take a seat'}</span>
+          <span className="pc-btn pc-btn-sm pc-btn-quiet">{full ? 'Notify me' : 'Grab a spot'}</span>
         </div>
       </div>
     </article>

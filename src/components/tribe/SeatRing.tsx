@@ -65,15 +65,20 @@ export function segsFromCounts(total: number | null | undefined, left: number | 
   return Array.from({ length: t }, (_, i) => ({ state: i < t - l ? 'taken' : 'open' }))
 }
 
-/** "Be first in the circle · 12 seats open" / "8 of 12 open · 4 going" / "Full · 12/12" */
+/** "Be first in the circle · 12 spots open" / "8 of 12 open · 4 going" / "Full · 12/12" */
 export function ringCaption(n: number, taken: number): ReactNode {
   if (n <= 0) return null
-  if (taken <= 0) return <><strong>Be first in the circle</strong> · {n} seats open</>
+  if (taken <= 0) return <><strong>Be first in the circle</strong> · {n} spots open</>
   if (taken >= n) return <><strong>Full · {n}/{n}</strong></>
   return <><strong>{n - taken} of {n} open</strong> · {taken} going</>
 }
+/** The one centre label every trip ring uses: "8/12 spots left", or "12/12 full". */
+export function spotsCenter(total: number, left: number, fontSize?: number) {
+  const full = left <= 0
+  return { big: String(full ? total : left), of: `/${total}`, small: full ? 'full' : left === 1 ? 'spot left' : 'spots left', fontSize }
+}
 export function ringLabel(n: number, taken: number) {
-  return taken >= n ? `Full, ${n} of ${n} seats taken` : `${n - taken} of ${n} seats open`
+  return taken >= n ? `Full, ${n} of ${n} spots taken` : `${n - taken} of ${n} spots open`
 }
 
 export function SeatRing({
@@ -86,7 +91,8 @@ export function SeatRing({
   women?: boolean
   past?: boolean
   photo?: string | null
-  center?: { big: string; small?: string; fontSize?: number; icon?: ReactNode }
+  /** Centre label: `big` number, optional tiny `of` ("/12") beside it, and a `small` word under it. */
+  center?: { big: string; of?: string; small?: string; fontSize?: number }
   badge?: { user: UserLite | null; label: 'Host' | 'Organiser' } | null
   waiting?: UserLite | null
   /** Faces/initials on taken seats. Off for signed-out viewers (anonymous arcs). */
@@ -110,6 +116,10 @@ export function SeatRing({
   if (variant === 'trip' && n > 0) {
     under.push(<path key="track" className="fc-ring-track" d={arcD(g.cx, g.cy, g.R, g.start + g.gap / 2, g.start + g.span - g.gap / 2)} strokeWidth={g.wO} fill="none" strokeLinecap="round" />)
   }
+  // Trip rings read as a simple progress ring: consecutive taken spots draw as one continuous arc over
+  // the thin open track, so a 30-spot trip stays as calm as a 6-spot one. Plans keep one hollow
+  // circle per open spot (they are small groups).
+  let runStart = -1
   segs.forEach((s, i) => {
     const a0 = g.start + i * g.seg + g.gap / 2
     const a1 = a0 + g.seg - g.gap
@@ -117,12 +127,19 @@ export function SeatRing({
     const d = arcD(g.cx, g.cy, g.R, a0, a1)
     if (s.state === 'open') {
       if (variant === 'plan') parts.push(<circle key={i} className="fc-ring-planopen" cx={px} cy={py} r={Math.max(5, g.d * 0.34)} strokeWidth={2.5} />)
-      // Large trip rings: a small seat marker on the track so open seats can be counted at a glance.
-      else if (S >= 64) parts.push(<circle key={i} className="fc-ring-openmark" cx={px} cy={py} r={Math.max(2.4, g.wO * 1.35)} />)
       return
     }
     if (s.state === 'taken') {
-      parts.push(<path key={i} className="fc-ring-taken" d={d} strokeWidth={g.wT} fill="none" strokeLinecap="round" />)
+      if (variant === 'trip') {
+        if (runStart < 0) runStart = i
+        if (segs[i + 1]?.state !== 'taken') {
+          const r0 = g.start + runStart * g.seg + g.gap / 2
+          parts.push(<path key={i} className="fc-ring-taken" d={arcD(g.cx, g.cy, g.R, r0, a1)} strokeWidth={g.wT} fill="none" strokeLinecap="round" />)
+          runStart = -1
+        }
+      } else {
+        parts.push(<path key={i} className="fc-ring-taken" d={d} strokeWidth={g.wT} fill="none" strokeLinecap="round" />)
+      }
     } else {
       const len = ((2 * Math.PI * g.R * (a1 - a0)) / 360).toFixed(1)
       const drawCls = animateYou && s.state === 'you' ? 'fc-ring-draw' : undefined
@@ -195,7 +212,7 @@ export function SeatRing({
       </svg>
       {center && (
         <div className={cn('fc-ring-center', photo && 'on-photo')} style={{ fontSize: center.fontSize ?? S * 0.2 }}>
-          <div>{center.icon && <i className="fc-ring-center-ic" aria-hidden>{center.icon}</i>}<b>{center.big}</b>{center.small && <span>{center.small}</span>}</div>
+          <div><b>{center.big}{center.of && <em>{center.of}</em>}</b>{center.small && <span>{center.small}</span>}</div>
         </div>
       )}
       {badge && (
@@ -221,7 +238,7 @@ export function MiniArc({ total, taken, size = 44, women, className }: { total: 
   const C = 2 * Math.PI * R
   const c = size / 2
   return (
-    <span className={cn('fc-mini', k >= n && 'is-full', women && 'is-women', className)} style={{ width: size, height: size }} role="img" aria-label={`${k} of ${n} seats taken`}>
+    <span className={cn('fc-mini', k >= n && 'is-full', women && 'is-women', className)} style={{ width: size, height: size }} role="img" aria-label={`${k} of ${n} spots taken`}>
       <svg width={size} height={size} aria-hidden>
         <circle className="fc-mini-track" cx={c} cy={c} r={R} fill="none" strokeWidth={2} />
         {k > 0 && <circle className="fc-mini-fill" cx={c} cy={c} r={R} fill="none" strokeWidth={5} strokeLinecap="round" strokeDasharray={`${(C * k) / n} ${C}`} transform={`rotate(-90 ${c} ${c})`} />}

@@ -66,24 +66,24 @@ N arc segments sit around a circular centre: a trip photo, an organiser's face, 
 - Segments:
   - `span = 360 - hostGap`, `seg = span/n`, `gap = min(6, seg*0.24)`, `start = -90 + hostGap/2`.
   - Segment i runs from `a0 = start + i*seg + gap/2` to `a1 = a0 + seg - gap`.
-- **Open seats:** one *continuous* thin track in `seatOpen` from `start + gap/2` to `start + span - gap/2`. Never dashed.
-- **Taken seats:** a thick round-capped arc over the track, in `pine`. It is `rose` on women-only trips and `full` when every seat is taken.
+- **Open spots:** one *continuous* thin track in `seatOpen` from `start + gap/2` to `start + span - gap/2`. Never dashed, no per-spot markers.
+- **Taken spots:** a thick round-capped arc over the track, in `taken` (ink). Consecutive taken spots merge into *one* arc, from the first one's `a0` to the last one's `a1`, so the ring reads as a progress ring at any group size. It is `rose` on women-only trips and `full` when every spot is taken.
 - **You:** a `gold` arc drawn over a `wT + 3` stroke in `ink`. *Held* is the same arc dashed, with "Held · 9:59".
 - **Seat dots:** taken and you seats get a dot at the arc midpoint when `d = clamp(12, S*0.12, segLen*0.5) >= 14`.
   - The dot shows a face or initials and has a 2px `raised` halo.
   - Faces are shown only to co-travellers.
   - Signed-in viewers see initials. Signed-out viewers see no dots, just arcs.
 - **Centre disc:** radius `r0 = max(2, R - wT/2 - (S < 90 ? max(2, S*0.05) : max(6, S*0.045)))`. It holds the photo, or `tonal` (or `goldBg` when full).
-- **Centre label (optional):** a big number ("8") plus a small word ("open" or "full"), on a pill-shaped scrim over the photo.
+- **Centre label (trip rings):** the spots left as a big number, a tiny "/12" beside it (0.36× size, 60% opacity), and "spots left" / "spot left" under it. When full: "12/12" and "full". No icon. On a photo it sits on a pill-shaped scrim. User-facing copy always says *spot*, never *seat*.
 - **Host badge:** a pill at the top (`top = pad - 13`) with the host's avatar and "Host" (gold) or "Organiser" (ink).
 - **Plans** (community, no money): no continuous track. Open seats are hollow circles (`raised` fill, `seatOpen` 2.5px stroke) at each segment midpoint. The centre is the organiser's photo.
 - **Requested:** your face waits outside the ring at -28°, radius R+30, with a clock badge.
 - **Past:** the ring is desaturated (grayscale 0.85, opacity 0.75).
 - **Every ring is paired with a text line**:
-  - "Be first in the circle · 12 seats open" when nobody is booked;
+  - "Be first in the circle · 12 spots open" when nobody is booked;
   - "8 of 12 open · 4 going";
   - "Full · 12/12".
-  - The accessible label is "8 of 12 seats open".
+  - The accessible label is "8 of 12 spots open".
 - **Mini arc** for lists: 44px. A thin `seatOpen` full circle with a 5px `pine` progress arc from 12 o'clock (`full` when sold out), and "k/n" in the centre.
 - **Motion:** taking a seat draws your arc in 420ms. When the last seat fills, the ring spins once (700ms) and turns `full`: the "Full circle" moment.
 
@@ -96,7 +96,7 @@ The things people use most sit in the bottom third of the screen.
 1. **Tab bar:** Explore · Tribe · **(+)** · My trips · You.
    - The centre **+** is a raised pine circle. It opens the "What are you sharing?" bottom sheet: Plan, Story, Question, Poll.
 2. **The primary action is pinned in a bottom bar** above the safe area, never in the top-right corner:
-   - Trip page: save, price and **Take a seat**.
+   - Trip page: save, price and **Grab a spot**.
    - Plan: **Request to join**.
    - Composers: **Publish**, riding above the keyboard.
    - Post detail: the comment box.
@@ -134,7 +134,7 @@ Desktop web keeps a top navigation bar, since reach doesn't apply.
 
 | Motion | Spec |
 |---|---|
-| Take a seat | Your arc draws in over 420ms (stroke-dash) |
+| Grab a spot | Your arc draws in over 420ms (stroke-dash) |
 | Full circle | 700ms spin, then the ring turns `full` |
 | Request | Your face slides in outside the ring, 340ms |
 | Held | Dashed gold arc, opacity pulse 1.6s |

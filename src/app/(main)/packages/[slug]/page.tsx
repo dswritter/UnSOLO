@@ -12,6 +12,9 @@ import { formatPrice } from '@/lib/utils'
 import { packageDurationShortLabel, tripDepartureDateKey } from '@/lib/package-trip-calendar'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import Link from 'next/link'
+import Image from 'next/image'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 import { ImageGallery } from '@/components/packages/ImageGallery'
 import { BookingFormClient } from '@/components/packages/BookingFormClient'
 import { JoinRequestForm } from '@/components/hosting/JoinRequestForm'
@@ -357,8 +360,10 @@ export default async function PackageDetailPage({
       <div className="relative md:hidden">
         <div className="relative h-[42svh] min-h-[280px] overflow-hidden bg-[color:var(--pc-tonal)]">
           {coverImage && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={coverImage} alt="" className="h-full w-full object-cover" fetchPriority="high" />
+            <>
+              <LowResUnderlay src={coverImage} eager />
+              <Image src={coverImage} alt="" fill priority sizes="100vw" unoptimized={!isOptimizableImageUrl(coverImage)} className="object-cover" />
+            </>
           )}
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/40 to-transparent" />
           <div className="absolute inset-x-4 top-3 flex items-center justify-between">
@@ -702,7 +707,7 @@ export default async function PackageDetailPage({
                           <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
                           <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
                             <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
-                              Sign in to take a seat
+                              Sign in to grab a spot
                             </Link>
                           </Button>
                         </div>
@@ -749,7 +754,7 @@ export default async function PackageDetailPage({
                           <p className="text-sm text-muted-foreground">Sign in to book this trip</p>
                           <Button className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90" asChild>
                             <Link href={`/login?redirectTo=/packages/${package_.slug}`}>
-                              Sign in to take a seat
+                              Sign in to grab a spot
                             </Link>
                           </Button>
                         </div>
@@ -802,16 +807,16 @@ export default async function PackageDetailPage({
             {compareAtDisplayPaise ? <p className="text-[12px] text-muted-foreground line-through">{formatPrice(compareAtDisplayPaise)}</p> : null}
             <p className="pc-price truncate">{priceLabel}<small>/person</small></p>
             <p className="truncate text-[12.5px] text-muted-foreground">
-              {bookingsPaused ? 'Bookings paused' : scarceSlotsLeft === 0 ? 'Full on open dates' : isCommunityTrip && !communityDirectCheckout ? 'Host approves each seat' : nextDep ? `Next: ${dateRange(nextDep, null)}` : ''}
+              {bookingsPaused ? 'Bookings paused' : scarceSlotsLeft === 0 ? 'Full on open dates' : isCommunityTrip && !communityDirectCheckout ? 'Host approves each spot' : nextDep ? `Next: ${dateRange(nextDep, null)}` : ''}
             </p>
           </div>
           {isHost ? (
             <Link href="/host" className="pc-btn pc-btn-outline">Host dashboard</Link>
           ) : !user ? (
-            <Link href={`/login?redirectTo=/packages/${package_.slug}`} className="pc-btn pc-btn-sun">Take a seat</Link>
+            <Link href={`/login?redirectTo=/packages/${package_.slug}`} className="pc-btn pc-btn-sun">Grab a spot</Link>
           ) : (
             <a href="#trip-booking-card" className="pc-btn pc-btn-sun" aria-disabled={bookingsPaused || undefined}>
-              {isCommunityTrip && !communityDirectCheckout ? 'Request a seat' : 'Take a seat'}
+              {isCommunityTrip && !communityDirectCheckout ? 'Request a spot' : 'Grab a spot'}
             </a>
           )}
         </div>

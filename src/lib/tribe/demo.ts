@@ -131,7 +131,7 @@ export const DEMO_COMMENTS: Comment[] = [
   { id: 'c4', postId: DEMO_POSTS[4].id, parentId: null, author: DEMO_USERS.tara, body: 'Was this the morning with the fog clearing at Chandrashila? Goosebumps.', pollChoice: null, createdAt: ago(1.8), replies: [
     { id: 'c5', postId: DEMO_POSTS[4].id, parentId: 'c4', author: DEMO_USERS.kabir, body: 'Exactly that one. You were two steps behind me.', pollChoice: null, createdAt: ago(1.5), replies: [] },
   ] },
-  { id: 'c6', postId: DEMO_POSTS[4].id, parentId: null, author: DEMO_USERS.pahadi, body: 'Thanks for coming up with us! The next batch has 3 seats left.', pollChoice: null, createdAt: ago(1), replies: [] },
+  { id: 'c6', postId: DEMO_POSTS[4].id, parentId: null, author: DEMO_USERS.pahadi, body: 'Thanks for coming up with us! The next batch has 3 spots left.', pollChoice: null, createdAt: ago(1), replies: [] },
   { id: 'c7', postId: DEMO_POSTS[9].id, parentId: null, author: DEMO_USERS.tentit, body: 'Yes, but go with a group: the trail ices after 4pm and most cafés at the top shut by mid-Dec.', pollChoice: null, createdAt: ago(20), replies: [] },
 ]
 

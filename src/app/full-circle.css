@@ -279,27 +279,15 @@ a:active > .fc-tab-post, button:active > .fc-tab-post { transform: scale(0.94); 
   backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(17,17,17,0.18); border: 0 !important; }
 }
 @layer components {
-.fc-ring-openmark { fill: var(--pc-raised); stroke: var(--pc-seat-open); stroke-width: 2; }
-.fc-ring.is-women .fc-ring-openmark { stroke: var(--pc-rose-open); }
-}
-@layer components {
-.fc-ring-center-ic { display: block; margin-bottom: 1px; font-style: normal; opacity: 0.7; }
-.fc-ring-center-ic svg { width: max(11px, 0.48em); height: max(11px, 0.48em); }
+/* "12/12" with a tiny "/12", then "spots left": short enough to sit inside the disc at every size. */
+.fc-ring-center b em { font: 700 max(10px, 0.36em)/1 var(--font-sans); font-style: normal; letter-spacing: 0; opacity: 0.6; margin-left: 1px; vertical-align: 0.12em; }
 .fc-ring-center span { white-space: nowrap; }
 }
-/* ── Plan invite: seats fill around *you*, on a loop ── */
+/* ── Plan invite: one clickable card, no loop animation ── */
 @layer components {
-.fc-invite { border-style: dashed; border-width: 1.5px; border-color: var(--pc-rule2); }
-.fc-invite-disc { fill: var(--pc-tonal); }
-.fc-invite-seg { stroke: var(--pc-taken); opacity: 0; animation: fc-invite-fill 4.4s var(--pc-ease-standard) infinite; }
-.fc-invite-plus { position: absolute; inset: 0; margin: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px;
-  background: var(--pc-raised); color: var(--pc-ink); box-shadow: 0 0 0 1.5px var(--pc-rule); animation: fc-invite-pulse 2.2s ease-in-out infinite; }
-.fc-invite:hover .fc-invite-plus { background: var(--pc-gold); color: var(--pc-on-gold); box-shadow: none; }
+.fc-invite { border-style: dashed; border-width: 1.5px; border-color: var(--pc-rule2); transition: border-color 150ms, transform 150ms var(--pc-ease-standard); }
+.fc-invite:hover { border-color: var(--pc-ink3); }
+.fc-invite:active { transform: scale(0.99); }
+.fc-invite:focus-within { outline: 2px solid var(--pc-ink); outline-offset: 2px; }
 }
-@keyframes fc-invite-fill { 0%, 8% { opacity: 0 } 14%, 82% { opacity: 1 } 92%, 100% { opacity: 0 } }
-@keyframes fc-invite-pulse { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.08) } }
-@media (prefers-reduced-motion: reduce) {
-  .fc-invite-seg { animation: none; opacity: 0; }
-  .fc-invite-seg:nth-of-type(odd) { opacity: 1; }
-  .fc-invite-plus { animation: none; }
-}
+@media (prefers-reduced-motion: reduce) { .fc-invite { transition: none; } .fc-invite:active { transform: none; } }

@@ -7,6 +7,8 @@ import { ChevronLeft, ChevronRight, Star } from 'lucide-react'
 import type { ServiceListing } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 import { pushWithRouteProgress } from '@/lib/navigation/pushWithRouteProgress'
 import { shortListingLocation, unitShortLabel } from '@/lib/listing-card-format'
 import { writeDetailPreview } from '@/lib/detail-preview'
@@ -47,8 +49,9 @@ function listingDetailLine(listing: ServiceListing): string {
   }
 }
 
+/** Full photo (next/image resizes it); LowResUnderlay paints its 320px thumb first. */
 function imageSrc(raw: string | null | undefined) {
-  return raw ? (storageThumbnailUrl(raw) || raw) : '/placeholder-listing.svg'
+  return raw || '/placeholder-listing.svg'
 }
 
 export function ServiceListingCard({ listing, items, muted = false }: ServiceListingCardProps) {
@@ -110,8 +113,10 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
       className={listingCardShellClass(muted)}
     >
       <ListingCardMedia muted={muted}>
+        <LowResUnderlay src={active?.images[0] || listing.images?.[0]} />
         <Image
           src={imageSrc(active?.images[0] || listing.images?.[0])}
+          unoptimized={!isOptimizableImageUrl(imageSrc(active?.images[0] || listing.images?.[0]))}
           alt={active?.name || listing.title}
           fill
           sizes={CARD_IMAGE_SIZES}

@@ -1,16 +1,17 @@
 'use client'
 
 import Image from 'next/image'
-import { Armchair, Heart, Mountain } from 'lucide-react'
+import { Heart, Mountain } from 'lucide-react'
 import type { Package } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { isOptimizableImageUrl } from '@/lib/images/isOptimizableImageUrl'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 import { hasTieredPricing } from '@/lib/package-pricing'
 import { packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { compactTripDuration, primaryTripBadge, shortListingLocation } from '@/lib/listing-card-format'
 import { writeDetailPreview } from '@/lib/detail-preview'
 import { ListingCardBadge } from '@/components/listings/ListingCardParts'
-import { SeatRing, segsFromCounts } from '@/components/tribe/SeatRing'
+import { SeatRing, segsFromCounts, spotsCenter } from '@/components/tribe/SeatRing'
 import { nextDeparture } from '@/lib/tribe/models'
 
 export type TripCardViewProps = {
@@ -37,7 +38,8 @@ export function TripCardView({
     : departure?.replace(/^Next · /, 'Next: ')
   const location = shortListingLocation(null, pkg.destination)
   const image = pkg.images?.[0]
-  const imageUrl = image ? storageThumbnailUrl(image) || image : null
+  // Full photo, resized by next/image; its 320px thumb paints first (LowResUnderlay).
+  const imageUrl = image || null
   const tiered = hasTieredPricing(pkg.price_variants)
   const open = () => {
     writeDetailPreview(`/packages/${pkg.slug}`, {
@@ -74,7 +76,10 @@ export function TripCardView({
       {/* Full Circle card: photo first, the seat ring overlapping its bottom edge (upcoming trips). */}
       <div className="fc-tcard-photo !h-auto aspect-video">
         {imageUrl ? (
-          <Image src={imageUrl} alt="" fill sizes={imageSizes} className="object-cover" />
+          <>
+            <LowResUnderlay src={imageUrl} />
+            <Image src={imageUrl} alt="" fill sizes={imageSizes} unoptimized={!isOptimizableImageUrl(imageUrl)} className="object-cover" />
+          </>
         ) : (
           <div className="relative flex h-full items-center justify-center"><Mountain className="h-12 w-12 text-muted-foreground/40" /></div>
         )}
@@ -101,7 +106,7 @@ export function TripCardView({
       <div className={cn('fc-tcard-main', !showRing && 'mt-0 pt-3')}>
         {showRing && (
           <SeatRing segs={segsFromCounts(total, left)} size={84} showDots={false} className="fc-tcard-ring"
-            center={full ? { big: `${total}/${total}`, small: 'full', fontSize: 18 } : { big: String(left), small: left === 1 ? 'seat left' : 'seats left', fontSize: 23, icon: <Armchair /> }} />
+            center={spotsCenter(total, left, 23)} />
         )}
         <div className={cn('min-w-0 flex-1', showRing && 'pt-11')}>
           <h3 className={cn('line-clamp-2 text-[17px] leading-tight', pastEdition && 'text-muted-foreground')}>{pkg.title}</h3>

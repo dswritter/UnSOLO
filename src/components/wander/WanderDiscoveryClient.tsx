@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { CalendarCheck, MessageCircle, Search, ShieldCheck, Undo2, BadgeCheck } from 'lucide-react'
 import { useAuth } from '@/components/layout/AuthProvider'
@@ -9,7 +9,7 @@ import { getMyLeaderboardStanding } from '@/actions/leaderboard'
 const STEPS = [
   { icon: Search, title: 'Find your trip', body: 'Browse curated group trips, stays and activities by vibe, budget or region.' },
   { icon: MessageCircle, title: 'Meet your tribe', body: 'Join the trip chat before you go — say hi to your host and co-travellers.' },
-  { icon: CalendarCheck, title: 'Book & go', body: 'Lock your seat in minutes, then just show up. We handle the rest.' },
+  { icon: CalendarCheck, title: 'Book & go', body: 'Lock your spot in minutes, then just show up. We handle the rest.' },
 ]
 
 const PROMISES = [
@@ -18,10 +18,14 @@ const PROMISES = [
   { icon: Undo2, label: 'Clear refund policy', href: '/refund-policy' },
 ]
 
+const noopSubscribe = () => () => {}
+
 /** Static explainer for first-time visitors; hidden once we know the viewer is signed in. */
 export function WanderHowItWorks() {
   const { userId, loading } = useAuth()
-  if (loading || userId) return null
+  // Auth is only known in the browser: render after hydration so server and client HTML match.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false)
+  if (!hydrated || loading || userId) return null
   return (
     <section aria-labelledby="wander-how-it-works" className="mt-7 border-t border-border/45 pt-7 md:mt-9 md:pt-9">
       <div className="wander-frost-panel p-5 md:p-8">

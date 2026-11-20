@@ -5,24 +5,24 @@ import { ExploreCategoryChips, ExploreMobileTopBar, ExploreSearchDock } from './
 
 /**
  * Full Circle Explore header. Mobile: slim top bar + category chips, search docked at the bottom
- * (thumb reach). Desktop: title, category chips and the full search panel.
+ * (thumb reach). Desktop: the search panel alone. No visible title: the search and the photo-led
+ * cards say what the page is; the heading stays for screen readers.
  */
 export async function ExploreHeader() {
   let listedActivities: string[] = []
   try { listedActivities = await getListedActivityFilterOptions() } catch { /* offline/local: no activity list */ }
   return (
     <>
+      <h1 className="sr-only">Find your circle: group trips, stays, rentals and activities</h1>
       <div className="md:hidden">
         <ExploreMobileTopBar />
         <div className="px-4 pt-1">
-          <h1 className="text-[30px] leading-[1.05]">Find your circle</h1>
-          <Suspense fallback={<div className="h-11" />}><ExploreCategoryChips className="mt-3" /></Suspense>
+          <Suspense fallback={<div className="h-11" />}><ExploreCategoryChips /></Suspense>
         </div>
         <Suspense fallback={null}><ExploreSearchDock /></Suspense>
       </div>
-      <div className="mx-auto w-full max-w-[1440px] hidden px-6 pt-8 md:block lg:px-10">
-        <h1 className="pc-display text-[40px]">Find your circle</h1>
-        <div className="fc-searchpanel mt-5">
+      <div className="mx-auto w-full max-w-[1440px] hidden px-6 pt-6 md:block lg:px-10">
+        <div className="fc-searchpanel">
           <WanderSearchBar listedActivities={listedActivities} variant="wander" layout="row" wanderSearchBasePath="/" className="max-w-none" />
         </div>
       </div>

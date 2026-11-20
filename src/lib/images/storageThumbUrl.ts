@@ -21,3 +21,23 @@ export function storageThumbnailUrl(fullUrl: string | null | undefined): string 
   if (dot < 0) return u
   return `${base.slice(0, dot)}_thumb.webp${tail}`
 }
+
+/**
+ * A small, fast version of `fullUrl` to paint while the full image loads, or null when there is
+ * none: the `_thumb.webp` sibling for our uploads (320px), or a 320px Unsplash rendition.
+ */
+export function lowResImageUrl(fullUrl: string | null | undefined): string | null {
+  if (!fullUrl) return null
+  const thumb = storageThumbnailUrl(fullUrl)
+  if (thumb && thumb !== fullUrl.trim()) return thumb
+  try {
+    const u = new URL(fullUrl)
+    if (u.hostname === 'images.unsplash.com') {
+      u.searchParams.set('w', '320')
+      u.searchParams.set('q', '50')
+      u.searchParams.set('auto', 'format')
+      return u.toString() === fullUrl ? null : u.toString()
+    }
+  } catch { /* relative or invalid URL: no low-res version */ }
+  return null
+}

@@ -599,7 +599,7 @@ function OffersList({ offers, demo, canDecide }: { offers: HostOffer[]; demo: bo
   const pending = offers.filter((o) => o.state === 'pending')
   if (pending.length === 0) return null
   async function accept(o: HostOffer) {
-    if (!confirm(`Accept ${o.host.name}'s offer at ${rupees(o.pricePaise)} each? Your plan becomes a hosted trip and every member gets 48 hours to pay for their seat.`)) return
+    if (!confirm(`Accept ${o.host.name}'s offer at ${rupees(o.pricePaise)} each? Your plan becomes a hosted trip and every member gets 48 hours to pay for their spot.`)) return
     if (demo) return
     try {
       const r = await apiFetch<{ packageSlug: string }>(`/offers/${o.id}/accept`, { body: { expectedPricePaise: o.pricePaise } })

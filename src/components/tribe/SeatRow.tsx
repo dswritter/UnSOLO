@@ -4,7 +4,7 @@ import { initials } from './format'
 import { SeatRing, ringCaption, segsFromSeats } from './SeatRing'
 
 const LABEL: Record<Seat['state'], string> = {
-  organiser: 'Organiser', host: 'Host', member: 'Going', you: 'You', requested: 'Requested', held: 'Held for you', open: 'Open seat',
+  organiser: 'Organiser', host: 'Host', member: 'Going', you: 'You', requested: 'Requested', held: 'Held for you', open: 'Open spot',
 }
 
 /**
@@ -63,10 +63,10 @@ export function SeatGauge({ total, left, className, showLabel = true }: { total:
   const l = Math.min(Math.max(left ?? t, 0), t)
   const taken = t - l
   if (taken === 0) {
-    return <span className={cn('pc-gauge-empty', className)}>All {t} seats open · be the first</span>
+    return <span className={cn('pc-gauge-empty', className)}>All {t} spots open · be the first</span>
   }
   return (
-    <span className={cn('pc-gauge', className)} role="img" aria-label={`${taken} of ${t} seats taken`}>
+    <span className={cn('pc-gauge', className)} role="img" aria-label={`${taken} of ${t} spots taken`}>
       <span className="pc-gauge-track" aria-hidden><span className="pc-gauge-fill" style={{ width: `${Math.round((taken / t) * 100)}%` }} /></span>
       {showLabel && <span className="pc-gauge-label">{l === 0 ? 'Full' : `${taken} going · ${l} open`}</span>}
     </span>

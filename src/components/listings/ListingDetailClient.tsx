@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 import Link from 'next/link'
 import { Star, MapPin, Zap, MessageCircle, User as UserIcon, Package, ExternalLink, Plus, Minus } from 'lucide-react'
 import type { ServiceListing, ServiceListingItem } from '@/types'
@@ -423,10 +424,12 @@ export function ListingDetailClient({ listing, items = [], host, relatedListings
   function HeroBanner({ className }: { className: string }) {
     return (
       <ImageLightbox src={imageUrl} alt={listing.title} className={className}>
+        <LowResUnderlay src={imageUrl} eager />
         <Image
           src={imageUrl}
           alt={listing.title}
           fill
+          sizes="(max-width: 1024px) 100vw, 66vw"
           className="object-cover"
           priority
         />

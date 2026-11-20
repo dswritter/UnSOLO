@@ -13,18 +13,22 @@ export type PublicServiceFilters = {
   search?: string
 }
 
+/** Columns read for public listing cards. Each must exist on service_listings (checked in a test). */
+export const SERVICE_LISTING_PUBLIC_COLUMNS = 'id, title, slug, description, short_description, type, price_paise, price_variants, unit, destination_id, destination_ids, location, latitude, longitude, max_guests_per_booking, quantity_available, images, amenities, tags, metadata, host_id, is_active, is_featured, status, first_approved_at, last_host_resubmit_at, event_schedule, average_rating, review_count, created_at, updated_at'
+
 export const getCachedPublicServiceListings = unstable_cache(async (
   type: ServiceListingType,
   filters: PublicServiceFilters,
   page: number,
   limit: number,
 ) => {
-  // Same client as the home rows (wanderQueries): the anon client returned 0 rows here, so every
-  // stays/rentals/activities search page came back empty on production. The filters below keep this to
-  // public, active, approved listings only, and the selected columns are the public listing fields.
+  // Every column here must exist on service_listings. This list used to include
+  // compare_at_price_paise, which only exists on packages: PostgREST rejected the whole query and
+  // every stays/rentals/activities search page showed 0 results. Same client as the home rows
+  // (wanderQueries); the filters keep this to public, active, approved listings.
   const client = createServiceRoleClient()
   let query = client.from('service_listings')
-    .select('id, title, slug, description, short_description, type, price_paise, compare_at_price_paise, price_variants, unit, destination_id, destination_ids, location, latitude, longitude, max_guests_per_booking, quantity_available, images, amenities, tags, metadata, host_id, is_active, is_featured, status, first_approved_at, last_host_resubmit_at, event_schedule, average_rating, review_count, created_at, updated_at, destination:destinations(id, name, slug)', { count: 'exact' })
+    .select(`${SERVICE_LISTING_PUBLIC_COLUMNS}, destination:destinations(id, name, slug)`, { count: 'exact' })
     .eq('type', type).eq('is_active', true)
     .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
 
@@ -50,7 +54,7 @@ export const getCachedPublicServiceListings = unstable_cache(async (
   if (error) throw error
   const newest = await getNewestServiceListingIds()
   return { listings: markNewListings((data || []) as unknown as ServiceListing[], newest), total: count || 0, page, limit }
-}, ['explore-public-service-listings-v3'], { revalidate: 30, tags: ['explore-public-service-listings'] })
+}, ['explore-public-service-listings-v4'], { revalidate: 30, tags: ['explore-public-service-listings'] })
 
 export type PublicServiceItem = {
   id: string

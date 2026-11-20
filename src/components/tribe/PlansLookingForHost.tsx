@@ -30,7 +30,7 @@ export async function PlansLookingForHost() {
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Plans looking for a host</h2>
-            <p className="text-sm text-muted-foreground">Travellers already planning these. Offer to run one as a paid trip — if the organiser accepts, everyone gets a held seat.</p>
+            <p className="text-sm text-muted-foreground">Travellers already planning these. Offer to run one as a paid trip — if the organiser accepts, everyone gets a held spot.</p>
           </div>
           <Link href="/tribe" className="pc-link shrink-0 text-sm">All plans →</Link>
         </div>

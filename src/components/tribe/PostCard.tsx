@@ -120,10 +120,10 @@ export function TripLinkCard({ trip, className }: { trip: TripLite; className?: 
       <span className="min-w-0 flex-1">
         <b className="block truncate">{trip.nextDeparture ? `Next departure · ${dateRange(trip.nextDeparture, null)}` : trip.title}</b>
         <span className="fc-linkcard-sub line-clamp-2">
-          {left != null ? (left === 0 ? 'Full · ' : `${left} ${left === 1 ? 'seat' : 'seats'} left · `) : ''}{rupees(trip.priceFromPaise)} · {trip.title}
+          {left != null ? (left === 0 ? 'Full · ' : `${left} ${left === 1 ? 'spot' : 'spots'} left · `) : ''}{rupees(trip.priceFromPaise)} · {trip.title}
         </span>
       </span>
-      <span className="fc-linkcard-go">Take a seat →</span>
+      <span className="fc-linkcard-go">Grab a spot →</span>
     </Link>
   )
 }

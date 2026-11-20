@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, X, Mountain } from 'lucide-react'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
+import { lowResImageUrl } from '@/lib/images/storageThumbUrl'
 
 interface ImageGalleryProps {
   images: string[]
@@ -77,6 +79,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
               className={`group relative overflow-hidden bg-secondary ${i === 0 ? 'col-span-2 row-span-2' : images.length === 3 || (images.length === 4 && i === 3) ? 'col-span-2' : ''}`}
               aria-label={`Open photo ${i + 1} of ${images.length}`}
             >
+              <LowResUnderlay src={img} eager={i === 0} />
               <Image
                 src={img}
                 alt={`${title} - ${i + 1}`}
@@ -100,16 +103,18 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
       <div className={mosaic ? 'md:hidden' : undefined}>
       {/* Main image */}
       <div className="relative aspect-video rounded-2xl overflow-hidden bg-secondary group cursor-pointer" onClick={() => setFullscreen(true)} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {/* The thumb shows at once (no grey pulse); the full photo fades in over it. */}
+        <LowResUnderlay src={images[current]} eager={current === 0} />
         <Image
           src={images[current]}
           alt={`${title} - ${current + 1}`}
           fill
-          className={`object-cover transition-all duration-500 group-hover:scale-105 ${loaded[current] ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-105'}`}
+          className={`object-cover transition-opacity duration-300 group-hover:scale-105 ${loaded[current] ? 'opacity-100' : 'opacity-0'}`}
           sizes="(max-width: 768px) 100vw, 66vw"
           priority={current === 0}
           onLoad={() => setLoaded(prev => ({ ...prev, [current]: true }))}
         />
-        {!loaded[current] && (
+        {!loaded[current] && !lowResImageUrl(images[current]) && (
           <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-secondary via-muted/50 to-secondary" />
         )}
 
@@ -181,6 +186,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
           </button>
 
           <div className="relative w-full h-full max-w-5xl max-h-[85vh] m-8" onClick={e => e.stopPropagation()} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+            <LowResUnderlay src={images[current]} eager className="object-contain" />
             <Image
               src={images[current]}
               alt={`${title} - ${current + 1}`}

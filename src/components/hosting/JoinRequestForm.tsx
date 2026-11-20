@@ -146,7 +146,7 @@ export function JoinRequestForm({
         <p className="text-sm text-muted-foreground">Sign in to request to join this trip</p>
         <Button className="w-full bg-primary text-black font-bold hover:bg-primary/90" asChild>
           <Link href={`/login?redirectTo=/packages/${packageSlug}`}>
-            Sign in to take a seat
+            Sign in to grab a spot
           </Link>
         </Button>
       </div>

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { Mountain } from 'lucide-react'
+import { LowResUnderlay } from '@/components/ui/LowResUnderlay'
 
 const OPTIMIZED_IMAGE_HOSTS = [/\.supabase\.co$/, /^images\.unsplash\.com$/, /^lh3\.googleusercontent\.com$/, /^avatars\.githubusercontent\.com$/]
 
@@ -26,7 +27,10 @@ export function WanderCoverImage({ src, fallbackSrc, sizes }: { src: string | nu
       <Mountain className="h-10 w-10 text-primary/40" />
     </div>
   }
-  return <Image key={current} src={current} alt="" fill sizes={sizes} unoptimized={!canOptimize(current)}
-    onError={() => setFailed(n => n + 1)}
-    className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none" />
+  return <>
+    <LowResUnderlay key={`low-${current}`} src={current} />
+    <Image key={current} src={current} alt="" fill sizes={sizes} unoptimized={!canOptimize(current)}
+      onError={() => setFailed(n => n + 1)}
+      className="object-cover transition-transform duration-500 group-hover:scale-[1.04] motion-reduce:transition-none" />
+  </>
 }

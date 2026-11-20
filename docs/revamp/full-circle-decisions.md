@@ -15,6 +15,26 @@ The dark-green base and green buttons were dropped. The palette is now **UnSOLO 
 
 The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
 
+## Review round 4 (user request)
+
+- **Wording: "spot", not "seat".** Rings, captions and buttons all say spot: "8/12 spots left", "12 spots open", "Grab a spot", "Request a spot". Code names (`seats`, `SeatRing`) are unchanged.
+- **Rings are a simple progress ring again.**
+  - The per-seat markers are gone, since they clutter rings with 20 or more spots.
+  - Taken spots draw as one continuous arc over the thin open track. *You* stays its own gold arc.
+  - There is no chair icon.
+  - Every trip ring uses one centre label (`spotsCenter`): a big number, a tiny "/12" beside it, and "spots left" under it, or "12/12 full". It fits inside the disc on the trip page, where "of 12 seats left" used to clip.
+  - Card captions no longer repeat the ring: "3 going", "Be first in the circle" or "Full".
+- **No visible "Find your circle" title.** On desktop the search panel leads; on mobile the category chips sit under the top bar. The heading stays for screen readers.
+- **Plan invite, simplified:**
+  - The animated ring, the looping seat fill and the pulsing + are removed.
+  - The whole card opens the plan composer, with a + circle as the cue. "N planning in Tribe →" with real faces is a separate link into Tribe.
+- **Photos load low-res first.** Every upload already stores a 320px `_thumb.webp`.
+  - Cards, the trip cover and gallery, listing heroes, "Trips by vibe" tiles and the story viewer paint that thumb at once, and the full photo covers it when it arrives (`LowResUnderlay`, no JavaScript).
+  - Cards now load the full photo resized by Next instead of only the 320px thumb, so they are sharp on retina screens too.
+  - The apps already did thumb-first; every photo there now goes through it.
+- **Bug: stays, rentals and activities search was still empty.** Real cause: the query asked for `compare_at_price_paise`, which exists only on `packages`. PostgREST rejected the whole query, and the error was swallowed into "0 results". This affected `main` too. The column is removed, and a test now checks every selected column against the `service_listings` migrations.
+- **Hydration fix:** the "How UnSOLO works" panel renders after hydration, since sign-in state is only known in the browser. It caused a mismatch on every home load.
+
 ## Review round 3 (user request)
 
 - **Wordmark:** plain ink "UNSOLO" in the original type, Inter Black with tight tracking, as on `main`. There is no gold "UN" anymore, on web or in the apps.
@@ -38,7 +58,7 @@ The token key `pine` is kept for compatibility and now holds the yellow. Two tok
 The rule was tightened after review against Airbnb and MakeMyTrip, which use colour sparingly.
 
 **Yellow (`.pc-btn-sun`, shadcn `brand`) is kept for:**
-- the one main action on a screen: "Take a seat" in the trip page's bottom bar, "Request to join" in a plan's bottom bar, Publish, the Explore search button, "Show trips" in the search sheet, and "Join free" for signed-out visitors;
+- the one main action on a screen: "Grab a spot" in the trip page's bottom bar, "Request to join" in a plan's bottom bar, Publish, the Explore search button, "Show trips" in the search sheet, and "Join free" for signed-out visitors;
 - the centre **+** button;
 - your own seat on the ring;
 - the HOST badge;
@@ -68,7 +88,7 @@ Older admin and host screens that already used yellow buttons before the revamp 
 |---|---|
 | **Seat count:** n = `seatsTotal` (`max_group_size`), taken = `seatsTotal − seatsLeft`, and the host is only the badge, not a seat. The trip API lists the host as an extra seat; rings drop it. | Bookings never include the host. Counting the host made "5 of 11" on one platform and "5 of 12" on another. |
 | **Who sees faces:** signed out, anonymous arcs; signed in, initials; co-travellers on the same departure, photos. On web the photos are removed on the server. | The approved privacy rule. Women's photos are not exposed to strangers. |
-| **Open seats** are one continuous thin track, never dashed. Large rings get small seat markers so open seats can be counted. | You disliked dashed outlines. An independent review found that empty rings read as "nothing". |
+| **Open spots** are one continuous thin track, never dashed. Taken spots are one continuous arc (a progress ring), with the count in the centre: "8/12 spots left". | You disliked dashed outlines and, later, per-seat markers (clutter on big trips). The centre number says how many are left. |
 | **Gold means *you*:** your seat, your poll vote and your story ring. The mockup showed the poll vote in pine. | Gold is reserved for you, the host and the wordmark. |
 | **Thumb reach** (mobile web, Android, iOS): see the list after this table. | Your request. The most-used actions are in the bottom third. |
 | **Explore leads with people and departures:** "Leaving soon" photo-first ring cards, then the departures list, then plans looking for people. The marketing hero is gone. | The approved direction. The old hero showed zero stats when empty. |
@@ -81,7 +101,7 @@ The thumb-reach layout:
 
 - A 68px tab bar with a raised **+** in the centre, which opens "What are you sharing?".
 - Explore search docked at the bottom.
-- Detail pages hide the tab bar and pin their primary action at the bottom: Take a seat, Request to join, the comment box.
+- Detail pages hide the tab bar and pin their primary action at the bottom: Grab a spot, Request to join, the comment box.
 - Composers put **Publish** at the bottom.
 
 ## Built without backend support (device or client only)
