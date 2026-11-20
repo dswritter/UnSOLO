@@ -177,18 +177,18 @@ fun PcBottomBar(selected: String?, tabs: List<TabSpec>, me: UserLite?, onSelect:
                 tabs.forEachIndexed { i, t ->
                     if (i == 2) Spacer(Modifier.weight(1f))
                     val isSel = selected == t.route
-                    val pill by animateColorAsState(if (isSel) c.pineSoft else Color.Transparent, tween(PcTokens.motionStandard), label = "pill")
+                    val pill by animateColorAsState(if (isSel) c.tonal else Color.Transparent, tween(PcTokens.motionStandard), label = "pill")
                     Column(
                         Modifier.weight(1f).fillMaxHeight().clickable(role = Role.Tab, onClickLabel = t.label) { onSelect(t.route) }.semantics { this.selected = isSel },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
                         Box(Modifier.size(width = 52.dp, height = 30.dp).clip(CircleShape).background(pill), contentAlignment = Alignment.Center) {
                             if (t.route == "you" && me != null) Avatar(me, 24.dp, border = if (isSel) c.ink else Color.Transparent)
-                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.accentInk else c.ink3, size = 23.dp)
+                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.ink else c.ink3, size = 23.dp)
                             if (t.badge > 0) CountBadge(t.badge, Modifier.align(Alignment.TopEnd).offset(4.dp, (-6).dp))
                         }
                         Spacer(Modifier.height(3.dp))
-                        Text(t.label, style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.accentInk else c.ink3, maxLines = 1)
+                        Text(t.label, style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.ink else c.ink3, maxLines = 1)
                     }
                 }
             }
@@ -219,8 +219,8 @@ fun TextTabs(items: List<Pair<String, String>>, selected: String, onSelect: (Str
     Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         items.forEach { (key, label) ->
             val sel = key == selected
-            val bg by animateColorAsState(if (sel) c.pine else c.raised, tween(PcTokens.motionFast), label = "chip")
-            val fg = if (sel) c.onPine else c.ink
+            val bg by animateColorAsState(if (sel) c.ink else c.raised, tween(PcTokens.motionFast), label = "chip")
+            val fg = if (sel) c.raised else c.ink
             Box(Modifier.height(48.dp).clickable(role = Role.Tab) { onSelect(key) }.semantics { this.selected = sel }, contentAlignment = Alignment.Center) {
                 Row(Modifier.height(40.dp).clip(CircleShape).background(bg).then(if (sel) Modifier else Modifier.border(1.dp, c.rule, CircleShape)).padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically) {

@@ -24,7 +24,7 @@ The rule was tightened after review against Airbnb and MakeMyTrip, which use col
 - the centre **+** button;
 - your own seat on the ring;
 - the HOST badge;
-- unseen story rings.
+- the + on your own story. Story rings are ink when unseen and grey when seen.
 
 **Everything else is black, white or grey:**
 - the default `.pc-btn` and shadcn Button are ink;

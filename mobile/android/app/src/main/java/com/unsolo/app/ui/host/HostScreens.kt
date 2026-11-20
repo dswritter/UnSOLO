@@ -254,7 +254,7 @@ fun OffersReviewScreen(postId: String, nav: AppNav) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("${i + 1}", style = Pc.type.num, color = c.ink, modifier = Modifier.width(28.dp)); Text(s, style = Pc.type.body, color = c.ink) }
                 InsetRule()
             }
-            if (accepted != null) Column(Modifier.padding(Gutter).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.pineSoft).padding(14.dp)) {
+            if (accepted != null) Column(Modifier.padding(Gutter).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).padding(14.dp)) {
                 Text("Accepted. Seats are held.", style = Pc.type.bodyStrong, color = c.ink)
                 Text("Everyone pays on unsolo.in by ${Fmt.dowDayMonth(accepted.payBy)}.", style = Pc.type.small, color = c.ink2)
                 accepted.packageSlug?.let { slug -> Spacer(Modifier.height(8.dp)); PcButton("Open the trip page", { nav.openWeb("/packages/$slug?book=1") }, Modifier.fillMaxWidth()) }

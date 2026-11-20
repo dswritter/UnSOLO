@@ -128,7 +128,7 @@ private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> U
                         Text("Balance ", style = Pc.type.small, color = c.ink2)
                         Text(MoneyFormat.rupees(b.balancePaise), style = Pc.type.price.copy(fontSize = 15.sp), color = c.ink)
                     }
-                    Text("${MoneyFormat.rupees(b.paidPaise)} paid", style = Pc.type.label, color = c.accentInk)
+                    Text("${MoneyFormat.rupees(b.paidPaise)} paid", style = Pc.type.label, color = c.ink2)
                 }
                 Text("Pay on unsolo.in", style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.accentInk)
             }

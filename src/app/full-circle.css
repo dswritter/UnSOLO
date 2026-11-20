@@ -151,9 +151,9 @@ textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
 .fc-mini.is-women .fc-mini-fill { stroke: var(--pc-rose); }
 
 /* Story ring (Tribe) */
-.fc-story-seg { stroke: var(--pc-gold); }
+.fc-story-seg { stroke: var(--pc-ink); }
 .fc-story-seg.is-seen { stroke: var(--pc-rule); }
-.fc-story-seg.is-you { stroke: var(--pc-ink); }
+.fc-story-seg.is-you { stroke: var(--pc-rule); }
 
 /* ── Legacy seat chips, still used for small avatar stacks ── */
 .pc-seatrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }

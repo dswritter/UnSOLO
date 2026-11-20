@@ -199,7 +199,7 @@ fun TribeScreen(nav: AppNav) {
             if (f.caughtUp) {
                 item(key = "caught", contentType = "end") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(48.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.accentInk) }
+                        Box(Modifier.size(48.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.ink) }
                         Spacer(Modifier.height(10.dp))
                         Text("You're caught up", style = Pc.type.title2, color = c.ink)
                         Text("New plans and stories show up here. Meanwhile, the next departures:", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 32.dp), textAlign = TextAlign.Center)
@@ -487,7 +487,7 @@ private fun PlanBody(p: Post) {
             style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp),
         )
         Row(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.tonal).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Shield, null, size = 18.dp, tint = c.accentInk)
+            PcIcon(PcIcons.Shield, null, size = 18.dp, tint = c.ink)
             Spacer(Modifier.width(10.dp))
             Text("Meet first in a public place. Share the plan with someone you trust.", style = Pc.type.small, color = c.ink)
         }
@@ -505,9 +505,9 @@ private fun Reactions(p: Post, onReact: (String) -> Unit) {
         ).forEach { (spec, count) ->
             val (k, label, icon) = spec
             val on = k in p.myReactions
-            val tint = if (on) (if (k == ReactionKind.LOVE) c.rose else c.accentInk) else c.ink2
+            val tint = if (on) (if (k == ReactionKind.LOVE) c.rose else c.ink) else c.ink2
             Box(Modifier.height(48.dp).clickable(role = Role.Checkbox, onClickLabel = label) { onReact(k) }, contentAlignment = Alignment.Center) {
-                Row(Modifier.height(38.dp).clip(CircleShape).background(if (on) (if (k == ReactionKind.LOVE) c.roseSoft else c.pineSoft) else c.raised)
+                Row(Modifier.height(38.dp).clip(CircleShape).background(if (on) (if (k == ReactionKind.LOVE) c.roseSoft else c.tonal) else c.raised)
                     .border(1.dp, if (on) Color.Transparent else c.rule, CircleShape).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     PcIcon(if (k == ReactionKind.LOVE && on) PcIcons.HeartFilled else icon, null, size = 17.dp, tint = tint)
                     Spacer(Modifier.width(6.dp))
@@ -612,7 +612,7 @@ fun RequestRow(r: JoinRequestItem, onDecide: (String, Boolean) -> Unit, onProfil
                 PcButton("Decline", { onDecide(r.user.id, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
                 PcButton("Approve", { onDecide(r.user.id, true) }, Modifier.weight(1f), height = BtnSmall)
             }
-            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.accentInk)
+            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.ink)
             else -> Text(r.state.replaceFirstChar { it.uppercase() }, style = Pc.type.smallStrong, color = c.ink2)
         }
     }
@@ -630,7 +630,7 @@ private fun PlanBottomBar(p: Post, waiting: Int, onJoin: () -> Unit, onWithdraw:
             when (p.viewer.joinBlockedReason) { "full" -> "This plan is full"; "women_only" -> "Women-only plan"; "verified_only" -> "Verified travellers only"; else -> "Can't join" },
             when (p.viewer.joinBlockedReason) { "women_only" -> "Joiners must be women with a verified ID."; "verified_only" -> "Verify your ID in Settings to join."; else -> "Save it and watch for open spots." },
             "Request to join", {}, enabled = false)
-        else -> BottomActionBar("Join ${names.joinToString(" and ").ifEmpty { p.author.firstName }}", "${p.author.firstName} approves each request · intro needed", "Request to join", onJoin)
+        else -> BottomActionBar("Join ${names.joinToString(" and ").ifEmpty { p.author.firstName }}", "${p.author.firstName} approves each request · intro needed", "Request to join", onJoin, kind = BtnKind.Accent)
     }
 }
 
@@ -660,8 +660,8 @@ private fun CommentBar(me: UserLite?, replyTo: Comment?, onCancelReply: () -> Un
 fun SendButton(enabled: Boolean, onClick: () -> Unit) {
     val c = Pc.colors
     Box(Modifier.size(48.dp).clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClickLabel = "Send", onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) c.pine else c.tonal), contentAlignment = Alignment.Center) {
-            PcIcon(PcIcons.Send, "Send", tint = if (enabled) c.onPine else c.ink3, size = 20.dp)
+        Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) c.ink else c.tonal), contentAlignment = Alignment.Center) {
+            PcIcon(PcIcons.Send, "Send", tint = if (enabled) c.raised else c.ink3, size = 20.dp)
         }
     }
 }

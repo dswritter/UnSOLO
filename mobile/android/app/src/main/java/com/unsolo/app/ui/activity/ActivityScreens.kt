@@ -113,7 +113,7 @@ fun ActivityScreen(nav: AppNav) {
                             n.type in JoinTypes && n.postId != null && n.actorId != null -> when {
                                 decided[n.id] != null || (actorState != null && actorState != "requested") -> {
                                     val ok = decided[n.id] ?: (actorState == "approved")
-                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.accentInk else Pc.colors.ink2)
+                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.ink else Pc.colors.ink2)
                                 }
                                 else -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     PcButton("Decline", { vm.decideFrom(n, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
@@ -159,8 +159,8 @@ private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, actions: @Co
         .clickable(onClick = onOpen).padding(14.dp)) {
         Row(verticalAlignment = Alignment.Top) {
             Box {
-                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(if (n.isRead) c.tonal else c.pineSoft), contentAlignment = Alignment.Center) {
-                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.accentInk)
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) {
+                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.ink)
                 }
                 if (!n.isRead) Box(Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp).size(12.dp).clip(CircleShape).background(c.raised).padding(2.dp).clip(CircleShape).background(c.rose))
             }
@@ -397,9 +397,9 @@ private fun Bubble(m: ChatRepository.UiMessage, first: Boolean, last: Boolean, o
                 Text(if (msg.author.isHost) "${msg.author.name} · Host" else msg.author.firstName, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
             }
             val shape = if (m.mine) RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 6.dp, bottomEnd = 20.dp)
-            Text(msg.body, style = Pc.type.body.copy(fontSize = 14.5.sp), color = if (m.mine) c.onPine else c.ink,
+            Text(msg.body, style = Pc.type.body.copy(fontSize = 14.5.sp), color = if (m.mine) c.raised else c.ink,
                 modifier = Modifier.clip(shape).then(if (m.mine) Modifier else Modifier.combinedClickable(onClick = {}, onLongClick = onReport, onLongClickLabel = "Report message"))
-                    .background(if (m.mine) c.pine.copy(alpha = if (m.state == LocalState.SENDING) 0.7f else 1f) else c.raised)
+                    .background(if (m.mine) c.ink.copy(alpha = if (m.state == LocalState.SENDING) 0.7f else 1f) else c.raised)
                     .then(if (m.mine) Modifier else Modifier.border(1.dp, c.rule, shape))
                     .padding(horizontal = 13.dp, vertical = 9.dp))
             when (m.state) {

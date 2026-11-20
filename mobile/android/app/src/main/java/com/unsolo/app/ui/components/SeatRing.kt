@@ -275,7 +275,7 @@ fun SeatRing(
             when {
                 photo != null -> ProgressiveImage(photo, Modifier.fillMaxSize(), colorFilter = if (past) grayscale else null)
                 centerUser?.avatarUrl != null -> AsyncImage(ImageRequest.Builder(LocalContext.current).data(centerUser.avatarUrl).build(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop, colorFilter = if (past) grayscale else null)
-                centerUser != null && centerLabel == null -> Text(centerUser.initials, style = Pc.type.numLarge.copy(fontSize = (g.r0 * 0.6f).coerceIn(10f, 40f).sp), color = c.accentInk, modifier = Modifier.align(Alignment.Center))
+                centerUser != null && centerLabel == null -> Text(centerUser.initials, style = Pc.type.numLarge.copy(fontSize = (g.r0 * 0.6f).coerceIn(10f, 40f).sp), color = c.ink2, modifier = Modifier.align(Alignment.Center))
             }
         }
 
@@ -451,7 +451,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
 }
 
 /**
- * Story ring: one arc per story, gold for unseen and rule for seen; yours is ink with a +. The avatar
+ * Story ring: one arc per story, ink for unseen and rule for seen; yours is a quiet rule2 ring with the yellow +. The avatar
  * sits 6dp inside.
  */
 @Composable
@@ -466,7 +466,7 @@ fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Mo
             val span = 360f / segs
             for (i in 0 until segs) {
                 val isSeen = !mine && i < seen
-                val col = if (mine) c.ink else if (isSeen) c.rule else c.gold
+                val col = if (mine) c.rule2 else if (isSeen) c.rule else c.ink
                 val w = (if (isSeen) 2f else 3f).dp.toPx()
                 if (segs == 1) drawCircle(col, rr, center, style = Stroke(w))
                 else drawArc(col, -90f + i * span + gapDeg / 2f, span - gapDeg, false, tl, Size(rr * 2, rr * 2), style = Stroke(w, cap = StrokeCap.Round))

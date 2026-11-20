@@ -95,7 +95,7 @@ private fun KindTile(icon: ImageVector, title: String, sub: String, modifier: Mo
     val shape = RoundedCornerShape(22.dp)
     Column(modifier.heightIn(min = 132.dp).clip(shape).background(c.raised).border(1.dp, c.rule, shape).clickable(role = Role.Button, onClickLabel = "New $title", onClick = onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.accentInk, size = 21.dp) }
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.ink, size = 21.dp) }
         Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 16.sp), color = c.ink)
         Text(sub, style = Pc.type.small, color = c.ink2)
     }
@@ -220,7 +220,7 @@ fun ComposeScreen(kindArg: String, nav: AppNav) {
             PostKind.STORY -> "Your group gets a note" to "Tagged people choose whether their face shows"
             else -> (if (vm.pollOn) "Open for 3 days" else "Most questions get a reply in ~3h") to "Hosts answer with their HOST tag"
         }
-        BottomActionBar(if (posting) barTitle else "Posting is paused", if (posting) barSub else "Try again in a little while", "Publish", enabled = posting && !vm.publishing, onAction = {
+        BottomActionBar(if (posting) barTitle else "Posting is paused", if (posting) barSub else "Try again in a little while", "Publish", kind = BtnKind.Accent, enabled = posting && !vm.publishing, onAction = {
             triedPublish = true
             vm.publish { nav.popToTab(Routes.TRIBE) }
         })
@@ -236,7 +236,7 @@ fun ComposeScreen(kindArg: String, nav: AppNav) {
                 override fun isSelectableYear(year: Int) = year >= LocalDate.now().year
             },
         )
-        val colors = DatePickerDefaults.colors(containerColor = c.raised, selectedDayContainerColor = c.pine, selectedDayContentColor = c.onPine, todayDateBorderColor = c.ink, dayInSelectionRangeContainerColor = c.pineSoft, todayContentColor = c.ink)
+        val colors = DatePickerDefaults.colors(containerColor = c.raised, selectedDayContainerColor = c.ink, selectedDayContentColor = c.raised, todayDateBorderColor = c.ink, dayInSelectionRangeContainerColor = c.tonal, todayContentColor = c.ink)
         DatePickerDialog(onDismissRequest = { dates = false }, colors = colors, confirmButton = {
             TextButton({
                 state.selectedStartDateMillis?.let { vm.startsOn = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
@@ -285,7 +285,7 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
     Field("Title") { InlineInput(vm.title, { vm.title = it }, "Tosh & Kalga weekend", 90) }
     Field("Where to?") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.accentInk); Spacer(Modifier.width(6.dp))
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.ink2); Spacer(Modifier.width(6.dp))
             InlineInput(vm.place, { vm.place = it }, "Spiti Valley", 80)
         }
     }
@@ -336,14 +336,14 @@ private fun PhotoStrip(photos: List<Uri>, onAdd: () -> Unit, onRemove: (Uri) -> 
             photos.forEachIndexed { i, u ->
                 Box(Modifier.size(84.dp).clip(RoundedCornerShape(16.dp))) {
                     AsyncImage(u, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    if (i == 0) Text("COVER", style = Pc.type.code.copy(fontSize = 9.sp), color = c.onPine, modifier = Modifier.padding(5.dp).clip(CircleShape).background(c.pine).padding(horizontal = 6.dp, vertical = 2.dp))
+                    if (i == 0) Text("COVER", style = Pc.type.code.copy(fontSize = 9.sp), color = c.raised, modifier = Modifier.padding(5.dp).clip(CircleShape).background(c.ink).padding(horizontal = 6.dp, vertical = 2.dp))
                     Box(Modifier.align(Alignment.TopEnd).size(28.dp).clickable(onClickLabel = "Remove photo") { onRemove(u) }, contentAlignment = Alignment.Center) {
                         Box(Modifier.size(22.dp).clip(CircleShape).background(c.scrim), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Close, null, tint = Color.White, size = 13.dp) }
                     }
                 }
             }
             if (photos.size < 6) Column(Modifier.size(84.dp).pencilledCard(radius = 16.dp).clickable(role = Role.Button, onClickLabel = "Add photos", onClick = onAdd), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                PcIcon(PcIcons.Camera, null, size = 20.dp, tint = c.accentInk)
+                PcIcon(PcIcons.Camera, null, size = 20.dp, tint = c.ink)
                 Text("Add photos", style = Pc.type.label, color = c.ink2)
             }
         }
@@ -363,7 +363,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
         past.forEach { b ->
             val sel = vm.trip?.id == b.trip.id
             val shape = RoundedCornerShape(16.dp)
-            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(shape).background(if (sel) c.pineSoft else c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.ink else c.rule, shape)
+            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(shape).background(if (sel) c.tonal else c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.ink else c.rule, shape)
                 .clickable { vm.trip = if (sel) null else b.trip; vm.tagged.clear() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 ProgressiveImage(b.trip.image, Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)))
                 Spacer(Modifier.width(10.dp))
@@ -371,7 +371,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
                     Text(b.trip.title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
                     Text("Went · ${Fmt.dayMonth(b.travelDate)} · ${b.trip.host?.name.orEmpty()}", style = Pc.type.small, color = c.ink2)
                 }
-                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.accentInk)
+                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.ink)
             }
         }
         if (vm.trip == null) { Spacer(Modifier.height(4.dp)); BoxedInput(vm.place, { vm.place = it.take(80) }, "Or a place", leadingIcon = PcIcons.Pin) }
@@ -387,7 +387,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.size(50.dp).clip(CircleShape).border(2.dp, if (on) c.ink else Color.Transparent, CircleShape).padding(3.dp)) {
                             Avatar(u, 44.dp, Modifier.alpha(if (on) 1f else 0.55f))
-                            if (on) Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.onPine, size = 11.dp) }
+                            if (on) Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(c.ink), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.raised, size = 11.dp) }
                         }
                         Text(u.firstName, style = Pc.type.label, color = if (on) c.ink else c.ink2)
                     }
@@ -426,7 +426,7 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
     }
     Field("Place") {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.accentInk); Spacer(Modifier.width(6.dp))
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.ink2); Spacer(Modifier.width(6.dp))
             InlineInput(vm.place, { vm.place = it }, "Kasol, Parvati Valley", 80)
         }
     }

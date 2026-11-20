@@ -123,7 +123,7 @@ private fun ReactsRow(p: Post, actions: CardActions, modifier: Modifier = Modifi
         ReactBtn(PcIcons.Share, null, "Share") { actions.share(p) }
         Spacer(Modifier.weight(1f))
         if (primary != null) primary()
-        else IconTap(if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, if (p.viewer.saved) "Saved" else "Save", { actions.save(p) }, tint = if (p.viewer.saved) c.accentInk else c.ink2)
+        else IconTap(if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, if (p.viewer.saved) "Saved" else "Save", { actions.save(p) }, tint = if (p.viewer.saved) c.ink else c.ink2)
     }
 }
 
@@ -272,13 +272,13 @@ fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifie
             Box(
                 Modifier.fillMaxWidth().height(48.dp).clip(shape)
                     .background(if (voted) c.tonal else c.raised)
-                    .border(if (mine) 2.dp else 1.5.dp, if (mine) c.gold else if (voted) Color.Transparent else c.rule, shape)
+                    .border(if (mine) 2.dp else 1.5.dp, if (mine) c.ink else if (voted) Color.Transparent else c.rule, shape)
                     .clickable(enabled = !voted, role = Role.RadioButton, onClickLabel = "Vote ${o.label}") { onVote(o) }
                     .semantics(mergeDescendants = true) { contentDescription = if (voted) "${o.label}, ${o.votes * 100 / total} percent${if (mine) ", your vote" else ""}" else "Vote ${o.label}" },
             ) {
-                if (voted) Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(if (mine) c.gold.copy(alpha = 0.42f) else c.ink.copy(alpha = 0.09f)))
+                if (voted) Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(c.ink.copy(alpha = if (mine) 0.16f else 0.08f)))
                 Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (mine) { PcIcon(PcIcons.CheckCircleFilled, null, size = 18.dp, tint = if (Pc.isDark) c.gold else c.goldInk); Spacer(Modifier.width(6.dp)) }
+                    if (mine) { PcIcon(PcIcons.CheckCircleFilled, null, size = 18.dp, tint = c.ink); Spacer(Modifier.width(6.dp)) }
                     Text(o.label, style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (voted) Text("${o.votes * 100 / total}%", style = Pc.type.num.copy(fontSize = 14.sp), color = c.ink)
                 }
@@ -304,7 +304,7 @@ fun AskCard(item: PostItem, progress: Float?, actions: CardActions) {
         Spacer(Modifier.height(6.dp))
         Row(Modifier.padding(start = 6.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             val helpful = ReactionKind.HELPFUL in p.myReactions
-            ReactBtn(PcIcons.ArrowFatUp, "${p.reactions.helpful}", if (helpful) "Marked helpful" else "Helpful", tint = if (helpful) c.accentInk else c.ink2) { actions.react(p, ReactionKind.HELPFUL) }
+            ReactBtn(PcIcons.ArrowFatUp, "${p.reactions.helpful}", if (helpful) "Marked helpful" else "Helpful", tint = if (helpful) c.ink else c.ink2) { actions.react(p, ReactionKind.HELPFUL) }
             ReactBtn(PcIcons.ChatCircle, "${p.commentCount}", "Answers") { actions.open(p) }
             Spacer(Modifier.weight(1f))
             PcButton("Answer", { actions.open(p) }, kind = BtnKind.Outline, height = BtnSmall)
@@ -323,7 +323,7 @@ fun PlacedTripCard(t: TripLite, actions: CardActions, saved: Boolean = false, on
 @Composable
 fun CommunityPlanLine(modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        PcIcon(PcIcons.Shield, null, size = 14.dp, tint = Pc.colors.accentInk)
+        PcIcon(PcIcons.Shield, null, size = 14.dp, tint = Pc.colors.ink2)
         Spacer(Modifier.width(6.dp))
         Text("Community plan · not a booking", style = Pc.type.smallStrong, color = Pc.colors.ink2)
     }

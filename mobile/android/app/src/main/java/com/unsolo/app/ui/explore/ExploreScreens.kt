@@ -259,10 +259,10 @@ fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, mo
         Text(label, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Text("  ·  $sub", style = Pc.type.body, color = c.ink2, maxLines = 1)
         Spacer(Modifier.weight(1f))
-        Box(Modifier.size(44.dp).clip(CircleShape).background(c.pine).semantics { contentDescription = "Filters" }, contentAlignment = Alignment.Center) {
-            PcIcon(PcIcons.Sliders, null, tint = c.onPine, size = 20.dp)
-            if (filters > 0) Box(Modifier.align(Alignment.TopEnd).size(16.dp).clip(CircleShape).background(c.onPine), contentAlignment = Alignment.Center) {
-                Text("$filters", style = Pc.type.label.copy(fontSize = 10.sp, fontWeight = FontWeight.ExtraBold), color = c.pine)
+        Box(Modifier.size(44.dp).clip(CircleShape).background(c.tonal).semantics { contentDescription = "Filters" }, contentAlignment = Alignment.Center) {
+            PcIcon(PcIcons.Sliders, null, tint = c.ink, size = 20.dp)
+            if (filters > 0) Box(Modifier.align(Alignment.TopEnd).size(16.dp).clip(CircleShape).background(c.ink), contentAlignment = Alignment.Center) {
+                Text("$filters", style = Pc.type.label.copy(fontSize = 10.sp, fontWeight = FontWeight.ExtraBold), color = c.raised)
             }
         }
     }
@@ -298,7 +298,7 @@ private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -
         Spacer(Modifier.height(10.dp))
         Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             PcButton("Clear", { vm.clearFilters() }, kind = BtnKind.Ghost)
-            PcButton(if (count == 1) "Show 1 departure" else "Show $count departures", onDismiss, Modifier.weight(1f))
+            PcButton(if (count == 1) "Show 1 departure" else "Show $count departures", onDismiss, Modifier.weight(1f), kind = BtnKind.Accent)
         }
     }
 }
@@ -365,7 +365,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
                     Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.priceLarge, color = c.ink)
                     Text("/person", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
-                PcButton(if (ring.full) "Full" else "Take a seat", onTake, height = BtnSmall, enabled = !ring.full)
+                PcButton(if (ring.full) "Full" else "Take a seat", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
             }
         }
     }
@@ -380,7 +380,7 @@ fun TribeBridgeRow(count: Int, place: String, stories: Int, faces: List<UserLite
             Text("$count people are planning ${place.substringBefore(',')}", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(if (stories > 0) "$stories stories from people who went · Tribe" else "See their plans in Tribe", style = Pc.type.small, color = c.ink2)
         }
-        PcIcon(PcIcons.ArrowRight, null, size = 18.dp, tint = c.accentInk)
+        PcIcon(PcIcons.ArrowRight, null, size = 18.dp, tint = c.ink2)
     }
 }
 
@@ -392,7 +392,7 @@ private fun SuggestionRail(items: List<Suggestion>, onNearMe: () -> Unit, onTap:
         LazyRow(contentPadding = PaddingValues(horizontal = Gutter, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "near") {
                 Column(Modifier.width(150.dp).height(128.dp).clip(RoundedCornerShape(PcTokens.radiusCard)).background(c.tonal).clickable(onClickLabel = "Suggestions near you", onClick = onNearMe).padding(16.dp)) {
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(c.raised), contentAlignment = Alignment.Center) { PcIcon(PcIcons.NearMe, null, size = 20.dp, tint = c.accentInk) }
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(c.raised), contentAlignment = Alignment.Center) { PcIcon(PcIcons.NearMe, null, size = 20.dp, tint = c.ink) }
                     Spacer(Modifier.weight(1f))
                     Text("Near you", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
                     Text("Approximate location", style = Pc.type.small, color = c.ink2)
@@ -404,7 +404,7 @@ private fun SuggestionRail(items: List<Suggestion>, onNearMe: () -> Unit, onTap:
                     ?: s.post?.let { p -> "Plan · ${Fmt.range(p.startsOn, p.endsOn)}" } ?: ""
                 val plan = s.type == "plan"
                 Column(Modifier.width(210.dp).height(128.dp).then(if (plan) Modifier.pencilledCard() else Modifier.raisedCard()).clickable { onTap(s) }.padding(16.dp)) {
-                    Text(s.reason, style = Pc.type.label, color = c.accentInk, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(s.reason, style = Pc.type.label, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(6.dp))
                     Text(title, style = Pc.type.title3, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.weight(1f))
@@ -637,7 +637,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                                     Text(Fmt.dowDayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = c.ink)
                                     Text(if (full) "Full" else "${d.seatsLeft} open", style = Pc.type.small, color = if (full) c.full else c.ink2)
                                 }
-                                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", tint = c.accentInk, size = 22.dp)
+                                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", tint = c.ink, size = 22.dp)
                             }
                         }
                     }
@@ -651,7 +651,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                         includes.forEachIndexed { i, inc ->
                             if (i > 0) InsetRule(start = 52.dp)
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(24.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, size = 14.dp, tint = c.accentInk) }
+                                Box(Modifier.size(24.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, size = 14.dp, tint = c.ink) }
                                 Spacer(Modifier.width(12.dp))
                                 Text(inc, style = Pc.type.body, color = c.ink)
                             }
@@ -662,7 +662,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
             t.host?.let { h ->
                 item(key = "host") {
                     Row(Modifier.padding(start = Gutter, end = Gutter, top = 16.dp).fillMaxWidth().raisedCard().clickable { if (h.username.isNotBlank()) nav.to(Routes.profile(h.username)) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(52.dp).border(2.dp, c.gold, CircleShape).padding(3.dp)) { Avatar(h, 46.dp) }
+                        Box(Modifier.size(52.dp).border(2.dp, c.rule, CircleShape).padding(3.dp)) { Avatar(h, 46.dp) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -694,7 +694,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
         BottomActionBar(
             title = MoneyFormat.rupees(t.priceFromPaise), titleMono = true, titleSuffix = "/person",
             subtitle = if (left > 0) "${Fmt.dowDayMonth(date)} · $left seats left" else "${Fmt.dowDayMonth(date)} is full · pick another date",
-            action = "Take a seat", enabled = left > 0, onAction = { vm.takeSeat(nav, date) },
+            action = "Take a seat", kind = BtnKind.Accent, enabled = left > 0, onAction = { vm.takeSeat(nav, date) },
             leading = { IconTap(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", { vm.toggleSave() }, tint = if (saved) c.rose else c.ink) },
         )
     }

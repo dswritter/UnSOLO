@@ -198,7 +198,7 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
                     val loved = ReactionKind.LOVE in post.myReactions
                     val wants = ReactionKind.WANT_TO_GO in post.myReactions
                     QuickReact(if (loved) PcIcons.HeartFilled else PcIcons.Heart, if (loved) "Loved" else "Love", if (loved) c.rose else Color.White) { if (nav.requirePhone()) vm.react(post.id, ReactionKind.LOVE) }
-                    QuickReact(if (wants) PcIcons.PinFilled else PcIcons.Pin, if (wants) "You want to go" else "Want to go", if (wants) c.gold else Color.White) { if (nav.requirePhone()) vm.react(post.id, ReactionKind.WANT_TO_GO) }
+                    QuickReact(if (wants) PcIcons.PinFilled else PcIcons.Pin, if (wants) "You want to go" else "Want to go", Color.White) { if (nav.requirePhone()) vm.react(post.id, ReactionKind.WANT_TO_GO) }
                 }
             }
         }

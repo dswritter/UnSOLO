@@ -114,16 +114,16 @@ fun FullCircleTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable 
     }
     // Material3 is plumbing only (ripples, text selection, dialogs, date pickers); visuals come from Pc.*.
     val scheme = if (dark) darkColorScheme(
-        primary = c.pine, onPrimary = c.onPine, primaryContainer = c.pineSoft, onPrimaryContainer = c.ink,
+        primary = c.ink, onPrimary = c.raised, primaryContainer = c.tonal, onPrimaryContainer = c.ink,
         background = c.paper, onBackground = c.ink, surface = c.raised, onSurface = c.ink,
         surfaceVariant = c.tonal, onSurfaceVariant = c.ink2, outline = c.rule, outlineVariant = c.rule, error = c.red,
-        secondary = c.pine, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
+        secondary = c.ink, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
         surfaceContainerHighest = c.raised, surfaceContainerLow = c.paper, surfaceContainerLowest = c.paper,
     ) else lightColorScheme(
-        primary = c.pine, onPrimary = c.onPine, primaryContainer = c.pineSoft, onPrimaryContainer = c.ink,
+        primary = c.ink, onPrimary = c.raised, primaryContainer = c.tonal, onPrimaryContainer = c.ink,
         background = c.paper, onBackground = c.ink, surface = c.raised, onSurface = c.ink,
         surfaceVariant = c.tonal, onSurfaceVariant = c.ink2, outline = c.rule, outlineVariant = c.rule, error = c.red,
-        secondary = c.pine, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
+        secondary = c.ink, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
         surfaceContainerHighest = c.raised, surfaceContainerLow = c.paper, surfaceContainerLowest = c.paper,
     )
     val type = remember { PcTypography() }

@@ -178,10 +178,10 @@ fun GlassButton(icon: ImageVector, contentDescription: String, onClick: () -> Un
 @Composable
 fun CountBadge(count: Int, modifier: Modifier = Modifier) {
     Box(
-        modifier.defaultMinSize(minWidth = 20.dp, minHeight = 20.dp).clip(CircleShape).background(Pc.colors.pine).padding(horizontal = 6.dp),
+        modifier.defaultMinSize(minWidth = 20.dp, minHeight = 20.dp).clip(CircleShape).background(Pc.colors.red).padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(if (count > 99) "99+" else "$count", style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold), color = Pc.colors.onPine)
+        Text(if (count > 99) "99+" else "$count", style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold), color = Color.White)
     }
 }
 
@@ -215,7 +215,7 @@ fun Overline(text: String, modifier: Modifier = Modifier, color: Color = Pc.colo
  * Primary = pine pill · Outline = quiet tonal pill (secondary) · Line = 1.5dp outline ·
  * Ghost = text · Danger = red text.
  */
-enum class BtnKind { Primary, Outline, Line, Ghost, Danger }
+enum class BtnKind { Primary, Accent, Quiet, Outline, Line, Ghost, Danger }
 
 /**
  * Pill button. [height] is the visual height (52 primary, [BtnSmall] = 40 small); the touch
@@ -239,14 +239,17 @@ fun PcButton(
     val reduce = Pc.reduceMotion
     val scale by animateFloatAsState(if (pressed && !reduce) 0.97f else 1f, tween(PcTokens.motionFast), label = "press")
     val bg = when (kind) {
-        BtnKind.Primary -> if (enabled) (if (pressed) c.pine.copy(alpha = 0.88f) else c.pine) else c.tonal
+        BtnKind.Primary -> if (enabled) (if (pressed) c.ink.copy(alpha = 0.86f) else c.ink) else c.tonal
+        BtnKind.Accent -> if (enabled) (if (pressed) c.pine.copy(alpha = 0.88f) else c.pine) else c.tonal
+        BtnKind.Quiet -> if (pressed) c.rule else c.tonal
         BtnKind.Outline -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Line -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Ghost -> if (pressed) c.tonal else Color.Transparent
         BtnKind.Danger -> if (pressed) c.red.copy(alpha = 0.08f) else Color.Transparent
     }
     val fg = when (kind) {
-        BtnKind.Primary -> if (enabled) c.onPine else c.ink3
+        BtnKind.Primary -> if (enabled) c.raised else c.ink3
+        BtnKind.Accent -> if (enabled) c.onPine else c.ink3
         BtnKind.Danger -> c.red
         BtnKind.Ghost -> if (enabled) c.ink2 else c.ink3
         else -> if (enabled) c.ink else c.ink3
@@ -297,7 +300,7 @@ fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageV
         TagKind.Host -> c.gold to c.onGold
         TagKind.Organiser -> c.raised to c.ink
         TagKind.Women -> c.roseSoft to c.rose
-        TagKind.Verified -> c.tonal to c.accentInk
+        TagKind.Verified -> c.tonal to c.ink
         TagKind.Full -> c.goldBg to (if (Pc.isDark) c.full else c.goldInk)
         TagKind.Muted -> c.tonal to c.ink2
         else -> c.tonal to c.ink2
@@ -324,7 +327,7 @@ fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageV
 
 @Composable
 fun VerifiedMark(modifier: Modifier = Modifier) {
-    PcIcon(PcIcons.SealCheck, "Verified", modifier, tint = Pc.colors.accentInk, size = 16.dp)
+    PcIcon(PcIcons.SealCheck, "Verified", modifier, tint = Pc.colors.ink2, size = 16.dp)
 }
 
 // ---------- Facts row (calendar · clock · wallet) ----------
@@ -369,7 +372,7 @@ fun ChartCells(cells: List<Pair<String, String>>, modifier: Modifier = Modifier,
 fun Avatar(user: UserLite?, size: Dp = 40.dp, modifier: Modifier = Modifier, square: Boolean = false, border: Color = Color.Transparent) {
     val c = Pc.colors
     val shape = if (square) RoundedCornerShape(PcTokens.radiusImage) else CircleShape
-    Box(modifier.size(size).clip(shape).background(c.pineSoft).then(if (border != Color.Transparent) Modifier.border(1.5.dp, border, shape) else Modifier), contentAlignment = Alignment.Center) {
+    Box(modifier.size(size).clip(shape).background(c.tonal).then(if (border != Color.Transparent) Modifier.border(1.5.dp, border, shape) else Modifier), contentAlignment = Alignment.Center) {
         val url = user?.avatarUrl
         if (url != null) {
             AsyncImage(
@@ -377,7 +380,7 @@ fun Avatar(user: UserLite?, size: Dp = 40.dp, modifier: Modifier = Modifier, squ
                 contentDescription = user.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
             )
         } else if (user != null) {
-            Text(user.initials, style = Pc.type.smallStrong.copy(fontSize = (size.value * 0.36f).coerceIn(11f, 24f).sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.accentInk)
+            Text(user.initials, style = Pc.type.smallStrong.copy(fontSize = (size.value * 0.36f).coerceIn(11f, 24f).sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
         } else {
             PcIcon(PcIcons.User, "Guest", tint = c.ink2, size = size * 0.5f)
         }
@@ -437,7 +440,7 @@ fun ProgressiveImage(
 // ---------- Inputs ----------
 
 @Composable
-fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null, onColor: Color = Pc.colors.pine) {
+fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null, onColor: Color = Pc.colors.ink) {
     val c = Pc.colors
     val x by animateDpAsState(if (checked) 21.dp else 3.dp, tween(PcTokens.motionFast), label = "knob")
     val track by animateColorAsState(if (checked) onColor else c.rule, tween(PcTokens.motionFast), label = "track")
@@ -447,7 +450,7 @@ fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier =
     ) {
         Box(Modifier.size(width = 46.dp, height = 28.dp).clip(CircleShape).background(track)) {
             // On the yellow track the knob is black (white on yellow is ~1.6:1).
-            Box(Modifier.offset(x = x, y = 3.dp).size(22.dp).clip(CircleShape).background(if (checked && onColor == c.pine) c.onPine else Color.White))
+            Box(Modifier.offset(x = x, y = 3.dp).size(22.dp).clip(CircleShape).background(if (checked && onColor == c.ink) c.raised else Color.White))
         }
     }
 }
@@ -457,8 +460,8 @@ fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier =
 fun PcChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, solidSelected: Boolean = true) {
     val c = Pc.colors
     val shape = RoundedCornerShape(PcTokens.radiusPill)
-    val fg = if (selected) c.onPine else c.ink
-    val bg by animateColorAsState(if (selected) c.pine else c.raised, tween(PcTokens.motionFast), label = "chip")
+    val fg = if (selected) c.raised else c.ink
+    val bg by animateColorAsState(if (selected) c.ink else c.raised, tween(PcTokens.motionFast), label = "chip")
     Box(modifier.defaultMinSize(minHeight = PcTokens.touch).clickable(role = Role.Checkbox, onClick = onClick), contentAlignment = Alignment.Center) {
         Row(
             Modifier
@@ -498,7 +501,7 @@ fun FieldRow(
         Text(label, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = labelColor)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) { PcIcon(icon, null, size = 18.dp, tint = c.accentInk); Spacer(Modifier.width(8.dp)) }
+            if (icon != null) { PcIcon(icon, null, size = 18.dp, tint = c.ink2); Spacer(Modifier.width(8.dp)) }
             Box(Modifier.weight(1f).defaultMinSize(minHeight = 28.dp), contentAlignment = Alignment.CenterStart) {
                 if (value.isEmpty()) Text(placeholder, style = style, color = c.ink3)
                 BasicTextField(
@@ -566,7 +569,7 @@ private fun StepBtn(icon: ImageVector, label: String, enabled: Boolean, onClick:
 }
 
 @Composable
-fun SwitchRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, onColor: Color = Pc.colors.pine, titleColor: Color = Pc.colors.ink, titleIcon: ImageVector? = null) {
+fun SwitchRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, onColor: Color = Pc.colors.ink, titleColor: Color = Pc.colors.ink, titleIcon: ImageVector? = null) {
     Row(modifier.fillMaxWidth().clickable { onChange(!checked) }.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -586,7 +589,7 @@ fun NavRow(title: String, subtitle: String? = null, icon: ImageVector? = null, o
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (danger) c.red.copy(alpha = 0.08f) else c.tonal), contentAlignment = Alignment.Center) {
-                PcIcon(icon, null, tint = if (danger) c.red else c.accentInk, size = 20.dp)
+                PcIcon(icon, null, tint = if (danger) c.red else c.ink, size = 20.dp)
             }
             Spacer(Modifier.width(14.dp))
         }
@@ -594,7 +597,7 @@ fun NavRow(title: String, subtitle: String? = null, icon: ImageVector? = null, o
             Text(title, style = Pc.type.bodyStrong, color = if (danger) c.red else c.ink)
             if (subtitle != null) Text(subtitle, style = Pc.type.small, color = c.ink2)
         }
-        if (trailing != null) Text(trailing, style = Pc.type.smallStrong, color = c.accentInk, modifier = Modifier.padding(end = 6.dp))
+        if (trailing != null) Text(trailing, style = Pc.type.smallStrong, color = c.ink2, modifier = Modifier.padding(end = 6.dp))
         if (!danger) PcIcon(PcIcons.ChevronRight, null, tint = c.ink3, size = 18.dp)
     }
 }
