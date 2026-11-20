@@ -9,6 +9,7 @@ import { ProfileUsernameDetail } from './ProfileUsernameDetail'
 import { ProfilePublicSkeleton } from '@/components/profile/ProfilePublicSkeleton'
 import { findPublicProfile, findUnlinkedHostProfileHref } from '@/lib/profile/public-host-profile'
 import { hostProfileHref } from '@/lib/profile/host-profile'
+import { ProfileTribePosts } from '@/components/tribe/ProfileTribePosts'
 
 type ProfileRow = Profile & {
   status_text?: string | null
@@ -80,6 +81,9 @@ export default async function ProfilePage({
           sharePosterShareTitle={sharePosterShareTitle}
           sharePosterShareText={sharePosterShareText}
         />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ProfileTribePosts authorId={profile.id} firstName={(profile.full_name || profile.username).split(' ')[0]} />
       </Suspense>
     </ProfileV2Shell>
   )
