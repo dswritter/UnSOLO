@@ -94,6 +94,10 @@ struct ExploreView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 AppHeader(showsWordmark: true)
+                    .overlay {
+                        // No visible page title: the chips sit right under the top bar. VoiceOver still gets a heading.
+                        Text("Explore").opacity(0).accessibilityAddTraits(.isHeader).allowsHitTesting(false)
+                    }
                 ChipTabs(items: ExploreCategory.allCases.map { ($0, $0.label) }, selection: $category, icons: Self.categoryIcons)
                     .padding(.top, 2)
                     .padding(.bottom, 6)
@@ -152,7 +156,7 @@ struct ExploreView: View {
         HStack(spacing: 8) {
             Image(systemName: "line.3.horizontal.decrease").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink)
             Text([filter.query.isEmpty ? nil : "“\(filter.query)”", filter.when == .any ? nil : filter.whenLabel,
-                  filter.length == .any ? nil : filter.length.label, filter.openOnly ? "Open seats" : nil]
+                  filter.length == .any ? nil : filter.length.label, filter.openOnly ? "Open spots" : nil]
                 .compactMap { $0 }.joined(separator: " · "))
                 .pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink).lineLimit(1)
             Spacer()
@@ -225,11 +229,11 @@ struct ExploreView: View {
 // MARK: - Photo-first trip card
 
 /// Photo (196 pt) with a date chip and a save button; the 88 pt ring overlaps the photo's bottom edge
-/// with the open count in its centre; title, place · duration, host, seat caption, price + "Take a seat".
+/// with "N/M spots left" in its centre; title, place · duration, host, going caption, price + "Grab a spot".
 struct TripCard: View {
     let trip: TripLite
     var category: ExploreCategory = .trips
-    var cta = "Take a seat"
+    var cta = "Grab a spot"
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
     @Environment(SessionStore.self) private var session
@@ -243,8 +247,7 @@ struct TripCard: View {
             HStack(alignment: .top, spacing: 12) {
                 if showsRing {
                     SeatRing(seats: RingSeats.trip(trip), size: PcTokens.ringCard, dots: .none,
-                             centreLabel: counts.isFull ? ("Full", "\(counts.total)/\(counts.total)") : (String(counts.open), counts.open == 1 ? "seat left" : "seats left"),
-                             seatIcon: true)
+                             centreSpots: counts)
                         .padding(5)
                         .background(Circle().fill(Pc.raised))
                         .padding(.top, -49)
@@ -266,7 +269,9 @@ struct TripCard: View {
                     }
                     Spacer(minLength: 4)
                     if showsRing {
-                        SeatCaption(counts: counts, font: .system(size: 12.5, weight: .semibold))
+                        Text(counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : "\(counts.going) going")
+                            .font(.system(size: 12.5, weight: .bold)).foregroundStyle(counts.isFull ? Pc.full : Pc.ink)
+                            .lineLimit(1).fixedSize()
                     } else {
                         Text(category.meter(left: trip.seatsLeft, total: trip.seatsTotal)).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
                     }
@@ -569,7 +574,7 @@ struct ExploreSearchSheet: View {
                         }
                     }
                 }
-                PcToggleRow(title: "Only trips with open seats", subtitle: "Hide full departures", isOn: $draft.openOnly)
+                PcToggleRow(title: "Only trips with open spots", subtitle: "Hide full departures", isOn: $draft.openOnly)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 4)
                     .pcField()

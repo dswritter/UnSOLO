@@ -470,7 +470,7 @@ struct ReactionsBar: View {
     }
 }
 
-/// "Next departure · Fri 18 Dec · 3 seats left · ₹8,499 · Take a seat →" with a mini arc.
+/// "Next departure · Fri 18 Dec · 3 spots left · ₹8,499 · Grab a spot →" with a mini arc.
 struct NextDepartureLink: View {
     let trip: TripLite
     var label = "Next departure"
@@ -483,11 +483,11 @@ struct NextDepartureLink: View {
                 MiniArc(counts: counts, size: 38)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("\(label) · \(Fmt.weekdayDayMonth(trip.nextDeparture))").font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1).minimumScaleFactor(0.85)
-                    Text("\(counts.isFull ? "Full" : "\(counts.open) seat\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))")
+                    Text("\(counts.isFull ? "Full" : "\(counts.open) spot\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))")
                         .font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                Text(counts.isFull ? "See →" : "Take a seat →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize()
+                Text(counts.isFull ? "See →" : "Grab a spot →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -497,7 +497,7 @@ struct NextDepartureLink: View {
         }
         .buttonStyle(.pcPress)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label): \(trip.title), \(Fmt.weekdayDayMonth(trip.nextDeparture)), \(counts.accessibilityText()), \(Fmt.rupees(trip.priceFromPaise)). Take a seat")
+        .accessibilityLabel("\(label): \(trip.title), \(Fmt.weekdayDayMonth(trip.nextDeparture)), \(counts.accessibilityText()), \(Fmt.rupees(trip.priceFromPaise)). Grab a spot")
         .accessibilityAddTraits(.isButton)
     }
 }

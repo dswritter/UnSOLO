@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Trip detail: full-bleed cover over the top ~45 % with round back/share buttons, the 240 pt seat ring
 /// overlapping the cover's bottom edge (host badge on top, trip photo in the centre), facts, departures,
-/// includes, stories, and a sticky bottom bar with save, price and "Take a seat" (web checkout).
+/// includes, stories, and a sticky bottom bar with save, price and "Grab a spot" (web checkout).
 struct TripDetailView: View {
     let slug: String
     @Environment(AppModel.self) private var app
@@ -150,10 +150,10 @@ struct TripDetailView: View {
                      size: PcTokens.ringHero, dots: selectedDeparture(t) == nil ? dots : .none,
                      badge: t.host.map { RingBadge(user: $0, kind: .host) },
                      centre: .photo(centreImage),
-                     centreLabel: (counts.isFull ? "Full" : String(counts.open), counts.isFull ? "\(counts.total)/\(counts.total)" : "of \(counts.total) seat\(counts.total == 1 ? "" : "s") left"),
+
                      spinOnAppear: counts.isFull,
                      accessibilityText: "\(counts.accessibilityText()). Show who's going",
-                     seatIcon: true)
+                     centreSpots: counts)
                 .padding(6)
                 .background(Circle().fill(Pc.paper))
         }
@@ -329,11 +329,11 @@ struct TripDetailView: View {
             .accessibilityLabel(saved ? "Saved" : "Save trip")
             VStack(alignment: .leading, spacing: 1) {
                 PriceText(paise: t.priceFromPaise)
-                Text(left == 0 ? "Full on \(Fmt.dayMonth(date))" : "\(Fmt.dayMonth(date)) · \(left) seat\(left == 1 ? "" : "s") left")
+                Text(left == 0 ? "Full on \(Fmt.dayMonth(date))" : "\(Fmt.dayMonth(date)) · \(left) spot\(left == 1 ? "" : "s") left")
                     .pcFont(.small).foregroundStyle(left == 0 ? Pc.full : Pc.ink2).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(left == 0 ? "Join waitlist" : "Take a seat") { app.openBooking(slug: slug, date: date) }
+            Button(left == 0 ? "Join waitlist" : "Grab a spot") { app.openBooking(slug: slug, date: date) }
                 .buttonStyle(.pcAccent)
         }
         .padding(.horizontal, 16)
@@ -362,7 +362,7 @@ struct StoryMiniCard: View {
 }
 
 /// "Who's going": the ring and its caption, then the host and every traveller (faces for co-travellers,
-/// initials when signed in, anonymous when signed out), open seats summarised, and "Take a seat" at the bottom.
+/// initials when signed in, anonymous when signed out), open spots summarised, and "Grab a spot" at the bottom.
 struct WhoIsGoingSheet: View {
     let trip: TripLite
     let seats: [Seat]
@@ -400,13 +400,13 @@ struct WhoIsGoingSheet: View {
                     }
                     ForEach(Array(travellers.enumerated()), id: \.offset) { i, seat in
                         let isYou = seat.state == .you || seat.state == .held
-                        row(avatar: travellerAvatar(seat.user, isYou: isYou), title: isYou ? "You" : name(seat), subtitle: "Seat \(i + 1)") {
+                        row(avatar: travellerAvatar(seat.user, isYou: isYou), title: isYou ? "You" : name(seat), subtitle: "Spot \(i + 1)") {
                             if isYou { PcTag(text: "You", style: .held) }
                         }
                     }
                     if counts.open > 0 {
                         row(avatar: Circle().strokeBorder(Pc.seatOpen, lineWidth: 2).frame(width: 44, height: 44),
-                            title: "\(counts.open) seat\(counts.open == 1 ? "" : "s") open", subtitle: counts.going == 0 ? "Be first in the circle" : "Take one before they go") { EmptyView() }
+                            title: "\(counts.open) spot\(counts.open == 1 ? "" : "s") open", subtitle: counts.going == 0 ? "Be first in the circle" : "Take one before they go") { EmptyView() }
                     }
                 }
                 .padding(.top, 8)
@@ -423,7 +423,7 @@ struct WhoIsGoingSheet: View {
                 PriceText(paise: trip.priceFromPaise)
                 Spacer()
                 if counts.open > 0 {
-                    Button("Take a seat", action: takeSeat).buttonStyle(.pcPrimary)
+                    Button("Grab a spot", action: takeSeat).buttonStyle(.pcPrimary)
                 } else {
                     Button("Close") { dismiss() }.buttonStyle(.pcQuiet)
                 }

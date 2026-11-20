@@ -46,7 +46,7 @@ struct MyTripsView: View {
 
     @ViewBuilder private var upcoming: some View {
         if my.upcoming.isEmpty {
-            EmptyState(symbol: "ticket", title: "No trips yet", message: "Take a seat on a hosted trip or join a plan in the Tribe.")
+            EmptyState(symbol: "ticket", title: "No trips yet", message: "Grab a spot on a hosted trip or join a plan in the Tribe.")
             Button("Explore departures") { router.select(.explore) }.buttonStyle(.pc(.outline, fullWidth: true)).padding(.horizontal, 20)
         }
         VStack(spacing: 12) {
@@ -97,7 +97,7 @@ struct TicketCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     PcTag(text: days <= 0 ? "Today" : "In \(days) day\(days == 1 ? "" : "s")", style: .verified, icon: "calendar.badge.checkmark")
                     Text(trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
-                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guests) seat\(booking.guests == 1 ? "" : "s")").pcFont(.small).foregroundStyle(Pc.ink2)
+                    Text("\(Fmt.weekdayDayMonth(booking.travelDate)) · \(booking.guests) spot\(booking.guests == 1 ? "" : "s")").pcFont(.small).foregroundStyle(Pc.ink2)
                     SeatCaption(counts: counts, font: .system(size: 12.5, weight: .semibold))
                 }
                 Spacer(minLength: 0)
@@ -164,7 +164,7 @@ struct PastTripCard: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Went · \(Fmt.dayMonth(booking.travelDate))").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink3)
                     Text(booking.trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
-                    Text("\(booking.guests) seat\(booking.guests == 1 ? "" : "s") · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                    Text("\(booking.guests) spot\(booking.guests == 1 ? "" : "s") · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }

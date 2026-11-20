@@ -8,7 +8,7 @@ enum ExploreCategory: String, CaseIterable, Hashable {
     func meter(left: Int?, total: Int?) -> String {
         let l = left ?? 0
         switch self {
-        case .trips: return l == 0 ? "Full" : "\(l) of \(total ?? l) seats left"
+        case .trips: return l == 0 ? "Full" : "\(l) of \(total ?? l) spots left"
         case .stays: return l == 1 ? "1 room left tonight" : "\(l) rooms left tonight"
         case .activities: return "\(l) slots left"
         case .rentals: return l == 1 ? "1 free" : "\(l) free"

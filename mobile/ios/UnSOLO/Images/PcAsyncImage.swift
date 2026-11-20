@@ -29,10 +29,17 @@ struct PcAsyncImage: View {
 
     init(url: String?, thumbUrl: String? = nil, lqip: String? = nil, targetSize: CGSize? = nil, contentMode: ContentMode = .fill) {
         self.url = url
-        self.thumbUrl = thumbUrl
+        self.thumbUrl = thumbUrl ?? Self.derivedThumb(url)
         self.lqip = lqip
         self.targetSize = targetSize
         self.contentMode = contentMode
+    }
+
+    /// Supabase public images have a 320 px sibling: `…/storage/v1/object/public/images/…x.webp` → `…x_thumb.webp`.
+    /// Used when the API sends no `thumbUrl`, so the thumb paints first and the full image (sized to the layout) follows.
+    static func derivedThumb(_ url: String?) -> String? {
+        guard let url, url.contains("/storage/v1/object/public/images/"), url.hasSuffix(".webp"), !url.hasSuffix("_thumb.webp") else { return nil }
+        return String(url.dropLast(".webp".count)) + "_thumb.webp"
     }
 
     init(media: Media?, targetSize: CGSize? = nil, contentMode: ContentMode = .fill) {

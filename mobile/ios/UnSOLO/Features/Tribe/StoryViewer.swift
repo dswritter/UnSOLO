@@ -183,7 +183,7 @@ struct StoryViewer: View {
         if let trip = post.trip {
             let counts = SeatCounts(trip: trip)
             linkButton(arc: MiniArc(counts: counts, size: 38), title: "Next departure · \(Fmt.weekdayDayMonth(trip.nextDeparture))",
-                       subtitle: "\(counts.isFull ? "Full" : "\(counts.open) seats left") · \(Fmt.rupees(trip.priceFromPaise))", cta: counts.isFull ? "See →" : "Take a seat →") {
+                       subtitle: "\(counts.isFull ? "Full" : "\(counts.open) spot\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))", cta: counts.isFull ? "See →" : "Grab a spot →") {
                 go(.trip(slug: trip.slug))
             }
         } else if let plan = openPlan(by: post.author.id) {

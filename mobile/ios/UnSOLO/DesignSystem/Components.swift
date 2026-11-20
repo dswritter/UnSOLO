@@ -21,7 +21,7 @@ extension ButtonStyle where Self == PcPressStyle {
 // MARK: - Buttons
 
 /// accent: yellow (pine) pill with black text, ONLY for the single primary action of a screen
-/// (trip "Take a seat", plan "Request to join", composer "Publish", search "Show trips").
+/// (trip "Grab a spot", plan "Request to join", composer "Publish", search "Show trips").
 /// primary: ink pill with surface text (default) · outline: 1.5 pt ink outline · quiet: tonal pill ·
 /// link: accentInk text · danger: red. Primary actions are 52 pt tall, compact ones 40 pt (hit area ≥ 48 pt).
 enum PcButtonKind { case accent, primary, outline, quiet, link, danger }

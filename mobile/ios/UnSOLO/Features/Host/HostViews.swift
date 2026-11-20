@@ -36,7 +36,7 @@ struct HostHubView: View {
                     ForEach(plans) { p in demandCard(p) }
                 }
                 .padding(.horizontal, 20)
-                Text("Only the organiser and members see offers. If they accept, every member gets a held seat and 48h to pay.")
+                Text("Only the organiser and members see offers. If they accept, every member gets a held spot and 48h to pay.")
                     .pcFont(.small).foregroundStyle(Pc.ink2).padding(16)
                 SectionHeader(title: "Your departures").padding(.horizontal, 20).padding(.top, 8)
                 Text("Departures, balances and payouts are managed on unsolo.in for now.").pcFont(.small).foregroundStyle(Pc.ink2)
@@ -148,12 +148,12 @@ struct OfferFormView: View {
                 .tint(Pc.ink).padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Open more seats to others").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+                        Text("Open more spots to others").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
                         Text("The group can say no to this").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                     Spacer()
                     Text("\(extraSeats)").pcFont(.bodyStrong).monospacedDigit()
-                    Stepper("Extra seats", value: $extraSeats, in: 0...8).labelsHidden()
+                    Stepper("Extra spots", value: $extraSeats, in: 0...8).labelsHidden()
                 }
                 .padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
                 FormRow(label: "Note to the group") { TextField("We've run Kalga 14 times…", text: $note, axis: .vertical).pcFont(.body).lineLimit(2...6) }
@@ -200,7 +200,7 @@ struct OfferFormView: View {
     }
 }
 
-/// Organiser reviews host offers: accept turns the plan into a hosted trip (members get held seats, 48h to pay).
+/// Organiser reviews host offers: accept turns the plan into a hosted trip (members get held spots, 48h to pay).
 struct OfferReviewView: View {
     let postId: String
     @Environment(AppModel.self) private var app
@@ -247,7 +247,7 @@ struct OfferReviewView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     PcTag(text: "Accepted", style: .paid)
                     Text("It's a hosted trip now").pcFont(.title2).foregroundStyle(Pc.ink)
-                    Text("Every member has a held seat\(accepted.payBy.map { " until \(Fmt.dayMonth(Fmt.ymd($0)))" } ?? ""). The plan chat becomes the trip chat.")
+                    Text("Every member has a held spot\(accepted.payBy.map { " until \(Fmt.dayMonth(Fmt.ymd($0)))" } ?? ""). The plan chat becomes the trip chat.")
                         .pcFont(.body).foregroundStyle(Pc.ink)
                     Button("Open the trip") { app.openBooking(slug: accepted.packageSlug, date: post?.startsOn) }.buttonStyle(.pc(.primary, fullWidth: true))
                 }
@@ -284,14 +284,14 @@ struct OfferReviewView: View {
                     .overlay(alignment: .top) { HairlineRule().padding(.horizontal, 12) }
                 }
                 if let notes = offer.notes { Text("“\(notes)”").pcFont(.small).foregroundStyle(Pc.ink2).padding(12) }
-                if offer.extraSeats > 0 { Text("Also opens \(offer.extraSeats) more seats to others").pcFont(.small).foregroundStyle(Pc.ink).padding(.horizontal, 12).padding(.bottom, 12) }
+                if offer.extraSeats > 0 { Text("Also opens \(offer.extraSeats) more spots to others").pcFont(.small).foregroundStyle(Pc.ink).padding(.horizontal, 12).padding(.bottom, 12) }
             }
             .pcCard()
             Text("If you accept").pcFont(.title2).foregroundStyle(Pc.ink)
             VStack(spacing: 0) {
-                step(1, "Each member gets a held seat and 48h to pay through UnSOLO")
+                step(1, "Each member gets a held spot and 48h to pay through UnSOLO")
                 step(2, "Your plan chat becomes the trip chat. \(offer.host.name) joins as host")
-                step(3, "Unpaid seats are released. Refunds follow the host's policy")
+                step(3, "Unpaid spots are released. Refunds follow the host's policy")
             }
             if let error { Text(error).pcFont(.small).foregroundStyle(Pc.red) }
         }

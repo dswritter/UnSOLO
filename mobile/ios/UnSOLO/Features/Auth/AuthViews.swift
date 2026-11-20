@@ -16,7 +16,7 @@ struct WelcomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     Wordmark(height: 34).padding(.top, 12)
-                    Text(router.authReason ?? "Find your people, then take a seat.").pcFont(.display).foregroundStyle(Pc.ink)
+                    Text(router.authReason ?? "Find your people, then grab a spot.").pcFont(.display).foregroundStyle(Pc.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("Browse freely. You'll need an account to post, join plans, message and book.").pcFont(.body).foregroundStyle(Pc.ink2)
                     HStack(spacing: 14) {

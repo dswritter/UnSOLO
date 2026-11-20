@@ -29,17 +29,17 @@ struct SeatCounts: Hashable {
         self.init(total: total, open: max(0, total - plan.memberCount))
     }
 
-    /// "8 of 12 seats open" / "Full, 12 of 12 seats taken".
-    func accessibilityText(noun: String = "seats") -> String {
+    /// "8 of 12 spots open" / "Full, 12 of 12 spots taken".
+    func accessibilityText(noun: String = "spots") -> String {
         isFull ? "Full, \(total) of \(total) \(noun) taken" : "\(open) of \(total) \(noun) open"
     }
 }
 
 /// The text line every ring is paired with:
-/// "Be first in the circle · 12 seats open" / "8 of 12 open · 4 going" / "Full · 12/12".
+/// "Be first in the circle · 12 spots open" / "8 of 12 open · 4 going" / "Full · 12/12".
 struct SeatCaption: View {
     let counts: SeatCounts
-    var noun = "seats"
+    var noun = "spots"
     var font: Font = .system(size: 13, weight: .semibold)
 
     var body: some View {
@@ -55,13 +55,13 @@ struct SeatCaption: View {
         return Text(p.strong).foregroundStyle(counts.isFull ? Pc.full : Pc.ink).fontWeight(.bold)
     }
 
-    static func parts(_ c: SeatCounts, noun: String = "seats") -> (strong: String, rest: String?) {
+    static func parts(_ c: SeatCounts, noun: String = "spots") -> (strong: String, rest: String?) {
         if c.isFull { return ("Full · \(c.total)/\(c.total)", nil) }
         if c.going == 0 { return ("Be first in the circle", "\(c.open) \(c.open == 1 ? String(noun.dropLast()) : noun) open") }
         return ("\(c.open) of \(c.total) open", "\(c.going) going")
     }
 
-    static func plain(_ c: SeatCounts, noun: String = "seats") -> String {
+    static func plain(_ c: SeatCounts, noun: String = "spots") -> String {
         let p = parts(c, noun: noun)
         return p.rest.map { "\(p.strong) · \($0)" } ?? p.strong
     }
@@ -255,8 +255,8 @@ struct SeatRing: View {
     /// Draw your arc in on appear.
     var drawYouOnAppear = false
     var accessibilityText: String?
-    /// Small seat icon above the centre number (trip rings).
-    var seatIcon = false
+    /// Shared trip centre label: big open count, tiny "/N", and "spots left" (or full: N, "/N", "full").
+    var centreSpots: SeatCounts?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var youProgress: CGFloat = 1
@@ -269,13 +269,14 @@ struct SeatRing: View {
     private var takenColor: Color { isFull ? Pc.full : (womenOnly ? Pc.rose : Pc.taken) }
     private var openColor: Color { womenOnly ? Pc.roseOpen : Pc.seatOpen }
     private var youIndex: Int? { seats.firstIndex(where: \.isYou) }
+    private func isTaken(_ s: RingSeat) -> Bool { if case .taken = s { return true } else { return false } }
 
     var body: some View {
         ZStack {
             ring
                 .rotationEffect(.degrees(rotation))
                 .opacity(fade)
-            if let centreLabel { label(centreLabel) }
+            if let centreSpots { spotsLabel(centreSpots) } else if let centreLabel { label(centreLabel) }
             if let badge { badgeView(badge) }
             if let waiting { waitingFace(waiting) }
         }
@@ -297,8 +298,8 @@ struct SeatRing: View {
 
     private var defaultAccessibility: String {
         let open = seats.filter(\.isOpen).count
-        var s = isFull ? "Full, \(seats.count) of \(seats.count) seats taken" : "\(open) of \(seats.count) \(plan ? "spots" : "seats") open"
-        if youIndex != nil { s += ", including your seat" }
+        var s = isFull ? "Full, \(seats.count) of \(seats.count) spots taken" : "\(open) of \(seats.count) spots open"
+        if youIndex != nil { s += ", including your spot" }
         if womenOnly { s += ", women only" }
         if waiting != nil { s += ", your request is waiting" }
         return s
@@ -319,7 +320,14 @@ struct SeatRing: View {
                     let s = g.segment(i)
                     switch seat {
                     case .taken:
-                        ctx.stroke(g.arc(s.a0, s.a1), with: .color(takenColor), style: StrokeStyle(lineWidth: g.takenWidth, lineCap: .round))
+                        // Trips: a run of consecutive taken spots is ONE continuous arc. Plans keep one arc per spot.
+                        if plan {
+                            ctx.stroke(g.arc(s.a0, s.a1), with: .color(takenColor), style: StrokeStyle(lineWidth: g.takenWidth, lineCap: .round))
+                        } else if i == 0 || !isTaken(seats[i - 1]) {
+                            var j = i
+                            while j + 1 < seats.count, isTaken(seats[j + 1]) { j += 1 }
+                            ctx.stroke(g.arc(s.a0, g.segment(j).a1), with: .color(takenColor), style: StrokeStyle(lineWidth: g.takenWidth, lineCap: .round))
+                        }
                     case .open:
                         if plan {
                             let r = size < 90 ? max(3, size * 0.07) : max(6, g.dot * 0.34)
@@ -327,13 +335,6 @@ struct SeatRing: View {
                             let circle = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
                             ctx.fill(circle, with: .color(Pc.raised))
                             ctx.stroke(circle, with: .color(openColor), lineWidth: size < 90 ? 1.5 : 2.5)
-                        } else if size >= 64 {
-                            // Seat cue: a small marker per open seat on the open track.
-                            let r = max(2.4, g.openWidth * 1.35)
-                            let c = g.point(s.mid)
-                            let dot = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
-                            ctx.fill(dot, with: .color(Pc.raised))
-                            ctx.stroke(dot, with: .color(openColor), lineWidth: max(1.2, g.openWidth * 0.75))
                         }
                     case .you, .held:
                         break // drawn as animatable shapes below
@@ -419,11 +420,6 @@ struct SeatRing: View {
         let onPhoto: Bool = { if case .photo = centre { return true } else { return false } }()
         let big = max(14, size * 0.2)
         return VStack(spacing: 0) {
-            if seatIcon {
-                Image(systemName: "chair.lounge.fill").font(.system(size: max(9, size * 0.065), weight: .bold))
-                    .foregroundStyle(onPhoto ? Color.white.opacity(0.9) : Pc.ink2)
-                    .padding(.bottom, 1)
-            }
             Text(l.big).font(PcFont.rounded(big, .heavy)).tracking(-0.5).lineLimit(1).minimumScaleFactor(0.5)
                 .foregroundStyle(onPhoto ? Color.white : Pc.ink)
             if !l.small.isEmpty {
@@ -435,6 +431,30 @@ struct SeatRing: View {
         .padding(.vertical, onPhoto ? 6 : 0)
         .background { if onPhoto { Capsule().fill(Pc.scrim) } }
         .frame(maxWidth: geo.centreRadius * 1.8)
+    }
+
+    /// "8 /12" over "spots left"; full: "12 /12" over "full". Sized to fit inside the centre disc.
+    private func spotsLabel(_ c: SeatCounts) -> some View {
+        let onPhoto: Bool = { if case .photo = centre { return true } else { return false } }()
+        let big = max(14, size * 0.2)
+        let fg: Color = onPhoto ? .white : Pc.ink
+        let word = c.isFull ? "full" : (c.open == 1 ? "spot left" : "spots left")
+        return VStack(spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                Text(c.isFull ? "\(c.total)" : "\(c.open)").font(PcFont.rounded(big, .heavy)).tracking(-0.5)
+                Text("/\(c.total)").font(PcFont.rounded(big * 0.36, .bold)).opacity(0.6)
+            }
+            .foregroundStyle(fg)
+            .lineLimit(1)
+            Text(word).font(.system(size: max(9, min(13, size * 0.065)), weight: .bold)).lineLimit(1)
+                .foregroundStyle(onPhoto ? Color.white.opacity(0.9) : Pc.ink2)
+        }
+        .minimumScaleFactor(0.6)
+        .padding(.horizontal, onPhoto ? 12 : 0)
+        .padding(.vertical, onPhoto ? 5 : 0)
+        .background { if onPhoto { Capsule().fill(Pc.scrim) } }
+        .frame(maxWidth: geo.centreRadius * 1.75)
+        .accessibilityHidden(true)
     }
 
     private func badgeView(_ b: RingBadge) -> some View {
@@ -647,9 +667,9 @@ struct SeatCell: View {
     private var accessibilityText: String {
         let name = seat.user?.name ?? ""
         switch seat.state {
-        case .open: return "Open seat"
-        case .held: return "Seat held for you"
-        case .you: return "Your seat"
+        case .open: return "Open spot"
+        case .held: return "Spot held for you"
+        case .you: return "Your spot"
         case .requested: return "Requested, waiting for approval"
         case .host: return "Host \(name)"
         case .organiser: return "Organiser \(name)"
