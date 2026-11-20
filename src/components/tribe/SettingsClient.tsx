@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { Bell, Compass, Loader2, MapPin, Phone, ShieldCheck, Ticket, UsersRound, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api/client'
@@ -20,7 +20,11 @@ const CATEGORIES: { id: keyof Preferences['notify']['push']; label: string; hint
   { id: 'marketing', label: 'Offers', hint: 'Occasional deals (off by default)' },
 ]
 
+const noopSubscribe = () => () => {}
+
 export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }) {
+  // Browser-only capability: false on the server and first paint, so hydration matches.
+  const canWebPush = useSyncExternalStore(noopSubscribe, webPushSupported, () => false)
   const [p, setP] = useState(initial)
   const [gender, setGender] = useState(me.gender)
   const [homeCity, setHomeCity] = useState(me.homeCity ?? '')
@@ -65,7 +69,7 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
       </Section>
 
       <Section title="Notifications" icon={Bell} hint="Pushes respect quiet hours, except messages and trip updates.">
-        {webPushSupported() && (
+        {canWebPush && (
           <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm mb-3" onClick={async () => {
             const r = await enableWebPush()
             if (r === 'enabled') toast.success('Notifications are on for this browser')
