@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { getActionAuth } from '@/lib/auth/action-auth'
+import { createServiceRoleClient } from '@/lib/supabase/server'
 import { resolvePerPersonFromPackage } from '@/lib/package-pricing'
 
 export async function createGroupBooking(
@@ -135,7 +136,7 @@ export async function joinGroupByInvite(inviteCode: string) {
   })
 
   // Notify organizer
-  await supabase.rpc('create_notification', {
+  await createServiceRoleClient().rpc('create_notification', {
     p_user_id: group.organizer_id,
     p_type: 'group_invite',
     p_title: 'New Group Member',
@@ -223,7 +224,7 @@ export async function addExpenseToGroup(groupId: string, description: string, am
     .neq('user_id', user.id)
 
   for (const m of members || []) {
-    await supabase.rpc('create_notification', {
+    await createServiceRoleClient().rpc('create_notification', {
       p_user_id: m.user_id,
       p_type: 'split_payment',
       p_title: 'New Group Expense',
@@ -265,7 +266,7 @@ export async function completeGroupPayment(groupId: string) {
     const pkgTitle = (group.package as unknown as { title: string })?.title || 'the trip'
 
     // Notify organizer
-    await supabase.rpc('create_notification', {
+    await createServiceRoleClient().rpc('create_notification', {
       p_user_id: group.organizer_id,
       p_type: 'split_payment',
       p_title: 'Payment Received!',
@@ -344,7 +345,8 @@ export async function completeGroupPayment(groupId: string) {
       }
     } else if (allOthersPaid && !organizerPaid) {
       // Everyone else paid but organizer hasn't
-      await supabase.from('notifications').insert({
+      // Notifies someone else → service role (client inserts may only target yourself).
+      await createServiceRoleClient().from('notifications').insert({
         user_id: group.organizer_id,
         type: 'split_payment',
         title: 'Everyone else has paid!',

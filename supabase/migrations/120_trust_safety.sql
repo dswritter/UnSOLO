@@ -1,5 +1,5 @@
 -- 120 · Trust & safety: reports, moderation actions, blocks, sanctions, rate limits,
--- and hardening of notification inserts.
+-- block / mute enforcement on every write path, chat membership and notification hardening.
 -- Rules: docs/revamp/product-spec.md §4.
 
 -- ── reports ───────────────────────────────────────────────────────────────
@@ -29,20 +29,20 @@ CREATE POLICY reports_insert ON reports FOR INSERT TO authenticated WITH CHECK (
   reporter_id = auth.uid() AND state = 'open' AND assigned_to IS NULL AND resolution IS NULL
 );
 DROP POLICY IF EXISTS reports_select ON reports;
-CREATE POLICY reports_select ON reports FOR SELECT USING (reporter_id = auth.uid() OR public.is_staff());
+CREATE POLICY reports_select ON reports FOR SELECT USING (reporter_id = auth.uid() OR public.is_moderator());
 DROP POLICY IF EXISTS reports_staff_update ON reports;
 CREATE POLICY reports_staff_update ON reports FOR UPDATE TO authenticated
-  USING (public.is_staff()) WITH CHECK (public.is_staff());
+  USING (public.is_moderator()) WITH CHECK (public.is_moderator());
 
--- Priority + SLA + auto-hide threshold (3 distinct reporters, or 1 unsafe-meetup on a women-only plan)
+-- Priority + SLA; target owner resolved server-side (never trusted from the client).
 CREATE OR REPLACE FUNCTION public.on_report_insert()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE v_count INT; v_audience TEXT;
 BEGIN
   NEW.priority := CASE WHEN NEW.reason IN ('harassment', 'unsafe_meetup', 'sexual') THEN 'safety' ELSE 'normal' END;
   NEW.due_at := now() + CASE WHEN NEW.priority = 'safety' THEN interval '2 hours' ELSE interval '24 hours' END;
+  NEW.state := 'open'; NEW.created_at := now();
   IF NEW.target_type = 'post' THEN
-    SELECT author_id, audience INTO NEW.target_user_id, v_audience FROM posts WHERE id = NEW.target_id;
+    SELECT author_id INTO NEW.target_user_id FROM posts WHERE id = NEW.target_id;
   ELSIF NEW.target_type = 'comment' THEN
     SELECT author_id INTO NEW.target_user_id FROM post_comments WHERE id = NEW.target_id;
   ELSIF NEW.target_type = 'user' THEN
@@ -57,6 +57,7 @@ DROP TRIGGER IF EXISTS trg_on_report_insert ON reports;
 CREATE TRIGGER trg_on_report_insert BEFORE INSERT ON reports
   FOR EACH ROW EXECUTE FUNCTION public.on_report_insert();
 
+-- Auto-hide threshold: 3 distinct reporters, or 1 unsafe-meetup report on a women-only plan.
 CREATE OR REPLACE FUNCTION public.after_report_insert()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_count INT; v_audience TEXT;
@@ -80,6 +81,20 @@ DROP TRIGGER IF EXISTS trg_after_report_insert ON reports;
 CREATE TRIGGER trg_after_report_insert AFTER INSERT ON reports
   FOR EACH ROW EXECUTE FUNCTION public.after_report_insert();
 
+-- Reported content can't be hard-deleted by its author while reports are open (evidence).
+CREATE OR REPLACE FUNCTION public.has_open_reports(p_type TEXT, p_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM reports WHERE target_type = p_type AND target_id = p_id AND state IN ('open', 'in_review'));
+$$;
+DROP POLICY IF EXISTS posts_delete ON posts;
+CREATE POLICY posts_delete ON posts FOR DELETE TO authenticated USING (
+  author_id = auth.uid() AND status IN ('live', 'cancelled', 'past') AND NOT public.has_open_reports('post', id)
+);
+DROP POLICY IF EXISTS post_comments_delete ON post_comments;
+CREATE POLICY post_comments_delete ON post_comments FOR DELETE TO authenticated USING (
+  author_id = auth.uid() AND status = 'live' AND NOT public.has_open_reports('comment', id)
+);
+
 -- ── moderation_actions (audit trail) ──────────────────────────────────────
 CREATE TABLE IF NOT EXISTS moderation_actions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,10 +110,10 @@ CREATE TABLE IF NOT EXISTS moderation_actions (
 CREATE INDEX IF NOT EXISTS idx_moderation_actions_target ON moderation_actions (target_type, target_id, created_at DESC);
 ALTER TABLE moderation_actions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS moderation_actions_staff ON moderation_actions;
-CREATE POLICY moderation_actions_staff ON moderation_actions FOR SELECT USING (public.is_staff());
+CREATE POLICY moderation_actions_staff ON moderation_actions FOR SELECT USING (public.is_moderator());
 DROP POLICY IF EXISTS moderation_actions_insert ON moderation_actions;
 CREATE POLICY moderation_actions_insert ON moderation_actions FOR INSERT TO authenticated
-  WITH CHECK (public.is_staff() AND actor_id = auth.uid());
+  WITH CHECK (public.is_moderator() AND actor_id = auth.uid());
 
 -- ── user_blocks ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_blocks (
@@ -120,23 +135,6 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
                  WHERE (blocker_id = a AND blocked_id = b) OR (blocker_id = b AND blocked_id = a));
 $$;
 
--- Blocked users cannot comment on / join / react to each other's posts.
-DROP POLICY IF EXISTS post_comments_insert ON post_comments;
-CREATE POLICY post_comments_insert ON post_comments FOR INSERT TO authenticated WITH CHECK (
-  author_id = auth.uid() AND public.is_phone_verified() AND status = 'live'
-  AND EXISTS (SELECT 1 FROM posts p WHERE p.id = post_id AND p.status = 'live'
-              AND NOT public.is_blocked_between(p.author_id, auth.uid()))
-);
-DROP POLICY IF EXISTS plan_members_request ON plan_members;
-CREATE POLICY plan_members_request ON plan_members FOR INSERT TO authenticated WITH CHECK (
-  user_id = auth.uid() AND role = 'member' AND state = 'requested'
-  AND public.is_phone_verified()
-  AND char_length(coalesce(intro, '')) >= 10
-  AND EXISTS (SELECT 1 FROM posts p WHERE p.id = post_id AND p.kind = 'plan' AND p.status = 'live'
-              AND p.author_id <> auth.uid()
-              AND NOT public.is_blocked_between(p.author_id, auth.uid()))
-);
-
 -- ── user_sanctions ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_sanctions (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -151,11 +149,10 @@ CREATE TABLE IF NOT EXISTS user_sanctions (
 CREATE INDEX IF NOT EXISTS idx_user_sanctions_active ON user_sanctions (user_id) WHERE revoked_at IS NULL;
 ALTER TABLE user_sanctions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS user_sanctions_select ON user_sanctions;
-CREATE POLICY user_sanctions_select ON user_sanctions FOR SELECT USING (user_id = auth.uid() OR public.is_staff());
+CREATE POLICY user_sanctions_select ON user_sanctions FOR SELECT USING (user_id = auth.uid() OR public.is_moderator());
 DROP POLICY IF EXISTS user_sanctions_admin ON user_sanctions;
 CREATE POLICY user_sanctions_admin ON user_sanctions FOR ALL TO authenticated
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
-  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 CREATE OR REPLACE FUNCTION public.is_muted(p_uid UUID DEFAULT auth.uid())
 RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -165,17 +162,55 @@ RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
                    AND (s.until IS NULL OR s.until > now()));
 $$;
 
--- Muted / suspended / banned users cannot post or comment.
-DROP POLICY IF EXISTS posts_insert ON posts;
-CREATE POLICY posts_insert ON posts FOR INSERT TO authenticated WITH CHECK (
-  author_id = auth.uid() AND public.is_phone_verified() AND NOT public.is_muted()
-  AND status IN ('live', 'held')
-);
-DROP POLICY IF EXISTS post_comments_insert ON post_comments;
-CREATE POLICY post_comments_insert ON post_comments FOR INSERT TO authenticated WITH CHECK (
-  author_id = auth.uid() AND public.is_phone_verified() AND NOT public.is_muted() AND status = 'live'
+-- ── Client write paths that stay direct: all respect blocks + mutes ────────
+-- Reactions
+DROP POLICY IF EXISTS post_reactions_insert ON post_reactions;
+CREATE POLICY post_reactions_insert ON post_reactions FOR INSERT TO authenticated WITH CHECK (
+  user_id = auth.uid() AND NOT public.is_muted()
   AND EXISTS (SELECT 1 FROM posts p WHERE p.id = post_id AND p.status = 'live'
               AND NOT public.is_blocked_between(p.author_id, auth.uid()))
+);
+-- Join requests (intro required; closed / converted / own / blocked plans refused)
+DROP POLICY IF EXISTS plan_members_request ON plan_members;
+CREATE POLICY plan_members_request ON plan_members FOR INSERT TO authenticated WITH CHECK (
+  user_id = auth.uid() AND role = 'member' AND state = 'requested'
+  AND public.is_phone_verified() AND NOT public.is_muted()
+  AND char_length(coalesce(intro, '')) >= 10
+  AND EXISTS (SELECT 1 FROM posts p WHERE p.id = post_id AND p.kind = 'plan' AND p.status = 'live'
+              AND p.converted_package_id IS NULL AND p.author_id <> auth.uid()
+              AND NOT public.is_blocked_between(p.author_id, auth.uid()))
+);
+-- Restrictive (AND-ed) guards for paths whose permissive policies live elsewhere.
+DROP POLICY IF EXISTS plan_members_not_muted_update ON plan_members;
+CREATE POLICY plan_members_not_muted_update ON plan_members AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (NOT public.is_muted()) WITH CHECK (NOT public.is_muted());
+DROP POLICY IF EXISTS host_offers_not_muted ON host_offers;
+CREATE POLICY host_offers_not_muted ON host_offers AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (NOT public.is_muted()
+              AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.id = post_id AND public.is_blocked_between(p.author_id, auth.uid())));
+DROP POLICY IF EXISTS post_tags_not_muted ON post_tags;
+CREATE POLICY post_tags_not_muted ON post_tags AS RESTRICTIVE FOR UPDATE TO authenticated
+  USING (NOT public.is_muted()) WITH CHECK (NOT public.is_muted());
+-- Chat: muted / suspended / banned people can't send; nobody can message across a block in a DM.
+DROP POLICY IF EXISTS messages_not_muted ON messages;
+CREATE POLICY messages_not_muted ON messages AS RESTRICTIVE FOR INSERT TO authenticated
+  WITH CHECK (
+    NOT public.is_muted()
+    AND NOT EXISTS (
+      SELECT 1 FROM chat_rooms r JOIN chat_room_members m ON m.room_id = r.id
+      WHERE r.id = messages.room_id AND r.type = 'direct' AND m.user_id <> auth.uid()
+        AND public.is_blocked_between(m.user_id, auth.uid()))
+  );
+
+-- ── SECURITY FIX: chat membership ─────────────────────────────────────────
+-- 001 let any signed-in user add themselves to ANY room (including trip and plan groups) and
+-- then read its messages. Self-join is now limited to public community rooms; trip, plan and
+-- DM membership is granted only by server code / SECURITY DEFINER triggers (service role).
+DROP POLICY IF EXISTS "members_insert_auth" ON chat_room_members;
+DROP POLICY IF EXISTS members_insert_self_general ON chat_room_members;
+CREATE POLICY members_insert_self_general ON chat_room_members FOR INSERT TO authenticated WITH CHECK (
+  auth.uid() = user_id AND NOT public.is_muted()
+  AND EXISTS (SELECT 1 FROM chat_rooms r WHERE r.id = room_id AND r.type = 'general' AND r.is_active IS NOT FALSE)
 );
 
 -- ── rate_limits (fixed window; service role only, used by /api/v1) ───────
@@ -200,15 +235,21 @@ END $$;
 REVOKE ALL ON FUNCTION public.hit_rate_limit(TEXT, INT, INT) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.hit_rate_limit(TEXT, INT, INT) TO service_role;
 
--- ── Notification hardening ────────────────────────────────────────────────
--- Previously any client (even anon) could insert a notification for any user with any link,
--- which allowed phishing links in the bell. Server code inserts with the service role, which
--- bypasses RLS; the few user-scoped inserts only use internal links. Restrict to signed-in
--- callers and internal (relative) links.
+-- ── SECURITY FIX: notifications ───────────────────────────────────────────
+-- Previously anyone (even anon) could insert a notification for any user with any link
+-- (phishing in the bell, and as a real push). Now: you may notify yourself; staff tools may
+-- notify anyone; server code uses the service role. Links must be same-site paths: "/x" but not
+-- "//host", "/\host" or anything containing whitespace or backslashes.
+CREATE OR REPLACE FUNCTION public.is_internal_link(p_link TEXT)
+RETURNS BOOLEAN LANGUAGE sql IMMUTABLE AS $$
+  SELECT p_link IS NOT NULL AND p_link ~ '^/([^/\\[:space:][:cntrl:]][^\\[:space:][:cntrl:]]*)?$';
+$$;
+
 DROP POLICY IF EXISTS "System can create notifications" ON notifications;
+DROP POLICY IF EXISTS notifications_insert_internal ON notifications;
 CREATE POLICY notifications_insert_internal ON notifications FOR INSERT TO authenticated WITH CHECK (
-  auth.uid() IS NOT NULL
-  AND (link IS NULL OR (link LIKE '/%' AND link NOT LIKE '//%'))
+  (user_id = auth.uid() OR public.is_any_staff())
+  AND (link IS NULL OR public.is_internal_link(link))
 );
 
 CREATE OR REPLACE FUNCTION create_notification(
@@ -217,10 +258,10 @@ CREATE OR REPLACE FUNCTION create_notification(
 ) RETURNS UUID AS $$
 DECLARE v_id UUID;
 BEGIN
-  IF auth.role() <> 'service_role' AND auth.uid() IS NULL THEN
+  IF auth.role() <> 'service_role' AND p_user_id IS DISTINCT FROM auth.uid() AND NOT public.is_any_staff() THEN
     RAISE EXCEPTION 'not allowed';
   END IF;
-  IF p_link IS NOT NULL AND (p_link NOT LIKE '/%' OR p_link LIKE '//%') THEN
+  IF p_link IS NOT NULL AND NOT public.is_internal_link(p_link) THEN
     RAISE EXCEPTION 'notification links must be internal';
   END IF;
   INSERT INTO notifications (user_id, type, title, body, link, metadata)
@@ -229,7 +270,7 @@ BEGIN
   RETURN v_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-REVOKE ALL ON FUNCTION create_notification(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM anon;
+REVOKE ALL ON FUNCTION create_notification(UUID, TEXT, TEXT, TEXT, TEXT, JSONB) FROM PUBLIC, anon;
 
 -- Push fan-out bookkeeping
 ALTER TABLE notifications ADD COLUMN IF NOT EXISTS pushed_at TIMESTAMPTZ;

@@ -44,7 +44,8 @@ The full SQL is in `supabase/migrations/119_*` to `121_*`. Every table has RLS e
 
 | Table | Purpose | Key columns | Who can read / write |
 |---|---|---|---|
-| `posts` | Plan, Story or Ask | `kind`, `author_id`, `body`, `place_name`, `lat/lng`, `starts_on/ends_on`, `spots_total`, `audience` (anyone / women / verified), `est_cost_text`, `trip_package_id`, `status` (live / hidden / removed / cancelled / past), `client_id` (idempotency for offline posts), counters | **Read:** anyone sees live posts; the author sees all of theirs. **Write:** author, with phone verified. |
+| `posts` | Plan, Story or Ask | `kind`, `author_id`, `body`, `place_name`, `lat/lng`, `starts_on/ends_on`, `spots_total`, `audience` (anyone / women / verified), `est_cost_text`, `trip_package_id`, `status` (live / held / hidden / removed / cancelled / past), `converted_package_id`, `client_id` (idempotency for offline posts), counters | **Read:** anyone sees live posts, except women-only plans, which only women see (RLS). The author sees all of theirs. **Write:** only the API (service role), after screening, rate limits and ID checks; moderators may change status. |
+| `plan_private` | Exact meeting point of a plan | `post_id`, `meeting_point` | **Read:** organiser, approved members and moderators only. **Write:** the API. |
 | `post_media` | Photos for a post | `post_id`, `url`, `thumb_url`, `lqip` (tiny base64), `width`, `height`, `bytes` | Same as the parent post |
 | `post_comments` | Comments, with one reply level | `post_id`, `parent_id` (null or a top-level comment), `body`, `status` | **Read:** anyone on live posts. **Write:** signed-in, verified users. |
 | `post_reactions` | Reactions | `post_id`, `user_id`, `kind` (`want_to_go`, `helpful`, `love`). Primary key is `(post_id, user_id, kind)`. | **Read:** anyone. **Write:** your own reactions only. |
@@ -61,17 +62,17 @@ The full SQL is in `supabase/migrations/119_*` to `121_*`. Every table has RLS e
 | `analytics_events` | Usage events (append-only) | `user_id?`, `anon_id`, `name`, `props` jsonb, `platform`, `screen`, `ts` | Anyone can insert (validated through the API). Staff can read. |
 | `rate_limits` | Fixed-window counters | `key`, `window_start`, `count` | Service role only |
 
-**New columns on `profiles`:**
-- `gender` (woman / man / nonbinary / prefer_not)
-- `home_city`, `home_lat`, `home_lng`
-- `is_id_verified`
-- `last_active_at`
+**Profiles:** one new public column, `is_id_verified` (only admins can set it). Private fields live in a new owner-only table:
+
+| Table | Purpose | Key columns | Who can read / write |
+|---|---|---|---|
+| `profile_private` | Private profile fields | `gender` (woman / man / nonbinary / prefer_not), `home_city`, `home_lat`, `home_lng` (≈1 km) | **Read and write:** the owner; moderators can read. Gender is locked once the person is ID-verified. The location is cleared when sharing is turned off. |
 
 **Database functions:**
 - `tribe_feed(viewer, kind, place, cursor)`: ranked feed.
 - `suggest_for_user(viewer, lat, lng)`: plans, departures and stays nearby, on your dates and matching your interests.
 - `expire_stale_plan_requests()`, `expire_host_offers()`: run by cron.
-- `accept_host_offer(offer_id)`: atomic. It creates the package, holds the seats and sends notifications.
+- `accept_host_offer(offer_id, expected_price)`: atomic. It refuses if the host changed the price. It creates the package, holds the seats, closes pending requests and sends notifications. A plan converts only once.
 
 ## 4. Moderation rules
 
@@ -115,10 +116,12 @@ The full SQL is in `supabase/migrations/119_*` to `121_*`. Every table has RLS e
 - Messages from strangers arrive as requests.
 - The app prompts users to meet first in a public place and offers "Share plan with a trusted contact". Afterwards it asks "Did it happen?".
 
-**Staff permissions** (extends `admin-permissions.ts`)
-- `moderation`: social_media_manager, chat_responder.
-- `analytics`: admin.
-- `user_sanctions`: admin only.
+**Staff permissions** (extends `admin-permissions.ts`; enforced in the database by `has_staff_permission()`)
+- `moderation`: social_media_manager, chat_responder, admin, plus custom roles that have the permission.
+- `analytics`: admin, plus custom roles that have the permission.
+- `user_sanctions`: admin only. Other staff roles (field, host onboarding) get no moderation or analytics access.
+
+**Enforced on every write path:** mutes and suspensions block posting, comments, reactions, join requests, host offers and chat messages. Blocks stop replies, reactions, joins, offers and DMs, and blocking separates both people from each other's plans. Self-joining chats works only for public community rooms; trip, plan and DM membership is granted by the server.
 
 ## 5. Rollout plan
 

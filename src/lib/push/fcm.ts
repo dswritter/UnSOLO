@@ -40,10 +40,10 @@ export async function sendFcm(token: string, data: Record<string, string>): Prom
     headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: { token, data, android: { priority: 'high', ttl: '86400s' } } }),
   })
-  if (res.status === 404) return 'gone'
-  if (res.status === 400) {
-    const t = await res.text()
-    if (t.includes('UNREGISTERED') || t.includes('INVALID_ARGUMENT')) return 'gone'
-  }
-  return res.ok ? 'ok' : 'error'
+  if (res.ok) return 'ok'
+  const t = await res.text()
+  if (res.status === 404 || t.includes('UNREGISTERED')) return 'gone'
+  if (res.status === 400 && /registration token/i.test(t)) return 'gone'
+  console.warn('[push/fcm]', res.status, t.slice(0, 200))
+  return 'error'
 }

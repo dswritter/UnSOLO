@@ -228,8 +228,8 @@ export async function requestPhoneAccess(targetUserId: string) {
 
   if (error) return { error: error.message }
 
-  // Create in-app notification
-  await supabase.rpc('create_notification', {
+  // Create in-app notification (for someone else → service role; recipient is decided here, not by the client)
+  await createServiceRoleClient().rpc('create_notification', {
     p_user_id: targetUserId,
     p_type: 'phone_request',
     p_title: 'Phone Number Request',

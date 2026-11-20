@@ -52,7 +52,13 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   await enforceRateLimit(ctx, 'message')
   const { data, error } = await ctx.db.from('messages').insert({ room_id: roomId, user_id: user.id, content: b.body, message_type: 'text', client_id: b.clientId })
     .select(MESSAGE_SELECT).single()
-  if (error) throw error
+  if (error) {
+    if ((error as { code?: string }).code === '23505') {
+      const { data: again } = await ctx.db.from('messages').select(MESSAGE_SELECT).eq('user_id', user.id).eq('client_id', b.clientId).maybeSingle()
+      if (again) return ok(toMessage(again as Record<string, unknown>))
+    }
+    throw error
+  }
   const msg = toMessage(data as Record<string, unknown>)
   after(async () => {
     const svc = ctx.service()

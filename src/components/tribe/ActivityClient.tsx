@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api/client'
 import { trackScreen } from '@/lib/analytics/client'
 import type { NotificationItem } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
+import { safeInternalLink } from '@/lib/links'
 import { ago } from './format'
 
 const CATS = [
@@ -72,7 +73,7 @@ export function ActivityClient({ initial, initialCursor }: { initial: Notificati
               <li key={n.id} className={cn('flex gap-3 py-4', !n.isRead && 'bg-[color:var(--pc-raised)]')}>
                 <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border"><Icon className="h-4 w-4" aria-hidden /></span>
                 <div className="min-w-0 flex-1">
-                  <Link href={n.link ?? '#'} className="block">
+                  <Link href={safeInternalLink(n.link)} className="block">
                     <p className={cn('text-[15px]', !n.isRead && 'font-semibold')}>{n.title}</p>
                     {n.body && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{n.body}</p>}
                     <p className="pc-mono mt-1 text-xs text-muted-foreground">{ago(n.createdAt)}</p>

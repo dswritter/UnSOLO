@@ -19,11 +19,12 @@ export const GET = route(async (req: Request) => {
   const ctx = await getApiContext(req)
   const q = parseQuery(req, Q)
   const c = decodeCursor(q.cursor)
+  const asOf = c?.at ?? new Date().toISOString()   // fixed for every page of one scroll session
   const { data, error } = await ctx.db.rpc('tribe_feed', {
     p_kind: q.kind ?? null, p_place: q.place ?? null,
     p_lat: q.lat != null ? Math.round(q.lat * 100) / 100 : null,
     p_lng: q.lng != null ? Math.round(q.lng * 100) / 100 : null,
-    p_before_score: c?.score ?? null, p_before_id: c?.id ?? null, p_limit: q.limit,
+    p_before_score: c?.score ?? null, p_before_id: c?.id ?? null, p_limit: q.limit, p_as_of: asOf,
   })
   if (error) throw error
   const rows = (data ?? []) as { post_id: string; score: number }[]
@@ -41,7 +42,7 @@ export const GET = route(async (req: Request) => {
   const last = rows[rows.length - 1]
   return ok({
     items,
-    nextCursor: caughtUp || !last ? null : encodeCursor({ score: last.score, id: last.post_id }),
+    nextCursor: caughtUp || !last ? null : encodeCursor({ score: last.score, id: last.post_id, at: asOf }),
     caughtUp,
     nextDepartures: caughtUp ? trips.slice(t, t + 3) : [],
   })

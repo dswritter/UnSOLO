@@ -104,6 +104,12 @@ export async function joinRoom(roomId: string) {
     .eq('id', roomId)
     .single()
 
+  // Plan chats (trip rooms without a package yet) are joined only by being approved on the plan.
+  if (roomMeta?.type === 'trip' && !roomMeta.package_id) {
+    return { error: 'Ask to join the plan first — the chat opens when the organiser approves you' }
+  }
+  if (roomMeta?.type === 'direct') return { error: 'Not allowed' }
+
   if (roomMeta?.type === 'trip' && roomMeta.package_id) {
     const [{ data: pkg }, { data: userBookings }] = await Promise.all([
       supabase
@@ -135,7 +141,10 @@ export async function joinRoom(roomId: string) {
     .eq('user_id', user.id)
     .single()
 
-  const { error } = await supabase
+  // Only public community rooms allow self-join under RLS (migration 120). Trip rooms were checked
+  // above (active booking), so add that membership with the service role.
+  const membershipClient = roomMeta?.type === 'trip' ? createServiceRoleClient() : supabase
+  const { error } = await membershipClient
     .from('chat_room_members')
     .upsert({ room_id: roomId, user_id: user.id })
 

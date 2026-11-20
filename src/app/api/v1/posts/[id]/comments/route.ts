@@ -29,14 +29,35 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
   const ctx = await getApiContext(req)
   const user = await requirePhoneVerified(ctx)
   const b = await parseJson(req, Body)
+  const svc = ctx.service()
   const sel = `id, post_id, parent_id, body, poll_choice, created_at, author:profiles!post_comments_author_id_fkey(${PROFILE_LITE})`
-  const { data: dup } = await ctx.db.from('post_comments').select(sel).eq('author_id', user.id).eq('client_id', b.clientId).maybeSingle()
   const shape = (c: Record<string, unknown>) => ({
     id: String(c.id), postId: String(c.post_id), parentId: (c.parent_id as string | null) ?? null,
     author: toUserLite(c.author as Record<string, unknown>), body: String(c.body),
     pollChoice: (c.poll_choice as string | null) ?? null, createdAt: String(c.created_at), replies: [],
   })
+  const existing = async () => (await svc.from('post_comments').select(sel).eq('author_id', user.id).eq('client_id', b.clientId).maybeSingle()).data
+  const dup = await existing()
   if (dup) return ok(shape(dup))
+
+  // Checks the database no longer does for us (comments are written with the service role):
+  // the post must be visible to this person and live, no block either way, not muted.
+  const { data: post } = await ctx.db.from('posts').select('id, author_id, status, kind').eq('id', id).maybeSingle()
+  if (!post) throw new ApiError('not_found', 'This post is no longer available')
+  if (post.status !== 'live') throw new ApiError('forbidden', 'Replies are closed on this post')
+  const [{ data: blocked }, { data: muted }] = await Promise.all([
+    svc.rpc('is_blocked_between', { a: post.author_id, b: user.id }),
+    svc.rpc('is_muted', { p_uid: user.id }),
+  ])
+  if (blocked === true) throw new ApiError('forbidden', 'You can’t reply to this post')
+  if (muted === true) throw new ApiError('forbidden', 'Your account can’t reply right now. Check Activity for details.')
+  let parentAuthor: string | null = null
+  if (b.parentId) {
+    const { data: parent } = await svc.from('post_comments').select('post_id, parent_id, author_id').eq('id', b.parentId).maybeSingle()
+    if (!parent || parent.post_id !== id || parent.parent_id) throw new ApiError('bad_request', 'Replies are one level deep', { field: 'parentId' })
+    parentAuthor = parent.author_id as string
+  }
+  if (b.pollChoice && post.kind !== 'ask') throw new ApiError('bad_request', 'This post has no poll', { field: 'pollChoice' })
   await enforceRateLimit(ctx, 'comment')
   const s = screenText(b.body)
   if (s.hold) throw new ApiError('bad_request', s.prompts.includes('money')
@@ -44,15 +65,19 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
     : 'This comment can\'t be posted. Please keep it kind and safe.', { field: 'body' })
   if (b.pollChoice) {
     // one vote per person: clear an earlier vote
-    await ctx.db.from('post_comments').update({ poll_choice: null }).eq('post_id', id).eq('author_id', user.id).not('poll_choice', 'is', null)
+    await svc.from('post_comments').update({ poll_choice: null }).eq('post_id', id).eq('author_id', user.id).not('poll_choice', 'is', null)
   }
-  const { data, error } = await ctx.db.from('post_comments').insert({
+  const { data, error } = await svc.from('post_comments').insert({
     post_id: id, author_id: user.id, client_id: b.clientId, body: s.text,
     parent_id: b.parentId ?? null, poll_choice: b.pollChoice ?? null,
   }).select(sel).single()
-  if (error) throw error
+  if (error) {
+    if ((error as { code?: string }).code === '23505') { const again = await existing(); if (again) return ok(shape(again)) }
+    throw error
+  }
   after(async () => {
-    await dispatchPendingPushes({ limit: 20 })
+    const notify = [post.author_id as string, ...(parentAuthor ? [parentAuthor] : [])].filter((u) => u !== user.id)
+    await dispatchPendingPushes({ userIds: notify, limit: 20 })
     await trackServerEvent(ctx, 'post.comment', {})
   })
   return ok(shape(data), { status: 201 })

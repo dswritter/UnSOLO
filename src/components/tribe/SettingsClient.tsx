@@ -9,7 +9,7 @@ import { INTERESTS } from '@/lib/tribe/preferences'
 import { enableWebPush, webPushSupported } from '@/lib/push/client'
 import { cn } from '@/lib/utils'
 
-type Me = { gender: string | null; homeCity: string | null; phone: string | null; isPhoneVerified: boolean }
+type Me = { gender: string | null; homeCity: string | null; phone: string | null; isPhoneVerified: boolean; genderLocked?: boolean }
 
 const CATEGORIES: { id: keyof Preferences['notify']['push']; label: string; hint: string }[] = [
   { id: 'plans', label: 'Plans', hint: 'Join requests, approvals, host offers' },
@@ -115,10 +115,11 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
       <Section title="About you" icon={ShieldCheck} hint="Optional. Gender is used only for women-only plans and, if you allow it, to suggest them.">
         <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Gender">
           {([['woman', 'Woman'], ['man', 'Man'], ['nonbinary', 'Non-binary'], ['prefer_not', 'Prefer not to say']] as const).map(([id, label]) => (
-            <button key={id} type="button" role="radio" aria-checked={gender === id} className="pc-chip"
+            <button key={id} type="button" role="radio" aria-checked={gender === id} className="pc-chip" disabled={me.genderLocked}
               onClick={() => { setGender(id); void saveProfile({ gender: id }) }}>{label}</button>
           ))}
         </div>
+        {me.genderLocked && <p className="mt-2 text-xs text-muted-foreground">Set from your verified ID. Contact support to change it.</p>}
         {gender === 'woman' && <Row className="mt-3" label="Show women-only plans first" on={p.suggestByGender} onChange={(v) => save({ suggestByGender: v })} />}
       </Section>
 

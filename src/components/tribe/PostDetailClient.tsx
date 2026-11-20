@@ -420,7 +420,7 @@ function OffersList({ offers, demo, canDecide }: { offers: HostOffer[]; demo: bo
     if (!confirm(`Accept ${o.host.name}'s offer at ${rupees(o.pricePaise)} each? Your plan becomes a hosted trip and every member gets 48 hours to pay for their seat.`)) return
     if (demo) return
     try {
-      const r = await apiFetch<{ packageSlug: string }>(`/offers/${o.id}/accept`, { method: 'POST' })
+      const r = await apiFetch<{ packageSlug: string }>(`/offers/${o.id}/accept`, { body: { expectedPricePaise: o.pricePaise } })
       router.push(`/packages/${r.packageSlug}`)
     } catch (e) { toast.error((e as Error).message) }
   }

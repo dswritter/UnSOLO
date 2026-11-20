@@ -113,7 +113,7 @@ export const PROFILE_LITE = 'id, username, full_name, avatar_url, is_phone_verif
 export const PACKAGE_LITE =
   'id, slug, title, images, price_paise, duration_days, departure_dates, max_group_size, is_active, host_id, destination:destinations(name, slug, state)'
 export const POST_SELECT = `id, kind, author_id, title, body, place_name, place_slug, lat, lng, starts_on, ends_on,
-  spots_total, audience, est_cost_text, meeting_point, trip_package_id, show_on_trip_page, poll_options,
+  spots_total, audience, est_cost_text, converted_package_id, trip_package_id, show_on_trip_page, poll_options,
   status, comment_count, reaction_counts, member_count, created_at, updated_at,
   author:profiles!posts_author_id_fkey(${PROFILE_LITE}),
   media:post_media(url, thumb_url, lqip, width, height, position)`

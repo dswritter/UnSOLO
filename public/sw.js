@@ -69,7 +69,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   let data = {}
   try { data = event.data ? event.data.json() : {} } catch { data = { title: 'UnSOLO', body: event.data && event.data.text() } }
-  const link = typeof data.link === 'string' && data.link.startsWith('/') && !data.link.startsWith('//') ? data.link : '/activity'
+  // Same-site paths only: "/x", never "//host", "/\\host" or anything with whitespace.
+  const link = typeof data.link === 'string' && /^\/([^/\\\s][^\\\s]*)?$/.test(data.link) ? data.link : '/activity'
   event.waitUntil(self.registration.showNotification(data.title || 'UnSOLO', {
     body: data.body || '', tag: data.tag || undefined, data: { link }, icon: '/icon-192.png', badge: '/icon-192.png',
   }))

@@ -96,6 +96,10 @@ export async function savePreferences(db: SupabaseClient, userId: string, patch:
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' })
   if (error) throw error
+  if (patch.shareLocation === false) {
+    // Consent withdrawn: forget the approximate home location (city name stays, it's user-typed).
+    await db.from('profile_private').update({ home_lat: null, home_lng: null }).eq('user_id', userId)
+  }
   return next
 }
 

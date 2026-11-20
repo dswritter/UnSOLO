@@ -46,10 +46,19 @@ export async function sendApns(
       'content-type': 'application/json',
     })
     let status = 0
+    let body = ''
+    req.setEncoding('utf8')
     req.on('response', (h) => { status = Number(h[':status']) })
-    req.on('end', () => { client.close(); resolve(status === 200 ? 'ok' : status === 410 || status === 400 ? 'gone' : 'error') })
+    req.on('data', (chunk: string) => { body += chunk })
+    req.on('end', () => {
+      client.close()
+      let reason = ''
+      try { reason = (JSON.parse(body || '{}') as { reason?: string }).reason ?? '' } catch { /* ignore */ }
+      const gone = status === 410 || (status === 400 && (reason === 'BadDeviceToken' || reason === 'DeviceTokenNotForTopic'))
+      if (!gone && status !== 200) console.warn('[push/apns]', status, reason)
+      resolve(status === 200 ? 'ok' : gone ? 'gone' : 'error')
+    })
     req.on('error', () => { client.close(); resolve('error') })
     req.end(payload)
-    req.resume()
   })
 }

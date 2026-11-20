@@ -40,23 +40,40 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
   const ctx = await getApiContext(req)
   const user = requireUser(ctx)
   const b = await parseJson(req, Patch)
+  const svc = ctx.service()
+  const { data: cur } = await svc.from('posts').select('author_id, kind, status, audience, spots_total').eq('id', id).maybeSingle()
+  if (!cur || cur.author_id !== user.id) throw new ApiError('not_found')
+  if (['held', 'hidden', 'removed'].includes(cur.status as string)) throw new ApiError('forbidden', 'This post is under review and can’t be edited')
   const u: Record<string, unknown> = {}
-  if (b.title !== undefined) u.title = b.title ? screenText(b.title).text : null
-  if (b.body !== undefined) {
-    const s = screenText(b.body)
-    u.body = s.text
-    if (s.hold) throw new ApiError('bad_request', 'Charging for this? List it as a hosted trip instead.', { field: 'body' })
+  const screenOrRefuse = (text: string, field: string, allowMoney = false) => {
+    const r = screenText(text, { allowMoney })
+    if (r.hold) throw new ApiError('bad_request', 'Charging for this? List it as a hosted trip instead.', { field })
+    return r.text
   }
+  if (b.title !== undefined) u.title = b.title ? screenOrRefuse(b.title, 'title') : null
+  if (b.body !== undefined) u.body = screenOrRefuse(b.body, 'body')
   if (b.startsOn !== undefined) u.starts_on = b.startsOn
   if (b.endsOn !== undefined) u.ends_on = b.endsOn
-  if (b.spotsTotal !== undefined) u.spots_total = b.spotsTotal
-  if (b.estCostText !== undefined) u.est_cost_text = b.estCostText
-  if (b.meetingPoint !== undefined) u.meeting_point = b.meetingPoint
-  if (b.showOnTripPage !== undefined) u.show_on_trip_page = b.showOnTripPage
+  if (b.spotsTotal !== undefined) {
+    if (cur.kind !== 'plan') throw new ApiError('bad_request', 'Only plans have spots', { field: 'spotsTotal' })
+    if (b.spotsTotal >= 5 && (cur.spots_total ?? 0) < 5) {
+      const { data: p } = await ctx.db.from('profiles').select('is_id_verified').eq('id', user.id).single()
+      if (!p?.is_id_verified) throw new ApiError('forbidden', 'Plans of 5 or more need a verified ID', { field: 'spotsTotal' })
+    }
+    u.spots_total = b.spotsTotal
+  }
+  if (b.estCostText !== undefined) u.est_cost_text = b.estCostText ? screenText(b.estCostText, { allowMoney: true }).text : null
+  if (b.showOnTripPage !== undefined) u.show_on_trip_page = cur.kind === 'story' && b.showOnTripPage
   if (b.status) u.status = b.status
-  const { data, error } = await ctx.db.from('posts').update(u).eq('id', id).eq('author_id', user.id).select('id').maybeSingle()
-  if (error) throw error
-  if (!data) throw new ApiError('not_found')
+  if (Object.keys(u).length) {
+    const { error } = await svc.from('posts').update(u).eq('id', id).eq('author_id', user.id)
+    if (error) throw error
+  }
+  if (b.meetingPoint !== undefined && cur.kind === 'plan') {
+    const mp = b.meetingPoint ? screenText(b.meetingPoint, { allowMoney: true }).text : null
+    const { error } = await svc.from('plan_private').upsert({ post_id: id, meeting_point: mp, updated_at: new Date().toISOString() }, { onConflict: 'post_id' })
+    if (error) throw error
+  }
   const [post] = await loadPosts(ctx.db, [id], await loadViewer(ctx.db, user.id))
   return ok({ post })
 })

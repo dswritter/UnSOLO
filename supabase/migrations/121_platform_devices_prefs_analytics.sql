@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   interests           TEXT[] NOT NULL DEFAULT '{}',   -- trek, beach, spiritual, roadtrip, food, wildlife, culture, party, budget, luxury
   suggest_by_location BOOLEAN NOT NULL DEFAULT true,
   suggest_by_gender   BOOLEAN NOT NULL DEFAULT false,  -- opt-in: show women-only plans / women hosts first
-  share_location      BOOLEAN NOT NULL DEFAULT false,  -- approximate location stored on profile (home_lat/lng)
+  share_location      BOOLEAN NOT NULL DEFAULT false,  -- approximate home location kept in profile_private (cleared when off)
   data_saver          BOOLEAN NOT NULL DEFAULT false,  -- low-res images only, no autoplay
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -82,7 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_analytics_events_name_ts ON analytics_events (nam
 CREATE INDEX IF NOT EXISTS idx_analytics_events_user ON analytics_events (user_id, ts DESC);
 ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS analytics_events_staff_read ON analytics_events;
-CREATE POLICY analytics_events_staff_read ON analytics_events FOR SELECT USING (public.is_staff());
+CREATE POLICY analytics_events_staff_read ON analytics_events FOR SELECT USING (public.has_staff_permission('analytics'));
 -- No insert policy: the API validates + inserts with the service role.
 
 -- Daily rollup for the admin analytics page (fast to query, cheap to keep).
@@ -90,7 +90,7 @@ CREATE OR REPLACE FUNCTION public.admin_analytics_overview(p_days INT DEFAULT 30
 RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
 DECLARE v JSONB; v_since TIMESTAMPTZ := now() - make_interval(days => p_days);
 BEGIN
-  IF NOT public.is_staff() AND auth.role() <> 'service_role' THEN RAISE EXCEPTION 'staff only'; END IF;
+  IF auth.role() <> 'service_role' AND NOT public.has_staff_permission('analytics') THEN RAISE EXCEPTION 'staff only'; END IF;
   SELECT jsonb_build_object(
     'range_days', p_days,
     'dau', (SELECT count(DISTINCT coalesce(user_id::text, anon_id)) FROM analytics_events WHERE ts > now() - interval '1 day'),
@@ -154,21 +154,22 @@ CREATE OR REPLACE FUNCTION public.tribe_feed(
   p_lng DOUBLE PRECISION DEFAULT NULL,
   p_before_score DOUBLE PRECISION DEFAULT NULL,
   p_before_id UUID DEFAULT NULL,
-  p_limit INT DEFAULT 20
+  p_limit INT DEFAULT 20,
+  p_as_of TIMESTAMPTZ DEFAULT NULL  -- fixed by the first page so later pages don't shift
 ) RETURNS TABLE (post_id UUID, score DOUBLE PRECISION)
 LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
   WITH viewer AS (
     SELECT auth.uid() AS uid,
-           (SELECT gender FROM profiles WHERE id = auth.uid()) AS gender,
+           (SELECT gender FROM profile_private WHERE user_id = auth.uid()) AS gender,
            coalesce((SELECT suggest_by_gender FROM user_preferences WHERE user_id = auth.uid()), false) AS by_gender,
-           (SELECT interests FROM user_preferences WHERE user_id = auth.uid()) AS interests
+           coalesce(p_as_of, now()) AS t
   ), scored AS (
     SELECT p.id,
       -- recency: halves every 3 days
-      exp(-extract(epoch FROM now() - p.created_at) / (3 * 86400.0)) * 10
+      exp(-greatest(extract(epoch FROM v.t - p.created_at), 0) / (3 * 86400.0)) * 10
       -- upcoming plans: boost when starting in the next 45 days
-      + CASE WHEN p.kind = 'plan' AND p.starts_on >= current_date
-             THEN 6 * greatest(0, 1 - (p.starts_on - current_date) / 45.0) ELSE 0 END
+      + CASE WHEN p.kind = 'plan' AND p.starts_on >= v.t::date
+             THEN 6 * greatest(0, 1 - (p.starts_on - v.t::date) / 45.0) ELSE 0 END
       -- distance boost (≤ 300 km) when the viewer shared a location
       + CASE WHEN p_lat IS NOT NULL AND p.lat IS NOT NULL
              THEN 4 * greatest(0, 1 - (111.0 * sqrt(power(p.lat - p_lat, 2) + power((p.lng - p_lng) * cos(radians(p_lat)), 2))) / 300.0)
@@ -183,14 +184,15 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
       AS score
     FROM posts p CROSS JOIN viewer v
     WHERE p.status = 'live'
+      AND p.created_at <= v.t
       AND (p_kind IS NULL OR p.kind = p_kind)
       AND (p_place IS NULL OR p.place_slug = p_place)
-      AND (p.kind <> 'plan' OR p.ends_on IS NULL OR p.ends_on >= current_date)
+      AND (p.kind <> 'plan' OR coalesce(p.ends_on, p.starts_on) >= v.t::date)
       AND (v.uid IS NULL OR NOT EXISTS (
             SELECT 1 FROM user_blocks b
             WHERE (b.blocker_id = v.uid AND b.blocked_id = p.author_id)
                OR (b.blocker_id = p.author_id AND b.blocked_id = v.uid)))
-      -- women-only plans are visible only to women (and to the organiser)
+      -- (women-only visibility is also enforced by posts RLS)
       AND (p.audience <> 'women' OR v.gender = 'woman' OR p.author_id = v.uid)
   )
   SELECT id, score FROM scored
@@ -198,7 +200,7 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
   ORDER BY score DESC, id DESC
   LIMIT least(greatest(p_limit, 1), 50);
 $$;
-GRANT EXECUTE ON FUNCTION public.tribe_feed(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, UUID, INT)
+GRANT EXECUTE ON FUNCTION public.tribe_feed(TEXT, TEXT, DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, UUID, INT, TIMESTAMPTZ)
   TO anon, authenticated;
 
 -- ── Suggestions: plans + departures near you / on your interests ──────────
@@ -210,9 +212,9 @@ CREATE OR REPLACE FUNCTION public.suggest_for_user(
 LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
   WITH viewer AS (
     SELECT auth.uid() AS uid,
-      coalesce(p_lat, (SELECT home_lat FROM profiles WHERE id = auth.uid())) AS lat,
-      coalesce(p_lng, (SELECT home_lng FROM profiles WHERE id = auth.uid())) AS lng,
-      (SELECT gender FROM profiles WHERE id = auth.uid()) AS gender,
+      coalesce(p_lat, (SELECT home_lat FROM profile_private WHERE user_id = auth.uid())) AS lat,
+      coalesce(p_lng, (SELECT home_lng FROM profile_private WHERE user_id = auth.uid())) AS lng,
+      (SELECT gender FROM profile_private WHERE user_id = auth.uid()) AS gender,
       coalesce((SELECT suggest_by_gender FROM user_preferences WHERE user_id = auth.uid()), false) AS by_gender,
       coalesce((SELECT suggest_by_location FROM user_preferences WHERE user_id = auth.uid()), true) AS by_location,
       coalesce((SELECT interests FROM user_preferences WHERE user_id = auth.uid()), '{}') AS interests
@@ -230,6 +232,7 @@ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
       + CASE WHEN v.by_gender AND v.gender = 'woman' AND p.audience = 'women' THEN 4 ELSE 0 END
     FROM posts p CROSS JOIN viewer v
     WHERE p.kind = 'plan' AND p.status = 'live' AND p.starts_on >= current_date
+      AND p.converted_package_id IS NULL
       AND p.member_count < p.spots_total
       AND (v.uid IS NULL OR p.author_id <> v.uid)
       AND (p.audience <> 'women' OR v.gender = 'woman')
@@ -254,7 +257,7 @@ GRANT EXECUTE ON FUNCTION public.suggest_for_user(DOUBLE PRECISION, DOUBLE PRECI
 -- dates; every approved member gets a held seat (approved join_request with a 48h
 -- payment deadline, the existing peer-hosting flow); other offers are declined; the
 -- plan chat becomes the trip chat.
-CREATE OR REPLACE FUNCTION public.accept_host_offer(p_offer_id UUID)
+CREATE OR REPLACE FUNCTION public.accept_host_offer(p_offer_id UUID, p_expected_price_paise INTEGER)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_offer host_offers%ROWTYPE; v_post posts%ROWTYPE; v_pkg UUID; v_days INT; v_slug TEXT;
         v_host_name TEXT; v_images TEXT[];
@@ -263,8 +266,14 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'offer not found'; END IF;
   SELECT * INTO v_post FROM posts WHERE id = v_offer.post_id FOR UPDATE;
   IF v_post.author_id <> auth.uid() THEN RAISE EXCEPTION 'only the organiser can accept'; END IF;
+  IF v_post.kind <> 'plan' THEN RAISE EXCEPTION 'only plans can be hosted'; END IF;
   IF v_offer.state <> 'pending' OR v_offer.expires_at < now() THEN RAISE EXCEPTION 'offer is no longer open'; END IF;
   IF v_post.status <> 'live' THEN RAISE EXCEPTION 'plan is not live'; END IF;
+  IF v_post.converted_package_id IS NOT NULL THEN RAISE EXCEPTION 'this plan already became a hosted trip'; END IF;
+  -- The organiser accepts the terms they saw: a host can't raise the price at the last second.
+  IF v_offer.price_paise IS DISTINCT FROM p_expected_price_paise THEN
+    RAISE EXCEPTION 'the host changed this offer; review the new price';
+  END IF;
   PERFORM set_config('unsolo.internal', 'on', true);   -- transaction-local: bypass user guards
 
   v_days := greatest(coalesce(v_post.ends_on - v_post.starts_on + 1, 1), 1);
@@ -298,8 +307,9 @@ BEGIN
   SELECT r.id, v_offer.host_id FROM chat_rooms r WHERE r.post_id = v_post.id
   ON CONFLICT (room_id, user_id) DO NOTHING;
 
-  UPDATE posts SET moderation_flags = array_append(moderation_flags, 'converted:' || v_pkg::text)
-   WHERE id = v_post.id;
+  UPDATE posts SET converted_package_id = v_pkg WHERE id = v_post.id;
+  -- Pending join requests can't be honoured on the paid trip: close them.
+  UPDATE plan_members SET state = 'expired' WHERE post_id = v_post.id AND state = 'requested';
 
   INSERT INTO notifications (user_id, type, title, body, link, metadata)
   SELECT m.user_id, 'tribe_plan_converted',
@@ -321,8 +331,8 @@ BEGIN
 EXCEPTION WHEN undefined_column OR undefined_table THEN
   RAISE EXCEPTION 'accept_host_offer: schema mismatch (%), check packages/audit_logs columns', SQLERRM;
 END $$;
-REVOKE ALL ON FUNCTION public.accept_host_offer(UUID) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.accept_host_offer(UUID) TO authenticated;
+REVOKE ALL ON FUNCTION public.accept_host_offer(UUID, INTEGER) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.accept_host_offer(UUID, INTEGER) TO authenticated;
 
 -- ── Expiry jobs (called by /api/cron/cleanup) ─────────────────────────────
 CREATE OR REPLACE FUNCTION public.expire_tribe_items()
@@ -345,21 +355,30 @@ REVOKE ALL ON FUNCTION public.expire_tribe_items() FROM PUBLIC, anon, authentica
 GRANT EXECUTE ON FUNCTION public.expire_tribe_items() TO service_role;
 
 -- ── Delta sync for offline clients: what changed since a timestamp ────────
+-- SECURITY DEFINER so "removed" can include posts the caller can no longer read (ids only, so
+-- caches can drop them); every other list is scoped to the caller explicitly.
 CREATE OR REPLACE FUNCTION public.sync_changes(p_since TIMESTAMPTZ)
-RETURNS JSONB LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public AS $$
-  SELECT jsonb_build_object(
+RETURNS JSONB LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT CASE WHEN auth.uid() IS NULL THEN NULL ELSE jsonb_build_object(
     'server_time', now(),
-    'posts', (SELECT coalesce(jsonb_agg(p.id), '[]') FROM posts p
-              WHERE p.updated_at > p_since AND (p.author_id = auth.uid()
-                 OR EXISTS (SELECT 1 FROM plan_members m WHERE m.post_id = p.id AND m.user_id = auth.uid()))),
-    'removed_posts', (SELECT coalesce(jsonb_agg(p.id), '[]') FROM posts p
-              WHERE p.updated_at > p_since AND p.status IN ('hidden', 'removed')),
+    'posts', (SELECT coalesce(jsonb_agg(x.id), '[]') FROM (
+              SELECT p.id FROM posts p
+              WHERE p.updated_at > p_since AND p.status NOT IN ('hidden', 'removed')
+                AND (p.author_id = auth.uid()
+                     OR EXISTS (SELECT 1 FROM plan_members m WHERE m.post_id = p.id AND m.user_id = auth.uid())
+                     OR EXISTS (SELECT 1 FROM saved_posts s WHERE s.post_id = p.id AND s.user_id = auth.uid()))
+              LIMIT 500) x),
+    'removed_posts', (SELECT coalesce(jsonb_agg(x.id), '[]') FROM (
+              SELECT p.id FROM posts p
+              WHERE p.updated_at > p_since AND p.status IN ('hidden', 'removed') AND p.author_id <> auth.uid()
+              LIMIT 500) x),
     'notifications', (SELECT count(*) FROM notifications n WHERE n.user_id = auth.uid() AND n.created_at > p_since),
     'unread_notifications', (SELECT count(*) FROM notifications n WHERE n.user_id = auth.uid() AND NOT n.is_read),
     'memberships', (SELECT coalesce(jsonb_agg(jsonb_build_object('post_id', m.post_id, 'state', m.state)), '[]')
-              FROM plan_members m WHERE m.user_id = auth.uid() AND (m.decided_at > p_since OR m.created_at > p_since))
-  );
+              FROM plan_members m WHERE m.user_id = auth.uid() AND m.updated_at > p_since)
+  ) END;
 $$;
+REVOKE ALL ON FUNCTION public.sync_changes(TIMESTAMPTZ) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.sync_changes(TIMESTAMPTZ) TO authenticated;
 
 -- ── Chat: idempotent sends from offline apps ─────────────────────────────

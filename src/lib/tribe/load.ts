@@ -21,15 +21,15 @@ export type Viewer = { id: string; gender: string | null; isIdVerified: boolean;
 
 export async function loadViewer(db: SupabaseClient, userId: string | null | undefined): Promise<Viewer> {
   if (!userId) return null
-  const { data } = await db
-    .from('profiles')
-    .select('id, gender, is_id_verified, is_phone_verified')
-    .eq('id', userId)
-    .maybeSingle()
-  if (!data) return { id: userId, gender: null, isIdVerified: false, isPhoneVerified: false }
+  // Gender lives in profile_private (owner-only RLS): readable here because the viewer is the owner.
+  const [{ data }, { data: priv }] = await Promise.all([
+    db.from('profiles').select('id, is_id_verified, is_phone_verified').eq('id', userId).maybeSingle(),
+    db.from('profile_private').select('gender').eq('user_id', userId).maybeSingle(),
+  ])
+  if (!data) return { id: userId, gender: (priv?.gender as string | null) ?? null, isIdVerified: false, isPhoneVerified: false }
   return {
     id: userId,
-    gender: (data.gender as string | null) ?? null,
+    gender: (priv?.gender as string | null) ?? null,
     isIdVerified: data.is_id_verified === true,
     isPhoneVerified: data.is_phone_verified === true,
   }
@@ -48,7 +48,7 @@ export async function loadPosts(db: SupabaseClient, ids: string[], viewer: Viewe
   const tripIds = [...new Set(posts.map((p) => p.trip_package_id).filter(Boolean) as string[])]
   const askIds = posts.filter((p) => p.kind === 'ask' && p.poll_options).map((p) => String(p.id))
 
-  const [membersRes, tripsRes, myReactRes, mySavedRes, pollRes] = await Promise.all([
+  const [membersRes, tripsRes, myReactRes, mySavedRes, pollRes, privRes] = await Promise.all([
     planIds.length
       ? db
           .from('plan_members')
@@ -66,7 +66,12 @@ export async function loadPosts(db: SupabaseClient, ids: string[], viewer: Viewe
     askIds.length
       ? db.from('post_comments').select('post_id, author_id, poll_choice').in('post_id', askIds).not('poll_choice', 'is', null).eq('status', 'live')
       : Promise.resolve({ data: [] as Row[] }),
+    // Meeting points: RLS returns rows only for the organiser and approved members.
+    viewer && planIds.length
+      ? db.from('plan_private').select('post_id, meeting_point').in('post_id', planIds)
+      : Promise.resolve({ data: [] as Row[] }),
   ])
+  const meetingPoints = new Map(((privRes.data ?? []) as Row[]).map((r) => [String(r.post_id), (r.meeting_point as string | null) ?? null]))
 
   const membersByPost = new Map<string, Row[]>()
   for (const m of (membersRes.data ?? []) as Row[]) {
@@ -146,7 +151,7 @@ export async function loadPosts(db: SupabaseClient, ids: string[], viewer: Viewe
       createdAt: String(p.created_at),
       updatedAt: String(p.updated_at),
       // The exact meeting point is only for the organiser and approved members (spec §4).
-      meetingPoint: isAuthor || membership === 'approved' ? ((p.meeting_point as string | null) ?? null) : null,
+      meetingPoint: isAuthor || membership === 'approved' ? meetingPoints.get(id) ?? null : null,
       viewer: { isAuthor, membership, saved: saved.has(id), canJoin, joinBlockedReason: reason },
     })
   }
@@ -176,7 +181,7 @@ function joinability(
   spots: number | null,
 ): { canJoin: boolean; reason: Post['viewer']['joinBlockedReason'] } {
   if (p.kind !== 'plan') return { canJoin: false, reason: null }
-  if (p.status !== 'live') return { canJoin: false, reason: 'closed' }
+  if (p.status !== 'live' || p.converted_package_id) return { canJoin: false, reason: 'closed' }
   if (viewer?.id === p.author_id) return { canJoin: false, reason: 'own_plan' }
   if (membership === 'approved' || membership === 'requested') return { canJoin: false, reason: null }
   if (membership === 'declined') return { canJoin: false, reason: 'closed' }

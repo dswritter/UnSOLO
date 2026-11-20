@@ -10,6 +10,7 @@ import { toNotification } from '@/lib/tribe/models'
 import { sendFcm, fcmConfigured } from './fcm'
 import { sendApns, apnsConfigured } from './apns'
 import { sendWebPush, webPushConfigured, type WebPushSubscription } from './webpush'
+import { isInternalLink } from '@/lib/links'
 
 type Row = Record<string, unknown>
 
@@ -72,9 +73,11 @@ export async function dispatchPendingPushes(opts: { userIds?: string[]; limit?: 
   const { data: rows, error } = await q
   if (error || !rows?.length) return { sent: 0 }
   const ids = rows.map((r) => r.id as string)
-  // Claim first so concurrent sweeps don't double-send.
-  await svc.from('notifications').update({ pushed_at: new Date().toISOString() }).in('id', ids).is('pushed_at', null)
-  if (!(await pushEnabled(svc))) return { sent: 0 }
+  // Claim first so concurrent sweeps don't double-send; deliver only what this sweep claimed.
+  const { data: claimedRows } = await svc.from('notifications').update({ pushed_at: new Date().toISOString() })
+    .in('id', ids).is('pushed_at', null).select('id')
+  const claimed = new Set((claimedRows ?? []).map((r) => r.id as string))
+  if (claimed.size === 0 || !(await pushEnabled(svc))) return { sent: 0 }
 
   const userIds = [...new Set(rows.map((r) => String(r.user_id)))]
   const [{ data: devices }, { data: prefs }] = await Promise.all([
@@ -83,8 +86,9 @@ export async function dispatchPendingPushes(opts: { userIds?: string[]; limit?: 
   ])
   const prefBy = new Map(((prefs ?? []) as Row[]).map((p) => [String(p.user_id), rowToPreferences(p)]))
   let sent = 0
-  for (const r of rows as Row[]) {
+  for (const r of (rows as Row[]).filter((x) => claimed.has(String(x.id)))) {
     const n = toNotification(r)
+    if (n.link && !isInternalLink(n.link)) n.link = '/activity'
     const pref = prefBy.get(String(r.user_id)) ?? rowToPreferences(null)
     const pushCat = (n.category === 'system' ? 'trips' : n.category) as keyof typeof pref.notify.push
     if (pref.notify.push[pushCat] === false || isQuietNow(pref, n.category)) continue

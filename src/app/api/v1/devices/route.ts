@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { getApiContext, requireUser } from '@/lib/api/context'
-import { noContent, parseJson, route } from '@/lib/api/http'
+import { ApiError, noContent, parseJson, route } from '@/lib/api/http'
+import { isAllowedWebPushEndpoint } from '@/lib/push/webpush'
 
 const Body = z.object({
   platform: z.enum(['android', 'ios', 'web']),
@@ -14,6 +15,13 @@ export const POST = route(async (req: Request) => {
   const ctx = await getApiContext(req)
   const user = requireUser(ctx)
   const b = await parseJson(req, Body)
+  if (b.platform === 'web') {
+    let endpoint = ''
+    try { endpoint = String((JSON.parse(b.token) as { endpoint?: string }).endpoint ?? '') } catch { /* invalid */ }
+    if (!isAllowedWebPushEndpoint(endpoint)) throw new ApiError('bad_request', 'Unsupported push subscription', { field: 'token' })
+  } else if (!/^[A-Za-z0-9:_\-.]{16,4096}$/.test(b.token)) {
+    throw new ApiError('bad_request', 'Invalid device token', { field: 'token' })
+  }
   const svc = ctx.service()
   // Same device, different account: drop the old owner so pushes never cross accounts.
   await svc.from('device_tokens').delete().eq('platform', b.platform).eq('token', b.token).neq('user_id', user.id)

@@ -120,7 +120,7 @@ Booking and payment stay on the existing Razorpay checkout pages. Apps open `/pa
 | GET | `/posts/{id}/requests` | organiser | → `{ items: [{ user: UserLite & { tripsCount, reviewsAvg, mutuals }, intro, state, createdAt, expiresAt }] }` |
 | POST | `/posts/{id}/requests/{userId}` | organiser | `{ decision: "approve"\|"decline" }` → `{ state }` |
 | POST | `/posts/{id}/offers` | host | `{ pricePaise, includes: string[], notes?, extraSeats? }` → `201 HostOffer` |
-| POST | `/offers/{id}/accept` | organiser | → `{ packageSlug, payBy }` |
+| POST | `/offers/{id}/accept` | organiser | `{ expectedPricePaise }` (the price shown) → `{ packageSlug, payBy }`. Returns 409 if the host changed the price since. |
 | POST | `/offers/{id}/decline` | organiser | → 204 |
 | GET | `/users/{username}` | public | → `{ user: UserLite & { bio, homeCity, tripsCount, followers, following }, posts: Post[], openPlan: Post\|null, isFollowing }` |
 | GET | `/suggestions?lat=&lng=` | public | → `{ items: [{ type: "plan"\|"trip", reason: "Near you"\|"Women-only plan"\|"Leaving soon"\|"Matches your interests"\|"Open spots", post?: Post, trip?: TripLite }] }` |

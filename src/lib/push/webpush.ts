@@ -45,6 +45,18 @@ function vapidJwt(audience: string, subject: string, publicKey: string, privateK
   return `${header}.${claims}.${b64u(sig)}`
 }
 
+/** Known browser push services. Anything else is refused (we never POST to arbitrary URLs). */
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /^updates\.push\.services\.mozilla\.com$/, /^[a-z0-9-]+\.push\.services\.mozilla\.com$/,
+  /^web\.push\.apple\.com$/, /^[a-z0-9-]+\.push\.apple\.com$/, /^[a-z0-9-]+\.notify\.windows\.com$/, /^android\.googleapis\.com$/]
+export function isAllowedWebPushEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint)
+    return u.protocol === 'https:' && !u.port && PUSH_HOSTS.some((re) => re.test(u.hostname))
+  } catch {
+    return false
+  }
+}
+
 export function webPushConfigured() {
   return !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
 }
@@ -53,8 +65,8 @@ export function webPushConfigured() {
 export async function sendWebPush(sub: WebPushSubscription, data: object): Promise<'ok' | 'gone' | 'error'> {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, priv = process.env.VAPID_PRIVATE_KEY
   if (!pub || !priv) return 'error'
+  if (!isAllowedWebPushEndpoint(sub.endpoint)) return 'gone'
   const url = new URL(sub.endpoint)
-  if (url.protocol !== 'https:') return 'error'
   const jwt = vapidJwt(url.origin, process.env.VAPID_SUBJECT || 'mailto:support@unsolo.in', pub, priv)
   const res = await fetch(sub.endpoint, {
     method: 'POST',
