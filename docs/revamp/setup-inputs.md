@@ -32,6 +32,9 @@ Migration 121 also closes three holes in production:
 - **Email:** set up an SMTP sender (Resend works) under Auth → SMTP. Turn on "Confirm email". Also enable email OTP, which the apps use for 6-digit codes.
 - **Phone sign-in (optional):** Auth → Providers → Phone, with Twilio, MessageBird or Vonage. The apps' "Continue with phone" needs this. Phone *verification* of an existing account uses your 2factor or MSG91 key above.
 - **Redirect URLs:** add `unsolo://auth-callback` and `https://unsolo.in/auth/callback`.
+- **Google sign-in in the apps:** both apps reuse the Google provider the website already uses.
+  - Add `unsolo://auth-callback` to the allowed redirect URLs.
+  - **Android, for the one-tap Google sheet:** create an *Android* OAuth client in Google Cloud for package `com.unsolo.app` with your release and debug SHA-1. Put the existing *Web* client ID in `mobile/android/secrets.properties` as `GOOGLE_WEB_CLIENT_ID`. Without it, the app falls back to the browser sign-in flow.
 
 ## 4. Android (`mobile/android`)
 
