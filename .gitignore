@@ -45,3 +45,15 @@ next-env.d.ts
 .cursor/
 Creative/
 Docs and Creatives/
+
+# Native app build outputs and machine-local SDK paths
+android/app/build/
+android/.gradle/
+**/local.properties
+mobile/android/.gradle/
+mobile/android/**/build/
+mobile/android/.kotlin/
+mobile/ios/build/
+mobile/ios/DerivedData/
+mobile/ios/**/xcuserdata/
+*.xcuserstate
