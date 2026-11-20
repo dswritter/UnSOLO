@@ -90,6 +90,7 @@ struct ExploreView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 AppHeader(showsWordmark: true)
@@ -102,6 +103,15 @@ struct ExploreView: View {
             }
         }
         .refreshable { await refresh() }
+        .task {
+            #if DEBUG
+            if DebugLaunch.startScreen == "explorePlans" {
+                try? await Task.sleep(for: .seconds(2.5))
+                proxy.scrollTo("plans", anchor: .top)
+            }
+            #endif
+        }
+        }
             SearchDock(title: filter.query.isEmpty ? "Where to?" : filter.query, subtitle: filter.whenLabel, activeFilters: filter.activeCount) {
                 showSearch = true
             }
@@ -134,6 +144,7 @@ struct ExploreView: View {
         async let a: Void = app.explore.refresh(category)
         async let b: Void = app.explore.refreshSuggestions()
         _ = await (a, b)
+        if app.tribe.feeds["plan"] == nil { await app.tribe.refreshFeed(key: "plan") }
         if let first = trips.first, category == .trips { await app.explore.refreshDetail(first.slug) }
     }
 
@@ -163,7 +174,7 @@ struct ExploreView: View {
                 ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity).padding(40)
             }
         } else {
-            SectionHeader(title: "Leaving soon", trailing: "\(trips.count) departures")
+            SectionHeader(title: "Leaving soon")
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
                 .padding(.bottom, 12)
@@ -178,11 +189,8 @@ struct ExploreView: View {
             }
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
-            if category == .trips, let lead = trips.first, let detail = app.explore.details[lead.slug] {
-                TribeBridgeRow(detail: detail).padding(.horizontal, 16).padding(.top, 16)
-            }
-            if !app.explore.suggestions.isEmpty && category == .trips && filter.isEmpty {
-                SuggestionsRail(items: app.explore.suggestions).padding(.top, 24)
+            if category == .trips && filter.isEmpty {
+                PlansLookingRow().padding(.top, 26).id("plans")
             }
             monthSections
             Color.clear.frame(height: 16)
@@ -196,7 +204,7 @@ struct ExploreView: View {
         let thisMonth = String(Fmt.ymd(Date()).prefix(7))
         ForEach(order, id: \.self) { ym in
             let rows = list.filter { ($0.nextDeparture ?? "").hasPrefix(ym) }
-            SectionHeader(title: ym == thisMonth ? "This month" : (ym.isEmpty ? "Dates to come" : Self.monthTitle(ym)), trailing: "\(rows.count)")
+            SectionHeader(title: ym == thisMonth ? "This month" : (ym.isEmpty ? "Dates to come" : Self.monthTitle(ym)))
                 .padding(.horizontal, 20)
                 .padding(.top, 26)
                 .padding(.bottom, 4)
@@ -235,7 +243,8 @@ struct TripCard: View {
             HStack(alignment: .top, spacing: 12) {
                 if showsRing {
                     SeatRing(seats: RingSeats.trip(trip), size: PcTokens.ringCard, dots: .none,
-                             centreLabel: (String(counts.open), counts.isFull ? "full" : "open"))
+                             centreLabel: counts.isFull ? ("Full", "\(counts.total)/\(counts.total)") : (String(counts.open), counts.open == 1 ? "seat left" : "seats left"),
+                             seatIcon: true)
                         .padding(5)
                         .background(Circle().fill(Pc.raised))
                         .padding(.top, -49)

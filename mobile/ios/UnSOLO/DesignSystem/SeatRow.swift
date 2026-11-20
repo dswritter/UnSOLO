@@ -255,6 +255,8 @@ struct SeatRing: View {
     /// Draw your arc in on appear.
     var drawYouOnAppear = false
     var accessibilityText: String?
+    /// Small seat icon above the centre number (trip rings).
+    var seatIcon = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var youProgress: CGFloat = 1
@@ -325,6 +327,13 @@ struct SeatRing: View {
                             let circle = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
                             ctx.fill(circle, with: .color(Pc.raised))
                             ctx.stroke(circle, with: .color(openColor), lineWidth: size < 90 ? 1.5 : 2.5)
+                        } else if size >= 64 {
+                            // Seat cue: a small marker per open seat on the open track.
+                            let r = max(2.4, g.openWidth * 1.35)
+                            let c = g.point(s.mid)
+                            let dot = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
+                            ctx.fill(dot, with: .color(Pc.raised))
+                            ctx.stroke(dot, with: .color(openColor), lineWidth: max(1.2, g.openWidth * 0.75))
                         }
                     case .you, .held:
                         break // drawn as animatable shapes below
@@ -410,6 +419,11 @@ struct SeatRing: View {
         let onPhoto: Bool = { if case .photo = centre { return true } else { return false } }()
         let big = max(14, size * 0.2)
         return VStack(spacing: 0) {
+            if seatIcon {
+                Image(systemName: "chair.lounge.fill").font(.system(size: max(9, size * 0.065), weight: .bold))
+                    .foregroundStyle(onPhoto ? Color.white.opacity(0.9) : Pc.ink2)
+                    .padding(.bottom, 1)
+            }
             Text(l.big).font(PcFont.rounded(big, .heavy)).tracking(-0.5).lineLimit(1).minimumScaleFactor(0.5)
                 .foregroundStyle(onPhoto ? Color.white : Pc.ink)
             if !l.small.isEmpty {

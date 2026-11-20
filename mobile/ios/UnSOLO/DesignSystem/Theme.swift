@@ -49,8 +49,6 @@ enum Pc {
     static let scrim = adaptive(PcTokens.light.scrim, PcTokens.dark.scrim)
     /// Ink edge used under "you" (gold) strokes and the HOST badge: ink in light mode, near-white in dark.
     static let stroke = ink
-    /// Wordmark "UN": deep gold on light (contrast), sun gold on dark.
-    static let wordmarkGold = adaptive(PcTokens.light.full, PcTokens.dark.gold)
 
     private static func adaptive(_ light: Color, _ dark: Color) -> Color {
         let l = UIColor(light), d = UIColor(dark)

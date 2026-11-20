@@ -150,9 +150,10 @@ struct TripDetailView: View {
                      size: PcTokens.ringHero, dots: selectedDeparture(t) == nil ? dots : .none,
                      badge: t.host.map { RingBadge(user: $0, kind: .host) },
                      centre: .photo(centreImage),
-                     centreLabel: (counts.isFull ? "Full" : String(counts.open), counts.isFull ? "\(counts.total)/\(counts.total)" : "of \(counts.total) open"),
+                     centreLabel: (counts.isFull ? "Full" : String(counts.open), counts.isFull ? "\(counts.total)/\(counts.total)" : "of \(counts.total) seat\(counts.total == 1 ? "" : "s") left"),
                      spinOnAppear: counts.isFull,
-                     accessibilityText: "\(counts.accessibilityText()). Show who's going")
+                     accessibilityText: "\(counts.accessibilityText()). Show who's going",
+                     seatIcon: true)
                 .padding(6)
                 .background(Circle().fill(Pc.paper))
         }

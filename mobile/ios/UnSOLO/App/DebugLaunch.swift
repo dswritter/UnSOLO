@@ -7,7 +7,7 @@ import Foundation
 /// Screens: explore, search, tripDetail, tripStories, tribe, tribeStories, postSheet, planComposer, storyComposer, askComposer,
 ///          planDetail, planDetailJoined, storyDetail, askDetail, activity, messages, chat, trips, you, profile,
 ///          settings, host, offerForm, offer, welcome, phoneVerify, landingPrompt, publishPlan, publishHeld,
-///          exploreSearch, whosGoing, tripFull, tribePlans, tribePolls, pollComposer, storyViewer
+///          exploreSearch, explorePlans, whosGoing, tripFull, tribePlans, tribePolls, pollComposer, storyViewer
 enum DebugLaunch {
     static var startScreen: String? { UserDefaults.standard.string(forKey: "startScreen") }
 
@@ -54,7 +54,7 @@ enum DebugLaunch {
         let spiti = ids.posts["spiti"] ?? ""
         switch screen {
         case "explore": r.tab = .explore
-        case "search", "exploreSearch": r.tab = .explore
+        case "search", "exploreSearch", "explorePlans": r.tab = .explore
         case "whosGoing":
             r.tab = .explore
             await app.explore.refreshDetail("chalo-himachal")
