@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree } from "next/font/google";
+import { Figtree, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
@@ -16,6 +16,14 @@ const figtree = Figtree({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-sans",
+});
+
+// Wordmark keeps the original UnSOLO type: Inter Black, tight tracking (main branch).
+const interWordmark = Inter({
+  subsets: ["latin"],
+  weight: ["900"],
+  display: "swap",
+  variable: "--font-wordmark",
 });
 
 export const viewport: Viewport = {
@@ -46,7 +54,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${figtree.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${figtree.variable} ${interWordmark.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOT_SCRIPT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />

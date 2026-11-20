@@ -50,6 +50,8 @@ object PcFonts {
     /** Bricolage Grotesque: headings, titles, prices, big numbers. */
     val display = family("Bricolage Grotesque", listOf(FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold))
     /** Figtree: body, labels, buttons. */
+    /** Wordmark keeps the original UnSOLO type: Inter Black. */
+    val wordmark = family("Inter", listOf(FontWeight.Black))
     val body = family("Figtree", listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold))
 
     @Deprecated("Full Circle has no condensed face", ReplaceWith("display")) val title get() = display
@@ -89,7 +91,7 @@ data class PcTypography(
     /** Badges (HOST / ORGANISER) and overlines: 11sp 800, tracked. */
     val code: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, lineHeight = 1.25.em, letterSpacing = 0.05.em),
     /** Wordmark. */
-    val wordmark: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, lineHeight = 1.0.em, letterSpacing = (-0.02).em),
+    val wordmark: TextStyle = TextStyle(fontFamily = PcFonts.wordmark, fontWeight = FontWeight.Black, fontSize = 22.sp, lineHeight = 1.0.em, letterSpacing = (-0.025).em),
 )
 
 val LocalPcColors = staticCompositionLocalOf { PcTokens.Light }

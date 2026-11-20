@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { BadgeCheck, CalendarDays } from 'lucide-react'
+import { Armchair, BadgeCheck, CalendarDays } from 'lucide-react'
 import type { TripLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { MiniArc, SeatRing, segsFromCounts } from '@/components/tribe/SeatRing'
@@ -51,7 +51,7 @@ export function TripRingCard({ trip: t, ringSize = 88, className, priority }: { 
       <div className="fc-tcard-main">
         {n > 0 && (
           <SeatRing segs={segsFromCounts(n, left)} size={ringSize} showDots={false}
-            center={full ? { big: `${n}/${n}`, small: 'full', fontSize: ringSize * 0.22 } : { big: String(left), small: 'open', fontSize: ringSize * 0.3 }} className="fc-tcard-ring" />
+            center={full ? { big: `${n}/${n}`, small: 'full', fontSize: ringSize * 0.22 } : { big: String(left), small: left === 1 ? 'seat left' : 'seats left', fontSize: ringSize * 0.27, icon: <Armchair /> }} className="fc-tcard-ring" />
         )}
         <div className="min-w-0 flex-1 pt-11">
           <h3 className="truncate text-[19px] leading-tight">{t.title}</h3>

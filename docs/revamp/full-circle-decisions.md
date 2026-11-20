@@ -15,6 +15,24 @@ The dark-green base and green buttons were dropped. The palette is now **UnSOLO 
 
 The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
 
+## Review round 3 (user request)
+
+- **Wordmark:** plain ink "UNSOLO" in the original type, Inter Black with tight tracking, as on `main`. There is no gold "UN" anymore, on web or in the apps.
+- **Less text:** the hint lines under "Find your circle" and "Leaving soon" are removed.
+- **Seats you can read at a glance:** trip rings at 64px and larger show one marker per open seat, plus a seat icon with "N seats left" in the centre.
+- **Plans section:**
+  - It now renders once per breakpoint. It was duplicated on desktop when there were no plans.
+  - It leads with a "Going somewhere? Post a plan." invitation: a plan ring with your seat in yellow, whose other seats fill in on a loop, plus a pulsing +. Motion stops under reduced motion.
+  - The invitation also links into Tribe with the count of people planning.
+- **Bug: the stays, rentals and activities search pages were empty, on production too.**
+  - Cause: the search page read listings with the anonymous Supabase client and got 0 rows. The home rows use the service-role client.
+  - Fix: the search query now uses the same server-side client, with the same "active and approved" filters.
+  - The "blink" was the instant preview, filled from the home rows, before the empty server result replaced it.
+- **Home categories:** choosing Stays, Activities or Rentals on the home page hides the trip-only sections, so that category's listings lead. Switching the desktop search tab reorders the rows immediately.
+- **Search results page:**
+  - Trip cards (`TripCardView`, also used by the home "Popular trips" rows) are now Full Circle cards: photo first, seat ring, date chip and save heart. They show one per row on phones.
+  - Category tabs and filter chips are ink pills, and the filter panel is a 28px card.
+
 ## Yellow only where it's essential (user request)
 
 The rule was tightened after review against Airbnb and MakeMyTrip, which use colour sparingly.

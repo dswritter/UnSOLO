@@ -2,60 +2,65 @@ import Link from 'next/link'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { loadPosts } from '@/lib/tribe/load'
 import { DEMO_POSTS, shouldUseDemo } from '@/lib/tribe/demo'
-import { todayIST, type Post } from '@/lib/tribe/models'
+import { todayIST, type Post, type UserLite } from '@/lib/tribe/models'
 import { PlanMiniCard } from '@/components/explore/fc/PlanMiniCard'
+import { PlanInvite } from '@/components/explore/fc/PlanInvite'
 
-async function loadOpenPlans(limit: number): Promise<Post[]> {
+async function loadOpenPlans(limit: number): Promise<{ plans: Post[]; planningCount: number }> {
   try {
     const db = createPublicClient()
-    const { data, error } = await db.from('posts').select('id').eq('kind', 'plan').eq('status', 'live')
+    const { data, error, count } = await db.from('posts').select('id', { count: 'exact' }).eq('kind', 'plan').eq('status', 'live')
       .gte('starts_on', todayIST()).order('created_at', { ascending: false }).limit(limit * 2)
     if (error) throw error
     const posts = await loadPosts(db, (data ?? []).map((r) => String(r.id)), null)
-    return posts.filter((p) => (p.spotsTotal ?? 0) > p.memberCount && p.audience !== 'verified').slice(0, limit)
+    return { plans: posts.filter((p) => (p.spotsTotal ?? 0) > p.memberCount && p.audience !== 'verified').slice(0, limit), planningCount: count ?? posts.length }
   } catch (e) {
-    if (shouldUseDemo(e)) return DEMO_POSTS.filter((p) => p.kind === 'plan').slice(0, limit)
-    return []
+    if (shouldUseDemo(e)) {
+      const plans = DEMO_POSTS.filter((p) => p.kind === 'plan')
+      return { plans: plans.slice(0, limit), planningCount: plans.length }
+    }
+    return { plans: [], planningCount: 0 }
   }
 }
 
+const planners = (plans: Post[]): UserLite[] => [...new Map(plans.map((p) => [p.author.id, p.author])).values()]
+
 /**
- * Explore → Tribe bridge: community plans that still need people, as plan-ring cards.
- * `layout="aside"` stacks them (desktop column), `layout="row"` is a mobile pager.
- * Public, cookie-free query. Falls back to an invitation card when there are no open plans.
+ * Explore → Tribe bridge: community plans that still need people (plan-ring cards) plus an invitation
+ * to post your own. Rendered once per breakpoint: `aside` = desktop column (lg+), `row` = phones/tablets.
+ * Public, cookie-free query.
  */
 export async function TribeBridgeRow({ layout = 'row' }: { layout?: 'row' | 'aside' }) {
-  const plans = await loadOpenPlans(3)
+  const { plans, planningCount } = await loadOpenPlans(3)
   const header = (
     <div className="pc-section-h mb-3">
       <h2>Plans looking for people</h2>
       <Link href="/tribe">Tribe</Link>
     </div>
   )
-  if (plans.length === 0) {
-    return (
-      <section aria-label="Tribe" className={layout === 'row' ? 'mx-auto w-full max-w-[1440px] mt-8 px-4 md:px-6 lg:px-10' : ''}>
-        {header}
-        <div className="pc-pencilled flex flex-col items-start gap-3 p-5">
-          <p className="pc-kicker">Community plans · not bookings</p>
-          <p className="text-[17px] font-bold">Find people going your way, or share where you’re headed next.</p>
-          <Link href="/tribe/new?kind=plan" className="pc-btn pc-btn-sm">Start a plan</Link>
-        </div>
-      </section>
-    )
-  }
+  const invite = (compact: boolean) => <PlanInvite planners={planners(plans)} planningCount={planningCount} compact={compact} />
   if (layout === 'aside') {
     return (
       <section aria-label="Plans looking for people">
         {header}
-        <div className="flex flex-col gap-3.5">{plans.map((p) => <PlanMiniCard key={p.id} post={p} />)}</div>
+        <div className="flex flex-col gap-3.5">
+          {invite(plans.length > 0)}
+          {plans.slice(0, 2).map((p) => <PlanMiniCard key={p.id} post={p} />)}
+        </div>
       </section>
     )
   }
   return (
-    <section aria-label="Plans looking for people" className="mt-8 lg:hidden">
-      <div className="px-4">{header}</div>
-      <div className="fc-pager">{plans.map((p) => <PlanMiniCard key={p.id} post={p} ringSize={88} />)}</div>
+    <section aria-label="Plans looking for people" className="mx-auto mt-8 w-full max-w-[1440px] lg:hidden">
+      <div className="px-4 md:px-6">{header}</div>
+      {plans.length > 0 ? (
+        <div className="fc-pager">
+          {invite(false)}
+          {plans.map((p) => <PlanMiniCard key={p.id} post={p} ringSize={88} />)}
+        </div>
+      ) : (
+        <div className="px-4 md:px-6">{invite(false)}</div>
+      )}
     </section>
   )
 }

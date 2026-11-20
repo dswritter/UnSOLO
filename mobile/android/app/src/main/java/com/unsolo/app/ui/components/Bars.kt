@@ -52,13 +52,8 @@ val LocalHeaderCountsUi = compositionLocalOf { HeaderCounts() }
 /** UN in brand gold + SOLO in ink, Bricolage 800. Gold is reserved for the wordmark, you and the HOST badge. */
 @Composable
 fun Wordmark(modifier: Modifier = Modifier) {
-    val c = Pc.colors
-    // Light mode uses the deeper brand gold so "UN" keeps contrast on the mint base.
-    val un = if (Pc.isDark) c.gold else c.full
-    Row(modifier.semantics { contentDescription = "UnSOLO" }, verticalAlignment = Alignment.CenterVertically) {
-        Text("UN", style = Pc.type.wordmark, color = un)
-        Text("SOLO", style = Pc.type.wordmark, color = c.ink)
-    }
+    // Plain ink wordmark in the original UnSOLO type (Inter Black, tight tracking).
+    Text("UNSOLO", style = Pc.type.wordmark, color = Pc.colors.ink, modifier = modifier.semantics { contentDescription = "UnSOLO" })
 }
 
 /** Activity + Messages: glance targets in every top bar. */

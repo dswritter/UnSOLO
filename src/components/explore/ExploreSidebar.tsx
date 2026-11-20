@@ -129,12 +129,12 @@ function OptionGrid<T>({
             aria-pressed={selected}
             onClick={() => onSelect(option)}
             className={cn(
-              'h-8 truncate rounded-lg border text-xs font-medium transition-colors',
+              'h-9 truncate rounded-full border text-xs font-semibold transition-colors',
               // Tighter type on 3-up rows so "Community" / "Challenging" fit the sidebar width.
               columns === 3 ? 'px-0.5 text-[11px] tracking-tight' : 'px-1',
               selected
-                ? 'border-primary bg-primary/12 text-foreground ring-1 ring-primary/40'
-                : 'border-border/70 text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border text-foreground hover:border-[color:var(--pc-rule2)]',
             )}
           >
             {label(option)}
@@ -251,7 +251,7 @@ export function ExploreFilterFields({
             >
               <Heart className={cn('h-3.5 w-3.5', params.interested && 'fill-red-500 text-red-500')} />
               <span className="flex-1">Only trips I&rsquo;m interested in</span>
-              <span className={cn('relative h-4 w-7 shrink-0 rounded-full transition-colors', params.interested ? 'bg-primary' : 'bg-foreground/15')}>
+              <span className={cn('relative h-4 w-7 shrink-0 rounded-full transition-colors', params.interested ? 'bg-foreground' : 'bg-foreground/15')}>
                 <span className={cn('absolute top-0.5 h-3 w-3 rounded-full bg-background shadow transition-all', params.interested ? 'left-3.5' : 'left-0.5')} />
               </span>
             </button>
@@ -284,12 +284,12 @@ export function ExploreSidebar({
   return (
     <aside
       aria-label="Filters"
-      className="sticky! top-[9.5rem] max-h-[calc(100dvh-10.25rem)] overflow-y-auto! rounded-2xl border border-border/70 bg-card/70 p-4 backdrop-blur-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="sticky! top-[9.5rem] max-h-[calc(100dvh-10.25rem)] overflow-y-auto! rounded-[28px] border border-border bg-card p-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       <div className="mb-3 flex items-center gap-2 border-b border-border/50 pb-3">
         <h2 className="text-sm font-bold">Filters</h2>
         {activeCount > 0 ? (
-          <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold leading-4 text-primary-foreground">{activeCount}</span>
+          <span className="rounded-full bg-foreground px-1.5 text-[10px] font-bold leading-4 text-background">{activeCount}</span>
         ) : null}
         {activeCount > 0 ? (
           <button type="button" onClick={clearAll} className="ml-auto text-xs font-semibold text-primary hover:underline">

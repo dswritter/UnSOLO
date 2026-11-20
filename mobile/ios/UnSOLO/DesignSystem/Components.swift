@@ -214,13 +214,14 @@ struct PcTag: View {
 
 // MARK: - Wordmark
 
-/// "UN" in gold, "SOLO" in ink, SF Pro Rounded heavy.
+/// Plain ink "UNSOLO" in the original type: black weight, tight tracking.
 struct Wordmark: View {
     var height: CGFloat = 28
     var body: some View {
-        (Text("UN").foregroundStyle(Pc.wordmarkGold) + Text("SOLO").foregroundStyle(Pc.ink))
-            .font(.system(size: height * 0.8, weight: .heavy, design: .rounded))
-            .tracking(-0.4)
+        // Plain ink wordmark in the original UnSOLO type (black weight, tight tracking).
+        Text("UNSOLO").foregroundStyle(Pc.ink)
+            .font(.system(size: height * 0.8, weight: .black, design: .default))
+            .tracking(-0.6)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("UnSOLO")
     }

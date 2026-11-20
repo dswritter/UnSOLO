@@ -53,12 +53,17 @@ export async function WanderLandingPage({
           <Suspense fallback={<div className="h-40" />}>
             <ExploreHeader />
           </Suspense>
-          <Suspense fallback={<LeavingSoonSkeleton />}>
-            <DeparturesTable aside={<TribeBridgeRow layout="aside" />} />
-          </Suspense>
-          <Suspense fallback={null}>
-            <TribeBridgeRow />
-          </Suspense>
+          {/* Trips (default): departures and plans lead. Another category: its listings lead instead. */}
+          {!activeTab || activeTab === 'trips' ? (
+            <>
+              <Suspense fallback={<LeavingSoonSkeleton />}>
+                <DeparturesTable aside={<TribeBridgeRow layout="aside" />} />
+              </Suspense>
+              <Suspense fallback={null}>
+                <TribeBridgeRow />
+              </Suspense>
+            </>
+          ) : null}
           <Suspense fallback={<WanderListingRowsSkeleton />}>
             <WanderListingRowsServer activeTab={activeTab} />
           </Suspense>

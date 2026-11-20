@@ -53,7 +53,7 @@ export function SignInPrompt() {
 
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xl font-black">
-            <span className="brand-gold">UN</span><span className="text-foreground">SOLO</span>
+            <span>UN</span><span className="text-foreground">SOLO</span>
           </span>
         </div>
 

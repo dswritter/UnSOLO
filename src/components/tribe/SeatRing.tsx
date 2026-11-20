@@ -86,7 +86,7 @@ export function SeatRing({
   women?: boolean
   past?: boolean
   photo?: string | null
-  center?: { big: string; small?: string; fontSize?: number }
+  center?: { big: string; small?: string; fontSize?: number; icon?: ReactNode }
   badge?: { user: UserLite | null; label: 'Host' | 'Organiser' } | null
   waiting?: UserLite | null
   /** Faces/initials on taken seats. Off for signed-out viewers (anonymous arcs). */
@@ -118,7 +118,7 @@ export function SeatRing({
     if (s.state === 'open') {
       if (variant === 'plan') parts.push(<circle key={i} className="fc-ring-planopen" cx={px} cy={py} r={Math.max(5, g.d * 0.34)} strokeWidth={2.5} />)
       // Large trip rings: a small seat marker on the track so open seats can be counted at a glance.
-      else if (S >= 120) parts.push(<circle key={i} className="fc-ring-openmark" cx={px} cy={py} r={g.wO * 1.35} />)
+      else if (S >= 64) parts.push(<circle key={i} className="fc-ring-openmark" cx={px} cy={py} r={Math.max(2.4, g.wO * 1.35)} />)
       return
     }
     if (s.state === 'taken') {
@@ -195,7 +195,7 @@ export function SeatRing({
       </svg>
       {center && (
         <div className={cn('fc-ring-center', photo && 'on-photo')} style={{ fontSize: center.fontSize ?? S * 0.2 }}>
-          <div><b>{center.big}</b>{center.small && <span>{center.small}</span>}</div>
+          <div>{center.icon && <i className="fc-ring-center-ic" aria-hidden>{center.icon}</i>}<b>{center.big}</b>{center.small && <span>{center.small}</span>}</div>
         </div>
       )}
       {badge && (

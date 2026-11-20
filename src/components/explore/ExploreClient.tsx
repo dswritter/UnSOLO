@@ -467,7 +467,7 @@ export function ExploreClient({
   )
 
   const tripGridClassName = cn(
-    'grid grid-cols-2 gap-3 sm:gap-4 md:gap-5',
+    'grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5',
     isWanderShell ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
   )
   const serviceGridClassName = cn(
@@ -487,7 +487,7 @@ export function ExploreClient({
           inset like a card, matching the home design. */}
       {isWanderShell ? (
         <div className="md:hidden sticky top-0 z-40 bg-background/95 px-1 pt-2 pb-2 backdrop-blur-xl" data-explore-mobile-tabs>
-          <div className="rounded-2xl border border-foreground/16 bg-card/95 shadow-sm">
+          <div className="rounded-[20px] border border-border bg-card">
             <div className="grid grid-cols-4 gap-1 px-1.5 py-1.5">
               {TABS.filter(t => t.id !== 'getting_around').map(tab => {
                 const Icon = tab.icon
@@ -497,9 +497,10 @@ export function ExploreClient({
                     key={tab.id}
                     type="button"
                     onClick={() => handleTabChange(tab.id)}
+                    aria-pressed={active}
                     className={cn(
                       'flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition-colors',
-                      active ? 'text-primary' : 'text-foreground/80 hover:text-foreground',
+                      active ? 'bg-foreground text-background' : 'text-foreground/80 hover:text-foreground',
                     )}
                   >
                     <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
@@ -514,8 +515,8 @@ export function ExploreClient({
 
       <div className={cn('flex flex-col', !isWanderShell && 'mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6')}>
         {/* `sticky!`: `.glass-card` sets position: relative outside Tailwind's layers. */}
-        <div className="glass-card sticky! top-[4.75rem] z-40 mb-5 hidden items-center gap-3 p-2 md:flex" data-explore-desktop-toolbar>
-          <div className="flex shrink-0 gap-1 rounded-xl bg-foreground/[0.05] p-1">
+        <div className="pc-card sticky! top-[4.75rem] z-40 mb-5 hidden items-center gap-3 p-2 md:flex" data-explore-desktop-toolbar>
+          <div className="flex shrink-0 gap-1 rounded-full bg-[color:var(--pc-tonal)] p-1">
             {TABS.map((tab) => {
               const Icon = tab.icon
               const active = shownTab === tab.id
@@ -526,8 +527,8 @@ export function ExploreClient({
                   onClick={() => handleTabChange(tab.id)}
                   aria-pressed={active}
                   className={cn(
-                    'flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
-                    active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-card hover:text-foreground',
+                    'flex h-9 items-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors',
+                    active ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-card hover:text-foreground',
                   )}
                 >
                   <Icon className="h-4 w-4" />

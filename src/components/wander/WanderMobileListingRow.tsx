@@ -15,7 +15,7 @@ type RowKind = 'trips' | 'stays' | 'activities' | 'rentals'
 type ServiceWithItems = ExploreListPayload['serviceListings'][number]
 type Trip = ExploreListPayload['packages'][number]
 
-const cardClass = 'w-[66vw] max-w-[17rem] shrink-0 snap-start sm:w-[15rem]'
+const cardClass = 'w-[80vw] max-w-[20rem] shrink-0 snap-start sm:w-[17rem]'
 
 export function WanderMobileListingRow({ children, initialIds, kind, viewAllHref, viewAllLabel }: {
   children: ReactNode[]

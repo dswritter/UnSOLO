@@ -264,7 +264,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="pc-wordmark text-[22px]" aria-label="UnSOLO"><b>UN</b>SOLO</span>
+            <span className="pc-wordmark" aria-label="UnSOLO"><b>UN</b>SOLO</span>
           </Link>
 
           {/* Desktop Nav — bottom-aligned so the active underline reads like screenshot tabs */}

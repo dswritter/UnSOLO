@@ -1,5 +1,4 @@
 import { unstable_cache } from 'next/cache'
-import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import type { ServiceListing, ServiceListingType } from '@/types'
 import { markNewListings, newestIdsByType } from '@/lib/listings/newest'
@@ -20,7 +19,10 @@ export const getCachedPublicServiceListings = unstable_cache(async (
   page: number,
   limit: number,
 ) => {
-  const client = createPublicClient()
+  // Same client as the home rows (wanderQueries): the anon client returned 0 rows here, so every
+  // stays/rentals/activities search page came back empty on production. The filters below keep this to
+  // public, active, approved listings only, and the selected columns are the public listing fields.
+  const client = createServiceRoleClient()
   let query = client.from('service_listings')
     .select('id, title, slug, description, short_description, type, price_paise, compare_at_price_paise, price_variants, unit, destination_id, destination_ids, location, latitude, longitude, max_guests_per_booking, quantity_available, images, amenities, tags, metadata, host_id, is_active, is_featured, status, first_approved_at, last_host_resubmit_at, event_schedule, average_rating, review_count, created_at, updated_at, destination:destinations(id, name, slug)', { count: 'exact' })
     .eq('type', type).eq('is_active', true)
@@ -48,7 +50,7 @@ export const getCachedPublicServiceListings = unstable_cache(async (
   if (error) throw error
   const newest = await getNewestServiceListingIds()
   return { listings: markNewListings((data || []) as unknown as ServiceListing[], newest), total: count || 0, page, limit }
-}, ['explore-public-service-listings-v2'], { revalidate: 30, tags: ['explore-public-service-listings'] })
+}, ['explore-public-service-listings-v3'], { revalidate: 30, tags: ['explore-public-service-listings'] })
 
 export type PublicServiceItem = {
   id: string
@@ -82,7 +84,7 @@ export const getCachedPublicServiceItems = unstable_cache(async (listingIds: str
 }, ['explore-public-service-items-v1'], { revalidate: 30, tags: ['explore-public-service-items'] })
 /** Ids of the newest published listings per type (see lib/listings/newest.ts). Empty on error. */
 async function loadNewestServiceListingIds(): Promise<string[]> {
-  const { data, error } = await createPublicClient().from('service_listings')
+  const { data, error } = await createServiceRoleClient().from('service_listings')
     .select('id, type, first_approved_at, created_at')
     .eq('is_active', true)
     .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')

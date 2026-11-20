@@ -31,10 +31,7 @@ export async function DeparturesTable({ aside }: { aside?: React.ReactNode } = {
     <>
       <section aria-labelledby="leaving-soon-h" className="mx-auto w-full max-w-[1440px] mt-4 md:mt-8 md:px-6 lg:px-10">
         <div className="pc-section-h px-4 pb-3 md:px-0">
-          <div>
-            <h2 id="leaving-soon-h" className="md:text-[34px]">Leaving soon</h2>
-            <p className="hidden text-[15px] text-muted-foreground md:block">Departures in the next few weeks, with seats still open.</p>
-          </div>
+          <h2 id="leaving-soon-h" className="md:text-[30px]">Leaving soon</h2>
           <Link href="/?search=1&tab=trips#wander-explore">See all</Link>
         </div>
         <div className="fc-pager md:hidden">

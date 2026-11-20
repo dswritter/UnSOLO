@@ -22,6 +22,14 @@ export default async function DevPreview({ searchParams }: { searchParams: Promi
   // eslint-disable-next-line react-hooks/purity -- dev-only fixture timestamps
   const now = Date.now()
   const ago = (h: number) => new Date(now - h * 3600_000).toISOString()
+  if (screen === 'tripcards') {
+    const { DEMO_TRIPS } = await import('@/lib/tribe/demo-trips')
+    const { demoPackage } = await import('@/lib/packages/demo-package')
+    const { DevTripCardsPreview } = await import('@/components/explore/fc/DevTripCardsPreview')
+    const err = { message: 'fetch failed' }
+    const pkgs = DEMO_TRIPS.map((t, i) => ({ pkg: demoPackage(t.slug, err)!, booked: (t.seatsTotal ?? 0) - (t.seatsLeft ?? 0), past: i === 7 }))
+    return <DevTripCardsPreview pkgs={pkgs} />
+  }
   if (screen === 'compose') return <Composer initialKind={kind === 'plan' || kind === 'story' || kind === 'ask' ? kind : null} initialPoll={poll === '1'} me={DEMO_USERS.riya} pastTrips={[{ id: 'x', title: 'Kheerganga Trek with Tent It India' }]} />
   // Signed-in feed: your gold story ring (Riya has stories), "Planning something?" prompt, saved posts.
   if (screen === 'feed') return <FeedClient initial={DEMO_POSTS} nextDepartures={DEMO_TRIPS.slice(0, 3)} signedIn demo me={DEMO_USERS.riya} />

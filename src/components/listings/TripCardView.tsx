@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Heart, Mountain } from 'lucide-react'
+import { Armchair, Heart, Mountain } from 'lucide-react'
 import type { Package } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
@@ -9,7 +9,9 @@ import { hasTieredPricing } from '@/lib/package-pricing'
 import { packageNextDepartureLine } from '@/lib/package-trip-calendar'
 import { compactTripDuration, primaryTripBadge, shortListingLocation } from '@/lib/listing-card-format'
 import { writeDetailPreview } from '@/lib/detail-preview'
-import { ListingCardBadge, ListingCardMedia, ListingCardPrice, listingCardShellClass } from '@/components/listings/ListingCardParts'
+import { ListingCardBadge } from '@/components/listings/ListingCardParts'
+import { SeatRing, segsFromCounts } from '@/components/tribe/SeatRing'
+import { nextDeparture } from '@/lib/tribe/models'
 
 export type TripCardViewProps = {
   pkg: Package
@@ -46,6 +48,13 @@ export function TripCardView({
     onOpen()
   }
 
+  const total = pkg.max_group_size || 0
+  const left = Math.max(spotsLeft ?? total, 0)
+  const showRing = !pastEdition && total > 0
+  const full = showRing && left === 0
+  const next = nextDeparture(pkg.departure_dates)
+  const day = next ? new Date(`${next}T00:00:00Z`) : null
+
   return (
     <div
       role="link"
@@ -60,16 +69,19 @@ export function TripCardView({
       }}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
-      className={listingCardShellClass(pastEdition)}
+      className={cn('fc-tcard group h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pc-ink)]', pastEdition && 'opacity-80 saturate-[0.85] hover:opacity-100')}
     >
-      <ListingCardMedia muted={pastEdition}>
+      {/* Full Circle card: photo first, the seat ring overlapping its bottom edge (upcoming trips). */}
+      <div className="fc-tcard-photo !h-auto aspect-video">
         {imageUrl ? (
-          <Image src={imageUrl} alt="" fill sizes={imageSizes}
-            className="object-cover transition-transform duration-300 md:group-hover:scale-[1.03] motion-reduce:transition-none" />
+          <Image src={imageUrl} alt="" fill sizes={imageSizes} className="object-cover" />
         ) : (
-          <div className="relative flex h-full items-center justify-center"><Mountain className="h-12 w-12 text-primary/30" /></div>
+          <div className="relative flex h-full items-center justify-center"><Mountain className="h-12 w-12 text-muted-foreground/40" /></div>
         )}
-        <ListingCardBadge badge={badge} />
+        {day && !pastEdition && (
+          <span className="fc-datechip"><b>{day.toLocaleDateString('en-IN', { day: '2-digit', timeZone: 'UTC' })}</b><span>{day.toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' })}</span></span>
+        )}
+        {badge && (pastEdition || badge.tone !== 'urgent') ? <ListingCardBadge badge={day && !pastEdition ? null : badge} /> : null}
         <button
           type="button"
           onClick={e => {
@@ -78,34 +90,33 @@ export function TripCardView({
             onToggleInterest()
           }}
           disabled={togglePending}
-          className="absolute right-0 top-0 z-10 flex h-11 w-11 items-center justify-center rounded-full before:absolute before:inset-2 before:rounded-full before:bg-black/40 before:backdrop-blur-md before:transition-colors hover:before:bg-black/60 disabled:opacity-70 md:right-0.5 md:top-0.5 md:before:inset-1.5"
+          className="pc-glassbtn absolute right-3 top-3 z-10 disabled:opacity-70"
           aria-label={interested ? 'Remove from saved' : 'Save trip'}
           aria-pressed={interested}
         >
-          <Heart className={cn('relative h-3.5 w-3.5 transition-transform md:h-4 md:w-4', interested ? 'fill-red-500 text-red-500' : 'text-white')} />
+          <Heart className={cn('h-[18px] w-[18px]', interested ? 'fill-red-500 text-red-500' : '')} aria-hidden />
         </button>
-      </ListingCardMedia>
+      </div>
 
-      <div className="relative flex flex-1 flex-col p-2.5 md:p-3.5">
-        <h3 className={cn('line-clamp-2 text-xs font-semibold leading-snug md:text-[15px] md:font-bold', pastEdition ? 'text-muted-foreground' : 'text-foreground')}>
-          {pkg.title}
-        </h3>
-        <p className="mt-1 flex min-w-0 gap-1 text-[10px] leading-snug text-muted-foreground md:text-xs">
-          {location ? <span className="truncate">{location}</span> : null}
-          <span className="shrink-0">{location ? '· ' : ''}{compactTripDuration(pkg)}</span>
-        </p>
-        {dateLine ? (
-          <p className={cn('mt-1 flex flex-wrap gap-x-1 text-[10px] font-medium leading-snug md:text-xs', pastEdition ? 'text-muted-foreground' : 'text-primary')}>
-            <span>{dateLine}</span>
-            {pkg.difficulty ? <span className="font-normal capitalize text-muted-foreground">· {pkg.difficulty}</span> : null}
-          </p>
-        ) : null}
-        <div className="mt-auto flex items-end justify-between gap-1 pt-2 md:gap-2 md:pt-3">
-          <ListingCardPrice amount={formatPrice(pkg.price_paise)} suffix="person" from={tiered} muted={pastEdition} />
-          {interestCount > 0 ? (
-            <span className="flex shrink-0 items-center gap-0.5 text-[10px] text-muted-foreground md:gap-1 md:text-xs" title={`${interestCount} interested`}>
-              <Heart className="h-2.5 w-2.5 fill-red-400 text-red-400 md:h-3 md:w-3" aria-hidden="true" />
-              {interestCount}
+      <div className={cn('fc-tcard-main', !showRing && 'mt-0 pt-3')}>
+        {showRing && (
+          <SeatRing segs={segsFromCounts(total, left)} size={84} showDots={false} className="fc-tcard-ring"
+            center={full ? { big: `${total}/${total}`, small: 'full', fontSize: 18 } : { big: String(left), small: left === 1 ? 'seat left' : 'seats left', fontSize: 23, icon: <Armchair /> }} />
+        )}
+        <div className={cn('min-w-0 flex-1', showRing && 'pt-11')}>
+          <h3 className={cn('line-clamp-2 text-[17px] leading-tight', pastEdition && 'text-muted-foreground')}>{pkg.title}</h3>
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{compactTripDuration(pkg)}{location ? ` · ${location}` : ''}</p>
+        </div>
+      </div>
+      <div className="mt-auto px-4 pb-4 pt-2.5">
+        {dateLine && pastEdition ? <p className="mb-1.5 text-[12.5px] text-muted-foreground">{dateLine}{pkg.difficulty ? ` · ${pkg.difficulty}` : ''}</p> : null}
+        <div className="flex items-center justify-between gap-2">
+          <span className="pc-price text-[18px]">{tiered ? <small className="!ml-0 mr-1">From</small> : null}{formatPrice(pkg.price_paise)}<small>/person</small></span>
+          {showRing ? (
+            <span className="fc-caption shrink-0 text-[12.5px]">{full ? <strong>Full</strong> : spotsBooked > 0 ? <><strong>{spotsBooked} going</strong></> : <strong>Be first</strong>}</span>
+          ) : interestCount > 0 ? (
+            <span className="flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground" title={`${interestCount} interested`}>
+              <Heart className="h-3 w-3 fill-red-400 text-red-400" aria-hidden="true" />{interestCount}
             </span>
           ) : null}
         </div>

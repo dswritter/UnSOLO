@@ -1,5 +1,6 @@
 'use client'
 
+import { WANDER_TAB_CHANGE_EVENT } from '@/components/wander/WanderMobileTabNav'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -142,6 +143,8 @@ export function WanderSearchBar({
   const setBrowseTab = useCallback((nextTab: Tab) => {
     setTab(nextTab)
     if (!isWander) return
+    // Reorder the home rows right away (WanderListingsSectionsWrapper) while the server catches up.
+    window.dispatchEvent(new CustomEvent(WANDER_TAB_CHANGE_EVENT, { detail: nextTab }))
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', nextTab)
     const hasActiveExploreFilters = Boolean(params.get('q')?.trim() || params.get('month')?.trim())

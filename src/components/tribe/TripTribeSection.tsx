@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cache } from 'react'
-import { Lock } from 'lucide-react'
+import { Armchair, Lock } from 'lucide-react'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { loadPosts, loadTripOccupancy, loadViewer } from '@/lib/tribe/load'
@@ -54,7 +54,7 @@ export async function TripCircle({ packageId, departureDates, maxGroupSize, host
         <div className="grid place-items-center">
           <div className="rounded-full bg-[color:var(--pc-paper)] p-1.5">
             <SeatRing segs={segs} size={size} photo={photo} badge={host ? { user: host, label: 'Host' } : null} showDots={!!user}
-              center={{ big: String(left), small: left === 0 ? 'full' : `of ${total} open`, fontSize: size * 0.22 }} />
+              center={{ big: String(left), small: left === 0 ? 'full' : `of ${total} seats left`, fontSize: size * 0.22, icon: left === 0 ? undefined : <Armchair /> }} />
           </div>
         </div>
         {heading}
