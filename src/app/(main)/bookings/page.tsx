@@ -12,6 +12,8 @@ import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 import { getPendingClaimsForBookingsIOwn, getMyClaimedBookings } from '@/actions/trip-claims'
 import { PendingClaimsList } from '@/components/trip-claims/PendingClaimsList'
 import { ClaimedTripsSection } from '@/components/trip-claims/ClaimedTripsSection'
+import { MyPlansSection } from '@/components/tribe/MyPlansSection'
+import { Suspense } from 'react'
 
 /** Community-trip join requests not yet fully booked (deduped against active bookings). */
 export type IncompleteTripStatus = 'awaiting_unsolo' | 'awaiting_host' | 'payment_pending'
@@ -263,11 +265,13 @@ export default async function BookingsPage() {
     <div className="min-h-screen">
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-black text-foreground">
-            My <span className="text-primary">Bookings</span>
-          </h1>
-          <p className="text-muted-foreground mt-1">Your travel history and upcoming adventures</p>
+          <h1 className="text-3xl text-foreground">My trips</h1>
+          <p className="text-muted-foreground mt-1">Hosted trips you booked, and community plans you&apos;re in</p>
         </div>
+
+        <Suspense fallback={null}>
+          <MyPlansSection />
+        </Suspense>
 
         <PendingClaimsList claims={pendingClaims} context="booker" />
         <ClaimedTripsSection bookings={claimedBookings} />
