@@ -1,0 +1,2069 @@
+{
+ "devsharma": {
+  "user": {
+   "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+   "username": "devsharma",
+   "name": "Dev Sharma",
+   "avatarUrl": null,
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": true,
+   "bio": "Weekend trekker, weekday spreadsheet person. Hosting small groups in the Parvati valley.",
+   "homeCity": "Delhi",
+   "tripsCount": 6,
+   "followers": 41,
+   "following": 58
+  },
+  "posts": [
+   {
+    "id": "307d6986-4513-5564-a938-533b271261f1",
+    "kind": "plan",
+    "author": {
+     "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+     "username": "devsharma",
+     "name": "Dev Sharma",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "title": "Tosh & Kalga weekend",
+    "body": "Bhuntar by Volvo, then Barshaini. Night one in Tosh, night two at a Kalga homestay. Saturday is a slow day for Pulga's forest walk. I approve each request.",
+    "place": {
+     "name": "Tosh, Parvati Valley",
+     "slug": "tosh",
+     "lat": 32.02,
+     "lng": 77.45
+    },
+    "startsOn": "2026-12-04",
+    "endsOn": "2026-12-06",
+    "spotsTotal": 6,
+    "memberCount": 4,
+    "audience": "verified",
+    "estCostText": "Est. ₹4,500 each",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 12,
+     "helpful": 1,
+     "love": 3
+    },
+    "myReactions": [],
+    "commentCount": 2,
+    "status": "live",
+    "seats": [
+     {
+      "state": "you",
+      "user": {
+       "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+       "username": "devsharma",
+       "name": "Dev Sharma",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": true
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+       "username": "priyasen",
+       "name": "Priya Sen",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-14T09:00:00.000Z",
+    "updatedAt": "2026-11-14T09:00:00.000Z",
+    "viewer": {
+     "isAuthor": true,
+     "membership": "approved",
+     "saved": false,
+     "canJoin": false,
+     "joinBlockedReason": "own_plan"
+    },
+    "meetingPoint": "Majnu ka Tilla bus stand, gate 2 · Thu 3 Dec, 19:30"
+   }
+  ],
+  "openPlan": {
+   "id": "307d6986-4513-5564-a938-533b271261f1",
+   "kind": "plan",
+   "author": {
+    "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "title": "Tosh & Kalga weekend",
+   "body": "Bhuntar by Volvo, then Barshaini. Night one in Tosh, night two at a Kalga homestay. Saturday is a slow day for Pulga's forest walk. I approve each request.",
+   "place": {
+    "name": "Tosh, Parvati Valley",
+    "slug": "tosh",
+    "lat": 32.02,
+    "lng": 77.45
+   },
+   "startsOn": "2026-12-04",
+   "endsOn": "2026-12-06",
+   "spotsTotal": 6,
+   "memberCount": 4,
+   "audience": "verified",
+   "estCostText": "Est. ₹4,500 each",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 12,
+    "helpful": 1,
+    "love": 3
+   },
+   "myReactions": [],
+   "commentCount": 2,
+   "status": "live",
+   "seats": [
+    {
+     "state": "you",
+     "user": {
+      "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-14T09:00:00.000Z",
+   "updatedAt": "2026-11-14T09:00:00.000Z",
+   "viewer": {
+    "isAuthor": true,
+    "membership": "approved",
+    "saved": false,
+    "canJoin": false,
+    "joinBlockedReason": "own_plan"
+   },
+   "meetingPoint": "Majnu ka Tilla bus stand, gate 2 · Thu 3 Dec, 19:30"
+  },
+  "isFollowing": false
+ },
+ "ananyasingh": {
+  "user": {
+   "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+   "username": "ananyasingh",
+   "name": "Ananya Singh",
+   "avatarUrl": null,
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": false,
+   "bio": "Mountains over beaches. Slow travel, homestays, long bus rides.",
+   "homeCity": "Delhi",
+   "tripsCount": 3,
+   "followers": 120,
+   "following": 88
+  },
+  "posts": [
+   {
+    "id": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+    "kind": "plan",
+    "author": {
+     "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Spiti in January, anyone?",
+    "body": "HRTC bus Delhi → Shimla → Kaza, homestays in Kaza and Langza, a shared cab to Key and Chicham. Looking for 3 easy-going people, not a party trip.",
+    "place": {
+     "name": "Kaza, Spiti",
+     "slug": "spiti",
+     "lat": 32.23,
+     "lng": 78.07
+    },
+    "startsOn": "2027-01-12",
+    "endsOn": "2027-01-18",
+    "spotsTotal": 5,
+    "memberCount": 2,
+    "audience": "verified",
+    "estCostText": "Est. ₹14,000 each, split among yourselves",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 31,
+     "helpful": 4,
+     "love": 9
+    },
+    "myReactions": [],
+    "commentCount": 5,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+       "username": "ananyasingh",
+       "name": "Ananya Singh",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+       "username": "rohanmehra",
+       "name": "Rohan Mehra",
+       "avatarUrl": "demo://avatar/rohan",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-20T06:30:00.000Z",
+    "updatedAt": "2026-11-20T06:30:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": {
+   "id": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+   "kind": "plan",
+   "author": {
+    "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "title": "Spiti in January, anyone?",
+   "body": "HRTC bus Delhi → Shimla → Kaza, homestays in Kaza and Langza, a shared cab to Key and Chicham. Looking for 3 easy-going people, not a party trip.",
+   "place": {
+    "name": "Kaza, Spiti",
+    "slug": "spiti",
+    "lat": 32.23,
+    "lng": 78.07
+   },
+   "startsOn": "2027-01-12",
+   "endsOn": "2027-01-18",
+   "spotsTotal": 5,
+   "memberCount": 2,
+   "audience": "verified",
+   "estCostText": "Est. ₹14,000 each, split among yourselves",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 31,
+    "helpful": 4,
+    "love": 9
+   },
+   "myReactions": [],
+   "commentCount": 5,
+   "status": "live",
+   "seats": [
+    {
+     "state": "organiser",
+     "user": {
+      "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://avatar/rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-20T06:30:00.000Z",
+   "updatedAt": "2026-11-20T06:30:00.000Z",
+   "viewer": {
+    "isAuthor": false,
+    "membership": null,
+    "saved": false,
+    "canJoin": true,
+    "joinBlockedReason": null
+   },
+   "meetingPoint": null
+  },
+  "isFollowing": true
+ },
+ "rohanmehra": {
+  "user": {
+   "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+   "username": "rohanmehra",
+   "name": "Rohan Mehra",
+   "avatarUrl": "demo://avatar/rohan",
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": false,
+   "bio": "Paragliding, Volvo naps and chai.",
+   "homeCity": "Gurugram",
+   "tripsCount": 5,
+   "followers": 210,
+   "following": 140
+  },
+  "posts": [
+   {
+    "id": "c4fe9b3b-4bb5-5419-8ea1-c69df05992df",
+    "kind": "story",
+    "author": {
+     "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://avatar/rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "10 strangers, one Volvo, and the best paragliding day of my life",
+    "body": "We met at Majnu ka Tilla as strangers. By Bir we had a group chat called \"Volvo gang\" and a plan to come back for the Billing take-off in March. Sanjay is the pilot to ask for.",
+    "place": {
+     "name": "Bir Billing",
+     "slug": "bir",
+     "lat": 32.04,
+     "lng": 76.72
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [
+     {
+      "url": "demo://photo/paragliding?seed=1",
+      "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/paragliding?seed=2",
+      "thumbUrl": "demo://photo/paragliding?seed=2&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/paragliding?seed=3",
+      "thumbUrl": "demo://photo/paragliding?seed=3&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/paragliding?seed=4",
+      "thumbUrl": "demo://photo/paragliding?seed=4&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/paragliding?seed=5",
+      "thumbUrl": "demo://photo/paragliding?seed=5&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     }
+    ],
+    "trip": {
+     "id": "164a745f-ad23-5a02-9748-d6e197257de4",
+     "slug": "chalo-himachal",
+     "title": "Chalo Himachal",
+     "place": {
+      "name": "Manali · Kasol · Bir",
+      "slug": "himachal",
+      "lat": 32.24,
+      "lng": 77.19
+     },
+     "image": {
+      "url": "demo://photo/paragliding?seed=1",
+      "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     "priceFromPaise": 1469900,
+     "durationDays": 10,
+     "nextDeparture": "2026-11-26",
+     "seatsLeft": 5,
+     "seatsTotal": 12,
+     "host": {
+      "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+      "username": "tentitindia",
+      "name": "Tent It India",
+      "avatarUrl": "demo://logo/tentit",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     },
+     "goingFaces": [
+      {
+       "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+       "username": "rohanmehra",
+       "name": "Rohan Mehra",
+       "avatarUrl": "demo://avatar/rohan",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+       "username": "ananyasingh",
+       "name": "Ananya Singh",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+       "username": "kabir.m",
+       "name": "Kabir Malhotra",
+       "avatarUrl": "demo://avatar/kabir",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     ]
+    },
+    "poll": null,
+    "reactions": {
+     "wantToGo": 58,
+     "helpful": 21,
+     "love": 96
+    },
+    "myReactions": [
+     "love"
+    ],
+    "commentCount": 4,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-10-12T14:00:00.000Z",
+    "updatedAt": "2026-10-12T14:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "kabir.m": {
+  "user": {
+   "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+   "username": "kabir.m",
+   "name": "Kabir Malhotra",
+   "avatarUrl": "demo://avatar/kabir",
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": false,
+   "bio": "Delhi mornings, Bhutan dreams.",
+   "homeCity": "Delhi",
+   "tripsCount": 3,
+   "followers": 64,
+   "following": 70
+  },
+  "posts": [
+   {
+    "id": "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd",
+    "kind": "plan",
+    "author": {
+     "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+     "username": "kabir.m",
+     "name": "Kabir Malhotra",
+     "avatarUrl": "demo://avatar/kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Sunrise at Lodhi Garden",
+    "body": "Easy 5 km walk, then chai at the Lodhi Colony market. First-timers welcome, we keep it relaxed.",
+    "place": {
+     "name": "Lodhi Garden, Delhi",
+     "slug": "delhi",
+     "lat": 28.59,
+     "lng": 77.22
+    },
+    "startsOn": "2026-11-22",
+    "endsOn": "2026-11-22",
+    "spotsTotal": 10,
+    "memberCount": 9,
+    "audience": "anyone",
+    "estCostText": "Free · bring your own chai money",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 18,
+     "helpful": 2,
+     "love": 11
+    },
+    "myReactions": [],
+    "commentCount": 3,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+       "username": "kabir.m",
+       "name": "Kabir Malhotra",
+       "avatarUrl": "demo://avatar/kabir",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "you",
+      "user": {
+       "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+       "username": "devsharma",
+       "name": "Dev Sharma",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": true
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+       "username": "nehajoshi",
+       "name": "Neha Joshi",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+       "username": "priyasen",
+       "name": "Priya Sen",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+       "username": "rinku",
+       "name": "Rinku Thakur",
+       "avatarUrl": "demo://avatar/rinku",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+       "username": "vikramr",
+       "name": "Vikram Rao",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-18T12:00:00.000Z",
+    "updatedAt": "2026-11-18T12:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": "approved",
+     "saved": false,
+     "canJoin": false,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": "Gate 1, Lodhi Road · Sun 06:15"
+   },
+   {
+    "id": "f83ef7dc-a451-5b7e-a77f-39ed0b907434",
+    "kind": "story",
+    "author": {
+     "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+     "username": "kabir.m",
+     "name": "Kabir Malhotra",
+     "avatarUrl": "demo://avatar/kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Bhutan on a budget: Paro, Thimphu and Tiger's Nest",
+    "body": "Paro, Thimphu and the climb to Tiger's Nest. The SDF adds up, so we split a guide and a car four ways.",
+    "place": {
+     "name": "Paro & Thimphu",
+     "slug": "bhutan",
+     "lat": 27.43,
+     "lng": 89.41
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [
+     {
+      "url": "demo://photo/bhutan?seed=1",
+      "thumbUrl": "demo://photo/bhutan?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/bhutan?seed=2",
+      "thumbUrl": "demo://photo/bhutan?seed=2&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/bhutan?seed=3",
+      "thumbUrl": "demo://photo/bhutan?seed=3&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     }
+    ],
+    "trip": {
+     "id": "8e7b8c4a-9162-529d-b89a-ed920a697fd0",
+     "slug": "bhutan-thunder-dragon",
+     "title": "The land of thunder dragon, Bhutan",
+     "place": {
+      "name": "Paro & Thimphu",
+      "slug": "bhutan",
+      "lat": 27.43,
+      "lng": 89.41
+     },
+     "image": {
+      "url": "demo://photo/bhutan?seed=1",
+      "thumbUrl": "demo://photo/bhutan?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     "priceFromPaise": 2850000,
+     "durationDays": 8,
+     "nextDeparture": "2026-12-05",
+     "seatsLeft": 0,
+     "seatsTotal": 12,
+     "host": {
+      "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+      "username": "tentitindia",
+      "name": "Tent It India",
+      "avatarUrl": "demo://logo/tentit",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     },
+     "goingFaces": [
+      {
+       "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+       "username": "kabir.m",
+       "name": "Kabir Malhotra",
+       "avatarUrl": "demo://avatar/kabir",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+       "username": "nehajoshi",
+       "name": "Neha Joshi",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     ]
+    },
+    "poll": null,
+    "reactions": {
+     "wantToGo": 26,
+     "helpful": 15,
+     "love": 30
+    },
+    "myReactions": [],
+    "commentCount": 1,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-10-30T11:00:00.000Z",
+    "updatedAt": "2026-10-30T11:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": {
+   "id": "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd",
+   "kind": "plan",
+   "author": {
+    "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+    "username": "kabir.m",
+    "name": "Kabir Malhotra",
+    "avatarUrl": "demo://avatar/kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "title": "Sunrise at Lodhi Garden",
+   "body": "Easy 5 km walk, then chai at the Lodhi Colony market. First-timers welcome, we keep it relaxed.",
+   "place": {
+    "name": "Lodhi Garden, Delhi",
+    "slug": "delhi",
+    "lat": 28.59,
+    "lng": 77.22
+   },
+   "startsOn": "2026-11-22",
+   "endsOn": "2026-11-22",
+   "spotsTotal": 10,
+   "memberCount": 9,
+   "audience": "anyone",
+   "estCostText": "Free · bring your own chai money",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 18,
+    "helpful": 2,
+    "love": 11
+   },
+   "myReactions": [],
+   "commentCount": 3,
+   "status": "live",
+   "seats": [
+    {
+     "state": "organiser",
+     "user": {
+      "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+      "username": "kabir.m",
+      "name": "Kabir Malhotra",
+      "avatarUrl": "demo://avatar/kabir",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "you",
+     "user": {
+      "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+      "username": "nehajoshi",
+      "name": "Neha Joshi",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+      "username": "rinku",
+      "name": "Rinku Thakur",
+      "avatarUrl": "demo://avatar/rinku",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+      "username": "vikramr",
+      "name": "Vikram Rao",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-18T12:00:00.000Z",
+   "updatedAt": "2026-11-18T12:00:00.000Z",
+   "viewer": {
+    "isAuthor": false,
+    "membership": "approved",
+    "saved": false,
+    "canJoin": false,
+    "joinBlockedReason": null
+   },
+   "meetingPoint": "Gate 1, Lodhi Road · Sun 06:15"
+  },
+  "isFollowing": false
+ },
+ "riyakapoor": {
+  "user": {
+   "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+   "username": "riyakapoor",
+   "name": "Riya Kapoor",
+   "avatarUrl": "demo://avatar/riya",
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": false,
+   "bio": "Sunrise chaser.",
+   "homeCity": "Dehradun",
+   "tripsCount": 7,
+   "followers": 300,
+   "following": 120
+  },
+  "posts": [
+   {
+    "id": "61b7cc86-a41b-5d1c-b929-3bab7960d69d",
+    "kind": "story",
+    "author": {
+     "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+     "username": "riyakapoor",
+     "name": "Riya Kapoor",
+     "avatarUrl": "demo://avatar/riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Tungnath at sunrise: worth the 4am start",
+    "body": "Chopta at 4am is cold and very dark. Chandrashila at sunrise is worth every step. Go in December for the snow.",
+    "place": {
+     "name": "Chopta, Uttarakhand",
+     "slug": "chopta",
+     "lat": 30.49,
+     "lng": 79.21
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [
+     {
+      "url": "demo://photo/tungnath?seed=1",
+      "thumbUrl": "demo://photo/tungnath?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/tungnath?seed=2",
+      "thumbUrl": "demo://photo/tungnath?seed=2&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/tungnath?seed=3",
+      "thumbUrl": "demo://photo/tungnath?seed=3&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/tungnath?seed=4",
+      "thumbUrl": "demo://photo/tungnath?seed=4&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     }
+    ],
+    "trip": {
+     "id": "dad98a9a-1d17-57d1-867c-330c91b16f87",
+     "slug": "tungnath-chandrashila",
+     "title": "Tungnath & Chandrashila",
+     "place": {
+      "name": "Chopta, Uttarakhand",
+      "slug": "chopta",
+      "lat": 30.49,
+      "lng": 79.21
+     },
+     "image": {
+      "url": "demo://photo/tungnath?seed=1",
+      "thumbUrl": "demo://photo/tungnath?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     "priceFromPaise": 799900,
+     "durationDays": 4,
+     "nextDeparture": "2026-12-18",
+     "seatsLeft": 4,
+     "seatsTotal": 12,
+     "host": {
+      "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+      "username": "tentitindia",
+      "name": "Tent It India",
+      "avatarUrl": "demo://logo/tentit",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     },
+     "goingFaces": [
+      {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+       "username": "priyasen",
+       "name": "Priya Sen",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     ]
+    },
+    "poll": null,
+    "reactions": {
+     "wantToGo": 37,
+     "helpful": 9,
+     "love": 41
+    },
+    "myReactions": [],
+    "commentCount": 2,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-11-09T07:00:00.000Z",
+    "updatedAt": "2026-11-09T07:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   },
+   {
+    "id": "62381c68-ad59-501b-9408-4b9218e8eadd",
+    "kind": "ask",
+    "author": {
+     "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+     "username": "riyakapoor",
+     "name": "Riya Kapoor",
+     "avatarUrl": "demo://avatar/riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Best way from Delhi to Kaza in January?",
+    "body": "Planning Spiti in mid-January. What actually runs in winter?",
+    "place": {
+     "name": "Kaza, Spiti",
+     "slug": "spiti",
+     "lat": 32.23,
+     "lng": 78.07
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [],
+    "trip": null,
+    "poll": {
+     "options": [
+      {
+       "id": "35560f49-b668-599b-821e-3efc1fec13fc",
+       "label": "HRTC bus via Shimla",
+       "votes": 9
+      },
+      {
+       "id": "cb399b9f-ab88-57f1-809f-538ed761cb73",
+       "label": "Self-drive via Shimla",
+       "votes": 2
+      },
+      {
+       "id": "70c49b2b-10bb-54e9-8da7-6c53a57c46b9",
+       "label": "Shared taxi from Reckong Peo",
+       "votes": 5
+      }
+     ],
+     "myChoice": null
+    },
+    "reactions": {
+     "wantToGo": 2,
+     "helpful": 6,
+     "love": 0
+    },
+    "myReactions": [],
+    "commentCount": 1,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-11-16T13:00:00.000Z",
+    "updatedAt": "2026-11-16T13:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "meherkaur": {
+  "user": {
+   "id": "8348d61b-d899-593b-91da-42b0497de909",
+   "username": "meherkaur",
+   "name": "Meher Kaur",
+   "avatarUrl": null,
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": false,
+   "bio": "Packing light since 2019.",
+   "homeCity": "Chandigarh",
+   "tripsCount": 4,
+   "followers": 150,
+   "following": 96
+  },
+  "posts": [
+   {
+    "id": "0cc6e46d-5fd5-5ce8-9861-dbf52d0f6f33",
+    "kind": "plan",
+    "author": {
+     "id": "8348d61b-d899-593b-91da-42b0497de909",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Valley of Flowers in July, women only",
+    "body": "Women-only group for the Valley of Flowers in peak bloom. Govindghat → Ghangaria → the valley and Hemkund. Two of us so far, both verified.",
+    "place": {
+     "name": "Ghangaria, Uttarakhand",
+     "slug": "valley-of-flowers",
+     "lat": 30.73,
+     "lng": 79.6
+    },
+    "startsOn": "2027-07-10",
+    "endsOn": "2027-07-15",
+    "spotsTotal": 4,
+    "memberCount": 2,
+    "audience": "women",
+    "estCostText": "Est. ₹12–15k each",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 44,
+     "helpful": 6,
+     "love": 20
+    },
+    "myReactions": [],
+    "commentCount": 1,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "8348d61b-d899-593b-91da-42b0497de909",
+       "username": "meherkaur",
+       "name": "Meher Kaur",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-19T15:00:00.000Z",
+    "updatedAt": "2026-11-19T15:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": false,
+     "joinBlockedReason": "women_only"
+    },
+    "meetingPoint": null
+   },
+   {
+    "id": "f08e88c9-19da-573c-9b4b-5ba47a65b385",
+    "kind": "story",
+    "author": {
+     "id": "8348d61b-d899-593b-91da-42b0497de909",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "What I packed (and didn't need) for 10 days",
+    "body": "Ten days, one 40 L bag. Thermals and a power bank were gold. The third pair of jeans never left the bag.",
+    "place": {
+     "name": "Himachal",
+     "slug": "himachal",
+     "lat": 32.24,
+     "lng": 77.19
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [
+     {
+      "url": "demo://photo/kasol?seed=2",
+      "thumbUrl": "demo://photo/kasol?seed=2&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/kasol?seed=3",
+      "thumbUrl": "demo://photo/kasol?seed=3&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     {
+      "url": "demo://photo/kasol?seed=4",
+      "thumbUrl": "demo://photo/kasol?seed=4&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     }
+    ],
+    "trip": {
+     "id": "164a745f-ad23-5a02-9748-d6e197257de4",
+     "slug": "chalo-himachal",
+     "title": "Chalo Himachal",
+     "place": {
+      "name": "Manali · Kasol · Bir",
+      "slug": "himachal",
+      "lat": 32.24,
+      "lng": 77.19
+     },
+     "image": {
+      "url": "demo://photo/paragliding?seed=1",
+      "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+      "lqip": null,
+      "width": 1600,
+      "height": 1150
+     },
+     "priceFromPaise": 1469900,
+     "durationDays": 10,
+     "nextDeparture": "2026-11-26",
+     "seatsLeft": 5,
+     "seatsTotal": 12,
+     "host": {
+      "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+      "username": "tentitindia",
+      "name": "Tent It India",
+      "avatarUrl": "demo://logo/tentit",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     },
+     "goingFaces": [
+      {
+       "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+       "username": "rohanmehra",
+       "name": "Rohan Mehra",
+       "avatarUrl": "demo://avatar/rohan",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      },
+      {
+       "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+       "username": "ananyasingh",
+       "name": "Ananya Singh",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      },
+      {
+       "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+       "username": "kabir.m",
+       "name": "Kabir Malhotra",
+       "avatarUrl": "demo://avatar/kabir",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     ]
+    },
+    "poll": null,
+    "reactions": {
+     "wantToGo": 12,
+     "helpful": 64,
+     "love": 21
+    },
+    "myReactions": [],
+    "commentCount": 2,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-09-28T09:00:00.000Z",
+    "updatedAt": "2026-09-28T09:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": {
+   "id": "0cc6e46d-5fd5-5ce8-9861-dbf52d0f6f33",
+   "kind": "plan",
+   "author": {
+    "id": "8348d61b-d899-593b-91da-42b0497de909",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "title": "Valley of Flowers in July, women only",
+   "body": "Women-only group for the Valley of Flowers in peak bloom. Govindghat → Ghangaria → the valley and Hemkund. Two of us so far, both verified.",
+   "place": {
+    "name": "Ghangaria, Uttarakhand",
+    "slug": "valley-of-flowers",
+    "lat": 30.73,
+    "lng": 79.6
+   },
+   "startsOn": "2027-07-10",
+   "endsOn": "2027-07-15",
+   "spotsTotal": 4,
+   "memberCount": 2,
+   "audience": "women",
+   "estCostText": "Est. ₹12–15k each",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 44,
+    "helpful": 6,
+    "love": 20
+   },
+   "myReactions": [],
+   "commentCount": 1,
+   "status": "live",
+   "seats": [
+    {
+     "state": "organiser",
+     "user": {
+      "id": "8348d61b-d899-593b-91da-42b0497de909",
+      "username": "meherkaur",
+      "name": "Meher Kaur",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-19T15:00:00.000Z",
+   "updatedAt": "2026-11-19T15:00:00.000Z",
+   "viewer": {
+    "isAuthor": false,
+    "membership": null,
+    "saved": false,
+    "canJoin": false,
+    "joinBlockedReason": "women_only"
+   },
+   "meetingPoint": null
+  },
+  "isFollowing": false
+ },
+ "rahulv": {
+  "user": {
+   "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+   "username": "rahulv",
+   "name": "Rahul Verma",
+   "avatarUrl": "demo://avatar/rahul",
+   "isPhoneVerified": true,
+   "isIdVerified": false,
+   "isHost": false,
+   "bio": "",
+   "homeCity": "Noida",
+   "tripsCount": 2,
+   "followers": 22,
+   "following": 30
+  },
+  "posts": [],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "nehajoshi": {
+  "user": {
+   "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+   "username": "nehajoshi",
+   "name": "Neha Joshi",
+   "avatarUrl": null,
+   "isPhoneVerified": true,
+   "isIdVerified": false,
+   "isHost": false,
+   "bio": "Solo, curious, slow.",
+   "homeCity": "Pune",
+   "tripsCount": 1,
+   "followers": 18,
+   "following": 40
+  },
+  "posts": [
+   {
+    "id": "1a184df1-6b63-5f81-a2e8-d430177bc0ab",
+    "kind": "ask",
+    "author": {
+     "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    "title": "Kasol solo in early December: which stay is better for meeting people?",
+    "body": "Going solo for 4 nights. Want somewhere with a common room and people to walk with, but not a party hostel.",
+    "place": {
+     "name": "Kasol, Parvati Valley",
+     "slug": "kasol",
+     "lat": 32.01,
+     "lng": 77.31
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [],
+    "trip": null,
+    "poll": {
+     "options": [
+      {
+       "id": "74fe93d8-00be-549c-9347-10cf96cf17d2",
+       "label": "Parvati riverside hostel",
+       "votes": 12
+      },
+      {
+       "id": "75d2bf21-bf7d-59df-8c3f-59887eaa5f2d",
+       "label": "Tosh cliffside cottage",
+       "votes": 7
+      }
+     ],
+     "myChoice": null
+    },
+    "reactions": {
+     "wantToGo": 3,
+     "helpful": 8,
+     "love": 0
+    },
+    "myReactions": [],
+    "commentCount": 3,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-11-20T04:00:00.000Z",
+    "updatedAt": "2026-11-20T04:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "vikramr": {
+  "user": {
+   "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+   "username": "vikramr",
+   "name": "Vikram Rao",
+   "avatarUrl": null,
+   "isPhoneVerified": true,
+   "isIdVerified": false,
+   "isHost": false,
+   "bio": "",
+   "homeCity": "Bengaluru",
+   "tripsCount": 1,
+   "followers": 9,
+   "following": 12
+  },
+  "posts": [
+   {
+    "id": "693e65c9-15ae-5bbf-9884-a2616176f531",
+    "kind": "ask",
+    "author": {
+     "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+     "username": "vikramr",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    "title": "Is Kheerganga doable in December without a guide?",
+    "body": "First time in the Parvati valley in winter. Is the trail obvious and is there anywhere open at the top?",
+    "place": {
+     "name": "Kasol, Parvati Valley",
+     "slug": "kasol",
+     "lat": 32.01,
+     "lng": 77.31
+    },
+    "startsOn": null,
+    "endsOn": null,
+    "spotsTotal": null,
+    "memberCount": 1,
+    "audience": "anyone",
+    "estCostText": null,
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 1,
+     "helpful": 13,
+     "love": 0
+    },
+    "myReactions": [
+     "helpful"
+    ],
+    "commentCount": 2,
+    "status": "live",
+    "seats": [],
+    "createdAt": "2026-11-17T16:00:00.000Z",
+    "updatedAt": "2026-11-17T16:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "rinku": {
+  "user": {
+   "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+   "username": "rinku",
+   "name": "Rinku Thakur",
+   "avatarUrl": "demo://avatar/rinku",
+   "isPhoneVerified": true,
+   "isIdVerified": false,
+   "isHost": false,
+   "bio": "Parvati valley regular.",
+   "homeCity": "Kullu",
+   "tripsCount": 8,
+   "followers": 77,
+   "following": 50
+  },
+  "posts": [
+   {
+    "id": "679b40bb-a8c6-5344-b788-dc1ea3d68f5c",
+    "kind": "plan",
+    "author": {
+     "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+     "username": "rinku",
+     "name": "Rinku Thakur",
+     "avatarUrl": "demo://avatar/rinku",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    "title": "Kheerganga on Sat 5 Dec",
+    "body": "Barshaini to Kheerganga on Saturday, hot springs at the top, back down Sunday. Need 3 more who are okay with a 12 km climb.",
+    "place": {
+     "name": "Kasol, Parvati Valley",
+     "slug": "kasol",
+     "lat": 32.01,
+     "lng": 77.31
+    },
+    "startsOn": "2026-12-05",
+    "endsOn": "2026-12-06",
+    "spotsTotal": 6,
+    "memberCount": 3,
+    "audience": "anyone",
+    "estCostText": "Est. ₹3,000 each",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 9,
+     "helpful": 0,
+     "love": 2
+    },
+    "myReactions": [],
+    "commentCount": 0,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+       "username": "rinku",
+       "name": "Rinku Thakur",
+       "avatarUrl": "demo://avatar/rinku",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+       "username": "vikramr",
+       "name": "Vikram Rao",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-19T18:00:00.000Z",
+    "updatedAt": "2026-11-19T18:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  ],
+  "openPlan": {
+   "id": "679b40bb-a8c6-5344-b788-dc1ea3d68f5c",
+   "kind": "plan",
+   "author": {
+    "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+    "username": "rinku",
+    "name": "Rinku Thakur",
+    "avatarUrl": "demo://avatar/rinku",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "title": "Kheerganga on Sat 5 Dec",
+   "body": "Barshaini to Kheerganga on Saturday, hot springs at the top, back down Sunday. Need 3 more who are okay with a 12 km climb.",
+   "place": {
+    "name": "Kasol, Parvati Valley",
+    "slug": "kasol",
+    "lat": 32.01,
+    "lng": 77.31
+   },
+   "startsOn": "2026-12-05",
+   "endsOn": "2026-12-06",
+   "spotsTotal": 6,
+   "memberCount": 3,
+   "audience": "anyone",
+   "estCostText": "Est. ₹3,000 each",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 9,
+    "helpful": 0,
+    "love": 2
+   },
+   "myReactions": [],
+   "commentCount": 0,
+   "status": "live",
+   "seats": [
+    {
+     "state": "organiser",
+     "user": {
+      "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+      "username": "rinku",
+      "name": "Rinku Thakur",
+      "avatarUrl": "demo://avatar/rinku",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+      "username": "vikramr",
+      "name": "Vikram Rao",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-19T18:00:00.000Z",
+   "updatedAt": "2026-11-19T18:00:00.000Z",
+   "viewer": {
+    "isAuthor": false,
+    "membership": null,
+    "saved": false,
+    "canJoin": true,
+    "joinBlockedReason": null
+   },
+   "meetingPoint": null
+  },
+  "isFollowing": false
+ },
+ "tentitindia": {
+  "user": {
+   "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+   "username": "tentitindia",
+   "name": "Tent It India",
+   "avatarUrl": "demo://logo/tentit",
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": true,
+   "bio": "Small-group trips across Himachal since 2024. 14 trips run, replies in ~1h.",
+   "homeCity": "Delhi",
+   "tripsCount": 14,
+   "followers": 980,
+   "following": 12
+  },
+  "posts": [],
+  "openPlan": null,
+  "isFollowing": false
+ },
+ "parvatitreks": {
+  "user": {
+   "id": "a8a72e35-a5ca-5c14-b680-59a482b2b90f",
+   "username": "parvatitreks",
+   "name": "Parvati Treks",
+   "avatarUrl": "demo://logo/parvati",
+   "isPhoneVerified": true,
+   "isIdVerified": true,
+   "isHost": true,
+   "bio": "Local guides from Tosh and Kalga.",
+   "homeCity": "Kasol",
+   "tripsCount": 30,
+   "followers": 410,
+   "following": 8
+  },
+  "posts": [],
+  "openPlan": null,
+  "isFollowing": false
+ }
+}

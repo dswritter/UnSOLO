@@ -1,0 +1,12 @@
+{
+  "Simulator Target Bundle": "in.unsolo.app",
+  "aps": {
+    "alert": { "title": "Chalo Himachal", "body": "Rohan: Day 4 evening in Kasol, café hop in Old Kasol?" },
+    "thread-id": "messages",
+    "category": "messages",
+    "sound": "default"
+  },
+  "type": "message",
+  "link": "/chat/c9025b81-96c0-5d10-9023-02cc29b7900e",
+  "notificationId": "00000000-0000-4000-8000-000000000003"
+}

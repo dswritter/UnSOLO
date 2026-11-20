@@ -1,0 +1,18 @@
+// Shared build settings for the UnSOLO iOS app.
+// Note: "//" starts a comment in xcconfig files, so URLs are written as http:/$()/host.
+
+// Placeholder bundle id. Replace with the id registered under the Apple developer team.
+UNSOLO_BUNDLE_ID = in.unsolo.app
+
+// Development team stays empty until UnSOLO has an Apple developer ID.
+DEVELOPMENT_TEAM =
+
+// Simulator builds run without signing (no Apple developer ID yet).
+CODE_SIGNING_ALLOWED[sdk=iphonesimulator*] = NO
+
+// Supabase fallbacks. The app prefers the values served by GET /api/v1/config.
+SUPABASE_URL = https:/$()/YOUR-PROJECT.supabase.co
+SUPABASE_ANON_KEY = YOUR_SUPABASE_ANON_KEY
+
+// Optional local overrides (gitignored). Copy Secrets.example.xcconfig to Secrets.xcconfig.
+#include? "Secrets.xcconfig"

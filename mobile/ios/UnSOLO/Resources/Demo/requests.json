@@ -1,0 +1,40 @@
+{
+ "307d6986-4513-5564-a938-533b271261f1": [
+  {
+   "user": {
+    "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+    "username": "kabir.m",
+    "name": "Kabir Malhotra",
+    "avatarUrl": "demo://avatar/kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false,
+    "tripsCount": 3,
+    "reviewsAvg": 4.8,
+    "mutuals": 1
+   },
+   "intro": "Hey Dev! Did Kheerganga last year, easy-going, I carry a first-aid kit. Would love to join.",
+   "state": "requested",
+   "createdAt": "2026-11-20T06:00:00.000Z",
+   "expiresAt": "2026-11-23T06:00:00.000Z"
+  },
+  {
+   "user": {
+    "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false,
+    "tripsCount": 1,
+    "reviewsAvg": null,
+    "mutuals": 2
+   },
+   "intro": "Solo traveller from Pune, second Himachal trip. Okay with the Thursday night bus.",
+   "state": "requested",
+   "createdAt": "2026-11-20T07:00:00.000Z",
+   "expiresAt": "2026-11-23T07:00:00.000Z"
+  }
+ ]
+}

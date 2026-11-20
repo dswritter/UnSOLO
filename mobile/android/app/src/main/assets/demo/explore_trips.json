@@ -1,0 +1,680 @@
+{
+ "items": [
+  {
+   "id": "t-chalo",
+   "slug": "chalo-himachal",
+   "title": "Chalo Himachal",
+   "place": {
+    "name": "Manali, Himachal",
+    "slug": "manali",
+    "lat": 32.24,
+    "lng": 77.19
+   },
+   "image": {
+    "url": "demo://ph_himachal",
+    "thumbUrl": "demo://ph_himachal",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mOwrz8CRwx2+e1wxGAX7wVHADYgDnXQVqjkAAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 1469900,
+   "durationDays": 10,
+   "nextDeparture": "2026-11-26",
+   "seatsLeft": 5,
+   "seatsTotal": 12,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-kabir",
+     "username": "kabirkhanna",
+     "name": "Kabir Khanna",
+     "avatarUrl": "demo://av_kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-kheer",
+   "slug": "kheerganga-trek",
+   "title": "Kheerganga Trek",
+   "place": {
+    "name": "Kheerganga, Parvati Valley",
+    "slug": "kheerganga",
+    "lat": 32.0,
+    "lng": 77.51
+   },
+   "image": {
+    "url": "demo://ph_kheerganga",
+    "thumbUrl": "demo://ph_kheerganga",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mOYc/wBHDGk9nTCEYNekDEcAQCp4hHBCo1fcAAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 549900,
+   "durationDays": 3,
+   "nextDeparture": "2026-11-28",
+   "seatsLeft": 6,
+   "seatsTotal": 14,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-kabir",
+     "username": "kabirkhanna",
+     "name": "Kabir Khanna",
+     "avatarUrl": "demo://av_kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-rishi",
+   "slug": "rishikesh-weekend",
+   "title": "Rishikesh Weekend",
+   "place": {
+    "name": "Rishikesh, Uttarakhand",
+    "slug": "rishikesh",
+    "lat": 30.09,
+    "lng": 78.27
+   },
+   "image": {
+    "url": "demo://ph_rishikesh",
+    "thumbUrl": "demo://ph_rishikesh",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mN4vmAZHDF0T5sJRwz6PT1wBADCShS5OaSfOQAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 429900,
+   "durationDays": 2,
+   "nextDeparture": "2026-11-28",
+   "seatsLeft": 4,
+   "seatsTotal": 16,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-rupin",
+   "slug": "rupin-pass",
+   "title": "Rupin Pass Trek",
+   "place": {
+    "name": "Dhaula, Uttarakhand",
+    "slug": "rupin-pass",
+    "lat": 31.18,
+    "lng": 78.04
+   },
+   "image": {
+    "url": "demo://ph_rupin",
+    "thumbUrl": "demo://ph_rupin",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mPo33EDjhjyZ06AIwb/Kg84AgCqchMhqe86vQAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 1599900,
+   "durationDays": 8,
+   "nextDeparture": "2026-11-28",
+   "seatsLeft": 2,
+   "seatsTotal": 10,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-brahma",
+   "slug": "brahmatal-trek",
+   "title": "Brahmatal Trek",
+   "place": {
+    "name": "Lohajung, Uttarakhand",
+    "slug": "brahmatal",
+    "lat": 30.16,
+    "lng": 79.62
+   },
+   "image": {
+    "url": "demo://ph_brahmatal",
+    "thumbUrl": "demo://ph_brahmatal",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mPIm3MJjhhWH30MRwwv3n2BIwDtHBvlETDvRAAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 849900,
+   "durationDays": 6,
+   "nextDeparture": "2026-12-03",
+   "seatsLeft": 7,
+   "seatsTotal": 12,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-tung",
+   "slug": "tungnath-chandrashila",
+   "title": "Tungnath & Chandrashila",
+   "place": {
+    "name": "Chopta, Uttarakhand",
+    "slug": "chopta",
+    "lat": 30.49,
+    "lng": 79.21
+   },
+   "image": {
+    "url": "demo://ph_tungnath",
+    "thumbUrl": "demo://ph_tungnath",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mPQi18BRww2MZ1wxOAVlQVHAAz+DZGGUOSfAAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 899900,
+   "durationDays": 5,
+   "nextDeparture": "2026-12-05",
+   "seatsLeft": 3,
+   "seatsTotal": 12,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-spiti",
+   "slug": "spiti-winter-expedition",
+   "title": "Spiti Winter Expedition",
+   "place": {
+    "name": "Kaza, Spiti",
+    "slug": "spiti",
+    "lat": 32.23,
+    "lng": 78.07
+   },
+   "image": {
+    "url": "demo://ph_spiti",
+    "thumbUrl": "demo://ph_spiti",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mOQ95sFRwzJKXlwxLCi2gmOAAesDoVhIVsaAAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 2199900,
+   "durationDays": 8,
+   "nextDeparture": "2026-12-12",
+   "seatsLeft": 6,
+   "seatsTotal": 10,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-bhutan",
+   "slug": "bhutan-explorer",
+   "title": "Bhutan Explorer",
+   "place": {
+    "name": "Paro, Bhutan",
+    "slug": "bhutan",
+    "lat": 27.43,
+    "lng": 89.42
+   },
+   "image": {
+    "url": "demo://ph_bhutan",
+    "thumbUrl": "demo://ph_bhutan",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mP4cLIdjhj2zUqGI4aebHs4AgDPcBTFeNC0eAAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 2849900,
+   "durationDays": 7,
+   "nextDeparture": "2026-12-18",
+   "seatsLeft": 8,
+   "seatsTotal": 14,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-kabir",
+     "username": "kabirkhanna",
+     "name": "Kabir Khanna",
+     "avatarUrl": "demo://av_kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "t-vof",
+   "slug": "valley-of-flowers",
+   "title": "Valley of Flowers",
+   "place": {
+    "name": "Ghangaria, Uttarakhand",
+    "slug": "valley-of-flowers",
+    "lat": 30.73,
+    "lng": 79.6
+   },
+   "image": {
+    "url": "demo://ph_valley",
+    "thumbUrl": "demo://ph_valley",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mNYefkdHDFUrZwBRww+9c5wBADbCBTNAmu+SgAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 1299900,
+   "durationDays": 6,
+   "nextDeparture": "2027-07-15",
+   "seatsLeft": 12,
+   "seatsTotal": 14,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  }
+ ],
+ "nextCursor": null
+}

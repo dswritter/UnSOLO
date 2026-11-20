@@ -1,0 +1,40 @@
+{
+ "p-tosh-kalga": [
+  {
+   "user": {
+    "id": "u-kabir",
+    "username": "kabirkhanna",
+    "name": "Kabir Khanna",
+    "avatarUrl": "demo://av_kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false,
+    "tripsCount": 3,
+    "reviewsAvg": 4.8,
+    "mutuals": 1
+   },
+   "intro": "Hi! I did Kheerganga and Tosh last year, so I know the trail to Pulga. Easy-going, happy to split cabs and cook.",
+   "state": "requested",
+   "createdAt": "2026-11-20T03:00:00Z",
+   "expiresAt": "2026-11-23T03:00:00Z"
+  },
+  {
+   "user": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false,
+    "tripsCount": 1,
+    "reviewsAvg": 4.6,
+    "mutuals": 2
+   },
+   "intro": "First Parvati trip for me. I'm a slow but steady walker and I'd love a small group like this. I know Meher from the Rishikesh weekend.",
+   "state": "requested",
+   "createdAt": "2026-11-20T05:30:00Z",
+   "expiresAt": "2026-11-23T05:30:00Z"
+  }
+ ]
+}

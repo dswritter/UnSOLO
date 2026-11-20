@@ -13,7 +13,7 @@ You need Xcode 26 or later and an "iPhone 17" simulator (`xcrun simctl list devi
 xcodebuild -project mobile/ios/UnSOLO.xcodeproj -scheme UnSOLO -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO build
 
-# Unit tests (52 tests)
+# Unit tests (66 tests)
 xcodebuild test -project mobile/ios/UnSOLO.xcodeproj -scheme UnSOLO -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
 
@@ -114,7 +114,7 @@ SwiftUI views ──read──▶ @Observable repositories ──read/write─�
   - Maps the error envelope to `APIError`, including `phone_required`, `rate_limited` + `Retry-After`, and `upgrade_required`.
   - On a 401 it refreshes once and retries.
 - **`AuthManager`** (an actor) talks to Supabase Auth REST directly with `apikey`.
-  - Supported flows: email + password, email code, phone code, refresh, logout and recover.
+  - Supported flows: Google (OAuth + PKCE, below), email + password, email code, phone code, refresh, logout and recover.
   - Refresh is **single-flight**: concurrent 401s share one refresh, which a test covers.
 - **Token storage:**
   - The session lives only in the **Keychain** with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
@@ -125,6 +125,16 @@ SwiftUI views ──read──▶ @Observable repositories ──read/write─�
   - Private GETs are `no-store` on the server side.
   - The cache is wiped on sign-out.
 - **Config:** `GET /config` loads at launch and every 15 minutes. It provides the kill-switch flags (`tribePostingEnabled` disables posting, `hostOffersEnabled`, `pushEnabled`), the Supabase URL and key, and `minAppVersion.ios`, which triggers an update alert.
+
+### Google sign-in (no SDK)
+
+"Continue with Google" is the first option on the welcome sheet (`Networking/OAuth.swift`, `SessionStore.signInWithGoogle`):
+1. Generate a PKCE verifier (32 random bytes, base64url) and its S256 challenge.
+2. Open `{supabase.url}/auth/v1/authorize?provider=google&redirect_to=unsolo://auth-callback&code_challenge=<S256>&code_challenge_method=s256` in `ASWebAuthenticationSession` (callback scheme `unsolo`).
+3. Parse `code` from `unsolo://auth-callback?code=…`. Only that exact scheme + host is accepted; `error_description` is shown, and cancelling is silent.
+4. Exchange the code via `POST {supabase.url}/auth/v1/token?grant_type=pkce` with `{ auth_code, code_verifier }`. Tokens go to the Keychain like every other sign-in.
+
+In demo mode the exchange is answered locally and signs in the demo traveller. **Team action:** add `unsolo://auth-callback` to Supabase → Authentication → URL configuration → Redirect URLs. It reuses the Google provider the website already has, so no new Google client is needed. Sign in with Apple stays shown but disabled.
 
 ### Offline-first cache and sync
 
@@ -177,6 +187,12 @@ Demo mode swaps in `DemoUploader`, which simulates progress and keeps the local 
 
   Allow notifications first by posting or joining once, or with Settings → Send a test notification.
 
+### Notification links and inline join decisions
+
+- **Same-site check:** a notification or push `link` is routed only if it is a same-site path. It must start with `/`, must not start with `//` or `/\`, and must contain no whitespace or control characters (`DeepLink.isSameSitePath`). Anything else, or a safe but unknown path, opens Activity.
+- **Inline Approve/Decline:** `Notification.postId` and `actorId` (optional Tribe fields) drive Approve/Decline on `tribe_join_request` rows in Activity and on the push actions. The call is `POST /posts/{postId}/requests/{actorId} { decision }`, which goes through the outbox. Push payloads read `postId` + `actorId`, falling back to the legacy `userId` key.
+- **Offer accept:** `POST /offers/{id}/accept` sends `{ expectedPricePaise }` (the price the organiser was shown). On 409 the review screen shows "The host changed this offer. Review the new price." and refetches the offer. `DemoTransport` enforces the same rule: 400 without the field, 409 on a mismatch. `DemoBackend.setOfferPrice` simulates a host edit.
+
 ### Deep links
 
 `Services/DeepLink.swift` handles universal links (`https://unsolo.in` and `www.unsolo.in`) and `unsolo://`, through `.onOpenURL` and `NSUserActivityTypeBrowsingWeb`.
@@ -222,20 +238,36 @@ Associated Domains (`applinks:unsolo.in`, `applinks:www.unsolo.in`) and `aps-env
 
 ### Design system
 
+The design was refined in Nov 2026 to be less boxy. The Passenger Chart identity is unchanged: paper and ink, gold only for the brand, your seat and HOST, the seat row, and printed vs pencilled.
+
+- **Surfaces:** no ink outlines.
+  - **Printed cards** (hosted trips, stories, asks, general cards) are raised surfaces with a soft shadow (radius 12, y 2, 6 % black) plus a hairline in dark mode.
+  - **Community plans** are paper with a single 1.5 pt dashed rule2 outline.
+- **Radii:** cards 16, images 12, controls 14 and capsules, sheets 24 (`radiusCard`, `radiusImage`, `radiusButton`, `radiusSheet` from tokens). All corners are continuous.
+- **Controls:**
+  - Buttons: primary is a filled ink capsule at `buttonTall`; secondary is a tonal (ink ~6 %) capsule; tertiary is plain text.
+  - Chips and category or filter tabs are capsules, with ink fill when selected.
+  - Search and text fields are filled tonal fields with no outline.
+  - Tags are tinted 11 pt capsules (goldBg for HOST).
+- **Facts:** the bordered 3-cell grid is replaced by one icon + text row (calendar · dates, mappin · place, person.2 · open seats).
+- **Type:** tabular (monospaced) digits only, never monospaced words.
+- **Layout:** 20 pt gutters and 12–16 pt gaps between cards instead of full-width rules.
+- **Tab bar:** translucent `.bar` material with a hairline, and Post as a filled ink circle.
+
 - **Colours:** tokens come from the generated `DesignSystem/Tokens.swift` (left unedited). `DesignSystem/Theme.swift` wraps each token as an adaptive colour (`Pc.paper`, `Pc.ink`, …) that switches between `PcTokens.light` and `PcTokens.dark` with the system appearance.
 - **Type:** the system font, scaled for Dynamic Type through `@ScaledMetric`:
   - titles: `.system(size:weight:.semibold).width(.condensed)`
   - numbers and codes: monospaced
   - nothing below 12 pt
 - **Controls:** 6 pt radius, hairline rules instead of shadows, and 44 pt minimum touch targets.
-- **`SeatRow`/`SeatCell`**, the signature component, draws seven states:
-  - **host:** gold bottom bar
-  - **organiser:** heavy ink frame
-  - **member:** face or initials with an ink ring
-  - **you:** gold
-  - **requested:** ink outline with a clock badge
+- **`SeatRow`/`SeatCell`**, the signature component, draws seven states as **circles** (40 pt on detail screens, 32 pt in feeds):
+  - **host:** 2 pt gold ring
+  - **organiser:** 2 pt ink ring
+  - **member:** face, or initials on a soft tonal fill
+  - **you:** gold fill
+  - **requested:** dashed ring with a clock badge
   - **held:** dashed gold, pulsing, and still when Reduce Motion is on
-  - **open:** dashed rule
+  - **open:** 1.5 pt dashed rule2 circle
 - **Printed vs pencilled:**
   - Hosted trips use solid rules, a price and an ink "Take a seat".
   - Community plans use dashed rules, the first line "Community plan · not a booking", the cost as body text, an outline "Ask to join" and an ink ORGANISER tag.
@@ -256,7 +288,7 @@ Associated Domains (`applinks:unsolo.in`, `applinks:www.unsolo.in`) and `aps-env
 | You | Profile | Header, stats, Posts / Plans / Trips, Hosting, Settings. Other profiles: Message (direct chat), report/block, open plan. |
 | You | Settings | Landing tab, push categories + quiet hours, near-me suggestions (location), gender + "suggest by gender", interests, data saver, clear image cache, account (phone verify, sign out → `DELETE /devices` + logout + wipe private cache), about. |
 | You | Host | "Plans looking for a host" → offer form (price vs the group's estimate, includes, dates, extra seats, note). Organiser offer review → accept (converted state + open trip) or decline. |
-| Auth | Welcome | Phone (OTP), Email (password or 6-digit code, sign-up, reset), Sign in with Apple **shown disabled** with a note, Browse as guest. |
+| Auth | Welcome | Continue with Google (Supabase OAuth + PKCE), Phone (OTP), Email (password or 6-digit code, sign-up, reset), Sign in with Apple **shown disabled** with a note, Browse as guest. |
 | Auth | Gates | Posting, joining, reacting and commenting require sign-in **and** phone verification (`/me/phone/start` + `/verify`); the original action resumes afterwards. |
 
 Screenshots from the simulator are in `mobile/ios/screenshots/`:
@@ -266,7 +298,7 @@ Screenshots from the simulator are in `mobile/ios/screenshots/`:
 | Required | `explore.png`, `tripDetail.png`, `tribe.png`, `planComposer.png`, `planDetailJoined.png` (after Ask to join), `activity.png`, `trips.png`, `settings.png` |
 | Also captured | `storyDetail.png`, `askDetail.png`, `messages.png`, `chat.png`, `you.png`, `host.png`, `offer.png`, `postSheet.png`, `welcome.png`, `publishHeld.png` |
 
-## Tests (`UnSOLOTests`, 52 tests)
+## Tests (`UnSOLOTests`, 66 tests)
 
 | Suite | Covers |
 |---|---|
@@ -276,6 +308,9 @@ Screenshots from the simulator are in `mobile/ios/screenshots/`:
 | `DeepLinkTests` | Universal links, the custom scheme, rejected hosts and schemes, parameter validation, notification paths, round trips. |
 | `DecodingTests` | Every fixture decodes as contract models, feed mix + round trip, a minimal server post with omitted arrays, enum wire values, held moderation, error envelope → `APIError`, ISO dates, Supabase snake_case, money and date formatting, camelCase request bodies. |
 | `NetworkingTests` | Six concurrent 401s → exactly one refresh, failed refresh signs out, tokens in the secret store and not `UserDefaults`, URL building, the ATS rule, location rounding. |
+| `NotificationLinkTests` | Same-site link check (accepts `/…`; rejects `//`, `/\`, absolute URLs, whitespace, control and format characters), unsafe or unknown links open Activity, `tribe_join_request` postId/actorId decoding and validation, push payload decisions. |
+| `OfferAcceptTests` | Accept sends exactly `{ expectedPricePaise }`. The demo backend returns 400 without it and 409 after a host price change, and accepts the refetched price. |
+| `OAuthTests` | RFC 7636 S256 vector, verifier format and randomness, authorize URL, callback parsing (code, fragment, error, wrong scheme or host, bad characters), demo PKCE exchange stores tokens. |
 | `DemoBackendTests` | `clientId` replay returns 200 with the same post, money words → held + contact hidden, join intro validation + requested seat, 401 on private routes. |
 
 ## Inputs needed from the team
@@ -287,6 +322,7 @@ Screenshots from the simulator are in `mobile/ios/screenshots/`:
 | **APNs auth key** (.p8, Key ID, Team ID) configured on the server (`src/lib/push/`) | Push delivery. The app side is done. |
 | **Associated Domains**: `https://unsolo.in/.well-known/apple-app-site-association` (and on `www`) | Universal links. Needs `applinks.details[].appIDs = ["<TEAMID>.in.unsolo.app"]` with components for `/tribe*`, `/p/*`, `/packages/*`, `/profile/*`, `/chat/*`, `/bookings`. Served as `application/json` with no redirect. |
 | **Supabase** project URL + anon key served by `GET /config` (fallbacks in `Config/Secrets.xcconfig`) | Sign-in. |
+| Add `unsolo://auth-callback` to the Supabase Redirect URLs | Google sign-in (reuses the website's Google provider). |
 | **SMS provider** for Supabase phone auth (2factor / MSG91 / Twilio) | Phone OTP sign-in and `/me/phone/*`. |
 | SMTP sender for email codes | Email OTP. |
 | Sign in with Apple: decide if wanted; Services ID + key in Supabase | Enables the disabled button. Required by App Review if other social sign-ins are added. |
@@ -299,11 +335,8 @@ Screenshots from the simulator are in `mobile/ios/screenshots/`:
 
 These are things the app needed that `api-v1.md` doesn't define. For each one, the app either works around the gap or disables the feature. Nothing invents new server behaviour, except where a workaround is noted.
 
-1. **Push payload for actions.**
-   - iOS action buttons need `aps.category`. The contract sets only `aps.thread-id`.
-   - Inline Approve/Decline also needs `postId` and `userId` custom keys.
-   - The samples in `push-samples/` include all three; the server should send them.
-2. **Notification rows have no structured target.** `Notification` has only `link`. For inline approve in Activity, the app loads `/posts/{id}/requests` for plans the user organises, matching on the link. Suggest adding `postId`, `actorIds` and `requestUserIds`.
+1. **Push payload for actions.** iOS action buttons need `aps.category` (for example `tribe_join_request`), but the contract only specifies `aps.thread-id`. The APNs row should also list the `type`, `postId` and `actorId` custom keys. The app reads them, and `push-samples/join-request.apns` carries them.
+2. *(Resolved.)* Notification rows now carry `postId` and `actorId`. Older `join_request` rows without them still fall back to `/posts/{id}/requests`.
 3. **"It's not commercial" for held posts.** The spec says a held post goes live once it is edited or confirmed as non-commercial, but no field is defined for confirming. The app sends `PATCH /posts/{id} { confirmNonCommercial: true }`, which the demo honours. This needs a server decision.
 4. **Poll votes.** There is no vote endpoint, so the app votes with `POST /posts/{id}/comments { pollChoice, body: "Voted: <label>" }`. A `PUT /posts/{id}/poll { optionId }` would avoid the filler comment.
 5. **"Plans looking for a host".** There is no endpoint for the host demand board. The app uses `/feed?kind=plan` and filters out the host's own plans. Also missing: which offers this host has already made, and the host hub's earnings, payouts and "This week" departures.

@@ -1,0 +1,403 @@
+{
+ "p-spiti-jan": [
+  {
+   "id": "c-sp1",
+   "postId": "p-spiti-jan",
+   "parentId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Kunzum road open in January?",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T07:30:00Z",
+   "replies": [
+    {
+     "id": "c-sp1r1",
+     "postId": "p-spiti-jan",
+     "parentId": "c-sp1",
+     "author": {
+      "id": "u-ananya",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "Kunzum's closed, so we go in via Shimla and Reckong Peo.",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T07:52:00Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "c-sp2",
+   "postId": "p-spiti-jan",
+   "parentId": null,
+   "author": {
+    "id": "u-subodh",
+    "username": "subodhnegi",
+    "name": "Subodh Negi",
+    "avatarUrl": "demo://av_subodh",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Did this in Feb last year. Carry diamox and keep day one in Kaza slow, the cold hits hard.",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T08:05:00Z",
+   "replies": [
+    {
+     "id": "c-sp2r1",
+     "postId": "p-spiti-jan",
+     "parentId": "c-sp2",
+     "author": {
+      "id": "u-rohan",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://av_rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "+1. Langza homestay has the warmest rooms.",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T08:12:00Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "c-sp3",
+   "postId": "p-spiti-jan",
+   "parentId": null,
+   "author": {
+    "id": "u-meher",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Would you be okay with someone joining from Chandigarh?",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T08:20:00Z",
+   "replies": []
+  }
+ ],
+ "p-story-bir": [
+  {
+   "id": "c-bir1",
+   "postId": "p-story-bir",
+   "parentId": null,
+   "author": {
+    "id": "u-ananya",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "That Bir landing video! I'm on the 26 Nov batch.",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T05:40:00Z",
+   "replies": [
+    {
+     "id": "c-bir1r1",
+     "postId": "p-story-bir",
+     "parentId": "c-bir1",
+     "author": {
+      "id": "u-rohan",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://av_rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "You'll love it. Ask for Sanjay, best pilot there.",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T06:02:00Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "c-bir2",
+   "postId": "p-story-bir",
+   "parentId": null,
+   "author": {
+    "id": "u-kabir",
+    "username": "kabirkhanna",
+    "name": "Kabir Khanna",
+    "avatarUrl": "demo://av_kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "How cold was Kasol camp at night in October?",
+   "pollChoice": null,
+   "createdAt": "2026-11-19T18:10:00Z",
+   "replies": [
+    {
+     "id": "c-bir2r1",
+     "postId": "p-story-bir",
+     "parentId": "c-bir2",
+     "author": {
+      "id": "u-rohan",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://av_rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "Around 6°C. One fleece and the camp blankets were enough.",
+     "pollChoice": null,
+     "createdAt": "2026-11-19T18:40:00Z",
+     "replies": []
+    }
+   ]
+  }
+ ],
+ "p-ask-kasol": [
+  {
+   "id": "c-ks1",
+   "postId": "p-ask-kasol",
+   "parentId": null,
+   "author": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Riverside hostel. The common room fills up every evening and the staff are great with solo women.",
+   "pollChoice": "o-riverside",
+   "createdAt": "2026-11-20T05:00:00Z",
+   "replies": [
+    {
+     "id": "c-ks1r1",
+     "postId": "p-ask-kasol",
+     "parentId": "c-ks1",
+     "author": {
+      "id": "u-meher",
+      "username": "meherkaur",
+      "name": "Meher Kaur",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "That's exactly what I wanted to hear, thank you!",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T05:20:00Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "c-ks2",
+   "postId": "p-ask-kasol",
+   "parentId": null,
+   "author": {
+    "id": "u-riya",
+    "username": "riyasen",
+    "name": "Riya Sen",
+    "avatarUrl": "demo://av_riya",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Tosh if you want quiet and views, but it's 40 minutes from Kasol.",
+   "pollChoice": "o-tosh",
+   "createdAt": "2026-11-20T05:35:00Z",
+   "replies": []
+  },
+  {
+   "id": "c-ks3",
+   "postId": "p-ask-kasol",
+   "parentId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Answering as a person, not selling: early Dec is quiet, so any of the three will have space. Riverside has the most people your age.",
+   "pollChoice": "o-riverside",
+   "createdAt": "2026-11-20T06:10:00Z",
+   "replies": []
+  }
+ ],
+ "p-tosh-kalga": [
+  {
+   "id": "c-tk1",
+   "postId": "p-tosh-kalga",
+   "parentId": null,
+   "author": {
+    "id": "u-subodh",
+    "username": "subodhnegi",
+    "name": "Subodh Negi",
+    "avatarUrl": "demo://av_subodh",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "I'll carry the speaker. Anyone allergic to old Bollywood?",
+   "pollChoice": null,
+   "createdAt": "2026-11-16T09:00:00Z",
+   "replies": [
+    {
+     "id": "c-tk1r1",
+     "postId": "p-tosh-kalga",
+     "parentId": "c-tk1",
+     "author": {
+      "id": "u-you",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "Only if it's not before 7 am.",
+     "pollChoice": null,
+     "createdAt": "2026-11-16T09:15:00Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "c-tk2",
+   "postId": "p-tosh-kalga",
+   "parentId": null,
+   "author": {
+    "id": "u-meher",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Pulga walk okay if it rains?",
+   "pollChoice": null,
+   "createdAt": "2026-11-17T12:00:00Z",
+   "replies": []
+  }
+ ],
+ "p-kheerganga": [
+  {
+   "id": "c-kg1",
+   "postId": "p-kheerganga",
+   "parentId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Bus timing from Delhi?",
+   "pollChoice": null,
+   "createdAt": "2026-11-19T16:00:00Z",
+   "replies": [
+    {
+     "id": "c-kg1r1",
+     "postId": "p-kheerganga",
+     "parentId": "c-kg1",
+     "author": {
+      "id": "u-kabir",
+      "username": "kabirkhanna",
+      "name": "Kabir Khanna",
+      "avatarUrl": "demo://av_kabir",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "20:30 from Kashmere Gate.",
+     "pollChoice": null,
+     "createdAt": "2026-11-19T16:30:00Z",
+     "replies": []
+    }
+   ]
+  }
+ ],
+ "p-story-tungnath": [
+  {
+   "id": "c-tn1",
+   "postId": "p-story-tungnath",
+   "parentId": null,
+   "author": {
+    "id": "u-ananya",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Okay, adding Chandrashila to my winter list.",
+   "pollChoice": null,
+   "createdAt": "2026-11-17T15:00:00Z",
+   "replies": []
+  }
+ ],
+ "p-ask-bhutan": [
+  {
+   "id": "c-bh1",
+   "postId": "p-ask-bhutan",
+   "parentId": null,
+   "author": {
+    "id": "u-subodh",
+    "username": "subodhnegi",
+    "name": "Subodh Negi",
+    "avatarUrl": "demo://av_subodh",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Passport or voter ID works. The permit office took me about two hours on a weekday.",
+   "pollChoice": null,
+   "createdAt": "2026-11-19T09:00:00Z",
+   "replies": []
+  }
+ ],
+ "p-lodhi-sunrise": [
+  {
+   "id": "c-lg1",
+   "postId": "p-lodhi-sunrise",
+   "parentId": null,
+   "author": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "See you at gate 1!",
+   "pollChoice": null,
+   "createdAt": "2026-11-19T11:00:00Z",
+   "replies": []
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+{
+ "307d6986-4513-5564-a938-533b271261f1": [
+  {
+   "id": "57aba7c7-4f24-5639-baed-7c11e5da0ed9",
+   "postId": "307d6986-4513-5564-a938-533b271261f1",
+   "host": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "pricePaise": 549900,
+   "includes": [
+    "Volvo Delhi ↔ Bhuntar",
+    "Cab to Barshaini",
+    "2 nights, Kalga homestay",
+    "Trek guide, Saturday kept free"
+   ],
+   "notes": "We've run Kalga 14 times. Happy to keep your Saturday free for Pulga.",
+   "extraSeats": 0,
+   "state": "pending",
+   "expiresAt": "2026-11-26T10:00:00.000Z",
+   "packageSlug": null,
+   "payBy": null
+  },
+  {
+   "id": "91e353c5-aab3-5274-8ddb-c29745ab6ea8",
+   "postId": "307d6986-4513-5564-a938-533b271261f1",
+   "host": {
+    "id": "a8a72e35-a5ca-5c14-b680-59a482b2b90f",
+    "username": "parvatitreks",
+    "name": "Parvati Treks",
+    "avatarUrl": "demo://logo/parvati",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "pricePaise": 599900,
+   "includes": [
+    "Tempo traveller from Delhi",
+    "2 nights, Tosh guesthouse",
+    "Breakfast and dinner"
+   ],
+   "notes": "Small group, local guide from Tosh.",
+   "extraSeats": 2,
+   "state": "pending",
+   "expiresAt": "2026-11-25T10:00:00.000Z",
+   "packageSlug": null,
+   "payBy": null
+  }
+ ]
+}

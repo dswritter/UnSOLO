@@ -1,0 +1,18 @@
+{
+  "Simulator Target Bundle": "in.unsolo.app",
+  "aps": {
+    "alert": {
+      "title": "Kabir wants to join Tosh & Kalga weekend",
+      "body": "3 trips, verified · 1 mutual. Tap to review, or Approve here."
+    },
+    "thread-id": "plans",
+    "category": "tribe_join_request",
+    "sound": "default",
+    "badge": 3
+  },
+  "type": "tribe_join_request",
+  "link": "/tribe/p/307d6986-4513-5564-a938-533b271261f1",
+  "notificationId": "00000000-0000-4000-8000-000000000001",
+  "postId": "307d6986-4513-5564-a938-533b271261f1",
+  "actorId": "60e302cf-937a-580b-9521-158bae6a46c5"
+}

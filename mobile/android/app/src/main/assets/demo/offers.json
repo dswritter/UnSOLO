@@ -1,0 +1,55 @@
+{
+ "p-tosh-kalga": [
+  {
+   "id": "o-tentit-tosh",
+   "postId": "p-tosh-kalga",
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "pricePaise": 549900,
+   "includes": [
+    "Volvo Delhi ↔ Bhuntar",
+    "2 nights, Kalga homestay",
+    "Trek guide"
+   ],
+   "notes": "We've run Kalga 14 times. Happy to keep your Saturday free for Pulga.",
+   "extraSeats": 0,
+   "state": "pending",
+   "expiresAt": "2026-11-26T18:30:00Z",
+   "packageSlug": null,
+   "payBy": null
+  },
+  {
+   "id": "o-parvati-tosh",
+   "postId": "p-tosh-kalga",
+   "host": {
+    "id": "u-parvati",
+    "username": "parvativalleytreks",
+    "name": "Parvati Valley Treks",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "pricePaise": 619900,
+   "includes": [
+    "Volvo Delhi ↔ Bhuntar",
+    "2 nights in Tosh",
+    "Breakfast and dinner",
+    "Local cab"
+   ],
+   "notes": "We can add a bonfire night in Tosh and hold 2 extra seats for friends.",
+   "extraSeats": 2,
+   "state": "pending",
+   "expiresAt": "2026-11-25T18:30:00Z",
+   "packageSlug": null,
+   "payBy": null
+  }
+ ]
+}

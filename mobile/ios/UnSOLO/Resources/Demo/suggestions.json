@@ -1,0 +1,494 @@
+{
+ "items": [
+  {
+   "type": "trip",
+   "reason": "Leaving soon",
+   "trip": {
+    "id": "164a745f-ad23-5a02-9748-d6e197257de4",
+    "slug": "chalo-himachal",
+    "title": "Chalo Himachal",
+    "place": {
+     "name": "Manali · Kasol · Bir",
+     "slug": "himachal",
+     "lat": 32.24,
+     "lng": 77.19
+    },
+    "image": {
+     "url": "demo://photo/paragliding?seed=1",
+     "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 1469900,
+    "durationDays": 10,
+    "nextDeparture": "2026-11-26",
+    "seatsLeft": 5,
+    "seatsTotal": 12,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://avatar/rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+      "username": "kabir.m",
+      "name": "Kabir Malhotra",
+      "avatarUrl": "demo://avatar/kabir",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    ]
+   }
+  },
+  {
+   "type": "plan",
+   "reason": "Near you",
+   "post": {
+    "id": "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd",
+    "kind": "plan",
+    "author": {
+     "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+     "username": "kabir.m",
+     "name": "Kabir Malhotra",
+     "avatarUrl": "demo://avatar/kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Sunrise at Lodhi Garden",
+    "body": "Easy 5 km walk, then chai at the Lodhi Colony market. First-timers welcome, we keep it relaxed.",
+    "place": {
+     "name": "Lodhi Garden, Delhi",
+     "slug": "delhi",
+     "lat": 28.59,
+     "lng": 77.22
+    },
+    "startsOn": "2026-11-22",
+    "endsOn": "2026-11-22",
+    "spotsTotal": 10,
+    "memberCount": 9,
+    "audience": "anyone",
+    "estCostText": "Free · bring your own chai money",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 18,
+     "helpful": 2,
+     "love": 11
+    },
+    "myReactions": [],
+    "commentCount": 3,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+       "username": "kabir.m",
+       "name": "Kabir Malhotra",
+       "avatarUrl": "demo://avatar/kabir",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "you",
+      "user": {
+       "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+       "username": "devsharma",
+       "name": "Dev Sharma",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": true
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+       "username": "rahulv",
+       "name": "Rahul Verma",
+       "avatarUrl": "demo://avatar/rahul",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+       "username": "nehajoshi",
+       "name": "Neha Joshi",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+       "username": "priyasen",
+       "name": "Priya Sen",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+       "username": "rinku",
+       "name": "Rinku Thakur",
+       "avatarUrl": "demo://avatar/rinku",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+       "username": "vikramr",
+       "name": "Vikram Rao",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+       "username": "subodhn",
+       "name": "Subodh Negi",
+       "avatarUrl": "demo://avatar/subodh",
+       "isPhoneVerified": true,
+       "isIdVerified": false,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-18T12:00:00.000Z",
+    "updatedAt": "2026-11-18T12:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": "approved",
+     "saved": false,
+     "canJoin": false,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": "Gate 1, Lodhi Road · Sun 06:15"
+   }
+  },
+  {
+   "type": "plan",
+   "reason": "Open spots",
+   "post": {
+    "id": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+    "kind": "plan",
+    "author": {
+     "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Spiti in January, anyone?",
+    "body": "HRTC bus Delhi → Shimla → Kaza, homestays in Kaza and Langza, a shared cab to Key and Chicham. Looking for 3 easy-going people, not a party trip.",
+    "place": {
+     "name": "Kaza, Spiti",
+     "slug": "spiti",
+     "lat": 32.23,
+     "lng": 78.07
+    },
+    "startsOn": "2027-01-12",
+    "endsOn": "2027-01-18",
+    "spotsTotal": 5,
+    "memberCount": 2,
+    "audience": "verified",
+    "estCostText": "Est. ₹14,000 each, split among yourselves",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 31,
+     "helpful": 4,
+     "love": 9
+    },
+    "myReactions": [],
+    "commentCount": 5,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+       "username": "ananyasingh",
+       "name": "Ananya Singh",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+       "username": "rohanmehra",
+       "name": "Rohan Mehra",
+       "avatarUrl": "demo://avatar/rohan",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-20T06:30:00.000Z",
+    "updatedAt": "2026-11-20T06:30:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": true,
+     "joinBlockedReason": null
+    },
+    "meetingPoint": null
+   }
+  },
+  {
+   "type": "trip",
+   "reason": "Matches your interests",
+   "trip": {
+    "id": "dad98a9a-1d17-57d1-867c-330c91b16f87",
+    "slug": "tungnath-chandrashila",
+    "title": "Tungnath & Chandrashila",
+    "place": {
+     "name": "Chopta, Uttarakhand",
+     "slug": "chopta",
+     "lat": 30.49,
+     "lng": 79.21
+    },
+    "image": {
+     "url": "demo://photo/tungnath?seed=1",
+     "thumbUrl": "demo://photo/tungnath?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 799900,
+    "durationDays": 4,
+    "nextDeparture": "2026-12-18",
+    "seatsLeft": 4,
+    "seatsTotal": 12,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    ]
+   }
+  },
+  {
+   "type": "plan",
+   "reason": "Women-only plan",
+   "post": {
+    "id": "0cc6e46d-5fd5-5ce8-9861-dbf52d0f6f33",
+    "kind": "plan",
+    "author": {
+     "id": "8348d61b-d899-593b-91da-42b0497de909",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    "title": "Valley of Flowers in July, women only",
+    "body": "Women-only group for the Valley of Flowers in peak bloom. Govindghat → Ghangaria → the valley and Hemkund. Two of us so far, both verified.",
+    "place": {
+     "name": "Ghangaria, Uttarakhand",
+     "slug": "valley-of-flowers",
+     "lat": 30.73,
+     "lng": 79.6
+    },
+    "startsOn": "2027-07-10",
+    "endsOn": "2027-07-15",
+    "spotsTotal": 4,
+    "memberCount": 2,
+    "audience": "women",
+    "estCostText": "Est. ₹12–15k each",
+    "media": [],
+    "trip": null,
+    "poll": null,
+    "reactions": {
+     "wantToGo": 44,
+     "helpful": 6,
+     "love": 20
+    },
+    "myReactions": [],
+    "commentCount": 1,
+    "status": "live",
+    "seats": [
+     {
+      "state": "organiser",
+      "user": {
+       "id": "8348d61b-d899-593b-91da-42b0497de909",
+       "username": "meherkaur",
+       "name": "Meher Kaur",
+       "avatarUrl": null,
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "member",
+      "user": {
+       "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+       "username": "riyakapoor",
+       "name": "Riya Kapoor",
+       "avatarUrl": "demo://avatar/riya",
+       "isPhoneVerified": true,
+       "isIdVerified": true,
+       "isHost": false
+      }
+     },
+     {
+      "state": "open",
+      "user": null
+     },
+     {
+      "state": "open",
+      "user": null
+     }
+    ],
+    "createdAt": "2026-11-19T15:00:00.000Z",
+    "updatedAt": "2026-11-19T15:00:00.000Z",
+    "viewer": {
+     "isAuthor": false,
+     "membership": null,
+     "saved": false,
+     "canJoin": false,
+     "joinBlockedReason": "women_only"
+    },
+    "meetingPoint": null
+   }
+  }
+ ]
+}

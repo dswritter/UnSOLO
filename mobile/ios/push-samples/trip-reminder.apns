@@ -1,0 +1,12 @@
+{
+  "Simulator Target Bundle": "in.unsolo.app",
+  "aps": {
+    "alert": { "title": "Chalo Himachal leaves in 6 days", "body": "Pickup 18:30 at Majnu ka Tilla. Balance ₹10,699 due Mon 23 Nov." },
+    "thread-id": "trips",
+    "category": "trips",
+    "sound": "default"
+  },
+  "type": "trip_reminder",
+  "link": "/bookings",
+  "notificationId": "00000000-0000-4000-8000-000000000004"
+}

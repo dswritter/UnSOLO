@@ -1,0 +1,215 @@
+{
+ "items": [
+  {
+   "id": "a-raft",
+   "slug": "rishikesh-rafting",
+   "title": "Ganga Rafting, Shivpuri to Rishikesh",
+   "place": {
+    "name": "Shivpuri, Rishikesh",
+    "slug": "rishikesh",
+    "lat": 30.13,
+    "lng": 78.38
+   },
+   "image": {
+    "url": "demo://ph_rishikesh",
+    "thumbUrl": "demo://ph_rishikesh",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mN4vmAZHDF0T5sJRwz6PT1wBADCShS5OaSfOQAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 149900,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-21",
+   "seatsLeft": 6,
+   "seatsTotal": 10,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-kabir",
+     "username": "kabirkhanna",
+     "name": "Kabir Khanna",
+     "avatarUrl": "demo://av_kabir",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "a-bir",
+   "slug": "bir-paragliding",
+   "title": "Bir Billing Tandem Paragliding",
+   "place": {
+    "name": "Bir, Himachal",
+    "slug": "bir",
+    "lat": 32.04,
+    "lng": 76.72
+   },
+   "image": {
+    "url": "demo://ph_himachal",
+    "thumbUrl": "demo://ph_himachal",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mOwrz8CRwx2+e1wxGAX7wVHADYgDnXQVqjkAAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 299900,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-22",
+   "seatsLeft": 5,
+   "seatsTotal": 8,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "a-chopta",
+   "slug": "chopta-camping",
+   "title": "Chopta Meadow Camping",
+   "place": {
+    "name": "Chopta, Uttarakhand",
+    "slug": "chopta",
+    "lat": 30.49,
+    "lng": 79.21
+   },
+   "image": {
+    "url": "demo://ph_camp",
+    "thumbUrl": "demo://ph_camp",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mOQUnaAIwY5TVM4YlAy0IIjAHDtBdV0+KpbAAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 349900,
+   "durationDays": 2,
+   "nextDeparture": "2026-11-27",
+   "seatsLeft": 4,
+   "seatsTotal": 10,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-vikram",
+     "username": "vikramrao",
+     "name": "Vikram Rao",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-rohan",
+     "username": "rohanmehra",
+     "name": "Rohan Mehra",
+     "avatarUrl": "demo://av_rohan",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  }
+ ],
+ "nextCursor": null
+}

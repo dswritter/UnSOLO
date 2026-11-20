@@ -206,6 +206,22 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 
 **Sign-out:** calls `DELETE /devices {token}` and Supabase `/logout`, then clears the session and every account-scoped cache.
 
+### Google sign-in
+
+"Continue with Google" is the first option on the welcome screen. It works like this:
+
+1. **Demo mode:** signs in the demo traveller.
+2. **`GOOGLE_WEB_CLIENT_ID` set** (from `secrets.properties` into `BuildConfig`):
+   - Credential Manager shows the Google account sheet, using `androidx.credentials` with `GetSignInWithGoogleOption` from googleid.
+   - The nonce is a random value. Google gets its SHA-256 hex; Supabase gets the raw value.
+   - The ID token is exchanged with `POST {supabase}/auth/v1/token?grant_type=id_token {provider:"google", id_token, nonce}`.
+3. **Client ID empty, or no Google account or Play services:** Supabase OAuth with PKCE runs in a Custom Tab.
+   - The app opens `{supabase}/auth/v1/authorize?provider=google&redirect_to=unsolo://auth-callback&code_challenge=<S256>&code_challenge_method=s256`.
+   - Only the configured Supabase host is opened.
+   - `MainActivity` catches `unsolo://auth-callback?code=…` and validates the code.
+   - The code is exchanged with `POST /auth/v1/token?grant_type=pkce {auth_code, code_verifier}`.
+   - The verifier is kept in a private, non-backed-up prefs file for at most 10 minutes and is cleared on use.
+
 ### Push
 
 - `UnsoloMessagingService` handles data messages `{type, title, body, link, notificationId, category}`.
@@ -261,6 +277,32 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 - **Checked:** a debug-key-signed release APK ran on the emulator with the demo fallback, so serialization works after shrinking.
 - No root or emulator checks, and no FLAG_SECURE, as specified.
 
+### Design refinement (Passenger Chart v2, Nov 2026)
+
+This pass follows user feedback that the app "looks more like old Windows UI". The identity stays: paper and ink, gold only for the brand, your seat and HOST, the seat row, and printed vs pencilled. The boxy form look is gone.
+
+- **Seats:** circles, using `PcTokens.seat` (40dp) on detail screens and `seatSmall` (32dp) in feeds.
+  - Faces or initials sit on a tonal fill (ink at 7%).
+  - Organiser gets a 2dp ink ring; host a 2dp gold ring; you a gold fill.
+  - Requested: face at 60% with a clock badge. Held: dashed gold, pulsing. Open: 1.5dp dashed rule2.
+- **Corners:** cards 16dp, images 12dp, inputs 14dp, buttons and chips as pills, sheets 24dp. All come from the regenerated `Tokens.kt`.
+- **Surfaces:**
+  - Printed (hosted) cards are `raisedCard()`: raised paper with a 2dp soft shadow, or a 1dp rule in dark mode.
+  - Community plans are `pencilledCard()`: paper with one 1.5dp dashed rule2 outline.
+  - There are no ink outlines.
+- **Facts:** one icon-and-text row (calendar · pin · people) at 14sp replaces the bordered 3-cell grid.
+- **Type:** mono only for prices in rows (15sp or smaller). Big numbers use the condensed face with tabular figures. Labels and tags are sans.
+- **Tags:** tinted pills at 11sp semibold (ink 8%, goldBg for HOST).
+- **Buttons:** primary is a filled ink pill (52dp); secondary is a tonal pill; tertiary is text. There are no outline buttons.
+- **Navigation:**
+  - Bottom bar: Material 3 style, with a pill indicator and a hairline top border. Post is a filled ink rounded button.
+  - Filter and category tabs are pill chips.
+  - The segmented control is a tonal track with an ink pill.
+- **Layout:**
+  - 20dp page gutters (`Gutter`), with 10–12dp gaps between cards instead of full-width rules.
+  - Settings, forms and included-lists are grouped in `FormCard`s with inset dividers.
+  - Story avatars have a thin 2dp ring.
+
 ### Design system (Passenger Chart)
 
 **Theme and type:**
@@ -312,7 +354,7 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 | Host | "Plans looking for a host", offer form (price, includes chips plus custom, extra seats, note), organiser offer review (pager, accept or decline, accepted state with pay-by and trip link). |
 | System | Offline banner, demo banner, min-version "Update UnSOLO" screen, invalid-link screen, landing prompt, notification-permission moment. |
 
-**Screenshots** are in `mobile/android/screenshots/`. They were taken on an API 35 AOSP emulator (no Google Play services, so the system fallback fonts show instead of Plex). They include:
+**Screenshots** are in `mobile/android/screenshots/`. The refined (v2) look is in `screenshots/v2/`. They were taken on an API 35 AOSP emulator (no Google Play services, so the system fallback fonts show instead of Plex). They include:
 - `explore`, `trip_detail`, `tribe_feed`
 - `plan_composer`, `plan_composer_preview`
 - `plan_detail_requested`
@@ -324,13 +366,15 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 
 ## 5. Tests
 
-`./gradlew :app:testDebugUnitTest` runs 28 tests, all passing:
+`./gradlew :app:testDebugUnitTest` runs 33 tests, all passing:
 
 | Suite | Tests | What it checks |
 |---|---|---|
 | `CompressionMathTest` | 7 | inSampleSize, target size, quality-before-scale loop, never over 2 MB, impossible case |
 | `OutboxProcessorTest` | 9 | duplicate clientId ignored; lost response retried safely (the server keeps 1 object); backoff gating and growth; give-up after 8 attempts; offline stops the drain in order; permanent errors; Wait doesn't count; contract error mapping (409, 429 Retry-After, 5xx, 4xx, 426) |
 | `LandingPolicyTest` | 9 | the 14-day window, at least 3 opens, ties, current tab, server answer wins, dismissed and cooldown, invalid server tab |
+| `AuthCryptoTest` | 4 | PKCE S256 against the RFC 7636 test vector, nonce SHA-256 hex, URL-safe randomness, auth-code validation |
+| `SameSiteLinkTest` | 1 | Only same-site notification and push paths are followed |
 | `DeepLinksTest` | 3 | contract paths, hostile input rejected, min-version comparison |
 
 **Checked by hand on the emulator:**
@@ -356,6 +400,9 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 | `app/google-services.json`, plus an FCM service account on the server | Push. The plugin is applied automatically when the file exists. |
 | Release keystore (upload key) and `keystore.properties`, or Play App Signing | Signed release builds. Not configured: `*.jks` and `keystore.properties` are gitignored. |
 | Play Console app `com.unsolo.app` with an internal testing track | Distribution (product spec rollout, weeks 3–4) |
+| Google **Web application** OAuth client ID, set as `GOOGLE_WEB_CLIENT_ID` in `secrets.properties` (same client as Supabase → Auth → Providers → Google) | Native Google sign-in through Credential Manager. Without it, the app uses the Custom Tab fallback. |
+| Google **Android** OAuth client for `com.unsolo.app` with the SHA-1 of the upload and Play signing certs (`./gradlew signingReport`) | Credential Manager rejects the app without it |
+| `unsolo://auth-callback` in Supabase → Auth → URL Configuration → Redirect URLs | The PKCE Custom Tab fallback |
 | Supabase URL and anon key | Served from `/config` (preferred), or put in `secrets.properties` |
 | Supabase phone provider (2factor, MSG91 or Twilio) | Phone OTP sign-in and `/me/phone/start` in production |
 | SMTP sender for email codes | Email OTP |

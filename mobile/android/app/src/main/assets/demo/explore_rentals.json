@@ -1,0 +1,71 @@
+{
+ "items": [
+  {
+   "id": "r-scooty",
+   "slug": "kasol-scooty-rental",
+   "title": "Scooty on rent · Kasol",
+   "place": {
+    "name": "Kasol, Parvati Valley",
+    "slug": "kasol",
+    "lat": 32.01,
+    "lng": 77.31
+   },
+   "image": {
+    "url": "demo://ph_bike",
+    "thumbUrl": "demo://ph_bike",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAF0lEQVR42mP4fKQLjhjmtWfBEYMXEgAAt8oSudyM2hoAAAAASUVORK5CYII=",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 60000,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-21",
+   "seatsLeft": 5,
+   "seatsTotal": 8,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": []
+  },
+  {
+   "id": "r-bike",
+   "slug": "manali-bike-rental",
+   "title": "Royal Enfield Himalayan · Manali",
+   "place": {
+    "name": "Manali, Himachal",
+    "slug": "manali",
+    "lat": 32.24,
+    "lng": 77.19
+   },
+   "image": {
+    "url": "demo://ph_bike",
+    "thumbUrl": "demo://ph_bike",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAF0lEQVR42mP4fKQLjhjmtWfBEYMXEgAAt8oSudyM2hoAAAAASUVORK5CYII=",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 180000,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-21",
+   "seatsLeft": 3,
+   "seatsTotal": 6,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": []
+  }
+ ],
+ "nextCursor": null
+}

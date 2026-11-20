@@ -1,0 +1,120 @@
+{
+ "items": [
+  {
+   "id": "e76e14bc-6033-5595-bed4-8036883e37c1",
+   "type": "direct",
+   "name": "Rahul Verma",
+   "image": {
+    "url": "demo://avatar/rahul",
+    "thumbUrl": null,
+    "lqip": null,
+    "width": null,
+    "height": null
+   },
+   "lastMessage": {
+    "body": "Bro, same bus? I'm seat 3",
+    "at": "2026-11-20T04:00:00.000Z",
+    "authorName": "Rahul"
+   },
+   "unread": 2,
+   "isRequest": false
+  },
+  {
+   "id": "c9025b81-96c0-5d10-9023-02cc29b7900e",
+   "type": "trip",
+   "name": "Chalo Himachal",
+   "image": {
+    "url": "demo://photo/paragliding?seed=1",
+    "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+    "lqip": null,
+    "width": 1600,
+    "height": 1150
+   },
+   "lastMessage": {
+    "body": "I've got a 20k one, will share. Also bringing Uno cards",
+    "at": "2026-11-19T13:14:00.000Z",
+    "authorName": "You"
+   },
+   "unread": 12,
+   "isRequest": false
+  },
+  {
+   "id": "2345e468-4226-589e-9ede-67f4480920aa",
+   "type": "general",
+   "name": "Tosh & Kalga weekend · plan",
+   "image": {
+    "url": "demo://photo/kasol?seed=2",
+    "thumbUrl": "demo://photo/kasol?seed=2&thumb=1",
+    "lqip": null,
+    "width": 1600,
+    "height": 1150
+   },
+   "lastMessage": {
+    "body": "Thursday night bus it is",
+    "at": "2026-11-18T15:00:00.000Z",
+    "authorName": "Priya"
+   },
+   "unread": 5,
+   "isRequest": false
+  },
+  {
+   "id": "bf3e416c-ad0c-5c8c-a47a-01dc50ca377c",
+   "type": "direct",
+   "name": "Ananya Singh",
+   "image": null,
+   "lastMessage": {
+    "body": "Count me in for Spiti if a spot opens",
+    "at": "2026-11-16T10:00:00.000Z",
+    "authorName": "You"
+   },
+   "unread": 0,
+   "isRequest": false
+  },
+  {
+   "id": "10021999-7886-5562-acb3-21019443ffaf",
+   "type": "direct",
+   "name": "Tent It India",
+   "image": {
+    "url": "demo://logo/tentit",
+    "thumbUrl": null,
+    "lqip": null,
+    "width": null,
+    "height": null
+   },
+   "lastMessage": {
+    "body": "Pickup is at gate 2, near the Gurudwara",
+    "at": "2026-11-14T12:00:00.000Z",
+    "authorName": "Tent It India"
+   },
+   "unread": 0,
+   "isRequest": false
+  },
+  {
+   "id": "1fc38b79-a7af-58f8-8806-64cfe1a79faa",
+   "type": "direct",
+   "name": "Vikram Rao",
+   "image": null,
+   "lastMessage": {
+    "body": "Hi! Saw your Tosh plan, is it still open?",
+    "at": "2026-11-20T08:00:00.000Z",
+    "authorName": "Vikram"
+   },
+   "unread": 1,
+   "isRequest": true
+  },
+  {
+   "id": "34adb783-2fd3-5b99-967f-a9fb7d446580",
+   "type": "direct",
+   "name": "Neha Joshi",
+   "image": null,
+   "lastMessage": {
+    "body": "Is the Kalga homestay women-friendly?",
+    "at": "2026-11-20T05:00:00.000Z",
+    "authorName": "Neha"
+   },
+   "unread": 1,
+   "isRequest": true
+  }
+ ],
+ "nextCursor": null
+}

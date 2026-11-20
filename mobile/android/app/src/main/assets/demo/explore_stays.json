@@ -1,0 +1,188 @@
+{
+ "items": [
+  {
+   "id": "s-kasol",
+   "slug": "kasol-riverside-hostel",
+   "title": "Kasol Riverside Hostel",
+   "place": {
+    "name": "Kasol, Parvati Valley",
+    "slug": "kasol",
+    "lat": 32.01,
+    "lng": 77.31
+   },
+   "image": {
+    "url": "demo://ph_kasol",
+    "thumbUrl": "demo://ph_kasol",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mPYceMFHDEUT54IRwz6/lZwBADOdBMd1SQK2QAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 79900,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-21",
+   "seatsLeft": 6,
+   "seatsTotal": 12,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-rahul",
+     "username": "rahulverma",
+     "name": "Rahul Verma",
+     "avatarUrl": "demo://av_rahul",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-subodh",
+     "username": "subodhnegi",
+     "name": "Subodh Negi",
+     "avatarUrl": "demo://av_subodh",
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "s-kalga",
+   "slug": "kalga-homestay",
+   "title": "Kalga Orchard Homestay",
+   "place": {
+    "name": "Kalga, Parvati Valley",
+    "slug": "kalga",
+    "lat": 32.05,
+    "lng": 77.45
+   },
+   "image": {
+    "url": "demo://ph_kalga",
+    "thumbUrl": "demo://ph_kalga",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGUlEQVR42mM4+/gdHDHM3j0fjhiypgTAEQAO5xeFrGmK1AAAAABJRU5ErkJggg==",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 149900,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-22",
+   "seatsLeft": 3,
+   "seatsTotal": 6,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-riya",
+     "username": "riyasen",
+     "name": "Riya Sen",
+     "avatarUrl": "demo://av_riya",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-ananya",
+     "username": "ananyasingh",
+     "name": "Ananya Singh",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": false
+    },
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  },
+  {
+   "id": "s-tosh",
+   "slug": "tosh-cliffside-cottage",
+   "title": "Tosh Cliffside Cottage",
+   "place": {
+    "name": "Tosh, Parvati Valley",
+    "slug": "tosh",
+    "lat": 32.03,
+    "lng": 77.44
+   },
+   "image": {
+    "url": "demo://ph_manali",
+    "thumbUrl": "demo://ph_manali",
+    "lqip": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAGElEQVR42mOoX3ENjhhCK9vhiEHHywKOAHnuEAHv4bD/AAAAAElFTkSuQmCC",
+    "width": 1600,
+    "height": 900
+   },
+   "priceFromPaise": 249900,
+   "durationDays": 1,
+   "nextDeparture": "2026-11-23",
+   "seatsLeft": 2,
+   "seatsTotal": 4,
+   "host": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "goingFaces": [
+    {
+     "id": "u-meher",
+     "username": "meherkaur",
+     "name": "Meher Kaur",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    },
+    {
+     "id": "u-neha",
+     "username": "nehajoshi",
+     "name": "Neha Joshi",
+     "avatarUrl": null,
+     "isPhoneVerified": true,
+     "isIdVerified": false,
+     "isHost": false
+    }
+   ]
+  }
+ ],
+ "nextCursor": null
+}

@@ -1,0 +1,237 @@
+{
+ "c9025b81-96c0-5d10-9023-02cc29b7900e": [
+  {
+   "id": "3cdde2f7-364c-5b37-a782-5f4f2181650c",
+   "clientId": null,
+   "author": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Tent It India added you to Chalo Himachal",
+   "type": "system",
+   "createdAt": "2026-11-12T09:00:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "92a09d4a-4cff-5380-a0ca-488be80725e7",
+   "clientId": null,
+   "author": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Welcome everyone! Bus leaves 18:30 sharp from Majnu ka Tilla.",
+   "type": "text",
+   "createdAt": "2026-11-19T11:32:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "76f09be7-7a2d-5f12-a0ba-16aa2486b556",
+   "clientId": null,
+   "author": {
+    "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Who's carrying a power bank? Mine is dead already",
+   "type": "text",
+   "createdAt": "2026-11-19T13:12:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "9142d956-f433-504b-9696-662c64f176f2",
+   "clientId": null,
+   "author": {
+    "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "I've got a 20k one, will share. Also bringing Uno cards",
+   "type": "text",
+   "createdAt": "2026-11-19T13:14:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "bf7e7951-065a-5c7f-b88f-32886ef07cc1",
+   "clientId": null,
+   "author": {
+    "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+    "username": "rohanmehra",
+    "name": "Rohan Mehra",
+    "avatarUrl": "demo://avatar/rohan",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Day 4 evening in Kasol: café hop in Old Kasol?",
+   "type": "text",
+   "createdAt": "2026-11-19T14:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "e76e14bc-6033-5595-bed4-8036883e37c1": [
+  {
+   "id": "b8a11e8e-c40f-5db4-b1b9-8fa25dce255c",
+   "clientId": null,
+   "author": {
+    "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+    "username": "rahulv",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://avatar/rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hey! Saw you're on the 26 Nov Himachal batch",
+   "type": "text",
+   "createdAt": "2026-11-20T03:55:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "071a0589-5ca7-5e80-b2f0-2b2c8cbeec5d",
+   "clientId": null,
+   "author": {
+    "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+    "username": "rahulv",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://avatar/rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Bro, same bus? I'm seat 3",
+   "type": "text",
+   "createdAt": "2026-11-20T04:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "2345e468-4226-589e-9ede-67f4480920aa": [
+  {
+   "id": "feaba840-65e9-5513-875e-54f44ecbcc32",
+   "clientId": null,
+   "author": {
+    "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Plan chat is open. Meeting point is in the plan.",
+   "type": "text",
+   "createdAt": "2026-11-15T09:00:00.000Z",
+   "editedAt": null
+  },
+  {
+   "id": "0d75d8c9-015c-5029-8fdf-4cbc49e84d52",
+   "clientId": null,
+   "author": {
+    "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+    "username": "priyasen",
+    "name": "Priya Sen",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Thursday night bus it is",
+   "type": "text",
+   "createdAt": "2026-11-18T15:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "bf3e416c-ad0c-5c8c-a47a-01dc50ca377c": [
+  {
+   "id": "3cb47a0b-b9bf-5dfb-826a-65f7abb6cf58",
+   "clientId": null,
+   "author": {
+    "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Count me in for Spiti if a spot opens",
+   "type": "text",
+   "createdAt": "2026-11-16T10:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "10021999-7886-5562-acb3-21019443ffaf": [
+  {
+   "id": "bcb87507-f65e-55c4-94e1-b5cbe4385e54",
+   "clientId": null,
+   "author": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Pickup is at gate 2, near the Gurudwara",
+   "type": "text",
+   "createdAt": "2026-11-14T12:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "1fc38b79-a7af-58f8-8806-64cfe1a79faa": [
+  {
+   "id": "7db42487-38b8-5bda-8d66-235d451e87c8",
+   "clientId": null,
+   "author": {
+    "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+    "username": "vikramr",
+    "name": "Vikram Rao",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hi! Saw your Tosh plan, is it still open?",
+   "type": "text",
+   "createdAt": "2026-11-20T08:00:00.000Z",
+   "editedAt": null
+  }
+ ],
+ "34adb783-2fd3-5b99-967f-a9fb7d446580": [
+  {
+   "id": "e666a335-9194-5956-91fd-aab4d6d6c60b",
+   "clientId": null,
+   "author": {
+    "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Kalga homestay women-friendly?",
+   "type": "text",
+   "createdAt": "2026-11-20T05:00:00.000Z",
+   "editedAt": null
+  }
+ ]
+}

@@ -1,0 +1,562 @@
+{
+ "room-chalo": [
+  {
+   "id": "m-c1",
+   "clientId": null,
+   "author": {
+    "id": "u-unsolo",
+    "username": "unsolo",
+    "name": "UnSOLO",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Tent It India added you to Chalo Himachal · 26 Nov",
+   "type": "system",
+   "createdAt": "2026-11-18T09:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c2",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Welcome everyone! I'm Sanjay, your trip captain for the next 10 days.",
+   "type": "text",
+   "createdAt": "2026-11-18T09:05:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c3",
+   "clientId": null,
+   "author": {
+    "id": "u-rohan",
+    "username": "rohanmehra",
+    "name": "Rohan Mehra",
+    "avatarUrl": "demo://av_rohan",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hey all, Rohan here. Did this route in October, ask me anything.",
+   "type": "text",
+   "createdAt": "2026-11-18T10:20:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c4",
+   "clientId": null,
+   "author": {
+    "id": "u-ananya",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "How warm a jacket do we need for Solang?",
+   "type": "text",
+   "createdAt": "2026-11-19T06:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c5",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "A proper down jacket and gloves. It was -4 there last week.",
+   "type": "text",
+   "createdAt": "2026-11-19T06:20:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c6",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is there space for a 40 L bag in the Volvo boot?",
+   "type": "text",
+   "createdAt": "2026-11-19T12:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c7",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Yes, one big bag plus a day pack each.",
+   "type": "text",
+   "createdAt": "2026-11-19T12:10:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-c8",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Pickup confirmed at Majnu ka Tilla, 18:30 sharp",
+   "type": "text",
+   "createdAt": "2026-11-20T08:10:00Z",
+   "editedAt": null
+  }
+ ],
+ "room-tosh": [
+  {
+   "id": "m-t1",
+   "clientId": null,
+   "author": {
+    "id": "u-unsolo",
+    "username": "unsolo",
+    "name": "UnSOLO",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Dev Sharma started this plan chat",
+   "type": "system",
+   "createdAt": "2026-11-15T10:05:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-t2",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Welcome Subodh, Meher and Rahul! Bus tickets booked for Thursday 21:30.",
+   "type": "text",
+   "createdAt": "2026-11-16T08:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-t3",
+   "clientId": null,
+   "author": {
+    "id": "u-subodh",
+    "username": "subodhnegi",
+    "name": "Subodh Negi",
+    "avatarUrl": "demo://av_subodh",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Perfect. I'll carry the speaker.",
+   "type": "text",
+   "createdAt": "2026-11-16T08:30:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-t4",
+   "clientId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Tent It India sent an offer to host us, did everyone see it?",
+   "type": "text",
+   "createdAt": "2026-11-20T04:30:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-t5",
+   "clientId": null,
+   "author": {
+    "id": "u-meher",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Pulga walk okay if it rains?",
+   "type": "text",
+   "createdAt": "2026-11-20T07:40:00Z",
+   "editedAt": null
+  }
+ ],
+ "dm-rahul": [
+  {
+   "id": "m-r1",
+   "clientId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hey! Saw you're on Chalo Himachal too.",
+   "type": "text",
+   "createdAt": "2026-11-19T17:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-r2",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Yes! First trip with UnSOLO.",
+   "type": "text",
+   "createdAt": "2026-11-19T17:10:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-r3",
+   "clientId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Same. Which seat did you get?",
+   "type": "text",
+   "createdAt": "2026-11-19T17:15:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-r4",
+   "clientId": null,
+   "author": {
+    "id": "u-rahul",
+    "username": "rahulverma",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://av_rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Bro, same bus? I'm seat 3",
+   "type": "text",
+   "createdAt": "2026-11-19T17:20:00Z",
+   "editedAt": null
+  }
+ ],
+ "dm-ananya": [
+  {
+   "id": "m-a1",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hi Ananya, loved the Spiti plan.",
+   "type": "text",
+   "createdAt": "2026-11-16T12:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-a2",
+   "clientId": null,
+   "author": {
+    "id": "u-ananya",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Thanks! It's filling up slowly, verified folks only.",
+   "type": "text",
+   "createdAt": "2026-11-16T12:20:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-a3",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Makes sense. I just verified my phone.",
+   "type": "text",
+   "createdAt": "2026-11-16T12:25:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-a4",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Count me in for Spiti if a spot opens",
+   "type": "text",
+   "createdAt": "2026-11-16T12:30:00Z",
+   "editedAt": null
+  }
+ ],
+ "dm-tentit": [
+  {
+   "id": "m-ti1",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Where exactly is the pickup in Majnu ka Tilla?",
+   "type": "text",
+   "createdAt": "2026-11-14T09:30:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-ti2",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Right outside the main market entrance.",
+   "type": "text",
+   "createdAt": "2026-11-14T09:45:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-ti3",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Got it, thanks!",
+   "type": "text",
+   "createdAt": "2026-11-14T09:50:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-ti4",
+   "clientId": null,
+   "author": {
+    "id": "u-tentit",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo_tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Pickup is at gate 2, near the Gurudwara",
+   "type": "text",
+   "createdAt": "2026-11-14T10:00:00Z",
+   "editedAt": null
+  }
+ ],
+ "dm-vikram": [
+  {
+   "id": "m-v1",
+   "clientId": null,
+   "author": {
+    "id": "u-vikram",
+    "username": "vikramrao",
+    "name": "Vikram Rao",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hi! Saw your Tosh plan, is it still open?",
+   "type": "text",
+   "createdAt": "2026-11-20T06:30:00Z",
+   "editedAt": null
+  }
+ ],
+ "dm-neha": [
+  {
+   "id": "m-n1",
+   "clientId": null,
+   "author": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Hi Dev, I sent a request to join Tosh & Kalga.",
+   "type": "text",
+   "createdAt": "2026-11-20T03:20:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-n2",
+   "clientId": null,
+   "author": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Kalga homestay women-friendly?",
+   "type": "text",
+   "createdAt": "2026-11-20T03:30:00Z",
+   "editedAt": null
+  }
+ ],
+ "room-rishi": [
+  {
+   "id": "m-rs1",
+   "clientId": null,
+   "author": {
+    "id": "u-unsolo",
+    "username": "unsolo",
+    "name": "UnSOLO",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "This trip has ended. Share your story with the group!",
+   "type": "system",
+   "createdAt": "2026-10-20T10:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-rs2",
+   "clientId": null,
+   "author": {
+    "id": "u-neha",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Ganga gang forever",
+   "type": "text",
+   "createdAt": "2026-10-20T11:00:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-rs3",
+   "clientId": null,
+   "author": {
+    "id": "u-you",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Kasol in December, who's in?",
+   "type": "text",
+   "createdAt": "2026-10-20T11:30:00Z",
+   "editedAt": null
+  },
+  {
+   "id": "m-rs4",
+   "clientId": null,
+   "author": {
+    "id": "u-meher",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Me!",
+   "type": "text",
+   "createdAt": "2026-10-20T11:40:00Z",
+   "editedAt": null
+  }
+ ]
+}

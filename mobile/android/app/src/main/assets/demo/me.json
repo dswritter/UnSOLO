@@ -1,0 +1,57 @@
+{
+ "user": {
+  "id": "u-you",
+  "username": "devsharma",
+  "name": "Dev Sharma",
+  "avatarUrl": null,
+  "isPhoneVerified": true,
+  "isIdVerified": false,
+  "isHost": false,
+  "email": "dev@example.com",
+  "phone": "+919800000000",
+  "gender": null,
+  "homeCity": "Delhi",
+  "bio": "First solo trip in 2025. Now planning the next one.",
+  "dateOfBirth": "1997-04-12"
+ },
+ "role": "traveller",
+ "isStaff": false,
+ "preferences": {
+  "landingTab": "explore",
+  "notify": {
+   "push": {
+    "plans": true,
+    "replies": true,
+    "messages": true,
+    "trips": true,
+    "tags": true,
+    "marketing": false
+   },
+   "email": {
+    "plans": true,
+    "replies": false,
+    "messages": false,
+    "trips": true,
+    "tags": false,
+    "marketing": false
+   },
+   "quietHours": {
+    "from": "22:00",
+    "to": "07:00"
+   }
+  },
+  "interests": [
+   "Treks",
+   "Mountains",
+   "Budget"
+  ],
+  "suggestByLocation": false,
+  "suggestByGender": false,
+  "shareLocation": false,
+  "dataSaver": false
+ },
+ "counts": {
+  "unreadNotifications": 4,
+  "unreadMessages": 3
+ }
+}

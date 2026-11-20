@@ -1,0 +1,9 @@
+#include "Base.xcconfig"
+
+API_BASE_URL = http:/$()/localhost:3000/api/v1
+WEB_BASE_URL = https:/$()/unsolo.in
+
+// DEMO_MODE serves bundled JSON fixtures instead of the network (Resources/Demo).
+// Turn it off at runtime with the launch argument: -demoMode NO
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG DEMO_MODE $(inherited)
+UNSOLO_DEMO_MODE = YES

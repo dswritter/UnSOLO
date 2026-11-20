@@ -1,0 +1,559 @@
+{
+ "upcoming": [
+  {
+   "id": "bedf8ac9-ff26-5f81-9296-4d1723cce502",
+   "status": "confirmed",
+   "travelDate": "2026-11-26",
+   "guests": 1,
+   "totalPaise": 1469900,
+   "paidPaise": 400000,
+   "balancePaise": 1069900,
+   "confirmationCode": "UNS-7K2Q9",
+   "trip": {
+    "id": "164a745f-ad23-5a02-9748-d6e197257de4",
+    "slug": "chalo-himachal",
+    "title": "Chalo Himachal",
+    "place": {
+     "name": "Manali · Kasol · Bir",
+     "slug": "himachal",
+     "lat": 32.24,
+     "lng": 77.19
+    },
+    "image": {
+     "url": "demo://photo/paragliding?seed=1",
+     "thumbUrl": "demo://photo/paragliding?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 1469900,
+    "durationDays": 10,
+    "nextDeparture": "2026-11-26",
+    "seatsLeft": 5,
+    "seatsTotal": 12,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://avatar/rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+      "username": "kabir.m",
+      "name": "Kabir Malhotra",
+      "avatarUrl": "demo://avatar/kabir",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    ]
+   },
+   "chatRoomId": "c9025b81-96c0-5d10-9023-02cc29b7900e"
+  }
+ ],
+ "plans": [
+  {
+   "id": "307d6986-4513-5564-a938-533b271261f1",
+   "kind": "plan",
+   "author": {
+    "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+    "username": "devsharma",
+    "name": "Dev Sharma",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "title": "Tosh & Kalga weekend",
+   "body": "Bhuntar by Volvo, then Barshaini. Night one in Tosh, night two at a Kalga homestay. Saturday is a slow day for Pulga's forest walk. I approve each request.",
+   "place": {
+    "name": "Tosh, Parvati Valley",
+    "slug": "tosh",
+    "lat": 32.02,
+    "lng": 77.45
+   },
+   "startsOn": "2026-12-04",
+   "endsOn": "2026-12-06",
+   "spotsTotal": 6,
+   "memberCount": 4,
+   "audience": "verified",
+   "estCostText": "Est. ₹4,500 each",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 12,
+    "helpful": 1,
+    "love": 3
+   },
+   "myReactions": [],
+   "commentCount": 2,
+   "status": "live",
+   "seats": [
+    {
+     "state": "you",
+     "user": {
+      "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-14T09:00:00.000Z",
+   "updatedAt": "2026-11-14T09:00:00.000Z",
+   "viewer": {
+    "isAuthor": true,
+    "membership": "approved",
+    "saved": false,
+    "canJoin": false,
+    "joinBlockedReason": "own_plan"
+   },
+   "meetingPoint": "Majnu ka Tilla bus stand, gate 2 · Thu 3 Dec, 19:30"
+  },
+  {
+   "id": "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd",
+   "kind": "plan",
+   "author": {
+    "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+    "username": "kabir.m",
+    "name": "Kabir Malhotra",
+    "avatarUrl": "demo://avatar/kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "title": "Sunrise at Lodhi Garden",
+   "body": "Easy 5 km walk, then chai at the Lodhi Colony market. First-timers welcome, we keep it relaxed.",
+   "place": {
+    "name": "Lodhi Garden, Delhi",
+    "slug": "delhi",
+    "lat": 28.59,
+    "lng": 77.22
+   },
+   "startsOn": "2026-11-22",
+   "endsOn": "2026-11-22",
+   "spotsTotal": 10,
+   "memberCount": 9,
+   "audience": "anyone",
+   "estCostText": "Free · bring your own chai money",
+   "media": [],
+   "trip": null,
+   "poll": null,
+   "reactions": {
+    "wantToGo": 18,
+    "helpful": 2,
+    "love": 11
+   },
+   "myReactions": [],
+   "commentCount": 3,
+   "status": "live",
+   "seats": [
+    {
+     "state": "organiser",
+     "user": {
+      "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+      "username": "kabir.m",
+      "name": "Kabir Malhotra",
+      "avatarUrl": "demo://avatar/kabir",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "you",
+     "user": {
+      "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+      "username": "nehajoshi",
+      "name": "Neha Joshi",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+      "username": "rinku",
+      "name": "Rinku Thakur",
+      "avatarUrl": "demo://avatar/rinku",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+      "username": "vikramr",
+      "name": "Vikram Rao",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "member",
+     "user": {
+      "id": "33c898db-2dc7-5ddc-87bc-80a4204e5240",
+      "username": "subodhn",
+      "name": "Subodh Negi",
+      "avatarUrl": "demo://avatar/subodh",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    },
+    {
+     "state": "open",
+     "user": null
+    }
+   ],
+   "createdAt": "2026-11-18T12:00:00.000Z",
+   "updatedAt": "2026-11-18T12:00:00.000Z",
+   "viewer": {
+    "isAuthor": false,
+    "membership": "approved",
+    "saved": false,
+    "canJoin": false,
+    "joinBlockedReason": null
+   },
+   "meetingPoint": "Gate 1, Lodhi Road · Sun 06:15"
+  }
+ ],
+ "requested": [],
+ "past": [
+  {
+   "id": "afc4aea8-6831-58ce-a35e-eee3df8777eb",
+   "status": "completed",
+   "travelDate": "2026-10-18",
+   "guests": 1,
+   "totalPaise": 499900,
+   "paidPaise": 499900,
+   "balancePaise": 0,
+   "confirmationCode": "UNS-4H8PZ",
+   "trip": {
+    "id": "46537cea-1152-5b0f-a405-86cff9f231bf",
+    "slug": "rishikesh-weekend",
+    "title": "Rishikesh Weekend",
+    "place": {
+     "name": "Rishikesh",
+     "slug": "rishikesh",
+     "lat": 30.09,
+     "lng": 78.27
+    },
+    "image": {
+     "url": "demo://photo/rishikesh?seed=1",
+     "thumbUrl": "demo://photo/rishikesh?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 499900,
+    "durationDays": 2,
+    "nextDeparture": "2026-11-27",
+    "seatsLeft": 11,
+    "seatsTotal": 12,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     }
+    ]
+   },
+   "chatRoomId": "c4955264-ca2c-5bad-84a3-c0598586f67a",
+   "storyPrompt": true
+  },
+  {
+   "id": "c124ae6b-aef3-5b13-ad54-cdb5fbd27211",
+   "status": "completed",
+   "travelDate": "2026-02-14",
+   "guests": 1,
+   "totalPaise": 799900,
+   "paidPaise": 799900,
+   "balancePaise": 0,
+   "confirmationCode": "UNS-2M6XA",
+   "trip": {
+    "id": "dad98a9a-1d17-57d1-867c-330c91b16f87",
+    "slug": "tungnath-chandrashila",
+    "title": "Tungnath & Chandrashila",
+    "place": {
+     "name": "Chopta, Uttarakhand",
+     "slug": "chopta",
+     "lat": 30.49,
+     "lng": 79.21
+    },
+    "image": {
+     "url": "demo://photo/tungnath?seed=1",
+     "thumbUrl": "demo://photo/tungnath?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 799900,
+    "durationDays": 4,
+    "nextDeparture": "2026-12-18",
+    "seatsLeft": 4,
+    "seatsTotal": 12,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     {
+      "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+      "username": "rahulv",
+      "name": "Rahul Verma",
+      "avatarUrl": "demo://avatar/rahul",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+      "username": "priyasen",
+      "name": "Priya Sen",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    ]
+   },
+   "chatRoomId": null,
+   "storyPrompt": false
+  },
+  {
+   "id": "5955ac75-34ce-5654-bb2a-04936f72ea5b",
+   "status": "completed",
+   "travelDate": "2025-12-12",
+   "guests": 1,
+   "totalPaise": 499900,
+   "paidPaise": 499900,
+   "balancePaise": 0,
+   "confirmationCode": "UNS-9T3LC",
+   "trip": {
+    "id": "d1f8d8cc-3fbd-5c45-b08f-db488ce18f65",
+    "slug": "kasol-kheerganga",
+    "title": "Kasol – Kheerganga Trek",
+    "place": {
+     "name": "Kasol, Parvati Valley",
+     "slug": "kasol",
+     "lat": 32.01,
+     "lng": 77.31
+    },
+    "image": {
+     "url": "demo://photo/kheerganga?seed=1",
+     "thumbUrl": "demo://photo/kheerganga?seed=1&thumb=1",
+     "lqip": null,
+     "width": 1600,
+     "height": 1150
+    },
+    "priceFromPaise": 499900,
+    "durationDays": 3,
+    "nextDeparture": "2026-12-11",
+    "seatsLeft": 6,
+    "seatsTotal": 14,
+    "host": {
+     "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+     "username": "tentitindia",
+     "name": "Tent It India",
+     "avatarUrl": "demo://logo/tentit",
+     "isPhoneVerified": true,
+     "isIdVerified": true,
+     "isHost": true
+    },
+    "goingFaces": [
+     {
+      "id": "aead8503-ddf0-5d66-a7ee-2e3172fc95a5",
+      "username": "rinku",
+      "name": "Rinku Thakur",
+      "avatarUrl": "demo://avatar/rinku",
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     {
+      "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+      "username": "vikramr",
+      "name": "Vikram Rao",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     }
+    ]
+   },
+   "chatRoomId": null,
+   "storyPrompt": false
+  }
+ ]
+}

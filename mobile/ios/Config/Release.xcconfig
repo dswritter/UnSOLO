@@ -1,0 +1,6 @@
+#include "Base.xcconfig"
+
+API_BASE_URL = https:/$()/unsolo.in/api/v1
+WEB_BASE_URL = https:/$()/unsolo.in
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited)
+UNSOLO_DEMO_MODE = NO

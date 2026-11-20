@@ -1,0 +1,6 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- A seat row: two taken seats (ink) and your seat (paper with ink outline). -->
+    <path android:fillColor="#16181C" android:pathData="M30,44h14a2,2 0 0,1 2,2v16a2,2 0 0,1 -2,2h-14a2,2 0 0,1 -2,-2v-16a2,2 0 0,1 2,-2z" />
+    <path android:fillColor="#16181C" android:pathData="M50,44h14a2,2 0 0,1 2,2v16a2,2 0 0,1 -2,2h-14a2,2 0 0,1 -2,-2v-16a2,2 0 0,1 2,-2z" />
+    <path android:fillColor="#F4F0E6" android:strokeColor="#16181C" android:strokeWidth="2.5" android:pathData="M70,45.25h14a0.75,0.75 0 0,1 0.75,0.75v16a0.75,0.75 0 0,1 -0.75,0.75h-14a0.75,0.75 0 0,1 -0.75,-0.75v-16a0.75,0.75 0 0,1 0.75,-0.75z" />
+</vector>

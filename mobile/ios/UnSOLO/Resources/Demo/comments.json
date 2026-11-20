@@ -1,0 +1,346 @@
+{
+ "5c4aafc4-58d1-5869-a506-6700ff3b7d0e": [
+  {
+   "id": "9c63d0f8-ba51-57e1-b408-9fadca6db831",
+   "postId": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+   "parentId": null,
+   "author": {
+    "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+    "username": "rahulv",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://avatar/rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is the Kunzum road open in January?",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T07:00:00.000Z",
+   "replies": [
+    {
+     "id": "174d0657-0133-5558-9723-261b441975dd",
+     "postId": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+     "parentId": "9c63d0f8-ba51-57e1-b408-9fadca6db831",
+     "author": {
+      "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "Kunzum's closed, so we go in via Shimla and Reckong Peo.",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T07:40:00.000Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "25da8f75-410b-5b94-8f7c-2ea1ba7e91b7",
+   "postId": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+   "parentId": null,
+   "author": {
+    "id": "60e302cf-937a-580b-9521-158bae6a46c5",
+    "username": "kabir.m",
+    "name": "Kabir Malhotra",
+    "avatarUrl": "demo://avatar/kabir",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Did this route last winter. Carry cash, the Kaza ATM runs out.",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T08:00:00.000Z",
+   "replies": [
+    {
+     "id": "7f98f5c8-48ba-5f48-b43d-b09ace3206c5",
+     "postId": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+     "parentId": "25da8f75-410b-5b94-8f7c-2ea1ba7e91b7",
+     "author": {
+      "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+      "username": "ananyasingh",
+      "name": "Ananya Singh",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "Noted, thanks Kabir!",
+     "pollChoice": null,
+     "createdAt": "2026-11-20T08:20:00.000Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "2d676ed4-a9a7-574a-911b-33d6cb912544",
+   "postId": "5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+   "parentId": null,
+   "author": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "We run a Spiti winter departure on 9 Jan if anyone wants a hosted option alongside.",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T09:00:00.000Z",
+   "replies": []
+  }
+ ],
+ "c4fe9b3b-4bb5-5419-8ea1-c69df05992df": [
+  {
+   "id": "0c126690-d018-52ab-a4d5-dbc5bcb55802",
+   "postId": "c4fe9b3b-4bb5-5419-8ea1-c69df05992df",
+   "parentId": null,
+   "author": {
+    "id": "d397a595-574d-5f5c-94a9-d69937ce8872",
+    "username": "ananyasingh",
+    "name": "Ananya Singh",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "That Bir landing video! I'm on the 26 Nov batch.",
+   "pollChoice": null,
+   "createdAt": "2026-10-12T18:00:00.000Z",
+   "replies": [
+    {
+     "id": "4cb5c5ab-67ed-556a-95b7-f01cff75369f",
+     "postId": "c4fe9b3b-4bb5-5419-8ea1-c69df05992df",
+     "parentId": "0c126690-d018-52ab-a4d5-dbc5bcb55802",
+     "author": {
+      "id": "8809cd3b-7db5-5a5a-95da-70f49defeae2",
+      "username": "rohanmehra",
+      "name": "Rohan Mehra",
+      "avatarUrl": "demo://avatar/rohan",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "You'll love it. Ask for Sanjay, best pilot there.",
+     "pollChoice": null,
+     "createdAt": "2026-10-12T19:00:00.000Z",
+     "replies": []
+    }
+   ]
+  },
+  {
+   "id": "f1c1bf4d-9734-5cce-9b1d-e29343703988",
+   "postId": "c4fe9b3b-4bb5-5419-8ea1-c69df05992df",
+   "parentId": null,
+   "author": {
+    "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+    "username": "riyakapoor",
+    "name": "Riya Kapoor",
+    "avatarUrl": "demo://avatar/riya",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Saving this for March.",
+   "pollChoice": null,
+   "createdAt": "2026-10-13T09:00:00.000Z",
+   "replies": []
+  },
+  {
+   "id": "67c96a30-0b25-52bf-8b4d-50b970a62f1e",
+   "postId": "c4fe9b3b-4bb5-5419-8ea1-c69df05992df",
+   "parentId": null,
+   "author": {
+    "id": "8348d61b-d899-593b-91da-42b0497de909",
+    "username": "meherkaur",
+    "name": "Meher Kaur",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Volvo gang forever",
+   "pollChoice": null,
+   "createdAt": "2026-10-14T09:00:00.000Z",
+   "replies": []
+  }
+ ],
+ "1a184df1-6b63-5f81-a2e8-d430177bc0ab": [
+  {
+   "id": "b1c71ca6-a4c5-5046-972b-0646d1cfdc64",
+   "postId": "1a184df1-6b63-5f81-a2e8-d430177bc0ab",
+   "parentId": null,
+   "author": {
+    "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+    "username": "riyakapoor",
+    "name": "Riya Kapoor",
+    "avatarUrl": "demo://avatar/riya",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": false
+   },
+   "body": "Riverside. The common room has a fire every night and people plan walks there.",
+   "pollChoice": "74fe93d8-00be-549c-9347-10cf96cf17d2",
+   "createdAt": "2026-11-20T05:00:00.000Z",
+   "replies": []
+  },
+  {
+   "id": "e5d02972-84e8-534d-907a-b6a90e178780",
+   "postId": "1a184df1-6b63-5f81-a2e8-d430177bc0ab",
+   "parentId": null,
+   "author": {
+    "id": "a8a72e35-a5ca-5c14-b680-59a482b2b90f",
+    "username": "parvatitreks",
+    "name": "Parvati Treks",
+    "avatarUrl": "demo://logo/parvati",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Tosh is quieter in December, lots of cafés shut. Kasol is the better base for meeting people.",
+   "pollChoice": null,
+   "createdAt": "2026-11-20T05:30:00.000Z",
+   "replies": []
+  }
+ ],
+ "693e65c9-15ae-5bbf-9884-a2616176f531": [
+  {
+   "id": "ab031301-e73a-56bc-83c3-b5b38b99d88a",
+   "postId": "693e65c9-15ae-5bbf-9884-a2616176f531",
+   "parentId": null,
+   "author": {
+    "id": "2511f9b9-1bdc-5087-8df1-5a48137b9fa9",
+    "username": "tentitindia",
+    "name": "Tent It India",
+    "avatarUrl": "demo://logo/tentit",
+    "isPhoneVerified": true,
+    "isIdVerified": true,
+    "isHost": true
+   },
+   "body": "Doable. The trail is clear but icy after 3 pm, so start by 8. Most dhabas at the top shut by mid-December.",
+   "pollChoice": null,
+   "createdAt": "2026-11-17T18:00:00.000Z",
+   "replies": [
+    {
+     "id": "cc7f5916-ea6c-5f15-bec8-04eeb4948578",
+     "postId": "693e65c9-15ae-5bbf-9884-a2616176f531",
+     "parentId": "ab031301-e73a-56bc-83c3-b5b38b99d88a",
+     "author": {
+      "id": "e1ab3eb6-9a4e-5a86-a5b2-4428f0fca8d5",
+      "username": "vikramr",
+      "name": "Vikram Rao",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": false,
+      "isHost": false
+     },
+     "body": "Super helpful, thank you!",
+     "pollChoice": null,
+     "createdAt": "2026-11-17T19:00:00.000Z",
+     "replies": []
+    }
+   ]
+  }
+ ],
+ "307d6986-4513-5564-a938-533b271261f1": [
+  {
+   "id": "f63b850a-a830-5618-9e2c-7439970dbf88",
+   "postId": "307d6986-4513-5564-a938-533b271261f1",
+   "parentId": null,
+   "author": {
+    "id": "a184996c-486e-5003-9af1-b7bdc15b6112",
+    "username": "priyasen",
+    "name": "Priya Sen",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Can we leave Friday night instead of Thursday?",
+   "pollChoice": null,
+   "createdAt": "2026-11-16T10:00:00.000Z",
+   "replies": [
+    {
+     "id": "9631233e-53b1-5592-a374-962c4fb5419d",
+     "postId": "307d6986-4513-5564-a938-533b271261f1",
+     "parentId": "f63b850a-a830-5618-9e2c-7439970dbf88",
+     "author": {
+      "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+      "username": "devsharma",
+      "name": "Dev Sharma",
+      "avatarUrl": null,
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": true
+     },
+     "body": "Thursday night bus gets us there for Friday breakfast, so let's keep it.",
+     "pollChoice": null,
+     "createdAt": "2026-11-16T11:00:00.000Z",
+     "replies": []
+    }
+   ]
+  }
+ ],
+ "61b7cc86-a41b-5d1c-b929-3bab7960d69d": [
+  {
+   "id": "1dba0f1b-ea21-5d0e-8f98-0ce160e6f2ae",
+   "postId": "61b7cc86-a41b-5d1c-b929-3bab7960d69d",
+   "parentId": null,
+   "author": {
+    "id": "c2eba895-9949-5dde-982c-879b9351a2b3",
+    "username": "rahulv",
+    "name": "Rahul Verma",
+    "avatarUrl": "demo://avatar/rahul",
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Which month has the snow on the trail?",
+   "pollChoice": null,
+   "createdAt": "2026-11-09T12:00:00.000Z",
+   "replies": [
+    {
+     "id": "ce40145a-6813-58bb-ac32-b21eadbabf47",
+     "postId": "61b7cc86-a41b-5d1c-b929-3bab7960d69d",
+     "parentId": "1dba0f1b-ea21-5d0e-8f98-0ce160e6f2ae",
+     "author": {
+      "id": "e2e0694a-7955-5bb2-87f8-e26bd030f9e7",
+      "username": "riyakapoor",
+      "name": "Riya Kapoor",
+      "avatarUrl": "demo://avatar/riya",
+      "isPhoneVerified": true,
+      "isIdVerified": true,
+      "isHost": false
+     },
+     "body": "Late December to February.",
+     "pollChoice": null,
+     "createdAt": "2026-11-09T13:00:00.000Z",
+     "replies": []
+    }
+   ]
+  }
+ ],
+ "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd": [
+  {
+   "id": "8b6c4279-6e1d-5365-88e1-9589a6a7df80",
+   "postId": "7ec9dfc8-8e7f-5fa7-a13d-0df9470910cd",
+   "parentId": null,
+   "author": {
+    "id": "f5fd80ae-7f7b-5c7f-9e1a-ed8a4c1ffd3e",
+    "username": "nehajoshi",
+    "name": "Neha Joshi",
+    "avatarUrl": null,
+    "isPhoneVerified": true,
+    "isIdVerified": false,
+    "isHost": false
+   },
+   "body": "Is there parking near gate 1?",
+   "pollChoice": null,
+   "createdAt": "2026-11-18T14:00:00.000Z",
+   "replies": []
+  }
+ ]
+}

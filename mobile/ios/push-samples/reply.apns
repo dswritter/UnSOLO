@@ -1,0 +1,12 @@
+{
+  "Simulator Target Bundle": "in.unsolo.app",
+  "aps": {
+    "alert": { "title": "Ananya replied to your comment", "body": "Kunzum's closed, so we go in via Shimla and Reckong Peo." },
+    "thread-id": "replies",
+    "category": "replies",
+    "sound": "default"
+  },
+  "type": "reply",
+  "link": "/tribe/p/5c4aafc4-58d1-5869-a506-6700ff3b7d0e",
+  "notificationId": "00000000-0000-4000-8000-000000000002"
+}

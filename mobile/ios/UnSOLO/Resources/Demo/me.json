@@ -1,0 +1,57 @@
+{
+ "user": {
+  "id": "ce8ae7d4-774e-58f8-8788-8202382b0834",
+  "username": "devsharma",
+  "name": "Dev Sharma",
+  "avatarUrl": null,
+  "isPhoneVerified": true,
+  "isIdVerified": true,
+  "isHost": true,
+  "email": "dev@example.com",
+  "phone": "+919800000000",
+  "gender": "man",
+  "homeCity": "Delhi",
+  "bio": "Weekend trekker, weekday spreadsheet person. Hosting small groups in the Parvati valley.",
+  "dateOfBirth": "1996-04-12"
+ },
+ "role": "user",
+ "isStaff": false,
+ "preferences": {
+  "landingTab": "explore",
+  "notify": {
+   "push": {
+    "plans": true,
+    "replies": true,
+    "messages": true,
+    "trips": true,
+    "tags": true,
+    "marketing": false
+   },
+   "email": {
+    "plans": true,
+    "replies": false,
+    "messages": false,
+    "trips": true,
+    "tags": false,
+    "marketing": false
+   },
+   "quietHours": {
+    "from": "22:00",
+    "to": "07:00"
+   }
+  },
+  "interests": [
+   "Treks",
+   "Mountains",
+   "Hostels"
+  ],
+  "suggestByLocation": false,
+  "suggestByGender": false,
+  "shareLocation": false,
+  "dataSaver": false
+ },
+ "counts": {
+  "unreadNotifications": 3,
+  "unreadMessages": 20
+ }
+}
