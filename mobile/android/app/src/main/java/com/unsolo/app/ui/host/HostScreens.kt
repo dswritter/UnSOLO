@@ -60,7 +60,7 @@ fun HostScreen(nav: AppNav) {
                 Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconTap(PcIcons.Back, "Back", { nav.back() })
                     Text("Hosting", style = Pc.type.display, color = c.ink, modifier = Modifier.weight(1f))
-                    PcButton("New trip", { nav.openWeb("/host") }, icon = PcIcons.Plus, height = 44.dp)
+                    PcButton("New trip", { nav.openWeb("/host") }, icon = PcIcons.Plus, height = BtnSmall)
                 }
             }
             InsetRule()
@@ -87,7 +87,7 @@ fun HostScreen(nav: AppNav) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     FaceStack(p.seats.mapNotNull { it.user }.take(4))
                     Spacer(Modifier.weight(1f))
-                    PcButton("Offer to host", { if (nav.requirePhone()) nav.to(Routes.offerForm(p.id)) }, kind = BtnKind.Outline, height = 44.dp, enabled = isHost)
+                    PcButton("Offer to host", { if (nav.requirePhone()) nav.to(Routes.offerForm(p.id)) }, kind = BtnKind.Outline, height = BtnSmall, enabled = isHost)
                 }
             }
         }
@@ -254,7 +254,7 @@ fun OffersReviewScreen(postId: String, nav: AppNav) {
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("${i + 1}", style = Pc.type.num, color = c.ink, modifier = Modifier.width(28.dp)); Text(s, style = Pc.type.body, color = c.ink) }
                 InsetRule()
             }
-            if (accepted != null) Column(Modifier.padding(Gutter).fillMaxWidth().clip(RoundedCornerShape(PcTokens.radiusButton)).background(c.goldBg).padding(12.dp)) {
+            if (accepted != null) Column(Modifier.padding(Gutter).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.pineSoft).padding(14.dp)) {
                 Text("Accepted. Seats are held.", style = Pc.type.bodyStrong, color = c.ink)
                 Text("Everyone pays on unsolo.in by ${Fmt.dowDayMonth(accepted.payBy)}.", style = Pc.type.small, color = c.ink2)
                 accepted.packageSlug?.let { slug -> Spacer(Modifier.height(8.dp)); PcButton("Open the trip page", { nav.openWeb("/packages/$slug?book=1") }, Modifier.fillMaxWidth()) }

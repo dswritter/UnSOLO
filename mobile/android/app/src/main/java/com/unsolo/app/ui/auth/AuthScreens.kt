@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -126,8 +127,12 @@ fun AuthScreen(nav: AppNav) {
                     Spacer(Modifier.height(8.dp))
                     Text("Browse trips and the Tribe freely. An account lets you take a seat, post and join plans.", style = Pc.type.body, color = c.ink2)
                     Spacer(Modifier.height(20.dp))
-                    SeatRow(listOf(Seat(SeatState.HOST, UserLite("h", name = "Tent It")), Seat(SeatState.MEMBER, UserLite("a", name = "Ananya Singh")), Seat(SeatState.MEMBER, UserLite("r", name = "Rohan Mehra")),
-                        Seat(SeatState.HELD), Seat(SeatState.OPEN), Seat(SeatState.OPEN)), maxCell = PcTokens.seat)
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        // Three travellers in, your gold seat drawing in, the rest open: take your place.
+                        SeatRing(total = 8, taken = 3, size = 168.dp, you = YouSeat.You,
+                            people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
+                            centerLabel = "5" to "seats open", centerLabelSize = 34.dp, contentDescription = "A circle of 8 seats: 3 taken, yours, and 4 open")
+                    }
                     Spacer(Modifier.height(28.dp))
                     val activity = androidx.compose.ui.platform.LocalContext.current
                     PcButton("Continue with Google", { vm.google(activity, { nav.openAuthUrl(it) }, done) }, Modifier.fillMaxWidth(), enabled = !vm.busy,

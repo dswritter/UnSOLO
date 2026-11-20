@@ -1,6 +1,7 @@
 package com.unsolo.app.ui.activity
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -111,18 +113,18 @@ fun ActivityScreen(nav: AppNav) {
                             n.type in JoinTypes && n.postId != null && n.actorId != null -> when {
                                 decided[n.id] != null || (actorState != null && actorState != "requested") -> {
                                     val ok = decided[n.id] ?: (actorState == "approved")
-                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.green else Pc.colors.ink2)
+                                    Text(if (ok) "Approved · they can see the meeting point" else "Declined", style = Pc.type.smallStrong, color = if (ok) Pc.colors.pine else Pc.colors.ink2)
                                 }
                                 else -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    PcButton("Decline", { vm.decideFrom(n, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = 44.dp)
-                                    PcButton("Approve", { vm.decideFrom(n, true) }, Modifier.weight(1f), height = 44.dp)
+                                    PcButton("Decline", { vm.decideFrom(n, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
+                                    PcButton("Approve", { vm.decideFrom(n, true) }, Modifier.weight(1f), height = BtnSmall)
                                 }
                             }
                             n.type in JoinTypes && postId != null && pending > 0 -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PcButton("Review", { vm.open(n); tab = "requests" }, Modifier.weight(1f), kind = BtnKind.Outline, height = 44.dp)
-                                PcButton(if (pending > 1) "Approve all $pending" else "Approve", { vm.open(n); vm.approveAll(postId) }, Modifier.weight(1f), height = 44.dp)
+                                PcButton("Review", { vm.open(n); tab = "requests" }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
+                                PcButton(if (pending > 1) "Approve all $pending" else "Approve", { vm.open(n); vm.approveAll(postId) }, Modifier.weight(1f), height = BtnSmall)
                             }
-                            n.type == "plan.host_offer" && postId != null -> PcButton("See offer", { vm.open(n); nav.to(Routes.offers(postId)) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, height = 44.dp)
+                            n.type == "plan.host_offer" && postId != null -> PcButton("See offer", { vm.open(n); nav.to(Routes.offers(postId)) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, height = BtnSmall)
                         }
                     })
             }
@@ -135,7 +137,7 @@ fun ActivityScreen(nav: AppNav) {
                             Text(plan.title ?: "Your plan", style = Pc.type.title3, color = c.ink)
                             Text("${Fmt.range(plan.startsOn, plan.endsOn)} · ${plan.memberCount} of ${plan.spotsTotal ?: plan.seats.size} in", style = Pc.type.small, color = c.ink2)
                         }
-                        SeatStrip(plan.seats, cell = 14.dp)
+                        MiniArc(plan.spotsTotal ?: plan.seats.size, plan.memberCount, women = plan.audience == "women")
                     }
                     Hairline()
                 }
@@ -152,19 +154,19 @@ private val JoinTypes = setOf("tribe_join_request", "plan.join_request")
 @Composable
 private fun NotificationRow(n: AppNotification, onOpen: () -> Unit, actions: @Composable () -> Unit) {
     val c = Pc.colors
-    Column(Modifier.padding(horizontal = Gutter, vertical = 5.dp).fillMaxWidth()
+    Column(Modifier.padding(horizontal = 14.dp, vertical = 5.dp).fillMaxWidth()
         .then(if (n.isRead) Modifier.clip(RoundedCornerShape(PcTokens.radiusCard)) else Modifier.raisedCard())
         .clickable(onClick = onOpen).padding(14.dp)) {
         Row(verticalAlignment = Alignment.Top) {
             Box {
-                Box(Modifier.size(44.dp).clip(CircleShape).background(tonal()), contentAlignment = Alignment.Center) {
-                    PcIcon(when (n.category) { "plans" -> PcIcons.Users; "replies" -> PcIcons.Chat; "messages" -> PcIcons.Mail; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Image; else -> PcIcons.Bell }, null, size = 20.dp)
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(if (n.isRead) c.tonal else c.pineSoft), contentAlignment = Alignment.Center) {
+                    PcIcon(when (n.category) { "plans" -> PcIcons.UsersThree; "replies" -> PcIcons.ChatCircle; "messages" -> PcIcons.ChatsCircle; "trips" -> PcIcons.Ticket; "tags" -> PcIcons.Camera; else -> PcIcons.Bell }, null, size = 20.dp, tint = c.pine)
                 }
-                if (!n.isRead) Box(Modifier.align(Alignment.TopEnd).size(10.dp).clip(CircleShape).background(c.red))
+                if (!n.isRead) Box(Modifier.align(Alignment.TopEnd).offset(3.dp, (-3).dp).size(12.dp).clip(CircleShape).background(c.raised).padding(2.dp).clip(CircleShape).background(c.rose))
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(n.title, style = if (n.isRead) Pc.type.body else Pc.type.bodyStrong, color = c.ink)
+                Text(n.title, style = if (n.isRead) Pc.type.body else Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
                 Text(listOfNotNull(n.body, Fmt.ago(n.createdAt)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -182,8 +184,31 @@ fun SignedOutState(nav: AppNav, title: String) {
 
 // ---------------- Inbox ----------------
 
+/** What a group chat's ring needs: the booking (trip circle) or plan behind it, when we have one cached. */
+@Immutable
+data class CircleInfo(val total: Int, val othersTaken: Int, val you: Boolean, val past: Boolean, val plan: Boolean, val women: Boolean, val sub: String)
+
+fun circleFor(ch: ChatSummary, trips: MyTripsResponse?): CircleInfo? {
+    if (trips == null || ch.type == "direct") return null
+    val up = trips.upcoming.firstOrNull { it.chatRoomId == ch.id }
+    val past = trips.past.firstOrNull { it.chatRoomId == ch.id }
+    val b = up ?: past
+    if (b != null) {
+        val total = b.trip.seatsTotal ?: 0
+        if (total <= 0) return null
+        val taken = (total - (b.trip.seatsLeft ?: 0)).coerceAtLeast(1)
+        val sub = if (up != null) "Trip circle · ${Fmt.inDays(b.travelDate)}" else "Went · ${Fmt.dayMonth(b.travelDate)}"
+        return CircleInfo(total, if (past != null) total - 1 else taken - 1, true, past != null, false, false, sub)
+    }
+    // Plan chats are named after the plan.
+    val p = (trips.plans + trips.requested).firstOrNull { it.title != null && it.title.equals(ch.name, ignoreCase = true) } ?: return null
+    val total = p.spotsTotal ?: p.seats.size
+    return CircleInfo(total, (p.memberCount - 1).coerceAtLeast(0), true, false, true, p.audience == "women", "Plan circle" + if (p.audience == "women") " · women only" else "")
+}
+
 class InboxViewModel(private val g: AppGraph) : ViewModel() {
     val chats = g.chat.observeChats().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val trips = g.explore.observeMyTrips().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val me = g.account.me
     init { viewModelScope.launch { g.chat.refreshChats() } }
 }
@@ -193,61 +218,78 @@ fun InboxScreen(nav: AppNav) {
     if (!nav.graph.account.isSignedIn.collectAsStateWithLifecycle().value) { SignedOutState(nav, "Messages"); return }
     val vm: InboxViewModel = viewModel { InboxViewModel(nav.graph) }
     val chats by vm.chats.collectAsStateWithLifecycle()
+    val trips by vm.trips.collectAsStateWithLifecycle()
     val me by vm.me.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf("chats") }
+    var tab by rememberSaveable { mutableStateOf("circles") }
     val c = Pc.colors
-    val (requests, normal) = chats.partition { it.isRequest }
+    val requests = chats.filter { it.isRequest }
+    val circles = chats.filter { !it.isRequest && it.type != "direct" }
+    val direct = chats.filter { !it.isRequest && it.type == "direct" }
     LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
         item(key = "h") {
-            PageHeader("Messages", LocalHeaderCounts.current, { }, { nav.to(Routes.ACTIVITY) }, onBack = { nav.back() })
-            Segmented(listOf("chats" to "Chats", "requests" to "Requests · ${requests.size}"), tab, { tab = it })
-            Spacer(Modifier.height(12.dp))
+            PageHeader("Messages", LocalHeaderCounts.current, { }, { nav.to(Routes.ACTIVITY) }, onBack = { nav.back() }, actions = false) {
+                IconTap(PcIcons.Bell, "Activity", { nav.to(Routes.ACTIVITY) }, badge = LocalHeaderCounts.current.activity > 0)
+            }
+            Segmented(listOf("circles" to "Circles · ${circles.size}", "direct" to "Direct · ${direct.size}", "requests" to if (requests.isEmpty()) "Requests" else "Requests · ${requests.size}"), tab, { tab = it })
             Spacer(Modifier.height(4.dp))
         }
-        val shown = if (tab == "chats") normal else requests
-        if (shown.isEmpty()) item { EmptyState(if (tab == "chats") "No chats yet" else "No requests", if (tab == "chats") "Trip and plan chats open when you book or get approved." else "Messages from people you don't follow land here.") }
-        items(shown, key = { it.id }, contentType = { "chat" }) { ch -> ChatRow(ch, me?.user?.firstName) { nav.to(Routes.chat(ch.id)) } }
-        if (tab == "chats" && requests.isNotEmpty()) {
-            item(key = "rq-h") { SectionHeader("Requests", Modifier.padding(top = 12.dp), trailing = "${requests.size}") }
-            items(requests, key = { "rq-" + it.id }) { ch -> ChatRow(ch, me?.user?.firstName) { nav.to(Routes.chat(ch.id)) } }
+        val shown = when (tab) { "circles" -> circles; "direct" -> direct; else -> requests }
+        if (shown.isEmpty()) item {
+            EmptyState(
+                when (tab) { "circles" -> "No circles yet"; "direct" -> "No direct messages"; else -> "No requests" },
+                when (tab) { "circles" -> "Trip and plan chats open when you book or get approved."; "direct" -> "Message a traveller from their profile or a post."; else -> "Messages from people you don't follow land here." },
+            )
         }
-        item(key = "note") {
+        items(shown, key = { it.id }, contentType = { "chat" }) { ch -> ChatRow(ch, circleFor(ch, trips), me?.user?.firstName) { nav.to(Routes.chat(ch.id)) } }
+        if (tab == "requests" || requests.isNotEmpty() && tab == "direct") item(key = "note") {
             Text("Requests come from people you don't follow. They won't know you've read them until you reply. You can also report or block.",
-                style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(16.dp))
+                style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(Gutter))
         }
     }
 }
 
 @Composable
-private fun ChatRow(ch: ChatSummary, myFirstName: String?, onClick: () -> Unit) {
+private fun ChatAvatar(ch: ChatSummary, circle: CircleInfo?, size: androidx.compose.ui.unit.Dp) {
     val c = Pc.colors
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = Gutter, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        val group = ch.type != "direct"
-        if (ch.image != null) ProgressiveImage(ch.image, Modifier.size(52.dp).clip(if (group) RoundedCornerShape(PcTokens.radiusButton) else CircleShape))
-        else Avatar(UserLite("x", name = ch.name), 52.dp, square = group)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(ch.name, style = Pc.type.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val last = ch.lastMessage
-            if (last != null) {
-                val who = last.authorName?.let { if (it == myFirstName) "You: " else if (group) "$it: " else "" }.orEmpty()
-                Text(who + last.body, style = if (ch.unread > 0) Pc.type.smallStrong else Pc.type.small, color = if (ch.unread > 0) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    when {
+        circle != null -> SeatRing(circle.total, circle.othersTaken, size, you = if (circle.you) YouSeat.You else YouSeat.None, plan = circle.plan, women = circle.women, past = circle.past, photo = ch.image, dots = false, animate = false)
+        ch.type != "direct" -> Box(Modifier.size(size).clip(CircleShape).border(2.dp, c.pine, CircleShape).padding(4.dp)) { if (ch.image != null) ProgressiveImage(ch.image, Modifier.fillMaxSize().clip(CircleShape)) else Avatar(UserLite("x", name = ch.name), size - 8.dp) }
+        ch.image != null -> ProgressiveImage(ch.image, Modifier.size(size).clip(CircleShape))
+        else -> Avatar(UserLite("x", name = ch.name), size)
+    }
+}
+
+@Composable
+private fun ChatRow(ch: ChatSummary, circle: CircleInfo?, myFirstName: String?, onClick: () -> Unit) {
+    val c = Pc.colors
+    Column(Modifier.padding(horizontal = Gutter)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 11.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            val group = ch.type != "direct"
+            ChatAvatar(ch, circle, 48.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(ch.name, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(Fmt.ago(ch.lastMessage?.at), style = Pc.type.label, color = c.ink3)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val last = ch.lastMessage
+                    val who = last?.authorName?.let { if (it == myFirstName || it.substringBefore(' ') == myFirstName) "You: " else if (group) "${if (it.length <= 14) it else it.substringBefore(' ')}: " else "" }.orEmpty()
+                    Text(if (last != null) who + last.body else "", style = if (ch.unread > 0) Pc.type.smallStrong.copy(fontSize = 13.5.sp) else Pc.type.small.copy(fontSize = 13.5.sp), color = if (ch.unread > 0) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (ch.unread > 0) { Spacer(Modifier.width(8.dp)); CountBadge(ch.unread) }
+                }
+                circle?.sub?.let { Text(it, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3, modifier = Modifier.padding(top = 1.dp)) }
             }
         }
-        Spacer(Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            Text(Fmt.ago(ch.lastMessage?.at), style = Pc.type.label, color = c.ink2)
-            Spacer(Modifier.height(4.dp))
-            if (ch.unread > 0) CountBadge(ch.unread)
-        }
+        Hairline()
     }
-    InsetRule(start = Gutter + 64.dp)
 }
 
 // ---------------- Chat room ----------------
 
 class ChatViewModel(private val g: AppGraph, val roomId: String) : ViewModel() {
     val chat = g.chat.observeChat(roomId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val trips = g.explore.observeMyTrips().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     val messages = g.chat.observeMessages(roomId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val me = g.account.me
 
@@ -293,11 +335,24 @@ fun ChatScreen(roomId: String, nav: AppNav) {
     var reportMsg by remember { mutableStateOf<ChatMessage?>(null) }
     val other = msgs.firstOrNull { !it.mine && it.message.type != "system" }?.message?.author
     val c = Pc.colors
+    val trips by vm.trips.collectAsStateWithLifecycle()
+    val circle = chat?.let { circleFor(it, trips) }
     Column(Modifier.fillMaxSize().background(c.paper)) {
-        DetailTopBar(chat?.name ?: "Chat", onBack = { nav.back() }, trailing = chat?.type?.let { if (it == "trip") "GROUP" else null }) {
-            IconTap(PcIcons.Flag, "Report or block", { reportMsg = null; report = true })
+        Column(Modifier.fillMaxWidth().background(c.paper).statusBarsPadding()) {
+            Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconTap(PcIcons.Back, "Back", { nav.back() })
+                chat?.let { ChatAvatar(it, circle, 44.dp) }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(chat?.name ?: "Chat", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val sub = circle?.let { ci -> "${ci.othersTaken + 1} of ${ci.total} · ${ci.sub.substringAfter(" · ", ci.sub)}" } ?: if (chat?.type == "direct") "Direct message" else "Group"
+                    Text(sub, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3, maxLines = 1)
+                }
+                IconTap(PcIcons.Flag, "Report or block", { reportMsg = null; report = true })
+            }
+            Hairline()
         }
-        if (chat?.isRequest == true) Text("Message request · they won't know you've read it until you reply.", style = Pc.type.small, color = c.ink2, modifier = Modifier.fillMaxWidth().background(c.raised).padding(12.dp))
+        if (chat?.isRequest == true) Text("Message request · they won't know you've read it until you reply.", style = Pc.type.small, color = c.ink2, modifier = Modifier.fillMaxWidth().background(c.tonal).padding(12.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState, reverseLayout = true, contentPadding = PaddingValues(vertical = 12.dp)) {
             val ordered = msgs.asReversed()
             items(ordered.size, key = { i -> ordered[i].message.clientId?.let { cid -> "c:$cid" } ?: ordered[i].message.id }, contentType = { i -> ordered[i].message.type }) { i ->
@@ -308,14 +363,12 @@ fun ChatScreen(roomId: String, nav: AppNav) {
                 Bubble(m, first, last, onRetry = { m.message.clientId?.let(vm::retry) }, onReport = { reportMsg = m.message; report = true })
             }
         }
-        Column(Modifier.fillMaxWidth().background(c.raised).navigationBarsPadding().imePadding()) {
-            Spacer(Modifier.height(4.dp))
-            Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                BoxedInput(text, { text = it.take(4000) }, "Message", Modifier.weight(1f), singleLine = false)
+        Column(Modifier.fillMaxWidth().background(c.raised.copy(alpha = 0.97f)).navigationBarsPadding().imePadding()) {
+            Hairline()
+            Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                BoxedInput(text, { text = it.take(4000) }, if (chat?.type == "direct") "Message" else "Message the circle", Modifier.weight(1f), singleLine = false)
                 Spacer(Modifier.width(8.dp))
-                Box(Modifier.size(48.dp).clip(CircleShape).background(if (text.isBlank()) tonal() else c.ink).clickable(onClickLabel = "Send") { if (text.isNotBlank()) { vm.send(text); text = "" } }, contentAlignment = Alignment.Center) {
-                    PcIcon(PcIcons.Send, "Send", tint = if (text.isBlank()) c.ink3 else c.onInk, size = 20.dp)
-                }
+                com.unsolo.app.ui.tribe.SendButton(enabled = text.isNotBlank()) { vm.send(text); text = "" }
             }
         }
     }
@@ -338,16 +391,17 @@ private fun Bubble(m: ChatRepository.UiMessage, first: Boolean, last: Boolean, o
         return
     }
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 3.dp), horizontalArrangement = if (m.mine) Arrangement.End else Arrangement.Start, verticalAlignment = Alignment.Bottom) {
-        if (!m.mine) { if (last) Avatar(msg.author, 28.dp) else Spacer(Modifier.width(28.dp)); Spacer(Modifier.width(8.dp)) }
+        if (!m.mine) { if (last) Avatar(msg.author, 30.dp, Modifier.padding(bottom = if (m.state == LocalState.SYNCED || m.state.isBlank()) 18.dp else 0.dp)) else Spacer(Modifier.width(30.dp)); Spacer(Modifier.width(8.dp)) }
         Column(horizontalAlignment = if (m.mine) Alignment.End else Alignment.Start, modifier = Modifier.widthIn(max = 290.dp)) {
-            if (!m.mine && first) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(msg.author.firstName, style = Pc.type.label, color = c.ink2)
-                if (msg.author.isHost) { Spacer(Modifier.width(4.dp)); Tag("Host", TagKind.Host) }
+            if (!m.mine && first) Row(Modifier.padding(start = 4.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (msg.author.isHost) "${msg.author.name} · Host" else msg.author.firstName, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
             }
-            val shape = RoundedCornerShape(18.dp)
-            Text(msg.body, style = Pc.type.body, color = if (m.mine) c.onInk else c.ink,
-                modifier = Modifier.clip(shape).then(if (m.mine) Modifier else Modifier.combinedClickable(onClick = {}, onLongClick = onReport, onLongClickLabel = "Report message")).background(if (m.mine) c.ink.copy(alpha = if (m.state == LocalState.SENDING) 0.7f else 1f) else tonal())
-                    .padding(horizontal = 14.dp, vertical = 9.dp))
+            val shape = if (m.mine) RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 6.dp, bottomEnd = 20.dp)
+            Text(msg.body, style = Pc.type.body.copy(fontSize = 14.5.sp), color = if (m.mine) c.onPine else c.ink,
+                modifier = Modifier.clip(shape).then(if (m.mine) Modifier else Modifier.combinedClickable(onClick = {}, onLongClick = onReport, onLongClickLabel = "Report message"))
+                    .background(if (m.mine) c.pine.copy(alpha = if (m.state == LocalState.SENDING) 0.7f else 1f) else c.raised)
+                    .then(if (m.mine) Modifier else Modifier.border(1.dp, c.rule, shape))
+                    .padding(horizontal = 13.dp, vertical = 9.dp))
             when (m.state) {
                 LocalState.SENDING -> Text("Sending…", style = Pc.type.label, color = c.ink3)
                 LocalState.FAILED -> Text("Not sent · Tap to retry", style = Pc.type.label, color = c.red, modifier = Modifier.clickable(onClick = onRetry).padding(vertical = 6.dp))

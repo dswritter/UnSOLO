@@ -14,7 +14,7 @@ import com.unsolo.app.core.push.UnsoloMessagingService
 import com.unsolo.app.core.prefs.Tab
 import com.unsolo.app.ui.nav.AppRoot
 import com.unsolo.app.ui.nav.Routes
-import com.unsolo.app.ui.theme.PassengerChartTheme
+import com.unsolo.app.ui.theme.FullCircleTheme
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         handleAuthCallback(intent)
         setContent {
             val start = startRoute
-            if (start != null) PassengerChartTheme { AppRoot(app.graph, start, newIntents) }
+            if (start != null) FullCircleTheme { AppRoot(app.graph, start, newIntents) }
         }
     }
 

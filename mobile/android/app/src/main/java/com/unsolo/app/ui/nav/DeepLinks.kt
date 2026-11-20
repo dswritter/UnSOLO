@@ -23,6 +23,7 @@ object Routes {
     const val OFFER_FORM = "offer/{postId}"
     const val OFFERS = "offers/{postId}"
     const val SEARCH = "search"
+    const val STORY = "story/{id}"
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun trip(slug: String) = "trip/${enc(slug)}"
@@ -30,6 +31,7 @@ object Routes {
     fun profile(username: String) = "profile/${enc(username)}"
     fun chat(roomId: String) = "chat/${enc(roomId)}"
     fun compose(kind: String) = "compose/$kind"
+    fun story(postId: String) = "story/${enc(postId)}"
     fun offerForm(postId: String) = "offer/${enc(postId)}"
     fun offers(postId: String) = "offers/${enc(postId)}"
 

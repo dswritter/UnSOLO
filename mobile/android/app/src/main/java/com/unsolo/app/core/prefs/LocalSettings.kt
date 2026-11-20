@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.unsolo.app.core.net.AppJson
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,10 @@ data class LocalPrefs(
     val nearMe: Boolean = false,
     /** epochDay → (tab → opens) for the last 14 days. */
     val visits: Map<Long, Map<String, Int>> = emptyMap(),
+    /** Trip slugs saved on this device (the API has no trip-save endpoint yet). */
+    val savedTrips: Set<String> = emptySet(),
+    /** Story post ids opened in the story viewer on this device (drives seen/unseen story rings). */
+    val seenStories: Set<String> = emptySet(),
 )
 
 object Tab {
@@ -54,6 +59,8 @@ class LocalSettings(private val context: Context) {
         val welcomeSeen = booleanPreferencesKey("welcome_seen")
         val nearMe = booleanPreferencesKey("near_me")
         val visits = stringPreferencesKey("tab_visits")
+        val savedTrips = stringSetPreferencesKey("saved_trips")
+        val seenStories = stringSetPreferencesKey("seen_stories")
     }
 
     private val visitsSerializer = MapSerializer(Long.serializer(), MapSerializer(String.serializer(), Int.serializer()))
@@ -73,6 +80,8 @@ class LocalSettings(private val context: Context) {
         welcomeSeen = this[K.welcomeSeen] ?: false,
         nearMe = this[K.nearMe] ?: false,
         visits = this[K.visits]?.let { runCatching { AppJson.decodeFromString(visitsSerializer, it) }.getOrNull() } ?: emptyMap(),
+        savedTrips = this[K.savedTrips] ?: emptySet(),
+        seenStories = this[K.seenStories] ?: emptySet(),
     )
 
     suspend fun anonId(): String {
@@ -91,6 +100,12 @@ class LocalSettings(private val context: Context) {
     suspend fun setLastSync(at: String?) { context.dataStore.edit { if (at == null) it.remove(K.lastSync) else it[K.lastSync] = at } }
     suspend fun setWelcomeSeen() { context.dataStore.edit { it[K.welcomeSeen] = true } }
     suspend fun setNearMe(on: Boolean) { context.dataStore.edit { it[K.nearMe] = on } }
+    suspend fun toggleSavedTrip(slug: String) {
+        context.dataStore.edit { p -> val cur = p[K.savedTrips] ?: emptySet(); p[K.savedTrips] = if (slug in cur) cur - slug else (cur + slug).toList().takeLast(200).toSet() }
+    }
+    suspend fun markStorySeen(postId: String) {
+        context.dataStore.edit { p -> val cur = p[K.seenStories] ?: emptySet(); if (postId !in cur) p[K.seenStories] = (cur + postId).toList().takeLast(500).toSet() }
+    }
 
     /** Counts a tab open for the landing-tab suggestion; keeps a rolling 14-day window. */
     suspend fun recordVisit(tab: String, today: Long = LocalDate.now().toEpochDay()) {

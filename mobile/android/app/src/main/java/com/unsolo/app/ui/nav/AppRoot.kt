@@ -65,6 +65,7 @@ import com.unsolo.app.ui.theme.Pc
 import com.unsolo.app.ui.theme.PcIcons
 import com.unsolo.app.ui.tribe.HeldPromptSheet
 import com.unsolo.app.ui.tribe.PostDetailScreen
+import com.unsolo.app.ui.tribe.StoryViewerScreen
 import com.unsolo.app.ui.tribe.TribeScreen
 import com.unsolo.app.ui.trips.MyTripsScreen
 import kotlinx.coroutines.flow.Flow
@@ -105,7 +106,7 @@ class AppNav(
         val url = if (pathOrUrl.startsWith("https://")) pathOrUrl else DeepLinks.WEB + pathOrUrl
         val uri = Uri.parse(url)
         if (uri.host != "unsolo.in" && uri.host != "www.unsolo.in") return
-        val colors = CustomTabColorSchemeParams.Builder().setToolbarColor((if (dark) 0xFF14161A else 0xFFF4F0E6).toInt()).build()
+        val colors = CustomTabColorSchemeParams.Builder().setToolbarColor((if (dark) 0xFF0B1A15 else 0xFFF4FAF7).toInt()).build()
         runCatching {
             CustomTabsIntent.Builder().setShowTitle(true).setDefaultColorSchemeParams(colors).build().launchUrl(context, uri)
         }.onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
@@ -235,14 +236,14 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
     }
 
     val tabs = listOf(
-        TabSpec(Routes.EXPLORE, "Explore", PcIcons.Compass),
-        TabSpec(Routes.TRIBE, "Tribe", PcIcons.Users, counts.activity),
-        TabSpec(Routes.TRIPS, "My trips", PcIcons.Ticket, counts.messages),
-        TabSpec(Routes.YOU, "You", PcIcons.User),
+        TabSpec(Routes.EXPLORE, "Explore", PcIcons.Compass, iconSelected = PcIcons.CompassFilled),
+        TabSpec(Routes.TRIBE, "Tribe", PcIcons.UsersThree),
+        TabSpec(Routes.TRIPS, "My trips", PcIcons.Ticket),
+        TabSpec(Routes.YOU, "You", PcIcons.UserCircle),
     )
 
     val headerNav = remember(nav) { HeaderNav(onMessages = { if (nav.requireSignIn()) nav.to(Routes.INBOX) }, onActivity = { if (nav.requireSignIn()) nav.to(Routes.ACTIVITY) }) }
-    val photoHeader = route == Routes.TRIP || route == Routes.POST
+    val photoHeader = route == Routes.TRIP || route == Routes.STORY
     val cfg by graph.config.config.collectAsStateWithLifecycle()
     if (com.unsolo.app.data.ConfigStore.isOlder(com.unsolo.app.BuildConfig.VERSION_NAME, cfg.minAppVersion.android)) {
         UpgradeRequired { nav.openWebOrStore(context) }
@@ -261,7 +262,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
             }
             if (!photoHeader) Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Pc.colors.paper))
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp, start = 16.dp, end = 16.dp)) { d ->
-                Snackbar(containerColor = Pc.colors.ink, contentColor = Pc.colors.onInk, shape = RoundedCornerShape(6.dp)) { Text(d.visuals.message, style = Pc.type.small) }
+                Snackbar(containerColor = Pc.colors.ink, contentColor = Pc.colors.paper, shape = RoundedCornerShape(18.dp)) { Text(d.visuals.message, style = Pc.type.smallStrong) }
             }
         }
         if (postSheet) PostTypeSheet(onDismiss = { postSheet = false }, onPick = { kind ->
@@ -304,8 +305,12 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
     composable(Routes.SETTINGS) { SettingsScreen(nav) }
     composable(Routes.AUTH) { AuthScreen(nav) }
     composable(Routes.PHONE) { PhoneVerifyScreen(nav) }
+    composable(Routes.STORY, arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+        val id = it.arguments?.getString("id")
+        if (DeepLinks.validId(id)) StoryViewerScreen(id!!, nav) else InvalidLink(nav)
+    }
     composable(Routes.COMPOSE, arguments = listOf(navArgument("kind") { type = NavType.StringType })) {
-        val kind = it.arguments?.getString("kind")?.takeIf { k -> k in listOf("plan", "story", "ask") } ?: "plan"
+        val kind = it.arguments?.getString("kind")?.takeIf { k -> k in listOf("plan", "story", "ask", "poll") } ?: "plan"
         ComposeScreen(kind, nav)
     }
     composable(Routes.HOST) { HostScreen(nav) }
@@ -349,7 +354,7 @@ private fun AppNav.openWebOrStore(context: Context) {
 private fun LandingPromptSheet(tab: String, onAccept: () -> Unit, onDismiss: () -> Unit) {
     PcSheet(onDismiss = onDismiss) {
         Column(Modifier.padding(horizontal = Gutter)) {
-            Text("You open ${Tab.label(tab)} most.", style = Pc.type.title2, color = Pc.colors.ink)
+            Text("You open ${Tab.label(tab)} most.", style = Pc.type.title1, color = Pc.colors.ink)
             Spacer(Modifier.height(4.dp))
             Text("Start the app on ${Tab.label(tab)}? You can change this any time in Settings.", style = Pc.type.body, color = Pc.colors.ink2)
             Spacer(Modifier.height(16.dp))

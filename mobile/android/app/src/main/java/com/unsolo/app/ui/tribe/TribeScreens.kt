@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -18,6 +19,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,23 +55,46 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-private val Filters = listOf("foryou" to "For you", "plan" to "Plans", "story" to "Stories", "ask" to "Asks")
+private val Filters = listOf("foryou" to "For you", "plan" to "Plans", "story" to "Stories", "ask" to "Questions", "poll" to "Polls")
+
+/** One person's stories in the rail. */
+@Immutable
+data class StoryAuthor(val user: UserLite, val posts: List<Post>, val seen: Int, val firstUnseenId: String)
+
+/** Story rail: story posts from the cached feeds, grouped by author (unseen first). */
+fun storyAuthors(items: List<Post>, seen: Set<String>, meId: String?): List<StoryAuthor> =
+    items.filter { it.kind == PostKind.STORY && it.media.isNotEmpty() && it.author.id != meId }
+        .distinctBy { it.id }
+        .groupBy { it.author.id }
+        .map { (_, posts) -> StoryAuthor(posts.first().author, posts, posts.count { it.id in seen }, (posts.firstOrNull { it.id !in seen } ?: posts.first()).id) }
+        .sortedBy { if (it.seen >= it.posts.size) 1 else 0 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class FeedViewModel(private val g: AppGraph) : ViewModel() {
     val filter = MutableStateFlow("foryou")
     val place = MutableStateFlow<String?>(null)
-    private val kind get() = filter.value.takeIf { it != "foryou" }
-    val feed: StateFlow<FeedState?> = filter.flatMapLatest { f -> g.tribe.observeFeed(f.takeIf { it != "foryou" }) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    /** The API's feed kinds are plan / story / ask; "poll" is asks that carry a poll. */
+    private fun kindOf(f: String) = when (f) { "foryou" -> null; "poll" -> PostKind.ASK; else -> f }
+    private val kind get() = kindOf(filter.value)
+    val feed: StateFlow<FeedState?> = filter.flatMapLatest { f ->
+        g.tribe.observeFeed(kindOf(f)).map { st -> if (f == "poll") st.copy(items = st.items.filter { it is PostItem && it.post.poll != null }) else st }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
     /** owner clientId → average upload progress, for the optimistic progress ring. */
     val uploads: StateFlow<Map<String, Float>> = g.db.media().observeActive().map { rows ->
         rows.groupBy { it.ownerClientId }.mapValues { (_, l) -> l.map { it.progress }.average().toFloat() }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+    val stories: StateFlow<List<StoryAuthor>> = combine(g.tribe.observeFeed(null), g.tribe.observeFeed(PostKind.STORY), g.settings.data.map { it.seenStories }, g.account.me) { a, b, seen, me ->
+        storyAuthors((a.items + b.items).filterIsInstance<PostItem>().map { it.post }, seen, me?.user?.id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val savedTrips = g.settings.data.map { it.savedTrips }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
     val refreshing = MutableStateFlow(false)
     val flags = g.config.config
+    val me = g.account.me
 
-    init { viewModelScope.launch { filter.collect { refresh() } } }
+    init {
+        viewModelScope.launch { filter.collect { refresh() } }
+        viewModelScope.launch { g.tribe.refreshFeed(PostKind.STORY) }
+    }
 
     fun refresh() = viewModelScope.launch {
         refreshing.value = true
@@ -76,6 +106,7 @@ class FeedViewModel(private val g: AppGraph) : ViewModel() {
     fun loadMore() = viewModelScope.launch { g.tribe.loadMore(kind) }
     fun react(p: Post, k: String) = viewModelScope.launch { g.tribe.toggleReaction(p.id, k) }
     fun save(p: Post) = viewModelScope.launch { g.tribe.toggleSave(p.id) }
+    fun saveTrip(t: TripLite) = viewModelScope.launch { g.settings.toggleSavedTrip(t.slug) }
     fun vote(p: Post, o: PollOption) = viewModelScope.launch { g.tribe.vote(p.id, o) }
     fun retry(p: Post) = viewModelScope.launch {
         val clientId = p.id.removePrefix("local:")
@@ -88,8 +119,13 @@ class FeedViewModel(private val g: AppGraph) : ViewModel() {
     fun discard(p: Post) = viewModelScope.launch { g.tribe.deleteLocalOrRemote(p.id) }
 }
 
+fun sharePost(nav: AppNav, p: Post) {
+    nav.graph.analytics.track("share.plan", "tribe", mapOf("channel" to "system", "kind" to p.kind))
+    nav.share("${p.title ?: "A post"} on UnSOLO Tribe: https://unsolo.in/tribe/p/${p.id}")
+}
+
 fun cardActions(nav: AppNav, vm: FeedViewModel) = CardActions(
-    open = { nav.to(Routes.post(it.id)) },
+    open = { if (it.kind == PostKind.STORY && it.media.isNotEmpty() && !it.id.startsWith("local:")) nav.to(Routes.post(it.id)) else nav.to(Routes.post(it.id)) },
     author = { if (it.username.isNotBlank()) nav.to(Routes.profile(it.username)) },
     join = { nav.to(Routes.post(it.id)) },
     react = { p, k -> if (nav.requirePhone()) vm.react(p, k) },
@@ -99,6 +135,7 @@ fun cardActions(nav: AppNav, vm: FeedViewModel) = CardActions(
     vote = { p, o -> if (nav.requirePhone()) vm.vote(p, o) },
     retry = { vm.retry(it) },
     discard = { vm.discard(it) },
+    share = { sharePost(nav, it) },
 )
 
 @Composable
@@ -108,6 +145,9 @@ fun TribeScreen(nav: AppNav) {
     val feed by vm.feed.collectAsStateWithLifecycle()
     val uploads by vm.uploads.collectAsStateWithLifecycle()
     val flags by vm.flags.collectAsStateWithLifecycle()
+    val stories by vm.stories.collectAsStateWithLifecycle()
+    val saved by vm.savedTrips.collectAsStateWithLifecycle()
+    val me by vm.me.collectAsStateWithLifecycle()
     val counts = LocalHeaderCounts.current
     val actions = remember(vm) { cardActions(nav, vm) }
     val c = Pc.colors
@@ -120,26 +160,22 @@ fun TribeScreen(nav: AppNav) {
         return
     }
     val items = feed?.items.orEmpty()
-    val people = remember(items) { items.filterIsInstance<PostItem>().map { it.post.author }.distinctBy { it.id }.take(8) }
     LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
         item(key = "header", contentType = "header") {
             PageHeader("Tribe", counts, { if (nav.requireSignIn()) nav.to(Routes.INBOX) }, { if (nav.requireSignIn()) nav.to(Routes.ACTIVITY) })
         }
-        if (people.isNotEmpty()) item(key = "people", contentType = "people") {
-            LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(bottom = 4.dp)) {
-                items(people, key = { it.id }) { u ->
-                    Column(Modifier.width(64.dp).clickable { if (u.username.isNotBlank()) nav.to(Routes.profile(u.username)) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(64.dp).border(2.dp, c.rule2, androidx.compose.foundation.shape.CircleShape).padding(4.dp)) {
-                            Avatar(u, 56.dp)
-                        }
-                        Text(u.firstName, style = Pc.type.label, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
+        item(key = "stories", contentType = "stories") {
+            LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 2.dp)) {
+                item(key = "mine") {
+                    StoryRailItem(me?.user, "Your story", 1, 0, mine = true) { if (nav.requirePhone()) nav.to(Routes.compose(PostKind.STORY)) }
+                }
+                items(stories, key = { it.user.id }) { a ->
+                    StoryRailItem(a.user, a.user.firstName, a.posts.size, a.seen) { nav.to(Routes.story(a.firstUnseenId)) }
                 }
             }
         }
         item(key = "filters", contentType = "filters") {
-            TextTabs(Filters, filter, { vm.filter.value = it })
-            Spacer(Modifier.height(6.dp))
+            TextTabs(Filters, filter, { vm.filter.value = it }, Modifier.padding(top = 8.dp, bottom = 4.dp))
         }
         if (feed == null) item(key = "loading") { Text("Loading the feed…", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(16.dp)) }
         else if (items.isEmpty()) item(key = "empty") {
@@ -147,11 +183,11 @@ fun TribeScreen(nav: AppNav) {
         }
         items(items, key = { it.key }, contentType = { (it as? PostItem)?.post?.kind ?: "placed" }) { item ->
             when (item) {
-                is PlacedTripItem -> PlacedTripCard(item.trip, actions)
+                is PlacedTripItem -> PlacedTripCard(item.trip, actions, item.trip.slug in saved) { vm.saveTrip(item.trip) }
                 is PostItem -> {
                     val progress = if (item.post.id.startsWith("local:")) uploads[item.post.id.removePrefix("local:")] else null
                     when (item.post.kind) {
-                        PostKind.PLAN -> PlanCard(item, progress, actions)
+                        PostKind.PLAN -> PlanCard(item, progress, actions, me?.user?.id)
                         PostKind.STORY -> StoryCard(item, progress, actions)
                         else -> AskCard(item, progress, actions)
                     }
@@ -163,11 +199,10 @@ fun TribeScreen(nav: AppNav) {
             if (f.caughtUp) {
                 item(key = "caught", contentType = "end") {
                     Column(Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(tonal()), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null) }
-                        Spacer(Modifier.height(6.dp))
-                        Spacer(Modifier.height(6.dp))
-                        Text("You're caught up", style = Pc.type.title3, color = c.ink)
-                        Text("New plans and stories show up here. Meanwhile, the next departures:", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 32.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Box(Modifier.size(48.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.pine) }
+                        Spacer(Modifier.height(10.dp))
+                        Text("You're caught up", style = Pc.type.title2, color = c.ink)
+                        Text("New plans and stories show up here. Meanwhile, the next departures:", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 32.dp), textAlign = TextAlign.Center)
                     }
                 }
                 items(f.nextDepartures.take(3), key = { "nd-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { nav.to(Routes.trip(t.slug)) } }
@@ -176,6 +211,17 @@ fun TribeScreen(nav: AppNav) {
             }
         }
         item(key = "pad") { Spacer(Modifier.height(24.dp)) }
+    }
+}
+
+@Composable
+private fun StoryRailItem(user: UserLite?, label: String, segments: Int, seen: Int, mine: Boolean = false, onClick: () -> Unit) {
+    val c = Pc.colors
+    Column(Modifier.width(66.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClickLabel = if (mine) "Add to your story" else "Open $label's stories", onClick = onClick).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        StoryRing(user, segments, seen, mine = mine, plus = mine)
+        Spacer(Modifier.height(5.dp))
+        Text(label, style = Pc.type.label, color = if (mine) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -268,34 +314,34 @@ fun PostDetailScreen(id: String, nav: AppNav) {
         return
     }
     val isPlan = p.kind == PostKind.PLAN
+    val kindLabel = when (p.kind) { PostKind.PLAN -> "Plan"; PostKind.STORY -> "Story"; else -> if (p.poll != null) "Poll" else "Question" }
     Column(Modifier.fillMaxSize().background(c.paper)) {
-        if (p.kind != PostKind.STORY || p.media.isEmpty()) {
-            DetailTopBar(null, onBack = { nav.back() }) {
-                IconTap(PcIcons.Share, "Share", { vm.share(p); nav.share("${p.title ?: "A plan"} on UnSOLO Tribe: https://unsolo.in/tribe/p/${p.id}") })
-                IconTap(PcIcons.Flag, "Report or block", { menu = true })
-            }
+        DetailTopBar(kindLabel, onBack = { nav.back() }, headerActions = false, centerTitle = true) {
+            IconTap(PcIcons.Share, "Share", { vm.share(p); nav.share("${p.title ?: "A post"} on UnSOLO Tribe: https://unsolo.in/tribe/p/${p.id}") })
+            IconTap(PcIcons.More, "More: report or block", { menu = true })
         }
         LazyColumn(Modifier.weight(1f)) {
-            if (p.kind == PostKind.STORY && p.media.isNotEmpty()) item(key = "pager") { StoryPhotos(p, onBack = { nav.back() }, onSave = { if (nav.requireSignIn()) vm.save() }, onMenu = { menu = true }) }
+            if (p.kind == PostKind.STORY && p.media.isNotEmpty()) item(key = "pager") { StoryPhotos(p) }
             item(key = "state") {
                 LocalStateLine(item!!, null, CardActions({}, {}, {}, { _, _ -> }, {}, {}, {}, { _, _ -> }, {}, {}))
                 if (item!!.localState == LocalState.HELD && p.viewer.isAuthor) Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    PcButton("Edit post", { editHeld = true }, Modifier.weight(1f), kind = BtnKind.Outline, height = 44.dp)
-                    PcButton("List as hosted trip", { nav.openWeb("/host") }, Modifier.weight(1f), height = 44.dp)
+                    PcButton("Edit post", { editHeld = true }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
+                    PcButton("List as hosted trip", { nav.openWeb("/host") }, Modifier.weight(1f), height = BtnSmall)
                 }
             }
+            if (isPlan) item(key = "plan") { PlanHead(p, me?.user?.id) }
             item(key = "head") { PostHead(p, nav, onMessage = { u -> if (nav.requireSignIn()) vm.message(u.id) { nav.to(Routes.chat(it)) } }) }
-            if (isPlan) item(key = "plan") { PlanBody(p) }
+            if (isPlan) item(key = "planbody") { PlanBody(p) }
             else item(key = "body") {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     if (p.kind == PostKind.ASK && p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.body, color = c.ink)
-                    if (p.kind == PostKind.STORY && p.body.isNotBlank()) Text(p.body, style = Pc.type.body, color = c.ink)
+                    if (p.kind == PostKind.STORY && p.body.isNotBlank()) Text(p.body, style = Pc.type.body.copy(fontSize = 15.5.sp), color = c.ink)
                 }
-                if (p.kind == PostKind.ASK && p.poll != null) { Spacer(Modifier.height(12.dp)); PollView(p, { if (nav.requirePhone()) vm.vote(it) }) }
-                Spacer(Modifier.height(16.dp))
+                if (p.kind == PostKind.ASK && p.poll != null) { Spacer(Modifier.height(12.dp)); PollView(p, { if (nav.requirePhone()) vm.vote(it) }, Modifier.padding(horizontal = 4.dp)) }
+                Spacer(Modifier.height(8.dp))
                 Reactions(p) { k -> if (nav.requirePhone()) vm.react(k) }
                 p.trip?.let { t ->
-                    Box(Modifier.padding(horizontal = Gutter, vertical = 16.dp)) { HostedTripCard(t, { nav.to(Routes.trip(t.slug)) }, { nav.graph.analytics.track("trip.take_seat", "post_detail", mapOf("slug" to t.slug, "date" to t.nextDeparture)); nav.openWeb("/packages/${t.slug}?book=1") }) }
+                    Box(Modifier.padding(horizontal = Gutter, vertical = 8.dp)) { HostedTripCard(t, { nav.to(Routes.trip(t.slug)) }, { nav.graph.analytics.track("trip.take_seat", "post_detail", mapOf("slug" to t.slug, "date" to t.nextDeparture)); nav.openWeb("/packages/${t.slug}?book=1") }) }
                 }
             }
             if (isPlan && p.viewer.isAuthor && requests.isNotEmpty()) item(key = "requests") {
@@ -304,26 +350,35 @@ fun PostDetailScreen(id: String, nav: AppNav) {
             if (isPlan && offers.isNotEmpty() && nav.graph.config.config.value.flags.hostOffersEnabled) item(key = "offers") {
                 Row(Modifier.padding(horizontal = Gutter, vertical = 8.dp).fillMaxWidth().raisedCard().clickable { nav.to(Routes.offers(p.id)) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("${offers.size} host offer${if (offers.size > 1) "s" else ""}", style = Pc.type.bodyStrong, color = c.ink)
+                        Text("${offers.size} host offer${if (offers.size > 1) "s" else ""}", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
                         Text("A host can run this as a booked trip. Only members see offers.", style = Pc.type.small, color = c.ink2)
                     }
-                    PcIcon(PcIcons.ChevronRight, null)
+                    PcIcon(PcIcons.ChevronRight, null, tint = c.ink3)
                 }
             }
+            // A host's answer is pinned above the thread on questions.
+            val hostAnswer = if (p.kind == PostKind.ASK) comments.firstOrNull { it.comment.author.isHost && it.comment.author.id != p.author.id }?.comment else null
+            if (hostAnswer != null) item(key = "top") { HostAnswer(hostAnswer) }
             item(key = "c-h") {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader(if (p.kind == PostKind.ASK) "Answers" else "Comments", trailing = "${p.commentCount}")
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    Hairline(Modifier.padding(horizontal = Gutter))
+                    Row(Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (p.kind == PostKind.ASK) "Answers" else "Comments", style = Pc.type.title2, color = c.ink)
+                        Text("  ${p.commentCount}", style = Pc.type.num, color = c.ink3, modifier = Modifier.weight(1f))
+                    }
+                }
             }
-            if (comments.isEmpty()) item(key = "c-empty") { Text(if (p.kind == PostKind.ASK) "No answers yet. Know the place? Help out." else "No comments yet.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(16.dp)) }
+            if (comments.isEmpty()) item(key = "c-empty") { Text(if (p.kind == PostKind.ASK) "No answers yet. Know the place? Help out." else "No comments yet. Say something nice.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp)) }
             items(comments, key = { it.comment.id }, contentType = { "thread" }) { th ->
-                CommentThreadView(th, p, me?.user?.id, onReply = { if (nav.requirePhone()) replyTo = it }, onReport = { reportTarget = Triple("comment", it.id, it.author) }, onDelete = { vm.deleteComment(it.id) }, onAuthor = { nav.to(Routes.profile(it.username)) })
+                CommentThreadView(th, p, me?.user?.id, onReply = { if (nav.requirePhone()) replyTo = it }, onReport = { reportTarget = Triple("comment", it.id, it.author) }, onDelete = { vm.deleteComment(it.id) }, onAuthor = { if (it.username.isNotBlank()) nav.to(Routes.profile(it.username)) })
             }
             item(key = "end") { Spacer(Modifier.height(24.dp)) }
         }
         when {
             isPlan -> PlanBottomBar(p, requests.count { it.state == "requested" }, onJoin = { if (nav.requirePhone()) joinSheet = true }, onWithdraw = { vm.withdraw() },
-                onShare = { vm.share(p); nav.share("Join my plan on UnSOLO: https://unsolo.in/tribe/p/${p.id}") }, onChat = { nav.tab(Routes.TRIPS) })
-            else -> CommentBar(me?.user, replyTo, onCancelReply = { replyTo = null }, placeholder = if (p.kind == PostKind.ASK) "Write an answer" else "Add a comment") { body ->
+                onShare = { vm.share(p); nav.share("Join my plan on UnSOLO: https://unsolo.in/tribe/p/${p.id}") }, onChat = { nav.to(Routes.INBOX) })
+            else -> CommentBar(me?.user, replyTo, onCancelReply = { replyTo = null }, placeholder = if (p.kind == PostKind.ASK) "Write an answer…" else "Add a comment…") { body ->
                 if (nav.requirePhone()) { vm.comment(body, replyTo?.id); replyTo = null }
             }
         }
@@ -334,7 +389,8 @@ fun PostDetailScreen(id: String, nav: AppNav) {
         onReport = { menu = false; reportTarget = Triple("post", p.id, p.author) },
         onBlock = { menu = false; if (nav.requireSignIn()) vm.block(p.author.id) { toast = it; nav.back() } },
         onCancel = { menu = false; vm.cancelPlan { toast = it } },
-        onShare = { menu = false; nav.share("https://unsolo.in/tribe/p/${p.id}") })
+        onShare = { menu = false; nav.share("https://unsolo.in/tribe/p/${p.id}") },
+        onSave = { menu = false; if (nav.requireSignIn()) vm.save() })
     reportTarget?.let { (type, tid, user) ->
         ReportSheet(user, onDismiss = { reportTarget = null }, onSubmit = { reason, details ->
             reportTarget = null
@@ -346,62 +402,75 @@ fun PostDetailScreen(id: String, nav: AppNav) {
 }
 
 @Composable
-private fun StoryPhotos(p: Post, onBack: () -> Unit, onSave: () -> Unit, onMenu: () -> Unit) {
-    val c = Pc.colors
+private fun StoryPhotos(p: Post) {
     val pager = rememberPagerState { p.media.size }
-    Box(Modifier.fillMaxWidth().height(280.dp)) {
+    Box(Modifier.padding(horizontal = 14.dp).fillMaxWidth().height(240.dp).clip(RoundedCornerShape(22.dp))) {
         HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i -> ProgressiveImage(p.media[i], Modifier.fillMaxSize()) }
-        Row(Modifier.statusBarsPadding().padding(12.dp).fillMaxWidth()) {
-            SquareButton(PcIcons.Back, "Back", onBack)
-            Spacer(Modifier.weight(1f))
-            SquareButton(PcIcons.Flag, "Report", onMenu)
-            Spacer(Modifier.width(8.dp))
-            SquareButton(if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, "Save", onSave)
+        if (p.media.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            repeat(p.media.size) { i -> Box(Modifier.size(if (i == pager.currentPage) 8.dp else 6.dp).clip(CircleShape).background(Color.White.copy(alpha = if (i == pager.currentPage) 1f else 0.6f))) }
         }
-        Text("${pager.currentPage + 1} / ${p.media.size}", style = Pc.type.label, color = androidx.compose.ui.graphics.Color.White,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }
 
+/** Plan header: tags, title, facts, the plan's ring with the organiser badge and (if you asked) your face waiting outside. */
 @Composable
-private fun SquareButton(icon: ImageVector, label: String, onClick: () -> Unit) {
-    Box(Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Pc.colors.raised.copy(alpha = 0.92f)).clickable(role = Role.Button, onClickLabel = label, onClick = onClick), contentAlignment = Alignment.Center) {
-        PcIcon(icon, label)
+private fun PlanHead(p: Post, meId: String?) {
+    val c = Pc.colors
+    val total = p.spotsTotal ?: p.seats.size
+    Column(Modifier.fillMaxWidth().padding(horizontal = Gutter)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (p.audience == "women") Tag("Women only", TagKind.Women)
+            if (p.audience == "verified" || p.audience == "women") Tag("ID verified", TagKind.Verified)
+            Tag("Community plan · not a booking", TagKind.Muted)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(p.title ?: "", style = Pc.type.display.copy(fontSize = 27.sp), color = c.ink)
+        Spacer(Modifier.height(8.dp))
+        Facts(planFacts(p))
+        Box(Modifier.fillMaxWidth().padding(top = 34.dp, bottom = 10.dp), contentAlignment = Alignment.Center) {
+            PlanRing(p, 200.dp, meId, badge = true, centerLabel = true)
+        }
+        val waiting = p.viewer.membership == "requested"
+        Text(if (waiting) buildAnnotatedString { withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("${p.memberCount} going") }; append(" · you're waiting at the edge") } else planCaption(total, p.memberCount),
+            style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Medium), color = c.ink2, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        if (waiting) {
+            Spacer(Modifier.height(14.dp))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.selected).border(1.5.dp, c.ink, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PcIcon(PcIcons.Clock, null, size = 18.dp, tint = c.ink)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Request sent", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.weight(1f))
+                    Text("${p.author.firstName} has 72h to reply", style = Pc.type.small, color = c.ink2)
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
     }
 }
 
 @Composable
 private fun PostHead(p: Post, nav: AppNav, onMessage: (UserLite) -> Unit) {
     val c = Pc.colors
-    Column(Modifier.padding(horizontal = Gutter, vertical = 14.dp)) {
-        if (p.kind == PostKind.PLAN) { CommunityPlanLine(); Spacer(Modifier.height(4.dp)) }
-        if (p.kind != PostKind.STORY) {
-            Text(p.title ?: p.body, style = Pc.type.display.copy(fontSize = 28.sp), color = c.ink)
-            Spacer(Modifier.height(12.dp))
-        }
+    Column(Modifier.padding(horizontal = Gutter, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).clickable { if (p.author.username.isNotBlank()) nav.to(Routes.profile(p.author.username)) }, verticalAlignment = Alignment.CenterVertically) {
-                Avatar(p.author, 44.dp)
+            Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable { if (p.author.username.isNotBlank()) nav.to(Routes.profile(p.author.username)) }, verticalAlignment = Alignment.CenterVertically) {
+                Avatar(p.author, 40.dp)
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(p.author.name, style = Pc.type.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Text(p.author.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                         if (p.author.isIdVerified) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
-                        Spacer(Modifier.width(6.dp))
-                        when {
-                            p.kind == PostKind.PLAN -> Tag("Organiser", TagKind.Organiser)
-                            p.kind == PostKind.STORY -> Tag("Story", TagKind.Kind)
-                            else -> Tag("Ask", TagKind.Kind)
-                        }
+                        if (p.kind == PostKind.PLAN) { Spacer(Modifier.width(6.dp)); Tag("Organiser", TagKind.Organiser, height = 20.dp) }
+                        if (p.author.isHost) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host, height = 20.dp) }
                     }
-                    Text(listOfNotNull(p.trip?.title, p.place?.name.takeIf { p.trip == null }, Fmt.ago(p.createdAt)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
+                    Text(listOfNotNull(p.trip?.title, p.place?.name.takeIf { p.trip == null }, Fmt.ago(p.createdAt)).joinToString(" · "), style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink3, maxLines = 1)
                 }
             }
-            if (!p.viewer.isAuthor) PcButton("Message", { onMessage(p.author) }, kind = BtnKind.Outline, height = 44.dp)
+            if (!p.viewer.isAuthor) PcButton("Message", { onMessage(p.author) }, kind = BtnKind.Outline, height = BtnSmall)
         }
-        if (p.kind == PostKind.STORY) {
+        if (p.kind != PostKind.PLAN) {
             Spacer(Modifier.height(12.dp))
-            Text(p.title ?: "", style = Pc.type.title1, color = c.ink)
+            Text(p.title ?: if (p.kind == PostKind.ASK) p.body else "", style = if (p.kind == PostKind.STORY) Pc.type.title1 else Pc.type.display.copy(fontSize = 26.sp), color = c.ink)
         }
     }
 }
@@ -410,29 +479,15 @@ private fun PostHead(p: Post, nav: AppNav, onMessage: (UserLite) -> Unit) {
 private fun PlanBody(p: Post) {
     val c = Pc.colors
     Column {
-        Facts(planFacts(p), Modifier.padding(horizontal = Gutter))
-        Column(Modifier.padding(horizontal = Gutter, vertical = 16.dp).fillMaxWidth().pencilledCard().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Who's in", style = Pc.type.title3, color = c.ink)
-                Text(" · ${p.memberCount} of ${p.spotsTotal ?: p.seats.size}", style = Pc.type.small, color = c.ink2, modifier = Modifier.weight(1f))
-                val open = ((p.spotsTotal ?: p.seats.size) - p.memberCount).coerceAtLeast(0)
-                Text("$open spots open", style = Pc.type.small, color = c.ink2)
-            }
-            Spacer(Modifier.height(12.dp))
-            SeatRow(p.seats, maxCell = PcTokens.seat)
-            if (p.seats.any { it.state == SeatState.REQUESTED }) {
-                Text("Clock = request waiting for the organiser", style = Pc.type.label, color = c.ink2, modifier = Modifier.padding(top = 10.dp))
-            }
-        }
         if (p.body.isNotBlank()) Text(p.body, style = Pc.type.body, color = c.ink, modifier = Modifier.padding(horizontal = Gutter))
         val audience = when (p.audience) { "women" -> " Women travellers only; joiners need to be verified."; "verified" -> " Verified travellers only."; else -> "" }
         Text(
-            (p.estCostText ?: "Costs are split among yourselves.") + "." .takeIf { p.estCostText?.endsWith(".") == false }.orEmpty() +
+            (p.estCostText ?: "Costs are split among yourselves.") + ".".takeIf { p.estCostText?.endsWith(".") == false }.orEmpty() +
                 (p.meetingPoint?.let { " Meeting point: $it." } ?: " Meeting point is shared once you're approved.") + audience,
             style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp),
         )
-        Row(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().tonalFill().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Shield, null, size = 18.dp)
+        Row(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.tonal).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            PcIcon(PcIcons.Shield, null, size = 18.dp, tint = c.pine)
             Spacer(Modifier.width(10.dp))
             Text("Meet first in a public place. Share the plan with someone you trust.", style = Pc.type.small, color = c.ink)
         }
@@ -444,61 +499,86 @@ private fun Reactions(p: Post, onReact: (String) -> Unit) {
     val c = Pc.colors
     Row(Modifier.padding(horizontal = Gutter).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(
-            Triple(ReactionKind.WANT_TO_GO, "Want to go", PcIcons.Pin) to p.reactions.wantToGo,
-            Triple(ReactionKind.HELPFUL, "Helpful", PcIcons.Bulb) to p.reactions.helpful,
             Triple(ReactionKind.LOVE, "Love", PcIcons.Heart) to p.reactions.love,
+            Triple(ReactionKind.WANT_TO_GO, "Want to go", PcIcons.Pin) to p.reactions.wantToGo,
+            Triple(ReactionKind.HELPFUL, "Helpful", PcIcons.ArrowFatUp) to p.reactions.helpful,
         ).forEach { (spec, count) ->
             val (k, label, icon) = spec
             val on = k in p.myReactions
-            val fg = if (on) c.onInk else c.ink
-            Row(Modifier.height(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(if (on) c.ink else tonal())
-                .clickable(role = Role.Checkbox, onClickLabel = label) { onReact(k) }.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                PcIcon(if (k == ReactionKind.LOVE && on) PcIcons.HeartFilled else icon, null, size = 16.dp, tint = fg)
-                Spacer(Modifier.width(6.dp))
-                Text(label, style = Pc.type.smallStrong, color = fg, maxLines = 1, softWrap = false)
-                Spacer(Modifier.width(6.dp))
-                Text("$count", style = Pc.type.num.copy(fontSize = 13.sp), color = fg, maxLines = 1, softWrap = false)
+            val tint = if (on) (if (k == ReactionKind.LOVE) c.rose else c.pine) else c.ink2
+            Box(Modifier.height(48.dp).clickable(role = Role.Checkbox, onClickLabel = label) { onReact(k) }, contentAlignment = Alignment.Center) {
+                Row(Modifier.height(38.dp).clip(CircleShape).background(if (on) (if (k == ReactionKind.LOVE) c.roseSoft else c.pineSoft) else c.raised)
+                    .border(1.dp, if (on) Color.Transparent else c.rule, CircleShape).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    PcIcon(if (k == ReactionKind.LOVE && on) PcIcons.HeartFilled else icon, null, size = 17.dp, tint = tint)
+                    Spacer(Modifier.width(6.dp))
+                    Text(label, style = Pc.type.smallStrong, color = c.ink, maxLines = 1, softWrap = false)
+                    Spacer(Modifier.width(6.dp))
+                    Text("$count", style = Pc.type.num.copy(fontSize = 13.sp), color = c.ink2, maxLines = 1, softWrap = false)
+                }
             }
+        }
+    }
+}
+
+/** The host's top answer, pinned above the thread with a pine rule. */
+@Composable
+private fun HostAnswer(cm: Comment) {
+    val c = Pc.colors
+    Row(Modifier.padding(horizontal = Gutter, vertical = 8.dp).height(IntrinsicSize.Min)) {
+        Box(Modifier.width(3.dp).fillMaxHeight().clip(CircleShape).background(c.pine))
+        Column(Modifier.padding(start = 12.dp, top = 2.dp, bottom = 2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Avatar(cm.author, 20.dp)
+                Spacer(Modifier.width(6.dp))
+                Text(cm.author.name, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
+                Spacer(Modifier.width(6.dp))
+                Tag("Host", TagKind.Host, height = 20.dp)
+                Text("  · top answer", style = Pc.type.label, color = c.ink3)
+            }
+            Text(cm.body, style = Pc.type.small.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
 
 @Composable
 private fun CommentThreadView(th: CommentThread, p: Post, meId: String?, onReply: (Comment) -> Unit, onReport: (Comment) -> Unit, onDelete: (Comment) -> Unit, onAuthor: (UserLite) -> Unit) {
-    val c = Pc.colors
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         CommentRow(th.comment, p, meId, th.comment.id in th.pending, onReply, onReport, onDelete, onAuthor, reply = false)
-        if (th.replies.isNotEmpty()) Row(Modifier.padding(start = 62.dp, end = Gutter).height(IntrinsicSize.Min)) {
-            Box(Modifier.width(2.dp).fillMaxHeight().clip(androidx.compose.foundation.shape.CircleShape).background(c.rule))
-            Column(Modifier.weight(1f)) {
-                th.replies.forEach { r -> CommentRow(r, p, meId, r.id in th.pending, onReply = { onReply(th.comment) }, onReport, onDelete, onAuthor, reply = true) }
+        th.replies.forEach { r -> CommentRow(r, p, meId, r.id in th.pending, onReply = { onReply(th.comment) }, onReport, onDelete, onAuthor, reply = true) }
+    }
+}
+
+/** One comment: avatar + bubble (4/18/18/18 corners), then Reply · Report/Delete. Replies indent one level. */
+@Composable
+private fun CommentRow(cm: Comment, p: Post, meId: String?, pending: Boolean, onReply: (Comment) -> Unit, onReport: (Comment) -> Unit, onDelete: (Comment) -> Unit, onAuthor: (UserLite) -> Unit, reply: Boolean) {
+    val c = Pc.colors
+    val shape = RoundedCornerShape(topStart = 4.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp)
+    Row(Modifier.fillMaxWidth().padding(start = if (reply) Gutter + 44.dp else Gutter, end = Gutter, top = 8.dp)) {
+        Box(Modifier.clip(CircleShape).clickable(onClickLabel = "Open profile") { onAuthor(cm.author) }) { Avatar(cm.author, 32.dp) }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Column(Modifier.clip(shape).background(c.raised).border(1.dp, c.rule, shape).padding(horizontal = 12.dp, vertical = 9.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(cm.author.firstName, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
+                    if (cm.author.isHost) { Spacer(Modifier.width(5.dp)); Tag("Host", TagKind.Host, height = 18.dp) }
+                    else if (cm.author.id == p.author.id) { Spacer(Modifier.width(5.dp)); Tag(if (p.kind == PostKind.PLAN) "Organiser" else "Author", if (p.kind == PostKind.PLAN) TagKind.Organiser else TagKind.Author, height = 18.dp) }
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (pending) "sending…" else Fmt.ago(cm.createdAt), style = Pc.type.label, color = c.ink3)
+                }
+                Text(cm.body, style = Pc.type.body.copy(fontSize = 14.sp), color = c.ink)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!reply) CommentAction("Reply") { onReply(cm) }
+                if (cm.author.id == meId) CommentAction("Delete") { onDelete(cm) } else CommentAction("Report") { onReport(cm) }
             }
         }
     }
 }
 
 @Composable
-private fun CommentRow(cm: Comment, p: Post, meId: String?, pending: Boolean, onReply: (Comment) -> Unit, onReport: (Comment) -> Unit, onDelete: (Comment) -> Unit, onAuthor: (UserLite) -> Unit, reply: Boolean) {
-    val c = Pc.colors
-    Row(Modifier.fillMaxWidth().padding(start = if (reply) 12.dp else Gutter, end = 8.dp, top = 12.dp)) {
-        Box(Modifier.clickable { onAuthor(cm.author) }) { Avatar(cm.author, if (reply) 30.dp else 34.dp) }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(cm.author.firstName, style = Pc.type.smallStrong, color = c.ink)
-                if (cm.author.id == p.author.id) { Spacer(Modifier.width(6.dp)); Tag(if (p.kind == PostKind.PLAN) "Organiser" else "Author", if (p.kind == PostKind.PLAN) TagKind.Organiser else TagKind.Author) }
-                if (cm.author.isHost) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host) }
-                Spacer(Modifier.width(6.dp))
-                Text(if (pending) "sending…" else Fmt.ago(cm.createdAt), style = Pc.type.label, color = c.ink2)
-            }
-            Text(cm.body, style = Pc.type.body, color = c.ink)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!reply) Text("Reply", style = Pc.type.smallStrong, color = c.ink2, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onReply(cm) }.padding(vertical = 12.dp).padding(end = 16.dp))
-                if (cm.author.id == meId) Text("Delete", style = Pc.type.smallStrong, color = c.ink2, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onDelete(cm) }.padding(vertical = 12.dp).padding(end = 16.dp))
-                else Text("Report", style = Pc.type.smallStrong, color = c.ink2, modifier = Modifier.clip(RoundedCornerShape(4.dp)).clickable { onReport(cm) }.padding(vertical = 12.dp))
-            }
-        }
+private fun CommentAction(text: String, onClick: () -> Unit) {
+    Box(Modifier.defaultMinSize(minHeight = 40.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onClick).padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = Pc.type.label.copy(fontWeight = FontWeight.Bold), color = Pc.colors.ink3)
     }
 }
 
@@ -514,12 +594,12 @@ private fun RequestsBlock(reqs: List<JoinRequestItem>, onDecide: (String, Boolea
 fun RequestRow(r: JoinRequestItem, onDecide: (String, Boolean) -> Unit, onProfile: (String) -> Unit) {
     val c = Pc.colors
     Column(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().raisedCard().padding(16.dp)) {
-        Row(Modifier.clickable { onProfile(r.user.username) }, verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onProfile(r.user.username) }, verticalAlignment = Alignment.CenterVertically) {
             Avatar(r.user, 44.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.user.name, style = Pc.type.bodyStrong, color = c.ink)
+                    Text(r.user.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
                     if (r.user.isIdVerified) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
                 }
                 Text(listOfNotNull(r.user.tripsCount?.let { "$it trips" }, r.user.reviewsAvg?.let { "★ %.1f".format(it) }, r.user.mutuals?.takeIf { it > 0 }?.let { "$it mutual" }).joinToString(" · ").ifEmpty { "New to UnSOLO" }, style = Pc.type.small, color = c.ink2)
@@ -529,10 +609,10 @@ fun RequestRow(r: JoinRequestItem, onDecide: (String, Boolean) -> Unit, onProfil
         Spacer(Modifier.height(12.dp))
         when (r.state) {
             "requested" -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PcButton("Decline", { onDecide(r.user.id, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = 44.dp)
-                PcButton("Approve", { onDecide(r.user.id, true) }, Modifier.weight(1f), height = 44.dp)
+                PcButton("Decline", { onDecide(r.user.id, false) }, Modifier.weight(1f), kind = BtnKind.Outline, height = BtnSmall)
+                PcButton("Approve", { onDecide(r.user.id, true) }, Modifier.weight(1f), height = BtnSmall)
             }
-            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.green)
+            "approved" -> Text("Approved · they can see the meeting point and plan chat", style = Pc.type.smallStrong, color = c.pine)
             else -> Text(r.state.replaceFirstChar { it.uppercase() }, style = Pc.type.smallStrong, color = c.ink2)
         }
     }
@@ -542,38 +622,46 @@ fun RequestRow(r: JoinRequestItem, onDecide: (String, Boolean) -> Unit, onProfil
 private fun PlanBottomBar(p: Post, waiting: Int, onJoin: () -> Unit, onWithdraw: () -> Unit, onShare: () -> Unit, onChat: () -> Unit) {
     val names = p.seats.filter { it.state == SeatState.ORGANISER || it.state == SeatState.MEMBER || it.state == SeatState.YOU }.mapNotNull { it.user?.firstName }.take(2)
     when {
-        p.viewer.isAuthor -> BottomActionBar("Your plan · ${p.spotsLine()}", if (waiting > 0) "$waiting requests waiting for you" else "Share it to fill the open seats", "Share plan", onShare)
-        p.viewer.membership == "requested" -> BottomActionBar("Request sent", "${p.author.firstName} has 72 hours to reply. Your seat shows as requested.", "Withdraw", onWithdraw, kind = BtnKind.Outline)
-        p.viewer.membership == "approved" -> BottomActionBar("You're in", p.meetingPoint?.let { "Meet at $it" } ?: "The plan chat is open", "Plan chat", onChat)
+        p.viewer.isAuthor -> BottomActionBar("Your plan · ${p.spotsLine()}", if (waiting > 0) "$waiting requests waiting for you" else "Share it to fill the open spots", "Share plan", onShare, actionIcon = PcIcons.Share)
+        p.viewer.membership == "requested" -> BottomActionBar("Request sent", "${p.author.firstName} has 72 hours to reply.", "Withdraw", onWithdraw, kind = BtnKind.Line)
+        p.viewer.membership == "approved" -> BottomActionBar("You're in", p.meetingPoint?.let { "Meet at $it" } ?: "The plan chat is open", "Plan chat", onChat, actionIcon = PcIcons.ChatsCircle)
         p.status == "cancelled" -> BottomActionBar("Plan cancelled", "The organiser called it off.", "OK", {}, enabled = false)
         !p.viewer.canJoin && p.viewer.joinBlockedReason != null && p.viewer.joinBlockedReason != "phone_required" -> BottomActionBar(
             when (p.viewer.joinBlockedReason) { "full" -> "This plan is full"; "women_only" -> "Women-only plan"; "verified_only" -> "Verified travellers only"; else -> "Can't join" },
-            when (p.viewer.joinBlockedReason) { "women_only" -> "Joiners must be women with a verified ID."; "verified_only" -> "Verify your ID in Settings to join."; else -> "Save it and watch for open seats." },
-            "Ask to join", {}, kind = BtnKind.Outline, enabled = false)
-        else -> BottomActionBar("Join ${names.joinToString(" and ").ifEmpty { p.author.firstName }}", "${p.author.firstName} approves each request · intro needed", "Ask to join", onJoin, kind = BtnKind.Outline)
+            when (p.viewer.joinBlockedReason) { "women_only" -> "Joiners must be women with a verified ID."; "verified_only" -> "Verify your ID in Settings to join."; else -> "Save it and watch for open spots." },
+            "Request to join", {}, enabled = false)
+        else -> BottomActionBar("Join ${names.joinToString(" and ").ifEmpty { p.author.firstName }}", "${p.author.firstName} approves each request · intro needed", "Request to join", onJoin)
     }
 }
 
+/** Comment composer pinned at the bottom, above the keyboard. */
 @Composable
 private fun CommentBar(me: UserLite?, replyTo: Comment?, onCancelReply: () -> Unit, placeholder: String, onSend: (String) -> Unit) {
     val c = Pc.colors
     var text by rememberSaveable { mutableStateOf("") }
-    Column(Modifier.fillMaxWidth().background(c.raised).navigationBarsPadding().imePadding()) {
+    Column(Modifier.fillMaxWidth().background(c.raised.copy(alpha = 0.97f)).navigationBarsPadding().imePadding()) {
         Hairline()
-        if (replyTo != null) Row(Modifier.padding(horizontal = Gutter, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (replyTo != null) Row(Modifier.padding(start = Gutter, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Replying to ${replyTo.author.firstName}", style = Pc.type.label, color = c.ink2, modifier = Modifier.weight(1f))
-            IconTap(PcIcons.Close, "Cancel reply", onCancelReply)
+            IconTap(PcIcons.Close, "Cancel reply", onCancelReply, iconSize = 18.dp)
         }
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(me, 36.dp)
-            Spacer(Modifier.width(10.dp))
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(me, 34.dp)
+            Spacer(Modifier.width(8.dp))
             BoxedInput(text, { text = it.take(2000) }, placeholder, Modifier.weight(1f), singleLine = false)
-            if (text.isNotBlank()) {
-                Spacer(Modifier.width(6.dp))
-                Box(Modifier.size(44.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.ink).clickable(onClickLabel = "Send") { onSend(text); text = "" }, contentAlignment = Alignment.Center) {
-                    PcIcon(PcIcons.Send, "Send", tint = c.onInk, size = 20.dp)
-                }
-            }
+            Spacer(Modifier.width(8.dp))
+            SendButton(enabled = text.isNotBlank()) { onSend(text.trim()); text = "" }
+        }
+    }
+}
+
+/** 44dp pine send button (48dp touch). */
+@Composable
+fun SendButton(enabled: Boolean, onClick: () -> Unit) {
+    val c = Pc.colors
+    Box(Modifier.size(48.dp).clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClickLabel = "Send", onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) c.pine else c.tonal), contentAlignment = Alignment.Center) {
+            PcIcon(PcIcons.Send, "Send", tint = if (enabled) c.onPine else c.ink3, size = 20.dp)
         }
     }
 }
@@ -587,7 +675,7 @@ fun JoinSheet(p: Post, onDismiss: () -> Unit, onSend: (String) -> Unit) {
     val ok = intro.trim().length in 10..500
     PcSheet(onDismiss) {
         Column(Modifier.padding(horizontal = Gutter)) {
-            Text("Ask to join ${p.author.firstName}'s plan", style = Pc.type.title2, color = c.ink)
+            Text("Request to join ${p.author.firstName}'s plan", style = Pc.type.title1, color = c.ink)
             Text("Say who you are and why this plan. ${p.author.firstName} sees your trips, reviews and mutual friends.", style = Pc.type.small, color = c.ink2)
             Spacer(Modifier.height(12.dp))
             BoxedInput(intro, { intro = it.take(500) }, "Hi! I'm… I've done… I'm keen on…", singleLine = false, minLines = 4)
@@ -600,9 +688,10 @@ fun JoinSheet(p: Post, onDismiss: () -> Unit, onSend: (String) -> Unit) {
 }
 
 @Composable
-private fun PostMenuSheet(p: Post, onDismiss: () -> Unit, onReport: () -> Unit, onBlock: () -> Unit, onCancel: () -> Unit, onShare: () -> Unit) {
+private fun PostMenuSheet(p: Post, onDismiss: () -> Unit, onReport: () -> Unit, onBlock: () -> Unit, onCancel: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
     PcSheet(onDismiss) {
         NavRow("Share", icon = PcIcons.Share, onClick = onShare)
+        NavRow(if (p.viewer.saved) "Saved" else "Save", if (p.viewer.saved) "Tap to remove from saved" else "Find it later in your profile", if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, onClick = onSave)
         if (p.viewer.isAuthor) {
             if (p.kind == PostKind.PLAN && p.status == "live") NavRow("Cancel this plan", "Members get a notification", PcIcons.Close, onClick = onCancel, danger = true)
         } else {
@@ -624,7 +713,7 @@ fun ReportSheet(user: UserLite?, onDismiss: () -> Unit, onSubmit: (String, Strin
     var details by remember { mutableStateOf("") }
     PcSheet(onDismiss) {
         Column(Modifier.padding(horizontal = Gutter)) {
-            Text("Report", style = Pc.type.title2, color = c.ink)
+            Text("Report", style = Pc.type.title1, color = c.ink)
             Text("Reports are private. Safety reports get a first look within 2 hours.", style = Pc.type.small, color = c.ink2)
             Spacer(Modifier.height(10.dp))
         }
@@ -646,7 +735,7 @@ private fun EditHeldSheet(p: Post, onDismiss: () -> Unit, onSave: (String, Strin
     var cost by rememberSaveable { mutableStateOf(p.estCostText.orEmpty()) }
     PcSheet(onDismiss) {
         Column(Modifier.padding(horizontal = Gutter)) {
-            Text("Edit and resubmit", style = Pc.type.title2, color = Pc.colors.ink)
+            Text("Edit and resubmit", style = Pc.type.title1, color = Pc.colors.ink)
             Text("Plans split costs among yourselves. Take out per-person prices, advances and payment IDs.", style = Pc.type.small, color = Pc.colors.ink2)
             Spacer(Modifier.height(12.dp))
             BoxedInput(body, { body = it.take(1500) }, "What's the plan?", singleLine = false, minLines = 4)
@@ -682,4 +771,3 @@ fun HeldPromptSheet(prompts: List<String>, onDismiss: () -> Unit, onOpen: () -> 
     }
 }
 
-@Suppress("unused") private val keepEllipsis = TextOverflow.Ellipsis

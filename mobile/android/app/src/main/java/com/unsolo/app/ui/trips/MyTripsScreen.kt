@@ -25,6 +25,7 @@ import com.unsolo.app.core.model.*
 import com.unsolo.app.data.MoneyFormat
 import com.unsolo.app.ui.Fmt
 import com.unsolo.app.ui.components.*
+import com.unsolo.app.ui.explore.SeatCaption
 import com.unsolo.app.ui.nav.AppNav
 import com.unsolo.app.ui.nav.LocalHeaderCounts
 import com.unsolo.app.ui.nav.Routes
@@ -49,139 +50,139 @@ fun MyTripsScreen(nav: AppNav) {
     if (!signedIn) {
         Column(Modifier.fillMaxSize().background(c.paper)) {
             PageHeader("My trips", counts, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
-            EmptyState("Your tickets live here", "Sign in to see bookings, plans you've joined and their group chats.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
+            EmptyState("Your circles live here", "Sign in to see bookings, plans you've joined and their group chats.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
         }
         return
     }
     val vm: MyTripsViewModel = viewModel { MyTripsViewModel(nav.graph) }
     val data by vm.trips.collectAsStateWithLifecycle()
     val chats by vm.chats.collectAsStateWithLifecycle()
+    val me by nav.graph.account.me.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf("upcoming") }
     val d = data ?: MyTripsResponse()
     val unreadByRoom = chats.associate { it.id to it.unread }
     LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
         item(key = "h") {
             PageHeader("My trips", counts, { nav.to(Routes.INBOX) }, { nav.to(Routes.ACTIVITY) })
-            Segmented(listOf("upcoming" to "Upcoming · ${d.upcoming.size + d.plans.size}", "past" to "Past · ${d.past.size}"), tab, { tab = it })
-            Spacer(Modifier.height(12.dp))
+            Segmented(listOf("upcoming" to "Upcoming · ${d.upcoming.size}", "plans" to "Plans · ${d.plans.size + d.requested.size}", "past" to "Past · ${d.past.size}"), tab, { tab = it })
+            Spacer(Modifier.height(8.dp))
         }
-        if (tab == "upcoming") {
-            if (d.upcoming.isEmpty() && d.plans.isEmpty() && d.requested.isEmpty()) item { EmptyState("No trips yet", "Take a seat on a departure, or ask to join a plan in Tribe.", action = "Explore departures", onAction = { nav.tab(Routes.EXPLORE) }) }
-            items(d.upcoming, key = { "b-" + it.id }, contentType = { "ticket" }) { b ->
-                TicketCard(b, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") })
-            }
-            if (d.plans.isNotEmpty() || d.requested.isNotEmpty()) item(key = "plans-h") { SectionHeader("Plans you're in", Modifier.padding(top = 8.dp)) }
-            items(d.plans, key = { "p-" + it.id }, contentType = { "plan" }) { p -> PlanTicket(p, onOpen = { nav.to(Routes.post(p.id)) }, onChat = { nav.to(Routes.INBOX) }) }
-            items(d.requested, key = { "r-" + it.id }, contentType = { "plan" }) { p -> PlanTicket(p, onOpen = { nav.to(Routes.post(p.id)) }, onChat = null) }
-            d.past.firstOrNull { it.storyPrompt }?.let { last ->
-                item(key = "last") {
-                    SectionHeader("Last trip", Modifier.padding(top = 8.dp))
-                    StoryPrompt(last) { nav.to(Routes.compose(PostKind.STORY)) }
+        when (tab) {
+            "upcoming" -> {
+                if (d.upcoming.isEmpty()) item { EmptyState("No trips yet", "Take a seat on a departure, or ask to join a plan in Tribe.", action = "Explore departures", onAction = { nav.tab(Routes.EXPLORE) }) }
+                items(d.upcoming, key = { "b-" + it.id }, contentType = { "ticket" }) { b ->
+                    UpcomingCard(b, me?.user, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") })
+                }
+                d.past.firstOrNull { it.storyPrompt }?.let { last ->
+                    item(key = "last") {
+                        SectionHeader("Last trip", Modifier.padding(top = 8.dp))
+                        PastCard(last) { nav.to(Routes.compose(PostKind.STORY)) }
+                    }
                 }
             }
-        } else {
-            if (d.past.isEmpty()) item { EmptyState("No past trips", "Trips you've been on show up here, with a prompt to share your story.") }
-            items(d.past, key = { "past-" + it.id }) { b ->
-                Row(Modifier.padding(horizontal = Gutter, vertical = 5.dp).fillMaxWidth().raisedCard().clickable { nav.to(Routes.trip(b.trip.slug)) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(Fmt.dayNum(b.travelDate), style = Pc.type.numLarge, color = c.ink)
-                        Text(Fmt.monUpper(b.travelDate), style = Pc.type.code, color = c.ink2)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(b.trip.title, style = Pc.type.bodyStrong, color = c.ink)
-                        Text(b.trip.host?.name ?: "", style = Pc.type.small, color = c.ink2)
-                    }
-                    if (b.storyPrompt) PcButton("Post story", { nav.to(Routes.compose(PostKind.STORY)) }, height = 44.dp)
-                }
+            "plans" -> {
+                if (d.plans.isEmpty() && d.requested.isEmpty()) item { EmptyState("No plans yet", "Plans you organise or join show up here.", action = "Find a plan", onAction = { nav.tab(Routes.TRIBE) }) }
+                items(d.plans, key = { "p-" + it.id }, contentType = { "plan" }) { p -> PlanTicket(p, me?.user?.id, onOpen = { nav.to(Routes.post(p.id)) }, onChat = { nav.to(Routes.INBOX) }) }
+                items(d.requested, key = { "r-" + it.id }, contentType = { "plan" }) { p -> PlanTicket(p, me?.user?.id, onOpen = { nav.to(Routes.post(p.id)) }, onChat = null) }
+            }
+            else -> {
+                if (d.past.isEmpty()) item { EmptyState("No past trips", "Trips you've been on show up here, with a prompt to share your story.") }
+                items(d.past, key = { "past-" + it.id }) { b -> PastCard(b, onOpen = { nav.to(Routes.trip(b.trip.slug)) }) { nav.to(Routes.compose(PostKind.STORY)) } }
             }
         }
         item { Spacer(Modifier.navigationBarsPadding().height(24.dp)) }
     }
 }
 
-/** The ticket stub: countdown in days, the trip, its chat. Printed: solid ink rule. */
+/** Booked trip: your gold seat in the ring, co-travellers' faces, "Meet the circle". */
 @Composable
-private fun TicketCard(b: Booking, unread: Int, onOpen: () -> Unit, onChat: () -> Unit, onPay: () -> Unit) {
+private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> Unit, onChat: () -> Unit, onPay: () -> Unit) {
     val c = Pc.colors
     val days = Fmt.daysUntil(b.travelDate) ?: 0
-    Column(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().raisedCard()) {
-        Row(Modifier.clickable(onClick = onOpen).height(IntrinsicSize.Min)) {
-            Column(Modifier.weight(1f).padding(16.dp)) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("%02d".format(days.coerceAtLeast(0)), style = Pc.type.numLarge.copy(fontSize = 44.sp), color = c.ink)
-                    Text(if (days == 1L) " day to go" else " days to go", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(bottom = 6.dp))
-                }
-                Text(b.trip.title, style = Pc.type.title2, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val total = b.trip.seatsTotal ?: 0
+    val taken = (total - (b.trip.seatsLeft ?: 0)).coerceAtLeast(1)
+    val faces = b.trip.goingFaces
+    Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().raisedCard().clickable(onClick = onOpen).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (total > 0) SeatRing(total, taken - 1, 132.dp, you = YouSeat.You, people = listOfNotNull(b.trip.host) + faces, showFaces = true, me = me,
+                photo = b.trip.image, badge = b.trip.host?.let { RingBadge(it) })
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Tag(when (days) { 0L -> "Today"; 1L -> "Tomorrow"; else -> "In $days days" }, TagKind.Verified, icon = PcIcons.CalendarCheck)
+                Spacer(Modifier.height(8.dp))
+                Text(b.trip.title, style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("${Fmt.dowDayMonth(b.travelDate)} · ${b.confirmationCode ?: b.status}", style = Pc.type.small, color = c.ink2)
+                if (total > 0) SeatCaption(total, taken, Modifier.padding(top = 2.dp))
             }
-            ProgressiveImage(b.trip.image, Modifier.padding(10.dp).width(96.dp).fillMaxHeight().clip(RoundedCornerShape(PcTokens.radiusImage)))
         }
-        if (b.balancePaise > 0 || b.chatRoomId != null) InsetRule()
+        if (faces.isNotEmpty()) Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            FaceStack(faces.take(4), size = 28.dp)
+            Spacer(Modifier.width(4.dp))
+            val names = faces.take(2).joinToString(", ") { it.firstName }
+            Text(if (faces.size > 2) "$names, ${faces.size - 2} more and you" else "$names and you", style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
         if (b.balancePaise > 0) {
-            Row(Modifier.fillMaxWidth().clickable(onClick = onPay).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Balance ", style = Pc.type.small, color = c.ink2)
-                Text(MoneyFormat.rupees(b.balancePaise), style = Pc.type.price.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.weight(1f))
-                Text("${MoneyFormat.rupees(b.paidPaise)} PAID", style = Pc.type.code, color = c.green, modifier = Modifier.clip(CircleShape).background(c.green.copy(alpha = 0.12f)).padding(horizontal = 8.dp, vertical = 3.dp))
+            Row(Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).clickable(onClick = onPay).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("Balance ", style = Pc.type.small, color = c.ink2)
+                        Text(MoneyFormat.rupees(b.balancePaise), style = Pc.type.price.copy(fontSize = 15.sp), color = c.ink)
+                    }
+                    Text("${MoneyFormat.rupees(b.paidPaise)} paid", style = Pc.type.label, color = c.pine)
+                }
+                Text("Pay on unsolo.in", style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.pine)
             }
-            if (b.chatRoomId != null) InsetRule()
         }
-        if (b.chatRoomId != null) Row(Modifier.fillMaxWidth().clickable(onClick = onChat).defaultMinSize(minHeight = 52.dp).padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Chat, null, size = 20.dp)
-            Spacer(Modifier.width(10.dp))
-            Text("Trip chat", style = Pc.type.bodyStrong, color = c.ink, modifier = Modifier.weight(1f))
-            if (unread > 0) CountBadge(unread)
-            PcIcon(PcIcons.ChevronRight, null, size = 18.dp)
+        if (b.chatRoomId != null) {
+            Spacer(Modifier.height(12.dp))
+            PcButton(if (unread > 0) "Meet the circle · $unread new" else "Meet the circle", onChat, Modifier.fillMaxWidth(), icon = PcIcons.ChatsCircle)
         }
     }
 }
 
-/** Pencilled: plans are dashed, never a ticket. */
+/** Past trip: desaturated ring, "Went · date", a prompt to post a story. */
 @Composable
-private fun PlanTicket(p: Post, onOpen: () -> Unit, onChat: (() -> Unit)?) {
+private fun PastCard(b: Booking, onOpen: (() -> Unit)? = null, onStory: () -> Unit) {
     val c = Pc.colors
-    Column(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().pencilledCard().clickable(onClick = onOpen).padding(14.dp)) {
+    val total = b.trip.seatsTotal ?: 0
+    Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().raisedCard().then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(p.title ?: "Plan", style = Pc.type.title3, color = c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.fact, color = c.ink2)
+            if (total > 0) SeatRing(total, total - 1, 96.dp, you = YouSeat.You, past = true, photo = b.trip.image, dots = false, animate = false)
+            else ProgressiveImage(b.trip.image, Modifier.size(96.dp).clip(CircleShape))
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Went · ${Fmt.dayMonth(b.travelDate)}", style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink3)
+                Text(b.trip.title, style = Pc.type.title3, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(listOfNotNull(b.trip.host?.name, if (total > 0) "$total travellers" else null).joinToString(" · "), style = Pc.type.small, color = c.ink2)
+            }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(12.dp))
+        PcButton("Post a story", onStory, Modifier.fillMaxWidth(), kind = BtnKind.Outline, icon = PcIcons.Camera, height = BtnSmall)
+    }
+}
+
+/** Plans are pencilled: a dashed card with the plan's loose circle. */
+@Composable
+private fun PlanTicket(p: Post, meId: String?, onOpen: () -> Unit, onChat: (() -> Unit)?) {
+    val c = Pc.colors
+    Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().pencilledCard().clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (p.viewer.isAuthor) { Tag("Organiser", TagKind.Organiser); Spacer(Modifier.width(8.dp)) }
-            Text(when (p.viewer.membership) {
-                "requested" -> "Requested · waiting for ${p.author.firstName}"
-                else -> "${p.memberCount} of ${p.spotsTotal ?: p.seats.size}" + (if (p.viewer.isAuthor) "" else " · you're in")
-            }, style = Pc.type.small, color = c.ink2)
+            com.unsolo.app.ui.tribe.PlanRing(p, 96.dp, meId)
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                if (p.viewer.isAuthor) { Tag("Organiser", TagKind.Organiser, height = 20.dp); Spacer(Modifier.height(6.dp)) }
+                else if (p.audience == "women") { Tag("Women only", TagKind.Women, height = 22.dp); Spacer(Modifier.height(6.dp)) }
+                Text(p.title ?: "Plan", style = Pc.type.title3, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.fact, color = c.ink2)
+                Text(when (p.viewer.membership) {
+                    "requested" -> "Requested · waiting for ${p.author.firstName}"
+                    else -> "${p.memberCount} of ${p.spotsTotal ?: p.seats.size} going" + (if (p.viewer.isAuthor) "" else " · you're in")
+                }, style = Pc.type.small, color = c.ink2)
+            }
         }
-        Spacer(Modifier.height(10.dp))
-        SeatRow(p.seats, maxCell = PcTokens.seatSmall)
         if (onChat != null) {
-            Spacer(Modifier.height(10.dp))
-            Row(Modifier.fillMaxWidth().clickable(onClick = onChat).defaultMinSize(minHeight = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-                PcIcon(PcIcons.Chat, null, size = 20.dp)
-                Spacer(Modifier.width(10.dp))
-                Text("Plan chat", style = Pc.type.bodyStrong, color = c.ink, modifier = Modifier.weight(1f))
-                PcIcon(PcIcons.ChevronRight, null, size = 18.dp)
-            }
+            Spacer(Modifier.height(12.dp))
+            PcButton("Plan chat", onChat, Modifier.fillMaxWidth(), kind = BtnKind.Outline, icon = PcIcons.ChatsCircle, height = BtnSmall)
         }
-    }
-}
-
-@Composable
-private fun StoryPrompt(b: Booking, onPost: () -> Unit) {
-    val c = Pc.colors
-    Row(Modifier.padding(horizontal = Gutter).fillMaxWidth().raisedCard().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.width(44.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(Fmt.dayNum(b.travelDate), style = Pc.type.numLarge, color = c.ink)
-            Text(Fmt.monUpper(b.travelDate), style = Pc.type.code, color = c.ink2)
-        }
-        Spacer(Modifier.width(10.dp))
-        ProgressiveImage(b.trip.image, Modifier.size(56.dp).clip(RoundedCornerShape(PcTokens.radiusImage)))
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(b.trip.title, style = Pc.type.bodyStrong, color = c.ink, maxLines = 2)
-            Text("Share it with your group", style = Pc.type.small, color = c.ink2)
-        }
-        PcButton("Post story", onPost, height = 44.dp)
     }
 }

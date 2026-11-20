@@ -1,5 +1,6 @@
 package com.unsolo.app.ui.theme
 
+import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -8,7 +9,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.DeviceFontFamilyName
 import androidx.compose.ui.text.font.Font
@@ -26,77 +29,109 @@ private val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs,
 )
 
-/** Downloadable IBM Plex with system fallbacks (Roboto Condensed / Roboto / monospace). */
-private fun family(name: String, fallback: String, weights: List<FontWeight>): FontFamily {
+/**
+ * Google downloadable fonts (no font files in the APK), each weight followed by the system
+ * sans-serif at the same weight, so text renders immediately and swaps once the font arrives.
+ * The ₹ sign is not in either face and falls back to the system font automatically.
+ */
+private fun family(name: String, weights: List<FontWeight>): FontFamily {
     val g = GoogleFont(name)
     return FontFamily(
         weights.flatMap { w ->
             listOf(
                 GoogleFontFont(googleFont = g, fontProvider = provider, weight = w),
-                Font(DeviceFontFamilyName(fallback), weight = w),
+                Font(DeviceFontFamilyName("sans-serif"), weight = w),
             )
         }
     )
 }
 
 object PcFonts {
-    val title = family("IBM Plex Sans Condensed", "sans-serif-condensed", listOf(FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold))
-    val body = family("IBM Plex Sans", "sans-serif", listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold))
-    val mono = family("IBM Plex Mono", "monospace", listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold))
+    /** Bricolage Grotesque: headings, titles, prices, big numbers. */
+    val display = family("Bricolage Grotesque", listOf(FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold))
+    /** Figtree: body, labels, buttons. */
+    val body = family("Figtree", listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.ExtraBold))
+
+    @Deprecated("Full Circle has no condensed face", ReplaceWith("display")) val title get() = display
+    @Deprecated("Full Circle has no mono face; numbers use tabular figures", ReplaceWith("body")) val mono get() = body
 }
 
+private const val TNUM = "tnum"
+
 /**
- * design/tokens.json "type" scale. Mono is only for prices and date digits (≤15sp); numbers that
- * sit in titles use the condensed face with tabular figures. Labels are sans, never mono.
+ * Full Circle type scale (design/tokens.json + docs/revamp/design-system.md).
+ * Bricolage 800 for display/titles/prices, Figtree 400/600/700 for everything else.
+ * Every numeric style uses tabular figures.
  */
 @Immutable
 data class PcTypography(
-    val display: TextStyle = TextStyle(fontFamily = PcFonts.title, fontWeight = FontWeight.SemiBold, fontSize = 32.sp, lineHeight = 1.1.em),
-    val title1: TextStyle = TextStyle(fontFamily = PcFonts.title, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 1.15.em),
-    val title2: TextStyle = TextStyle(fontFamily = PcFonts.title, fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 1.2.em),
-    val title3: TextStyle = TextStyle(fontFamily = PcFonts.title, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 1.25.em),
-    val body: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 1.5.em),
-    val bodyStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 1.5.em),
-    val small: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 1.45.em),
-    val smallStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 1.45.em),
-    val label: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 1.3.em),
-    /** Facts row (calendar · pin · people). */
-    val fact: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 1.35.em, fontFeatureSettings = "tnum"),
-    /** Inline numbers in sentences and counters: sans, tabular. */
-    val num: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 1.2.em, fontFeatureSettings = "tnum"),
-    /** Big numbers (hero price, countdown, date column): condensed, tabular. */
-    val numLarge: TextStyle = TextStyle(fontFamily = PcFonts.title, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 1.1.em, fontFeatureSettings = "tnum"),
-    /** Prices and date digits in rows: the one place mono is used. */
-    val price: TextStyle = TextStyle(fontFamily = PcFonts.mono, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 1.2.em),
-    /** Tag pills and overlines: 11sp semibold sans, tracked. */
-    val code: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 1.25.em, letterSpacing = 0.06.em),
+    val display: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 1.08.em, letterSpacing = (-0.02).em),
+    val title1: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, lineHeight = 1.12.em, letterSpacing = (-0.015).em),
+    val title2: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 1.18.em, letterSpacing = (-0.01).em),
+    val title3: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 1.22.em, letterSpacing = (-0.01).em),
+    val body: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 1.45.em),
+    val bodyStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 1.45.em),
+    val small: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 1.4.em),
+    val smallStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 1.4.em),
+    val label: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 1.3.em),
+    /** Buttons: Figtree 700. */
+    val button: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 1.2.em),
+    /** Facts row (calendar · clock · wallet). */
+    val fact: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 1.35.em, fontFeatureSettings = TNUM),
+    /** Inline numbers in sentences and counters. */
+    val num: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 1.2.em, fontFeatureSettings = TNUM),
+    /** Big numbers (ring centre, countdowns, date chips). */
+    val numLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, lineHeight = 1.0.em, letterSpacing = (-0.02).em, fontFeatureSettings = TNUM),
+    /** Prices in rows: Bricolage 800. */
+    val price: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, lineHeight = 1.15.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
+    /** Hero prices (cards, bottom bar). */
+    val priceLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, lineHeight = 1.1.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
+    /** Badges (HOST / ORGANISER) and overlines: 11sp 800, tracked. */
+    val code: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, lineHeight = 1.25.em, letterSpacing = 0.05.em),
+    /** Wordmark. */
+    val wordmark: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, lineHeight = 1.0.em, letterSpacing = (-0.02).em),
 )
 
 val LocalPcColors = staticCompositionLocalOf { PcTokens.Light }
 val LocalPcType = staticCompositionLocalOf { PcTypography() }
 val LocalDark = staticCompositionLocalOf { false }
+/** True when the system "Remove animations" setting is on (animator duration scale 0). */
+val LocalReduceMotion = staticCompositionLocalOf { false }
 
 object Pc {
     val colors: PcColors @Composable @ReadOnlyComposable get() = LocalPcColors.current
     val type: PcTypography @Composable @ReadOnlyComposable get() = LocalPcType.current
     val isDark: Boolean @Composable @ReadOnlyComposable get() = LocalDark.current
+    val reduceMotion: Boolean @Composable @ReadOnlyComposable get() = LocalReduceMotion.current
 }
 
 @Composable
-fun PassengerChartTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun FullCircleTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val c = if (dark) PcTokens.Dark else PcTokens.Light
-    // Material3 is plumbing only (ripples, text selection, dialogs); visuals come from Pc.*.
+    val ctx = LocalContext.current
+    val reduceMotion = remember(ctx) {
+        runCatching { Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }.getOrDefault(false)
+    }
+    // Material3 is plumbing only (ripples, text selection, dialogs, date pickers); visuals come from Pc.*.
     val scheme = if (dark) darkColorScheme(
-        primary = c.ink, onPrimary = c.onInk, background = c.paper, onBackground = c.ink, surface = c.paper,
-        onSurface = c.ink, surfaceVariant = c.raised, onSurfaceVariant = c.ink2, outline = c.rule, error = c.red,
-        secondary = c.blue, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised, surfaceContainerLow = c.paper,
+        primary = c.pine, onPrimary = c.onPine, primaryContainer = c.pineSoft, onPrimaryContainer = c.ink,
+        background = c.paper, onBackground = c.ink, surface = c.raised, onSurface = c.ink,
+        surfaceVariant = c.tonal, onSurfaceVariant = c.ink2, outline = c.rule, outlineVariant = c.rule, error = c.red,
+        secondary = c.pine, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
+        surfaceContainerHighest = c.raised, surfaceContainerLow = c.paper, surfaceContainerLowest = c.paper,
     ) else lightColorScheme(
-        primary = c.ink, onPrimary = c.onInk, background = c.paper, onBackground = c.ink, surface = c.paper,
-        onSurface = c.ink, surfaceVariant = c.raised, onSurfaceVariant = c.ink2, outline = c.rule, error = c.red,
-        secondary = c.blue, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised, surfaceContainerLow = c.paper,
+        primary = c.pine, onPrimary = c.onPine, primaryContainer = c.pineSoft, onPrimaryContainer = c.ink,
+        background = c.paper, onBackground = c.ink, surface = c.raised, onSurface = c.ink,
+        surfaceVariant = c.tonal, onSurfaceVariant = c.ink2, outline = c.rule, outlineVariant = c.rule, error = c.red,
+        secondary = c.pine, tertiary = c.gold, surfaceContainer = c.raised, surfaceContainerHigh = c.raised,
+        surfaceContainerHighest = c.raised, surfaceContainerLow = c.paper, surfaceContainerLowest = c.paper,
     )
-    val type = PcTypography()
-    CompositionLocalProvider(LocalPcColors provides c, LocalPcType provides type, LocalDark provides dark) {
+    val type = remember { PcTypography() }
+    CompositionLocalProvider(LocalPcColors provides c, LocalPcType provides type, LocalDark provides dark, LocalReduceMotion provides reduceMotion) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }
+
+@Deprecated("Renamed for the Full Circle design", ReplaceWith("FullCircleTheme(dark, content)"))
+@Composable
+fun PassengerChartTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) = FullCircleTheme(dark, content)

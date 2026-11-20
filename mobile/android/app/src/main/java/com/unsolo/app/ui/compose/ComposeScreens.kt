@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -21,7 +23,12 @@ import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
@@ -44,8 +51,6 @@ import com.unsolo.app.ui.nav.Routes
 import com.unsolo.app.ui.theme.Pc
 import com.unsolo.app.ui.theme.PcIcons
 import com.unsolo.app.ui.theme.PcTokens
-import com.unsolo.app.ui.tribe.CardActions
-import com.unsolo.app.ui.tribe.PlanCard
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -56,19 +61,28 @@ import java.time.ZoneOffset
 
 // ---------------- Post sheet ----------------
 
+/** Kinds offered by the centre + tab. "poll" is an ask that opens with the poll on. */
+const val KIND_POLL = "poll"
+
 @Composable
 fun PostTypeSheet(onDismiss: () -> Unit, onPick: (String) -> Unit, onHosting: () -> Unit) {
     val c = Pc.colors
     PcSheet(onDismiss) {
-        Text("What are you posting?", style = Pc.type.title1, color = c.ink, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp))
+        SheetTitle("What are you sharing?", "Everything goes to Tribe.")
         Column(Modifier.padding(horizontal = Gutter), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            TypeRow(PcIcons.Users, "Plan a trip or meetup", "People ask to join, and a group chat opens", dashed = true) { onPick(PostKind.PLAN) }
-            TypeRow(PcIcons.Image, "Share a story", "Photos from a trip. Tag the trip and who went") { onPick(PostKind.STORY) }
-            TypeRow(PcIcons.Question, "Ask the Tribe", "A question, with an optional poll") { onPick(PostKind.ASK) }
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(PcTokens.radiusCard)).background(c.goldBg).clickable(onClick = onHosting).padding(12.dp), verticalAlignment = Alignment.Top) {
-                Tag("Host", TagKind.Host)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                KindTile(PcIcons.UsersThree, "Plan", "Find people for a trip you're planning", Modifier.weight(1f)) { onPick(PostKind.PLAN) }
+                KindTile(PcIcons.Camera, "Story", "Photos from a trip, stays on your profile", Modifier.weight(1f)) { onPick(PostKind.STORY) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                KindTile(PcIcons.Question, "Question", "Ask travellers and hosts", Modifier.weight(1f)) { onPick(PostKind.ASK) }
+                KindTile(PcIcons.ChartBar, "Poll", "Let the tribe vote", Modifier.weight(1f)) { onPick(KIND_POLL) }
+            }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).clickable(role = Role.Button, onClick = onHosting).padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Tag("Host", TagKind.Host, height = 20.dp)
                 Spacer(Modifier.width(10.dp))
-                Text("Selling a trip, stay or rental? List it in Hosting. Tribe is for travellers, so promotional posts are removed.", style = Pc.type.small, color = c.ink)
+                Text("Selling a trip, stay or rental? List it in Hosting.", style = Pc.type.small, color = c.ink, modifier = Modifier.weight(1f))
+                PcIcon(PcIcons.ChevronRight, null, size = 18.dp, tint = c.ink3)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -76,22 +90,20 @@ fun PostTypeSheet(onDismiss: () -> Unit, onPick: (String) -> Unit, onHosting: ()
 }
 
 @Composable
-private fun TypeRow(icon: ImageVector, title: String, sub: String, dashed: Boolean = false, onClick: () -> Unit) {
+private fun KindTile(icon: ImageVector, title: String, sub: String, modifier: Modifier, onClick: () -> Unit) {
     val c = Pc.colors
-    Row(Modifier.fillMaxWidth().raisedCard().clickable(role = Role.Button, onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(48.dp).then(if (dashed) Modifier.dashedBorder(c.rule2, radius = 24.dp, width = 1.5.dp) else Modifier.clip(androidx.compose.foundation.shape.CircleShape).background(tonal())), contentAlignment = Alignment.Center) { PcIcon(icon, null) }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = Pc.type.bodyStrong, color = c.ink)
-            Text(sub, style = Pc.type.small, color = c.ink2)
-        }
-        PcIcon(PcIcons.ChevronRight, null, size = 18.dp)
+    val shape = RoundedCornerShape(22.dp)
+    Column(modifier.heightIn(min = 132.dp).clip(shape).background(c.raised).border(1.dp, c.rule, shape).clickable(role = Role.Button, onClickLabel = "New $title", onClick = onClick).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.pine, size = 21.dp) }
+        Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 16.sp), color = c.ink)
+        Text(sub, style = Pc.type.small, color = c.ink2)
     }
 }
 
 // ---------------- Composer ----------------
 
-class ComposeViewModel(private val g: AppGraph, val kind: String) : ViewModel() {
+class ComposeViewModel(private val g: AppGraph, val kind: String, startWithPoll: Boolean = false) : ViewModel() {
     var title by mutableStateOf("")
     var body by mutableStateOf("")
     var place by mutableStateOf("")
@@ -105,7 +117,7 @@ class ComposeViewModel(private val g: AppGraph, val kind: String) : ViewModel() 
     var trip by mutableStateOf<TripLite?>(null)
     val tagged = mutableStateListOf<UserLite>()
     var showOnTripPage by mutableStateOf(true)
-    var pollOn by mutableStateOf(false)
+    var pollOn by mutableStateOf(startWithPoll)
     val pollOptions = mutableStateListOf("", "")
     var publishing by mutableStateOf(false)
 
@@ -178,8 +190,10 @@ class ComposeViewModel(private val g: AppGraph, val kind: String) : ViewModel() 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComposeScreen(kind: String, nav: AppNav) {
-    val vm: ComposeViewModel = viewModel(key = "compose-$kind") { ComposeViewModel(nav.graph, kind) }
+fun ComposeScreen(kindArg: String, nav: AppNav) {
+    val isPoll = kindArg == KIND_POLL
+    val kind = if (isPoll) PostKind.ASK else kindArg
+    val vm: ComposeViewModel = viewModel(key = "compose-$kindArg") { ComposeViewModel(nav.graph, kind, startWithPoll = isPoll) }
     val c = Pc.colors
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(6)) { uris ->
         uris.forEach { if (vm.photos.size < 6 && it !in vm.photos) vm.photos += it }
@@ -187,25 +201,26 @@ fun ComposeScreen(kind: String, nav: AppNav) {
     var dates by remember { mutableStateOf(false) }
     var triedPublish by remember { mutableStateOf(false) }
     val posting = nav.graph.config.config.collectAsStateWithLifecycle().value.flags.tribePostingEnabled
-    val title = when (kind) { PostKind.PLAN -> "New plan"; PostKind.STORY -> "New story"; else -> "Ask the Tribe" }
+    val title = when (kind) { PostKind.PLAN -> "New plan"; PostKind.STORY -> "New story"; else -> if (isPoll) "New poll" else "New question" }
 
     Column(Modifier.fillMaxSize().background(c.paper)) {
         ComposerTopBar(title) { nav.back() }
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Spacer(Modifier.height(2.dp))
             when (kind) {
                 PostKind.PLAN -> PlanForm(vm, onDates = { dates = true }, onPhotos = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
                 PostKind.STORY -> StoryForm(vm, onPhotos = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) })
-                else -> AskForm(vm)
+                else -> AskForm(vm, isPoll)
             }
-            if (triedPublish && vm.error != null) Text(vm.error!!, style = Pc.type.smallStrong, color = c.red, modifier = Modifier.padding(16.dp))
-            Spacer(Modifier.height(24.dp))
+            if (triedPublish && vm.error != null) Text(vm.error!!, style = Pc.type.smallStrong, color = c.red)
+            Spacer(Modifier.height(16.dp))
         }
-        val (barTitle, barSub, action) = when (kind) {
-            PostKind.PLAN -> Triple(if (vm.audience == "women") "Visible to women travellers" else if (vm.audience == "verified") "Visible to verified travellers" else "Visible to everyone", "You can edit or cancel anytime", "Publish plan")
-            PostKind.STORY -> Triple("Your group gets a note", "Tagged people choose whether their face shows", "Publish")
-            else -> Triple("Most asks get a reply in ~3h", "The best answer is pinned to the top", "Post")
+        val (barTitle, barSub) = when (kind) {
+            PostKind.PLAN -> (if (vm.audience == "women") "Visible to women travellers" else if (vm.audience == "verified") "Visible to verified travellers" else "Visible to everyone") to "You can edit or cancel anytime"
+            PostKind.STORY -> "Your group gets a note" to "Tagged people choose whether their face shows"
+            else -> (if (vm.pollOn) "Open for 3 days" else "Most questions get a reply in ~3h") to "Hosts answer with their HOST tag"
         }
-        BottomActionBar(if (posting) barTitle else "Posting is paused", if (posting) barSub else "Try again in a little while", action, enabled = posting && !vm.publishing, onAction = {
+        BottomActionBar(if (posting) barTitle else "Posting is paused", if (posting) barSub else "Try again in a little while", "Publish", enabled = posting && !vm.publishing, onAction = {
             triedPublish = true
             vm.publish { nav.popToTab(Routes.TRIBE) }
         })
@@ -221,99 +236,114 @@ fun ComposeScreen(kind: String, nav: AppNav) {
                 override fun isSelectableYear(year: Int) = year >= LocalDate.now().year
             },
         )
-        val colors = DatePickerDefaults.colors(containerColor = c.paper, selectedDayContainerColor = c.ink, selectedDayContentColor = c.onInk, todayDateBorderColor = c.ink, dayInSelectionRangeContainerColor = c.goldBg, todayContentColor = c.ink)
+        val colors = DatePickerDefaults.colors(containerColor = c.raised, selectedDayContainerColor = c.pine, selectedDayContentColor = c.onPine, todayDateBorderColor = c.pine, dayInSelectionRangeContainerColor = c.pineSoft, todayContentColor = c.ink)
         DatePickerDialog(onDismissRequest = { dates = false }, colors = colors, confirmButton = {
             TextButton({
                 state.selectedStartDateMillis?.let { vm.startsOn = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() }
                 vm.endsOn = state.selectedEndDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() } ?: vm.startsOn
                 dates = false
-            }) { Text("Done", style = Pc.type.bodyStrong, color = c.ink) }
+            }) { Text("Done", style = Pc.type.bodyStrong, color = c.pine) }
         }, dismissButton = { TextButton({ dates = false }) { Text("Cancel", style = Pc.type.body, color = c.ink) } }) {
             DateRangePicker(state, Modifier.weight(1f), colors = colors, showModeToggle = false)
         }
     }
 }
 
+/** One `.field` block: label + value, surface, 18dp radius. */
+@Composable
+private fun Field(label: String, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().fieldBox().then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier).padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text(label, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = Pc.colors.ink2)
+        Spacer(Modifier.height(2.dp))
+        content()
+    }
+}
+
+@Composable
+private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: String, maxLength: Int, singleLine: Boolean = true, style: androidx.compose.ui.text.TextStyle = Pc.type.bodyStrong.copy(fontSize = 16.sp), keyboardType: KeyboardType = KeyboardType.Text) {
+    val c = Pc.colors
+    Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = 26.dp), contentAlignment = Alignment.CenterStart) {
+        if (value.isEmpty()) Text(placeholder, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3.copy(alpha = 0.72f))
+        androidx.compose.foundation.text.BasicTextField(value, { if (it.length <= maxLength) onValue(it) }, singleLine = singleLine, textStyle = style.copy(color = c.ink),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.pine), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType), modifier = Modifier.fillMaxWidth())
+    }
+}
+
 @Composable
 private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> Unit) {
     val c = Pc.colors
-    Spacer(Modifier.height(8.dp))
-    FormCard {
-    FieldRow("Title", vm.title, { vm.title = it }, placeholder = "Tosh & Kalga weekend", style = Pc.type.title3, maxLength = 90)
-    InsetRule()
-    FieldRow("Where", vm.place, { vm.place = it }, placeholder = "Tosh, Parvati Valley", icon = PcIcons.Pin, maxLength = 80)
-    InsetRule()
-    Column(Modifier.fillMaxWidth().clickable(onClick = onDates).padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Text("When", style = Pc.type.small, color = c.ink2)
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Calendar, null, size = 18.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(vm.startsOn?.let { Fmt.range(it.toString(), (vm.endsOn ?: it).toString()) } ?: "Pick dates", style = Pc.type.num.copy(fontSize = 16.sp), color = if (vm.startsOn == null) c.ink3 else c.ink)
-        }
-    }
-    InsetRule()
-    Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text("Group size", style = Pc.type.small, color = c.ink2)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("${vm.spots} people", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = c.ink)
-                Text("  including you", style = Pc.type.small, color = c.ink2)
-            }
-        }
-        Stepper(vm.spots, { vm.spots = it }, 2, 12)
-    }
-    InsetRule()
-    FieldRow("Rough cost each", vm.cost, { vm.cost = it }, placeholder = "₹4,500", keyboardType = KeyboardType.Text,
-        helper = "Split among yourselves. UnSOLO doesn't take payments for plans.", maxLength = 60)
-    InsetRule()
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Text("Who can join", style = Pc.type.small, color = c.ink2)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            listOf("verified" to "Verified travellers", "women" to "Women only", "anyone" to "Anyone").forEach { (k, l) ->
-                PcChip(l, vm.audience == k, { vm.audience = k })
-            }
-        }
+    val me by vm.me.collectAsStateWithLifecycle()
+    val women = vm.audience == "women"
+    // Live preview: you hold the first seat (gold); the ring grows with the group size and turns rose for women-only.
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        SeatRing(total = vm.spots, taken = 0, size = 132.dp, you = YouSeat.You, plan = true, women = women, centerUser = me?.user, me = me?.user,
+            contentDescription = "Live preview: you plus ${vm.spots - 1} spots")
         Spacer(Modifier.height(6.dp))
-        Text("Women-only plans need everyone verified, joiners too. 18+ only.", style = Pc.type.small, color = c.ink2)
+        Text(buildAnnotatedString { append("Live preview · "); withStyle(SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = c.ink)) { append("you + ${vm.spots - 1} spots") } },
+            style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink2)
     }
-    InsetRule()
-    FieldRow("Meeting point (only approved members see it)", vm.meetingPoint, { vm.meetingPoint = it }, placeholder = "Majnu ka Tilla bus stand, 21:30", maxLength = 120)
-    InsetRule()
-    FieldRow("About the plan", vm.body, { vm.body = it }, placeholder = "Volvo up, two nights in Kalga, easy pace. Looking for…", singleLine = false, maxLength = 1500)
-    }
-    Spacer(Modifier.height(12.dp))
-    FormCard {
-    PhotoStrip(vm.photos, onAdd = onPhotos, onRemove = { vm.photos.remove(it) })
-    }
-    Column(Modifier.padding(vertical = 20.dp)) {
-        Overline("Preview in the feed", Modifier.padding(start = Gutter + 4.dp, bottom = 4.dp))
-        Box {
-            val noop = remember { CardActions({}, {}, {}, { _, _ -> }, {}, {}, {}, { _, _ -> }, {}, {}) }
-            PlanCard(PostItem(vm.preview()), null, noop)
+    Field("Title") { InlineInput(vm.title, { vm.title = it }, "Tosh & Kalga weekend", 90) }
+    Field("Where to?") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.pine); Spacer(Modifier.width(6.dp))
+            InlineInput(vm.place, { vm.place = it }, "Spiti Valley", 80)
         }
     }
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Field("When", Modifier.weight(1.6f), onClick = onDates) {
+            Text(vm.startsOn?.let { Fmt.range(it.toString(), (vm.endsOn ?: it).toString()) } ?: "Pick dates", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = if (vm.startsOn == null) c.ink3 else c.ink, maxLines = 1)
+        }
+        val days = vm.startsOn?.let { s -> java.time.temporal.ChronoUnit.DAYS.between(s, vm.endsOn ?: s).toInt() + 1 }
+        Field("Days", Modifier.weight(1f), onClick = onDates) {
+            Text(days?.toString() ?: "–", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = if (days == null) c.ink3 else c.ink)
+        }
+    }
+    Row(Modifier.fillMaxWidth().fieldBox().padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text("People you're looking for", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
+            Text("${vm.spots - 1} more", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = c.ink)
+        }
+        Stepper(vm.spots - 1, { vm.spots = it + 1 }, 1, 11)
+    }
+    Field("Budget each") {
+        InlineInput(vm.cost, { vm.cost = it }, "~₹20,000", 60)
+        Text("Split among yourselves. UnSOLO doesn't take payments for plans.", style = Pc.type.small, color = c.ink3)
+    }
+    Column(Modifier.fillMaxWidth().fieldBox().padding(vertical = 4.dp)) {
+        SwitchRow("Women only", "Only women can see and join · ID check", women, { on -> vm.audience = if (on) "women" else "verified" }, onColor = c.rose, titleColor = c.rose, titleIcon = PcIcons.GenderFemale, modifier = Modifier.padding(start = 0.dp))
+        if (!women) {
+            Hairline(Modifier.padding(horizontal = 14.dp))
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
+                Text("Who can join", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("verified" to "Verified travellers", "anyone" to "Anyone").forEach { (k, l) -> PcChip(l, vm.audience == k, { vm.audience = k }) }
+                }
+            }
+        }
+    }
+    Field("Meeting point · only approved members see it") { InlineInput(vm.meetingPoint, { vm.meetingPoint = it }, "Majnu ka Tilla bus stand, 21:30", 120) }
+    Field("About the plan") { InlineInput(vm.body, { vm.body = it }, "Volvo up, two nights in Kalga, easy pace. Looking for…", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
+    Column(Modifier.fillMaxWidth().fieldBox()) { PhotoStrip(vm.photos, onAdd = onPhotos, onRemove = { vm.photos.remove(it) }) }
 }
 
 @Composable
 private fun PhotoStrip(photos: List<Uri>, onAdd: () -> Unit, onRemove: (Uri) -> Unit) {
     val c = Pc.colors
     Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Text("Photos · ${photos.size}/6", style = Pc.type.small, color = c.ink2)
+        Text("Photos · ${photos.size}/6", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
         Spacer(Modifier.height(8.dp))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             photos.forEachIndexed { i, u ->
-                Box(Modifier.size(84.dp).clip(RoundedCornerShape(PcTokens.radiusButton))) {
+                Box(Modifier.size(84.dp).clip(RoundedCornerShape(16.dp))) {
                     AsyncImage(u, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    if (i == 0) Text("COVER", style = Pc.type.code, color = c.onInk, modifier = Modifier.padding(4.dp).clip(RoundedCornerShape(3.dp)).background(c.ink.copy(alpha = 0.8f)).padding(horizontal = 4.dp, vertical = 2.dp))
+                    if (i == 0) Text("COVER", style = Pc.type.code.copy(fontSize = 9.sp), color = c.onPine, modifier = Modifier.padding(5.dp).clip(CircleShape).background(c.pine).padding(horizontal = 6.dp, vertical = 2.dp))
                     Box(Modifier.align(Alignment.TopEnd).size(28.dp).clickable(onClickLabel = "Remove photo") { onRemove(u) }, contentAlignment = Alignment.Center) {
-                        Box(Modifier.size(20.dp).clip(RoundedCornerShape(10.dp)).background(c.ink.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Close, null, tint = c.onInk, size = 14.dp) }
+                        Box(Modifier.size(22.dp).clip(CircleShape).background(c.scrim), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Close, null, tint = Color.White, size = 13.dp) }
                     }
                 }
             }
-            if (photos.size < 6) Column(Modifier.size(84.dp).pencilledCard(radius = PcTokens.radiusImage).clickable(role = Role.Button, onClickLabel = "Add photos", onClick = onAdd), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                PcIcon(PcIcons.Plus, null, size = 18.dp)
+            if (photos.size < 6) Column(Modifier.size(84.dp).pencilledCard(radius = 16.dp).clickable(role = Role.Button, onClickLabel = "Add photos", onClick = onAdd), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                PcIcon(PcIcons.Camera, null, size = 20.dp, tint = c.pine)
                 Text("Add photos", style = Pc.type.label, color = c.ink2)
             }
         }
@@ -324,42 +354,41 @@ private fun PhotoStrip(photos: List<Uri>, onAdd: () -> Unit, onRemove: (Uri) -> 
 private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
     val c = Pc.colors
     val past by vm.pastTrips.collectAsStateWithLifecycle()
-    Spacer(Modifier.height(8.dp))
-    FormCard {
-    PhotoStrip(vm.photos, onAdd = onPhotos, onRemove = { vm.photos.remove(it) })
-    InsetRule()
-    FieldRow("Title", vm.title, { vm.title = it }, placeholder = "Rafting, Ganga aarti and 9 new friends", style = Pc.type.title3, maxLength = 90)
-    InsetRule()
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-        Text("Which trip?", style = Pc.type.small, color = c.ink2)
+    Column(Modifier.fillMaxWidth().fieldBox()) { PhotoStrip(vm.photos, onAdd = onPhotos, onRemove = { vm.photos.remove(it) }) }
+    Field("Title") { InlineInput(vm.title, { vm.title = it }, "Rafting, Ganga aarti and 9 new friends", 90) }
+    Column(Modifier.fillMaxWidth().fieldBox().padding(horizontal = 14.dp, vertical = 10.dp)) {
+        Text("Which trip?", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
         Spacer(Modifier.height(8.dp))
         if (past.isEmpty()) Text("No past UnSOLO trips yet. Tag a place instead.", style = Pc.type.small, color = c.ink2)
         past.forEach { b ->
             val sel = vm.trip?.id == b.trip.id
-            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(RoundedCornerShape(PcTokens.radiusButton)).background(if (sel) c.goldBg else c.raised).ruledBox(if (sel) c.ink else c.rule2)
+            val shape = RoundedCornerShape(16.dp)
+            Row(Modifier.padding(bottom = 8.dp).fillMaxWidth().clip(shape).background(if (sel) c.pineSoft else c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.pine else c.rule, shape)
                 .clickable { vm.trip = if (sel) null else b.trip; vm.tagged.clear() }.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                ProgressiveImage(b.trip.image, Modifier.size(48.dp).clip(RoundedCornerShape(PcTokens.radiusImage)))
+                ProgressiveImage(b.trip.image, Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)))
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("HOSTED TRIP · YOU WENT", style = Pc.type.code, color = c.ink2)
-                    Text(b.trip.title, style = Pc.type.bodyStrong, color = c.ink)
-                    Text("${Fmt.dayMonth(b.travelDate)} · ${b.trip.host?.name.orEmpty()}", style = Pc.type.small, color = c.ink2)
+                    Text(b.trip.title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
+                    Text("Went · ${Fmt.dayMonth(b.travelDate)} · ${b.trip.host?.name.orEmpty()}", style = Pc.type.small, color = c.ink2)
                 }
-                if (sel) PcIcon(PcIcons.Check, "Selected", size = 18.dp)
+                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", size = 22.dp, tint = c.pine)
             }
         }
-        if (vm.trip == null) FieldRowInline("Or a place", vm.place) { vm.place = it }
+        if (vm.trip == null) { Spacer(Modifier.height(4.dp)); BoxedInput(vm.place, { vm.place = it.take(80) }, "Or a place", leadingIcon = PcIcons.Pin) }
     }
-    InsetRule()
     vm.trip?.let { t ->
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Text("Who went with you", style = Pc.type.small, color = c.ink2)
+        Column(Modifier.fillMaxWidth().fieldBox().padding(horizontal = 14.dp, vertical = 10.dp)) {
+            Text("Who went with you", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
             Spacer(Modifier.height(8.dp))
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 t.goingFaces.forEach { u ->
                     val on = u in vm.tagged
-                    Column(Modifier.clickable { if (on) vm.tagged.remove(u) else vm.tagged.add(u) }, horizontalAlignment = Alignment.CenterHorizontally) {
-                        SeatCell(Seat(if (on) SeatState.MEMBER else SeatState.OPEN, u), 44.dp)
+                    Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Checkbox, onClickLabel = if (on) "Untag ${u.firstName}" else "Tag ${u.firstName}") { if (on) vm.tagged.remove(u) else vm.tagged.add(u) }.padding(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(50.dp).clip(CircleShape).border(2.dp, if (on) c.pine else Color.Transparent, CircleShape).padding(3.dp)) {
+                            Avatar(u, 44.dp, Modifier.alpha(if (on) 1f else 0.55f))
+                            if (on) Box(Modifier.align(Alignment.BottomEnd).size(18.dp).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, tint = c.onPine, size = 11.dp) }
+                        }
                         Text(u.firstName, style = Pc.type.label, color = if (on) c.ink else c.ink2)
                     }
                 }
@@ -367,47 +396,40 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
             Spacer(Modifier.height(6.dp))
             Text("Tagged people are asked first. Faces show only for those who say yes.", style = Pc.type.small, color = c.ink2)
         }
-        InsetRule()
-        SwitchRow("Show on the trip page", "Under \"From people who went\" on ${t.title}", vm.showOnTripPage, { vm.showOnTripPage = it })
-        InsetRule()
+        Column(Modifier.fillMaxWidth().fieldBox()) {
+            SwitchRow("Show on the trip page", "Under \"From people who went\" on ${t.title}", vm.showOnTripPage, { vm.showOnTripPage = it })
+        }
     }
-    FieldRow("Tell it", vm.body, { vm.body = it }, placeholder = "Day 1 we were 10 strangers on a Volvo…", singleLine = false, maxLength = 4000)
-    }
+    Field("Tell it") { InlineInput(vm.body, { vm.body = it }, "Day 1 we were 10 strangers on a Volvo…", 4000, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
 }
 
 @Composable
-private fun FieldRowInline(label: String, value: String, onValue: (String) -> Unit) {
-    Spacer(Modifier.height(6.dp))
-    BoxedInput(value, { onValue(it.take(80)) }, label)
-}
-
-@Composable
-private fun AskForm(vm: ComposeViewModel) {
+private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
     val c = Pc.colors
-    Spacer(Modifier.height(8.dp))
-    FormCard {
-    FieldRow("Your question", vm.title, { vm.title = it }, placeholder = "Kasol solo in early December: which stay is better for meeting people?", style = Pc.type.title3, singleLine = false, maxLength = 200)
-    InsetRule()
-    FieldRow("Place", vm.place, { vm.place = it }, placeholder = "Kasol, Parvati Valley", icon = PcIcons.Pin, maxLength = 80)
-    InsetRule()
-    FieldRow("Details (optional)", vm.body, { vm.body = it }, placeholder = "Dates, budget, what you care about", singleLine = false, maxLength = 1500)
-    InsetRule()
-    SwitchRow("Add a poll", "2–4 options, open for 3 days", vm.pollOn, { vm.pollOn = it })
-    if (vm.pollOn) Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Field("Question") { InlineInput(vm.title, { vm.title = it }, if (isPoll) "Pickup point for the 27 Nov Bir trip?" else "Kasol solo in early December: which stay is better for meeting people?", 200, singleLine = false) }
+    if (!isPoll) Column(Modifier.fillMaxWidth().fieldBox()) { SwitchRow("Add a poll", "2–4 options, open for 3 days", vm.pollOn, { vm.pollOn = it }) }
+    if (vm.pollOn) {
         vm.pollOptions.forEachIndexed { i, o ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("${i + 1}", style = Pc.type.code, color = c.ink2, modifier = Modifier.width(20.dp))
-                BoxedInput(o, { vm.pollOptions[i] = it.take(60) }, "Option ${i + 1}", Modifier.weight(1f))
-                if (vm.pollOptions.size > 2) IconTap(PcIcons.Close, "Remove option", { vm.pollOptions.removeAt(i) })
+            Row(Modifier.fillMaxWidth().fieldBox().padding(start = 14.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
+                    InlineInput(o, { vm.pollOptions[i] = it }, if (i < 2) "Option ${i + 1}" else "Option ${i + 1} (optional)", 60, style = Pc.type.body.copy(fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+                }
+                if (vm.pollOptions.size > 2) IconTap(PcIcons.Close, "Remove option ${i + 1}", { vm.pollOptions.removeAt(i) }, tint = c.ink3, iconSize = 18.dp)
             }
         }
-        if (vm.pollOptions.size < 4) Row(Modifier.fillMaxWidth().height(48.dp).dashedBorder(c.rule2, radius = PcTokens.radiusButton, width = 1.5.dp).clickable { vm.pollOptions.add("") }.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            PcIcon(PcIcons.Plus, null, size = 18.dp, tint = c.ink2)
-            Spacer(Modifier.width(8.dp))
-            Text("Add option", style = Pc.type.body, color = c.ink2)
+        if (vm.pollOptions.size < 4) Row(Modifier.clip(CircleShape).clickable(role = Role.Button) { vm.pollOptions.add("") }.defaultMinSize(minHeight = 44.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            PcIcon(PcIcons.PlusCircle, null, size = 20.dp, tint = c.pine)
+            Spacer(Modifier.width(6.dp))
+            Text("Add option", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp), color = c.pine)
         }
-        Spacer(Modifier.height(12.dp))
+        Text("Polls stay open for 3 days. Everyone sees the results after voting.", style = Pc.type.small, color = c.ink2)
     }
+    Field("Place") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PcIcon(PcIcons.PinFilled, null, size = 16.dp, tint = c.pine); Spacer(Modifier.width(6.dp))
+            InlineInput(vm.place, { vm.place = it }, "Kasol, Parvati Valley", 80)
+        }
     }
-    Text("No links or prices in answers. Hosts answer as people, with their HOST tag.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 12.dp))
+    Field("Details (optional)") { InlineInput(vm.body, { vm.body = it }, "Dates, budget, what you care about", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
+    Text("No links or prices in answers. Hosts answer as people, with their HOST tag.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 4.dp))
 }

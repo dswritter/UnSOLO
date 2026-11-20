@@ -143,8 +143,10 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 TextTabs(listOf("posts" to "Posts", "plans" to "Plans · ${plans.size}", "trips" to "Trips"), tab, { tab = it })
                 profile?.openPlan?.takeIf { tab == "posts" }?.let { p ->
                     Row(Modifier.padding(horizontal = Gutter, vertical = 10.dp).fillMaxWidth().pencilledCard().clickable { nav.to(Routes.post(p.id)) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        MiniArc(p.spotsTotal ?: p.seats.size, p.memberCount, women = p.audience == "women")
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(p.title ?: "Open plan", style = Pc.type.bodyStrong, color = c.ink)
+                            Text(p.title ?: "Open plan", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
                             Text("Plan · ${p.memberCount} of ${p.spotsTotal ?: p.seats.size} · ${((p.spotsTotal ?: 0) - p.memberCount).coerceAtLeast(0)} spots open", style = Pc.type.small, color = c.ink2)
                         }
                         Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num, color = c.ink)
@@ -167,8 +169,10 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 if (plans.isEmpty()) item(span = { GridItemSpan(3) }) { EmptyState("No plans", "Plans are informal trips and meetups people can ask to join.") }
                 items(plans, key = { "pl-" + it.id }, span = { GridItemSpan(3) }) { p ->
                     Row(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().pencilledCard().clickable { nav.to(Routes.post(p.id)) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        MiniArc(p.spotsTotal ?: p.seats.size, p.memberCount, women = p.audience == "women")
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(p.title ?: "Plan", style = Pc.type.bodyStrong, color = c.ink)
+                            Text(p.title ?: "Plan", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
                             Text("${p.memberCount} of ${p.spotsTotal ?: p.seats.size} · ${p.status}", style = Pc.type.small, color = c.ink2)
                         }
                         Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num, color = c.ink)
