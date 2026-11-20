@@ -139,7 +139,7 @@ struct ExploreView: View {
 
     private var activeFilterRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.pine)
+            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.accentInk)
             Text([filter.query.isEmpty ? nil : "“\(filter.query)”", filter.when == .any ? nil : filter.whenLabel,
                   filter.length == .any ? nil : filter.length.label, filter.openOnly ? "Open seats" : nil]
                 .compactMap { $0 }.joined(separator: " · "))
@@ -160,7 +160,7 @@ struct ExploreView: View {
             } else if case .failed = app.explore.state[category] {
                 EmptyState(symbol: "wifi.slash", title: "Couldn't load departures", message: "Pull to try again.")
             } else {
-                ProgressView().tint(Pc.pine).frame(maxWidth: .infinity).padding(40)
+                ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity).padding(40)
             }
         } else {
             SectionHeader(title: "Leaving soon", trailing: "\(trips.count) departures")
@@ -423,7 +423,7 @@ struct TribeBridgeRow: View {
                 HStack(spacing: 12) {
                     FaceStack(users: Array(detail.goingFaces.prefix(3)), size: 28)
                     VStack(alignment: .leading, spacing: 2) {
-                        Overline(text: "In the Tribe", color: Pc.pine)
+                        Overline(text: "In the Tribe", color: Pc.accentInk)
                         Text("\(count) people are planning \(detail.place?.slug?.capitalized ?? detail.place?.name ?? "this")")
                             .font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
                         Text("\(detail.stories.count) stories from people who went").pcFont(.small).foregroundStyle(Pc.ink2)
@@ -478,7 +478,7 @@ struct SuggestionsRail: View {
                 if women {
                     PcTag(text: "Women only", style: .women)
                 } else {
-                    Overline(text: s.reason, color: Pc.pine).lineLimit(1)
+                    Overline(text: s.reason, color: Pc.accentInk).lineLimit(1)
                 }
                 Text(s.post?.displayTitle ?? s.trip?.title ?? "").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
                 if let p = s.post {

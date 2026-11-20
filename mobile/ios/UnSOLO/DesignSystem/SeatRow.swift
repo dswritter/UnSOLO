@@ -264,7 +264,7 @@ struct SeatRing: View {
 
     private var geo: RingGeometry { RingGeometry(size: size, n: seats.count, badge: badge != nil) }
     private var isFull: Bool { !seats.isEmpty && !seats.contains(where: \.isOpen) }
-    private var takenColor: Color { isFull ? Pc.full : (womenOnly ? Pc.rose : Pc.pine) }
+    private var takenColor: Color { isFull ? Pc.full : (womenOnly ? Pc.rose : Pc.taken) }
     private var openColor: Color { womenOnly ? Pc.roseOpen : Pc.seatOpen }
     private var youIndex: Int? { seats.firstIndex(where: \.isYou) }
 
@@ -375,7 +375,7 @@ struct SeatRing: View {
         case .open:
             EmptyView()
         case .taken(let user):
-            dotView(user: user, fill: takenColor, text: isFull ? PcTokens.light.ink : .white, halo: Pc.raised, d: d, label: nil)
+            dotView(user: user, fill: takenColor, text: isFull ? PcTokens.light.ink : (womenOnly ? .white : Pc.raised), halo: Pc.raised, d: d, label: nil)
                 .position(p)
         case .you(let user):
             dotView(user: dots == .faces ? user : nil, fill: Pc.gold, text: PcTokens.light.onGold, halo: Pc.stroke, d: d, label: "You")
@@ -500,7 +500,7 @@ struct MiniArc: View {
             if counts.going > 0 {
                 Circle().inset(by: 4)
                     .trim(from: 0, to: f)
-                    .stroke(counts.isFull ? Pc.full : (womenOnly ? Pc.rose : Pc.pine), style: StrokeStyle(lineWidth: lw, lineCap: .round))
+                    .stroke(counts.isFull ? Pc.full : (womenOnly ? Pc.rose : Pc.taken), style: StrokeStyle(lineWidth: lw, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             Text("\(counts.going)/\(counts.total)")
@@ -519,7 +519,7 @@ struct MiniArc: View {
 
 // MARK: - Story ring
 
-/// One arc per story: pine for unseen, `rule` for seen. Your own ring is gold with a + badge.
+/// One arc per story: gold for unseen, `rule` for seen. Your own ring is ink with a + badge.
 struct StoryRing: View {
     let user: UserLite?
     var segments: Int = 1
@@ -537,7 +537,7 @@ struct StoryRing: View {
                 let span = 360.0 / Double(n)
                 for i in 0..<n {
                     let isSeen = !isMine && i < seen
-                    let color: Color = isMine ? Pc.gold : (isSeen ? Pc.rule : Pc.pine)
+                    let color: Color = isMine ? Pc.ink : (isSeen ? Pc.rule : Pc.gold)
                     var p = Path()
                     if n == 1 {
                         p.addEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
@@ -603,7 +603,7 @@ struct SeatCell: View {
         case .organiser:
             face.overlay(Circle().strokeBorder(Pc.stroke, lineWidth: 2))
         case .member:
-            face.overlay(Circle().strokeBorder(Pc.pine, lineWidth: 2))
+            face.overlay(Circle().strokeBorder(Pc.taken, lineWidth: 2))
         }
     }
 
@@ -616,7 +616,7 @@ struct SeatCell: View {
                     .blur(radius: blurFaces ? 8 : 0)
                     .clipShape(Circle())
             } else {
-                initials(color: Pc.pine)
+                initials(color: Pc.ink)
             }
         }
     }
@@ -672,7 +672,7 @@ struct FillBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(Pc.tonalStrong)
-                Capsule().fill(Pc.pine).frame(width: geo.size.width * CGFloat(filled) / CGFloat(max(total, 1)))
+                Capsule().fill(Pc.taken).frame(width: geo.size.width * CGFloat(filled) / CGFloat(max(total, 1)))
             }
         }
         .frame(width: width, height: 5)

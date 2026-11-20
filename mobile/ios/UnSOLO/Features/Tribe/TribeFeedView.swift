@@ -69,7 +69,7 @@ struct TribeFeedView: View {
                     if case .failed = app.tribe.feedState[filter.feedKey] {
                         EmptyState(symbol: "wifi.slash", title: "Couldn't load the Tribe", message: "Pull to try again.")
                     } else if app.tribe.feedState[filter.feedKey] == .loading || app.tribe.feeds[filter.feedKey] == nil {
-                        ProgressView().tint(Pc.pine).frame(maxWidth: .infinity).padding(40)
+                        ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity).padding(40)
                     } else {
                         EmptyState(symbol: "person.3", title: "Nothing here yet", message: "Be the first: post a plan, a story or a question.")
                     }
@@ -283,7 +283,7 @@ struct LocalStateBar: View {
                     Text("Held for review · only you can see this").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink)
                     Spacer()
                 default:
-                    ProgressView().controlSize(.small).tint(Pc.pine)
+                    ProgressView().controlSize(.small).tint(Pc.ink2)
                     Text(app.connectivity.isOnline ? (s.progress > 0 && s.progress < 1 ? "Uploading photos · \(Int(s.progress * 100))%" : "Sending…") : "Waiting for connection")
                         .pcFont(.small).foregroundStyle(Pc.ink2)
                     Spacer()
@@ -370,7 +370,7 @@ struct JoinButton: View {
             } else if v?.isAuthor == true {
                 PcTag(text: "Your plan", style: .organiser)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.pine)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.accentInk)
             } else if v?.membership == .requested {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.fill")
@@ -460,7 +460,7 @@ struct ReactionsBar: View {
             if showsSave {
                 Button { app.requireVerified("Sign in to save posts") { app.tribe.toggleSave(post.id) } } label: {
                     Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(post.viewer?.saved == true ? Pc.pine : Pc.ink2)
+                        .foregroundStyle(post.viewer?.saved == true ? Pc.accentInk : Pc.ink2)
                         .frame(width: PcTokens.touch, height: PcTokens.touch)
                 }
                 .buttonStyle(.pcPress)
@@ -488,7 +488,7 @@ struct NextDepartureLink: View {
                         .font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                Text(counts.isFull ? "See →" : "Take a seat →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.pine).fixedSize()
+                Text(counts.isFull ? "See →" : "Take a seat →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -566,7 +566,7 @@ struct ReactionToggle: View {
     }
 
     private var symbol: String { kind == .helpful ? "arrow.up.circle" : kind.symbol }
-    private var onColor: Color { kind == .love ? Pc.red : Pc.pine }
+    private var onColor: Color { kind == .love ? Pc.red : Pc.accentInk }
 }
 
 // MARK: - Ask card
@@ -611,12 +611,12 @@ struct AskCard: View {
     }
 }
 
-/// Host answer highlight: pine left rule, HOST badge.
+/// Host answer highlight: gold left rule, HOST badge.
 struct HostAnswer: View {
     let comment: Comment
     var body: some View {
         HStack(spacing: 12) {
-            Capsule().fill(Pc.pine).frame(width: 3)
+            Capsule().fill(Pc.gold).frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Avatar(user: comment.author, size: 20)
@@ -699,7 +699,7 @@ struct CaughtUpFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 6) {
-                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.pine)
+                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.accentInk)
                     .frame(width: 56, height: 56).background(Circle().fill(Pc.tonal))
                 Text("You're caught up").pcFont(.title2).foregroundStyle(Pc.ink)
                 Text("New plans and stories show up here. Meanwhile, these leave soon.").pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)

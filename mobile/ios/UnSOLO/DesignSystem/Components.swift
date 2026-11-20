@@ -20,7 +20,7 @@ extension ButtonStyle where Self == PcPressStyle {
 
 // MARK: - Buttons
 
-/// primary: pine pill · outline: 1.5 pt pine outline · quiet: tonal pill · link: pine text · danger: red text.
+/// primary: yellow (pine) pill, black text · outline: 1.5 pt ink outline, ink text · quiet: tonal pill · link: accentInk text · danger: red.
 /// Primary actions are 52 pt tall, compact ones 40 pt (hit area stays ≥ 48 pt).
 enum PcButtonKind { case primary, outline, quiet, link, danger }
 
@@ -44,7 +44,7 @@ struct PcButtonStyle: ButtonStyle {
             .background {
                 switch kind {
                 case .primary: Capsule().fill(isEnabled ? Pc.pine : Pc.tonal)
-                case .outline: Capsule().strokeBorder(isEnabled ? Pc.pine : Pc.rule, lineWidth: 1.5)
+                case .outline: Capsule().strokeBorder(isEnabled ? Pc.ink : Pc.rule, lineWidth: 1.5)
                 case .quiet: Capsule().fill(pressed ? Pc.tonalStrong : Pc.tonal)
                 case .link, .danger: Color.clear
                 }
@@ -60,7 +60,8 @@ struct PcButtonStyle: ButtonStyle {
         guard isEnabled else { return Pc.ink3 }
         switch kind {
         case .primary: return Pc.onPine
-        case .outline, .link: return Pc.pine
+        case .outline: return Pc.ink
+        case .link: return Pc.accentInk
         case .quiet: return Pc.ink
         case .danger: return Pc.red
         }
@@ -182,7 +183,7 @@ struct PcTag: View {
         case .host: PcTokens.light.onGold
         case .organiser: Pc.ink
         case .women: Pc.rose
-        case .verified, .paid: Pc.pine
+        case .verified, .paid: Pc.accentInk
         case .full: Pc.full
         case .held: Pc.ink
         case .waitlist: Pc.red
@@ -239,7 +240,7 @@ struct Avatar: View {
             } else {
                 Text(user?.initials ?? "?")
                     .font(.system(size: size * 0.36, weight: .bold, design: .rounded))
-                    .foregroundStyle(Pc.pine)
+                    .foregroundStyle(Pc.ink)
             }
         }
         .frame(width: size, height: size)
@@ -463,7 +464,7 @@ struct BadgeIcon: View {
                     .background(Capsule().fill(Pc.pine))
                     .offset(x: -2, y: 4)
             } else if dot {
-                Circle().fill(Pc.pine).frame(width: 9, height: 9)
+                Circle().fill(Pc.accentInk).frame(width: 9, height: 9)
                     .background(Circle().fill(Pc.paper).padding(-2))
                     .offset(x: -11, y: 11)
             }
@@ -515,7 +516,7 @@ struct VerifiedBadge: View {
     var body: some View {
         Image(systemName: "checkmark.seal.fill")
             .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(Pc.pine)
+            .foregroundStyle(Pc.accentInk)
             .accessibilityLabel("Verified")
     }
 }
@@ -683,7 +684,7 @@ struct EmptyState: View {
     var message: String?
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 26, weight: .bold)).foregroundStyle(Pc.pine)
+            Image(systemName: symbol).font(.system(size: 26, weight: .bold)).foregroundStyle(Pc.accentInk)
                 .frame(width: 64, height: 64).background(Circle().fill(Pc.tonal))
             Text(title).pcFont(.title3).foregroundStyle(Pc.ink).multilineTextAlignment(.center)
             if let message { Text(message).pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center) }
@@ -743,7 +744,7 @@ struct PcToggleRow: View {
     let title: String
     var subtitle: String?
     var icon: String?
-    var tint: Color = Pc.pine
+    var tint: Color = Pc.accentInk
     var titleColor: Color = Pc.ink
     @Binding var isOn: Bool
 

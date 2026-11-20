@@ -67,7 +67,7 @@ struct TripDetailView: View {
                 .overlay(alignment: .top) { topButtons(lite) }
                 .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar(lite) }
             } else {
-                ProgressView().tint(Pc.pine).frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .pcScreen()
@@ -192,7 +192,7 @@ struct TripDetailView: View {
         let place = t.place?.name ?? ""
         if let host = t.host {
             (Text(place.isEmpty ? "hosted by " : "\(place) · hosted by ") + Text(host.name).fontWeight(.bold).foregroundStyle(Pc.ink)
-             + (host.isIdVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).foregroundStyle(Pc.pine) : Text("")))
+             + (host.isIdVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).foregroundStyle(Pc.accentInk) : Text("")))
                 .font(.system(size: 15)).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
         } else if !place.isEmpty {
             Text(place).font(.system(size: 15)).foregroundStyle(Pc.ink2)
@@ -245,7 +245,7 @@ struct TripDetailView: View {
                             }
                             Spacer()
                             Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 22, weight: .bold)).foregroundStyle(selected ? Pc.pine : Pc.rule)
+                                .font(.system(size: 22, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.rule)
                         }
                         .padding(.horizontal, 12)
                         .frame(minHeight: 60)
@@ -270,7 +270,7 @@ struct TripDetailView: View {
                         Label {
                             Text(item).pcFont(.body).foregroundStyle(Pc.ink)
                         } icon: {
-                            Image(systemName: "checkmark.circle.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.pine)
+                            Image(systemName: "checkmark.circle.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.accentInk)
                         }
                     }
                 }
@@ -457,11 +457,11 @@ struct WhoIsGoingSheet: View {
             Avatar(user: user, size: 44)
         } else {
             ZStack {
-                Circle().fill(Pc.pine)
+                Circle().fill(Pc.taken)
                 if dots == .initials, let user {
-                    Text(user.initials).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.onPine)
+                    Text(user.initials).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.raised)
                 } else {
-                    Image(systemName: "person.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.onPine)
+                    Image(systemName: "person.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.raised)
                 }
             }
             .frame(width: 44, height: 44)

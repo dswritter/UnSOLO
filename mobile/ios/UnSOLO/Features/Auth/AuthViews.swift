@@ -29,7 +29,7 @@ struct WelcomeView: View {
                     .accessibilityHidden(true)
                     Button { google() } label: {
                         HStack(spacing: 10) {
-                            if googleBusy { ProgressView().tint(Pc.pine) } else { GoogleMark() }
+                            if googleBusy { ProgressView().tint(Pc.ink2) } else { GoogleMark() }
                             Text("Continue with Google")
                         }
                         .frame(maxWidth: .infinity)
@@ -66,7 +66,7 @@ struct WelcomeView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.pine) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.accentInk) } }
         }
     }
 
@@ -264,7 +264,7 @@ struct PhoneVerifyView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.pine) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.accentInk) } }
         }
     }
 

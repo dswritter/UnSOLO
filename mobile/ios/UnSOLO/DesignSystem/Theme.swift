@@ -6,7 +6,9 @@ import UIKit
 ///
 /// Roles (docs/revamp/design-system.md):
 /// - `paper` base, `raised` surface, `ink` text, `rule` border (names kept from Passenger Chart).
-/// - `pine` is the primary colour: buttons, selected chips, taken seats, links.
+/// - `pine` is the PRIMARY FILL (UnSOLO yellow) with `onPine` (black) text: primary buttons, selected chips, the + tab.
+///   Never use it for text, icons or lines on light surfaces (1.7:1); use `accentInk` (or `ink`) instead.
+/// - `taken` (ink) draws taken seats; `accentInk` is the accent text/link colour.
 /// - `gold` marks only *you*, the HOST badge and the wordmark.
 /// - `rose` always comes with the "Women only" label and an icon.
 enum Pc {
@@ -28,6 +30,10 @@ enum Pc {
     static let pine = adaptive(PcTokens.light.pine, PcTokens.dark.pine)
     static let onPine = adaptive(PcTokens.light.onPine, PcTokens.dark.onPine)
     static let pineSoft = adaptive(PcTokens.light.pineSoft, PcTokens.dark.pineSoft)
+    /// Accent text, links, eyebrows, active tab, verified tick, selected text (dark gold on light, yellow on dark).
+    static let accentInk = adaptive(PcTokens.light.accentInk, PcTokens.dark.accentInk)
+    /// Taken-seat arcs, seat dots and the mini-arc fill (ink). Dot text uses `raised` on top.
+    static let taken = adaptive(PcTokens.light.taken, PcTokens.dark.taken)
     /// Soft tonal fill (quiet buttons, selected tab pill, poll rows, inline cards).
     static let tonal = adaptive(PcTokens.light.tonal, PcTokens.dark.tonal)
     /// One step stronger than `tonal` (pressed states, poll result bars). Uses the border colour.
@@ -206,7 +212,7 @@ struct PcFieldModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(Pc.raised, in: Pc.shape(Pc.radius))
-            .overlay(Pc.shape(Pc.radius).strokeBorder(focused ? Pc.pine : Pc.rule, lineWidth: focused ? 1.5 : 1))
+            .overlay(Pc.shape(Pc.radius).strokeBorder(focused ? Pc.ink : Pc.rule, lineWidth: focused ? 1.5 : 1))
     }
 }
 
@@ -221,9 +227,9 @@ extension View {
     func pcPencilled(radius: CGFloat = Pc.cardRadius) -> some View { modifier(PcCardModifier(pencilled: true, fill: nil, radius: radius)) }
     func pcField(focused: Bool = false) -> some View { modifier(PcFieldModifier(focused: focused)) }
 
-    /// Selectable card: a 2 pt pine border when selected (selection also gets a check at call sites).
+    /// Selectable card: a 2 pt ink border when selected (selection also gets a check at call sites).
     func pcSelectable(_ selected: Bool, radius: CGFloat = Pc.cardRadius) -> some View {
-        pcCard(radius: radius).overlay(Pc.shape(radius).strokeBorder(selected ? Pc.pine : .clear, lineWidth: 2))
+        pcCard(radius: radius).overlay(Pc.shape(radius).strokeBorder(selected ? Pc.ink : .clear, lineWidth: 2))
     }
 
     /// Screen ground colour. Explicit so dark mode follows the token palette.

@@ -248,7 +248,7 @@ struct ChatRoomView: View {
                 .padding(.vertical, 11)
                 .frame(minHeight: 44)
                 .background(Capsule().fill(Pc.raised))
-                .overlay(Capsule().strokeBorder(focused ? Pc.pine : Pc.rule, lineWidth: focused ? 1.5 : 1))
+                .overlay(Capsule().strokeBorder(focused ? Pc.ink : Pc.rule, lineWidth: focused ? 1.5 : 1))
             Button {
                 app.chat.send(roomId, body: draft)
                 draft = ""

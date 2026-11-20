@@ -203,7 +203,7 @@ struct StoryViewer: View {
                     Text(title).font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     Text(subtitle).font(.system(size: 12)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
-                Text(cta).font(.system(size: 13, weight: .heavy)).foregroundStyle(Pc.pine).fixedSize().padding(.leading, 4)
+                Text(cta).font(.system(size: 13, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize().padding(.leading, 4)
             }
             .padding(.leading, 8)
             .padding(.trailing, 12)

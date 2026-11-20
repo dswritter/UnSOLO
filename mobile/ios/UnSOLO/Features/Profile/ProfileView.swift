@@ -81,7 +81,7 @@ struct ProfileContent: View {
             } else if case .failed(let m) = app.profiles.state[username] {
                 EmptyState(symbol: "person.crop.circle.badge.exclamationmark", title: "Profile unavailable", message: m)
             } else {
-                ProgressView().tint(Pc.pine).frame(maxWidth: .infinity).padding(40)
+                ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity).padding(40)
             }
         }
         .task {

@@ -88,7 +88,7 @@ struct TabStack: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: PcTokens.tabBar) }
                 .navigationDestination(for: Route.self) { RouteView(route: $0) }
         }
-        .tint(Pc.pine)
+        .tint(Pc.ink)
     }
 
     @ViewBuilder private var root: some View {
@@ -122,8 +122,8 @@ struct RouteView: View {
 
 // MARK: - Tab bar
 
-/// Explore · Tribe · (+) · My trips · You. The selected tab sits in a tonal pill with a pine icon;
-/// the centre + is a raised pine circle that opens "What are you sharing?".
+/// Explore · Tribe · (+) · My trips · You. The selected tab sits in a pale-yellow pill with an accentInk icon;
+/// the centre + is a raised yellow circle that opens "What are you sharing?".
 struct PcTabBar: View {
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
@@ -150,9 +150,9 @@ struct PcTabBar: View {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: selected ? tab.selectedSymbol : tab.symbol)
                         .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(selected ? Pc.pine : Pc.ink3)
+                        .foregroundStyle(selected ? Pc.accentInk : Pc.ink3)
                         .frame(width: 54, height: 30)
-                        .background { if selected { Capsule().fill(Pc.tonal) } }
+                        .background { if selected { Capsule().fill(Pc.pineSoft) } }
                     if badge > 0 {
                         Text("\(min(badge, 99))")
                             .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
@@ -183,7 +183,7 @@ struct PcTabBar: View {
                 .frame(width: 56, height: 56)
                 .background(Circle().fill(Pc.pine))
                 .background(Circle().fill(Pc.paper).padding(-4))
-                .shadow(color: PcTokens.light.pine.opacity(0.35), radius: 10, y: 4)
+                .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
                 .offset(y: -14)
                 .frame(maxWidth: .infinity, minHeight: 52)
                 .contentShape(Rectangle())
@@ -198,14 +198,14 @@ struct PcTabBar: View {
             VStack(spacing: 3) {
                 Group {
                     if let user = session.user {
-                        Avatar(user: user, size: 26, ring: selected ? Pc.pine : .clear)
+                        Avatar(user: user, size: 26, ring: selected ? Pc.ink : .clear)
                     } else {
                         Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(selected ? Pc.pine : Pc.ink3)
+                            .foregroundStyle(selected ? Pc.accentInk : Pc.ink3)
                     }
                 }
                 .frame(width: 54, height: 30)
-                .background { if selected { Capsule().fill(Pc.tonal) } }
+                .background { if selected { Capsule().fill(Pc.pineSoft) } }
                 Text("You").font(.system(size: 11, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
             .frame(maxWidth: .infinity, minHeight: 52)
@@ -303,7 +303,7 @@ struct SafariView: UIViewControllerRepresentable {
         let c = SFSafariViewController.Configuration()
         c.entersReaderIfAvailable = false
         let vc = SFSafariViewController(url: url, configuration: c)
-        vc.preferredControlTintColor = UIColor(Pc.pine)
+        vc.preferredControlTintColor = UIColor(Pc.accentInk)
         vc.dismissButtonStyle = .close
         return vc
     }

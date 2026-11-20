@@ -24,7 +24,7 @@ struct PostDetailView: View {
             } else if case .failed(let m) = app.tribe.detailState[postId] {
                 EmptyState(symbol: "exclamationmark.triangle", title: "Not available", message: m)
             } else {
-                ProgressView().tint(Pc.pine).frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .pcScreen()
@@ -240,7 +240,7 @@ struct PostDetailView: View {
                 Text("Request sent").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
                 Text("Waiting for \(post.author.firstName)").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.pine)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.accentInk)
                 Text("Say hi in the plan chat").pcFont(.small).foregroundStyle(Pc.ink2)
             } else {
                 Text("Join \(names)").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
@@ -379,7 +379,7 @@ struct PostDetailView: View {
                 .padding(.vertical, 11)
                 .frame(minHeight: 44)
                 .background(Capsule().fill(Pc.raised))
-                .overlay(Capsule().strokeBorder(composerFocused ? Pc.pine : Pc.rule, lineWidth: composerFocused ? 1.5 : 1))
+                .overlay(Capsule().strokeBorder(composerFocused ? Pc.ink : Pc.rule, lineWidth: composerFocused ? 1.5 : 1))
             Button { sendComment(post) } label: {
                 Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.onPine)
                     .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.pine))
@@ -603,7 +603,7 @@ struct ReportSheet: View {
                             HStack {
                                 Text(label).pcFont(.body).foregroundStyle(Pc.ink)
                                 Spacer()
-                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .bold)).foregroundStyle(reason == code ? Pc.pine : Pc.rule)
+                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .bold)).foregroundStyle(reason == code ? Pc.accentInk : Pc.rule)
                             }
                             .padding(.horizontal, 20)
                             .frame(minHeight: 52)

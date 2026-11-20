@@ -145,7 +145,7 @@ struct OfferFormView: View {
                         Text(post.map { Fmt.range($0.startsOn, $0.endsOn) + ", as planned" } ?? "").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                 }
-                .tint(Pc.pine).padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
+                .tint(Pc.accentInk).padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Open more seats to others").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
@@ -217,7 +217,7 @@ struct OfferReviewView: View {
     var body: some View {
         Group {
             if offers.isEmpty {
-                if app.tribe.detailState[postId] == .loading { ProgressView().tint(Pc.pine).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                if app.tribe.detailState[postId] == .loading { ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity, maxHeight: .infinity) }
                 else { EmptyState(symbol: "tent", title: "No offers yet", message: "Hosts can offer to run your plan. You'll get a notification.") }
             } else {
                 let offer = offers[min(index, offers.count - 1)]
@@ -252,7 +252,7 @@ struct OfferReviewView: View {
                     Button("Open the trip") { app.openBooking(slug: accepted.packageSlug, date: post?.startsOn) }.buttonStyle(.pc(.primary, fullWidth: true))
                 }
                 .padding(14)
-                .background(Pc.green.opacity(0.1), in: Pc.shape())
+                .background(Pc.pineSoft, in: Pc.shape())
             }
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) {
