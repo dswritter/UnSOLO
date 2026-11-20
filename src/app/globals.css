@@ -3,16 +3,32 @@
 @import "shadcn/tailwind.css";
 @import "./alpine-shell.css";
 @import "./tokens.generated.css";
-@import "./passenger-chart.css";
+@import "./full-circle.css";
+@import "./fc-tribe.css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* Full Circle: legacy `blue-*` utilities (old info/link accents across older screens) follow the pine scale. */
+@theme {
+  --color-blue-50: #EEF7F3;
+  --color-blue-100: #D9EEE5;
+  --color-blue-200: #B4DCCB;
+  --color-blue-300: #86C4AB;
+  --color-blue-400: #55A688;
+  --color-blue-500: #2F8A6C;
+  --color-blue-600: #1C7058;
+  --color-blue-700: #0E5A47;
+  --color-blue-800: #0B4839;
+  --color-blue-900: #0A3A2F;
+  --color-blue-950: #05211A;
+}
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-pc-mono);
-  --font-heading: var(--font-pc-condensed);
+  --font-mono: var(--font-sans);
+  --font-heading: var(--font-fc-display);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-link: var(--link);
@@ -55,9 +71,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Passenger Chart (docs/revamp/design-system.md). Tokens come from design/tokens.json
+/* ── Full Circle (docs/revamp/design-system.md). Tokens come from design/tokens.json
    (src/app/tokens.generated.css); shadcn names map onto them so every existing component follows.
-   Gold is reserved for the brand, *your* seat and the HOST tag — primary actions are ink. */
+   Pine is the primary colour. Sun gold is reserved for *you*, the HOST badge and the wordmark. */
 :root {
   --background: var(--pc-paper);
   --foreground: var(--pc-ink);
@@ -65,46 +81,46 @@
   --card-foreground: var(--pc-ink);
   --popover: var(--pc-raised);
   --popover-foreground: var(--pc-ink);
-  --primary: var(--pc-ink);
-  --primary-foreground: var(--pc-on-ink);
-  /* `.text-primary` (emphasis text) → warm gold-ink, legible on paper */
-  --primary-ink: var(--pc-gold-ink);
-  --secondary: #ECE6D8;
+  --primary: var(--pc-pine);
+  --primary-foreground: var(--pc-on-pine);
+  /* `.text-primary` (emphasis text) → pine */
+  --primary-ink: var(--pc-pine);
+  --secondary: var(--pc-tonal);
   --secondary-foreground: var(--pc-ink);
-  --muted: #ECE6D8;
+  --muted: var(--pc-tonal);
   --muted-foreground: var(--pc-ink2);
-  --accent: #ECE6D8;
+  --accent: var(--pc-pine-soft);
   --accent-foreground: var(--pc-ink);
   --destructive: var(--pc-red);
   --border: var(--pc-rule);
   --input: var(--pc-rule2);
-  --ring: var(--pc-blue);
+  --ring: var(--pc-pine);
   --brand: var(--pc-gold);
   --brand-foreground: var(--pc-on-gold);
-  --link: var(--pc-blue);
+  --link: var(--pc-pine);
   --success: var(--pc-green);
-  --chart-1: var(--pc-ink);
-  --chart-2: var(--pc-blue);
+  --chart-1: var(--pc-pine);
+  --chart-2: var(--pc-seat-open);
   --chart-3: var(--pc-green);
   --chart-4: var(--pc-gold-ink);
   --chart-5: var(--pc-ink3);
-  --radius: 0.375rem;
+  --radius: 0.75rem;
   --sidebar: var(--pc-raised);
   --sidebar-foreground: var(--pc-ink);
-  --sidebar-primary: var(--pc-ink);
-  --sidebar-primary-foreground: var(--pc-on-ink);
-  --sidebar-accent: #ECE6D8;
+  --sidebar-primary: var(--pc-pine);
+  --sidebar-primary-foreground: var(--pc-on-pine);
+  --sidebar-accent: var(--pc-pine-soft);
   --sidebar-accent-foreground: var(--pc-ink);
   --sidebar-border: var(--pc-rule);
-  --sidebar-ring: var(--pc-blue);
+  --sidebar-ring: var(--pc-pine);
   --motion-duration-1: var(--pc-motion-fast);
   --motion-duration-2: var(--pc-motion-standard);
   --motion-ease-standard: var(--pc-ease-standard);
   --motion-ease-out: cubic-bezier(0.33, 1, 0.68, 1);
-  /* Legacy glass knobs: flattened to ruled paper surfaces */
+  /* Legacy glass knobs: flat surfaces with a hairline border, no blur */
   --glass-blur: 0px;
-  --glass-radius: var(--pc-radius-m);
-  --glass-radius-lg: var(--pc-radius-m);
+  --glass-radius: var(--pc-radius-card);
+  --glass-radius-lg: var(--pc-radius-card);
   --glass-shadow: none;
   --glass-highlight: transparent;
   --wander-glass-blur: 0px;
@@ -112,38 +128,7 @@
 }
 
 .dark {
-  --background: var(--pc-paper);
-  --foreground: var(--pc-ink);
-  --card: var(--pc-raised);
-  --card-foreground: var(--pc-ink);
-  --popover: var(--pc-raised);
-  --popover-foreground: var(--pc-ink);
-  --primary: var(--pc-ink);
-  --primary-foreground: var(--pc-on-ink);
-  --primary-ink: var(--pc-gold);
-  --secondary: #24282E;
-  --secondary-foreground: var(--pc-ink);
-  --muted: #24282E;
-  --muted-foreground: var(--pc-ink2);
-  --accent: #24282E;
-  --accent-foreground: var(--pc-ink);
-  --destructive: var(--pc-red);
-  --border: var(--pc-rule);
-  --input: var(--pc-rule2);
-  --ring: var(--pc-blue);
-  --chart-1: var(--pc-ink);
-  --chart-2: var(--pc-blue);
-  --chart-3: var(--pc-green);
-  --chart-4: var(--pc-gold);
-  --chart-5: var(--pc-ink3);
-  --sidebar: var(--pc-raised);
-  --sidebar-foreground: var(--pc-ink);
-  --sidebar-primary: var(--pc-ink);
-  --sidebar-primary-foreground: var(--pc-on-ink);
-  --sidebar-accent: #24282E;
-  --sidebar-accent-foreground: var(--pc-ink);
-  --sidebar-border: var(--pc-rule);
-  --sidebar-ring: var(--pc-blue);
+  --primary-ink: var(--pc-pine);
   --glass-shadow: none;
   --glass-highlight: transparent;
 }

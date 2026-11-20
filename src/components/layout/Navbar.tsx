@@ -21,6 +21,7 @@ import { useAuth } from './AuthProvider'
 import { NotificationBell } from './NotificationBell'
 import { ColorModeToggle } from './ColorModeToggle'
 import { SearchBar } from './SearchBar'
+import { ComposeSheet } from '@/components/tribe/ComposeSheet'
 
 export function Navbar() {
   // Auth resolves client-side (the shell is statically rendered). `authPending`
@@ -28,6 +29,7 @@ export function Navbar() {
   // first resolution completes, so a signed-in user never flashes logged-out.
   const { profile: user, loading } = useAuth()
   const authPending = loading && !user
+  const [composeOpen, setComposeOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)
   const [hasRooms, setHasRooms] = useState(false)
@@ -253,7 +255,7 @@ export function Navbar() {
     <nav
       className={cn(
         'sticky! top-0 z-50 border-b',
-        pathname === '/' && 'max-md:hidden',
+        (pathname === '/' || pathname?.startsWith('/packages/')) && 'max-md:hidden',
         onMobileChatRoom && 'max-md:hidden',
         isWanderShell ? 'glass-navbar border-[color:var(--wander-nav-outer-border)]' : 'border-border bg-background/90 backdrop-blur-md',
       )}
@@ -283,10 +285,10 @@ export function Navbar() {
                   isTribeLink && isTribeNavPending && 'opacity-80',
                   isWanderShell
                     ? isActive
-                      ? 'text-foreground font-semibold border-b-[3px] border-foreground border-solid -mb-px'
+                      ? 'text-foreground font-bold border-b-[3px] border-[color:var(--pc-pine)] border-solid -mb-px'
                       : 'text-foreground/70 hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px'
                     : isActive
-                      ? 'text-foreground font-semibold border-b-[3px] border-foreground border-solid -mb-px'
+                      ? 'text-foreground font-bold border-b-[3px] border-[color:var(--pc-pine)] border-solid -mb-px'
                       : 'text-muted-foreground hover:text-foreground border-b-[3px] border-transparent border-solid -mb-px',
                 )}
               >
@@ -308,9 +310,15 @@ export function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-1 md:gap-2">
-            <Link href="/tribe/new" prefetch={false} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-label="Create a post">
-              <Plus className="h-4 w-4" aria-hidden /> Post
-            </Link>
+            {user ? (
+              <button type="button" onClick={() => setComposeOpen(true)} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-haspopup="dialog" aria-label="Create a post">
+                <Plus className="h-4 w-4" aria-hidden /> Post
+              </button>
+            ) : (
+              <Link href="/login?redirectTo=%2Ftribe%2Fnew" prefetch={false} className="pc-btn pc-btn-sm hidden md:inline-flex" aria-label="Create a post">
+                <Plus className="h-4 w-4" aria-hidden /> Post
+              </Link>
+            )}
             {user && (
               <Link href="/community" prefetch={false} onMouseEnter={prefetchTribeRoutes} className="pc-iconbtn" aria-label={unreadChatCount > 0 ? `Messages, ${unreadChatCount} unread` : 'Messages'}>
                 <MessageSquare className="h-5 w-5" aria-hidden />
@@ -321,10 +329,10 @@ export function Navbar() {
               href="/host"
               prefetch
               className={cn(
-                'relative hidden items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors lg:inline-flex',
+                'relative hidden h-10 items-center gap-1.5 rounded-full border-[1.5px] px-4 text-sm font-semibold transition-colors lg:inline-flex',
                 hostActive
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border bg-transparent text-foreground hover:border-foreground/60',
+                  ? 'border-[color:var(--pc-pine)] bg-[color:var(--pc-pine-soft)] text-[color:var(--pc-pine)]'
+                  : 'border-border bg-transparent text-foreground hover:border-[color:var(--pc-rule2)]',
               )}
             >
               <Tent className="h-4 w-4" />
@@ -454,7 +462,7 @@ export function Navbar() {
                 <Button variant="ghost" size="sm" asChild>
                   <Link href="/login">Sign In</Link>
                 </Button>
-                <Button size="sm" asChild>
+                <Button size="sm" variant="outline" asChild>
                   <Link href="/signup">Join free</Link>
                 </Button>
               </div>
@@ -463,6 +471,7 @@ export function Navbar() {
           </div>
         </div>
       </div>
+      <ComposeSheet open={composeOpen} onClose={() => setComposeOpen(false)} />
     </nav>
   )
 }

@@ -1,0 +1,282 @@
+/* Full Circle component layer (web). Mirrors the Compose/SwiftUI components in mobile/.
+   See docs/revamp/design-system.md. Tokens: --pc-* from tokens.generated.css.
+   Class names keep the `pc-` prefix from Passenger Chart so existing markup follows. */
+
+@layer base {
+  h1, h2, h3, .pc-title {
+    font-family: var(--font-heading), var(--font-sans), 'Noto Sans', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  body { font-feature-settings: 'tnum' 0; }
+  .pc-mono, .font-mono {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  a.pc-link, .pc-link { color: var(--pc-pine); font-weight: 600; text-underline-offset: 3px; }
+  a.pc-link:hover, .pc-link:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--pc-pine); outline-offset: 2px; }
+}
+
+@layer components {
+/* ── Wordmark ── */
+.pc-wordmark { font: 800 21px/1 var(--font-heading), sans-serif; display: inline-flex; align-items: center; gap: 1px; color: var(--pc-ink); letter-spacing: -0.03em; }
+.pc-wordmark b { background: var(--pc-gold); color: var(--pc-on-gold); padding: 3px 6px 3px; border-radius: 999px; margin-right: 1px; }
+
+/* ── Display type ── */
+.pc-display { font: 800 34px/1.05 var(--font-heading), sans-serif; letter-spacing: -0.03em; }
+.pc-price { font: 800 20px/1 var(--font-heading), 'Noto Sans', sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.pc-price small { font: 500 12px/1 var(--font-sans); color: var(--pc-ink2); letter-spacing: 0; margin-left: 2px; }
+.pc-kicker { font: 600 13px/1.3 var(--font-sans); color: var(--pc-ink2); }
+.pc-eyebrow { font: 700 11px/1 var(--font-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--pc-ink2); }
+
+/* ── Rules & surfaces ── */
+.pc-rule { border-top: 1px solid var(--pc-rule); }
+.pc-rule-ink { border-top: 1px solid var(--pc-ink); }
+.pc-card, .pc-surface, .pc-printed { background: var(--pc-raised); border: 1px solid var(--pc-rule); border-radius: var(--pc-radius-card); }
+/* Community plans are pencilled in: dashed border, no money moves. */
+.pc-pencilled { border: 1.5px dashed var(--pc-rule2); border-radius: var(--pc-radius-card); background: var(--pc-raised); }
+.pc-pencilled .pc-rule { border-top-style: dashed; border-top-color: var(--pc-rule); }
+.pc-section-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pc-section-h h2 { font-size: 22px; line-height: 1.1; }
+.pc-section-h a { font: 600 14px/1 var(--font-sans); color: var(--pc-pine); }
+
+/* ── Buttons: pine pills ── */
+.pc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 24px; border-radius: 999px;
+  font: 700 16px/1 var(--font-sans); background: var(--pc-pine); color: var(--pc-on-pine); border: 1.5px solid var(--pc-pine); cursor: pointer; white-space: nowrap;
+  transition: transform var(--pc-motion-fast) var(--pc-ease-press), opacity var(--pc-motion-fast), background-color var(--pc-motion-fast); -webkit-tap-highlight-color: transparent; }
+.pc-btn:hover { background: color-mix(in oklab, var(--pc-pine) 88%, var(--pc-ink)); }
+.pc-btn:active { transform: scale(0.97); }
+.pc-btn:disabled, .pc-btn[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; transform: none; }
+.pc-btn-outline { background: transparent; color: var(--pc-pine); border: 1.5px solid var(--pc-pine); }
+.pc-btn-outline:hover { background: var(--pc-pine-soft); }
+.pc-btn-quiet { background: var(--pc-tonal); color: var(--pc-ink); border: 1.5px solid transparent; }
+.pc-btn-quiet:hover { background: var(--pc-pine-soft); }
+.pc-btn-danger { background: transparent; color: var(--pc-red); border: 1.5px solid var(--pc-red); }
+.pc-btn-danger:hover { background: color-mix(in oklab, var(--pc-red) 8%, transparent); }
+.pc-btn-sun { background: var(--pc-gold); color: var(--pc-on-gold); border-color: var(--pc-gold); }
+.pc-btn-sm { min-height: 40px; padding: 0 16px; font-size: 14px; }
+.pc-btn-block { width: 100%; }
+.pc-iconbtn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--pc-ink); position: relative; flex: none;
+  transition: transform var(--pc-motion-fast) var(--pc-ease-press), background-color var(--pc-motion-fast); -webkit-tap-highlight-color: transparent; }
+.pc-iconbtn:hover { background: var(--pc-tonal); }
+.pc-iconbtn:active { transform: scale(0.94); }
+/* Round button floating on a photo */
+.pc-glassbtn { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: #0B1A15; background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(11,26,21,0.18); flex: none; }
+.pc-glassbtn:active { transform: scale(0.94); }
+.pc-badge { position: absolute; top: 4px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pc-red); color: #fff;
+  font: 700 10px/18px var(--font-sans); text-align: center; box-shadow: 0 0 0 2px var(--pc-paper); }
+
+/* ── Inputs ── */
+.pc-input { width: 100%; min-height: 52px; border: 1.5px solid var(--pc-rule); border-radius: 16px; background: var(--pc-raised);
+  padding: 0 16px; font: 400 16px/1.4 var(--font-sans); color: var(--pc-ink); transition: border-color var(--pc-motion-fast); }
+.pc-input::placeholder { color: var(--pc-ink3); }
+textarea.pc-input { padding-top: 14px; padding-bottom: 14px; resize: vertical; }
+.pc-input:hover { border-color: var(--pc-rule2); }
+.pc-input:focus { outline: none; border-color: var(--pc-pine); box-shadow: 0 0 0 3px color-mix(in oklab, var(--pc-pine) 22%, transparent); }
+
+/* ── Chips ── */
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1.5px solid var(--pc-rule);
+  font: 600 14px/1 var(--font-sans); color: var(--pc-ink); background: var(--pc-raised); white-space: nowrap; cursor: pointer;
+  transition: background-color var(--pc-motion-fast), border-color var(--pc-motion-fast), transform var(--pc-motion-fast) var(--pc-ease-press); -webkit-tap-highlight-color: transparent; }
+.pc-chip:hover { border-color: var(--pc-rule2); }
+.pc-chip:active { transform: scale(0.97); }
+.pc-chip[aria-pressed='true'], .pc-chip[aria-checked='true'], .pc-chip[aria-selected='true'], .pc-chip.is-on { background: var(--pc-pine); color: var(--pc-on-pine); border-color: var(--pc-pine); }
+.pc-chip .pc-count { font-variant-numeric: tabular-nums; font-size: 12px; opacity: 0.75; }
+
+/* ── Tags ── */
+.pc-tag { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 10px; border-radius: 999px; font: 700 11px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.pc-tag-host { background: var(--pc-gold); color: var(--pc-on-gold); }
+.pc-tag-organiser { background: var(--pc-ink); color: var(--pc-paper); }
+.pc-tag-hosted { background: var(--pc-pine-soft); color: var(--pc-pine); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.pc-tag-plan { border: 1.5px dashed var(--pc-rule2); color: var(--pc-ink2); }
+.pc-tag-women { background: var(--pc-rose-soft); color: var(--pc-rose); }
+.pc-tag-verified { background: var(--pc-pine-soft); color: var(--pc-pine); text-transform: none; letter-spacing: 0; font-size: 12px; }
+
+/* ── Seat ring (SVG drawn by <SeatRing>) ── */
+.fc-ring { position: relative; flex: none; display: inline-block; }
+.fc-ring > svg { display: block; overflow: visible; }
+.fc-ring.is-past > svg { filter: grayscale(0.85); opacity: 0.75; }
+.fc-ring-track { stroke: var(--pc-seat-open); }
+.fc-ring.is-women .fc-ring-track { stroke: var(--pc-rose-open); }
+.fc-ring-taken { stroke: var(--pc-pine); }
+.fc-ring.is-women .fc-ring-taken { stroke: var(--pc-rose); }
+.fc-ring.is-full .fc-ring-taken { stroke: var(--pc-full); }
+.fc-ring-you { stroke: var(--pc-gold); }
+.fc-ring-you-under { stroke: var(--pc-ink); }
+.fc-ring-held { stroke: var(--pc-gold); stroke-dasharray: 3 5; animation: pc-held 1.6s ease-in-out infinite; }
+.fc-ring-planopen { fill: var(--pc-raised); stroke: var(--pc-seat-open); }
+.fc-ring.is-women .fc-ring-planopen { stroke: var(--pc-rose-open); }
+.fc-ring-disc { fill: var(--pc-tonal); }
+.fc-ring.is-full .fc-ring-disc { fill: var(--pc-gold-bg); }
+.fc-ring-dot-halo { fill: var(--pc-raised); }
+.fc-ring-dot { fill: var(--pc-pine); }
+.fc-ring.is-women .fc-ring-dot { fill: var(--pc-rose); }
+.fc-ring.is-full .fc-ring-dot { fill: var(--pc-full); }
+.fc-ring-dot-text { fill: #fff; font-family: var(--font-sans); font-weight: 700; }
+.fc-ring.is-full .fc-ring-dot-text { fill: #0B1A15; }
+.fc-ring-you-dot { fill: var(--pc-gold); }
+.fc-ring-you-dot-halo { fill: var(--pc-ink); }
+.fc-ring-you-dot-text { fill: var(--pc-on-gold); font-family: var(--font-sans); font-weight: 800; }
+.fc-ring-draw { stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); animation: fc-draw 420ms var(--pc-ease-standard) forwards; }
+.fc-ring.is-spin > svg { animation: fc-spin 700ms var(--pc-ease-standard) both; }
+.fc-ring-center { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.fc-ring-center > div { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; padding: 8px 12px; border-radius: 999px; }
+.fc-ring-center.on-photo > div { background: rgba(11,26,21,0.55); color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.fc-ring-center b { font: 800 1em/1 var(--font-heading), sans-serif; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.fc-ring-center span { font: 700 max(10px, 0.34em)/1.1 var(--font-sans); letter-spacing: 0.02em; margin-top: 2px; text-transform: lowercase; }
+.fc-ring-badge { position: absolute; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 3px;
+  border-radius: 999px; background: var(--pc-gold); color: var(--pc-on-gold); font: 800 11px/1 var(--font-sans); letter-spacing: 0.06em; text-transform: uppercase;
+  box-shadow: 0 0 0 3px var(--pc-raised); white-space: nowrap; }
+.fc-ring-badge img, .fc-ring-badge .fc-av { width: 22px; height: 22px; border-radius: 999px; object-fit: cover; background: var(--pc-tonal); }
+.fc-ring-badge.is-org { background: var(--pc-ink); color: var(--pc-paper); }
+.fc-ring-wait { position: absolute; width: 40px; height: 40px; border-radius: 999px; box-shadow: 0 0 0 3px var(--pc-raised); background: var(--pc-tonal);
+  display: grid; place-items: center; font: 700 13px/1 var(--font-sans); animation: fc-wait 340ms var(--pc-ease-standard) both; }
+.fc-ring-wait img { width: 100%; height: 100%; border-radius: 999px; object-fit: cover; }
+.fc-ring-wait i { position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px; border-radius: 999px; background: var(--pc-ink); color: var(--pc-paper);
+  display: grid; place-items: center; box-shadow: 0 0 0 2px var(--pc-raised); }
+.fc-caption { font: 500 14px/1.35 var(--font-sans); color: var(--pc-ink2); }
+.fc-caption strong { color: var(--pc-ink); font-weight: 700; }
+
+/* Mini arc (lists) */
+.fc-mini { position: relative; flex: none; display: inline-grid; place-items: center; }
+.fc-mini svg { position: absolute; inset: 0; }
+.fc-mini b { position: relative; font: 700 11px/1 var(--font-sans); font-variant-numeric: tabular-nums; color: var(--pc-ink); }
+.fc-mini-track { stroke: var(--pc-seat-open); }
+.fc-mini-fill { stroke: var(--pc-pine); }
+.fc-mini.is-full .fc-mini-fill { stroke: var(--pc-full); }
+.fc-mini.is-women .fc-mini-fill { stroke: var(--pc-rose); }
+
+/* Story ring (Tribe) */
+.fc-story-seg { stroke: var(--pc-pine); }
+.fc-story-seg.is-seen { stroke: var(--pc-rule); }
+.fc-story-seg.is-you { stroke: var(--pc-gold); }
+
+/* ── Legacy seat chips, still used for small avatar stacks ── */
+.pc-seatrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pc-seat { --s: var(--pc-seat); position: relative; width: var(--s); height: var(--s); border-radius: 50%; display: grid; place-items: center; overflow: visible;
+  font: 700 12px/1 var(--font-sans); color: var(--pc-ink); background: var(--pc-tonal); flex: none; }
+.pc-seat img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.pc-seat-sm { --s: var(--pc-seat-small); font-size: 10px; }
+.pc-seat-xs { --s: var(--pc-seat-table); font-size: 0; }
+.pc-seat[data-state='open'] { background: transparent; border: 2px solid var(--pc-seat-open); }
+.pc-seat[data-state='host'] { box-shadow: 0 0 0 2px var(--pc-raised), 0 0 0 4px var(--pc-gold); }
+.pc-seat[data-state='organiser'] { box-shadow: 0 0 0 2px var(--pc-raised), 0 0 0 4px var(--pc-ink); }
+.pc-seat[data-state='you'] { background: var(--pc-gold); color: var(--pc-on-gold); box-shadow: 0 0 0 2px var(--pc-raised), 0 0 0 3.5px var(--pc-ink); }
+.pc-seat[data-state='requested'] { opacity: 0.6; }
+.pc-seat[data-state='held'] { background: var(--pc-gold-bg); border: 2px dashed var(--pc-gold); animation: pc-held 1.6s ease-in-out infinite; }
+.pc-seat[data-state='member'][data-anon='true'] { background: var(--pc-pine); }
+.pc-seat.is-stamped { animation: pc-stamp var(--pc-motion-stamp) cubic-bezier(.2,1.6,.4,1) both; }
+.pc-avstack { display: flex; }
+.pc-avstack > * + * { margin-left: -10px; }
+.pc-avstack > * { box-shadow: 0 0 0 2px var(--pc-raised); }
+
+/* Fill gauge (tables) */
+.pc-gauge { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pc-gauge-track { position: relative; flex: 1 1 auto; max-width: 160px; height: 6px; border-radius: 999px; background: var(--pc-tonal); overflow: hidden; }
+.pc-gauge-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--pc-pine); }
+.pc-gauge-label, .pc-gauge-empty { font: 600 12px/1.2 var(--font-sans); font-variant-numeric: tabular-nums; color: var(--muted-foreground); white-space: nowrap; }
+
+/* ── Progressive images: blurred LQIP/thumb underneath, full fades in ── */
+.pc-img { position: relative; overflow: hidden; background: var(--pc-tonal); }
+.pc-img > .pc-img-low { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(12px); transform: scale(1.08); }
+.pc-img > .pc-img-high { position: relative; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 260ms ease; }
+.pc-img > .pc-img-high.is-loaded { opacity: 1; }
+
+/* ── Table (desktop lists) ── */
+.pc-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.pc-table th { text-align: left; font: 700 12px/1 var(--font-sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--pc-ink2); padding: 12px; border-bottom: 1px solid var(--pc-rule); }
+.pc-table td { padding: 12px; border-bottom: 1px solid var(--pc-rule); vertical-align: middle; }
+.pc-table tr:hover td { background: var(--pc-pine-soft); }
+
+/* ── Skeleton ── */
+.pc-skel { background: linear-gradient(90deg, var(--pc-tonal) 0%, color-mix(in oklab, var(--pc-tonal) 40%, var(--pc-raised)) 50%, var(--pc-tonal) 100%); background-size: 200% 100%; animation: pc-skel 1.2s linear infinite; border-radius: 12px; }
+
+/* ── Bottom action bar (thumb reach). Sits above the tab bar when one is shown. ── */
+.pc-actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--pc-raised);
+  backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); border-top: 1px solid var(--pc-rule); }
+.pc-actionbar-spacer { height: calc(88px + env(safe-area-inset-bottom)); }
+
+/* ── Search dock: floating pill above the mobile tab bar ── */
+.pc-dock { position: fixed; left: 12px; right: 12px; z-index: 44; bottom: calc(var(--pc-tab-bar) + 10px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 6px; height: 56px; padding: 0 6px 0 18px; border-radius: 999px; background: var(--pc-raised);
+  border: 1px solid var(--pc-rule); box-shadow: 0 6px 24px rgba(11, 26, 21, 0.16); }
+.dark .pc-dock { box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); }
+
+/* ── Bottom sheet ── */
+.pc-sheet { border-radius: var(--pc-radius-sheet) var(--pc-radius-sheet) 0 0; background: var(--pc-raised); padding-bottom: env(safe-area-inset-bottom); }
+.pc-sheet-grab { width: 40px; height: 5px; border-radius: 999px; background: var(--pc-rule); margin: 10px auto 6px; }
+
+/* Charts (admin) */
+:root { --pc-chart: #0E5A47; }
+.dark { --pc-chart: #3FB58E; }
+}
+
+@keyframes pc-stamp { 0% { transform: scale(1.5); opacity: 0.2 } 60% { transform: scale(0.94) } 100% { transform: scale(1); opacity: 1 } }
+@keyframes pc-held { 50% { opacity: 0.55 } }
+@keyframes pc-skel { to { background-position: -200% 0 } }
+@keyframes fc-draw { to { stroke-dashoffset: 0 } }
+@keyframes fc-spin { from { transform: rotate(-360deg) } to { transform: rotate(0) } }
+@keyframes fc-wait { from { opacity: 0; transform: translateX(14px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) {
+  .pc-seat, .pc-seat.is-stamped, .fc-ring-held, .fc-ring-wait, .fc-ring.is-spin > svg { animation: none !important }
+  .fc-ring-draw { animation: none !important; stroke-dashoffset: 0 !important }
+  .pc-btn:active, .pc-chip:active, .pc-iconbtn:active { transform: none }
+}
+
+/* ── Explore: photo-first trip card, list row ── */
+@layer components {
+.fc-tcard { background: var(--pc-raised); border: 1px solid var(--pc-rule); border-radius: var(--pc-radius-card); overflow: hidden; display: flex; flex-direction: column;
+  transition: transform var(--pc-motion-standard) var(--pc-ease-standard), border-color var(--pc-motion-fast); }
+.fc-tcard:hover { border-color: var(--pc-rule2); }
+.fc-tcard:active { transform: scale(0.985); }
+.fc-tcard-photo { position: relative; height: 196px; background: var(--pc-tonal); overflow: hidden; }
+.fc-tcard-photo img { width: 100%; height: 100%; object-fit: cover; transition: transform 600ms var(--pc-ease-standard); }
+.fc-tcard:hover .fc-tcard-photo img { transform: scale(1.03); }
+.fc-tcard-photo::after { content: ''; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgba(11,26,21,0.28)); pointer-events: none; }
+.fc-tcard-wash { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: #fff;
+  background: linear-gradient(135deg, #2F7D62, #0E5A47); font: 800 30px/1 var(--font-heading), sans-serif; letter-spacing: -0.03em; }
+.fc-datechip { position: absolute; left: 12px; top: 12px; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 48px; height: 52px;
+  border-radius: 16px; background: rgba(255,255,255,0.94); color: #0B1A15; box-shadow: 0 2px 10px rgba(11,26,21,0.16); }
+.fc-datechip b { font: 800 20px/1 var(--font-heading), sans-serif; letter-spacing: -0.02em; }
+.fc-datechip span { font: 700 11px/1.2 var(--font-sans); text-transform: uppercase; letter-spacing: 0.04em; }
+.fc-fullchip { position: absolute; right: 12px; top: 12px; z-index: 1; height: 28px; padding: 0 12px; display: inline-flex; align-items: center; border-radius: 999px;
+  background: var(--pc-full); color: #fff; font: 800 12px/1 var(--font-sans); }
+.fc-tcard-main { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 0 16px; margin-top: -44px; z-index: 0; }
+.fc-tcard-ring { background: var(--pc-raised); border-radius: 999px; box-shadow: 0 0 0 4px var(--pc-raised); }
+.fc-pager { display: grid; grid-auto-flow: column; grid-auto-columns: min(86%, 340px); gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 16px 4px;
+  scroll-padding: 0 16px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.fc-pager::-webkit-scrollbar { display: none; }
+.fc-pager > * { scroll-snap-align: start; }
+.fc-lrow { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--pc-rule); min-height: 72px; }
+.fc-lrow:last-child { border-bottom: 0; }
+.fc-lrow-thumb { width: 56px; height: 56px; border-radius: 16px; overflow: hidden; background: var(--pc-tonal); display: grid; place-items: center; flex: none; }
+.fc-lrow-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.fc-lrow:hover .fc-lrow-thumb img { transform: scale(1.04); transition: transform 300ms var(--pc-ease-standard); }
+}
+
+/* ── Mobile tab bar ── */
+@layer components {
+.fc-tabbar { position: fixed; inset: auto 0 0 0; z-index: 50; padding-bottom: env(safe-area-inset-bottom); background: var(--pc-raised); border-top: 1px solid var(--pc-rule); }
+.fc-tab-post { display: grid; place-items: center; width: 56px; height: 56px; margin-top: -22px; border-radius: 999px; background: var(--pc-pine); color: var(--pc-on-pine);
+  box-shadow: 0 0 0 5px var(--pc-paper), 0 8px 20px color-mix(in oklab, var(--pc-pine) 40%, transparent); transition: transform var(--pc-motion-fast) var(--pc-ease-press); }
+a:active > .fc-tab-post, button:active > .fc-tab-post { transform: scale(0.94); }
+}
+@layer components { .pc-chip-sm { min-height: 34px; padding: 0 12px; font-size: 13px; } }
+
+@layer components {
+.fc-searchpanel > * { width: 100%; max-width: none; }
+.fc-ring-center.on-photo > div { background: rgba(255,255,255,0.92); color: #0B1A15; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 10px 16px; }
+.dark .fc-ring-center.on-photo > div { background: rgba(19,38,31,0.92); color: #E8F2EC; }
+.fc-ring-center.on-photo span { color: var(--pc-pine); }
+}
+@layer components {
+.fc-glass-interest button { min-height: 44px; min-width: 44px; border-radius: 999px; background: rgba(255,255,255,0.86) !important; color: #0B1A15 !important;
+  backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(11,26,21,0.18); border: 0 !important; }
+}
+@layer components {
+.fc-ring-openmark { fill: var(--pc-raised); stroke: var(--pc-seat-open); stroke-width: 2; }
+.fc-ring.is-women .fc-ring-openmark { stroke: var(--pc-rose-open); }
+}

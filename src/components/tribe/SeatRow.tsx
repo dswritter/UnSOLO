@@ -1,30 +1,34 @@
 import type { Seat, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { initials } from './format'
+import { SeatRing, ringCaption, segsFromSeats } from './SeatRing'
 
 const LABEL: Record<Seat['state'], string> = {
   organiser: 'Organiser', host: 'Host', member: 'Going', you: 'You', requested: 'Requested', held: 'Held for you', open: 'Open seat',
 }
 
-/** The signature seat row. Faces only for signed-in viewers (anonymous taken seats render solid ink). */
-export function SeatRow({ seats, size = 'md', max, className, stampIndex }: {
+/**
+ * Compact seat summary: a small Full Circle ring plus its caption. Prefer <SeatRing> directly for hero use.
+ * Faces only for signed-in viewers (anonymous taken seats render as plain arcs).
+ */
+export function SeatRow({ seats, size = 'md', className, stampIndex, variant = 'plan' }: {
   seats: Seat[]
   size?: 'md' | 'sm' | 'xs'
+  /** @deprecated rings show every seat; kept for call-site compatibility */
   max?: number
   className?: string
   stampIndex?: number
+  variant?: 'trip' | 'plan'
 }) {
-  if (seats.length > 0 && seats.every((s) => s.state === 'open')) {
-    return <span className={cn('pc-gauge-empty block', className)}>All {seats.length} seats open · be the first</span>
-  }
-  const shown = max ? seats.slice(0, max) : seats
-  const more = max && seats.length > max ? seats.length - max : 0
+  if (seats.length === 0) return null
+  const { segs, waiting, host } = segsFromSeats(seats, { hostIsBadge: false })
+  const taken = segs.filter((s) => s.state !== 'open').length
+  const px = size === 'md' ? 112 : size === 'sm' ? 72 : 44
   return (
-    <div className={cn('pc-seatrow', className)} role="list" aria-label={`${seats.filter((s) => s.state !== 'open').length} of ${seats.length} seats taken`}>
-      {shown.map((s, i) => (
-        <SeatCell key={i} seat={s} size={size} stamped={stampIndex === i} />
-      ))}
-      {more > 0 && <span className="pc-mono text-xs text-muted-foreground">+{more}</span>}
+    <div className={cn('flex items-center gap-3', className)}>
+      <SeatRing segs={segs} size={px} variant={variant} photo={variant === 'plan' ? host?.avatarUrl : null} waiting={size === 'md' ? waiting : null}
+        animateYou={stampIndex != null} showDots={size === 'md'} />
+      <p className="fc-caption">{ringCaption(segs.length, taken)}</p>
     </div>
   )
 }

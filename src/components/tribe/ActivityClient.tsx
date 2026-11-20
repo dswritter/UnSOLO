@@ -17,6 +17,7 @@ const CATS = [
 ] as const
 const ICON = { plans: CalendarDays, replies: MessageCircle, messages: MessageCircle, trips: Ticket, tags: Tag, system: Bell }
 
+/** Activity: notifications grouped by category, join requests decided inline. */
 export function ActivityClient({ initial, initialCursor }: { initial: NotificationItem[]; initialCursor: string | null }) {
   const [items, setItems] = useState(initial)
   const [cursor, setCursor] = useState(initialCursor)
@@ -51,43 +52,48 @@ export function ActivityClient({ initial, initialCursor }: { initial: Notificati
   const unread = items.filter((n) => !n.isRead).length
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-28 pt-4 lg:pt-8">
-      <div className="flex items-end justify-between">
+    <div className="mx-auto w-full max-w-2xl px-4 pb-28 pt-4 lg:pt-8">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-[28px] leading-none">Activity</h1>
+          <h1 className="fc-largetitle">Activity</h1>
           <p className="mt-1 text-sm text-muted-foreground">{unread ? `${unread} new` : 'All caught up'}</p>
         </div>
         {unread > 0 && <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={markAll}>Mark all read</button>}
       </div>
-      <div className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide" role="toolbar" aria-label="Filter activity">
+      <div className="fc-scroll-x -mx-4 mt-4 gap-2 px-4 pb-1" role="toolbar" aria-label="Filter activity">
         {CATS.map((c) => <button key={c.id} type="button" className="pc-chip" aria-pressed={cat === c.id} onClick={() => setCat(c.id)}>{c.label}</button>)}
       </div>
       {shown.length === 0 ? (
-        <p className="mt-10 text-center text-muted-foreground">Nothing here yet. Join a plan or post a story and replies will show up here.</p>
+        <div className="pc-card mt-6 p-8 text-center">
+          <span className="fc-act-ic mx-auto"><Bell aria-hidden /></span>
+          <p className="mt-3 font-bold">Nothing here yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Join a plan or post a story and replies will show up here.</p>
+          <Link href="/tribe" className="pc-btn pc-btn-sm mt-4">Open Tribe</Link>
+        </div>
       ) : (
-        <ul className="mt-4 divide-y divide-border border-y border-border">
+        <ul className="mt-4 space-y-1.5">
           {shown.map((n) => {
             const Icon = ICON[n.category] ?? Bell
             const isJoin = n.type === 'tribe_join_request'
             return (
-              <li key={n.id} className={cn('flex gap-3 py-4', !n.isRead && 'bg-[color:var(--pc-raised)]')}>
-                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border"><Icon className="h-4 w-4" aria-hidden /></span>
+              <li key={n.id} className={cn('fc-act', !n.isRead && 'is-unread')}>
+                <span className="fc-act-ic"><Icon aria-hidden /></span>
                 <div className="min-w-0 flex-1">
                   <Link href={safeInternalLink(n.link)} className="block">
-                    <p className={cn('text-[15px]', !n.isRead && 'font-semibold')}>{n.title}</p>
+                    <p className={cn('text-[15px] leading-snug', !n.isRead ? 'font-bold' : 'font-medium')}>{n.title}</p>
                     {n.body && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{n.body}</p>}
-                    <p className="pc-mono mt-1 text-xs text-muted-foreground">{ago(n.createdAt)}</p>
+                    <p className="mt-1 text-xs font-semibold text-[color:var(--pc-ink3)]">{ago(n.createdAt)}</p>
                   </Link>
                   {isJoin && n.postId && n.actorId && (
-                    decided[n.id] ? <p className="mt-2 text-sm font-medium">{decided[n.id] === 'approved' ? 'Approved · they can see the plan chat now' : 'Declined'}</p> : (
-                      <div className="mt-2 flex gap-2">
+                    decided[n.id] ? <p className="mt-2 text-sm font-semibold text-[color:var(--pc-pine)]">{decided[n.id] === 'approved' ? 'Approved · they can see the plan chat now' : 'Declined'}</p> : (
+                      <div className="mt-2.5 flex gap-2">
                         <button type="button" className="pc-btn pc-btn-sm" onClick={() => decide(n, 'approve')}>Approve</button>
                         <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={() => decide(n, 'decline')}>Decline</button>
                       </div>
                     )
                   )}
                 </div>
-                {!n.isRead && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[color:var(--pc-red)]" aria-label="Unread" />}
+                {!n.isRead && <span className="fc-dot mt-2" aria-label="Unread" />}
               </li>
             )
           })}

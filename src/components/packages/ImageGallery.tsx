@@ -68,13 +68,13 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
     <>
       {/* Desktop mosaic: one large photo + up to four tiles */}
       {mosaic && (
-        <div className="relative hidden h-[26rem] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-2xl md:grid">
+        <div className="relative hidden h-[26rem] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-[28px] md:grid">
           {images.slice(0, 5).map((img, i) => (
             <button
               key={img + i}
               type="button"
               onClick={() => { setCurrent(i); setFullscreen(true) }}
-              className={`group relative overflow-hidden bg-secondary ${i === 0 ? 'col-span-2 row-span-2' : images.length === 3 ? 'col-span-2' : ''}`}
+              className={`group relative overflow-hidden bg-secondary ${i === 0 ? 'col-span-2 row-span-2' : images.length === 3 || (images.length === 4 && i === 3) ? 'col-span-2' : ''}`}
               aria-label={`Open photo ${i + 1} of ${images.length}`}
             >
               <Image

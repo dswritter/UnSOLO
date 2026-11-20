@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from './AuthProvider'
 import { MobileYouSheet } from './MobileYouSheet'
+import { ComposeSheet } from '@/components/tribe/ComposeSheet'
 import { activeMobileTab, myTripsHref, type MobileTabId } from './mobileNav'
 
 type NavItem = {
@@ -27,6 +28,10 @@ export function MobileBottomNav() {
   // Tied to the path it was opened on, so any navigation closes the sheet.
   const sheetOpen = sheetPath !== null && sheetPath === pathname
   const closeSheet = useCallback(() => setSheetPath(null), [])
+  // "What are you sharing?" sheet from the centre + (tied to the path like the You sheet).
+  const [composePath, setComposePath] = useState<string | null>(null)
+  const composeOpen = composePath !== null && composePath === pathname
+  const closeCompose = useCallback(() => setComposePath(null), [])
 
   // ALL hooks must come before any conditional return (Rules of Hooks).
   // Server snapshot is false so SSR and hydration match; the client snapshot
@@ -133,7 +138,9 @@ export function MobileBottomNav() {
     pathname?.startsWith('/chat') ||
     pathname?.startsWith('/status') ||
     pathname === '/tribe/new'
-  if (onChatRoute) return null
+  // Detail pages pin their own primary action at the bottom (thumb reach) instead of the tab bar.
+  const onDetailRoute = pathname?.startsWith('/packages/') || pathname?.startsWith('/tribe/p/')
+  if (onChatRoute || onDetailRoute) return null
 
   const activeTab = sheetOpen ? 'you' : activeMobileTab(pathname)
   void hasRooms
@@ -147,36 +154,43 @@ export function MobileBottomNav() {
   ]
 
   const itemClass = (isActive: boolean) => cn(
-    'relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[12px] font-medium transition-colors',
-    isActive ? 'text-foreground font-semibold' : 'text-foreground/65 hover:text-foreground',
+    'relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-1 px-1 pt-1 text-[11.5px] font-semibold transition-colors [-webkit-tap-highlight-color:transparent]',
+    isActive ? 'text-[color:var(--pc-pine)]' : 'text-[color:var(--pc-ink2)] hover:text-foreground',
   )
 
   return (
     <>
-      <nav aria-label="Primary" className="md:hidden fixed inset-x-0 bottom-0 z-50 border-t border-foreground bg-background supports-[padding:max(0px)]:pb-[max(env(safe-area-inset-bottom),0.4rem)]">
-        <div className="grid grid-cols-5 gap-1 px-2 pb-1 pt-1.5">
+      {/* Full Circle tab bar: 68px, thumb zone. Centre "+" is a raised pine circle (create). */}
+      <nav aria-label="Primary" className="fc-tabbar md:hidden">
+        <div className="grid h-[var(--pc-tab-bar)] grid-cols-5 items-center px-1.5">
           {items.map(({ id, href, label, icon: Icon, badgeCount }) => {
             const isActive = activeTab === id
-            const content = <>
-              {/* Active pill behind the icon; the unread badge pins to its top-right. */}
-              <span className={cn('relative inline-flex h-7 w-12 items-center justify-center rounded-md transition-colors',
-                id === 'post' ? 'bg-foreground text-background h-8 w-11' : isActive && 'bg-foreground/10')}>
+            const isPost = id === 'post'
+            const content = isPost ? <>
+              <span className="fc-tab-post" aria-hidden><Icon className="h-6 w-6 stroke-[2.5]" /></span>
+              <span className="sr-only">{label}</span>
+            </> : <>
+              <span className={cn('relative inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors', isActive && 'bg-[color:var(--pc-pine-soft)]')}>
                 {id === 'you' && profile?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.avatar_url} alt="" className={cn('h-5 w-5 rounded-full object-cover', isActive && 'ring-2 ring-foreground')} />
+                  <img src={profile.avatar_url} alt="" className={cn('h-6 w-6 rounded-full object-cover', isActive && 'ring-2 ring-[color:var(--pc-pine)]')} />
                 ) : (
-                  <Icon className="h-5 w-5 shrink-0 stroke-[2]" />
+                  <Icon className={cn('h-[22px] w-[22px] shrink-0', isActive ? 'stroke-[2.4]' : 'stroke-[2]')} />
                 )}
                 {badgeCount && badgeCount > 0 ? (
-                  <span className="absolute -right-0.5 -top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 font-mono text-[10px] font-semibold text-white">
-                    {badgeCount > 99 ? '99+' : badgeCount}
-                  </span>
+                  <span className="pc-badge" style={{ top: -2, right: 4 }}>{badgeCount > 99 ? '99+' : badgeCount}</span>
                 ) : null}
               </span>
               <span className="max-w-full truncate text-center leading-tight">{label}</span>
             </>
+            if (isPost && userId) return (
+              <button key={id} type="button" aria-haspopup="dialog" aria-expanded={composeOpen} aria-label="Create a post"
+                onClick={() => setComposePath(composeOpen ? null : pathname)} className={itemClass(false)}>
+                {content}
+              </button>
+            )
             return href ? (
-              <Link key={id} href={href} prefetch={false} aria-current={isActive ? 'page' : undefined} className={itemClass(isActive)}>
+              <Link key={id} href={href} prefetch={false} aria-current={isActive ? 'page' : undefined} aria-label={isPost ? 'Create a post' : undefined} className={itemClass(isActive)}>
                 {content}
               </Link>
             ) : (
@@ -189,6 +203,7 @@ export function MobileBottomNav() {
         </div>
       </nav>
       <MobileYouSheet open={sheetOpen} onClose={closeSheet} profile={profile} signedIn={!!userId} />
+      <ComposeSheet open={composeOpen} onClose={closeCompose} />
     </>
   )
 }

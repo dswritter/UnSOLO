@@ -7,7 +7,6 @@ import type { ChatMemberProfile } from '@/components/chat/ChatWindow'
 import { TribeRoomCoordinator } from '@/components/chat/TribeRoomCoordinator'
 import { TribeRoomHydrationLoader } from '@/components/chat/TribeRoomHydrationLoader'
 import { JoinRoomButton } from '@/components/chat/JoinRoomButton'
-import { Button } from '@/components/ui/button'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import type { Profile } from '@/types'
@@ -56,12 +55,10 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     return (
       <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4 max-w-md">
-          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <span className="fc-act-ic mx-auto h-14 w-14"><MessageCircle aria-hidden /></span>
           <h2 className="text-xl font-bold">Trip chat</h2>
           <p className="text-foreground/60 text-sm">Currently this trip is not live.</p>
-          <Button asChild className="bg-foreground text-background font-bold">
-            <Link href={WANDER_HOME_SEARCH_HREF}>Browse trips</Link>
-          </Button>
+          <Link href={WANDER_HOME_SEARCH_HREF} className="pc-btn">Browse trips</Link>
         </div>
       </div>
     )
@@ -110,12 +107,10 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     return (
       <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <span className="fc-act-ic mx-auto h-14 w-14"><MessageCircle aria-hidden /></span>
           <h2 className="text-xl font-bold">Private Conversation</h2>
           <p className="text-foreground/60 text-sm">You don&apos;t have access to this chat.</p>
-          <Button asChild className="bg-foreground text-background font-bold">
-            <Link href={listPath}>Back</Link>
-          </Button>
+          <Link href={listPath} className="pc-btn">Back</Link>
         </div>
       </div>
     )
@@ -126,7 +121,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
       return (
         <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
           <div className="text-center space-y-4">
-            <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+            <span className="fc-act-ic mx-auto h-14 w-14"><MessageCircle aria-hidden /></span>
             <h2 className="text-xl font-bold">You left this chat</h2>
             <p className="text-foreground/60 text-sm">Rejoin to see new messages and participate.</p>
             <JoinRoomButton roomId={roomId} label="Rejoin Chat" listBasePath={listPath} />
@@ -139,14 +134,12 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     return (
       <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <span className="fc-act-ic mx-auto h-14 w-14"><MessageCircle aria-hidden /></span>
           <h2 className="text-xl font-bold">Trip-only Chat</h2>
           <p className="text-foreground/60 text-sm">
             This chat is for travelers with an active, upcoming, ongoing, or completed booking for this trip.
           </p>
-          <Button asChild className="bg-foreground text-background font-bold">
-            <Link href={bookHref}>{packageSlug ? 'Book this trip' : 'Browse trips'}</Link>
-          </Button>
+          <Link href={bookHref} className="pc-btn">{packageSlug ? 'Book this trip' : 'Browse trips'}</Link>
         </div>
       </div>
     )
@@ -156,7 +149,7 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
     return (
       <div className="flex-1 flex items-center justify-center px-4 text-foreground/90">
         <div className="text-center space-y-4">
-          <MessageCircle className="h-12 w-12 text-primary/40 mx-auto" />
+          <span className="fc-act-ic mx-auto h-14 w-14"><MessageCircle aria-hidden /></span>
           <h2 className="text-xl font-bold">{room.name}</h2>
           <p className="text-foreground/60 text-sm">Join this community to see chats and participate.</p>
           <JoinRoomButton roomId={roomId} label="Join Community" listBasePath={listPath} />

@@ -28,7 +28,7 @@ export function TribeSidebarSkeleton({
         <div className="flex items-center justify-between gap-2">
           <div className="flex gap-1">
             {['All', 'DMs', 'Trips', 'Community'].map((label, index) => (
-              <span key={label} className={cn('px-2.5 py-1.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-primary text-black' : 'bg-secondary text-muted-foreground')}>
+              <span key={label} className={cn('px-2.5 py-1.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground')}>
                 {label}
               </span>
             ))}

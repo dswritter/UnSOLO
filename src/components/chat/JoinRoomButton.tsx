@@ -39,7 +39,7 @@ export function JoinRoomButton({
     <Button
       onClick={handleJoin}
       disabled={joining}
-      className="bg-primary text-black font-bold hover:bg-primary/90 min-w-[140px]"
+      className="bg-primary text-primary-foreground font-bold hover:bg-primary/90 min-w-[140px]"
     >
       {joining ? (
         <span className="flex items-center gap-2">

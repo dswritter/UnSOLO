@@ -445,7 +445,7 @@ export function BookingsClient({
   return (
     <div className="space-y-8">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-      <div role="tablist" aria-label="Trips by time" className="inline-flex gap-1 rounded-xl bg-foreground/[0.05] p-1">
+      <div role="tablist" aria-label="Trips by time" className="flex gap-2">
         {([['upcoming', 'Upcoming', upcomingCount], ['past', 'Past', pastCount]] as const).map(([id, label, count]) => (
           <button
             key={id}
@@ -453,35 +453,33 @@ export function BookingsClient({
             role="tab"
             aria-selected={timeView === id}
             onClick={() => setTimeView(id)}
-            className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
-              timeView === id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-card hover:text-foreground'
-            }`}
+            className="pc-chip"
           >
-            {label} <span className="ml-1 opacity-70">{count}</span>
+            {label} <span className="pc-count">{count}</span>
           </button>
         ))}
       </div>
 
       {timeView === 'upcoming' && nextTrip?.package && daysToNextTrip != null && (
-        <div className="glass-card grid overflow-hidden p-0 sm:grid-cols-[minmax(0,18rem)_1fr]">
-          <div className="relative h-40 bg-muted sm:h-full">
+        <div className="pc-card grid overflow-hidden p-0 sm:grid-cols-[minmax(0,20rem)_1fr]">
+          <div className="relative h-48 bg-[color:var(--pc-tonal)] sm:h-full sm:min-h-[200px]">
             {nextTrip.package.images?.[0] ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={nextTrip.package.images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />
             ) : null}
-            <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold text-slate-900">
+            <span className="absolute left-3 top-3 inline-flex h-8 items-center rounded-full bg-white/95 px-3 text-[13px] font-bold text-[#0B1A15] shadow-sm">
               {daysToNextTrip === 0 ? 'Departs today' : `Departs in ${daysToNextTrip} day${daysToNextTrip === 1 ? '' : 's'}`}
             </span>
           </div>
           <div className="flex flex-col gap-3 p-5">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">Your next trip</p>
-              <h2 className="mt-1 text-xl font-black tracking-tight text-foreground">{nextTrip.package.title}</h2>
+              <p className="pc-eyebrow text-[color:var(--pc-pine)]">Your next trip</p>
+              <h2 className="mt-1.5 text-[24px] leading-tight text-foreground">{nextTrip.package.title}</h2>
               <p className="text-sm text-muted-foreground">{formatDate(nextTrip.travel_date!)}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link href={`/packages/${nextTrip.package.slug}`} className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90">View trip</Link>
-              <Link href="/community" className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-foreground hover:border-primary">Open trip chat</Link>
+            <div className="mt-auto flex flex-wrap gap-2">
+              <Link href="/community" className="pc-btn flex-1 sm:flex-none"><MessageCircle className="h-4 w-4" aria-hidden />Meet the circle</Link>
+              <Link href={`/packages/${nextTrip.package.slug}`} className="pc-btn pc-btn-outline flex-1 sm:flex-none">View trip</Link>
             </div>
           </div>
         </div>
@@ -493,9 +491,8 @@ export function BookingsClient({
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              filterStatus === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-foreground/30'
-            }`}
+            aria-pressed={filterStatus === s}
+            className="pc-chip pc-chip-sm"
           >
             {s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
@@ -505,9 +502,8 @@ export function BookingsClient({
           <button
             key={t}
             onClick={() => setFilterType(t)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              filterType === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border hover:border-foreground/30'
-            }`}
+            aria-pressed={filterType === t}
+            className="pc-chip pc-chip-sm"
           >
             {t === 'all' ? 'All Types' : t === 'solo' ? 'Solo' : 'Group'}
           </button>
@@ -515,7 +511,7 @@ export function BookingsClient({
         <select
           value={filterMonth}
           onChange={e => setFilterMonth(e.target.value)}
-          className="px-3 py-1.5 rounded-full text-xs bg-card border border-border focus:outline-none focus:border-primary"
+          className="pc-chip pc-chip-sm focus:outline-none"
         >
           <option value="">All Months</option>
           {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (

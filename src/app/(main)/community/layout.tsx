@@ -27,21 +27,17 @@ export default async function TribeLayout({ children }: { children: ReactNode })
   const messagingBasePath = await getMessagingBasePath()
 
   return (
-    <div
-      className={cn(
-        'wander-theme wander-textured min-h-full w-full flex',
-      )}
-    >
+    <div className={cn('wander-theme min-h-full w-full flex bg-[color:var(--pc-paper)]')}>
       <TribeMessageCacheBootstrap />
       <TribeMessagingContainer>
         <Suspense fallback={<TribeSidebarSkeleton layout="desktop" />}>
           <CommunitySidebarSection
             userId={user.id}
             basePath={messagingBasePath}
-            className="max-h-[min(100dvh-5.5rem,56rem)] border-foreground/10 rounded-2xl overflow-hidden wander-frost-panel"
+            className="max-h-[min(100dvh-5.5rem,56rem)] overflow-hidden rounded-[var(--pc-radius-card)] border border-[color:var(--pc-rule)] bg-[color:var(--pc-raised)]"
           />
         </Suspense>
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-clip rounded-2xl border border-foreground/12 bg-[color:var(--wander-inset-panel)] backdrop-blur-[44px] backdrop-saturate-[1.65]">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-clip md:rounded-[var(--pc-radius-card)] md:border md:border-[color:var(--pc-rule)] bg-[color:var(--pc-paper)]">
           {children}
         </div>
       </TribeMessagingContainer>

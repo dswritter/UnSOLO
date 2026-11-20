@@ -3,6 +3,8 @@ import { Composer } from '@/components/tribe/Composer'
 import { SettingsClient } from '@/components/tribe/SettingsClient'
 import { ActivityClient } from '@/components/tribe/ActivityClient'
 import { PostDetailClient } from '@/components/tribe/PostDetailClient'
+import { FeedClient } from '@/components/tribe/FeedClient'
+import { DEMO_TRIPS } from '@/lib/tribe/demo-trips'
 import { AnalyticsDashboard, type Overview } from '@/app/(admin)/admin/analytics/AnalyticsDashboard'
 import { DEFAULT_PREFERENCES } from '@/lib/tribe/preferences'
 import { DEMO_COMMENTS, DEMO_POSTS, DEMO_USERS } from '@/lib/tribe/demo'
@@ -10,17 +12,36 @@ import type { NotificationItem } from '@/lib/tribe/models'
 
 /**
  * DEVELOPMENT-ONLY visual preview of signed-in screens with sample props (no data access).
- * 404s in production. /dev/preview?screen=compose|settings|activity|plan-member|analytics
+ * 404s in production. /dev/preview?screen=feed|compose|settings|activity|plan-member|plan-organiser|story|analytics
  */
 export const dynamic = 'force-dynamic'
 
-export default async function DevPreview({ searchParams }: { searchParams: Promise<{ screen?: string; kind?: string }> }) {
+export default async function DevPreview({ searchParams }: { searchParams: Promise<{ screen?: string; kind?: string; poll?: string }> }) {
   if (process.env.NODE_ENV === 'production') notFound()
-  const { screen, kind } = await searchParams
+  const { screen, kind, poll } = await searchParams
   // eslint-disable-next-line react-hooks/purity -- dev-only fixture timestamps
   const now = Date.now()
   const ago = (h: number) => new Date(now - h * 3600_000).toISOString()
-  if (screen === 'compose') return <Composer initialKind={kind === 'plan' || kind === 'story' || kind === 'ask' ? kind : null} me={DEMO_USERS.riya} pastTrips={[{ id: 'x', title: 'Kheerganga Trek with Tent It India' }]} />
+  if (screen === 'compose') return <Composer initialKind={kind === 'plan' || kind === 'story' || kind === 'ask' ? kind : null} initialPoll={poll === '1'} me={DEMO_USERS.riya} pastTrips={[{ id: 'x', title: 'Kheerganga Trek with Tent It India' }]} />
+  // Signed-in feed: your gold story ring (Riya has stories), "Planning something?" prompt, saved posts.
+  if (screen === 'feed') return <FeedClient initial={DEMO_POSTS} nextDepartures={DEMO_TRIPS.slice(0, 3)} signedIn demo me={DEMO_USERS.riya} />
+  if (screen === 'plan-organiser') {
+    const post = { ...DEMO_POSTS[0], viewer: { ...DEMO_POSTS[0].viewer, isAuthor: true, membership: 'approved' as const, canJoin: false, joinBlockedReason: 'own_plan' as const } }
+    return <PostDetailClient post={post} comments={DEMO_COMMENTS.filter((c) => c.postId === post.id)} offers={[]} signedIn viewerId={DEMO_USERS.ananya.id} viewerName="Ananya Rao" demo />
+  }
+  if (screen === 'plan-approved') {
+    const post = { ...DEMO_POSTS[0], meetingPoint: 'ISBT Kashmere Gate, 6 am', viewer: { ...DEMO_POSTS[0].viewer, membership: 'approved' as const, canJoin: false },
+      seats: [DEMO_POSTS[0].seats[0], DEMO_POSTS[0].seats[1], { state: 'you' as const, user: DEMO_USERS.kabir }, { state: 'open' as const, user: null }] }
+    return <PostDetailClient post={post} comments={DEMO_COMMENTS.filter((c) => c.postId === post.id)} offers={[]} signedIn viewerId={DEMO_USERS.kabir.id} viewerName="Kabir Singh" demo />
+  }
+  if (screen === 'story') {
+    const post = DEMO_POSTS[4]
+    return <PostDetailClient post={post} comments={DEMO_COMMENTS.filter((c) => c.postId === post.id)} offers={[]} signedIn viewerId={DEMO_USERS.riya.id} viewerName="Riya Kapoor" demo />
+  }
+  if (screen === 'poll') {
+    const post = { ...DEMO_POSTS[5], poll: { ...DEMO_POSTS[5].poll!, myChoice: null } }
+    return <PostDetailClient post={post} comments={[]} offers={[]} signedIn viewerId={DEMO_USERS.riya.id} viewerName="Riya Kapoor" demo />
+  }
   if (screen === 'settings') return <SettingsClient initial={{ ...DEFAULT_PREFERENCES, landingTab: 'tribe', interests: ['trek', 'mountains'] }} me={{ gender: 'woman', homeCity: 'Bengaluru', phone: null, isPhoneVerified: false }} />
   if (screen === 'activity') {
     const items: NotificationItem[] = [
@@ -53,7 +74,7 @@ export default async function DevPreview({ searchParams }: { searchParams: Promi
   }
   return (
     <ul className="mx-auto max-w-md space-y-2 px-4 py-8">
-      {['compose', 'compose&kind=plan', 'settings', 'activity', 'plan-member', 'analytics'].map((s) => <li key={s}><a className="pc-link" href={`/dev/preview?screen=${s}`}>{s}</a></li>)}
+      {['feed', 'compose', 'compose&kind=plan', 'compose&kind=story', 'compose&kind=ask&poll=1', 'settings', 'activity', 'plan-member', 'plan-approved', 'plan-organiser', 'story', 'poll', 'analytics'].map((s) => <li key={s}><a className="pc-link" href={`/dev/preview?screen=${s}`}>{s}</a></li>)}
     </ul>
   )
 }

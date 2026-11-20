@@ -54,15 +54,15 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 pb-28 pt-4 lg:pt-8">
-      <h1 className="text-[28px]">Settings</h1>
+    <div className="mx-auto w-full max-w-2xl px-4 pb-28 pt-4 lg:pt-8">
+      <h1 className="fc-largetitle">Settings</h1>
 
       <Section title="Start page" icon={Compass} hint="Where UnSOLO opens when you launch the app.">
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Start page">
           {([['explore', 'Explore', Compass], ['tribe', 'Tribe', UsersRound], ['trips', 'My trips', Ticket]] as const).map(([id, label, Icon]) => (
             <button key={id} type="button" role="radio" aria-checked={p.landingTab === id} onClick={() => save({ landingTab: id })}
-              className={cn('flex min-h-16 flex-col items-center justify-center gap-1 rounded-md border text-sm', p.landingTab === id ? 'border-foreground bg-foreground text-background font-semibold' : 'border-border hover:bg-accent')}>
-              <Icon className="h-5 w-5" aria-hidden />{label}
+              className="fc-tile">
+              <Icon aria-hidden />{label}
             </button>
           ))}
         </div>
@@ -77,22 +77,22 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
             else if (r === 'unconfigured') toast.message('Web push will work once the server keys are set up')
           }}>Turn on notifications in this browser</button>
         )}
-        <ul className="divide-y divide-border border-y border-border">
+        <ul>
           {CATEGORIES.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-3 py-3">
-              <span><span className="block text-[15px] font-medium">{c.label}</span><span className="block text-xs text-muted-foreground">{c.hint}</span></span>
-              <span className="flex gap-4 text-xs text-muted-foreground">
-                <Toggle label="Push" on={p.notify.push[c.id]} onChange={(v) => save({ notify: { ...p.notify, push: { ...p.notify.push, [c.id]: v } } })} />
-                <Toggle label="Email" on={p.notify.email[c.id]} onChange={(v) => save({ notify: { ...p.notify, email: { ...p.notify.email, [c.id]: v } } })} />
+            <li key={c.id} className="fc-set-row">
+              <span className="min-w-0"><span className="block text-[15px] font-semibold">{c.label}</span><span className="block text-xs text-muted-foreground">{c.hint}</span></span>
+              <span className="flex shrink-0 gap-3 text-[11px] font-semibold text-muted-foreground">
+                <Toggle label="Push" name={`${c.label} push notifications`} on={p.notify.push[c.id]} onChange={(v) => save({ notify: { ...p.notify, push: { ...p.notify.push, [c.id]: v } } })} />
+                <Toggle label="Email" name={`${c.label} emails`} on={p.notify.email[c.id]} onChange={(v) => save({ notify: { ...p.notify, email: { ...p.notify.email, [c.id]: v } } })} />
               </span>
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex items-center gap-3 text-sm">
-          <span>Quiet hours</span>
-          <input type="time" className="pc-input w-32" value={p.notify.quietHours.from} onChange={(e) => save({ notify: { ...p.notify, quietHours: { ...p.notify.quietHours, from: e.target.value } } })} aria-label="Quiet from" />
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-[20px] bg-[color:var(--pc-tonal)] p-3 text-sm font-semibold">
+          <span className="mr-auto">Quiet hours</span>
+          <input type="time" className="pc-input min-h-11 w-32 rounded-full" value={p.notify.quietHours.from} onChange={(e) => save({ notify: { ...p.notify, quietHours: { ...p.notify.quietHours, from: e.target.value } } })} aria-label="Quiet from" />
           <span>to</span>
-          <input type="time" className="pc-input w-32" value={p.notify.quietHours.to} onChange={(e) => save({ notify: { ...p.notify, quietHours: { ...p.notify.quietHours, to: e.target.value } } })} aria-label="Quiet until" />
+          <input type="time" className="pc-input min-h-11 w-32 rounded-full" value={p.notify.quietHours.to} onChange={(e) => save({ notify: { ...p.notify, quietHours: { ...p.notify.quietHours, to: e.target.value } } })} aria-label="Quiet until" />
         </div>
       </Section>
 
@@ -100,10 +100,10 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
         <Row label="Suggest plans and trips near me" on={p.suggestByLocation} onChange={(v) => save({ suggestByLocation: v })} />
         <div className="mt-3 flex gap-2">
           <input className="pc-input" placeholder="Home city, e.g. Bengaluru" value={homeCity} onChange={(e) => setHomeCity(e.target.value)} maxLength={80} aria-label="Home city" />
-          <button type="button" className="pc-btn pc-btn-quiet" disabled={saving} onClick={() => saveProfile({ homeCity: homeCity.trim() || null })}>Save</button>
+          <button type="button" className="pc-btn pc-btn-outline" disabled={saving} onClick={() => saveProfile({ homeCity: homeCity.trim() || null })}>Save</button>
         </div>
         <button type="button" className="pc-link mt-2 text-sm" onClick={shareMyLocation}>Use my current location instead</button>
-        <p className="mt-4 text-sm font-medium">Interests</p>
+        <p className="pc-eyebrow mt-5">Interests</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {INTERESTS.map((i) => {
             const on = p.interests.includes(i)
@@ -152,7 +152,7 @@ function PhoneSection({ me }: { me: Me }) {
   }
   return (
     <Section id="phone" title="Phone verification" icon={Phone} hint="Needed to post, comment or join plans. Your number is never shown on Tribe.">
-      {stage === 'done' ? <p className="text-sm font-medium text-[color:var(--pc-green)]">Verified{me.phone ? ` · ${me.phone.replace(/\d(?=\d{4})/g, '•')}` : ''}</p> : (
+      {stage === 'done' ? <p className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pc-pine-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--pc-pine)]"><ShieldCheck className="h-4 w-4" aria-hidden />Verified{me.phone ? ` · ${me.phone.replace(/\d(?=\d{4})/g, '•')}` : ''}</p> : (
         <div className="space-y-2">
           <div className="flex gap-2">
             <input className="pc-input" inputMode="tel" autoComplete="tel" placeholder="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Mobile number" />
@@ -160,7 +160,7 @@ function PhoneSection({ me }: { me: Me }) {
           </div>
           {stage === 'sent' && (
             <div className="flex gap-2">
-              <input className="pc-input pc-mono tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="Verification code" />
+              <input className="pc-input tabular-nums tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="Verification code" />
               <button type="button" className="pc-btn" disabled={busy || code.length !== 6} onClick={verify}>Verify</button>
             </div>
           )}
@@ -172,9 +172,9 @@ function PhoneSection({ me }: { me: Me }) {
 
 function Section({ id, title, hint, icon: Icon, children }: { id?: string; title: string; hint?: string; icon: typeof Bell; children: React.ReactNode }) {
   return (
-    <section id={id} className="mt-8 border-t border-foreground pt-4">
-      <h2 className="flex items-center gap-2 text-xl"><Icon className="h-5 w-5" aria-hidden />{title}</h2>
-      {hint && <p className="mb-3 mt-1 text-sm text-muted-foreground">{hint}</p>}
+    <section id={id} className="pc-card fc-set-section scroll-mt-20">
+      <h2><span className="fc-set-ic"><Icon aria-hidden /></span>{title}</h2>
+      {hint ? <p className="mb-3 mt-1.5 text-sm text-muted-foreground">{hint}</p> : <div className="mb-3" />}
       {children}
     </section>
   )
@@ -182,22 +182,19 @@ function Section({ id, title, hint, icon: Icon, children }: { id?: string; title
 
 function Row({ label, on, onChange, className }: { label: string; on: boolean; onChange: (v: boolean) => void; className?: string }) {
   return (
-    <label className={cn('flex min-h-11 cursor-pointer items-center justify-between gap-3', className)}>
-      <span className="text-[15px]">{label}</span>
+    <label className={cn('flex min-h-12 cursor-pointer items-center justify-between gap-3', className)}>
+      <span className="text-[15px] font-medium">{label}</span>
       <Switch on={on} onChange={onChange} label={label} />
     </label>
   )
 }
 
-function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
-  return <span className="flex flex-col items-center gap-1">{label}<Switch on={on} onChange={onChange} label={label} /></span>
+function Toggle({ label, name, on, onChange }: { label: string; name: string; on: boolean; onChange: (v: boolean) => void }) {
+  return <span className="flex flex-col items-center gap-1">{label}<Switch on={on} onChange={onChange} label={name} /></span>
 }
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-      className={cn('relative h-7 w-12 shrink-0 rounded-full border transition-colors', on ? 'border-foreground bg-foreground' : 'border-[color:var(--pc-rule2)] bg-transparent')}>
-      <span className={cn('absolute top-0.5 h-[22px] w-[22px] rounded-full transition-all', on ? 'left-[22px] bg-background' : 'left-0.5 bg-[color:var(--pc-rule2)]')} />
-    </button>
+    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} className="fc-switch" />
   )
 }

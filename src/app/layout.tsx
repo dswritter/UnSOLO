@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Sans_Condensed } from "next/font/google";
+import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
@@ -8,24 +8,18 @@ import { QueryProvider } from '@/providers/QueryProvider'
 import { COLOR_MODE_BOOT_SCRIPT } from '@/lib/theme/color-mode'
 import { AuthProvider } from '@/components/layout/AuthProvider'
 
-// Passenger Chart type: Plex Sans (body), Plex Sans Condensed (titles), Plex Mono (numbers/codes).
-const plexSans = IBM_Plex_Sans({
+// Full Circle type: Figtree (body, labels, numbers with tabular figures) + Bricolage Grotesque (headings, prices).
+const figtree = Figtree({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-sans",
 });
-const plexCondensed = IBM_Plex_Sans_Condensed({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["700", "800"],
   display: "swap",
-  variable: "--font-pc-condensed",
-});
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  display: "swap",
-  variable: "--font-pc-mono",
+  variable: "--font-fc-display",
 });
 
 export const viewport: Viewport = {
@@ -33,8 +27,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   interactiveWidget: "resizes-content",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F0E6" },
-    { media: "(prefers-color-scheme: dark)", color: "#14161A" },
+    { media: "(prefers-color-scheme: light)", color: "#F4FAF7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1A15" },
   ],
 }
 
@@ -56,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${figtree.variable} ${bricolage.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: COLOR_MODE_BOOT_SCRIPT }} />
       </head>

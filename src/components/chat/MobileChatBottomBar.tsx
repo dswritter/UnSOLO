@@ -128,13 +128,13 @@ export function MobileChatBottomBar({
                       className={
                         'inline-flex h-11 w-11 items-center justify-center rounded-full transition ' +
                         (hasUnseenStatus
-                          ? 'p-[2px] bg-gradient-to-tr from-primary via-amber-300 to-primary'
+                          ? 'p-[2px] bg-[color:var(--pc-pine)]'
                           : isCurrent
                             ? 'p-[2px] bg-foreground/30'
                             : 'p-[1px] bg-foreground/10')
                       }
                     >
-                      <Avatar className="h-full w-full border-[2px] border-zinc-950">
+                      <Avatar className="h-full w-full border-[2px] border-[color:var(--pc-raised)]">
                         <AvatarImage src={img} alt={label} />
                         <AvatarFallback className="bg-primary/15 text-[10px] font-bold text-primary">
                           {getInitials(label)}
@@ -147,7 +147,7 @@ export function MobileChatBottomBar({
                         reads against any avatar background. */}
                     {isOnline ? (
                       <span
-                        className="pointer-events-none absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-zinc-950"
+                        className="pointer-events-none absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[color:var(--pc-raised)]"
                         aria-label="Online"
                       />
                     ) : null}

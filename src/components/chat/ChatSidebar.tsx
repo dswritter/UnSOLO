@@ -447,26 +447,25 @@ export function ChatSidebar({
         <CommunityCrossRoomMessagePreview viewerUserId={viewerUserId} rooms={conversations.data?.pages[0]?.roomNameIndex ?? []} basePath={basePath} />
       )}
       {/* Header: filter tabs only — search lives at the bottom */}
-      <div className="px-4 py-3 border-b border-border shrink-0">
+      <div className="px-4 pb-3 pt-4 shrink-0">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h1 className="text-[28px] leading-none md:text-[22px]">Messages</h1>
+          <SoundSettingsButton />
+        </div>
         <div className="flex items-center justify-between gap-2">
-          <div className="flex gap-1 min-w-0">
+          <div className="fc-scroll-x gap-2 min-w-0">
             {(['all', 'direct', 'trip', 'general'] as const).map(f => (
               <button
                 key={f}
                 type="button"
                 aria-pressed={filter === f}
                 onClick={() => setFilter(f)}
-                className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                  filter === f
-                    ? 'bg-primary text-black'
-                    : 'bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80'
-                }`}
+                className="pc-chip min-h-9 px-3.5 text-[13px]"
               >
                 {f === 'all' ? 'All' : f === 'direct' ? 'DMs' : f === 'trip' ? 'Trips' : 'Community'}
               </button>
             ))}
           </div>
-          <SoundSettingsButton />
         </div>
       </div>
 
@@ -505,8 +504,8 @@ export function ChatSidebar({
               return (
                 <div
                   key={room.id}
-                  className={`flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
-                    isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
+                  className={`mx-2 flex items-center gap-2 rounded-[20px] px-3 py-2.5 transition-colors hover:bg-[color:var(--pc-tonal)] w-[calc(100%-1rem)] ${
+                    isActive ? 'bg-[color:var(--pc-pine-soft)]' : ''
                   }`}
                 >
                   <DmSidebarAvatarMenu
@@ -549,7 +548,7 @@ export function ChatSidebar({
                     <Pin className={`h-3.5 w-3.5 ${isPinned ? 'text-primary' : ''}`} strokeWidth={isPinned ? 2.25 : 1.75} fill={isPinned ? 'currentColor' : 'none'} />
                   </button>
                   {unread > 0 ? (
-                    <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                    <span className="fc-unread">
                       {unread > 99 ? '99+' : unread}
                     </span>
                   ) : null}
@@ -560,8 +559,8 @@ export function ChatSidebar({
             return (
               <div
                 key={room.id}
-                className={`flex items-center gap-2 px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border/30 w-full ${
-                  isActive ? 'bg-primary/10 border-l-2 border-l-primary' : ''
+                className={`mx-2 flex items-center gap-2 rounded-[20px] px-3 py-2.5 transition-colors hover:bg-[color:var(--pc-tonal)] w-[calc(100%-1rem)] ${
+                  isActive ? 'bg-[color:var(--pc-pine-soft)]' : ''
                 }`}
               >
                 <Link
@@ -572,15 +571,15 @@ export function ChatSidebar({
                   {/* Avatar */}
                   <div className="relative shrink-0">
                     {room.type === 'trip' && room.tripImage ? (
-                      <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
+                      <div className="h-12 w-12 rounded-full overflow-hidden bg-secondary">
                         <img src={storageThumbnailUrl(room.tripImage) || room.tripImage} alt="" className="h-full w-full object-cover" />
                       </div>
                     ) : room.type === 'general' && room.communityImage ? (
-                      <div className="h-11 w-11 rounded-full overflow-hidden bg-secondary">
+                      <div className="h-12 w-12 rounded-full overflow-hidden bg-secondary">
                         <img src={storageThumbnailUrl(room.communityImage) || room.communityImage} alt="" className="h-full w-full object-cover" />
                       </div>
                     ) : (
-                      <div className="h-11 w-11 rounded-full bg-secondary flex items-center justify-center text-lg">
+                      <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center text-lg">
                         {room.type === 'trip' ? '🏔️' : '💬'}
                       </div>
                     )}
@@ -596,7 +595,7 @@ export function ChatSidebar({
                     </div>
                     {room.type !== 'direct' && (
                       <span className="text-[10px] font-medium">
-                        <span className="text-primary">{room.type === 'trip' ? 'Trip' : 'Community'}</span>
+                        <span className="text-[color:var(--pc-pine)]">{room.type === 'trip' ? 'Trip circle' : 'Community'}</span>
                         {room.tripLocation ? <span className="text-muted-foreground"> · {room.tripLocation}</span> : null}
                       </span>
                     )}
@@ -616,11 +615,11 @@ export function ChatSidebar({
                 </button>
 
                 {unread > 0 ? (
-                  <span className="h-5 min-w-[20px] px-1 bg-primary text-black text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">
+                  <span className="fc-unread">
                     {unread > 99 ? '99+' : unread}
                   </span>
                 ) : room.isMember === false ? (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">Join</span>
+                  <span className="pc-tag pc-tag-hosted fc-tag-sm shrink-0">Join</span>
                 ) : null}
               </div>
             )
@@ -696,13 +695,13 @@ export function ChatSidebar({
       {/* Search — sticky at bottom so filters + conversations start at the top */}
       <div className="shrink-0 border-t border-border px-4 py-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search people and chats"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:border-primary"
+            className="w-full min-h-11 rounded-full pl-10 pr-4 text-[15px] bg-[color:var(--pc-raised)] border border-[color:var(--pc-rule)] focus:outline-none focus:border-[color:var(--pc-pine)]"
             aria-label="Search people and chats"
           />
         </div>

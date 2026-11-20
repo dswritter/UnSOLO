@@ -2,68 +2,60 @@ import Link from 'next/link'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { loadUpcomingTrips } from '@/lib/tribe/trips'
+import { shouldUseDemo } from '@/lib/tribe/demo'
+import { DEMO_TRIPS } from '@/lib/tribe/demo-trips'
 import type { TripLite } from '@/lib/tribe/models'
-import { SeatGauge } from './SeatRow'
-import { rupees } from './format'
+import { TripListRow, TripRingCard } from '@/components/explore/fc/TripCards'
 
-function day(iso: string) {
-  const d = new Date(`${iso}T00:00:00Z`)
-  return { dd: d.toLocaleDateString('en-IN', { day: '2-digit', timeZone: 'UTC' }), mon: d.toLocaleDateString('en-IN', { month: 'short', timeZone: 'UTC' }), dow: d.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' }) }
+export async function loadExploreDepartures(limit = 14): Promise<TripLite[]> {
+  try {
+    return (await loadUpcomingTrips({ db: createPublicClient(), service: createServiceRoleClient, user: null }, { limit })).items
+  } catch (e) {
+    if (shouldUseDemo(e)) return DEMO_TRIPS.slice(0, limit)
+    return []
+  }
 }
 
 /**
- * Explore "Leaving next": hosted departures sorted by date as a ruled table (desktop) / ruled list
- * (mobile), each with its seat strip. Cookie-free so the home page stays cacheable; seat counts come
- * from aggregate booking totals only (no faces). Renders nothing on error.
+ * Explore: "Leaving soon" photo-first ring cards (mobile pager / desktop grid) and "This month" list
+ * with mini arcs. Cookie-free so the home page stays cacheable; seat counts come from aggregate
+ * booking totals only (no faces). Renders nothing when there are no departures.
  */
-export async function DeparturesTable() {
-  let items: TripLite[] = []
-  try {
-    items = (await loadUpcomingTrips({ db: createPublicClient(), service: createServiceRoleClient, user: null }, { limit: 8 })).items
-  } catch {
-    return null
-  }
+export async function DeparturesTable({ aside }: { aside?: React.ReactNode } = {}) {
+  const items = await loadExploreDepartures()
   if (items.length === 0) return null
+  const soon = items.slice(0, 6)
+  const later = items.slice(6)
+  const list = later.length >= 4 ? later : items.slice(Math.max(0, items.length - 5))
   return (
-    <section aria-label="Leaving next" className="mx-auto mt-8 max-w-[1280px] px-4 md:px-6">
-      <div className="mb-2 flex items-end justify-between border-b border-foreground pb-2">
-        <h2 className="text-[22px]">Leaving next</h2>
-        <Link href="/?search=1" className="pc-link text-sm">All departures →</Link>
-      </div>
-      <table className="pc-table hidden md:table">
-        <thead><tr><th className="w-20">Date</th><th>Trip</th><th className="w-64">Seats</th><th className="w-20">Length</th><th className="w-28 text-right">From</th><th className="w-32" /></tr></thead>
-        <tbody>
-          {items.map((t) => {
-            const d = day(t.nextDeparture!)
-            return (
-              <tr key={t.id}>
-                <td><span className="pc-mono block text-lg font-semibold leading-none">{d.dd}</span><span className="text-xs text-muted-foreground">{d.mon} · {d.dow}</span></td>
-                <td className="min-w-0"><Link href={`/packages/${t.slug}`} className="font-semibold hover:underline">{t.title}</Link>
-                  <span className="block text-xs text-muted-foreground">{t.place?.name ?? ''}{t.host ? ` · hosted by ${t.host.name}` : ' · UnSOLO trip'}</span></td>
-                <td><SeatGauge total={t.seatsTotal} left={t.seatsLeft} /></td>
-                <td className="pc-mono text-sm">{t.durationDays}D</td>
-                <td className="pc-mono text-right font-semibold">{rupees(t.priceFromPaise)}</td>
-                <td className="text-right"><Link href={`/packages/${t.slug}`} className="pc-btn pc-btn-sm">Take a seat</Link></td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-      <ul className="divide-y divide-border md:hidden">
-        {items.map((t) => {
-          const d = day(t.nextDeparture!)
-          return (
-            <li key={t.id}>
-              <Link href={`/packages/${t.slug}`} className="grid grid-cols-[52px_1fr_auto] items-center gap-3 py-3">
-                <span><span className="pc-mono block text-lg font-semibold leading-none">{d.dd}</span><span className="text-xs text-muted-foreground">{d.mon}</span></span>
-                <span className="min-w-0"><span className="block truncate font-semibold">{t.title}</span>
-                  <SeatGauge total={t.seatsTotal} left={t.seatsLeft} showLabel={false} className="mt-1.5" /></span>
-                <span className="pc-mono text-right text-sm font-semibold">{rupees(t.priceFromPaise)}<span className="block text-xs font-normal text-muted-foreground">{t.seatsLeft} left</span></span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
+    <>
+      <section aria-labelledby="leaving-soon-h" className="mx-auto mt-4 max-w-[1280px] md:mt-8 md:px-6">
+        <div className="pc-section-h px-4 pb-3 md:px-0">
+          <div>
+            <h2 id="leaving-soon-h" className="md:text-[34px]">Leaving soon</h2>
+            <p className="hidden text-[15px] text-muted-foreground md:block">Departures in the next few weeks, with seats still open.</p>
+          </div>
+          <Link href="/?search=1&tab=trips#wander-explore">See all</Link>
+        </div>
+        <div className="fc-pager md:hidden">
+          {soon.map((t, i) => <TripRingCard key={t.id} trip={t} priority={i === 0} />)}
+        </div>
+        <div className="hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-3">
+          {soon.map((t, i) => <TripRingCard key={t.id} trip={t} ringSize={100} priority={i < 3} />)}
+        </div>
+      </section>
+      <section aria-labelledby="this-month-h" className="mx-auto mt-8 grid max-w-[1280px] gap-8 px-4 md:mt-12 md:px-6 lg:grid-cols-[1.55fr_1fr]">
+        <div className="min-w-0">
+          <div className="pc-section-h mb-1">
+            <h2 id="this-month-h">Next few weeks</h2>
+            <Link href="/?search=1&tab=trips#wander-explore">All departures</Link>
+          </div>
+          <div className="md:rounded-[28px] md:border md:border-border md:bg-card md:px-5 md:py-1.5">
+            {list.map((t) => <TripListRow key={t.id} trip={t} />)}
+          </div>
+        </div>
+        {aside && <div className="hidden min-w-0 lg:block">{aside}</div>}
+      </section>
+    </>
   )
 }

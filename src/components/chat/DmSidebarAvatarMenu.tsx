@@ -70,8 +70,8 @@ export function DmSidebarAvatarMenu({
         <span
           className={`rounded-full p-[2.5px] ${
             statusSeen
-              ? 'bg-gradient-to-tr from-zinc-600 to-zinc-800'
-              : 'bg-gradient-to-tr from-primary via-amber-300 to-primary'
+              ? 'bg-[color:var(--pc-rule)]'
+              : 'bg-[color:var(--pc-pine)]'
           }`}
         >
           <Avatar className="h-10 w-10 border-2 border-background">

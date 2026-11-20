@@ -81,26 +81,14 @@ function SenderTrustBadges({
 }) {
   if (officialHost) {
     return (
-      <span
-        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
-          tribeShell
-            ? 'bg-amber-400/20 text-amber-800 dark:text-amber-100 border-amber-300/40'
-            : 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/35'
-        }`}
-      >
-        Official host
+      <span className="pc-tag pc-tag-host fc-tag-sm shrink-0" data-shell={tribeShell ? 'tribe' : undefined}>
+        Host
       </span>
     )
   }
   if (communityMod) {
     return (
-      <span
-        className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md border shrink-0 ${
-          tribeShell
-            ? 'bg-sky-400/20 text-sky-800 dark:text-sky-100 border-sky-300/40'
-            : 'bg-sky-500/15 text-sky-800 dark:text-sky-200 border-sky-500/35'
-        }`}
-      >
+      <span className="pc-tag pc-tag-verified fc-tag-sm shrink-0">
         Community mod
       </span>
     )
@@ -170,10 +158,10 @@ function renderTextWithMentionsAndTags(
   chatListPath: string,
 ) {
   const mentionClass = isOwn
-    ? 'font-bold text-zinc-900 hover:underline'
+    ? 'font-bold text-[color:var(--pc-on-pine)] underline-offset-2 hover:underline'
     : 'font-bold text-primary hover:underline'
   const hashClass = isOwn
-    ? 'font-semibold text-zinc-900 bg-black/12 px-0.5 rounded hover:underline'
+    ? 'font-semibold text-[color:var(--pc-on-pine)] bg-white/15 px-0.5 rounded hover:underline'
     : 'font-semibold text-primary bg-primary/15 px-0.5 rounded hover:underline'
 
   const nodes: React.ReactNode[] = []
@@ -245,10 +233,10 @@ function renderMessageContent(
   const lines = content.split('\n')
 
   const linkClass = isOwn
-    ? 'text-zinc-900 underline font-semibold hover:text-zinc-800 break-all'
+    ? 'text-[color:var(--pc-on-pine)] underline font-semibold hover:opacity-85 break-all'
     : 'text-primary underline hover:text-primary/80 break-all'
   const pkgBtnClass = isOwn
-    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-black/12 text-zinc-900 text-xs font-semibold hover:bg-black/18 transition-colors'
+    ? 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 text-[color:var(--pc-on-pine)] text-xs font-semibold hover:bg-white/25 transition-colors'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-colors'
 
   const urlRegex = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi
@@ -276,7 +264,7 @@ function renderMessageContent(
             return (
               <mark
                 key={`${key}-m-${idx}`}
-                className={isOwn ? 'rounded bg-black/20 px-0.5 text-zinc-950' : 'rounded bg-primary/25 px-0.5 text-primary'}
+                className={isOwn ? 'rounded bg-white/25 px-0.5 text-[color:var(--pc-on-pine)]' : 'rounded bg-primary/25 px-0.5 text-primary'}
               >
                 {part}
               </mark>
@@ -2096,7 +2084,7 @@ export function ChatWindow({
                   void refreshShareList(k, pkgSearch)
                 }}
                 className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
-                  shareKind === k ? 'bg-primary text-black' : 'bg-secondary text-muted-foreground hover:text-foreground'
+                  shareKind === k ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {label}
@@ -2297,7 +2285,7 @@ export function ChatWindow({
               <Button
                 type="button"
                 size="sm"
-                className="bg-primary text-black"
+                className="bg-primary text-primary-foreground"
                 disabled={editSaving || !editDraft.trim()}
                 onClick={async () => {
                   if (!editTarget) return
@@ -2400,7 +2388,7 @@ export function ChatWindow({
               <Button
                 type="button"
                 size="sm"
-                className="bg-primary text-black"
+                className="bg-primary text-primary-foreground"
                 disabled={pollSubmitting}
                 onClick={async () => {
                   const opts = pollOptions.map(o => o.trim()).filter(Boolean)
@@ -2445,9 +2433,7 @@ export function ChatWindow({
       <div
         className={cn(
           'relative shrink-0 border-t px-3 sm:px-4 py-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:py-3 z-20',
-          tribeShell
-            ? 'border-foreground/10 bg-[color-mix(in_oklab,var(--secondary)_92%,transparent)] backdrop-blur-md'
-            : 'border-border bg-background',
+          'border-[color:var(--pc-rule)] bg-[color-mix(in_oklab,var(--pc-raised)_92%,transparent)] backdrop-blur-md',
         )}
         // dvh units (used in h-[calc(100dvh-...)]) adapt to the visual viewport
         // automatically when the mobile keyboard opens, so no extra style needed.
@@ -2519,7 +2505,7 @@ export function ChatWindow({
             <button
               type="button"
               onClick={() => setPollDialogOpen(true)}
-              className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+              className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-pine)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
               title="Create a poll"
             >
               <BarChart2 className="h-4 w-4 text-primary" />
@@ -2537,7 +2523,7 @@ export function ChatWindow({
               setShowPackagePicker(true)
               void refreshShareList(shareKind, pkgSearch)
             }}
-            className="h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 rounded-lg border border-border bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors"
+            className="h-11 w-11 flex-shrink-0 rounded-full text-[color:var(--pc-pine)] flex items-center justify-center hover:bg-[color:var(--pc-tonal)] transition-colors"
             title="Share trips, stays, activities, or rentals"
           >
             <Share2 className="h-4 w-4 text-primary" />
@@ -2562,13 +2548,13 @@ export function ChatWindow({
             onContextMenu={() => requestAnimationFrame(updateSelectionState)}
             placeholder="Message"
             rows={1}
-            className="bg-secondary border-border resize-none min-h-[36px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-sm py-2"
+            className="bg-[color:var(--pc-raised)] border-[color:var(--pc-rule)] rounded-[22px] px-4 resize-none min-h-[44px] max-h-[120px] sm:max-h-[160px] overflow-y-auto text-[15px] py-[11px] focus-visible:border-[color:var(--pc-pine)] focus-visible:ring-0"
             style={{ height: 'auto' }}
           />
           <Button
             type="submit" size="sm"
             onMouseDown={e => e.preventDefault()}
-            className="bg-primary text-black hover:bg-primary/90 h-9 w-9 sm:h-10 sm:w-10 p-0 flex-shrink-0"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-11 w-11 rounded-full p-0 flex-shrink-0"
             disabled={!input.trim() || sending}
           >
             <Send className="h-4 w-4" />
@@ -2908,10 +2894,8 @@ function MessageBubble({
         <div
           className={`px-3.5 py-2 rounded-[1.25rem] text-sm leading-snug whitespace-pre-wrap break-words touch-manipulation shadow-sm ${
             isOwn
-              ? 'bg-gradient-to-br from-primary to-amber-500 text-zinc-950 rounded-tr-md shadow-md shadow-primary/20 ring-1 ring-primary/30 [&_a]:text-zinc-900'
-              : tribeShell
-                ? 'bg-foreground/[0.09] backdrop-blur-md border border-foreground/15 rounded-tl-md text-foreground shadow-sm [&_a]:text-foreground [&_a]:underline'
-                : 'bg-card/90 backdrop-blur-md border border-border/90 rounded-tl-md text-foreground'
+              ? 'bg-[color:var(--pc-pine)] text-[color:var(--pc-on-pine)] rounded-br-md shadow-none [&_a]:text-[color:var(--pc-on-pine)]'
+              : 'bg-[color:var(--pc-raised)] border border-[color:var(--pc-rule)] rounded-bl-md text-foreground shadow-none [&_a]:underline'
           }`}
           {...(canReact ? bubbleLongPress : {})}
           onTouchStart={onBubbleTouchStart}
@@ -2921,7 +2905,7 @@ function MessageBubble({
           {renderWithMentions(message.content, isOwn)}
           {message.is_edited ? (
             <span
-              className={`block text-[10px] mt-1 italic ${isOwn ? 'text-zinc-800/75' : 'text-muted-foreground'}`}
+              className={`block text-[10px] mt-1 italic ${isOwn ? 'opacity-75' : 'text-muted-foreground'}`}
             >
               edited
             </span>

@@ -94,7 +94,7 @@ function SignupV2FormInner() {
           >
             {resendBusy ? 'Sending…' : 'Resend email'}
           </Button>
-          <Button type="button" className="bg-foreground text-background font-bold" asChild>
+          <Button type="button" className="font-bold" asChild>
             <Link href={`/login?redirectTo=${encodeURIComponent(redirectTo)}${refCode ? `&ref=${encodeURIComponent(refCode)}` : ''}`}>Go to sign in</Link>
           </Button>
         </div>

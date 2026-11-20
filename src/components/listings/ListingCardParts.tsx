@@ -4,9 +4,9 @@ import type { TripCardBadge } from '@/lib/listing-card-format'
 
 export function listingCardShellClass(muted = false) {
   return cn(
-    'wander-frost-card group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card',
+    'wander-frost-card group relative flex h-full flex-col overflow-hidden rounded-[24px] border border-border bg-card',
     'cursor-pointer outline-none transition-[transform,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-primary/50',
-    'hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0',
+    'hover:border-[color:var(--pc-rule2)] active:scale-[0.985] motion-reduce:transition-none',
     muted && 'opacity-80 saturate-[0.85] hover:opacity-100',
   )
 }

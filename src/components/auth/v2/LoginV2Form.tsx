@@ -124,7 +124,7 @@ function LoginV2FormInner() {
           <div className="space-y-2">
             <p className="text-sm font-bold text-emerald-500">Email verified</p>
             <p className="text-xs text-foreground/60 leading-relaxed">You&apos;re signed in. Head to the app whenever you&apos;re ready.</p>
-            <Button className="w-full h-9 bg-foreground text-background text-sm font-semibold hover:bg-foreground/90" asChild>
+            <Button className="w-full h-11 text-sm font-bold" asChild>
               <Link href={redirectTo || WANDER_HOME_SEARCH_HREF}>Continue to UnSOLO</Link>
             </Button>
           </div>
@@ -193,7 +193,7 @@ function LoginV2FormInner() {
         </div>
         <Button
           type="submit"
-          className="h-11 w-full bg-foreground text-base font-semibold text-background hover:bg-foreground/90"
+          className="h-[52px] w-full text-base font-bold"
         >
           Log in
         </Button>

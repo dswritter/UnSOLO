@@ -1,41 +1,61 @@
 import Link from 'next/link'
 import { createPublicClient } from '@/lib/supabase/public-client'
+import { loadPosts } from '@/lib/tribe/load'
+import { DEMO_POSTS, shouldUseDemo } from '@/lib/tribe/demo'
+import { todayIST, type Post } from '@/lib/tribe/models'
+import { PlanMiniCard } from '@/components/explore/fc/PlanMiniCard'
+
+async function loadOpenPlans(limit: number): Promise<Post[]> {
+  try {
+    const db = createPublicClient()
+    const { data, error } = await db.from('posts').select('id').eq('kind', 'plan').eq('status', 'live')
+      .gte('starts_on', todayIST()).order('created_at', { ascending: false }).limit(limit * 2)
+    if (error) throw error
+    const posts = await loadPosts(db, (data ?? []).map((r) => String(r.id)), null)
+    return posts.filter((p) => (p.spotsTotal ?? 0) > p.memberCount && p.audience !== 'verified').slice(0, limit)
+  } catch (e) {
+    if (shouldUseDemo(e)) return DEMO_POSTS.filter((p) => p.kind === 'plan').slice(0, limit)
+    return []
+  }
+}
 
 /**
- * Explore → Tribe bridge (spec growth loop 3): "14 people are planning Himachal". Only places
- * with ≥ 3 live plans are named (small-number rule); otherwise a generic invitation.
- * Public, cookie-free query so the home page stays cacheable. Renders nothing on error.
+ * Explore → Tribe bridge: community plans that still need people, as plan-ring cards.
+ * `layout="aside"` stacks them (desktop column), `layout="row"` is a mobile pager.
+ * Public, cookie-free query. Falls back to an invitation card when there are no open plans.
  */
-export async function TribeBridgeRow() {
-  let top: { place: string; slug: string; n: number }[] = []
-  try {
-    const { data, error } = await createPublicClient().from('posts').select('place_name, place_slug')
-      .eq('kind', 'plan').eq('status', 'live').not('place_slug', 'is', null).limit(500)
-    if (error) throw error
-    const counts = new Map<string, { place: string; slug: string; n: number }>()
-    for (const r of data ?? []) {
-      const slug = r.place_slug as string
-      const cur = counts.get(slug) ?? { place: String(r.place_name), slug, n: 0 }
-      cur.n++
-      counts.set(slug, cur)
-    }
-    top = [...counts.values()].filter((c) => c.n >= 3).sort((a, b) => b.n - a.n).slice(0, 3)
-  } catch {
-    return null
+export async function TribeBridgeRow({ layout = 'row' }: { layout?: 'row' | 'aside' }) {
+  const plans = await loadOpenPlans(3)
+  const header = (
+    <div className="pc-section-h mb-3">
+      <h2>Plans looking for people</h2>
+      <Link href="/tribe">Tribe</Link>
+    </div>
+  )
+  if (plans.length === 0) {
+    return (
+      <section aria-label="Tribe" className={layout === 'row' ? 'mx-auto mt-8 max-w-[1280px] px-4 md:px-6' : ''}>
+        {header}
+        <div className="pc-pencilled flex flex-col items-start gap-3 p-5">
+          <p className="pc-kicker">Community plans · not bookings</p>
+          <p className="text-[17px] font-bold">Find people going your way, or share where you’re headed next.</p>
+          <Link href="/tribe/new?kind=plan" className="pc-btn pc-btn-sm">Start a plan</Link>
+        </div>
+      </section>
+    )
+  }
+  if (layout === 'aside') {
+    return (
+      <section aria-label="Plans looking for people">
+        {header}
+        <div className="flex flex-col gap-3.5">{plans.map((p) => <PlanMiniCard key={p.id} post={p} />)}</div>
+      </section>
+    )
   }
   return (
-    <section aria-label="Tribe" className="mx-auto mt-6 max-w-[1280px] px-4 md:px-6">
-      <div className="pc-pencilled flex flex-wrap items-center justify-between gap-3 p-4">
-        <div>
-          <p className="pc-kicker">Tribe · community plans, not bookings</p>
-          <p className="mt-1 font-semibold">
-            {top.length ? top.map((t, i) => (
-              <span key={t.slug}>{i > 0 && ' · '}<Link className="hover:underline" href={`/tribe?place=${t.slug}`}>{t.n} planning {t.place}</Link></span>
-            )) : 'Find people going your way, or share where you’re headed next.'}
-          </p>
-        </div>
-        <Link href="/tribe" className="pc-btn pc-btn-outline pc-btn-sm">Open Tribe</Link>
-      </div>
+    <section aria-label="Plans looking for people" className="mt-8 lg:hidden">
+      <div className="px-4">{header}</div>
+      <div className="fc-pager">{plans.map((p) => <PlanMiniCard key={p.id} post={p} ringSize={88} />)}</div>
     </section>
   )
 }

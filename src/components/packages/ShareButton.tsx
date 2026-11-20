@@ -15,7 +15,7 @@ interface ShareButtonProps {
   priceLinePrefix?: string
   /** e.g. "4 days · 3 nights" — shown in share copy */
   durationSummary: string
-  variant?: 'full' | 'icon'
+  variant?: 'full' | 'icon' | 'glass'
   /** Digits-only WhatsApp number (country code first). Resolved server-side
    *  in the order: per-listing override → platform default → hardcoded fallback. */
   whatsappNumber: string
@@ -42,6 +42,19 @@ export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix
     setCopied(true)
     toast.success('Share text copied!')
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (variant === 'glass') {
+    return (
+      <div className="flex items-center gap-2">
+        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="pc-glassbtn" aria-label="Ask on WhatsApp">
+          <MessageCircle className="h-5 w-5" aria-hidden />
+        </a>
+        <button type="button" onClick={handleShare} className="pc-glassbtn" aria-label={copied ? 'Copied' : 'Share'}>
+          {copied ? <Check className="h-5 w-5" aria-hidden /> : <Share2 className="h-5 w-5" aria-hidden />}
+        </button>
+      </div>
+    )
   }
 
   if (variant === 'icon') {
@@ -74,14 +87,15 @@ export function ShareButton({ slug, title, location, pricePaise, priceLinePrefix
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+        className="pc-btn pc-btn-sm pc-btn-quiet"
       >
         <MessageCircle className="h-4 w-4" />
         WhatsApp
       </a>
       <button
         onClick={handleShare}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-sm font-medium transition-colors"
+        type="button"
+        className="pc-btn pc-btn-sm pc-btn-quiet"
       >
         {copied ? <Check className="h-4 w-4 text-green-400" /> : <Share2 className="h-4 w-4" />}
         {copied ? 'Copied!' : 'Share'}

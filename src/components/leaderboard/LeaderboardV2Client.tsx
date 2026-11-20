@@ -306,7 +306,7 @@ export function LeaderboardV2Client({
                 className={cn(
                   'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                   view === 'alltime'
-                    ? 'bg-foreground text-background'
+                    ? 'bg-primary text-primary-foreground'
                     : 'border border-foreground/15 bg-card/50 text-foreground/70 hover:border-foreground/25 hover:text-foreground',
                 )}
               >
@@ -318,7 +318,7 @@ export function LeaderboardV2Client({
                 className={cn(
                   'shrink-0 rounded-full px-4 py-2 text-sm font-bold transition',
                   view === 'monthly'
-                    ? 'bg-foreground text-background'
+                    ? 'bg-primary text-primary-foreground'
                     : 'border border-foreground/15 bg-card/50 text-foreground/70 hover:border-foreground/25 hover:text-foreground',
                 )}
               >

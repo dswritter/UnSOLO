@@ -47,6 +47,8 @@ export function MainScrollContainer({ children }: { children: React.ReactNode })
   const mainRef = useRef<HTMLElement>(null)
   useResetScrollOnPathChange(mainRef, pathname)
   const isChatRoute = CHAT_ROUTE_PREFIXES.some(p => pathname?.startsWith(p))
+  // Detail pages hide the tab bar and reserve room for their own bottom action bar.
+  const isDetailRoute = !!pathname && (pathname.startsWith('/packages/') || pathname.startsWith('/tribe/p/') || pathname === '/tribe/new')
   // Home/Explore scroll with the document. An unbounded overflow-auto ancestor
   // captures sticky positioning even though it never actually scrolls.
   const isHome = pathname === '/'
@@ -58,7 +60,7 @@ export function MainScrollContainer({ children }: { children: React.ReactNode })
       className={cn(
         'flex min-h-0 flex-1 flex-col',
         isHome ? 'overflow-visible' : 'h-0 overflow-y-auto',
-        !isChatRoute && 'pb-[5.75rem] md:pb-0',
+        !isChatRoute && !isDetailRoute && 'pb-[5.75rem] md:pb-0',
       )}
     >
       {children}

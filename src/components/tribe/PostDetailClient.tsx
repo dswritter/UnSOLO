@@ -1,24 +1,40 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { CalendarDays, Flag, Lock, MapPin, MoreHorizontal, Share2, ShieldCheck, UserX } from 'lucide-react'
+import { ArrowLeft, Clock3, Flag, Lock, MessageCircle, MoreHorizontal, SendHorizontal, Share2, UserX, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch, ApiClientError, newClientId } from '@/lib/api/client'
 import { track } from '@/lib/analytics/client'
-import type { Comment, HostOffer, Post, Seat } from '@/lib/tribe/models'
+import type { Comment, HostOffer, Post, Seat, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
-import { SeatRow } from './SeatRow'
 import { ProgressiveImage } from './ProgressiveImage'
 import { ReactionBar } from './ReactionBar'
-import { Avatar, TripStub } from './PostCard'
-import { ago, dateRange, nights, rupees } from './format'
+import { PollOptions } from './PollCard'
+import { SeatRing } from './SeatRing'
+import { Sheet } from './Sheet'
+import { AuthorRow, Avatar, PlanFacts, TripLinkCard, WomenTag, planRing } from './PostCard'
+import { ago, initials, rupees } from './format'
 
 const REASONS = [
   ['spam', 'Spam'], ['scam_money', 'Asking for money / scam'], ['harassment', 'Harassment'], ['unsafe_meetup', 'Unsafe meetup'],
   ['fake_profile', 'Fake profile'], ['hate', 'Hate'], ['sexual', 'Sexual content'], ['other', 'Something else'],
 ] as const
+
+const firstName = (u: { name: string }) => u.name.split(' ')[0]
+
+/** ≥1024px. The plan circle renders once (inline on phones, side panel on desktop): SVG clip paths
+ *  inside a display:none copy would blank the visible ring's photo. Server snapshot = phone layout. */
+const DESKTOP = '(min-width: 1024px)'
+function subscribeDesktop(cb: () => void) {
+  const m = window.matchMedia(DESKTOP)
+  m.addEventListener('change', cb)
+  return () => m.removeEventListener('change', cb)
+}
+function useIsDesktop() {
+  return useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP).matches, () => false)
+}
 
 export function PostDetailClient({ post: initial, comments: initialComments, offers, signedIn, viewerId, viewerName, demo }: {
   post: Post
@@ -36,8 +52,12 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
   const [joinOpen, setJoinOpen] = useState(params.get('join') === '1' && initial.viewer.canJoin)
   const [menuOpen, setMenuOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
-  const [stamp, setStamp] = useState<number | undefined>(undefined)
+  const [stamp, setStamp] = useState(false)
+  const [replyTo, setReplyTo] = useState<Comment | null>(null)
+  const [mode, setMode] = useState<'action' | 'comment'>(initial.kind === 'plan' && !initial.viewer.isAuthor ? 'action' : 'comment')
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const isPlan = post.kind === 'plan'
+  const me: UserLite = { id: viewerId ?? 'me', username: '', name: viewerName ?? 'You', avatarUrl: null, isPhoneVerified: true, isIdVerified: false, isHost: false }
 
   useEffect(() => { track('screen.view', { kind: post.kind }, 'post_detail') }, [post.kind])
 
@@ -45,19 +65,25 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
     router.push(`/login?redirectTo=${encodeURIComponent(`/tribe/p/${post.id}${isPlan ? '?join=1' : ''}`)}`)
   }
 
-  /** Optimistic: the viewer's seat is pencilled in as "requested" immediately. */
+  const focusComposer = useCallback((c?: Comment | null) => {
+    setMode('comment')
+    if (c !== undefined) setReplyTo(c)
+    requestAnimationFrame(() => inputRef.current?.focus())
+  }, [])
+
+  /** Optimistic: the viewer's face waits at the edge of the circle immediately. */
   async function sendJoin(intro: string) {
     const prev = post
     const seats: Seat[] = [...post.seats]
     const idx = seats.findIndex((s) => s.state === 'open')
-    if (idx >= 0) seats[idx] = { state: 'requested', user: { id: viewerId ?? 'me', username: '', name: viewerName ?? 'You', avatarUrl: null, isPhoneVerified: true, isIdVerified: false, isHost: false } }
+    if (idx >= 0) seats[idx] = { state: 'requested', user: me }
     setPost({ ...post, seats, viewer: { ...post.viewer, membership: 'requested', canJoin: false } })
-    setStamp(idx)
+    setStamp(true)
     setJoinOpen(false)
-    if (demo) { toast.success(`Request sent to ${post.author.name.split(' ')[0]}`); return }
+    if (demo) { toast.success(`Request sent to ${firstName(post.author)}`); return }
     try {
       await apiFetch(`/posts/${post.id}/join`, { body: { intro } })
-      toast.success(`Request sent. ${post.author.name.split(' ')[0]} usually replies within a day.`)
+      toast.success(`Request sent. ${firstName(post.author)} usually replies within a day.`)
     } catch (e) {
       setPost(prev)
       if (e instanceof ApiClientError && e.code === 'phone_required') {
@@ -70,6 +96,7 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
   async function withdraw() {
     const prev = post
     setPost({ ...post, seats: post.seats.map((s) => (s.state === 'requested' ? { state: 'open', user: null } : s)), viewer: { ...post.viewer, membership: null, canJoin: true } })
+    setStamp(false)
     if (demo) return
     try { await apiFetch(`/posts/${post.id}/join`, { method: 'DELETE' }) } catch (e) { setPost(prev); toast.error((e as Error).message) }
   }
@@ -77,7 +104,7 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
   async function addComment(body: string, parentId: string | null, pollChoice?: string) {
     if (!signedIn) return requireSignIn()
     const clientId = newClientId()
-    const temp: Comment = { id: `tmp-${clientId}`, postId: post.id, parentId, author: { id: viewerId ?? '', username: '', name: viewerName ?? 'You', avatarUrl: null, isPhoneVerified: true, isIdVerified: false, isHost: false }, body, pollChoice: null, createdAt: new Date().toISOString(), replies: [] }
+    const temp: Comment = { id: `tmp-${clientId}`, postId: post.id, parentId, author: { ...me, id: viewerId ?? '' }, body, pollChoice: null, createdAt: new Date().toISOString(), replies: [] }
     const apply = (c: Comment, replace?: string) => setComments((cs) => {
       if (!parentId) return replace ? cs.map((x) => (x.id === replace ? c : x)) : [...cs, c]
       return cs.map((x) => (x.id === parentId ? { ...x, replies: replace ? x.replies.map((r) => (r.id === replace ? c : r)) : [...x.replies, c] } : x))
@@ -104,7 +131,6 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
 
   async function block() {
     setMenuOpen(false)
-    if (!confirm(`Block ${post.author.name}? You won't see each other's posts or messages.`)) return
     if (!demo) await apiFetch('/blocks', { body: { userId: post.author.id } }).catch((e) => toast.error(e.message))
     toast.success(`${post.author.name} is blocked`)
     router.push('/tribe')
@@ -112,151 +138,378 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
 
   async function share() {
     const url = `${location.origin}/tribe/p/${post.id}`
-    const text = isPlan ? `${post.author.name.split(' ')[0]} needs ${Math.max((post.spotsTotal ?? 0) - post.memberCount, 0)} for ${post.place?.name} — on UnSOLO` : post.title ?? 'On UnSOLO'
+    const text = isPlan ? `${firstName(post.author)} needs ${Math.max((post.spotsTotal ?? 0) - post.memberCount, 0)} for ${post.place?.name} — on UnSOLO` : post.title ?? 'On UnSOLO'
     track('share.plan', { channel: 'navigator' in window && 'share' in navigator ? 'native' : 'copy' })
     if (navigator.share) await navigator.share({ title: text, url }).catch(() => undefined)
     else { await navigator.clipboard.writeText(url); toast.success('Link copied') }
   }
 
-  const open = Math.max((post.spotsTotal ?? 0) - post.memberCount, 0)
-  const n = nights(post.startsOn, post.endsOn)
+  const kindLabel = isPlan ? 'Plan' : post.kind === 'story' ? 'Story' : post.poll ? 'Poll' : 'Question'
+  const ring = planRing(post, signedIn)
+  const total = ring.segs.length
+  const openSpots = Math.max(total - ring.taken, 0)
+  const isAsk = post.kind === 'ask'
+  const desktop = useIsDesktop()
 
   return (
-    <div className="mx-auto grid max-w-[1280px] grid-cols-1 gap-8 px-4 pb-32 pt-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:pt-8">
+    <div className={cn('mx-auto w-full lg:px-8 lg:pt-6', isPlan ? 'max-w-[1180px] lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8' : 'max-w-[760px]')}>
       <main className="min-w-0">
-        <nav className="mb-3 text-sm"><Link href="/tribe" className="pc-link">← Tribe</Link></nav>
-        <article className={cn(isPlan ? 'pc-pencilled' : 'pc-surface', 'overflow-hidden')}>
-          {post.media.length > 0 && (
-            <div className={cn('grid gap-0.5', post.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
-              {post.media.map((m, i) => <ProgressiveImage key={i} media={m} alt={post.title ?? 'Photo'} className={post.media.length === 1 ? 'aspect-[4/3]' : 'aspect-square'} priority={i === 0} />)}
-            </div>
-          )}
-          <div className="p-4 sm:p-6">
-            {isPlan && <p className="pc-kicker mb-3">Community plan · not a booking{post.audience === 'women' ? ' · women only' : post.audience === 'verified' ? ' · verified only' : ''}</p>}
-            <div className="flex items-start gap-3">
-              <Avatar user={post.author} size={44} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/profile/${post.author.username}`} className="font-semibold hover:underline">{post.author.name}</Link>
-                  {post.author.isIdVerified && <span className="inline-flex items-center gap-1 text-xs text-[color:var(--pc-green)]"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> ID verified</span>}
-                  {isPlan && <span className="pc-tag pc-tag-organiser">Organiser</span>}
-                </div>
-                <p className="text-[13px] text-muted-foreground">{ago(post.createdAt)} ago{post.place ? ` · ${post.place.name}` : ''}</p>
-              </div>
-              <div className="relative">
-                <button type="button" className="pc-iconbtn" aria-label="More" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><MoreHorizontal className="h-5 w-5" /></button>
-                {menuOpen && (
-                  <div className="absolute right-0 top-11 z-20 w-52 rounded-md border border-border bg-popover py-1 shadow-sm" role="menu">
-                    <button role="menuitem" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm hover:bg-accent" onClick={() => { setMenuOpen(false); void share() }}><Share2 className="h-4 w-4" /> Share</button>
-                    {!post.viewer.isAuthor && <>
-                      <button role="menuitem" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm hover:bg-accent" onClick={() => { setMenuOpen(false); if (signedIn) setReportOpen(true); else requireSignIn() }}><Flag className="h-4 w-4" /> Report</button>
-                      <button role="menuitem" className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm text-destructive hover:bg-accent" onClick={() => (signedIn ? block() : requireSignIn())}><UserX className="h-4 w-4" /> Block {post.author.name.split(' ')[0]}</button>
-                    </>}
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* Phones: round back button top-left (no tab bar on detail pages), share + more on the right. */}
+        <div className="sticky top-0 z-30 flex items-center gap-1 bg-[color:var(--pc-paper)]/90 px-2 py-2 backdrop-blur lg:hidden">
+          <BackButton />
+          <b className="flex-1 text-center text-[15px]">{kindLabel}</b>
+          <button type="button" className="pc-iconbtn" aria-label="Share" onClick={() => void share()}><Share2 className="h-5 w-5" /></button>
+          <button type="button" className="pc-iconbtn" aria-label="More" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}><MoreHorizontal className="h-5 w-5" /></button>
+        </div>
+        <nav className="mb-3 hidden text-sm lg:block"><Link href="/tribe" className="pc-link inline-flex items-center gap-1.5"><ArrowLeft className="h-4 w-4" aria-hidden />Tribe</Link></nav>
 
-            <h1 className="mt-4 text-[28px] leading-tight sm:text-[32px]">{post.title ?? (post.kind === 'ask' ? post.body : post.place?.name)}</h1>
+        <article className={cn('mx-3.5 lg:mx-0', isPlan ? 'pc-pencilled p-4 sm:p-5' : post.kind === 'ask' ? 'pc-card p-4 sm:p-5' : '')}>
+          {post.kind === 'story' && post.media.length > 0 && <Gallery post={post} />}
+          <div className={cn(post.kind === 'story' && 'px-0.5 pt-3')}>
+            <AuthorRow user={post.author} size={40}
+              sub={[isPlan ? 'Plan · looking for people' : kindLabel, post.kind === 'story' ? post.place?.name : null, ago(post.createdAt)].filter(Boolean).join(' · ')}
+              trailing={<>
+                {isPlan && ring.women && <WomenTag />}
+                {isPlan && post.audience === 'verified' && <span className="pc-tag pc-tag-verified shrink-0">Verified only</span>}
+                <button type="button" className="pc-iconbtn hidden lg:inline-grid" aria-label="More" aria-haspopup="dialog" onClick={() => setMenuOpen(true)}><MoreHorizontal className="h-5 w-5" /></button>
+              </>} />
+
+            {isPlan ? (
+              <h1 className="mt-4 text-[26px] leading-tight sm:text-[30px]">{post.title ?? post.place?.name}</h1>
+            ) : isAsk ? (
+              <h1 className="mt-4 text-[24px] leading-snug sm:text-[28px]">{post.body}</h1>
+            ) : post.title ? (
+              <h1 className="mt-3 text-[24px] leading-tight">{post.title}</h1>
+            ) : null}
+
+            {isPlan && <PlanFacts post={post} className="mt-3" />}
+            {(!isAsk || post.title) && <p className={cn('whitespace-pre-line text-[16px] leading-relaxed', isPlan || post.title ? 'mt-3' : 'mt-2.5')}>{post.body}</p>}
+
+            {isPlan && !desktop && (
+              <div className="mt-5">
+                <PlanCircle post={post} ring={ring} stamp={stamp} />
+              </div>
+            )}
+            {isPlan && post.estCostText && <p className="mt-4 text-sm text-muted-foreground">{post.estCostText}. No money is paid through UnSOLO for community plans.</p>}
+            {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} onVote={(choice, label) => addComment(`Voted: ${label}`, null, choice)} />}
+            {post.trip && <TripLinkCard trip={post.trip} className="mt-4" />}
 
             {isPlan && (
-              <dl className="mt-4 grid grid-cols-3 border-y border-dashed border-[color:var(--pc-rule2)] py-3 text-sm">
-                <div><dt className="text-xs text-muted-foreground">Where</dt><dd className="font-medium"><MapPin className="mr-1 inline h-3.5 w-3.5" aria-hidden />{post.place?.name}</dd></div>
-                <div><dt className="text-xs text-muted-foreground">When</dt><dd className="font-medium"><CalendarDays className="mr-1 inline h-3.5 w-3.5" aria-hidden />{dateRange(post.startsOn, post.endsOn)}{n ? <span className="pc-mono text-muted-foreground"> · {n}N</span> : null}</dd></div>
-                <div><dt className="text-xs text-muted-foreground">Spots</dt><dd className="pc-mono font-semibold">{open} open of {post.spotsTotal}</dd></div>
-              </dl>
+              <div className="mt-5 lg:hidden">
+                <PlanStatus post={post} offers={offers} demo={demo} openSpots={openSpots} onWithdraw={withdraw} />
+              </div>
             )}
-            {(post.kind !== 'ask' || post.title) && <p className="mt-4 whitespace-pre-line text-[16px] leading-relaxed">{post.body}</p>}
-            {isPlan && post.estCostText && <p className="mt-3 text-sm text-muted-foreground">{post.estCostText}. No money is paid through UnSOLO for community plans.</p>}
-            {post.poll && <Poll post={post} signedIn={signedIn} demo={demo} onVote={(choice) => addComment(`Voted: ${post.poll!.options.find((o) => o.id === choice)?.label}`, null, choice)} />}
-            {post.trip && <TripStub trip={post.trip} />}
-
-            {isPlan && (
-              <section className="mt-6" aria-label="Who's going">
-                <h2 className="mb-2 text-lg">Who&apos;s going</h2>
-                <SeatRow seats={post.seats} stampIndex={stamp} />
-                <p className="mt-2 text-xs text-muted-foreground">Group size includes the organiser.</p>
-              </section>
-            )}
-            <div className="mt-6"><ReactionBar post={post} signedIn={signedIn} demo={demo} /></div>
+            <div className="mt-2"><ReactionBar post={post} signedIn={signedIn} demo={demo} onComment={() => focusComposer()} /></div>
           </div>
         </article>
 
-        <Comments comments={comments} onAdd={addComment} signedIn={signedIn} isAsk={post.kind === 'ask'} />
+        <Comments comments={comments} post={post} isAsk={isAsk} onReply={(c) => (signedIn ? focusComposer(c) : requireSignIn())} />
+
+        <div className="fc-bar-spacer is-column" aria-hidden />
+        <div className="fc-bar is-column">
+          {/* Plan action row (phones and tablets; desktop keeps it in the side panel) */}
+          {isPlan && !post.viewer.isAuthor && (
+            <div className={cn('fc-bar-inner', mode === 'action' ? 'flex lg:hidden' : 'hidden')}>
+              <button type="button" className="pc-iconbtn" aria-label="Write a reply" onClick={() => (signedIn ? focusComposer() : requireSignIn())}><MessageCircle className="h-5 w-5" /></button>
+              <PlanBarAction post={post} openSpots={openSpots} signedIn={signedIn} onJoin={() => (signedIn ? setJoinOpen(true) : requireSignIn())} onWithdraw={withdraw} />
+            </div>
+          )}
+          <div className={cn(mode === 'comment' || !isPlan || post.viewer.isAuthor ? 'block' : 'hidden lg:block')}>
+            <CommentComposer
+              signedIn={signedIn} me={me} isAsk={isAsk} replyTo={replyTo} inputRef={inputRef}
+              onCancelReply={() => setReplyTo(null)}
+              onBack={isPlan && !post.viewer.isAuthor ? () => { setMode('action'); setReplyTo(null) } : undefined}
+              onSignIn={requireSignIn}
+              onSend={(body) => { void addComment(body, replyTo ? (replyTo.parentId ?? replyTo.id) : null); setReplyTo(null) }}
+            />
+          </div>
+        </div>
       </main>
 
-      {/* Join / status panel: sticky side panel on desktop, bottom bar on mobile */}
-      {isPlan && (
-        <aside className="lg:block">
-          <div className="pc-pencilled fixed inset-x-0 bottom-[64px] z-30 rounded-none border-x-0 border-b-0 bg-background px-4 py-3 md:bottom-0 lg:sticky lg:top-24 lg:rounded-md lg:border lg:p-4">
-            {post.viewer.isAuthor ? (
-              <OrganiserPanel post={post} offers={offers} demo={demo} />
-            ) : post.viewer.membership === 'approved' ? (
-              <div>
-                <p className="font-semibold">You&apos;re in.</p>
-                <p className="mt-1 text-sm text-muted-foreground"><Lock className="mr-1 inline h-3.5 w-3.5" aria-hidden />Meeting point: {post.meetingPoint ?? 'the organiser will share it in the plan chat'}</p>
-                <Link href="/bookings" className="pc-btn pc-btn-block mt-3">Open plan chat</Link>
-                <OffersList offers={offers} demo={demo} canDecide={false} />
-              </div>
-            ) : post.viewer.membership === 'requested' ? (
-              <div className="flex items-center justify-between gap-3 lg:block">
-                <div>
-                  <p className="font-semibold">Seat requested</p>
-                  <p className="mt-1 hidden text-sm text-muted-foreground lg:block">Pencilled in until {post.author.name.split(' ')[0]} replies. Requests expire after 72 hours.</p>
-                  <p className="text-xs text-muted-foreground lg:hidden">Waiting for {post.author.name.split(' ')[0]} · expires in 72 h</p>
-                </div>
-                <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm shrink-0 lg:mt-3 lg:w-full" onClick={withdraw}>Withdraw</button>
-              </div>
-            ) : (
-              <div>
-                <div className="hidden lg:block">
-                  <p className="font-semibold">{open > 0 ? `${open} ${open === 1 ? 'spot' : 'spots'} open` : 'This plan is full'}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Joining is by request. Say hi and {post.author.name.split(' ')[0]} decides. The exact meeting point and the plan chat open after you&apos;re approved.</p>
-                </div>
-                <button type="button" className="pc-btn pc-btn-outline pc-btn-block lg:mt-3"
-                  disabled={!post.viewer.canJoin && signedIn}
-                  onClick={() => (signedIn ? setJoinOpen(true) : requireSignIn())}>
-                  {joinLabel(post)}
-                </button>
-                <Link href={`/?q=${encodeURIComponent(post.place?.name ?? '')}`} className="pc-link mt-3 hidden text-sm lg:block">Hosted {post.place?.name} trips on similar dates →</Link>
-              </div>
-            )}
+      {/* Desktop: the circle and the join / organiser panel ride along on the right. */}
+      {isPlan && desktop && (
+        <aside>
+          <div className="pc-pencilled sticky top-6 p-5">
+            <PlanCircle post={post} ring={ring} stamp={stamp} />
+            <div className="mt-5">
+              <PlanStatus post={post} offers={offers} demo={demo} openSpots={openSpots} onWithdraw={withdraw} desktop
+                onJoin={() => (signedIn ? setJoinOpen(true) : requireSignIn())} signedIn={signedIn} />
+            </div>
           </div>
         </aside>
       )}
 
       {joinOpen && <JoinSheet post={post} onClose={() => setJoinOpen(false)} onSend={sendJoin} />}
       {reportOpen && <ReportSheet onClose={() => setReportOpen(false)} onSend={report} />}
+      <MoreSheet open={menuOpen} post={post} onClose={() => setMenuOpen(false)} onShare={() => { setMenuOpen(false); void share() }}
+        onReport={() => { setMenuOpen(false); if (signedIn) setReportOpen(true); else requireSignIn() }}
+        onBlock={() => (signedIn ? block() : requireSignIn())} />
     </div>
+  )
+}
+
+function BackButton() {
+  const router = useRouter()
+  return (
+    <button type="button" className="pc-iconbtn border border-[color:var(--pc-rule)] bg-[color:var(--pc-raised)]" aria-label="Back"
+      onClick={() => (window.history.length > 1 ? router.back() : router.push('/tribe'))}>
+      <ArrowLeft className="h-5 w-5" />
+    </button>
+  )
+}
+
+function Gallery({ post }: { post: Post }) {
+  const [first, ...rest] = post.media
+  return (
+    <div className="space-y-1.5">
+      <ProgressiveImage media={first} alt={post.title ?? 'Story photo'} className="aspect-[4/3] w-full rounded-[var(--pc-radius-image)]" priority />
+      {rest.length > 0 && (
+        <div className={cn('grid gap-1.5', rest.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+          {rest.map((m, i) => <ProgressiveImage key={i} media={m} alt="" className="aspect-square w-full rounded-[var(--pc-radius-image)]" />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function planCaption(total: number, taken: number) {
+  if (total <= 0) return null
+  if (taken >= total) return <><strong>Full · {total}/{total}</strong></>
+  return <><strong>{taken} going</strong> · {total - taken} {total - taken === 1 ? 'spot' : 'spots'} open</>
+}
+
+function PlanCircle({ post, ring, stamp }: { post: Post; ring: ReturnType<typeof planRing>; stamp: boolean }) {
+  const requested = post.viewer.membership === 'requested'
+  return (
+    <section aria-label="Who's going" className="text-center">
+      <div className="grid place-items-center px-10 pt-2">
+        <SeatRing segs={ring.segs} size={220} variant="plan" women={ring.women} photo={post.author.avatarUrl} showDots={ring.showDots}
+          waiting={ring.waiting} animateYou={stamp}
+          center={post.author.avatarUrl ? undefined : { big: initials(post.author.name), fontSize: 46 }} />
+      </div>
+      <p className="fc-caption mt-3">{planCaption(ring.segs.length, ring.taken)}</p>
+      <p className="mt-1 text-[12.5px] text-muted-foreground">
+        {requested ? `Your face waits at the edge until ${firstName(post.author)} replies` : 'Group size includes the organiser'}
+      </p>
+    </section>
   )
 }
 
 function joinLabel(post: Post) {
   switch (post.viewer.joinBlockedReason) {
     case 'full': return 'Plan is full'
-    case 'women_only': return 'Women-only plan (ID verified)'
+    case 'women_only': return 'Women only (ID verified)'
     case 'verified_only': return 'Verified travellers only'
     case 'phone_required': return 'Verify your phone to join'
     case 'closed': return 'This plan is closed'
-    default: return 'Ask to join'
+    default: return 'Request to join'
   }
 }
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', k)
-    ref.current?.querySelector<HTMLElement>('textarea, input, select, button')?.focus()
-    return () => window.removeEventListener('keydown', k)
-  }, [onClose])
+/** Bottom-bar primary action for a plan (thumb reach). */
+function PlanBarAction({ post, openSpots, signedIn, onJoin, onWithdraw }: { post: Post; openSpots: number; signedIn: boolean; onJoin: () => void; onWithdraw: () => void }) {
+  const m = post.viewer.membership
+  if (m === 'requested') {
+    return (
+      <>
+        <span className="min-w-0 flex-1">
+          <b className="flex items-center gap-1.5 text-[14px]"><Clock3 className="h-4 w-4 shrink-0" aria-hidden />Requested · waiting</b>
+          <span className="block truncate text-[12px] text-muted-foreground">{firstName(post.author)} decides · expires in 72 h</span>
+        </span>
+        <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={onWithdraw}>Withdraw</button>
+      </>
+    )
+  }
+  if (m === 'approved') {
+    return (
+      <>
+        <span className="min-w-0 flex-1 text-[14px] font-bold">You’re in</span>
+        <Link href="/bookings" className="pc-btn">Open plan chat</Link>
+      </>
+    )
+  }
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-lg rounded-t-lg border border-foreground bg-background p-5 md:rounded-md" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl">{title}</h2>
-        {children}
+    <>
+      <span className="min-w-0 flex-1">
+        <b className="block text-[14px]">{openSpots > 0 ? `${openSpots} ${openSpots === 1 ? 'spot' : 'spots'} open` : 'Plan is full'}</b>
+        <span className="block truncate text-[12px] text-muted-foreground">By request · {firstName(post.author)} decides</span>
+      </span>
+      <button type="button" className="pc-btn" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
+    </>
+  )
+}
+
+/** Plan status panel: organiser tools, "you're in", request pending, or join (desktop only). */
+function PlanStatus({ post, offers, demo, openSpots, onWithdraw, onJoin, desktop, signedIn }: {
+  post: Post; offers: HostOffer[]; demo: boolean; openSpots: number; onWithdraw: () => void; onJoin?: () => void; desktop?: boolean; signedIn?: boolean
+}) {
+  if (post.viewer.isAuthor) return <OrganiserPanel post={post} offers={offers} demo={demo} />
+  if (post.viewer.membership === 'approved') {
+    return (
+      <div className="rounded-[22px] bg-[color:var(--pc-pine-soft)] p-4 text-left">
+        <p className="font-bold">You’re in.</p>
+        <p className="mt-1 text-sm text-muted-foreground"><Lock className="mr-1 inline h-3.5 w-3.5" aria-hidden />Meeting point: {post.meetingPoint ?? 'the organiser will share it in the plan chat'}</p>
+        {desktop && <Link href="/bookings" className="pc-btn pc-btn-block mt-3">Open plan chat</Link>}
+        <OffersList offers={offers} demo={demo} canDecide={false} />
+      </div>
+    )
+  }
+  if (!desktop) return null
+  if (post.viewer.membership === 'requested') {
+    return (
+      <div className="text-left">
+        <p className="flex items-center gap-1.5 font-bold"><Clock3 className="h-4 w-4" aria-hidden />Requested · waiting</p>
+        <p className="mt-1 text-sm text-muted-foreground">Pencilled in until {firstName(post.author)} replies. Requests expire after 72 hours.</p>
+        <button type="button" className="pc-btn pc-btn-quiet pc-btn-block mt-3" onClick={onWithdraw}>Withdraw request</button>
+      </div>
+    )
+  }
+  return (
+    <div className="text-left">
+      <p className="font-bold">{openSpots > 0 ? `${openSpots} ${openSpots === 1 ? 'spot' : 'spots'} open` : 'This plan is full'}</p>
+      <p className="mt-1 text-sm text-muted-foreground">Joining is by request. Say hi and {firstName(post.author)} decides. The exact meeting point and the plan chat open after you’re approved.</p>
+      <button type="button" className="pc-btn pc-btn-block mt-3" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
+      <Link href={`/?q=${encodeURIComponent(post.place?.name ?? '')}`} className="pc-link mt-3 block text-sm">Hosted {post.place?.name} trips on similar dates →</Link>
+    </div>
+  )
+}
+
+function CommentComposer({ signedIn, me, isAsk, replyTo, inputRef, onCancelReply, onBack, onSignIn, onSend }: {
+  signedIn: boolean
+  me: UserLite
+  isAsk: boolean
+  replyTo: Comment | null
+  inputRef: React.RefObject<HTMLTextAreaElement | null>
+  onCancelReply: () => void
+  onBack?: () => void
+  onSignIn: () => void
+  onSend: (body: string) => void
+}) {
+  const [body, setBody] = useState('')
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null)
+  // Replying pre-fills an @mention once per target (state adjusted during render, no effect needed).
+  if (replyTo && prefilledFor !== replyTo.id) {
+    setPrefilledFor(replyTo.id)
+    const tag = `@${firstName(replyTo.author)} `
+    if (!body.startsWith(tag)) setBody(tag + body.replace(/^@\S+\s/, ''))
+  }
+  function grow(el: HTMLTextAreaElement) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 120)}px` }
+  function submit(e?: React.FormEvent) {
+    e?.preventDefault()
+    const b = body.trim()
+    if (!b) return
+    onSend(b)
+    setBody('')
+    setPrefilledFor(null)
+    if (inputRef.current) inputRef.current.style.height = 'auto'
+  }
+  if (!signedIn) {
+    return (
+      <div className="fc-bar-inner">
+        {onBack && <button type="button" className="pc-iconbtn" aria-label="Back to join" onClick={onBack}><X className="h-5 w-5" /></button>}
+        <span className="flex-1 text-sm text-muted-foreground">{isAsk ? 'Know the answer?' : 'Join the conversation'}</span>
+        <button type="button" className="pc-btn pc-btn-sm" onClick={onSignIn}>Sign in to reply</button>
+      </div>
+    )
+  }
+  return (
+    <div className="mx-auto max-w-[720px]">
+      {replyTo && (
+        <div className="fc-replying">
+          <span>Replying to <b className="text-[color:var(--pc-ink)]">{replyTo.author.name}</b></span>
+          <button type="button" className="pc-link" onClick={() => { onCancelReply(); setPrefilledFor(null); setBody(body.replace(/^@\S+\s/, '')) }}>Cancel</button>
+        </div>
+      )}
+      <form className="flex items-end gap-2" onSubmit={submit}>
+        {onBack
+          ? <button type="button" className="pc-iconbtn" aria-label="Back to join" onClick={onBack}><X className="h-5 w-5" /></button>
+          : <Avatar user={me} size={36} className="mb-1 hidden sm:inline-grid" />}
+        <textarea ref={inputRef} rows={1} value={body} maxLength={2000} className="fc-composer-input" aria-label={isAsk ? 'Your answer' : 'Your reply'}
+          placeholder={isAsk ? 'Share what you know… use @ to tag' : 'Add a comment… use @ to tag'}
+          onChange={(e) => { setBody(e.target.value); grow(e.target) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() } }} />
+        <button type="submit" className="fc-send" disabled={!body.trim()} aria-label="Send"><SendHorizontal className="h-5 w-5" /></button>
+      </form>
+    </div>
+  )
+}
+
+/** Highlights @mentions in a comment body. */
+function Mentions({ text }: { text: string }) {
+  const parts = text.split(/(@[\p{L}\p{N}_.]+)/u)
+  return <>{parts.map((p, i) => (p.startsWith('@') && p.length > 1 ? <span key={i} className="fc-mention">{p}</span> : p))}</>
+}
+
+function Comments({ comments, post, isAsk, onReply }: { comments: Comment[]; post: Post; isAsk: boolean; onReply: (c: Comment) => void }) {
+  const count = comments.reduce((n, c) => n + 1 + c.replies.length, 0)
+  return (
+    <section id="comments" className="mx-3.5 mt-6 scroll-mt-20 lg:mx-0" aria-label={isAsk ? 'Answers' : 'Replies'}>
+      <h2 className="text-[19px]">{isAsk ? 'Answers' : 'Replies'} <span className="text-base font-semibold text-muted-foreground">{count}</span></h2>
+      {comments.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">{isAsk ? 'No answers yet. Been there? Help them out.' : 'No replies yet. Say something kind.'}</p>
+      ) : (
+        <ul className="mt-2">
+          {comments.map((c) => (
+            <li key={c.id} id={`c-${c.id}`}>
+              <CommentRow c={c} post={post} onReply={() => onReply(c)} />
+              {c.replies.map((r) => (
+                <div key={r.id} id={`c-${r.id}`}><CommentRow c={r} post={post} reply onReply={() => onReply(r)} /></div>
+              ))}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function CommentRow({ c, post, reply, onReply }: { c: Comment; post: Post; reply?: boolean; onReply: () => void }) {
+  const pending = c.id.startsWith('tmp-')
+  const isHost = c.author.isHost
+  const isAuthor = c.author.id === post.author.id
+  return (
+    <div className={cn('fc-cmt', reply && 'is-reply', pending && 'opacity-60')}>
+      <Avatar user={c.author} size={reply ? 28 : 34} />
+      <div className="min-w-0 flex-1">
+        <div className={cn('fc-bubble', isHost && 'is-host')}>
+          <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
+            <b className="text-[13px]">{c.author.name}</b>
+            {isHost && <span className="pc-tag pc-tag-host fc-tag-sm">Host</span>}
+            {isAuthor && !isHost && <span className="pc-tag pc-tag-organiser fc-tag-sm">{post.kind === 'plan' ? 'Organiser' : 'Author'}</span>}
+          </div>
+          <p className="whitespace-pre-line"><Mentions text={c.body} /></p>
+        </div>
+        <div className="fc-cmt-meta pl-1">
+          <span className="inline-flex min-h-8 items-center">{pending ? 'sending…' : ago(c.createdAt)}</span>
+          {!pending && <button type="button" onClick={onReply}>Reply</button>}
+        </div>
       </div>
     </div>
+  )
+}
+
+function MoreSheet({ open, post, onClose, onShare, onReport, onBlock }: { open: boolean; post: Post; onClose: () => void; onShare: () => void; onReport: () => void; onBlock: () => void }) {
+  const [confirmBlock, setConfirmBlock] = useState(false)
+  const close = () => { setConfirmBlock(false); onClose() }
+  return (
+    <Sheet open={open} onClose={close} title={confirmBlock ? `Block ${post.author.name}?` : 'Post options'} labelledTitle={confirmBlock}
+      description={confirmBlock ? 'You won’t see each other’s posts or messages. They aren’t told.' : undefined}>
+      {confirmBlock ? (
+        <div className="fc-sheet-actions">
+          <button type="button" className="pc-btn pc-btn-danger pc-btn-block" onClick={onBlock}>Block {firstName(post.author)}</button>
+          <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" onClick={() => setConfirmBlock(false)}>Cancel</button>
+        </div>
+      ) : (
+        <div className="mt-2 space-y-1">
+          <button type="button" className="fc-menu-row" onClick={onShare}><Share2 aria-hidden />Share</button>
+          {!post.viewer.isAuthor && <>
+            <button type="button" className="fc-menu-row" onClick={onReport}><Flag aria-hidden />Report</button>
+            <button type="button" className="fc-menu-row is-danger" onClick={() => setConfirmBlock(true)}><UserX aria-hidden />Block {firstName(post.author)}</button>
+          </>}
+          <button type="button" className="pc-btn pc-btn-quiet pc-btn-block mt-3" onClick={close}>Cancel</button>
+        </div>
+      )}
+    </Sheet>
   )
 }
 
@@ -264,16 +517,16 @@ function JoinSheet({ post, onClose, onSend }: { post: Post; onClose: () => void;
   const [intro, setIntro] = useState('')
   const ok = intro.trim().length >= 10
   return (
-    <Sheet title={`Ask ${post.author.name.split(' ')[0]} to join`} onClose={onClose}>
-      <p className="mt-1 text-sm text-muted-foreground">A short hello helps: where you&apos;ve travelled, why this plan. Your phone number stays private.</p>
-      <label className="mt-4 block text-sm font-medium" htmlFor="intro">Say hi</label>
-      <textarea id="intro" value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={500} rows={4}
-        className="mt-1 w-full rounded-md border bg-card p-3 text-[15px]" placeholder="Hi! Did Hampta Pass last year, very flexible on dates…" />
-      <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>{ok ? 'Looks good' : 'At least 10 characters'}</span><span className="pc-mono">{intro.length}/500</span></div>
+    <Sheet title={`Ask ${firstName(post.author)} to join`} onClose={onClose}
+      description="A short hello helps: where you’ve travelled, why this plan. Your phone number stays private.">
+      <label className="mt-4 block text-sm font-semibold" htmlFor="intro">Say hi</label>
+      <textarea id="intro" value={intro} onChange={(e) => setIntro(e.target.value)} maxLength={500} rows={4} className="pc-input mt-1.5"
+        placeholder="Hi! Did Hampta Pass last year, very flexible on dates…" />
+      <div className="mt-1 flex justify-between text-xs text-muted-foreground"><span>{ok ? 'Looks good' : 'At least 10 characters'}</span><span className="tabular-nums">{intro.length}/500</span></div>
       <p className="mt-3 text-xs text-muted-foreground">Meet first in a public place. You can share the plan with someone you trust.</p>
-      <div className="mt-4 flex gap-2">
-        <button type="button" className="pc-btn flex-1" disabled={!ok} onClick={() => onSend(intro.trim())}>Send request</button>
-        <button type="button" className="pc-btn pc-btn-quiet" onClick={onClose}>Cancel</button>
+      <div className="fc-sheet-actions">
+        <button type="button" className="pc-btn pc-btn-block" disabled={!ok} onClick={() => onSend(intro.trim())}>Send request</button>
+        <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" onClick={onClose}>Cancel</button>
       </div>
     </Sheet>
   )
@@ -284,106 +537,30 @@ function ReportSheet({ onClose, onSend }: { onClose: () => void; onSend: (reason
   const [details, setDetails] = useState('')
   return (
     <Sheet title="Report this post" onClose={onClose}>
-      <fieldset className="mt-3 space-y-1">
+      <fieldset className="mt-3 space-y-0.5">
         <legend className="sr-only">Reason</legend>
         {REASONS.map(([id, label]) => (
-          <label key={id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 hover:bg-accent">
-            <input type="radio" name="reason" value={id} checked={reason === id} onChange={() => setReason(id)} /> {label}
+          <label key={id} className="fc-menu-row cursor-pointer">
+            <input type="radio" name="reason" value={id} checked={reason === id} onChange={() => setReason(id)} className="h-4 w-4 accent-[color:var(--pc-pine)]" /> {label}
           </label>
         ))}
       </fieldset>
-      <textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={1000} rows={2} placeholder="Anything we should know? (optional)" className="mt-2 w-full rounded-md border bg-card p-3 text-sm" />
-      <div className="mt-4 flex gap-2">
-        <button type="button" className="pc-btn flex-1" disabled={!reason} onClick={() => onSend(reason, details)}>Send report</button>
-        <button type="button" className="pc-btn pc-btn-quiet" onClick={onClose}>Cancel</button>
+      <textarea value={details} onChange={(e) => setDetails(e.target.value)} maxLength={1000} rows={2} placeholder="Anything we should know? (optional)" className="pc-input mt-2" />
+      <div className="fc-sheet-actions">
+        <button type="button" className="pc-btn pc-btn-block" disabled={!reason} onClick={() => onSend(reason, details)}>Send report</button>
+        <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" onClick={onClose}>Cancel</button>
       </div>
     </Sheet>
   )
 }
 
-function Poll({ post, signedIn, demo, onVote }: { post: Post; signedIn: boolean; demo: boolean; onVote: (choice: string) => void }) {
-  const [poll, setPoll] = useState(post.poll!)
-  const total = poll.options.reduce((s, o) => s + o.votes, 0)
-  function vote(id: string) {
-    if (!signedIn || poll.myChoice) return
-    setPoll({ myChoice: id, options: poll.options.map((o) => (o.id === id ? { ...o, votes: o.votes + 1 } : o)) })
-    if (!demo) onVote(id)
-  }
-  return (
-    <ul className="mt-4 space-y-2" aria-label="Poll">
-      {poll.options.map((o) => {
-        const pct = total ? Math.round((o.votes / total) * 100) : 0
-        return (
-          <li key={o.id}>
-            <button type="button" onClick={() => vote(o.id)} disabled={!!poll.myChoice || !signedIn} aria-pressed={poll.myChoice === o.id}
-              className="relative min-h-11 w-full overflow-hidden rounded-md border border-border text-left">
-              <span className="absolute inset-y-0 left-0 bg-[color:var(--pc-ink)]/10" style={{ width: poll.myChoice ? `${pct}%` : 0 }} aria-hidden />
-              <span className="relative flex items-center justify-between px-3 py-2.5 text-[15px]">
-                <span className={cn(poll.myChoice === o.id && 'font-semibold')}>{o.label}</span>
-                {poll.myChoice && <span className="pc-mono text-sm text-muted-foreground">{pct}%</span>}
-              </span>
-            </button>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-function Comments({ comments, onAdd, signedIn, isAsk }: { comments: Comment[]; onAdd: (body: string, parentId: string | null) => void; signedIn: boolean; isAsk: boolean }) {
-  const [body, setBody] = useState('')
-  const [replyTo, setReplyTo] = useState<string | null>(null)
-  const [replyBody, setReplyBody] = useState('')
-  return (
-    <section id="comments" className="mt-8" aria-label={isAsk ? 'Answers' : 'Replies'}>
-      <h2 className="text-xl">{isAsk ? 'Answers' : 'Replies'} <span className="pc-mono text-base text-muted-foreground">{comments.reduce((n, c) => n + 1 + c.replies.length, 0)}</span></h2>
-      <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (body.trim()) { onAdd(body.trim(), null); setBody('') } }}>
-        <input value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} placeholder={signedIn ? (isAsk ? 'Share what you know…' : 'Add a reply…') : 'Sign in to reply'} disabled={!signedIn}
-          className="min-h-11 flex-1 rounded-md border bg-card px-3 text-[15px]" aria-label="Your reply" />
-        <button className="pc-btn" disabled={!body.trim()}>Post</button>
-      </form>
-      <ul className="mt-4 divide-y divide-border border-t border-border">
-        {comments.map((c) => (
-          <li key={c.id} id={`c-${c.id}`} className="py-4">
-            <CommentRow c={c} />
-            <div className="ml-12 mt-1">
-              <button type="button" className="min-h-11 text-sm text-muted-foreground hover:text-foreground" onClick={() => setReplyTo(replyTo === c.id ? null : c.id)}>Reply</button>
-            </div>
-            {c.replies.length > 0 && (
-              <ul className="ml-12 mt-1 space-y-3 border-l border-border pl-4">
-                {c.replies.map((r) => <li key={r.id} id={`c-${r.id}`}><CommentRow c={r} small /></li>)}
-              </ul>
-            )}
-            {replyTo === c.id && (
-              <form className="ml-12 mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); if (replyBody.trim()) { onAdd(replyBody.trim(), c.id); setReplyBody(''); setReplyTo(null) } }}>
-                <input autoFocus value={replyBody} onChange={(e) => setReplyBody(e.target.value)} maxLength={2000} placeholder={`Reply to ${c.author.name.split(' ')[0]}`} className="min-h-11 flex-1 rounded-md border bg-card px-3 text-sm" />
-                <button className="pc-btn pc-btn-sm" disabled={!replyBody.trim()}>Reply</button>
-              </form>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-function CommentRow({ c, small }: { c: Comment; small?: boolean }) {
-  return (
-    <div className={cn('flex gap-3', c.id.startsWith('tmp-') && 'opacity-60')}>
-      <Avatar user={c.author} size={small ? 28 : 36} />
-      <div className="min-w-0">
-        <p className="text-sm"><span className="font-semibold">{c.author.name}</span> <span className="text-muted-foreground">· {c.id.startsWith('tmp-') ? 'sending…' : ago(c.createdAt)}</span></p>
-        <p className="mt-0.5 whitespace-pre-line text-[15px] leading-relaxed">{c.body}</p>
-      </div>
-    </div>
-  )
-}
+type JoinRequest = { user: { id: string; name: string; tripsCount: number; reviewsAvg: number | null; mutuals: number }; intro: string; state: string }
 
 function OrganiserPanel({ post, offers, demo }: { post: Post; offers: HostOffer[]; demo: boolean }) {
-  const [requests, setRequests] = useState<{ user: { id: string; name: string; tripsCount: number; reviewsAvg: number | null; mutuals: number }; intro: string; state: string }[] | null>(demo ? [] : null)
+  const [requests, setRequests] = useState<JoinRequest[] | null>(demo ? [] : null)
   useEffect(() => {
     if (demo) return
-    apiFetch<{ items: NonNullable<typeof requests> }>(`/posts/${post.id}/requests`).then((r) => setRequests(r.items)).catch(() => setRequests([]))
+    apiFetch<{ items: JoinRequest[] }>(`/posts/${post.id}/requests`).then((r) => setRequests(r.items)).catch(() => setRequests([]))
   }, [post.id, demo])
   async function decide(userId: string, decision: 'approve' | 'decline') {
     setRequests((rs) => rs?.map((r) => (r.user.id === userId ? { ...r, state: decision === 'approve' ? 'approved' : 'declined' } : r)) ?? null)
@@ -391,18 +568,23 @@ function OrganiserPanel({ post, offers, demo }: { post: Post; offers: HostOffer[
   }
   const pending = requests?.filter((r) => r.state === 'requested') ?? []
   return (
-    <div>
-      <p className="font-semibold">Your plan</p>
-      <p className="mt-1 text-sm text-muted-foreground">{pending.length ? `${pending.length} ${pending.length === 1 ? 'request' : 'requests'} waiting` : 'No requests waiting'}</p>
-      <ul className="mt-2 max-h-72 space-y-3 overflow-y-auto">
+    <div className="text-left">
+      <p className="font-bold">Your plan</p>
+      <p className="mt-0.5 text-sm text-muted-foreground">{requests === null ? 'Loading requests…' : pending.length ? `${pending.length} ${pending.length === 1 ? 'request' : 'requests'} waiting` : 'No requests waiting'}</p>
+      <ul className="mt-3 space-y-2.5">
         {pending.map((r) => (
-          <li key={r.user.id} className="rounded-md border border-border p-3">
-            <p className="text-sm font-semibold">{r.user.name}</p>
-            <p className="pc-mono text-xs text-muted-foreground">{r.user.tripsCount} trips{r.user.reviewsAvg ? ` · ★ ${r.user.reviewsAvg}` : ''}{r.user.mutuals ? ` · ${r.user.mutuals} mutual` : ''}</p>
-            <p className="mt-1 text-sm">“{r.intro}”</p>
-            <div className="mt-2 flex gap-2">
+          <li key={r.user.id} className="rounded-[20px] border border-[color:var(--pc-rule)] bg-[color:var(--pc-raised)] p-3">
+            <div className="flex items-center gap-2.5">
+              <span className="fc-av h-9 w-9">{initials(r.user.name)}</span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{r.user.name}</p>
+                <p className="text-xs text-muted-foreground">{r.user.tripsCount} trips{r.user.reviewsAvg ? ` · ★ ${r.user.reviewsAvg}` : ''}{r.user.mutuals ? ` · ${r.user.mutuals} mutual` : ''}</p>
+              </div>
+            </div>
+            <p className="fc-bubble mt-2 text-sm">“{r.intro}”</p>
+            <div className="mt-2.5 flex gap-2">
               <button type="button" className="pc-btn pc-btn-sm flex-1" onClick={() => decide(r.user.id, 'approve')}>Approve</button>
-              <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm" onClick={() => decide(r.user.id, 'decline')}>Decline</button>
+              <button type="button" className="pc-btn pc-btn-quiet pc-btn-sm flex-1" onClick={() => decide(r.user.id, 'decline')}>Decline</button>
             </div>
           </li>
         ))}
@@ -426,13 +608,13 @@ function OffersList({ offers, demo, canDecide }: { offers: HostOffer[]; demo: bo
   }
   return (
     <div className="mt-4 border-t border-dashed border-[color:var(--pc-rule2)] pt-3">
-      <p className="text-sm font-semibold">Hosts offering to run this</p>
+      <p className="text-sm font-bold">Hosts offering to run this</p>
       <ul className="mt-2 space-y-2">
         {pending.map((o) => (
-          <li key={o.id} className="pc-printed p-3">
+          <li key={o.id} className="pc-card rounded-[20px] p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold">{o.host.name} <span className="pc-tag pc-tag-host ml-1">Host</span></span>
-              <span className="pc-mono font-semibold">{rupees(o.pricePaise)}</span>
+              <span className="flex min-w-0 items-center gap-1.5 text-sm font-bold"><span className="truncate">{o.host.name}</span><span className="pc-tag pc-tag-host fc-tag-sm">Host</span></span>
+              <span className="pc-price text-[17px]">{rupees(o.pricePaise)}</span>
             </div>
             {o.includes.length > 0 && <p className="mt-1 text-xs text-muted-foreground">{o.includes.join(' · ')}</p>}
             {canDecide && <button type="button" className="pc-btn pc-btn-sm pc-btn-block mt-2" onClick={() => accept(o)}>Accept offer</button>}

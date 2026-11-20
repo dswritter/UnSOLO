@@ -50,7 +50,7 @@ export async function getPostPage(id: string): Promise<PostPage> {
     if (shouldUseDemo(e)) {
       const post = DEMO_POSTS.find((p) => p.id === id)
       if (!post) return null
-      return { post, comments: post.id === DEMO_POSTS[0].id ? DEMO_COMMENTS : [], offers: [], demo: true, signedIn: !!user, viewerId: user?.id ?? null }
+      return { post, comments: DEMO_COMMENTS.filter((c) => c.postId === post.id), offers: [], demo: true, signedIn: !!user, viewerId: user?.id ?? null }
     }
     if (isMissingSchema(e)) return null
     throw e

@@ -41,7 +41,7 @@ export function NotificationPrompt() {
         <p className="text-[10px] text-muted-foreground">Get alerted when you receive new messages</p>
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        <Button size="sm" className="h-7 text-xs bg-primary text-black px-3" onClick={requestPermission} disabled={requesting}>
+        <Button size="sm" className="h-7 text-xs bg-primary text-primary-foreground px-3" onClick={requestPermission} disabled={requesting}>
           {requesting ? (
             <span className="h-3 w-3 border-2 border-black border-t-transparent rounded-full animate-spin" />
           ) : 'Allow'}

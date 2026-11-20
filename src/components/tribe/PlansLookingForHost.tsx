@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { loadPosts, loadViewer } from '@/lib/tribe/load'
 import { todayIST } from '@/lib/tribe/models'
-import { SeatRow } from './SeatRow'
+import { MiniArc } from './SeatRing'
 import { dateRange } from './format'
 import { OfferToHostButton } from './OfferToHostButton'
 
@@ -35,16 +35,16 @@ export async function PlansLookingForHost() {
           <Link href="/tribe" className="pc-link shrink-0 text-sm">All plans →</Link>
         </div>
         {posts.length === 0 ? (
-          <p className="pc-pencilled p-4 text-sm text-muted-foreground">No open plans right now. They show up here as travellers post them.</p>
+          <p className="pc-pencilled p-5 text-sm text-muted-foreground">No open plans right now. They show up here as travellers post them.</p>
         ) : (
           <ul className="grid gap-3 md:grid-cols-2">
             {posts.map((p) => (
               <li key={p.id} className="pc-pencilled p-4">
                 <p className="pc-kicker">Community plan · {p.memberCount} of {p.spotsTotal} going</p>
-                <Link href={`/tribe/p/${p.id}`} className="mt-1 block font-semibold hover:underline">{p.title ?? p.place?.name}</Link>
+                <Link href={`/tribe/p/${p.id}`} className="mt-1 block font-bold hover:underline">{p.title ?? p.place?.name}</Link>
                 <p className="text-sm text-muted-foreground">{p.place?.name} · {dateRange(p.startsOn, p.endsOn)}{p.estCostText ? ` · ${p.estCostText}` : ''}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">
-                  <SeatRow seats={p.seats} size="sm" max={8} />
+                  <MiniArc total={p.spotsTotal ?? 0} taken={p.memberCount} women={p.audience === 'women'} />
                   {offered.has(p.id)
                     ? <span className="pc-kicker">Offer sent</span>
                     : <OfferToHostButton postId={p.id} placeName={p.place?.name ?? 'this plan'} />}

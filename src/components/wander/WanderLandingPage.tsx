@@ -2,13 +2,22 @@ import { Suspense } from 'react'
 import { WanderExploreSection } from '@/components/wander/WanderExploreSection'
 import { WanderExploreInstantFallback } from '@/components/wander/WanderExploreInstantFallback'
 import { WanderSearchScroll } from '@/components/wander/WanderSearchScroll'
-import { WanderHeroSection, WanderHeroSkeleton } from '@/components/wander/WanderHeroSection'
+import { ExploreHeader } from '@/components/explore/fc/ExploreHeader'
 import {
   WanderListingRowsServer,
   WanderListingRowsSkeleton,
 } from '@/components/wander/WanderListingRowsServer'
 import { TribeBridgeRow } from '@/components/tribe/TribeBridgeRow'
 import { DeparturesTable } from '@/components/tribe/DeparturesTable'
+
+function LeavingSoonSkeleton() {
+  return (
+    <div className="mx-auto mt-6 max-w-[1280px] px-4 md:px-6" aria-hidden>
+      <div className="pc-skel h-7 w-40" />
+      <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3"><div className="pc-skel h-[360px] rounded-[28px]" /><div className="pc-skel hidden h-[360px] rounded-[28px] md:block" /><div className="pc-skel hidden h-[360px] rounded-[28px] md:block" /></div>
+    </div>
+  )
+}
 
 export async function WanderLandingPage({
   searchParams,
@@ -41,18 +50,20 @@ export async function WanderLandingPage({
         </div>
       ) : (
         <>
-          <Suspense fallback={<WanderHeroSkeleton />}>
-            <WanderHeroSection activeTab={activeTab} searchBasePath={searchBasePath} />
+          <Suspense fallback={<div className="h-40" />}>
+            <ExploreHeader />
+          </Suspense>
+          <Suspense fallback={<LeavingSoonSkeleton />}>
+            <DeparturesTable aside={<TribeBridgeRow layout="aside" />} />
           </Suspense>
           <Suspense fallback={null}>
             <TribeBridgeRow />
           </Suspense>
-          <Suspense fallback={null}>
-            <DeparturesTable />
-          </Suspense>
           <Suspense fallback={<WanderListingRowsSkeleton />}>
             <WanderListingRowsServer activeTab={activeTab} />
           </Suspense>
+          {/* Room for the bottom search dock above the tab bar (mobile). */}
+          <div className="h-24 md:hidden" aria-hidden />
         </>
       )}
     </div>
