@@ -150,16 +150,16 @@ struct PcTabBar: View {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: selected ? tab.selectedSymbol : tab.symbol)
                         .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(selected ? Pc.accentInk : Pc.ink3)
+                        .foregroundStyle(selected ? Pc.ink : Pc.ink3)
                         .frame(width: 54, height: 30)
-                        .background { if selected { Capsule().fill(Pc.pineSoft) } }
+                        .background { if selected { Capsule().fill(Pc.tonal) } }
                     if badge > 0 {
                         Text("\(min(badge, 99))")
                             .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
-                            .foregroundStyle(Pc.onPine)
+                            .foregroundStyle(Pc.raised)
                             .padding(.horizontal, 5)
                             .frame(minWidth: 18, minHeight: 18)
-                            .background(Capsule().fill(Pc.pine))
+                            .background(Capsule().fill(Pc.red))
                             .background(Capsule().fill(Pc.paper).padding(-2))
                             .offset(x: 2, y: -4)
                     }
@@ -201,11 +201,11 @@ struct PcTabBar: View {
                         Avatar(user: user, size: 26, ring: selected ? Pc.ink : .clear)
                     } else {
                         Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(selected ? Pc.accentInk : Pc.ink3)
+                            .foregroundStyle(selected ? Pc.ink : Pc.ink3)
                     }
                 }
                 .frame(width: 54, height: 30)
-                .background { if selected { Capsule().fill(Pc.pineSoft) } }
+                .background { if selected { Capsule().fill(Pc.tonal) } }
                 Text("You").font(.system(size: 11, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
             .frame(maxWidth: .infinity, minHeight: 52)

@@ -145,7 +145,7 @@ struct OfferFormView: View {
                         Text(post.map { Fmt.range($0.startsOn, $0.endsOn) + ", as planned" } ?? "").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                 }
-                .tint(Pc.accentInk).padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
+                .tint(Pc.ink).padding(16).pcCard().padding(.horizontal, 20).padding(.top, 12)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Open more seats to others").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
@@ -252,7 +252,7 @@ struct OfferReviewView: View {
                     Button("Open the trip") { app.openBooking(slug: accepted.packageSlug, date: post?.startsOn) }.buttonStyle(.pc(.primary, fullWidth: true))
                 }
                 .padding(14)
-                .background(Pc.pineSoft, in: Pc.shape())
+                .background(Pc.tonal, in: Pc.shape())
             }
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) {

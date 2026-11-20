@@ -43,7 +43,7 @@ struct SettingsView: View {
                         Text("–")
                         DatePicker("To", selection: quietBinding(\.to), displayedComponents: .hourAndMinute).labelsHidden()
                     }
-                    .tint(Pc.accentInk)
+                    .tint(Pc.ink)
                     #if DEBUG
                     Button("Send a test notification") {
                         PushManager.shared.requestPermissionIfNeeded { token in app.registerDevice(token) }
@@ -64,7 +64,7 @@ struct SettingsView: View {
                             Text("Uses approximate location (rounded to ~1 km), only while you use the app.").pcFont(.small).foregroundStyle(Pc.ink2)
                         }
                     }
-                    .tint(Pc.accentInk)
+                    .tint(Pc.ink)
                     if locationDenied {
                         Text("Location is off for UnSOLO. Turn it on in the Settings app to use this.").pcFont(.small).foregroundStyle(Pc.red)
                     }
@@ -76,7 +76,7 @@ struct SettingsView: View {
                         Picker("Gender", selection: Binding(get: { session.me?.user.gender }, set: { setGender($0) })) {
                             ForEach(Self.genders, id: \.1) { Text($0.1).tag($0.0) }
                         }
-                        .tint(Pc.accentInk)
+                        .tint(Pc.ink)
                     }
                     Text("Optional. Needed to join women-only plans. Never shown on your profile.").pcFont(.small).foregroundStyle(Pc.ink2)
                     Toggle(isOn: Binding(get: { prefs.suggestByGender }, set: { v in session.updatePreferences(PreferencesPatch(suggestByGender: v)) { $0.suggestByGender = v } })) {
@@ -85,7 +85,7 @@ struct SettingsView: View {
                             Text("For example, show women-only plans first.").pcFont(.small).foregroundStyle(Pc.ink2)
                         }
                     }
-                    .tint(Pc.accentInk)
+                    .tint(Pc.ink)
                     .disabled(session.me?.user.gender == nil || session.me?.user.gender == "prefer_not")
                     Text("Interests").pcFont(.bodyStrong).foregroundStyle(Pc.ink).padding(.top, 6)
                     FlowLayout(spacing: 8) {
@@ -101,7 +101,7 @@ struct SettingsView: View {
                             Text("Load low-resolution photos only").pcFont(.small).foregroundStyle(Pc.ink2)
                         }
                     }
-                    .tint(Pc.accentInk)
+                    .tint(Pc.ink)
                     Button("Clear image cache") { Task { await ImagePipeline.shared.clearAll(); app.showToast("Image cache cleared") } }
                         .buttonStyle(.pcLink)
                 }
@@ -154,7 +154,7 @@ struct SettingsView: View {
                 Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2)
             }
         }
-        .tint(Pc.accentInk)
+        .tint(Pc.ink)
     }
 
     private func quietBinding(_ key: WritableKeyPath<QuietHours, String>) -> Binding<Date> {

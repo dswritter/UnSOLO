@@ -152,8 +152,8 @@ struct StoryViewer: View {
                         .onSubmit { send(reply, to: page.post) }
                     if !reply.trimmingCharacters(in: .whitespaces).isEmpty {
                         Button { send(reply, to: page.post) } label: {
-                            Image(systemName: "paperplane.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(PcTokens.dark.onPine)
-                                .frame(width: 34, height: 34).background(Circle().fill(PcTokens.dark.pine))
+                            Image(systemName: "paperplane.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(PcTokens.dark.raised)
+                                .frame(width: 34, height: 34).background(Circle().fill(PcTokens.dark.ink))
                         }
                         .buttonStyle(.pcPress)
                         .accessibilityLabel("Send reply")

@@ -114,10 +114,10 @@ struct TribeFeedView: View {
                 Text(place ?? "All places").font(.system(size: 14, weight: .semibold)).lineLimit(1)
                 Image(systemName: "chevron.down").font(.system(size: 10, weight: .heavy))
             }
-            .foregroundStyle(place == nil ? Pc.ink : Pc.onPine)
+            .foregroundStyle(place == nil ? Pc.ink : Pc.raised)
             .padding(.horizontal, 14)
             .frame(minHeight: 40)
-            .background(Capsule().fill(place == nil ? Pc.raised : Pc.pine))
+            .background(Capsule().fill(place == nil ? Pc.raised : Pc.ink))
             .overlay { if place == nil { Capsule().strokeBorder(Pc.rule, lineWidth: 1) } }
             .frame(minHeight: PcTokens.touch)
             .contentShape(Capsule())
@@ -292,7 +292,7 @@ struct LocalStateBar: View {
             }
             .padding(.horizontal, 12)
             .frame(minHeight: 40)
-            .background(Pc.selected, in: Pc.shape(Pc.radius))
+            .background(Pc.tonal, in: Pc.shape(Pc.radius))
             .accessibilityElement(children: .combine)
         }
     }
@@ -370,7 +370,7 @@ struct JoinButton: View {
             } else if v?.isAuthor == true {
                 PcTag(text: "Your plan", style: .organiser)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.accentInk)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
             } else if v?.membership == .requested {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.fill")
@@ -380,8 +380,7 @@ struct JoinButton: View {
                 .foregroundStyle(Pc.ink)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 40)
-                .background(Capsule().fill(Pc.selected))
-                .overlay(Capsule().strokeBorder(Pc.stroke, lineWidth: 1.5))
+                .background(Capsule().fill(Pc.tonal))
             } else if let reason = v?.joinBlockedReason, reason != .phoneRequired {
                 Text(reason.message).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
             } else if post.openSpots == 0 {
@@ -460,7 +459,7 @@ struct ReactionsBar: View {
             if showsSave {
                 Button { app.requireVerified("Sign in to save posts") { app.tribe.toggleSave(post.id) } } label: {
                     Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(post.viewer?.saved == true ? Pc.accentInk : Pc.ink2)
+                        .foregroundStyle(post.viewer?.saved == true ? Pc.ink : Pc.ink2)
                         .frame(width: PcTokens.touch, height: PcTokens.touch)
                 }
                 .buttonStyle(.pcPress)
@@ -566,7 +565,7 @@ struct ReactionToggle: View {
     }
 
     private var symbol: String { kind == .helpful ? "arrow.up.circle" : kind.symbol }
-    private var onColor: Color { kind == .love ? Pc.red : Pc.accentInk }
+    private var onColor: Color { kind == .love ? Pc.red : Pc.ink }
 }
 
 // MARK: - Ask card
@@ -611,12 +610,12 @@ struct AskCard: View {
     }
 }
 
-/// Host answer highlight: gold left rule, HOST badge.
+/// Host answer highlight: ink left rule, HOST badge.
 struct HostAnswer: View {
     let comment: Comment
     var body: some View {
         HStack(spacing: 12) {
-            Capsule().fill(Pc.gold).frame(width: 3)
+            Capsule().fill(Pc.ink).frame(width: 3)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Avatar(user: comment.author, size: 20)
@@ -632,7 +631,7 @@ struct HostAnswer: View {
     }
 }
 
-/// Tap-to-vote rows; after voting, result bars grow and your choice is gold.
+/// Tap-to-vote rows; after voting, result bars grow and your choice gets an ink outline and a check.
 struct PollView: View {
     let post: Post
     let poll: Poll
@@ -651,11 +650,11 @@ struct PollView: View {
                     ZStack(alignment: .leading) {
                         if voted {
                             GeometryReader { geo in
-                                Rectangle().fill(mine ? Pc.selected : Pc.tonalStrong).frame(width: max(0, geo.size.width * share))
+                                Rectangle().fill(Pc.tonalStrong).frame(width: max(0, geo.size.width * share))
                             }
                         }
                         HStack(spacing: 6) {
-                            if mine { Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.goldInk) }
+                            if mine { Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink) }
                             Text(o.label).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pc.ink).lineLimit(1)
                             Spacer()
                             if voted { Text("\(Int((share * 100).rounded()))%").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink) }
@@ -666,7 +665,7 @@ struct PollView: View {
                     .background(voted ? Pc.tonal : Pc.raised)
                     .clipShape(Pc.shape(14))
                     .overlay {
-                        if mine { Pc.shape(14).strokeBorder(Pc.gold, lineWidth: 2) }
+                        if mine { Pc.shape(14).strokeBorder(Pc.ink, lineWidth: 2) }
                         else if !voted { Pc.shape(14).strokeBorder(Pc.rule, lineWidth: 1.5) }
                     }
                     .contentShape(Rectangle())
@@ -699,7 +698,7 @@ struct CaughtUpFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 6) {
-                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.accentInk)
+                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.ink)
                     .frame(width: 56, height: 56).background(Circle().fill(Pc.tonal))
                 Text("You're caught up").pcFont(.title2).foregroundStyle(Pc.ink)
                 Text("New plans and stories show up here. Meanwhile, these leave soon.").pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)

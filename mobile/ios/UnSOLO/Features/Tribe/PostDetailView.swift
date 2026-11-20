@@ -162,8 +162,8 @@ struct PostDetailView: View {
                 .foregroundStyle(Pc.ink)
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Pc.selected, in: Pc.shape(20))
-                .overlay(Pc.shape(20).strokeBorder(Pc.stroke, lineWidth: 1.5))
+                .background(Pc.tonal, in: Pc.shape(20))
+                .overlay(Pc.shape(20).strokeBorder(Pc.rule, lineWidth: 1))
             }
             HStack(spacing: 10) {
                 Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 44) }.buttonStyle(.pcPress)
@@ -240,7 +240,7 @@ struct PostDetailView: View {
                 Text("Request sent").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
                 Text("Waiting for \(post.author.firstName)").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.accentInk)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
                 Text("Say hi in the plan chat").pcFont(.small).foregroundStyle(Pc.ink2)
             } else {
                 Text("Join \(names)").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
@@ -264,7 +264,7 @@ struct PostDetailView: View {
                 Text(post.status == .cancelled ? "Cancelled" : "Full").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
             } else {
                 Button("Request to join") { app.requireVerified("Sign in to request to join") { showJoin = true } }
-                    .buttonStyle(.pcPrimary)
+                    .buttonStyle(.pcAccent)
             }
         }
     }
@@ -381,8 +381,8 @@ struct PostDetailView: View {
                 .background(Capsule().fill(Pc.raised))
                 .overlay(Capsule().strokeBorder(composerFocused ? Pc.ink : Pc.rule, lineWidth: composerFocused ? 1.5 : 1))
             Button { sendComment(post) } label: {
-                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.onPine)
-                    .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.pine))
+                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
+                    .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.ink))
                     .frame(width: PcTokens.touch, height: PcTokens.touch)
                     .contentShape(Circle())
             }
@@ -603,7 +603,7 @@ struct ReportSheet: View {
                             HStack {
                                 Text(label).pcFont(.body).foregroundStyle(Pc.ink)
                                 Spacer()
-                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .bold)).foregroundStyle(reason == code ? Pc.accentInk : Pc.rule)
+                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .bold)).foregroundStyle(reason == code ? Pc.ink : Pc.rule)
                             }
                             .padding(.horizontal, 20)
                             .frame(minHeight: 52)

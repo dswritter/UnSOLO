@@ -136,7 +136,7 @@ struct TicketCard: View {
                         Text("Meet the circle")
                         if unread > 0 {
                             Text("\(unread)").font(.system(size: 12, weight: .heavy)).monospacedDigit()
-                                .foregroundStyle(Pc.accentInk).padding(.horizontal, 7).frame(minHeight: 20).background(Capsule().fill(Pc.onPine))
+                                .foregroundStyle(Pc.ink).padding(.horizontal, 7).frame(minHeight: 20).background(Capsule().fill(Pc.raised))
                         }
                     }
                 }

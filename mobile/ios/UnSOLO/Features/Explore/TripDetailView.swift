@@ -192,7 +192,7 @@ struct TripDetailView: View {
         let place = t.place?.name ?? ""
         if let host = t.host {
             (Text(place.isEmpty ? "hosted by " : "\(place) · hosted by ") + Text(host.name).fontWeight(.bold).foregroundStyle(Pc.ink)
-             + (host.isIdVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).foregroundStyle(Pc.accentInk) : Text("")))
+             + (host.isIdVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).foregroundStyle(Pc.ink2) : Text("")))
                 .font(.system(size: 15)).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
         } else if !place.isEmpty {
             Text(place).font(.system(size: 15)).foregroundStyle(Pc.ink2)
@@ -206,7 +206,7 @@ struct TripDetailView: View {
             if let host = t.host {
                 Button { router.push(.profile(username: host.username)) } label: {
                     HStack(spacing: 12) {
-                        Avatar(user: host, size: 48, ring: Pc.gold)
+                        Avatar(user: host, size: 48, ring: Pc.rule)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 6) {
                                 Text(host.name).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
@@ -270,7 +270,7 @@ struct TripDetailView: View {
                         Label {
                             Text(item).pcFont(.body).foregroundStyle(Pc.ink)
                         } icon: {
-                            Image(systemName: "checkmark.circle.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.accentInk)
+                            Image(systemName: "checkmark.circle.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
                         }
                     }
                 }
@@ -333,7 +333,7 @@ struct TripDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button(left == 0 ? "Join waitlist" : "Take a seat") { app.openBooking(slug: slug, date: date) }
-                .buttonStyle(.pcPrimary)
+                .buttonStyle(.pcAccent)
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
@@ -393,7 +393,7 @@ struct WhoIsGoingSheet: View {
                 Text("Who's going").pcFont(.title1).foregroundStyle(Pc.ink).padding(.top, 14).accessibilityAddTraits(.isHeader)
                 VStack(spacing: 0) {
                     if let host = trip.host {
-                        row(avatar: Avatar(user: host, size: 44, ring: Pc.gold), title: host.name, subtitle: "Runs this trip") {
+                        row(avatar: Avatar(user: host, size: 44, ring: Pc.rule), title: host.name, subtitle: "Runs this trip") {
                             PcTag(text: "Host", style: .host)
                         }
                     }

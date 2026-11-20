@@ -37,7 +37,7 @@ struct PostTypeSheet: View {
     private func tile(_ kind: ComposeKind, icon: String, title: String, subtitle: String) -> some View {
         Button { router.openCompose(kind) } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: icon).font(.system(size: 19, weight: .bold)).foregroundStyle(Pc.accentInk)
+                Image(systemName: icon).font(.system(size: 19, weight: .bold)).foregroundStyle(Pc.ink)
                     .frame(width: 42, height: 42)
                     .background(Pc.tonal, in: Pc.shape(14))
                 Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
@@ -89,7 +89,7 @@ struct ComposerScaffold<Content: View, Leading: View>: View {
             .scrollDismissesKeyboard(.interactively)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 BottomActionBar { leading } trailing: {
-                    Button(primary, action: onSubmit).buttonStyle(.pcPrimary).disabled(!canSubmit)
+                    Button(primary, action: onSubmit).buttonStyle(.pcAccent).disabled(!canSubmit)
                 }
             }
             .pcScreen()
@@ -188,7 +188,7 @@ struct PhotosField: View {
                 Image(systemName: "plus").font(.system(size: 17, weight: .bold))
                 Text(title).font(.system(size: 13, weight: .bold))
             }
-            .foregroundStyle(Pc.accentInk)
+            .foregroundStyle(Pc.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Pc.tonal, in: Pc.shape(Pc.imageRadius))
             .overlay(Pc.shape(Pc.imageRadius).strokeBorder(Pc.rule2, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
@@ -267,7 +267,7 @@ struct PlanComposer: View {
             .padding(.bottom, 4)
             FormRow(label: "Title") { PcTextField(placeholder: "Spiti in mid-January, slow and cold", text: $title, style: .title3) }
             FormRow(label: "Where to?") {
-                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.accentInk); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
+                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
             }
             FormRow(label: "When · \(days) day\(days == 1 ? "" : "s")") {
                 HStack {
@@ -276,7 +276,7 @@ struct PlanComposer: View {
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: .date).labelsHidden()
                     Spacer(minLength: 0)
                 }
-                .tint(Pc.accentInk)
+                .tint(Pc.ink)
             }
             FormRow(label: "People you're looking for") {
                 HStack {
@@ -406,7 +406,7 @@ struct StoryComposer: View {
                         Text("Under “From people who went”").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                 }
-                .tint(Pc.accentInk)
+                .tint(Pc.ink)
                 .padding(16)
                 .pcCard()
                 .padding(.horizontal, 20)
@@ -463,7 +463,7 @@ struct AskComposer: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(options.indices, id: \.self) { i in
                         HStack(spacing: 10) {
-                            Text("\(i + 1)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(Pc.accentInk)
+                            Text("\(i + 1)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(Pc.ink)
                                 .frame(width: 26, height: 26).background(Circle().fill(Pc.tonal))
                             TextField(i < 2 ? "Option \(i + 1)" : "Option \(i + 1) (optional)", text: $options[i])
                                 .font(.system(size: 15, weight: .semibold))
@@ -503,7 +503,7 @@ struct AskComposer: View {
                     .padding(.top, 10)
             }
             FormRow(label: "Place (optional)") {
-                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.accentInk); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
+                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
             }
             FormRow(label: "More detail (optional)") { PcTextField(placeholder: "Dates, budget, what you're after", text: $details, axis: .vertical) }
             Text("No links or prices in answers. Phone numbers are hidden automatically.").pcFont(.small).foregroundStyle(Pc.ink3)

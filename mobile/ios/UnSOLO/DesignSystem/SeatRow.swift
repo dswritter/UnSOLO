@@ -519,7 +519,7 @@ struct MiniArc: View {
 
 // MARK: - Story ring
 
-/// One arc per story: gold for unseen, `rule` for seen. Your own ring is ink with a + badge.
+/// One arc per story: ink for unseen, `rule` for seen. Your own ring is a quiet rule ring with the yellow + badge.
 struct StoryRing: View {
     let user: UserLite?
     var segments: Int = 1
@@ -537,7 +537,7 @@ struct StoryRing: View {
                 let span = 360.0 / Double(n)
                 for i in 0..<n {
                     let isSeen = !isMine && i < seen
-                    let color: Color = isMine ? Pc.ink : (isSeen ? Pc.rule : Pc.gold)
+                    let color: Color = isMine ? Pc.rule : (isSeen ? Pc.rule : Pc.ink)
                     var p = Path()
                     if n == 1 {
                         p.addEllipse(in: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2))
@@ -545,7 +545,7 @@ struct StoryRing: View {
                         let a0 = -90 + Double(i) * span + gapDeg / 2
                         p.addArc(center: c, radius: r, startAngle: .degrees(a0), endAngle: .degrees(a0 + span - gapDeg), clockwise: false)
                     }
-                    ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: isSeen ? 2 : 3, lineCap: .round))
+                    ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: isSeen || isMine ? 2 : 3, lineCap: .round))
                 }
             }
             Avatar(user: user, size: size - 12)

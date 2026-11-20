@@ -66,7 +66,7 @@ struct WelcomeView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.accentInk) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { dismiss() }.tint(Pc.ink) } }
         }
     }
 
@@ -264,7 +264,7 @@ struct PhoneVerifyView: View {
                 .padding(16)
             }
             .pcScreen()
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.accentInk) } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Not now") { router.afterGate = nil; dismiss() }.tint(Pc.ink) } }
         }
     }
 

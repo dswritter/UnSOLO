@@ -232,8 +232,8 @@ struct ChatRoomView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Pc.selected, in: Pc.shape(18))
-        .overlay(Pc.shape(18).strokeBorder(Pc.stroke, lineWidth: 1.5))
+        .background(Pc.tonal, in: Pc.shape(18))
+        .overlay(Pc.shape(18).strokeBorder(Pc.rule, lineWidth: 1))
         .accessibilityElement(children: .combine)
     }
 
@@ -253,8 +253,8 @@ struct ChatRoomView: View {
                 app.chat.send(roomId, body: draft)
                 draft = ""
             } label: {
-                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.onPine)
-                    .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.pine))
+                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
+                    .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.ink))
                     .frame(width: PcTokens.touch, height: PcTokens.touch)
                     .contentShape(Circle())
             }
@@ -300,7 +300,7 @@ struct MessageBubble: View {
                         Color.clear.frame(width: 30, height: 1)
                     }
                     VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
-                        Text(m.body).font(.system(size: 15)).foregroundStyle(isMine ? Pc.onPine : Pc.ink).fixedSize(horizontal: false, vertical: true)
+                        Text(m.body).font(.system(size: 15)).foregroundStyle(isMine ? Pc.raised : Pc.ink).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 6) {
                             switch line.state {
                             case "sending": Image(systemName: "clock").font(.system(size: 10, weight: .bold))
@@ -309,11 +309,11 @@ struct MessageBubble: View {
                             default: Text(Fmt.time(m.createdAt)).font(.system(size: 11, weight: .semibold).monospacedDigit())
                             }
                         }
-                        .foregroundStyle(isMine ? Pc.onPine.opacity(0.75) : Pc.ink3)
+                        .foregroundStyle(isMine ? Pc.raised.opacity(0.75) : Pc.ink3)
                     }
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(isMine ? Pc.pine : Pc.raised, in: bubble)
+                    .background(isMine ? Pc.ink : Pc.raised, in: bubble)
                     .overlay { if !isMine { bubble.strokeBorder(Pc.rule, lineWidth: 1) } }
                     .opacity(line.state == "sending" ? 0.75 : 1)
                     if !isMine { Spacer(minLength: 40) }

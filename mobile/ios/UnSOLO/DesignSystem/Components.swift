@@ -20,9 +20,11 @@ extension ButtonStyle where Self == PcPressStyle {
 
 // MARK: - Buttons
 
-/// primary: yellow (pine) pill, black text · outline: 1.5 pt ink outline, ink text · quiet: tonal pill · link: accentInk text · danger: red.
-/// Primary actions are 52 pt tall, compact ones 40 pt (hit area stays ≥ 48 pt).
-enum PcButtonKind { case primary, outline, quiet, link, danger }
+/// accent: yellow (pine) pill with black text, ONLY for the single primary action of a screen
+/// (trip "Take a seat", plan "Request to join", composer "Publish", search "Show trips").
+/// primary: ink pill with surface text (default) · outline: 1.5 pt ink outline · quiet: tonal pill ·
+/// link: accentInk text · danger: red. Primary actions are 52 pt tall, compact ones 40 pt (hit area ≥ 48 pt).
+enum PcButtonKind { case accent, primary, outline, quiet, link, danger }
 
 struct PcButtonStyle: ButtonStyle {
     var kind: PcButtonKind = .primary
@@ -43,7 +45,8 @@ struct PcButtonStyle: ButtonStyle {
             .foregroundStyle(foreground)
             .background {
                 switch kind {
-                case .primary: Capsule().fill(isEnabled ? Pc.pine : Pc.tonal)
+                case .accent: Capsule().fill(isEnabled ? Pc.pine : Pc.tonal)
+                case .primary: Capsule().fill(isEnabled ? Pc.ink : Pc.tonal)
                 case .outline: Capsule().strokeBorder(isEnabled ? Pc.ink : Pc.rule, lineWidth: 1.5)
                 case .quiet: Capsule().fill(pressed ? Pc.tonalStrong : Pc.tonal)
                 case .link, .danger: Color.clear
@@ -59,7 +62,8 @@ struct PcButtonStyle: ButtonStyle {
     private var foreground: Color {
         guard isEnabled else { return Pc.ink3 }
         switch kind {
-        case .primary: return Pc.onPine
+        case .accent: return Pc.onPine
+        case .primary: return Pc.raised
         case .outline: return Pc.ink
         case .link: return Pc.accentInk
         case .quiet: return Pc.ink
@@ -70,6 +74,8 @@ struct PcButtonStyle: ButtonStyle {
 
 extension ButtonStyle where Self == PcButtonStyle {
     static var pcPrimary: PcButtonStyle { PcButtonStyle(kind: .primary) }
+    /// The one yellow action per screen.
+    static var pcAccent: PcButtonStyle { PcButtonStyle(kind: .accent) }
     static var pcOutline: PcButtonStyle { PcButtonStyle(kind: .outline) }
     static var pcQuiet: PcButtonStyle { PcButtonStyle(kind: .quiet) }
     static var pcLink: PcButtonStyle { PcButtonStyle(kind: .link) }
@@ -90,9 +96,9 @@ struct CircleIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: size * 0.4, weight: .bold))
-                .foregroundStyle(filled ? Pc.onPine : Pc.ink)
+                .foregroundStyle(filled ? Pc.raised : Pc.ink)
                 .frame(width: size, height: size)
-                .background(Circle().fill(filled ? Pc.pine : Pc.tonal))
+                .background(Circle().fill(filled ? Pc.ink : Pc.tonal))
                 .frame(minWidth: PcTokens.touch, minHeight: PcTokens.touch)
                 .contentShape(Circle())
         }
@@ -183,7 +189,7 @@ struct PcTag: View {
         case .host: PcTokens.light.onGold
         case .organiser: Pc.ink
         case .women: Pc.rose
-        case .verified, .paid: Pc.accentInk
+        case .verified, .paid: Pc.ink
         case .full: Pc.full
         case .held: Pc.ink
         case .waitlist: Pc.red
@@ -198,7 +204,7 @@ struct PcTag: View {
         case .women: Pc.roseSoft
         case .verified, .paid: Pc.tonal
         case .full: Pc.goldBg
-        case .held: Pc.selected
+        case .held: Pc.tonal
         case .waitlist: Pc.red.opacity(0.12)
         case .kindDashed: .clear
         default: Pc.tonal
@@ -293,9 +299,9 @@ struct PcSegmented<T: Hashable>: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity, minHeight: 40)
-                        .foregroundStyle(selected ? Pc.onPine : Pc.ink2)
+                        .foregroundStyle(selected ? Pc.raised : Pc.ink2)
                         .background {
-                            if selected { Capsule().fill(Pc.pine).matchedGeometryEffect(id: "seg", in: ns) }
+                            if selected { Capsule().fill(Pc.ink).matchedGeometryEffect(id: "seg", in: ns) }
                         }
                         .contentShape(Capsule())
                 }
@@ -337,7 +343,7 @@ struct PcChip: View {
     var icon: String?
     var dashed = false
     var showsCheck = true
-    var tint: Color = Pc.pine
+    var tint: Color = Pc.ink
     let action: () -> Void
 
     var body: some View {
@@ -349,7 +355,7 @@ struct PcChip: View {
             }
             .padding(.horizontal, 15)
             .frame(minHeight: 40)
-            .foregroundStyle(selected ? Pc.onPine : Pc.ink)
+            .foregroundStyle(selected ? Pc.raised : Pc.ink)
             .background(Capsule().fill(selected ? tint : Pc.raised))
             .overlay {
                 if !selected {
@@ -458,13 +464,13 @@ struct BadgeIcon: View {
             if count > 0 {
                 Text(count > 99 ? "99+" : "\(count)")
                     .font(.system(size: 11, weight: .heavy).monospacedDigit())
-                    .foregroundStyle(Pc.onPine)
+                    .foregroundStyle(Pc.raised)
                     .padding(.horizontal, 4)
                     .frame(minWidth: 18, minHeight: 18)
-                    .background(Capsule().fill(Pc.pine))
+                    .background(Capsule().fill(Pc.red))
                     .offset(x: -2, y: 4)
             } else if dot {
-                Circle().fill(Pc.accentInk).frame(width: 9, height: 9)
+                Circle().fill(Pc.red).frame(width: 9, height: 9)
                     .background(Circle().fill(Pc.paper).padding(-2))
                     .offset(x: -11, y: 11)
             }
@@ -478,8 +484,8 @@ struct BadgeIcon: View {
 struct CountPill: View {
     let count: Int
     var body: some View {
-        Text("\(count)").font(.system(size: 11, weight: .heavy).monospacedDigit()).foregroundStyle(Pc.onPine)
-            .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Pc.pine))
+        Text("\(count)").font(.system(size: 11, weight: .heavy).monospacedDigit()).foregroundStyle(Pc.raised)
+            .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Pc.ink))
     }
 }
 
@@ -496,7 +502,7 @@ struct OfflineBanner: View {
         .padding(.horizontal, 20)
         .frame(minHeight: 32)
         .foregroundStyle(Pc.ink)
-        .background(Pc.selected)
+        .background(Pc.tonal)
         .accessibilityElement(children: .combine)
     }
 }
@@ -516,7 +522,7 @@ struct VerifiedBadge: View {
     var body: some View {
         Image(systemName: "checkmark.seal.fill")
             .font(.system(size: 14, weight: .bold))
-            .foregroundStyle(Pc.accentInk)
+            .foregroundStyle(Pc.ink2)
             .accessibilityLabel("Verified")
     }
 }
@@ -684,7 +690,7 @@ struct EmptyState: View {
     var message: String?
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 26, weight: .bold)).foregroundStyle(Pc.accentInk)
+            Image(systemName: symbol).font(.system(size: 26, weight: .bold)).foregroundStyle(Pc.ink2)
                 .frame(width: 64, height: 64).background(Circle().fill(Pc.tonal))
             Text(title).pcFont(.title3).foregroundStyle(Pc.ink).multilineTextAlignment(.center)
             if let message { Text(message).pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center) }
@@ -714,12 +720,12 @@ struct SearchDock: View {
                 Spacer(minLength: 4)
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(Pc.onPine)
+                        .foregroundStyle(Pc.ink)
                         .frame(width: 44, height: 44)
-                        .background(Circle().fill(Pc.pine))
+                        .background(Circle().fill(Pc.tonal))
                     if activeFilters > 0 {
-                        Text("\(activeFilters)").font(.system(size: 10, weight: .heavy)).foregroundStyle(PcTokens.light.onGold)
-                            .frame(width: 17, height: 17).background(Circle().fill(Pc.gold))
+                        Text("\(activeFilters)").font(.system(size: 10, weight: .heavy)).foregroundStyle(Pc.raised)
+                            .frame(width: 17, height: 17).background(Circle().fill(Pc.ink))
                             .offset(x: 3, y: -3)
                     }
                 }
@@ -744,7 +750,7 @@ struct PcToggleRow: View {
     let title: String
     var subtitle: String?
     var icon: String?
-    var tint: Color = Pc.accentInk
+    var tint: Color = Pc.ink
     var titleColor: Color = Pc.ink
     @Binding var isOn: Bool
 

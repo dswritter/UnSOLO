@@ -26,7 +26,7 @@ struct ActivityView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 if app.activity.unread > 0 {
-                    Button("Mark all read") { app.activity.markRead(nil) }.tint(Pc.accentInk)
+                    Button("Mark all read") { app.activity.markRead(nil) }.tint(Pc.ink)
                 }
             }
         }
@@ -94,7 +94,7 @@ struct NotificationRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Circle().fill(notification.isRead ? .clear : Pc.accentInk).frame(width: 8, height: 8).padding(.top, 17)
+            Circle().fill(notification.isRead ? .clear : Pc.red).frame(width: 8, height: 8).padding(.top, 17)
                 .accessibilityHidden(true)
             icon
             VStack(alignment: .leading, spacing: 4) {
@@ -141,7 +141,7 @@ struct NotificationRow: View {
         if let approved = app.activity.decisions[notification.id] {
             Label(approved ? "Approved" : "Declined", systemImage: approved ? "checkmark" : "xmark")
                 .pcFont(.small, weight: .semibold)
-                .foregroundStyle(approved ? Pc.accentInk : Pc.ink2)
+                .foregroundStyle(approved ? Pc.ink : Pc.ink2)
                 .padding(.top, 4)
         } else {
             HStack(spacing: 8) {
@@ -167,8 +167,8 @@ struct NotificationRow: View {
         case .tags: "tag"
         case .system: "info.circle"
         }
-        return Image(systemName: symbol).font(.system(size: 16, weight: .bold)).foregroundStyle(notification.type == "host_offer" ? PcTokens.light.onGold : Pc.accentInk)
+        return Image(systemName: symbol).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
             .frame(width: 40, height: 40)
-            .background(Circle().fill(notification.type == "host_offer" ? Pc.gold : Pc.tonal))
+            .background(Circle().fill(Pc.tonal))
     }
 }
