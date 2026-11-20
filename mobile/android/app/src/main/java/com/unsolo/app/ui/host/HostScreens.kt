@@ -91,7 +91,7 @@ fun HostScreen(nav: AppNav) {
                 }
             }
         }
-        item { Text("Only the organiser and members see offers. If they accept, every member gets a held seat and 48h to pay.", style = Pc.type.small, color = c.ink2, modifier = Modifier.navigationBarsPadding().padding(16.dp)) }
+        item { Text("Only the organiser and members see offers. If they accept, every member gets a held spot and 48h to pay.", style = Pc.type.small, color = c.ink2, modifier = Modifier.navigationBarsPadding().padding(16.dp)) }
     }
 }
 
@@ -163,9 +163,9 @@ fun OfferFormScreen(postId: String, nav: AppNav) {
                 }
             }
             InsetRule()
-            SwitchRow("Open more seats to others", "The group can say no to this", vm.extraOn, { vm.extraOn = it })
+            SwitchRow("Open more spots to others", "The group can say no to this", vm.extraOn, { vm.extraOn = it })
             if (vm.extraOn) Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Extra seats", style = Pc.type.body, color = c.ink, modifier = Modifier.weight(1f))
+                Text("Extra spots", style = Pc.type.body, color = c.ink, modifier = Modifier.weight(1f))
                 Stepper(vm.extraSeats, { vm.extraSeats = it }, 1, 12)
             }
             InsetRule()
@@ -243,19 +243,19 @@ fun OffersReviewScreen(postId: String, nav: AppNav) {
                     Hairline(Modifier.padding(horizontal = 12.dp))
                 }
                 o.notes?.let { Text("“$it”", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(12.dp)) }
-                if (o.extraSeats > 0) Text("Opens ${o.extraSeats} more seats to other travellers", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                if (o.extraSeats > 0) Text("Opens ${o.extraSeats} more spots to other travellers", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
             SectionHeader("If you accept", Modifier.padding(top = 12.dp))
             listOf(
-                "Each of the ${p.memberCount} members gets a held seat and 48h to pay through UnSOLO",
+                "Each of the ${p.memberCount} members gets a held spot and 48h to pay through UnSOLO",
                 "Your plan chat becomes the trip chat. ${o.host.name} joins as host",
-                "Unpaid seats are released. Refunds follow the host's policy",
+                "Unpaid spots are released. Refunds follow the host's policy",
             ).forEachIndexed { i, s ->
                 Row(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("${i + 1}", style = Pc.type.num, color = c.ink, modifier = Modifier.width(28.dp)); Text(s, style = Pc.type.body, color = c.ink) }
                 InsetRule()
             }
             if (accepted != null) Column(Modifier.padding(Gutter).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).padding(14.dp)) {
-                Text("Accepted. Seats are held.", style = Pc.type.bodyStrong, color = c.ink)
+                Text("Accepted. Spots are held.", style = Pc.type.bodyStrong, color = c.ink)
                 Text("Everyone pays on unsolo.in by ${Fmt.dowDayMonth(accepted.payBy)}.", style = Pc.type.small, color = c.ink2)
                 accepted.packageSlug?.let { slug -> Spacer(Modifier.height(8.dp)); PcButton("Open the trip page", { nav.openWeb("/packages/$slug?book=1") }, Modifier.fillMaxWidth()) }
             }

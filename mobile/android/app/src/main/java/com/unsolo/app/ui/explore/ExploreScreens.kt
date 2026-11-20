@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
@@ -26,7 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Canvas
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -190,6 +191,8 @@ fun ExploreScreen(nav: AppNav) {
                         Spacer(Modifier.weight(1f))
                         HeaderActions(counts, { if (nav.requireSignIn()) nav.to(Routes.INBOX) }, { if (nav.requireSignIn()) nav.to(Routes.ACTIVITY) })
                     }
+                    // "Find your circle" is a heading for screen readers only; the chips sit right under the top bar.
+                    Box(Modifier.fillMaxWidth().height(1.dp).semantics { heading(); contentDescription = "Find your circle" })
                     TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons)
                     Spacer(Modifier.height(6.dp))
                 }
@@ -312,7 +315,7 @@ private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -
             PriceCap.entries.forEach { o -> PcChip(o.label, price == o, { vm.price.value = o }) }
         }
         Spacer(Modifier.height(6.dp))
-        SwitchRow("Only departures with open seats", "Hide full circles", open, { vm.openOnly.value = it }, Modifier.padding(horizontal = 4.dp))
+        SwitchRow("Only departures with open spots", "Hide full circles", open, { vm.openOnly.value = it }, Modifier.padding(horizontal = 4.dp))
         Spacer(Modifier.height(10.dp))
         Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             PcButton("Clear", { vm.clearFilters() }, kind = BtnKind.Ghost)
@@ -347,7 +350,7 @@ fun SeatCaption(total: Int, filled: Int, modifier: Modifier = Modifier, textAlig
 /**
  * Photo-first trip card: a full-width photo with the date chip and save button, the 88dp ring
  * overlapping the photo's bottom edge with the open count in its centre, then title, place,
- * host, seat line, price and "Take a seat".
+ * host, a short "N going" line, price and "Grab a spot".
  */
 @Composable
 fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit, onTake: () -> Unit, modifier: Modifier = Modifier, label: String? = null) {
@@ -365,7 +368,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         }
         Row(Modifier.padding(horizontal = 8.dp).overlapUp(44.dp), verticalAlignment = Alignment.Top) {
             RingMount {
-                SeatRing(ring, PcTokens.ringCard, centerLabel = (if (ring.full) "${ring.total}/${ring.total}" else "$open") to seatsLeftWord(open, ring.full), centerLabelSize = if (ring.full) 17.dp else 22.dp, centerIcon = PcIcons.Seat)
+                SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
             }
             Column(Modifier.weight(1f).padding(start = 12.dp, top = 50.dp)) {
                 Text(t.title, style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -375,7 +378,8 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Column(Modifier.padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 t.host?.let { Tag(it.name, TagKind.Verified, Modifier.weight(1f, fill = false)); Spacer(Modifier.width(10.dp)) }
-                SeatCaption(ring.total, ring.filled, Modifier.weight(1f), textAlign = TextAlign.End)
+                Text(when { ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
+                    style = Pc.type.smallStrong, color = if (ring.full) c.full else c.ink2, modifier = Modifier.weight(1f), textAlign = TextAlign.End, maxLines = 1)
             }
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -383,7 +387,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
                     Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.priceLarge, color = c.ink)
                     Text("/person", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
-                PcButton(if (ring.full) "Full" else "Take a seat", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
+                PcButton(if (ring.full) "Full" else "Grab a spot", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
             }
         }
     }
@@ -459,7 +463,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
     }
 }
 
-/** Linked next departure (on stories): mini arc · date · seats and price · "Take a seat →". */
+/** Linked next departure (on stories): mini arc · date · spots and price · "Grab a spot →". */
 @Composable
 fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: String = "Next departure") {
     val c = Pc.colors
@@ -469,10 +473,10 @@ fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: S
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("$label · ${Fmt.dayMonth(t.nextDeparture)}", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 13.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(t.seatsLeft?.let { if (it == 0) "Full" else "$it seat${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
+            Text(listOfNotNull(t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
         }
         Box(Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onTake).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-            Text("Take a seat →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp), color = c.accentInk, maxLines = 1)
+            Text("Grab a spot →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 13.5.sp), color = c.accentInk, maxLines = 1)
         }
     }
 }
@@ -597,8 +601,8 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 Box(Modifier.fillMaxWidth().overlapUp(116.dp), contentAlignment = Alignment.Center) {
                     RingMount(pad = 6.dp, color = c.paper) {
                         SeatRing(ring, PcTokens.ringHero, photo = t.image, badge = t.host?.let { RingBadge(it) },
-                            centerLabel = (if (ring.full) "${ring.total}/${ring.total}" else "${ring.total - ring.filled}") to (if (ring.full) "full" else "of ${ring.total} ${if (ring.total - ring.filled == 1) "seat" else "seats"} left"), centerIcon = PcIcons.Seat,
-                            centerLabelSize = 40.dp, spinOnAppear = ring.full, onClick = { whoSheet = true })
+                            spotsLabel = true,
+                            spinOnAppear = ring.full, onClick = { whoSheet = true })
                     }
                 }
             }
@@ -711,8 +715,8 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
         }
         BottomActionBar(
             title = MoneyFormat.rupees(t.priceFromPaise), titleMono = true, titleSuffix = "/person",
-            subtitle = if (left > 0) "${Fmt.dowDayMonth(date)} · $left seats left" else "${Fmt.dowDayMonth(date)} is full · pick another date",
-            action = "Take a seat", kind = BtnKind.Accent, enabled = left > 0, onAction = { vm.takeSeat(nav, date) },
+            subtitle = if (left > 0) "${Fmt.dowDayMonth(date)} · $left ${if (left == 1) "spot" else "spots"} left" else "${Fmt.dowDayMonth(date)} is full · pick another date",
+            action = "Grab a spot", kind = BtnKind.Accent, enabled = left > 0, onAction = { vm.takeSeat(nav, date) },
             leading = { IconTap(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", { vm.toggleSave() }, tint = if (saved) c.rose else c.ink) },
         )
     }
@@ -755,7 +759,7 @@ private fun WhoIsGoingSheet(t: TripLite, ring: RingData, seats: List<Seat>, sign
             if (host != null) {
                 PersonRow(host, "Host", onClick = { onProfile(host) }) { Tag("Host", TagKind.Host, height = 20.dp) }
             }
-            youSeat?.let { s -> InsetRule(64.dp); PersonRow(s.user, "Your seat", onClick = null) { Box(Modifier.size(12.dp).clip(CircleShape).background(c.gold).border(1.5.dp, c.ink, CircleShape)) } }
+            youSeat?.let { s -> InsetRule(64.dp); PersonRow(s.user, "Your spot", onClick = null) { Box(Modifier.size(12.dp).clip(CircleShape).background(c.gold).border(1.5.dp, c.ink, CircleShape)) } }
             members.forEach { s ->
                 InsetRule(64.dp)
                 val u = s.user
@@ -768,7 +772,7 @@ private fun WhoIsGoingSheet(t: TripLite, ring: RingData, seats: List<Seat>, sign
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(36.dp).clip(CircleShape).border(2.dp, c.seatOpen, CircleShape))
                 Spacer(Modifier.width(12.dp))
-                Text(if (ring.full) "No open seats" else "${ring.total - ring.filled} seats open", style = Pc.type.bodyStrong, color = c.ink)
+                Text(if (ring.full) "No open spots" else "${ring.total - ring.filled} spots open", style = Pc.type.bodyStrong, color = c.ink)
             }
         }
         Text(if (!signedIn) "Sign in to see initials. Faces show only to people travelling together." else "Faces show only to people travelling together. Women can keep their photo private.",
@@ -806,66 +810,33 @@ fun StoryRailCard(s: Post, onClick: () -> Unit) {
 
 
 /** Centre word under the seat count. */
-fun seatsLeftWord(open: Int, full: Boolean) = when { full -> "full"; open == 1 -> "seat left"; else -> "seats left" }
+fun seatsLeftWord(open: Int, full: Boolean) = spotsWord(open, full)
 
 /**
- * Invite card that leads "Plans looking for people": your gold seat at the top of a six-seat
- * ring while the other five fill in one by one (looping), a gently pulsing + in the centre.
- * Static under reduced motion.
+ * Invite card that leads "Plans looking for people". The whole card opens the plan composer;
+ * the "N planning in Tribe" line is its own target. Dashed like plans, press scale 0.99, no other motion.
  */
 @Composable
 fun PlanInviteCard(planning: Int, faces: List<UserLite>, onStart: () -> Unit, onTribe: () -> Unit) {
     val c = Pc.colors
-    Column(Modifier.width(316.dp).raisedCard().padding(16.dp)) {
-        Text("Going somewhere? Post a plan.", style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink)
-        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Travellers heading your way ask to join. No booking, no money.", style = Pc.type.small, color = c.ink2)
-                Spacer(Modifier.height(12.dp))
-                PcButton("Start a plan", onStart, height = BtnSmall, icon = PcIcons.Plus)
-            }
+    val src = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by src.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(if (pressed && !Pc.reduceMotion) 0.99f else 1f, androidx.compose.animation.core.tween(PcTokens.motionFast), label = "press")
+    Column(Modifier.width(300.dp).graphicsLayer { scaleX = scale; scaleY = scale }.pencilledCard()
+        .clickable(interactionSource = src, indication = androidx.compose.material3.ripple(), role = Role.Button, onClickLabel = "Post a plan", onClick = onStart).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.Top) {
+            Box(Modifier.size(44.dp).clip(CircleShape).background(c.ink), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Plus, null, tint = c.raised, size = 22.dp) }
             Spacer(Modifier.width(12.dp))
-            InviteRing(Modifier.size(112.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Going somewhere? Post a plan.", style = Pc.type.title3, color = c.ink)
+                Spacer(Modifier.height(4.dp))
+                Text("Travellers heading your way ask to join. No booking, no money.", style = Pc.type.small, color = c.ink2)
+            }
         }
-        if (planning > 0) Row(Modifier.padding(top = 4.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Open Tribe", onClick = onTribe).defaultMinSize(minHeight = 48.dp).padding(end = 6.dp),
+        if (planning > 0) Row(Modifier.padding(top = 8.dp, start = 56.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Open Tribe", onClick = onTribe).defaultMinSize(minHeight = 48.dp).padding(end = 6.dp),
             verticalAlignment = Alignment.CenterVertically) {
             if (faces.isNotEmpty()) { FaceStack(faces, size = 22.dp); Spacer(Modifier.width(8.dp)) }
             Text("$planning planning in Tribe →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = c.accentInk, maxLines = 1)
-        }
-    }
-}
-
-@Composable
-private fun InviteRing(modifier: Modifier = Modifier) {
-    val c = Pc.colors
-    val reduce = Pc.reduceMotion
-    val n = 6
-    val g = remember { RingGeometry(112f, n, badge = false) }
-    // One 4.4s loop: seats 1..5 fade in with staggered delays, hold, then reset.
-    val t = if (reduce) 0.6f else androidx.compose.animation.core.rememberInfiniteTransition(label = "invite").animateFloat(
-        0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(4400, easing = androidx.compose.animation.core.LinearEasing)), label = "t").value
-    val pulse = if (reduce) 1f else androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse").animateFloat(
-        1f, 1.08f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse), label = "s").value
-    Box(modifier.semantics { contentDescription = "A plan circle filling up around your seat" }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val px = density
-            val rr = g.r * px
-            val tl = androidx.compose.ui.geometry.Offset(center.x - rr, center.y - rr)
-            val sz = androidx.compose.ui.geometry.Size(rr * 2, rr * 2)
-            val rot = -g.seg / 2f // centre seat 0 at 12 o'clock
-            fun arc(col: Color, i: Int, w: Float, alpha: Float = 1f) = drawArc(col, g.a0(i) + rot, g.a1(i) - g.a0(i), false, tl, sz, alpha = alpha,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(w * px, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            drawArc(c.seatOpen, g.trackStart + rot, g.trackSweep, false, tl, sz, style = androidx.compose.ui.graphics.drawscope.Stroke(g.wO * px, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-            for (i in 1 until n) {
-                val startAt = 0.08f + (i - 1) * 0.13f
-                val a = if (reduce) (if (i <= 2) 1f else 0f) else ((t - startAt) / 0.08f).coerceIn(0f, 1f) * (if (t > 0.92f) ((1f - t) / 0.08f).coerceIn(0f, 1f) else 1f)
-                if (a > 0f) arc(c.taken, i, g.wT, a)
-            }
-            arc(c.ink, 0, g.wT + 3f)
-            arc(c.gold, 0, g.wT)
-        }
-        Box(Modifier.size(44.dp).graphicsLayer { scaleX = pulse; scaleY = pulse }.clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) {
-            PcIcon(PcIcons.Plus, null, tint = c.ink, size = 22.dp)
         }
     }
 }

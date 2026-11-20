@@ -125,13 +125,13 @@ fun AuthScreen(nav: AppNav) {
                     Spacer(Modifier.height(20.dp))
                     Text("Meet your people before you go.", style = Pc.type.display, color = c.ink)
                     Spacer(Modifier.height(8.dp))
-                    Text("Browse trips and the Tribe freely. An account lets you take a seat, post and join plans.", style = Pc.type.body, color = c.ink2)
+                    Text("Browse trips and the Tribe freely. An account lets you grab a spot, post and join plans.", style = Pc.type.body, color = c.ink2)
                     Spacer(Modifier.height(20.dp))
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         // Three travellers in, your gold seat drawing in, the rest open: take your place.
                         SeatRing(total = 8, taken = 3, size = 168.dp, you = YouSeat.You,
                             people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
-                            centerLabel = "5" to "seats open", centerLabelSize = 34.dp, contentDescription = "A circle of 8 seats: 3 taken, yours, and 4 open")
+                            spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
                     }
                     Spacer(Modifier.height(28.dp))
                     val activity = androidx.compose.ui.platform.LocalContext.current

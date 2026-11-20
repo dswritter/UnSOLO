@@ -108,9 +108,9 @@ data class RingGeometry(val size: Float, val n: Int, val badge: Boolean) {
     }
 }
 
-/** "8 of 12 seats open" / "Full, 12 of 12 seats taken". */
+/** "8 of 12 spots open" / "Full, 12 of 12 spots taken". */
 fun ringA11y(total: Int, filled: Int, plan: Boolean = false): String {
-    val unit = if (plan) "spots" else "seats"
+    val unit = "spots"
     return if (total > 0 && filled >= total) "Full, $total of $total $unit taken" else "${(total - filled).coerceAtLeast(0)} of $total $unit open"
 }
 
@@ -118,7 +118,7 @@ fun ringA11y(total: Int, filled: Int, plan: Boolean = false): String {
 fun ringCaption(total: Int, filled: Int): AnnotatedString = buildAnnotatedString {
     val b = SpanStyle(fontWeight = FontWeight.Bold)
     when {
-        filled <= 0 -> { withStyle(b) { append("Be first in the circle") }; append(" · $total seats open") }
+        filled <= 0 -> { withStyle(b) { append("Be first in the circle") }; append(" · $total spots open") }
         filled >= total -> withStyle(b) { append("Full · $total/$total") }
         else -> { withStyle(b) { append("${total - filled} of $total open") }; append(" · $filled going") }
     }
@@ -219,6 +219,8 @@ fun SeatRing(
     centerLabel: Pair<String, String>? = null,
     centerLabelSize: Dp? = null,
     centerIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    /** Shared centre label: big open count, tiny "/N", and "spots left" / "spot left" / "full". */
+    spotsLabel: Boolean = false,
     badge: RingBadge? = null,
     waiting: UserLite? = null,
     dots: Boolean = true,
@@ -304,14 +306,9 @@ fun SeatRing(
                             val rad = max(6f, g.d * 0.34f) * px
                             drawCircle(c.raised, rad, Offset(x * px, y * px))
                             drawCircle(openCol, rad, Offset(x * px, y * px), style = Stroke(2.5f * px))
-                        } else if (size.value >= 64f) {
-                            // Seat cue: each open seat gets a small marker on the open track, so the ring reads as seats.
-                            val (x, y) = g.point(g.mid(i))
-                            val rad = max(2.4f, g.wO * 1.35f) * px
-                            drawCircle(c.raised, rad, Offset(x * px, y * px))
-                            drawCircle(openCol, rad, Offset(x * px, y * px), style = Stroke(max(1.2f, g.wO * 0.75f) * px))
                         }
-                        1 -> if (!plan) arc(takenCol, a0, sweep, g.wT)
+                        // Trips: consecutive taken spots are one continuous arc (drawn once, at the run's first segment).
+                        1 -> if (!plan) { if (i == 0) arc(takenCol, g.a0(0), g.a1(k - 1) - g.a0(0), g.wT) }
                             else if (!(dots && g.showDots && people.getOrNull(i) != null)) {
                                 // Plans are dots, not arcs. Below dot size a filled circle keeps taken seats visible.
                                 val (x, y) = g.point(g.mid(i))
@@ -375,6 +372,9 @@ fun SeatRing(
             }
         }
 
+        if (spotsLabel) SpotsCount(open = (n - filled).coerceAtLeast(0), total = total, full = full, discDp = g.r0 * 2f,
+            onPhoto = photo != null || centerUser?.avatarUrl != null, modifier = Modifier.align(Alignment.Center))
+
         // Host / organiser badge at the top.
         if (badge != null) {
             Row(
@@ -419,6 +419,7 @@ fun SeatRing(
     centerLabel: Pair<String, String>? = null,
     centerLabelSize: Dp? = null,
     centerIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    spotsLabel: Boolean = false,
     badge: RingBadge? = null,
     dots: Boolean = true,
     animate: Boolean = true,
@@ -427,7 +428,7 @@ fun SeatRing(
 ) = SeatRing(
     total = data.total, taken = data.taken, size = size, modifier = modifier, you = data.you, plan = plan, women = women, past = past,
     people = data.people, showFaces = data.coTraveller, me = data.me, photo = photo, centerUser = centerUser, centerLabel = centerLabel,
-    centerLabelSize = centerLabelSize, centerIcon = centerIcon, badge = badge, waiting = data.waiting, dots = dots, animate = animate, spinOnAppear = spinOnAppear, onClick = onClick,
+    centerLabelSize = centerLabelSize, centerIcon = centerIcon, spotsLabel = spotsLabel, badge = badge, waiting = data.waiting, dots = dots, animate = animate, spinOnAppear = spinOnAppear, onClick = onClick,
 )
 
 /** A ring sitting on a surface-coloured disc (for overlapping photos). */
@@ -448,7 +449,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
     val full = k >= n && total > 0
     val prog = when { full -> c.full; women -> c.rose; else -> c.taken }.let { if (past) it.desaturated() else it }
     val open = (if (women) c.roseOpen else c.seatOpen).let { if (past) it.desaturated() else it }
-    Box(modifier.size(size).semantics { contentDescription = "$k of $total seats taken" }, contentAlignment = Alignment.Center) {
+    Box(modifier.size(size).semantics { contentDescription = "$k of $total spots taken" }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val stroke = 5.dp.toPx()
             val rr = size.toPx() / 2f - 4.dp.toPx()
@@ -489,3 +490,31 @@ fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Mo
     }
 }
 
+
+
+/** "spots left" / "spot left" / "full". */
+fun spotsWord(open: Int, full: Boolean) = when { full -> "full"; open == 1 -> "spot left"; else -> "spots left" }
+
+/**
+ * The one centre label for trip rings: a big number with a tiny "/N" beside it (0.36×, 60%),
+ * and "spots left" / "spot left" / "full" under it. Sized from the disc so it always fits.
+ */
+@Composable
+fun SpotsCount(open: Int, total: Int, full: Boolean, discDp: Float, onPhoto: Boolean, modifier: Modifier = Modifier) {
+    val c = Pc.colors
+    val big = (discDp * 0.34f).coerceIn(16f, 52f)
+    val small = (big * 0.36f).coerceAtLeast(8f)
+    val word = (discDp * 0.095f).coerceIn(9f, 14f)
+    Column(
+        modifier.widthIn(max = (discDp * 0.86f).dp)
+            .then(if (onPhoto) Modifier.clip(RoundedCornerShape(22.dp)).background(c.raised.copy(alpha = 0.9f)).padding(horizontal = (discDp * 0.07f).coerceIn(6f, 16f).dp, vertical = (discDp * 0.04f).coerceIn(3f, 8f).dp) else Modifier),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(if (full) "$total" else "$open", style = Pc.type.numLarge.copy(fontSize = big.sp, lineHeight = (big * 0.98f).sp), color = c.ink, maxLines = 1)
+            Text("/$total", style = Pc.type.numLarge.copy(fontSize = small.sp, lineHeight = small.sp), color = c.ink.copy(alpha = 0.6f), maxLines = 1,
+                modifier = Modifier.padding(start = 1.dp, bottom = (big * 0.12f).dp))
+        }
+        Text(spotsWord(open, full), style = Pc.type.smallStrong.copy(fontSize = word.sp, lineHeight = (word * 1.15f).sp), color = c.ink2, maxLines = 1, softWrap = false)
+    }
+}

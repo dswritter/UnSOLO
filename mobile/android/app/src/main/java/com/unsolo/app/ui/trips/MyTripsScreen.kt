@@ -69,7 +69,7 @@ fun MyTripsScreen(nav: AppNav) {
         }
         when (tab) {
             "upcoming" -> {
-                if (d.upcoming.isEmpty()) item { EmptyState("No trips yet", "Take a seat on a departure, or ask to join a plan in Tribe.", action = "Explore departures", onAction = { nav.tab(Routes.EXPLORE) }) }
+                if (d.upcoming.isEmpty()) item { EmptyState("No trips yet", "Grab a spot on a departure, or ask to join a plan in Tribe.", action = "Explore departures", onAction = { nav.tab(Routes.EXPLORE) }) }
                 items(d.upcoming, key = { "b-" + it.id }, contentType = { "ticket" }) { b ->
                     UpcomingCard(b, me?.user, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") })
                 }

@@ -400,6 +400,18 @@ fun FaceStack(users: List<UserLite>, extra: Int = 0, size: Dp = 28.dp) {
     }
 }
 
+/**
+ * Derives the 320px thumbnail for a Supabase public image:
+ * `/storage/v1/object/public/images/…/x.webp` → `…/x_thumb.webp`. Returns null for anything else.
+ */
+fun thumbFor(url: String?): String? {
+    if (url == null) return null
+    val q = url.indexOf('?').let { if (it < 0) url.length else it }
+    val path = url.substring(0, q)
+    if (!path.contains("/storage/v1/object/public/images/") || !path.endsWith(".webp") || path.endsWith("_thumb.webp")) return null
+    return path.removeSuffix(".webp") + "_thumb.webp" + url.substring(q)
+}
+
 private fun decodeLqip(data: String?): androidx.compose.ui.graphics.ImageBitmap? {
     if (data == null || !data.startsWith("data:image/")) return null
     return runCatching {
@@ -427,7 +439,8 @@ fun ProgressiveImage(
         if (media == null) return@Box
         val lqip = remember(media.lqip) { decodeLqip(media.lqip) }
         if (lqip != null) Image(lqip, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop, colorFilter = colorFilter)
-        val thumb = media.thumbUrl
+        // Low-res first: the API's thumbUrl, or the 320px Supabase thumb derived from the URL.
+        val thumb = media.thumbUrl ?: thumbFor(media.url)
         if (thumb != null && (saver || lqip == null)) {
             AsyncImage(ImageRequest.Builder(ctx).data(thumb).crossfade(PcTokens.motionStandard).build(), contentDescription, Modifier.matchParentSize(), contentScale = contentScale, colorFilter = colorFilter)
         }

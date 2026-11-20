@@ -175,8 +175,8 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
                 t != null -> StoryLink(
                     lead = { MiniArc(t.seatsTotal ?: 0, (t.seatsTotal ?: 0) - (t.seatsLeft ?: 0), size = 38.dp) },
                     title = "${t.title} · ${Fmt.dayMonth(t.nextDeparture)}",
-                    sub = listOfNotNull(t.seatsLeft?.let { "$it seats left" }, com.unsolo.app.data.MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "),
-                    cta = "Take a seat →", onClick = { nav.to(Routes.trip(t.slug)) },
+                    sub = listOfNotNull(t.seatsLeft?.let { "$it ${if (it == 1) "spot" else "spots"} left" }, com.unsolo.app.data.MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "),
+                    cta = "Grab a spot →", onClick = { nav.to(Routes.trip(t.slug)) },
                 )
                 plan != null -> StoryLink(
                     lead = { MiniArc(plan.spotsTotal ?: plan.seats.size, plan.memberCount, size = 38.dp, women = plan.audience == "women") },

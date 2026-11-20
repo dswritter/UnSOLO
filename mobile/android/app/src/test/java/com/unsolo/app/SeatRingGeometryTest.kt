@@ -9,6 +9,8 @@ import com.unsolo.app.ui.components.ringA11y
 import com.unsolo.app.ui.components.ringCaption
 import com.unsolo.app.ui.components.ringFromCounts
 import com.unsolo.app.ui.components.ringFromSeats
+import com.unsolo.app.ui.components.spotsWord
+import com.unsolo.app.ui.components.thumbFor
 import org.junit.Assert.*
 import org.junit.Test
 import kotlin.math.PI
@@ -58,11 +60,12 @@ class SeatRingGeometryTest {
     }
 
     @Test fun captionsAndLabels() {
-        assertEquals("Be first in the circle · 12 seats open", ringCaption(12, 0).text)
+        assertEquals("Be first in the circle · 12 spots open", ringCaption(12, 0).text)
         assertEquals("8 of 12 open · 4 going", ringCaption(12, 4).text)
         assertEquals("Full · 12/12", ringCaption(12, 12).text)
-        assertEquals("8 of 12 seats open", ringA11y(12, 4))
-        assertEquals("Full, 12 of 12 seats taken", ringA11y(12, 12))
+        assertEquals("8 of 12 spots open", ringA11y(12, 4))
+        assertEquals("Full, 12 of 12 spots taken", ringA11y(12, 12))
+        assertEquals("spots left", spotsWord(8, false)); assertEquals("spot left", spotsWord(1, false)); assertEquals("full", spotsWord(0, true))
     }
 
     @Test fun seatsMapToRing() {
@@ -76,5 +79,15 @@ class SeatRingGeometryTest {
         val counts = ringFromCounts(12, 5)
         assertEquals(7, counts.taken); assertFalse(counts.full)
         assertTrue(ringFromCounts(10, 0).full)
+    }
+
+    @Test fun supabaseThumbIsDerived() {
+        val base = "https://x.supabase.co/storage/v1/object/public/images/packages/spiti/cover"
+        assertEquals("${base}_thumb.webp", thumbFor("$base.webp"))
+        assertEquals("${base}_thumb.webp?v=2", thumbFor("$base.webp?v=2"))
+        assertNull(thumbFor("${base}_thumb.webp"))
+        assertNull(thumbFor("https://cdn.example.com/a.webp"))
+        assertNull(thumbFor("demo://ph_spiti"))
+        assertNull(thumbFor(null))
     }
 }

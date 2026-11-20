@@ -20,7 +20,7 @@ cd mobile/android
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties    # gitignored
 cp secrets.properties.example secrets.properties               # optional; gitignored
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:testDebugUnitTest      # 28 JVM unit tests
+./gradlew :app:testDebugUnitTest      # 39 JVM unit tests
 ./gradlew :app:assembleRelease        # R8 + shrinkResources; unsigned until a keystore exists
 adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -97,8 +97,8 @@ com.unsolo.app
 │  └─ demo/                  DemoBackend, DemoApiInterceptor, DemoImages
 ├─ data/                     repositories (Account+ConfigStore, Tribe, Explore, Chat, Activity), AppEvents
 └─ ui/
-   ├─ theme/                 Tokens.kt (generated, not edited), Theme (Plex via downloadable fonts), PcIcons
-   ├─ components/            SeatCell/SeatRow/SeatStrip, buttons, tags, ChartCells, bars, sheets, ProgressiveImage
+   ├─ theme/                 Tokens.kt (generated, not edited), FullCircleTheme (Bricolage, Figtree and Inter via downloadable fonts), PcIcons
+   ├─ components/            SeatRing/MiniArc/StoryRing, buttons, tags, bars, sheets, ProgressiveImage
    ├─ nav/                   Routes, DeepLinks (validation), AppRoot (NavHost, bottom bar, sheets, prompts)
    └─ explore, tribe, compose, activity, trips, profile, auth, host
 ```
@@ -303,7 +303,16 @@ This pass follows user feedback that the app "looks more like old Windows UI". T
   - Settings, forms and included-lists are grouped in `FormCard`s with inset dividers.
   - Story avatars have a thin 2dp ring.
 
-### Design system (Passenger Chart)
+### Design system (Full Circle)
+
+> The app now uses the Full Circle design (see [design-system.md](design-system.md)). The rest of this section describes Passenger Chart and is kept for reference.
+>
+> - The seat ring (`ui/components/SeatRing.kt`) is a continuous open track. Taken spots form one ink arc, your spot is gold and plans use hollow circles.
+> - The centre label is "8/12 spots left".
+> - User-facing copy says "spot". The CTA is "Grab a spot".
+> - Every photo goes through `ProgressiveImage`: the LQIP or thumb paints first, then the full image crossfades in. A Supabase `…/x.webp` gets its thumb from `…/x_thumb.webp`.
+> - Decisions are logged in `.oil-ui/full-circle/decisions-android.md`.
+
 
 **Theme and type:**
 - `PassengerChartTheme` maps `PcTokens.Light` / `PcTokens.Dark` from the generated `Tokens.kt` and follows the system dark setting.
