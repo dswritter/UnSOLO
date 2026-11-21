@@ -27,8 +27,9 @@ export function Navbar() {
   // Auth resolves client-side (the shell is statically rendered). `authPending`
   // shows a neutral avatar skeleton — instead of Sign In / Join — until the
   // first resolution completes, so a signed-in user never flashes logged-out.
-  const { profile: user, loading } = useAuth()
-  const authPending = loading && !user
+  const { profile: user, userId, loading } = useAuth()
+  // A session with no profile yet is still "pending": never show Sign In to someone signed in.
+  const authPending = !user && (loading || !!userId)
   const [composeOpen, setComposeOpen] = useState(false)
   const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [pendingJoinCount, setPendingJoinCount] = useState(0)

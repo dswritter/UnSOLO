@@ -7,6 +7,7 @@ import { NavigationProgress } from '@/components/layout/NavigationProgress'
 import { QueryProvider } from '@/providers/QueryProvider'
 import { COLOR_MODE_BOOT_SCRIPT } from '@/lib/theme/color-mode'
 import { AuthProvider } from '@/components/layout/AuthProvider'
+import { PhoneGateHost } from '@/components/auth/PhoneGateHost'
 
 // Full Circle type: Figtree (body, labels, numbers with tabular figures) + Bricolage Grotesque (headings, prices).
 // Bricolage is loaded with a plain Google Fonts stylesheet (see <head>): its multi-axis font files fail
@@ -66,7 +67,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>
-        <QueryProvider><AuthProvider>{children}</AuthProvider></QueryProvider>
+        <QueryProvider><AuthProvider>{children}<PhoneGateHost /></AuthProvider></QueryProvider>
         <Toaster richColors position="top-center" />
       </body>
     </html>

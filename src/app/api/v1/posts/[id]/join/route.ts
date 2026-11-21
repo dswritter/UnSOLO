@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { z } from 'zod'
-import { getApiContext, requirePhoneVerified, requireUser } from '@/lib/api/context'
+import { getApiContext, requireVerifiedContact, requireUser } from '@/lib/api/context'
 import { ApiError, noContent, ok, parseJson, parseWith, route, uuid } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
@@ -14,9 +14,9 @@ type Ctx = { params: Promise<{ id: string }> }
 export const POST = route(async (req: Request, { params }: Ctx) => {
   const id = parseWith(uuid, (await params).id)
   const ctx = await getApiContext(req)
-  const user = await requirePhoneVerified(ctx)
+  const user = await requireVerifiedContact(ctx)
   const { intro } = await parseJson(req, z.object({ intro: z.string().trim().min(10, 'Say a little about yourself (10+ characters)').max(500) }))
-  const viewer = await loadViewer(ctx.db, user.id)
+  const viewer = await loadViewer(ctx.db, user)
   const [post] = await loadPosts(ctx.db, [id], viewer)
   if (!post || post.kind !== 'plan') throw new ApiError('not_found')
   if (post.viewer.membership === 'requested' || post.viewer.membership === 'approved') {
@@ -26,7 +26,7 @@ export const POST = route(async (req: Request, { params }: Ctx) => {
     const msg: Record<string, string> = {
       full: 'This plan is full.', women_only: 'This plan is for verified women only.',
       verified_only: 'This plan needs a verified ID.', own_plan: 'This is your plan.',
-      phone_required: 'Verify your phone number first.', closed: 'This plan is closed.',
+      phone_required: 'Verify your phone number or email first.', closed: 'This plan is closed.',
     }
     throw new ApiError(post.viewer.joinBlockedReason === 'phone_required' ? 'phone_required' : 'forbidden', msg[post.viewer.joinBlockedReason ?? 'closed'])
   }

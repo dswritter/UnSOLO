@@ -10,7 +10,7 @@ export async function ProfileTribePosts({ authorId, firstName }: { authorId: str
     const { data, error } = await supabase.from('posts').select('id').eq('author_id', authorId)
       .in('status', ['live', 'past']).order('created_at', { ascending: false }).limit(12)
     if (error) throw error
-    const posts = await loadPosts(supabase, (data ?? []).map((p) => p.id as string), await loadViewer(supabase, user?.id))
+    const posts = await loadPosts(supabase, (data ?? []).map((p) => p.id as string), await loadViewer(supabase, user))
     if (posts.length === 0) return null
     const open = posts.find((p) => p.kind === 'plan' && p.status === 'live' && p.memberCount < (p.spotsTotal ?? 0))
     const rest = posts.filter((p) => p.id !== open?.id).slice(0, 6)

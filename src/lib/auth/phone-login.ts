@@ -22,6 +22,9 @@ import { MAX_OTP_VERIFY_ATTEMPTS, OTP_EXPIRY_MINUTES, SMS_OTP_LENGTH } from '@/l
 export const PHONE_EMAIL_DOMAIN = 'phone.unsolo.in'
 export const phonePlaceholderEmail = (phone10: string) => `${phone10}@${PHONE_EMAIL_DOMAIN}`
 export const isPhonePlaceholderEmail = (email: string | null | undefined) => !!email && email.toLowerCase().endsWith(`@${PHONE_EMAIL_DOMAIN}`)
+/** A confirmed, real (non-placeholder) email: email code, magic link, Google or Apple. */
+export const hasVerifiedEmail = (user: { email?: string | null; email_confirmed_at?: string | null } | null | undefined) =>
+  !!user?.email && !!user.email_confirmed_at && !isPhonePlaceholderEmail(user.email)
 /** The account email if it's a real one, else '' (checkout prefills, profile API). */
 export const contactEmail = (email: string | null | undefined) => (email && !isPhonePlaceholderEmail(email) ? email : '')
 

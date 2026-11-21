@@ -93,7 +93,7 @@ export async function TripTribeSection({ packageId, placeName }: {
         .eq('show_on_trip_page', true).order('created_at', { ascending: false }).limit(4).then((r) => (r.data ?? []).map((x) => x.id as string)),
       countPlanning(supabase, placeSlug(placeName)),
     ])
-    const viewer = await loadViewer(supabase, user?.id)
+    const viewer = await loadViewer(supabase, user)
     const stories = await loadPosts(supabase, storyIds, viewer)
     return (
       <>

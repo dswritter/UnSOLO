@@ -19,7 +19,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
     ctx.db.from('posts').select('id, kind, status, starts_on').eq('author_id', p.id).in('status', ['live', 'past']).order('created_at', { ascending: false }).limit(30),
     ctx.user ? ctx.db.from('follows').select('id').eq('follower_id', ctx.user.id).eq('following_id', p.id).maybeSingle().then((r) => !!r.data) : Promise.resolve(false),
   ])
-  const viewer = await loadViewer(ctx.db, ctx.user?.id)
+  const viewer = await loadViewer(ctx.db, ctx.user)
   const all = await loadPosts(ctx.db, (posts ?? []).map((x) => x.id as string), viewer)
   const openPlan = all.find((x) => x.kind === 'plan' && x.status === 'live' && x.memberCount < (x.spotsTotal ?? 0)) ?? null
   return ok({

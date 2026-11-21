@@ -24,7 +24,7 @@ export async function PlansLookingForHost() {
       ? await supabase.from('host_offers').select('post_id').eq('host_id', user.id).in('post_id', ids)
       : { data: [] as { post_id: string }[] }
     const offered = new Set((mine ?? []).map((o) => o.post_id as string))
-    const posts = (await loadPosts(supabase, ids, await loadViewer(supabase, user.id))).slice(0, 6)
+    const posts = (await loadPosts(supabase, ids, await loadViewer(supabase, user))).slice(0, 6)
     return (
       <section className="mt-8" aria-label="Plans looking for a host">
         <div className="mb-3 flex items-end justify-between gap-3">

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { hasVerifiedEmail } from '@/lib/auth/phone-login'
 import {
   PACKAGE_LITE,
   POST_SELECT,
@@ -17,21 +18,32 @@ import {
 
 type Row = Record<string, unknown>
 
-export type Viewer = { id: string; gender: string | null; isIdVerified: boolean; isPhoneVerified: boolean } | null
+export type Viewer = {
+  id: string; gender: string | null; isIdVerified: boolean; isPhoneVerified: boolean
+  /** A confirmed real email or a verified phone: enough to post, comment, vote and join plans. */
+  isContactVerified: boolean
+} | null
 
-export async function loadViewer(db: SupabaseClient, userId: string | null | undefined): Promise<Viewer> {
-  if (!userId) return null
+type ViewerUser = { id: string; email?: string | null; email_confirmed_at?: string | null }
+
+export async function loadViewer(db: SupabaseClient, who: string | ViewerUser | null | undefined): Promise<Viewer> {
+  if (!who) return null
+  const userId = typeof who === 'string' ? who : who.id
+  const emailOk = typeof who === 'string' ? false : hasVerifiedEmail(who)
   // Gender lives in profile_private (owner-only RLS): readable here because the viewer is the owner.
   const [{ data }, { data: priv }] = await Promise.all([
-    db.from('profiles').select('id, is_id_verified, is_phone_verified').eq('id', userId).maybeSingle(),
+    db.from('profiles').select('id, is_id_verified, is_phone_verified, is_email_verified').eq('id', userId).maybeSingle(),
     db.from('profile_private').select('gender').eq('user_id', userId).maybeSingle(),
   ])
-  if (!data) return { id: userId, gender: (priv?.gender as string | null) ?? null, isIdVerified: false, isPhoneVerified: false }
+  const gender = (priv?.gender as string | null) ?? null
+  if (!data) return { id: userId, gender, isIdVerified: false, isPhoneVerified: false, isContactVerified: emailOk }
+  const phone = data.is_phone_verified === true
   return {
     id: userId,
-    gender: (priv?.gender as string | null) ?? null,
+    gender,
     isIdVerified: data.is_id_verified === true,
-    isPhoneVerified: data.is_phone_verified === true,
+    isPhoneVerified: phone,
+    isContactVerified: emailOk || phone || data.is_email_verified === true,
   }
 }
 
@@ -190,7 +202,7 @@ function joinability(
     return { canJoin: false, reason: 'women_only' }
   }
   if (p.audience === 'verified' && viewer && !viewer.isIdVerified) return { canJoin: false, reason: 'verified_only' }
-  if (viewer && !viewer.isPhoneVerified) return { canJoin: false, reason: 'phone_required' }
+  if (viewer && !viewer.isContactVerified) return { canJoin: false, reason: 'phone_required' }
   return { canJoin: true, reason: null }
 }
 

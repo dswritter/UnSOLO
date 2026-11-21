@@ -1,6 +1,7 @@
 import { createClient as createSupabaseClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 import { createClient as createCookieClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { ApiError } from './http'
+import { hasVerifiedEmail } from '@/lib/auth/phone-login'
 
 export type ClientInfo = { platform: 'web' | 'android' | 'ios'; version: string | null; build: number | null }
 
@@ -57,10 +58,18 @@ export function requireUser(ctx: ApiContext): User {
   return ctx.user
 }
 
-/** Posting / joining / commenting requires a verified phone (spec §4). */
-export async function requirePhoneVerified(ctx: ApiContext): Promise<User> {
+/**
+ * Posting, commenting, voting and joining plans need ONE verified contact: a confirmed real email
+ * (email code, Google, Apple) or a verified phone. Only hosting and booking ask for the phone itself.
+ * The error code stays `phone_required` so clients open their "add your phone" card.
+ */
+export async function requireVerifiedContact(ctx: ApiContext): Promise<User> {
   const user = requireUser(ctx)
+  if (hasVerifiedEmail(user)) return user
   const { data } = await ctx.db.from('profiles').select('is_phone_verified').eq('id', user.id).single()
-  if (!data?.is_phone_verified) throw new ApiError('phone_required', 'Verify your phone number first')
+  if (!data?.is_phone_verified) throw new ApiError('phone_required', 'Verify your phone number or email to continue')
   return user
 }
+
+/** @deprecated Tribe actions accept email OR phone now; use requireVerifiedContact. */
+export const requirePhoneVerified = requireVerifiedContact

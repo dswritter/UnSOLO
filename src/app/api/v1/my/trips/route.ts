@@ -31,7 +31,7 @@ export const GET = route(async (req: Request) => {
     }
   }
   const all = (bookings ?? []) as Record<string, unknown>[]
-  const viewer = await loadViewer(ctx.db, user.id)
+  const viewer = await loadViewer(ctx.db, user)
   const approvedIds = (memberships ?? []).filter((m) => m.state === 'approved').map((m) => m.post_id as string)
   const requestedIds = (memberships ?? []).filter((m) => m.state === 'requested').map((m) => m.post_id as string)
   const [plans, requested] = await Promise.all([loadPosts(ctx.db, approvedIds, viewer), loadPosts(ctx.db, requestedIds, viewer)])

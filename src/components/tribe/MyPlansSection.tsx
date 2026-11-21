@@ -16,7 +16,7 @@ export async function MyPlansSection() {
     const ids = (m ?? []).map((r) => r.post_id as string)
     if (ids.length === 0) return null
     const [posts, { data: rooms }] = await Promise.all([
-      loadPosts(supabase, ids, await loadViewer(supabase, user.id)),
+      loadPosts(supabase, ids, await loadViewer(supabase, user)),
       supabase.from('chat_rooms').select('id, post_id').in('post_id', ids),
     ])
     const roomFor = new Map((rooms ?? []).map((r) => [r.post_id as string, r.id as string]))

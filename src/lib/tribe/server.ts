@@ -16,7 +16,7 @@ export async function getFeedPage(kind?: 'plan' | 'story' | 'ask', place?: strin
     const { data, error } = await supabase.rpc('tribe_feed', { p_kind: kind ?? null, p_place: place ?? null, p_limit: 20 })
     if (error) throw error
     const ids = ((data ?? []) as { post_id: string }[]).map((r) => r.post_id)
-    const viewer = await loadViewer(supabase, user?.id)
+    const viewer = await loadViewer(supabase, user)
     const [posts, trips] = await Promise.all([
       loadPosts(supabase, ids, viewer),
       loadUpcomingTrips({ db: supabase, service: createServiceRoleClient, user }, { limit: 3 }).catch(() => ({ items: [] as TripLite[] })),
@@ -37,7 +37,7 @@ export type PostPage = { post: Post; comments: Comment[]; offers: HostOffer[]; d
 export async function getPostPage(id: string): Promise<PostPage> {
   const { supabase, user } = await getRequestAuth()
   try {
-    const viewer = await loadViewer(supabase, user?.id)
+    const viewer = await loadViewer(supabase, user)
     const [post] = await loadPosts(supabase, [id], viewer)
     if (!post || post.status === 'removed') return null
     const showOffers = post.kind === 'plan' && (post.viewer.isAuthor || post.viewer.membership === 'approved')

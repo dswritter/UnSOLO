@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { z } from 'zod'
-import { getApiContext, requirePhoneVerified } from '@/lib/api/context'
+import { getApiContext, requireVerifiedContact } from '@/lib/api/context'
 import { ApiError, ok, parseJson, route } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
@@ -58,10 +58,10 @@ async function assertNotMuted(ctx: Awaited<ReturnType<typeof getApiContext>>, us
 
 export const POST = route(async (req: Request) => {
   const ctx = await getApiContext(req)
-  const user = await requirePhoneVerified(ctx)
+  const user = await requireVerifiedContact(ctx)
   const b = await parseJson(req, PostIn)
   const svc = ctx.service()
-  const viewer = () => loadViewer(ctx.db, user.id)
+  const viewer = () => loadViewer(ctx.db, user)
 
   // Idempotent retry from an offline outbox.
   const existingFor = async () => {

@@ -28,7 +28,7 @@ export const GET = route(async (req: Request) => {
   })
   if (error) throw error
   const rows = (data ?? []) as { post_id: string; score: number }[]
-  const viewer = await loadViewer(ctx.db, ctx.user?.id)
+  const viewer = await loadViewer(ctx.db, ctx.user)
   const posts = await loadPosts(ctx.db, rows.map((r) => r.post_id), viewer)
   const caughtUp = rows.length < q.limit
   const placedCount = q.kind ? 0 : Math.floor(posts.length / 8) + (caughtUp ? 0 : 0)

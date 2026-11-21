@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> }
 export const GET = route(async (req: Request, { params }: Ctx) => {
   const id = parseWith(uuid, (await params).id)
   const ctx = await getApiContext(req)
-  const viewer = await loadViewer(ctx.db, ctx.user?.id)
+  const viewer = await loadViewer(ctx.db, ctx.user)
   const [post] = await loadPosts(ctx.db, [id], viewer)
   if (!post || post.status === 'removed') throw new ApiError('not_found', 'This post is no longer available')
   const [comments, offers] = await Promise.all([
@@ -74,7 +74,7 @@ export const PATCH = route(async (req: Request, { params }: Ctx) => {
     const { error } = await svc.from('plan_private').upsert({ post_id: id, meeting_point: mp, updated_at: new Date().toISOString() }, { onConflict: 'post_id' })
     if (error) throw error
   }
-  const [post] = await loadPosts(ctx.db, [id], await loadViewer(ctx.db, user.id))
+  const [post] = await loadPosts(ctx.db, [id], await loadViewer(ctx.db, user))
   return ok({ post })
 })
 

@@ -69,10 +69,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
     let cancelled = false
 
-    async function loadProfile(uid: string, version: number) {
+    async function loadProfile(uid: string, version: number, attempt = 0): Promise<void> {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single()
       if (cancelled || version !== authVersion.current) return
-      if (error) { console.error('Could not load signed-in profile:', error); return }
+      if (error) {
+        // A fresh sign-in can race the profile row (or a token refresh): retry before giving up, so the
+        // navbar doesn't sit on "Sign in" for someone who is signed in.
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)))
+          return loadProfile(uid, version, attempt + 1)
+        }
+        console.error('Could not load signed-in profile:', error)
+        return
+      }
       const prof = (data as Profile | null) ?? null
       setProfile(prof)
       try {
@@ -96,11 +105,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       setUserId(u.id)
+      let hasCached = false
       try {
         const raw = localStorage.getItem(CACHE_KEY)
         const cached = raw ? JSON.parse(raw) as { userId: string; profile: Profile | null } : null
-        setProfile(cached?.userId === u.id ? cached.profile : null)
+        hasCached = cached?.userId === u.id && !!cached.profile
+        setProfile(hasCached ? cached!.profile : null)
       } catch { /* ignore malformed display cache */ }
+      // Just signed in (no cached profile): back to "resolving" so the navbar shows the avatar
+      // placeholder, not Sign in, while the profile loads.
+      if (!hasCached) setLoading(true)
       void loadProfile(u.id, version).finally(() => {
         if (!cancelled && version === authVersion.current) setLoading(false)
       })

@@ -62,13 +62,15 @@ export async function sharePost(post: Post) {
  * Reactions row: icon + count buttons (44px targets), replies, share and save.
  * Optimistic: the icon flips immediately; the server result reconciles; errors roll back.
  */
-export function ReactionBar({ post, signedIn, demo, compact, onComment, showSave = true }: {
+export function ReactionBar({ post, signedIn, demo, compact, onComment, commentExpanded, showSave = true }: {
   post: Post
   signedIn: boolean
   demo?: boolean
   compact?: boolean
   /** Detail page: focus the comment box instead of navigating. */
   onComment?: () => void
+  /** Feed cards: whether the inline replies are open (aria-expanded). */
+  commentExpanded?: boolean
   showSave?: boolean
 }) {
   const { counts, mine, toggle } = useReactions(post, signedIn, demo)
@@ -95,7 +97,7 @@ export function ReactionBar({ post, signedIn, demo, compact, onComment, showSave
         </button>
       ))}
       {onComment
-        ? <button type="button" className="fc-react" aria-label={commentLabel} onClick={onComment}>{commentInner}</button>
+        ? <button type="button" className="fc-react" aria-label={commentLabel} aria-expanded={commentExpanded} onClick={onComment}>{commentInner}</button>
         : <Link href={`/tribe/p/${post.id}#comments`} className="fc-react" aria-label={commentLabel}>{commentInner}</Link>}
       <button type="button" className="fc-react" aria-label="Share" onClick={() => void sharePost(post)}><Share2 aria-hidden /></button>
       <span className="flex-1" />

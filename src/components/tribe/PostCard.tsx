@@ -4,21 +4,13 @@ import { BadgeCheck, CalendarDays, ChartBar, Clock3, MapPin, MessageCircleQuesti
 import type { Post, TripLite, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { ProgressiveImage } from './ProgressiveImage'
-import { ReactionBar } from './ReactionBar'
 import { PollOptions } from './PollCard'
 import { MiniArc, SeatRing, segsFromSeats, type RingSeg } from './SeatRing'
 import { ago, dateRange, initials, nights, rupees } from './format'
+import { Avatar } from './Avatar'
+import { CardEngage } from './CardEngage'
 
-export function Avatar({ user, size = 36, className }: { user: UserLite; size?: number; className?: string }) {
-  return (
-    <span className={cn('fc-av', className)} style={{ width: size, height: size, fontSize: Math.max(10, size * 0.34) }} aria-hidden>
-      {user.avatarUrl
-        // eslint-disable-next-line @next/next/no-img-element
-        ? <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" />
-        : initials(user.name)}
-    </span>
-  )
-}
+export { Avatar }
 
 /** Author row: face, name + verified tick, a sub line, and optional trailing content (tag, menu). */
 export function AuthorRow({ user, sub, extra, trailing, size = 36 }: { user: UserLite; sub: ReactNode; extra?: ReactNode; trailing?: ReactNode; size?: number }) {
@@ -105,7 +97,7 @@ export function PlanCard({ post, signedIn, demo, ringSize = 92, compact }: { pos
           <PlanCardAction post={post} signedIn={signedIn} />
         </div>
       </div>
-      {!compact && <div className="mt-2"><ReactionBar post={post} signedIn={signedIn} demo={demo} compact /></div>}
+      {!compact && <div className="mt-2"><CardEngage post={post} signedIn={signedIn} demo={demo} compact /></div>}
     </article>
   )
 }
@@ -146,7 +138,7 @@ export function StoryCard({ post, signedIn, demo, priority }: { post: Post; sign
           <p className={cn('fc-post-body is-ink line-clamp-4', post.title && 'mt-1')}>{post.body}</p>
         </Link>
         {post.trip && <TripLinkCard trip={post.trip} className="mt-3" />}
-        <div className="mt-1.5"><ReactionBar post={post} signedIn={signedIn} demo={demo} /></div>
+        <div className="mt-1.5"><CardEngage post={post} signedIn={signedIn} demo={demo} /></div>
       </div>
     </article>
   )
@@ -161,10 +153,7 @@ export function AskCard({ post, signedIn, demo }: { post: Post; signedIn: boolea
         extra={<span className="pc-tag pc-tag-verified fc-tag-sm shrink-0">{isPoll ? <ChartBar className="h-3 w-3" aria-hidden /> : <MessageCircleQuestionMark className="h-3 w-3" aria-hidden />}{isPoll ? 'Poll' : 'Question'}</span>} />
       <Link href={`/tribe/p/${post.id}`} className="block"><h3 className="fc-post-title">{post.body}</h3></Link>
       {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} />}
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1"><ReactionBar post={post} signedIn={signedIn} demo={demo} showSave={false} /></div>
-        {!isPoll && <Link href={`/tribe/p/${post.id}#comments`} className="pc-btn pc-btn-sm pc-btn-quiet shrink-0">Answer</Link>}
-      </div>
+      <div className="mt-1"><CardEngage post={post} signedIn={signedIn} demo={demo} showSave={false} answerButton={!isPoll} /></div>
     </article>
   )
 }

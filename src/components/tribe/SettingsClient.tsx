@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
-import { Bell, Compass, Loader2, MapPin, Phone, ShieldCheck, Ticket, UsersRound, Wifi } from 'lucide-react'
+import { Bell, Compass, MapPin, Phone, ShieldCheck, Ticket, UsersRound, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api/client'
 import type { Preferences } from '@/lib/tribe/preferences'
 import { INTERESTS } from '@/lib/tribe/preferences'
 import { enableWebPush, webPushSupported } from '@/lib/push/client'
 import { cn } from '@/lib/utils'
-import { useWebOtp } from '@/hooks/useWebOtp'
-import { SMS_OTP_LENGTH } from '@/lib/constants'
+import { PhoneVerifyForm } from '@/components/auth/PhoneVerifyForm'
 
 type Me = { gender: string | null; homeCity: string | null; phone: string | null; isPhoneVerified: boolean; genderLocked?: boolean }
 
@@ -135,40 +134,9 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
 }
 
 function PhoneSection({ me }: { me: Me }) {
-  const [phone, setPhone] = useState(me.phone ?? '')
-  const [code, setCode] = useState('')
-  const [stage, setStage] = useState<'idle' | 'sent' | 'done'>(me.isPhoneVerified ? 'done' : 'idle')
-  const [busy, setBusy] = useState(false)
-  useWebOtp(stage === 'sent', setCode, SMS_OTP_LENGTH)
-  async function start() {
-    setBusy(true)
-    try {
-      const r = await apiFetch<{ sent: boolean; devCode?: string }>('/me/phone/start', { body: { phone } })
-      setStage('sent')
-      toast.success(r.devCode ? `Code sent (dev: ${r.devCode})` : 'Code sent by SMS')
-    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
-  }
-  async function verify() {
-    setBusy(true)
-    try { await apiFetch('/me/phone/verify', { body: { phone, code } }); setStage('done'); toast.success('Phone verified') }
-    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
-  }
   return (
-    <Section id="phone" title="Phone verification" icon={Phone} hint="Needed to post, comment or join plans. Your number is never shown on Tribe.">
-      {stage === 'done' ? <p className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--pc-pine-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--pc-accent-ink)]"><ShieldCheck className="h-4 w-4" aria-hidden />Verified{me.phone ? ` · ${me.phone.replace(/\d(?=\d{4})/g, '•')}` : ''}</p> : (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input className="pc-input" inputMode="tel" autoComplete="tel" placeholder="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} aria-label="Mobile number" />
-            <button type="button" className="pc-btn" disabled={busy || phone.replace(/\D/g, '').length < 10} onClick={start}>{busy && stage === 'idle' ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send code'}</button>
-          </div>
-          {stage === 'sent' && (
-            <div className="flex gap-2">
-              <input className="pc-input tabular-nums tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" maxLength={SMS_OTP_LENGTH} placeholder={`${SMS_OTP_LENGTH}-digit code`} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, SMS_OTP_LENGTH))} aria-label="Verification code" />
-              <button type="button" className="pc-btn" disabled={busy || code.length !== SMS_OTP_LENGTH} onClick={verify}>Verify</button>
-            </div>
-          )}
-        </div>
-      )}
+    <Section id="phone" title="Phone verification" icon={Phone} hint="Needed to host trips, and lets you sign in with an SMS code. Your number is never shown on Tribe.">
+      <PhoneVerifyForm initialPhone={me.phone ?? ''} verified={me.isPhoneVerified} />
     </Section>
   )
 }

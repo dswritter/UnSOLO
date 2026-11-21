@@ -37,7 +37,7 @@ export const GET = route(async (req: Request, { params }: Ctx) => {
   for (let i = 0; i < takenAnon; i++) seats.push({ state: 'member', user: null })
   while (seats.length < total + (hostUser ? 1 : 0)) seats.push({ state: 'open', user: null })
   const ratings = (ratingRes.data ?? []).map((x) => Number(x.rating)).filter(Boolean)
-  const viewer = await loadViewer(ctx.db, ctx.user?.id)
+  const viewer = await loadViewer(ctx.db, ctx.user)
   const lite = toTripLite(row, { booked: o?.booked ?? 0, host: hostUser, goingFaces: (o?.faces ?? []).slice(0, 5) })
   const planning = await countPlanning(ctx.db, lite.place?.slug ?? placeSlug(lite.place?.name))
   return ok({

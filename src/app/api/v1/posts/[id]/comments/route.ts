@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { z } from 'zod'
-import { getApiContext, requirePhoneVerified } from '@/lib/api/context'
+import { getApiContext, requireVerifiedContact } from '@/lib/api/context'
 import { ApiError, ok, parseJson, parseWith, route, uuid } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
@@ -27,7 +27,7 @@ const Body = z.object({
 export const POST = route(async (req: Request, { params }: Ctx) => {
   const id = parseWith(uuid, (await params).id)
   const ctx = await getApiContext(req)
-  const user = await requirePhoneVerified(ctx)
+  const user = await requireVerifiedContact(ctx)
   const b = await parseJson(req, Body)
   const svc = ctx.service()
   const sel = `id, post_id, parent_id, body, poll_choice, created_at, author:profiles!post_comments_author_id_fkey(${PROFILE_LITE})`

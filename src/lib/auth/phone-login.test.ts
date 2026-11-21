@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { contactEmail, isPhonePlaceholderEmail, startPhoneLogin, verifyPhoneLogin, type PhoneLoginDeps } from './phone-login'
+import { contactEmail, hasVerifiedEmail, isPhonePlaceholderEmail, startPhoneLogin, verifyPhoneLogin, type PhoneLoginDeps } from './phone-login'
 
 type Opts = { owner?: { id: string; email: string | null } | null; limiterDown?: boolean; existingPlaceholder?: boolean }
 
@@ -172,6 +172,15 @@ describe('placeholder emails', () => {
     expect(contactEmail('9876543210@phone.unsolo.in')).toBe('')
     expect(contactEmail('asha@example.com')).toBe('asha@example.com')
     expect(contactEmail(undefined)).toBe('')
+  })
+})
+
+describe('verified contact (enough to post, comment, vote, join)', () => {
+  it('counts a confirmed real email, not a placeholder or an unconfirmed one', () => {
+    expect(hasVerifiedEmail({ email: 'asha@example.com', email_confirmed_at: '2026-01-01T00:00:00Z' })).toBe(true)
+    expect(hasVerifiedEmail({ email: 'asha@example.com', email_confirmed_at: null })).toBe(false)
+    expect(hasVerifiedEmail({ email: '9876543210@phone.unsolo.in', email_confirmed_at: '2026-01-01T00:00:00Z' })).toBe(false)
+    expect(hasVerifiedEmail(null)).toBe(false)
   })
 })
 

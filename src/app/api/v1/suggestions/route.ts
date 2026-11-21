@@ -14,7 +14,7 @@ export const GET = route(async (req: Request) => {
   const { data, error } = await ctx.db.rpc('suggest_for_user', { p_lat: r2(q.lat), p_lng: r2(q.lng), p_limit: 12 })
   if (error) throw error
   const rows = (data ?? []) as { item_type: string; item_id: string; reason: string }[]
-  const viewer = await loadViewer(ctx.db, ctx.user?.id)
+  const viewer = await loadViewer(ctx.db, ctx.user)
   const [posts, trips] = await Promise.all([
     loadPosts(ctx.db, rows.filter((r) => r.item_type === 'plan').map((r) => r.item_id), viewer),
     loadUpcomingTrips(ctx, { ids: rows.filter((r) => r.item_type === 'trip').map((r) => r.item_id), limit: 12 }),

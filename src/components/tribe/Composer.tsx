@@ -9,6 +9,7 @@ import { apiFetch, ApiClientError, newClientId } from '@/lib/api/client'
 import { compressImage, uploadImage } from '@/lib/images/compressImage'
 import { enqueue, isNetworkError } from '@/lib/tribe/outbox'
 import { track } from '@/lib/analytics/client'
+import { clearDraft, readDraft, useHydrated, writeDraft } from '@/lib/drafts'
 import type { Media, Post, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { SeatRing, type RingSeg } from './SeatRing'
@@ -46,6 +47,36 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
   const [moneyPrompt, setMoneyPrompt] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const today = new Date().toISOString().slice(0, 10)
+
+  // Drafts: what's typed is kept per kind (survives sign-in, reloads, going back) until it's
+  // published or discarded. Restored once per kind after hydration (render-time adjustment).
+  type Draft = { title: string; body: string; place: string; startsOn: string; endsOn: string; spots: number; audience: typeof audience; cost: string; meeting: string; poll: string[] }
+  const hydrated = useHydrated()
+  const [restoredFor, setRestoredFor] = useState<Kind | null>(null)
+  const [hadDraft, setHadDraft] = useState(false)
+  if (hydrated && kind && restoredFor !== kind) {
+    setRestoredFor(kind)
+    const d = readDraft<Draft>(`compose.${kind}`)
+    setHadDraft(!!d)
+    if (d) {
+      setTitle(d.title ?? ''); setBody(d.body ?? ''); setPlace(d.place ?? ''); setStartsOn(d.startsOn ?? ''); setEndsOn(d.endsOn ?? '')
+      setSpots(d.spots ?? 4); setAudience(d.audience ?? 'anyone'); setCost(d.cost ?? ''); setMeeting(d.meeting ?? '')
+      if (kind === 'ask' && d.poll?.length) setPoll(d.poll)
+    }
+  }
+  useEffect(() => {
+    if (!kind || restoredFor !== kind) return
+    const d: Draft = { title, body, place, startsOn, endsOn, spots, audience, cost, meeting, poll }
+    // Defaults alone (4 people, anyone) aren't a draft.
+    writeDraft(`compose.${kind}`, [title, body, place, startsOn, endsOn, cost, meeting, ...poll].some((v) => v.trim()) ? d : null)
+  }, [kind, restoredFor, title, body, place, startsOn, endsOn, spots, audience, cost, meeting, poll])
+  function discardDraft() {
+    if (kind) clearDraft(`compose.${kind}`)
+    setTitle(''); setBody(''); setPlace(''); setStartsOn(''); setEndsOn(''); setSpots(4); setAudience('anyone'); setCost(''); setMeeting('')
+    setPoll(kind === 'ask' && poll.length ? ['', ''] : [])
+    setHadDraft(false)
+  }
+  const hasContent = [title, body, place, startsOn, endsOn, cost, meeting, ...poll].some((v) => v.trim())
 
   useEffect(() => { track('screen.view', { kind }, 'compose') }, [kind])
 
@@ -115,6 +146,7 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
       }
       const r = await apiFetch<{ post: Post; moderation: { state: string; prompts: string[] } }>('/posts', { body: payload(confirmNonCommercial) })
       track('post.create', { kind, held: r.moderation.state === 'held' })
+      clearDraft(`compose.${kind}`)
       if (r.moderation.state === 'held') toast.message('Posted for a quick review. It goes live once our team has a look (usually within 2 hours).')
       else if (r.moderation.prompts.includes('contact_hidden')) toast.message('Posted. We hid phone numbers and payment IDs — people can message you on UnSOLO instead.')
       else toast.success('Posted')
@@ -122,14 +154,13 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
     } catch (e) {
       if (isNetworkError(e)) {
         enqueue('/posts', payload(confirmNonCommercial), clientId)
+        clearDraft(`compose.${kind}`)
         toast.message('You’re offline. We saved your post and will publish it when you’re back online.')
         router.replace('/tribe')
         return
       }
-      if (e instanceof ApiClientError && e.code === 'phone_required') {
-        toast.error('Verify your phone number to post')
-        router.push('/settings#phone')
-      } else toast.error((e as Error).message)
+      // phone_required already opened the phone card (apiFetch); the draft is kept either way.
+      if (!(e instanceof ApiClientError && e.code === 'phone_required')) toast.error((e as Error).message)
       setBusy(false)
     }
   }
@@ -170,8 +201,10 @@ export function Composer({ initialKind, initialPoll = false, me, pastTrips }: {
         <div className="sticky top-0 z-30 flex items-center gap-2 bg-[color:var(--pc-paper)]/90 px-2 py-2 backdrop-blur lg:static lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
           <button type="button" className="pc-iconbtn" aria-label="Close" onClick={close}><X className="h-5 w-5" /></button>
           <h1 className="flex-1 text-center text-[17px] font-bold lg:text-left lg:text-[28px]">{heading}</h1>
+          {hasContent && <button type="button" className="pc-link min-h-9 px-2 text-[13px]" onClick={discardDraft}>Discard</button>}
           <button type="button" className="pc-chip min-h-9 px-3 text-[13px]" onClick={() => setKind(null)}>Change</button>
         </div>
+        {hadDraft && hasContent && <p className="px-4 pb-1 text-[12.5px] text-muted-foreground lg:px-0">Draft restored. It stays saved on this device until you publish or discard it.</p>}
 
         <div className="space-y-3 px-4 pt-2 lg:px-0">
           {kind === 'plan' && <div className="py-2 lg:hidden">{preview(132)}</div>}

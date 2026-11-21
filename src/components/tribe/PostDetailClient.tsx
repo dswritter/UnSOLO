@@ -7,6 +7,8 @@ import { ArrowLeft, Clock3, Flag, Lock, MessageCircle, MoreHorizontal, SendHoriz
 import { toast } from 'sonner'
 import { apiFetch, ApiClientError, newClientId } from '@/lib/api/client'
 import { track } from '@/lib/analytics/client'
+import { clearDraft, useTextDraft } from '@/lib/drafts'
+import { requestPhoneVerification } from '@/lib/phone-gate'
 import type { Comment, HostOffer, Post, Seat, UserLite } from '@/lib/tribe/models'
 import { cn } from '@/lib/utils'
 import { ProgressiveImage } from './ProgressiveImage'
@@ -14,6 +16,7 @@ import { ReactionBar } from './ReactionBar'
 import { PollOptions } from './PollCard'
 import { SeatRing } from './SeatRing'
 import { Sheet } from './Sheet'
+import { CommentRow } from './CommentRow'
 import { AuthorRow, Avatar, PlanFacts, TripLinkCard, WomenTag, planRing } from './PostCard'
 import { ago, initials, rupees } from './format'
 
@@ -61,8 +64,12 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
 
   useEffect(() => { track('screen.view', { kind: post.kind }, 'post_detail') }, [post.kind])
 
-  function requireSignIn() {
-    router.push(`/login?redirectTo=${encodeURIComponent(`/tribe/p/${post.id}${isPlan ? '?join=1' : ''}`)}`)
+  /** Anything typed is already saved as a draft, so it's waiting when they come back signed in. */
+  function requireSignIn(to: 'join' | 'comments' = isPlan ? 'join' : 'comments') {
+    router.push(`/login?redirectTo=${encodeURIComponent(`/tribe/p/${post.id}${to === 'join' ? '?join=1' : '#comments'}`)}`)
+  }
+  async function verifyPhoneThenJoin() {
+    if (await requestPhoneVerification()) { router.refresh(); setJoinOpen(true) }
   }
 
   const focusComposer = useCallback((c?: Comment | null) => {
@@ -83,13 +90,12 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
     if (demo) { toast.success(`Request sent to ${firstName(post.author)}`); return }
     try {
       await apiFetch(`/posts/${post.id}/join`, { body: { intro } })
+      clearDraft(`join.${post.id}`)
       toast.success(`Request sent. ${firstName(post.author)} usually replies within a day.`)
     } catch (e) {
       setPost(prev)
-      if (e instanceof ApiClientError && e.code === 'phone_required') {
-        toast.error('Verify your phone number to join plans')
-        router.push('/settings#phone')
-      } else toast.error((e as Error).message)
+      setJoinOpen(true) // the intro is still in its draft
+      if (!(e instanceof ApiClientError && e.code === 'phone_required')) toast.error((e as Error).message)
     }
   }
 
@@ -101,8 +107,9 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
     try { await apiFetch(`/posts/${post.id}/join`, { method: 'DELETE' }) } catch (e) { setPost(prev); toast.error((e as Error).message) }
   }
 
-  async function addComment(body: string, parentId: string | null, pollChoice?: string) {
-    if (!signedIn) return requireSignIn()
+  /** Resolves false when the comment didn't go through (the composer puts the text back). */
+  async function addComment(body: string, parentId: string | null, pollChoice?: string): Promise<boolean> {
+    if (!signedIn) { requireSignIn('comments'); return false }
     const clientId = newClientId()
     const temp: Comment = { id: `tmp-${clientId}`, postId: post.id, parentId, author: { ...me, id: viewerId ?? '' }, body, pollChoice: null, createdAt: new Date().toISOString(), replies: [] }
     const apply = (c: Comment, replace?: string) => setComments((cs) => {
@@ -110,13 +117,15 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
       return cs.map((x) => (x.id === parentId ? { ...x, replies: replace ? x.replies.map((r) => (r.id === replace ? c : r)) : [...x.replies, c] } : x))
     })
     apply(temp)
-    if (demo) return
+    if (demo) return true
     try {
       const saved = await apiFetch<Comment>(`/posts/${post.id}/comments`, { body: { clientId, body, parentId, pollChoice } })
       apply(saved, temp.id)
+      return true
     } catch (e) {
       setComments((cs) => cs.filter((x) => x.id !== temp.id).map((x) => ({ ...x, replies: x.replies.filter((r) => r.id !== temp.id) })))
-      toast.error((e as Error).message)
+      if (!(e instanceof ApiClientError && e.code === 'phone_required')) toast.error((e as Error).message)
+      return false
     }
   }
 
@@ -191,7 +200,7 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
               </div>
             )}
             {isPlan && post.estCostText && <p className="mt-4 text-sm text-muted-foreground">{post.estCostText}. No money is paid through UnSOLO for community plans.</p>}
-            {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} onVote={(choice, label) => addComment(`Voted: ${label}`, null, choice)} />}
+            {post.poll && <PollOptions post={post} signedIn={signedIn} demo={demo} onVote={async (choice, label) => { if (!(await addComment(`Voted: ${label}`, null, choice))) throw new Error('Your vote didn’t go through. Try again.') }} />}
             {post.trip && <TripLinkCard trip={post.trip} className="mt-4" />}
 
             {isPlan && (
@@ -203,24 +212,24 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
           </div>
         </article>
 
-        <Comments comments={comments} post={post} isAsk={isAsk} onReply={(c) => (signedIn ? focusComposer(c) : requireSignIn())} />
+        <Comments comments={comments} post={post} isAsk={isAsk} onReply={(c) => focusComposer(c)} />
 
         <div className="fc-bar-spacer is-column" aria-hidden />
         <div className="fc-bar is-column">
           {/* Plan action row (phones and tablets; desktop keeps it in the side panel) */}
           {isPlan && !post.viewer.isAuthor && (
             <div className={cn('fc-bar-inner', mode === 'action' ? 'flex lg:hidden' : 'hidden')}>
-              <button type="button" className="pc-iconbtn" aria-label="Write a reply" onClick={() => (signedIn ? focusComposer() : requireSignIn())}><MessageCircle className="h-5 w-5" /></button>
-              <PlanBarAction post={post} openSpots={openSpots} signedIn={signedIn} onJoin={() => (signedIn ? setJoinOpen(true) : requireSignIn())} onWithdraw={withdraw} />
+              <button type="button" className="pc-iconbtn" aria-label="Write a reply" onClick={() => focusComposer()}><MessageCircle className="h-5 w-5" /></button>
+              <PlanBarAction post={post} openSpots={openSpots} signedIn={signedIn} onJoin={() => (!signedIn ? requireSignIn('join') : post.viewer.joinBlockedReason === 'phone_required' ? void verifyPhoneThenJoin() : setJoinOpen(true))} onWithdraw={withdraw} />
             </div>
           )}
           <div className={cn(mode === 'comment' || !isPlan || post.viewer.isAuthor ? 'block' : 'hidden lg:block')}>
             <CommentComposer
-              signedIn={signedIn} me={me} isAsk={isAsk} replyTo={replyTo} inputRef={inputRef}
+              postId={post.id} signedIn={signedIn} me={me} isAsk={isAsk} replyTo={replyTo} inputRef={inputRef}
               onCancelReply={() => setReplyTo(null)}
               onBack={isPlan && !post.viewer.isAuthor ? () => { setMode('action'); setReplyTo(null) } : undefined}
-              onSignIn={requireSignIn}
-              onSend={(body) => { void addComment(body, replyTo ? (replyTo.parentId ?? replyTo.id) : null); setReplyTo(null) }}
+              onSignIn={() => requireSignIn('comments')}
+              onSend={(body) => { const parent = replyTo ? (replyTo.parentId ?? replyTo.id) : null; setReplyTo(null); return addComment(body, parent) }}
             />
           </div>
         </div>
@@ -233,7 +242,7 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
             <PlanCircle post={post} ring={ring} stamp={stamp} />
             <div className="mt-5">
               <PlanStatus post={post} offers={offers} demo={demo} openSpots={openSpots} onWithdraw={withdraw} desktop
-                onJoin={() => (signedIn ? setJoinOpen(true) : requireSignIn())} signedIn={signedIn} />
+                onJoin={() => (!signedIn ? requireSignIn('join') : post.viewer.joinBlockedReason === 'phone_required' ? void verifyPhoneThenJoin() : setJoinOpen(true))} signedIn={signedIn} />
             </div>
           </div>
         </aside>
@@ -300,7 +309,7 @@ function joinLabel(post: Post) {
     case 'full': return 'Plan is full'
     case 'women_only': return 'Women only (ID verified)'
     case 'verified_only': return 'Verified travellers only'
-    case 'phone_required': return 'Verify your phone to join'
+    case 'phone_required': return 'Verify to join'
     case 'closed': return 'This plan is closed'
     default: return 'Request to join'
   }
@@ -334,7 +343,7 @@ function PlanBarAction({ post, openSpots, signedIn, onJoin, onWithdraw }: { post
         <b className="block text-[14px]">{openSpots > 0 ? `${openSpots} ${openSpots === 1 ? 'spot' : 'spots'} open` : 'Plan is full'}</b>
         <span className="block truncate text-[12px] text-muted-foreground">By request · {firstName(post.author)} decides</span>
       </span>
-      <button type="button" className="pc-btn pc-btn-sun" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
+      <button type="button" className="pc-btn pc-btn-sun" disabled={!post.viewer.canJoin && signedIn && post.viewer.joinBlockedReason !== 'phone_required'} onClick={onJoin}>{joinLabel(post)}</button>
     </>
   )
 }
@@ -368,13 +377,14 @@ function PlanStatus({ post, offers, demo, openSpots, onWithdraw, onJoin, desktop
     <div className="text-left">
       <p className="font-bold">{openSpots > 0 ? `${openSpots} ${openSpots === 1 ? 'spot' : 'spots'} open` : 'This plan is full'}</p>
       <p className="mt-1 text-sm text-muted-foreground">Joining is by request. Say hi and {firstName(post.author)} decides. The exact meeting point and the plan chat open after you’re approved.</p>
-      <button type="button" className="pc-btn pc-btn-block mt-3" disabled={!post.viewer.canJoin && signedIn} onClick={onJoin}>{joinLabel(post)}</button>
+      <button type="button" className="pc-btn pc-btn-block mt-3" disabled={!post.viewer.canJoin && signedIn && post.viewer.joinBlockedReason !== 'phone_required'} onClick={onJoin}>{joinLabel(post)}</button>
       <Link href={`/?q=${encodeURIComponent(post.place?.name ?? '')}`} className="pc-link mt-3 block text-sm">Hosted {post.place?.name} trips on similar dates →</Link>
     </div>
   )
 }
 
-function CommentComposer({ signedIn, me, isAsk, replyTo, inputRef, onCancelReply, onBack, onSignIn, onSend }: {
+function CommentComposer({ postId, signedIn, me, isAsk, replyTo, inputRef, onCancelReply, onBack, onSignIn, onSend }: {
+  postId: string
   signedIn: boolean
   me: UserLite
   isAsk: boolean
@@ -383,9 +393,10 @@ function CommentComposer({ signedIn, me, isAsk, replyTo, inputRef, onCancelReply
   onCancelReply: () => void
   onBack?: () => void
   onSignIn: () => void
-  onSend: (body: string) => void
+  onSend: (body: string) => Promise<boolean>
 }) {
-  const [body, setBody] = useState('')
+  // Saved as you type: survives signing in, reloads and going back, until sent or cleared.
+  const [body, setBody] = useTextDraft(`comment.${postId}`)
   const [prefilledFor, setPrefilledFor] = useState<string | null>(null)
   // Replying pre-fills an @mention once per target (state adjusted during render, no effect needed).
   if (replyTo && prefilledFor !== replyTo.id) {
@@ -394,23 +405,16 @@ function CommentComposer({ signedIn, me, isAsk, replyTo, inputRef, onCancelReply
     if (!body.startsWith(tag)) setBody(tag + body.replace(/^@\S+\s/, ''))
   }
   function grow(el: HTMLTextAreaElement) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 120)}px` }
-  function submit(e?: React.FormEvent) {
+  async function submit(e?: React.FormEvent) {
     e?.preventDefault()
     const b = body.trim()
     if (!b) return
-    onSend(b)
+    // Signed out: keep the words (they're in the draft) and come back here after signing in.
+    if (!signedIn) { onSignIn(); return }
     setBody('')
     setPrefilledFor(null)
     if (inputRef.current) inputRef.current.style.height = 'auto'
-  }
-  if (!signedIn) {
-    return (
-      <div className="fc-bar-inner">
-        {onBack && <button type="button" className="pc-iconbtn" aria-label="Back to join" onClick={onBack}><X className="h-5 w-5" /></button>}
-        <span className="flex-1 text-sm text-muted-foreground">{isAsk ? 'Know the answer?' : 'Join the conversation'}</span>
-        <button type="button" className="pc-btn pc-btn-sm" onClick={onSignIn}>Sign in to reply</button>
-      </div>
-    )
+    if (!(await onSend(b))) setBody(b)
   }
   return (
     <div className="mx-auto max-w-[720px]">
@@ -428,16 +432,13 @@ function CommentComposer({ signedIn, me, isAsk, replyTo, inputRef, onCancelReply
           placeholder={isAsk ? 'Share what you know… use @ to tag' : 'Add a comment… use @ to tag'}
           onChange={(e) => { setBody(e.target.value); grow(e.target) }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() } }} />
-        <button type="submit" className="fc-send" disabled={!body.trim()} aria-label="Send"><SendHorizontal className="h-5 w-5" /></button>
+        {signedIn
+          ? <button type="submit" className="fc-send" disabled={!body.trim()} aria-label="Send"><SendHorizontal className="h-5 w-5" /></button>
+          : <button type="submit" className="pc-btn pc-btn-sm mb-1 shrink-0">Sign in to send</button>}
       </form>
+      {!signedIn && body.trim() && <p className="mt-1 px-1 text-[12px] text-muted-foreground">Your reply is saved on this device. It’ll be here after you sign in.</p>}
     </div>
   )
-}
-
-/** Highlights @mentions in a comment body. */
-function Mentions({ text }: { text: string }) {
-  const parts = text.split(/(@[\p{L}\p{N}_.]+)/u)
-  return <>{parts.map((p, i) => (p.startsWith('@') && p.length > 1 ? <span key={i} className="fc-mention">{p}</span> : p))}</>
 }
 
 function Comments({ comments, post, isAsk, onReply }: { comments: Comment[]; post: Post; isAsk: boolean; onReply: (c: Comment) => void }) {
@@ -460,31 +461,6 @@ function Comments({ comments, post, isAsk, onReply }: { comments: Comment[]; pos
         </ul>
       )}
     </section>
-  )
-}
-
-function CommentRow({ c, post, reply, onReply }: { c: Comment; post: Post; reply?: boolean; onReply: () => void }) {
-  const pending = c.id.startsWith('tmp-')
-  const isHost = c.author.isHost
-  const isAuthor = c.author.id === post.author.id
-  return (
-    <div className={cn('fc-cmt', reply && 'is-reply', pending && 'opacity-60')}>
-      <Avatar user={c.author} size={reply ? 28 : 34} />
-      <div className="min-w-0 flex-1">
-        <div className={cn('fc-bubble', isHost && 'is-host')}>
-          <div className="mb-0.5 flex flex-wrap items-center gap-1.5">
-            <b className="text-[13px]">{c.author.name}</b>
-            {isHost && <span className="pc-tag pc-tag-host fc-tag-sm">Host</span>}
-            {isAuthor && !isHost && <span className="pc-tag pc-tag-organiser fc-tag-sm">{post.kind === 'plan' ? 'Organiser' : 'Author'}</span>}
-          </div>
-          <p className="whitespace-pre-line"><Mentions text={c.body} /></p>
-        </div>
-        <div className="fc-cmt-meta pl-1">
-          <span className="inline-flex min-h-8 items-center">{pending ? 'sending…' : ago(c.createdAt)}</span>
-          {!pending && <button type="button" onClick={onReply}>Reply</button>}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -514,7 +490,7 @@ function MoreSheet({ open, post, onClose, onShare, onReport, onBlock }: { open: 
 }
 
 function JoinSheet({ post, onClose, onSend }: { post: Post; onClose: () => void; onSend: (intro: string) => void }) {
-  const [intro, setIntro] = useState('')
+  const [intro, setIntro] = useTextDraft(`join.${post.id}`)
   const ok = intro.trim().length >= 10
   return (
     <Sheet title={`Ask ${firstName(post.author)} to join`} onClose={onClose}
