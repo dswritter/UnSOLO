@@ -300,7 +300,7 @@ struct OfferReviewView: View {
 
     private func step(_ n: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Text("\(n)").font(.system(size: 13, weight: .bold).monospacedDigit()).foregroundStyle(Pc.ink)
+            Text("\(n)").font(.system(size: 12, weight: .bold).monospacedDigit()).foregroundStyle(Pc.ink)
                 .frame(width: 26, height: 26).background(Circle().fill(Pc.tonal))
             Text(text).pcFont(.body).foregroundStyle(Pc.ink)
             Spacer()

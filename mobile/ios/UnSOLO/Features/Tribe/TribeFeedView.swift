@@ -74,7 +74,7 @@ struct TribeFeedView: View {
                         EmptyState(symbol: "person.3", title: "Nothing here yet", message: "Be the first: post a plan, a story or a question.")
                     }
                 }
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: 10) {
                     ForEach(items) { item in
                         FeedCard(item: item)
                             .onAppear {
@@ -82,8 +82,8 @@ struct TribeFeedView: View {
                             }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 6)
+                .padding(.horizontal, 12)
+                .padding(.top, 4)
                 if !items.isEmpty { CaughtUpFooter(departures: app.tribe.feeds[filter.feedKey]?.nextDepartures ?? []) }
             }
         }
@@ -110,13 +110,13 @@ struct TribeFeedView: View {
             ForEach(places, id: \.self) { p in Button(p) { place = p } }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: "mappin").font(.system(size: 13, weight: .bold))
-                Text(place ?? "All places").font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 10, weight: .heavy))
+                Image(systemName: "mappin").font(.system(size: 12, weight: .bold))
+                Text(place ?? "All places").font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Image(systemName: "chevron.down").font(.system(size: 9.5, weight: .heavy))
             }
             .foregroundStyle(place == nil ? Pc.ink : Pc.raised)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 40)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
             .background(Capsule().fill(place == nil ? Pc.raised : Pc.ink))
             .overlay { if place == nil { Capsule().strokeBorder(Pc.rule, lineWidth: 1) } }
             .frame(minHeight: PcTokens.touch)
@@ -159,7 +159,7 @@ struct StoryRail: View {
                 Button {
                     app.requireVerified("Sign in to share a story") { router.openCompose(.story) }
                 } label: {
-                    item(StoryRing(user: session.user, size: 64, isMine: true), name: "Your story")
+                    item(StoryRing(user: session.user, size: 56, isMine: true), name: "Your story")
                 }
                 .buttonStyle(.pcPress)
                 .accessibilityLabel("Add your story")
@@ -168,7 +168,7 @@ struct StoryRail: View {
                     Button {
                         router.storyViewer = StoryViewerItem(authorIds: entries.map(\.author.id), start: i)
                     } label: {
-                        item(StoryRing(user: e.author, segments: e.stories.count, seen: seen, size: 64), name: e.author.firstName)
+                        item(StoryRing(user: e.author, segments: e.stories.count, seen: seen, size: 56), name: e.author.firstName)
                     }
                     .buttonStyle(.pcPress)
                     .accessibilityLabel("\(e.author.name)'s stories, \(e.stories.count - seen) new")
@@ -182,9 +182,9 @@ struct StoryRail: View {
     private func item<R: View>(_ ring: R, name: String) -> some View {
         VStack(spacing: 5) {
             ring
-            Text(name).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink2).lineLimit(1)
+            Text(name).font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink2).lineLimit(1)
         }
-        .frame(width: 66)
+        .frame(width: 60)
     }
 }
 
@@ -224,19 +224,19 @@ struct AuthorRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 36) }
+            Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 32) }
                 .buttonStyle(.pcPress)
                 .frame(minWidth: PcTokens.touch, minHeight: PcTokens.touch)
                 .padding(.horizontal, -6)
                 .accessibilityLabel("Open \(post.author.name)'s profile")
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
-                    Text(post.author.name).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(post.author.name).font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     if post.author.isIdVerified { VerifiedBadge() }
                     if post.author.isHost && post.kind != .plan { PcTag(text: "Host", style: .host) }
-                    Text("· \(post.isLocal ? "now" : Fmt.relative(post.createdAt))").font(.system(size: 13)).foregroundStyle(Pc.ink3).lineLimit(1)
+                    Text("· \(post.isLocal ? "now" : Fmt.relative(post.createdAt))").font(.system(size: 12)).foregroundStyle(Pc.ink3).lineLimit(1)
                 }
-                Text(subtitle ?? defaultSubtitle).font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
+                Text(subtitle ?? defaultSubtitle).font(.system(size: 12)).foregroundStyle(Pc.ink2).lineLimit(1)
             }
             Spacer(minLength: 4)
             if showsKindTag { kindTag }
@@ -302,7 +302,7 @@ struct LocalStateBar: View {
 
 struct PlanCard: View {
     let post: Post
-    var ringSize: CGFloat = 112
+    var ringSize: CGFloat = 92
     @Environment(AppModel.self) private var app
 
     var body: some View {
@@ -311,9 +311,9 @@ struct PlanCard: View {
             AuthorRow(post: post)
             LocalStateBar(postId: post.id)
             VStack(alignment: .leading, spacing: 4) {
-                Text(post.displayTitle).font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
+                Text(post.displayTitle).font(.system(size: 16.5, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
                     .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                Text(post.body).font(.system(size: 14)).foregroundStyle(Pc.ink2).lineLimit(3).multilineTextAlignment(.leading)
+                Text(post.body).font(.system(size: 13)).foregroundStyle(Pc.ink2).lineLimit(3).multilineTextAlignment(.leading)
             }
             HStack(alignment: .center, spacing: 14) {
                 SeatRing(seats: RingSeats.plan(post), size: ringSize, plan: true, womenOnly: post.audience == .women,
@@ -327,7 +327,7 @@ struct PlanCard: View {
             }
             .padding(.top, 2)
         }
-        .padding(16)
+        .padding(14)
         .pcPencilled()
     }
 }
@@ -348,8 +348,8 @@ func planFacts(_ post: Post) -> [Fact] {
 struct CountLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 6) {
-            configuration.icon.font(.system(size: 18, weight: .bold))
-            configuration.title.font(.system(size: 14, weight: .bold)).monospacedDigit()
+            configuration.icon.font(.system(size: 16, weight: .bold))
+            configuration.title.font(.system(size: 13, weight: .bold)).monospacedDigit()
         }
         .foregroundStyle(Pc.ink2)
     }
@@ -370,16 +370,16 @@ struct JoinButton: View {
             } else if v?.isAuthor == true {
                 PcTag(text: "Your plan", style: .organiser)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink)
             } else if v?.membership == .requested {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.fill")
                     Text("Requested")
                 }
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(Pc.ink)
-                .padding(.horizontal, 14)
-                .frame(minHeight: 40)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 34)
                 .background(Capsule().fill(Pc.tonal))
             } else if let reason = v?.joinBlockedReason, reason != .phoneRequired {
                 Text(reason.message).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
@@ -409,22 +409,22 @@ struct StoryCard: View {
             AuthorRow(post: post).padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 8)
             LocalStateBar(postId: post.id).padding(.horizontal, 16)
             if let first = post.media.first {
-                PcAsyncImage(media: first)
-                    .frame(height: 210)
-                    .frame(maxWidth: .infinity)
+                Color.clear
+                    .aspectRatio(16 / 10, contentMode: .fit)
+                    .overlay { PcAsyncImage(media: first) }
                     .clipped()
                     .overlay(alignment: .bottomTrailing) {
                         if post.media.count > 1 {
-                            Label("\(post.media.count)", systemImage: "square.on.square").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                            Label("\(post.media.count)", systemImage: "square.on.square").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                                 .padding(.horizontal, 10).frame(height: 26).background(Capsule().fill(PcTokens.light.scrim)).padding(10)
                         }
                     }
             }
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(post.displayTitle).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
+                    Text(post.displayTitle).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
                     if post.title != nil {
-                        Text(post.body).font(.system(size: 14.5)).foregroundStyle(Pc.ink2).lineLimit(2).multilineTextAlignment(.leading)
+                        Text(post.body).font(.system(size: 13.5)).foregroundStyle(Pc.ink2).lineLimit(2).multilineTextAlignment(.leading)
                     }
                 }
                 if let trip = post.trip { NextDepartureLink(trip: trip) }
@@ -451,14 +451,14 @@ struct ReactionsBar: View {
             Label("\(post.commentCount)", systemImage: "bubble.left").labelStyle(CountLabelStyle())
                 .accessibilityLabel("\(post.commentCount) comments")
             ShareLink(item: DeepLink.post(id: post.id).webURL, subject: Text(post.displayTitle)) {
-                Image(systemName: "square.and.arrow.up").font(.system(size: 17, weight: .bold)).foregroundStyle(Pc.ink2)
+                Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink2)
                     .frame(minWidth: 32, minHeight: PcTokens.touch)
             }
             .accessibilityLabel("Share")
             Spacer()
             if showsSave {
                 Button { app.requireVerified("Sign in to save posts") { app.tribe.toggleSave(post.id) } } label: {
-                    Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 17, weight: .bold))
+                    Image(systemName: post.viewer?.saved == true ? "bookmark.fill" : "bookmark").font(.system(size: 15, weight: .bold))
                         .foregroundStyle(post.viewer?.saved == true ? Pc.ink : Pc.ink2)
                         .frame(width: PcTokens.touch, height: PcTokens.touch)
                 }
@@ -480,14 +480,14 @@ struct NextDepartureLink: View {
         let counts = SeatCounts(trip: trip)
         Button { router.push(.trip(slug: trip.slug)) } label: {
             HStack(spacing: 10) {
-                MiniArc(counts: counts, size: 38)
+                MiniArc(counts: counts, size: 34)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("\(label) · \(Fmt.weekdayDayMonth(trip.nextDeparture))").font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1).minimumScaleFactor(0.85)
+                    Text("\(label) · \(Fmt.weekdayDayMonth(trip.nextDeparture))").font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1).minimumScaleFactor(0.85)
                     Text("\(counts.isFull ? "Full" : "\(counts.open) spot\(counts.open == 1 ? "" : "s") left") · \(Fmt.rupees(trip.priceFromPaise))")
-                        .font(.system(size: 12.5)).foregroundStyle(Pc.ink2).lineLimit(1)
+                        .font(.system(size: 12)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                Text(counts.isFull ? "See →" : "Grab a spot →").font(.system(size: 13.5, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize()
+                Text(counts.isFull ? "See →" : "Grab a spot →").font(.system(size: 12.5, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
@@ -551,9 +551,9 @@ struct ReactionToggle: View {
             app.requireVerified("Sign in to react") { withAnimation(.snappy) { app.tribe.toggleReaction(post.id, kind) } }
         } label: {
             HStack(spacing: 6) {
-                Image(systemName: on ? symbol + ".fill" : symbol).font(.system(size: 18, weight: .bold))
+                Image(systemName: on ? symbol + ".fill" : symbol).font(.system(size: 16, weight: .bold))
                     .contentTransition(.symbolEffect(.replace))
-                Text(showLabel ? "\(post.reactions[kind]) \(kind.label.lowercased())" : "\(post.reactions[kind])").font(.system(size: 14, weight: .bold)).monospacedDigit()
+                Text(showLabel ? "\(post.reactions[kind]) \(kind.label.lowercased())" : "\(post.reactions[kind])").font(.system(size: 13, weight: .bold)).monospacedDigit()
             }
             .foregroundStyle(on ? onColor : Pc.ink2)
             .frame(minHeight: PcTokens.touch)
@@ -579,10 +579,10 @@ struct AskCard: View {
         VStack(alignment: .leading, spacing: 10) {
             AuthorRow(post: post)
             LocalStateBar(postId: post.id)
-            Text(post.displayTitle).font(.system(size: 19, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
+            Text(post.displayTitle).font(.system(size: 16.5, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
                 .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             if !post.body.isEmpty, post.title != nil, post.body != post.title {
-                Text(post.body).font(.system(size: 14)).foregroundStyle(Pc.ink2).lineLimit(2)
+                Text(post.body).font(.system(size: 13)).foregroundStyle(Pc.ink2).lineLimit(2)
             }
             if let poll = post.poll { PollView(post: post, poll: poll) }
             if let answer = hostAnswer { HostAnswer(comment: answer) }
@@ -619,11 +619,11 @@ struct HostAnswer: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Avatar(user: comment.author, size: 20)
-                    Text(comment.author.name).font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(comment.author.name).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     PcTag(text: "Host", style: .host)
-                    Text("· answered").font(.system(size: 12)).foregroundStyle(Pc.ink3)
+                    Text("· answered").font(.system(size: 11)).foregroundStyle(Pc.ink3)
                 }
-                Text(comment.body).font(.system(size: 14)).foregroundStyle(Pc.ink).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                Text(comment.body).font(.system(size: 13)).foregroundStyle(Pc.ink).lineLimit(3).fixedSize(horizontal: false, vertical: true)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -654,10 +654,10 @@ struct PollView: View {
                             }
                         }
                         HStack(spacing: 6) {
-                            if mine { Image(systemName: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink) }
-                            Text(o.label).font(.system(size: 14, weight: .semibold)).foregroundStyle(Pc.ink).lineLimit(1)
+                            if mine { Image(systemName: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink) }
+                            Text(o.label).font(.system(size: 13, weight: .semibold)).foregroundStyle(Pc.ink).lineLimit(1)
                             Spacer()
-                            if voted { Text("\(Int((share * 100).rounded()))%").font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink) }
+                            if voted { Text("\(Int((share * 100).rounded()))%").font(.system(size: 13, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink) }
                         }
                         .padding(.horizontal, 14)
                     }
@@ -676,7 +676,7 @@ struct PollView: View {
                 .accessibilityAddTraits(mine ? .isSelected : [])
             }
             Text(voted ? "\(poll.totalVotes) votes · you voted" : "\(poll.totalVotes) votes · tap to vote")
-                .font(.system(size: 13, weight: .semibold)).foregroundStyle(Pc.ink3).frame(maxWidth: .infinity, alignment: .leading)
+                .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)
         }
     }
@@ -698,7 +698,7 @@ struct CaughtUpFooter: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 6) {
-                Image(systemName: "checkmark").font(.system(size: 22, weight: .heavy)).foregroundStyle(Pc.ink)
+                Image(systemName: "checkmark").font(.system(size: 19, weight: .heavy)).foregroundStyle(Pc.ink)
                     .frame(width: 56, height: 56).background(Circle().fill(Pc.tonal))
                 Text("You're caught up").pcFont(.title2).foregroundStyle(Pc.ink)
                 Text("New plans and stories show up here. Meanwhile, these leave soon.").pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)

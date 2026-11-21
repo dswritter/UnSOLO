@@ -103,7 +103,7 @@ struct ExploreView: View {
                     .padding(.bottom, 6)
                 if !filter.isEmpty { activeFilterRow }
                 content
-                Color.clear.frame(height: 84) // room for the search dock
+                Color.clear.frame(height: PcTokens.searchDock + 22) // room for the search dock
             }
         }
         .refreshable { await refresh() }
@@ -119,8 +119,8 @@ struct ExploreView: View {
             SearchDock(title: filter.query.isEmpty ? "Where to?" : filter.query, subtitle: filter.whenLabel, activeFilters: filter.activeCount) {
                 showSearch = true
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
         }
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
@@ -154,7 +154,7 @@ struct ExploreView: View {
 
     private var activeFilterRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink)
+            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink)
             Text([filter.query.isEmpty ? nil : "“\(filter.query)”", filter.when == .any ? nil : filter.whenLabel,
                   filter.length == .any ? nil : filter.length.label, filter.openOnly ? "Open spots" : nil]
                 .compactMap { $0 }.joined(separator: " · "))
@@ -179,14 +179,14 @@ struct ExploreView: View {
             }
         } else {
             SectionHeader(title: "Leaving soon")
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(leavingSoon) { t in
                         TripCard(trip: t, category: category)
-                            .containerRelativeFrame(.horizontal) { w, _ in min(w - 52, 360) }
+                            .containerRelativeFrame(.horizontal) { w, _ in category == .trips ? min(w * 0.78, 300) : min(w * 0.62, 250) }
                     }
                 }
                 .scrollTargetLayout()
@@ -194,7 +194,7 @@ struct ExploreView: View {
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
             if category == .trips && filter.isEmpty {
-                PlansLookingRow().padding(.top, 26).id("plans")
+                PlansLookingRow().padding(.top, 20).id("plans")
             }
             monthSections
             Color.clear.frame(height: 16)
@@ -209,9 +209,9 @@ struct ExploreView: View {
         ForEach(order, id: \.self) { ym in
             let rows = list.filter { ($0.nextDeparture ?? "").hasPrefix(ym) }
             SectionHeader(title: ym == thisMonth ? "This month" : (ym.isEmpty ? "Dates to come" : Self.monthTitle(ym)))
-                .padding(.horizontal, 20)
-                .padding(.top, 26)
-                .padding(.bottom, 4)
+                .padding(.horizontal, 18)
+                .padding(.top, 20)
+                .padding(.bottom, 2)
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, t in
                     TripListRow(trip: t, category: category, showsDivider: i < rows.count - 1) { router.push(.trip(slug: t.slug)) }
@@ -248,16 +248,16 @@ struct TripCard: View {
                 if showsRing {
                     SeatRing(seats: RingSeats.trip(trip), size: PcTokens.ringCard, dots: .none,
                              centreSpots: counts)
-                        .padding(5)
+                        .padding(4)
                         .background(Circle().fill(Pc.raised))
-                        .padding(.top, -49)
+                        .padding(.top, -(PcTokens.ringCard / 2 + 4))
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(trip.title).pcFont(.title3, weight: .bold).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(trip.title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     Text([trip.place?.name.components(separatedBy: ",").first, Fmt.duration(trip.durationDays)].compactMap { $0 }.joined(separator: " · "))
                         .pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
-                .padding(.top, showsRing ? 8 : 12)
+                .padding(.top, showsRing ? 6 : 10)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
@@ -270,7 +270,7 @@ struct TripCard: View {
                     Spacer(minLength: 4)
                     if showsRing {
                         Text(counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : "\(counts.going) going")
-                            .font(.system(size: 12.5, weight: .bold)).foregroundStyle(counts.isFull ? Pc.full : Pc.ink)
+                            .font(.system(size: 12, weight: .bold)).foregroundStyle(counts.isFull ? Pc.full : Pc.ink)
                             .lineLimit(1).fixedSize()
                     } else {
                         Text(category.meter(left: trip.seatsLeft, total: trip.seatsTotal)).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
@@ -283,11 +283,11 @@ struct TripCard: View {
                         .buttonStyle(.pc(.quiet, compact: true))
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
+            .padding(.horizontal, 6)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
         }
-        .padding(8)
+        .padding(7)
         .pcCard()
         .contentShape(Pc.shape())
         .onTapGesture { router.push(.trip(slug: trip.slug)) }
@@ -298,9 +298,9 @@ struct TripCard: View {
 
     private var photo: some View {
         ZStack(alignment: .top) {
-            PcAsyncImage(media: trip.image)
-                .frame(height: 196)
-                .frame(maxWidth: .infinity)
+            Color.clear
+                .aspectRatio(16 / 10, contentMode: .fit)
+                .overlay { PcAsyncImage(media: trip.image) }
                 .overlay(alignment: .bottom) {
                     LinearGradient(colors: [.clear, PcTokens.light.ink.opacity(0.28)], startPoint: .top, endPoint: .bottom).frame(height: 70)
                 }
@@ -309,9 +309,9 @@ struct TripCard: View {
                 Spacer()
                 SaveTripButton(slug: trip.slug)
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 6)
-            .padding(.top, 12)
+            .padding(.leading, 10)
+            .padding(.trailing, 4)
+            .padding(.top, 10)
         }
         .clipShape(Pc.shape(Pc.imageRadius + 1))
     }
@@ -380,25 +380,25 @@ struct TripListRow: View {
         let counts = SeatCounts(trip: trip)
         Button(action: action) {
             HStack(spacing: 12) {
-                PcAsyncImage(media: trip.image, targetSize: CGSize(width: 52, height: 52))
-                    .frame(width: 52, height: 52)
-                    .clipShape(Pc.shape(16))
+                PcAsyncImage(media: trip.image, targetSize: CGSize(width: 46, height: 46))
+                    .frame(width: 46, height: 46)
+                    .clipShape(Pc.shape(12))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(trip.title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(trip.title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 4)
                 if category == .trips { MiniArc(counts: counts) }
                 VStack(alignment: .trailing, spacing: 1) {
-                    Text(Fmt.rupees(trip.priceFromPaise)).font(PcFont.rounded(17)).foregroundStyle(Pc.ink).lineLimit(1).fixedSize()
+                    Text(Fmt.rupees(trip.priceFromPaise)).font(PcFont.rounded(15)).foregroundStyle(Pc.ink).lineLimit(1).fixedSize()
                     Text(category == .trips ? (counts.isFull ? "Full" : "\(counts.open) open") : category.meter(left: trip.seatsLeft, total: trip.seatsTotal))
                         .pcFont(.small, weight: counts.isFull ? .bold : .regular).foregroundStyle(counts.isFull ? Pc.full : Pc.ink2).lineLimit(1)
                 }
-                .frame(minWidth: 62, alignment: .trailing)
+                .frame(minWidth: 56, alignment: .trailing)
             }
             .padding(.horizontal, 4)
-            .padding(.vertical, 12)
-            .frame(minHeight: 76)
+            .padding(.vertical, 7)
+            .frame(minHeight: 60)
             .contentShape(Rectangle())
         }
         .buttonStyle(.pcPress)
@@ -439,11 +439,11 @@ struct TribeBridgeRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Overline(text: "In the Tribe")
                         Text("\(count) people are planning \(detail.place?.slug?.capitalized ?? detail.place?.name ?? "this")")
-                            .font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
+                            .font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).multilineTextAlignment(.leading)
                         Text("\(detail.stories.count) stories from people who went").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
                     Spacer()
-                    Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2)
                 }
                 .padding(14)
                 .pcPencilled()
@@ -494,7 +494,7 @@ struct SuggestionsRail: View {
                 } else {
                     Overline(text: s.reason).lineLimit(1)
                 }
-                Text(s.post?.displayTitle ?? s.trip?.title ?? "").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
+                Text(s.post?.displayTitle ?? s.trip?.title ?? "").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
                 if let p = s.post {
                     Text("\(Fmt.range(p.startsOn, p.endsOn)) · \(p.openSpots) spots").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 } else if let t = s.trip {
@@ -536,9 +536,9 @@ struct ExploreSearchSheet: View {
             VStack(alignment: .leading, spacing: 18) {
                 SheetHeader(title: "Find a trip").padding(.top, 22)
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .bold)).foregroundStyle(Pc.ink)
+                    Image(systemName: "magnifyingglass").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
                     TextField("Where to? Spiti, Kasol, Bhutan…", text: $draft.query)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14.5, weight: .semibold))
                         .focused($focused)
                         .submitLabel(.search)
                         .onSubmit { Task { await app.explore.search(draft.query) } }
@@ -547,8 +547,8 @@ struct ExploreSearchSheet: View {
                             .buttonStyle(.plain).frame(width: 32, height: 32).accessibilityLabel("Clear search")
                     }
                 }
-                .padding(.horizontal, 16)
-                .frame(minHeight: 52)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 46)
                 .pcField(focused: focused)
                 if draft.query.isEmpty {
                     FlowLayout(spacing: 8, lineSpacing: 0) {
@@ -620,7 +620,7 @@ struct ExploreSearchSheet: View {
 
     private func group<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
+            Text(title).font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink2)
             content()
         }
     }

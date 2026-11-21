@@ -116,14 +116,14 @@ struct StoryViewer: View {
                 Avatar(user: page.post.author, size: 36).overlay(Circle().strokeBorder(.white, lineWidth: 2))
                 VStack(alignment: .leading, spacing: 1) {
                     (Text(page.post.author.firstName).fontWeight(.bold) + Text("  ·  \(Fmt.relative(page.post.createdAt))").foregroundStyle(.white.opacity(0.8)))
-                        .font(.system(size: 14)).foregroundStyle(.white)
+                        .font(.system(size: 13)).foregroundStyle(.white)
                     if let place = page.post.place?.name ?? page.post.trip?.title {
-                        Label(place, systemImage: "mappin").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.white.opacity(0.92)).lineLimit(1)
+                        Label(place, systemImage: "mappin").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white.opacity(0.92)).lineLimit(1)
                     }
                 }
                 Spacer()
                 Button { dismiss() } label: {
-                    Image(systemName: "xmark").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                    Image(systemName: "xmark").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
                         .frame(width: PcTokens.touch, height: PcTokens.touch).contentShape(Rectangle())
                 }
                 .buttonStyle(.pcPress)
@@ -137,7 +137,7 @@ struct StoryViewer: View {
     private func bottom(_ page: Page) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(page.post.displayTitle)
-                .font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                .font(.system(size: 14.5, weight: .bold)).foregroundStyle(.white)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(.ultraThinMaterial, in: Pc.shape(16))
                 .fixedSize(horizontal: false, vertical: true)
@@ -145,14 +145,14 @@ struct StoryViewer: View {
             HStack(spacing: 6) {
                 HStack(spacing: 8) {
                     TextField("", text: $reply, prompt: Text("Reply to \(page.post.author.firstName)…").foregroundStyle(.white.opacity(0.75)))
-                        .font(.system(size: 15))
+                        .font(.system(size: 14))
                         .foregroundStyle(.white)
                         .focused($replying)
                         .submitLabel(.send)
                         .onSubmit { send(reply, to: page.post) }
                     if !reply.trimmingCharacters(in: .whitespaces).isEmpty {
                         Button { send(reply, to: page.post) } label: {
-                            Image(systemName: "paperplane.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(PcTokens.dark.raised)
+                            Image(systemName: "paperplane.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(PcTokens.dark.raised)
                                 .frame(width: 34, height: 34).background(Circle().fill(PcTokens.dark.ink))
                         }
                         .buttonStyle(.pcPress)
@@ -167,7 +167,7 @@ struct StoryViewer: View {
                 if !replying {
                     ForEach(["🔥", "😍", "🙌"], id: \.self) { e in
                         Button { send(e, to: page.post) } label: {
-                            Text(e).font(.system(size: 24)).frame(width: 44, height: 48)
+                            Text(e).font(.system(size: 21)).frame(width: 44, height: 48)
                         }
                         .buttonStyle(.pcPress)
                         .accessibilityLabel("React \(e)")
@@ -200,10 +200,10 @@ struct StoryViewer: View {
             HStack(spacing: 10) {
                 arc
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
-                    Text(subtitle).font(.system(size: 12)).foregroundStyle(Pc.ink2).lineLimit(1)
+                    Text(title).font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(subtitle).font(.system(size: 11)).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
-                Text(cta).font(.system(size: 13, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize().padding(.leading, 4)
+                Text(cta).font(.system(size: 12, weight: .heavy)).foregroundStyle(Pc.accentInk).fixedSize().padding(.leading, 4)
             }
             .padding(.leading, 8)
             .padding(.trailing, 12)

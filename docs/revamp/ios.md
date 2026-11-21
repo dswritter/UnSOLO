@@ -13,7 +13,7 @@ You need Xcode 26 or later and an "iPhone 17" simulator (`xcrun simctl list devi
 xcodebuild -project mobile/ios/UnSOLO.xcodeproj -scheme UnSOLO -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO build
 
-# Unit tests (66 tests)
+# Unit tests (68 tests)
 xcodebuild test -project mobile/ios/UnSOLO.xcodeproj -scheme UnSOLO -sdk iphonesimulator \
   -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
 
@@ -238,40 +238,56 @@ Associated Domains (`applinks:unsolo.in`, `applinks:www.unsolo.in`) and `aps-env
 
 ### Design system
 
-The design was refined in Nov 2026 to be less boxy. The Passenger Chart identity is unchanged: paper and ink, gold only for the brand, your seat and HOST, the seat row, and printed vs pencilled.
+The app uses **Full Circle** (see [design-system.md](design-system.md)). Colours and sizes come from the generated `DesignSystem/Tokens.swift`, which is never edited by hand. `DesignSystem/Theme.swift` wraps each colour as an adaptive `Pc.*` value and defines the type roles.
 
-- **Surfaces:** no ink outlines.
-  - **Printed cards** (hosted trips, stories, asks, general cards) are raised surfaces with a soft shadow (radius 12, y 2, 6 % black) plus a hairline in dark mode.
-  - **Community plans** are paper with a single 1.5 pt dashed rule2 outline.
-- **Radii:** cards 16, images 12, controls 14 and capsules, sheets 24 (`radiusCard`, `radiusImage`, `radiusButton`, `radiusSheet` from tokens). All corners are continuous.
-- **Controls:**
-  - Buttons: primary is a filled ink capsule at `buttonTall`; secondary is a tonal (ink ~6 %) capsule; tertiary is plain text.
-  - Chips and category or filter tabs are capsules, with ink fill when selected.
-  - Search and text fields are filled tonal fields with no outline.
-  - Tags are tinted 11 pt capsules (goldBg for HOST).
-- **Facts:** the bordered 3-cell grid is replaced by one icon + text row (calendar · dates, mappin · place, person.2 · open seats).
-- **Type:** tabular (monospaced) digits only, never monospaced words.
-- **Layout:** 20 pt gutters and 12–16 pt gaps between cards instead of full-width rules.
-- **Tab bar:** translucent `.bar` material with a hairline, and Post as a filled ink circle.
+**Colour**
+- Base colours: white, black and yellow shades.
+- Yellow (`Pc.pine`) is a fill only, and only on:
+  - the one primary action per screen (`.pcAccent`)
+  - the centre + tab
+  - your own spot
+  - the HOST badge
+  - the + on your own story
+- Other buttons and selections are ink (black). Accent text is `Pc.accentInk`.
 
-- **Colours:** tokens come from the generated `DesignSystem/Tokens.swift` (left unedited). `DesignSystem/Theme.swift` wraps each token as an adaptive colour (`Pc.paper`, `Pc.ink`, …) that switches between `PcTokens.light` and `PcTokens.dark` with the system appearance.
-- **Type:** the system font, scaled for Dynamic Type through `@ScaledMetric`:
-  - titles: `.system(size:weight:.semibold).width(.condensed)`
-  - numbers and codes: monospaced
-  - nothing below 12 pt
-- **Controls:** 6 pt radius, hairline rules instead of shadows, and 44 pt minimum touch targets.
-- **`SeatRow`/`SeatCell`**, the signature component, draws seven states as **circles** (40 pt on detail screens, 32 pt in feeds):
-  - **host:** 2 pt gold ring
-  - **organiser:** 2 pt ink ring
-  - **member:** face, or initials on a soft tonal fill
-  - **you:** gold fill
-  - **requested:** dashed ring with a clock badge
-  - **held:** dashed gold, pulsing, and still when Reduce Motion is on
-  - **open:** 1.5 pt dashed rule2 circle
-- **Printed vs pencilled:**
-  - Hosted trips use solid rules, a price and an ink "Take a seat".
-  - Community plans use dashed rules, the first line "Community plan · not a booking", the cost as body text, an outline "Ask to join" and an ink ORGANISER tag.
-- **Gold** is used only for the wordmark, your seat and the HOST tag.
+**Type**
+- Display, titles and prices use SF Pro Rounded heavy or bold. Body text uses SF Pro. Numbers use tabular digits.
+- Everything scales with Dynamic Type through `@ScaledMetric`.
+- Default sizes after the Nov 2026 density pass:
+
+| Role | Size (pt) |
+|---|---|
+| display | 28 |
+| title1 | 22 |
+| title2 | 18 |
+| title3 | 15 |
+| body | 14 |
+| small | 12 |
+| label | 11 |
+| num | 15 |
+| price | 17 |
+| section headers | 20 (`.title3`) |
+| card titles | 15 |
+| card meta | 12–12.5 |
+
+**Size and shape** (tokens)
+- Touch targets: 44
+- Buttons: 46 (compact ones are 34)
+- Bars: tab bar 60, top bar 52, search dock 50
+- Rings: trip page 200, card 72, mini 38
+- Radii: cards 20, images 16, sheets 24
+- Chips are 36 pt pills. Hit areas stay at least 44 pt even where the visible element is smaller.
+
+**Explore**
+- "Leaving soon" cards are 78% of the screen width, up to 300 pt.
+- Stays and rentals cards are 62%, up to 250 pt.
+- Card photos use a 16:10 aspect ratio. List rows are 60 pt with a 46 pt thumbnail.
+
+**Seat ring** (`SeatRing`, `MiniArc`)
+- A thin open track. Each run of taken spots is drawn as one arc. Your spot is gold.
+- The centre reads "8 /12 · spots left".
+- Plans show hollow circles for open spots.
+- The tab bar is an overlay; each tab's root view reserves `PcTokens.tabBar` with a safe-area inset.
 
 ## Screens
 
@@ -298,7 +314,7 @@ Screenshots from the simulator are in `mobile/ios/screenshots/`:
 | Required | `explore.png`, `tripDetail.png`, `tribe.png`, `planComposer.png`, `planDetailJoined.png` (after Ask to join), `activity.png`, `trips.png`, `settings.png` |
 | Also captured | `storyDetail.png`, `askDetail.png`, `messages.png`, `chat.png`, `you.png`, `host.png`, `offer.png`, `postSheet.png`, `welcome.png`, `publishHeld.png` |
 
-## Tests (`UnSOLOTests`, 66 tests)
+## Tests (`UnSOLOTests`, 68 tests)
 
 | Suite | Covers |
 |---|---|

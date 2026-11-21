@@ -37,11 +37,11 @@ struct PostTypeSheet: View {
     private func tile(_ kind: ComposeKind, icon: String, title: String, subtitle: String) -> some View {
         Button { router.openCompose(kind) } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: icon).font(.system(size: 19, weight: .bold)).foregroundStyle(Pc.ink)
-                    .frame(width: 42, height: 42)
+                Image(systemName: icon).font(.system(size: 16.5, weight: .bold)).foregroundStyle(Pc.ink)
+                    .frame(width: 36, height: 36)
                     .background(Pc.tonal, in: Pc.shape(14))
-                Text(title).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
-                Text(subtitle).font(.system(size: 13)).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading)
+                Text(title).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
+                Text(subtitle).font(.system(size: 12)).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading)
                     .lineLimit(2, reservesSpace: true)
             }
             .padding(14)
@@ -154,7 +154,7 @@ struct PhotosField: View {
                         ForEach(Array(photos.enumerated()), id: \.offset) { i, d in
                             LocalThumb(data: d).frame(width: 88, height: 88).overlay(alignment: .topTrailing) {
                                 Button { photos.remove(at: i) } label: {
-                                    Image(systemName: "xmark").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                                    Image(systemName: "xmark").font(.system(size: 10.5, weight: .heavy)).foregroundStyle(.white)
                                         .frame(width: 24, height: 24).background(Circle().fill(PcTokens.light.scrim))
                                         .frame(width: 40, height: 40).contentShape(Rectangle())
                                 }
@@ -185,8 +185,8 @@ struct PhotosField: View {
         let title = photos.isEmpty ? "Add photos" : "Add"
         return PhotosPicker(selection: $items, maxSelectionCount: Swift.max(1, max - photos.count), matching: .images, photoLibrary: .shared()) {
             VStack(spacing: 4) {
-                Image(systemName: "plus").font(.system(size: 17, weight: .bold))
-                Text(title).font(.system(size: 13, weight: .bold))
+                Image(systemName: "plus").font(.system(size: 15, weight: .bold))
+                Text(title).font(.system(size: 12, weight: .bold))
             }
             .foregroundStyle(Pc.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -250,29 +250,29 @@ struct PlanComposer: View {
 
     var body: some View {
         ComposerScaffold(title: "New plan", primary: "Publish", canSubmit: canSubmit, onSubmit: publish) {
-            Text(finalAudience == .anyone ? "Visible to everyone" : "Visible to \(finalAudience.label.lowercased())").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+            Text(finalAudience == .anyone ? "Visible to everyone" : "Visible to \(finalAudience.label.lowercased())").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
             Text("You can edit or cancel anytime").pcFont(.small).foregroundStyle(Pc.ink2)
         } content: {
             VStack(spacing: 6) {
-                SeatRing(seats: [.taken(me)] + Array(repeating: .open, count: max(1, spots - 1)), size: 132, plan: true,
+                SeatRing(seats: [.taken(me)] + Array(repeating: .open, count: max(1, spots - 1)), size: 112, plan: true,
                          womenOnly: womenOnly, dots: .none, centre: .user(me),
                          accessibilityText: "Preview: you and \(spots - 1) open spots\(womenOnly ? ", women only" : "")")
                     .animation(.snappy(duration: PcTokens.motionStandard), value: spots)
                     .animation(.easeInOut(duration: PcTokens.motionStandard), value: womenOnly)
                 (Text("Live preview · ").foregroundStyle(Pc.ink2) + Text("you + \(spots - 1) spot\(spots == 2 ? "" : "s")").fontWeight(.bold).foregroundStyle(womenOnly ? Pc.rose : Pc.ink))
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 14)
             .padding(.bottom, 4)
             FormRow(label: "Title") { PcTextField(placeholder: "Spiti in mid-January, slow and cold", text: $title, style: .title3) }
             FormRow(label: "Where to?") {
-                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
+                HStack { Image(systemName: "mappin").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Spiti Valley", text: $place, style: .bodyStrong) }
             }
             FormRow(label: "When · \(days) day\(days == 1 ? "" : "s")") {
                 HStack {
                     DatePicker("Starts", selection: $start, in: Date()..., displayedComponents: .date).labelsHidden()
-                    Text("–").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink2)
+                    Text("–").font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink2)
                     DatePicker("Ends", selection: $end, in: start..., displayedComponents: .date).labelsHidden()
                     Spacer(minLength: 0)
                 }
@@ -280,7 +280,7 @@ struct PlanComposer: View {
             }
             FormRow(label: "People you're looking for") {
                 HStack {
-                    Text("\(spots - 1) more").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+                    Text("\(spots - 1) more").font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink)
                     Text("· \(spots) with you").pcFont(.small).foregroundStyle(Pc.ink2)
                     Spacer()
                     PcStepper(value: Binding(get: { spots - 1 }, set: { spots = $0 + 1 }), range: 1...11, label: "People you're looking for")
@@ -369,7 +369,7 @@ struct StoryComposer: View {
                                     Text(t.host?.name ?? "").pcFont(.small).foregroundStyle(Pc.ink2)
                                 }
                                 Spacer()
-                                if tripSlug == t.slug { Image(systemName: "checkmark").font(.system(size: 15, weight: .bold)) }
+                                if tripSlug == t.slug { Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)) }
                             }
                             .padding(10)
                             .pcSelectable(tripSlug == t.slug)
@@ -452,7 +452,7 @@ struct AskComposer: View {
 
     var body: some View {
         ComposerScaffold(title: startsWithPoll ? "New poll" : "New question", primary: "Publish", canSubmit: canSubmit, onSubmit: publish) {
-            Text(hasPoll ? "Open for 3 days" : "Most questions get a reply in ~3h").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+            Text(hasPoll ? "Open for 3 days" : "Most questions get a reply in ~3h").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
             Text(hasPoll ? "\(cleanOptions.count) of 2–4 options" : "Hosts answer with their HOST tag").pcFont(.small).foregroundStyle(Pc.ink2)
         } content: {
             FormRow(label: "Question") {
@@ -463,14 +463,14 @@ struct AskComposer: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(options.indices, id: \.self) { i in
                         HStack(spacing: 10) {
-                            Text("\(i + 1)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(Pc.ink)
+                            Text("\(i + 1)").font(.system(size: 12, weight: .heavy, design: .rounded)).foregroundStyle(Pc.ink)
                                 .frame(width: 26, height: 26).background(Circle().fill(Pc.tonal))
                             TextField(i < 2 ? "Option \(i + 1)" : "Option \(i + 1) (optional)", text: $options[i])
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                                 .focused($focusedOption, equals: i)
                             if options.count > 2 {
                                 Button { options.remove(at: i) } label: {
-                                    Image(systemName: "minus.circle.fill").font(.system(size: 18)).foregroundStyle(Pc.ink3)
+                                    Image(systemName: "minus.circle.fill").font(.system(size: 16)).foregroundStyle(Pc.ink3)
                                         .frame(width: 40, height: 40).contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -484,7 +484,7 @@ struct AskComposer: View {
                     }
                     if options.count < 4 {
                         Button { options.append(""); focusedOption = options.count - 1 } label: {
-                            Label("Add option", systemImage: "plus.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.accentInk)
+                            Label("Add option", systemImage: "plus.circle.fill").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.accentInk)
                                 .frame(minHeight: PcTokens.touch)
                         }
                         .buttonStyle(.pcPress)
@@ -503,7 +503,7 @@ struct AskComposer: View {
                     .padding(.top, 10)
             }
             FormRow(label: "Place (optional)") {
-                HStack { Image(systemName: "mappin").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
+                HStack { Image(systemName: "mappin").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2); PcTextField(placeholder: "Kasol, Parvati Valley", text: $place, style: .bodyStrong) }
             }
             FormRow(label: "More detail (optional)") { PcTextField(placeholder: "Dates, budget, what you're after", text: $details, axis: .vertical) }
             Text("No links or prices in answers. Phone numbers are hidden automatically.").pcFont(.small).foregroundStyle(Pc.ink3)

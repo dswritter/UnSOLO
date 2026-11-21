@@ -9,7 +9,7 @@ struct YouView: View {
             VStack(alignment: .leading, spacing: 0) {
                 AppHeader(title: "You") {
                     Button { router.push(.settings) } label: {
-                        Image(systemName: "gearshape").font(.system(size: 19)).foregroundStyle(Pc.ink)
+                        Image(systemName: "gearshape").font(.system(size: 16.5)).foregroundStyle(Pc.ink)
                             .frame(width: PcTokens.touch, height: PcTokens.touch)
                     }
                     .buttonStyle(.plain)
@@ -97,7 +97,7 @@ struct ProfileContent: View {
     private func header(_ p: ProfileResponse) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                Avatar(user: p.user.lite, size: 76)
+                Avatar(user: p.user.lite, size: 64)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Text(p.user.name).pcFont(.title1).foregroundStyle(Pc.ink)
@@ -168,7 +168,7 @@ struct ProfileContent: View {
 
     private func stat(_ value: String, _ label: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(value).font(PcFont.rounded(26)).foregroundStyle(Pc.ink)
+            Text(value).font(PcFont.rounded(22)).foregroundStyle(Pc.ink)
             Text(label).pcFont(.small).foregroundStyle(Pc.ink2)
         }
         .padding(14)
@@ -202,8 +202,8 @@ struct ProfileContent: View {
                 Text(p.displayTitle).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink).padding(8).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             HStack(spacing: 4) {
-                Text(p.kind.label.uppercased()).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
-                if let s = app.tribe.local[p.id]?.state { Text("· \(s)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white) }
+                Text(p.kind.label.uppercased()).font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white)
+                if let s = app.tribe.local[p.id]?.state { Text("· \(s)").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.white) }
             }
             .padding(.horizontal, 8).padding(.vertical, 3)
             .background(Capsule().fill(.black.opacity(0.5)))
@@ -220,7 +220,7 @@ struct ProfileContent: View {
             HStack(spacing: 12) {
                 MiniArc(counts: SeatCounts(plan: p), womenOnly: p.audience == .women)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(p.displayTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+                    Text(p.displayTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
                     Text("Plan · \(p.memberCount) of \(p.spotsTotal ?? 0) · \(p.openSpots) spots open").pcFont(.small).foregroundStyle(Pc.ink2)
                     if let s = app.tribe.local[p.id]?.state { Text(s == "held" ? "Held for review" : s.capitalized).pcFont(.small, weight: .semibold).foregroundStyle(Pc.goldInk) }
                 }
@@ -264,7 +264,7 @@ struct ProfileContent: View {
     private func linkRow(_ title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: icon).font(.system(size: 17)).frame(width: 28).foregroundStyle(Pc.ink)
+                Image(systemName: icon).font(.system(size: 15)).frame(width: 28).foregroundStyle(Pc.ink)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
                     Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2)
@@ -273,7 +273,7 @@ struct ProfileContent: View {
                 Image(systemName: "chevron.right").foregroundStyle(Pc.ink2)
             }
             .padding(.horizontal, 16)
-            .frame(minHeight: 64)
+            .frame(minHeight: 56)
             .contentShape(Rectangle())
             .pcCard()
             .padding(.horizontal, 20)

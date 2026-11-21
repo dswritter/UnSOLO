@@ -72,7 +72,7 @@ struct ActivityView: View {
                     Text(Fmt.range(plan.startsOn, plan.endsOn)).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
                 }
                 HStack(spacing: 12) {
-                    SeatRing(seats: RingSeats.plan(plan), size: 64, plan: true, womenOnly: plan.audience == .women, dots: .none, centre: .user(plan.author))
+                    SeatRing(seats: RingSeats.plan(plan), size: 56, plan: true, womenOnly: plan.audience == .women, dots: .none, centre: .user(plan.author))
                     SeatCaption(counts: SeatCounts(plan: plan), noun: "spots")
                 }
                 ForEach(pending.filter { $0.0.id == plan.id }, id: \.1.user.id) { _, r in JoinRequestRow(postId: plan.id, request: r) }
@@ -98,7 +98,7 @@ struct NotificationRow: View {
                 .accessibilityHidden(true)
             icon
             VStack(alignment: .leading, spacing: 4) {
-                Text(notification.title).font(.system(size: 15, weight: notification.isRead ? .medium : .bold)).foregroundStyle(Pc.ink)
+                Text(notification.title).font(.system(size: 14, weight: notification.isRead ? .medium : .bold)).foregroundStyle(Pc.ink)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 4) {
                     if let body = notification.body { Text(body).lineLimit(2) }
@@ -167,8 +167,8 @@ struct NotificationRow: View {
         case .tags: "tag"
         case .system: "info.circle"
         }
-        return Image(systemName: symbol).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
-            .frame(width: 40, height: 40)
+        return Image(systemName: symbol).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink)
+            .frame(width: 36, height: 36)
             .background(Circle().fill(Pc.tonal))
     }
 }

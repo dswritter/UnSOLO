@@ -86,7 +86,7 @@ struct ChatCircle {
 struct CircleAvatar: View {
     let chat: ChatSummary
     let circle: ChatCircle?
-    var size: CGFloat = 48
+    var size: CGFloat = 42
     @Environment(SessionStore.self) private var session
 
     var body: some View {
@@ -114,34 +114,34 @@ struct ChatRow: View {
         HStack(spacing: 12) {
             Group {
                 if chat.type == "direct" {
-                    Avatar(user: UserLite(id: chat.id, username: chat.name, name: chat.name, avatarUrl: chat.image?.url, isPhoneVerified: false, isIdVerified: false, isHost: false), size: 48)
+                    Avatar(user: UserLite(id: chat.id, username: chat.name, name: chat.name, avatarUrl: chat.image?.url, isPhoneVerified: false, isIdVerified: false, isHost: false), size: 42)
                 } else {
                     CircleAvatar(chat: chat, circle: circle)
                 }
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 46, height: 46)
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(chat.name).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(chat.name).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     Spacer(minLength: 6)
-                    if let at = chat.lastMessage?.at { Text(Fmt.relative(at)).font(.system(size: 12, weight: .semibold)).monospacedDigit().foregroundStyle(Pc.ink3) }
+                    if let at = chat.lastMessage?.at { Text(Fmt.relative(at)).font(.system(size: 11, weight: .semibold)).monospacedDigit().foregroundStyle(Pc.ink3) }
                 }
                 HStack {
                     if let m = chat.lastMessage {
                         Text((m.authorName.map { "\($0): " } ?? "") + m.body)
-                            .font(.system(size: 13.5, weight: chat.unread > 0 ? .semibold : .regular))
+                            .font(.system(size: 12.5, weight: chat.unread > 0 ? .semibold : .regular))
                             .foregroundStyle(chat.unread > 0 ? Pc.ink : Pc.ink2).lineLimit(1)
                     }
                     Spacer(minLength: 6)
                     if chat.unread > 0 { CountPill(count: chat.unread) }
                 }
                 if let sub = circle?.subtitle {
-                    Text(sub).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
+                    Text(sub).font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
                 }
             }
         }
         .padding(.vertical, 11)
-        .frame(minHeight: 72)
+        .frame(minHeight: 62)
         .overlay(alignment: .bottom) { HairlineRule().padding(.leading, 64) }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -206,28 +206,28 @@ struct ChatRoomView: View {
             HStack(spacing: 10) {
                 CircleAvatar(chat: chat, circle: circle, size: 36)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(name).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    Text(name).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                     if let trip = circle?.trip {
                         let c = SeatCounts(trip: trip)
                         Text("\(c.going) of \(c.total) · \(circle?.past == true ? "went" : "leaving") \(Fmt.weekdayDayMonth(circle?.travelDate ?? trip.nextDeparture))")
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
+                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
                     } else if let sub = circle?.subtitle {
-                        Text(sub).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
+                        Text(sub).font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3).lineLimit(1)
                     }
                 }
             }
             .accessibilityElement(children: .combine)
         } else {
-            Text(name).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+            Text(name).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink)
         }
     }
 
     private func hostNoteCard(_ m: ChatMessage) -> some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "megaphone.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
+            Image(systemName: "megaphone.fill").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink).padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Latest from \(m.author.name) (host)").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink)
-                Text(m.body).font(.system(size: 13.5)).foregroundStyle(Pc.ink).lineLimit(2)
+                Text("Latest from \(m.author.name) (host)").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink)
+                Text(m.body).font(.system(size: 12.5)).foregroundStyle(Pc.ink).lineLimit(2)
             }
             Spacer(minLength: 0)
         }
@@ -241,7 +241,7 @@ struct ChatRoomView: View {
         let empty = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return HStack(spacing: 8) {
             TextField(chat?.type == "direct" ? "Message" : "Message the circle", text: $draft, axis: .vertical)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .lineLimit(1...5)
                 .focused($focused)
                 .padding(.horizontal, 16)
@@ -253,7 +253,7 @@ struct ChatRoomView: View {
                 app.chat.send(roomId, body: draft)
                 draft = ""
             } label: {
-                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
+                Image(systemName: "paperplane.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
                     .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.ink))
                     .frame(width: PcTokens.touch, height: PcTokens.touch)
                     .contentShape(Circle())
@@ -279,13 +279,13 @@ struct MessageBubble: View {
     var body: some View {
         let m = line.message
         if m.type == "system" {
-            Text(m.body).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink3).multilineTextAlignment(.center)
+            Text(m.body).font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink3).multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
         } else {
             VStack(alignment: .leading, spacing: 3) {
                 if !isMine && isGroup && showsName {
                     HStack(spacing: 6) {
-                        Text(m.author.isHost ? m.author.name : m.author.firstName).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
+                        Text(m.author.isHost ? m.author.name : m.author.firstName).font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink2)
                         if m.author.isHost { PcTag(text: "Host", style: .host) }
                     }
                     .padding(.leading, 40)
@@ -300,13 +300,13 @@ struct MessageBubble: View {
                         Color.clear.frame(width: 30, height: 1)
                     }
                     VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
-                        Text(m.body).font(.system(size: 15)).foregroundStyle(isMine ? Pc.raised : Pc.ink).fixedSize(horizontal: false, vertical: true)
+                        Text(m.body).font(.system(size: 14)).foregroundStyle(isMine ? Pc.raised : Pc.ink).fixedSize(horizontal: false, vertical: true)
                         HStack(spacing: 6) {
                             switch line.state {
-                            case "sending": Image(systemName: "clock").font(.system(size: 10, weight: .bold))
+                            case "sending": Image(systemName: "clock").font(.system(size: 9.5, weight: .bold))
                             case "failed":
-                                Button("Not sent · Retry", action: onRetry).buttonStyle(.plain).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.red)
-                            default: Text(Fmt.time(m.createdAt)).font(.system(size: 11, weight: .semibold).monospacedDigit())
+                                Button("Not sent · Retry", action: onRetry).buttonStyle(.plain).font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.red)
+                            default: Text(Fmt.time(m.createdAt)).font(.system(size: 10.5, weight: .semibold).monospacedDigit())
                             }
                         }
                         .foregroundStyle(isMine ? Pc.raised.opacity(0.75) : Pc.ink3)

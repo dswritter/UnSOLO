@@ -131,7 +131,7 @@ struct PostDetailView: View {
             Text(post.displayTitle).pcFont(.title1).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
             FactsRow(facts: planFacts(post), size: 14)
             VStack(spacing: 10) {
-                SeatRing(seats: RingSeats.from(seats), size: 200, plan: true, womenOnly: post.audience == .women,
+                SeatRing(seats: RingSeats.from(seats), size: 170, plan: true, womenOnly: post.audience == .women,
                          dots: v?.membership == .approved || v?.isAuthor == true ? .faces : (session.isSignedIn ? .initials : .none),
                          badge: RingBadge(user: post.author, kind: .organiser),
                          centreLabel: counts.isFull ? ("Full", "\(counts.total)/\(counts.total)") : ("\(counts.open)", counts.open == 1 ? "spot left" : "spots left"),
@@ -141,7 +141,7 @@ struct PostDetailView: View {
                     if waiting != nil {
                         (Text("\(post.author.firstName)\(counts.going > 1 ? " + \(counts.going - 1)" : "") going").fontWeight(.bold).foregroundStyle(Pc.ink)
                          + Text(" · you're waiting at the edge").foregroundStyle(Pc.ink2))
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                     } else {
                         SeatCaption(counts: counts, noun: "spots", font: .system(size: 14, weight: .semibold))
                     }
@@ -152,7 +152,7 @@ struct PostDetailView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "clock.fill")
-                        Text("Request sent").font(.system(size: 15, weight: .bold))
+                        Text("Request sent").font(.system(size: 14, weight: .bold))
                         Spacer()
                         Text("Expires after 72h").pcFont(.small).foregroundStyle(Pc.ink2)
                     }
@@ -169,7 +169,7 @@ struct PostDetailView: View {
                 Button { router.push(.profile(username: post.author.username)) } label: { Avatar(user: post.author, size: 44) }.buttonStyle(.pcPress)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(post.author.name).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                        Text(post.author.name).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                         if post.author.isIdVerified { VerifiedBadge() }
                     }
                     HStack(spacing: 6) {
@@ -188,7 +188,7 @@ struct PostDetailView: View {
                 CommunityPlanLabel()
                 if let cost = post.estCostText { Text(cost + ". UnSOLO doesn't take payments for plans.").pcFont(.small).foregroundStyle(Pc.ink2) }
                 if let meeting = post.meetingPoint {
-                    Label(meeting, systemImage: "mappin").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink)
+                    Label(meeting, systemImage: "mappin").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink)
                 } else {
                     Text("Meeting point is shared once you're approved. Meet first in a public place.").pcFont(.small).foregroundStyle(Pc.ink2)
                 }
@@ -240,10 +240,10 @@ struct PostDetailView: View {
                 Text("Request sent").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
                 Text("Waiting for \(post.author.firstName)").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
             } else if v?.membership == .approved {
-                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+                Label("You're in", systemImage: "checkmark.circle.fill").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
                 Text("Say hi in the plan chat").pcFont(.small).foregroundStyle(Pc.ink2)
             } else {
-                Text("Join \(names)").font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                Text("Join \(names)").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                 Text("\(post.author.firstName) approves each request").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
             }
         } trailing: {
@@ -277,7 +277,7 @@ struct PostDetailView: View {
             AuthorRow(post: post, subtitle: post.trip.map { "Story · \($0.title)" })
             Text(post.displayTitle).pcFont(.title2).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
             if post.title != nil {
-                Text(post.body).font(.system(size: 15)).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
+                Text(post.body).font(.system(size: 14)).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
             }
             if let trip = post.trip { NextDepartureLink(trip: trip) }
             HStack(spacing: 18) {
@@ -372,7 +372,7 @@ struct PostDetailView: View {
         let empty = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         return HStack(spacing: 8) {
             TextField(placeholder, text: $draft, axis: .vertical)
-                .font(.system(size: 15))
+                .font(.system(size: 14))
                 .lineLimit(1...4)
                 .focused($composerFocused)
                 .padding(.horizontal, 16)
@@ -381,7 +381,7 @@ struct PostDetailView: View {
                 .background(Capsule().fill(Pc.raised))
                 .overlay(Capsule().strokeBorder(composerFocused ? Pc.ink : Pc.rule, lineWidth: composerFocused ? 1.5 : 1))
             Button { sendComment(post) } label: {
-                Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
+                Image(systemName: "paperplane.fill").font(.system(size: 15, weight: .bold)).foregroundStyle(empty ? Pc.ink3 : Pc.raised)
                     .frame(width: 44, height: 44).background(Circle().fill(empty ? Pc.tonal : Pc.ink))
                     .frame(width: PcTokens.touch, height: PcTokens.touch)
                     .contentShape(Circle())
@@ -396,7 +396,7 @@ struct PostDetailView: View {
         HStack {
             Text("Replying to \(c.author.firstName)").pcFont(.small).foregroundStyle(Pc.ink2)
             Spacer()
-            Button { replyTo = nil } label: { Image(systemName: "xmark").font(.system(size: 12, weight: .bold)) }
+            Button { replyTo = nil } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }
                 .buttonStyle(.plain).frame(width: 32, height: 32).accessibilityLabel("Cancel reply")
         }
     }
@@ -422,10 +422,10 @@ struct StoryPager: View {
                 ForEach(Array(media.enumerated()), id: \.offset) { i, m in PcAsyncImage(media: m).tag(i) }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 240)
+            .frame(height: 210)
             if media.count > 1 {
                 Text("\(page + 1) / \(media.count)")
-                    .font(.system(size: 12, weight: .bold).monospacedDigit()).foregroundStyle(.white)
+                    .font(.system(size: 11, weight: .bold).monospacedDigit()).foregroundStyle(.white)
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(Capsule().fill(PcTokens.light.scrim))
                     .padding(12)
@@ -453,14 +453,14 @@ struct CommentRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
-                        Text(comment.author.isHost ? comment.author.name : comment.author.firstName).font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                        Text(comment.author.isHost ? comment.author.name : comment.author.firstName).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                         if comment.author.isHost { PcTag(text: "Host", style: .host) }
                         if comment.author.id == post.author.id && !comment.author.isHost {
                             PcTag(text: post.kind == .plan ? "Organiser" : "Author", style: post.kind == .plan ? .organiser : .kind)
                         }
-                        Text(comment.id.hasPrefix(LocalID.prefix) ? "now" : Fmt.relative(comment.createdAt)).font(.system(size: 12)).foregroundStyle(Pc.ink3)
+                        Text(comment.id.hasPrefix(LocalID.prefix) ? "now" : Fmt.relative(comment.createdAt)).font(.system(size: 11)).foregroundStyle(Pc.ink3)
                     }
-                    Text(comment.body).font(.system(size: 14.5)).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
+                    Text(comment.body).font(.system(size: 13.5)).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
@@ -468,10 +468,10 @@ struct CommentRow: View {
                 .overlay(UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 18, bottomTrailingRadius: 18, topTrailingRadius: 18, style: .continuous)
                     .strokeBorder(Pc.rule, lineWidth: 1))
                 HStack(spacing: 14) {
-                    if state == "sending" { Text("Sending…").font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3) }
-                    if state == "failed" { Text("Not sent").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.red) }
+                    if state == "sending" { Text("Sending…").font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3) }
+                    if state == "failed" { Text("Not sent").font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.red) }
                     if let onReply, state == nil {
-                        Button("Reply", action: onReply).buttonStyle(.plain).font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink2)
+                        Button("Reply", action: onReply).buttonStyle(.plain).font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
                             .frame(minHeight: 32).contentShape(Rectangle())
                     }
                 }
@@ -556,7 +556,7 @@ struct JoinRequestSheet: View {
             HStack {
                 Text(count < 10 ? "At least 10 characters" : "Requests expire after 72h").pcFont(.small).foregroundStyle(Pc.ink2)
                 Spacer()
-                Text("\(count)/500").font(.system(size: 12, weight: .semibold).monospacedDigit()).foregroundStyle(count > 500 ? Pc.red : Pc.ink2)
+                Text("\(count)/500").font(.system(size: 11, weight: .semibold).monospacedDigit()).foregroundStyle(count > 500 ? Pc.red : Pc.ink2)
             }
             Spacer()
             Button("Send request") {
@@ -603,7 +603,7 @@ struct ReportSheet: View {
                             HStack {
                                 Text(label).pcFont(.body).foregroundStyle(Pc.ink)
                                 Spacer()
-                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .bold)).foregroundStyle(reason == code ? Pc.ink : Pc.rule)
+                                Image(systemName: reason == code ? "checkmark.circle.fill" : "circle").font(.system(size: 17, weight: .bold)).foregroundStyle(reason == code ? Pc.ink : Pc.rule)
                             }
                             .padding(.horizontal, 20)
                             .frame(minHeight: 52)

@@ -92,7 +92,7 @@ struct TicketCard: View {
         let others = trip.goingFaces.filter { $0.id != trip.host?.id && $0.id != session.user?.id }
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 16) {
-                SeatRing(seats: RingSeats.trip(trip, you: session.user), size: 132, dots: .faces,
+                SeatRing(seats: RingSeats.trip(trip, you: session.user), size: 112, dots: .faces,
                          badge: trip.host.map { RingBadge(user: $0, kind: .host) }, centre: .photo(trip.image))
                 VStack(alignment: .leading, spacing: 6) {
                     PcTag(text: days <= 0 ? "Today" : "In \(days) day\(days == 1 ? "" : "s")", style: .verified, icon: "calendar.badge.checkmark")
@@ -104,21 +104,21 @@ struct TicketCard: View {
             }
             if !others.isEmpty {
                 HStack(spacing: 10) {
-                    FaceStack(users: Array(others.prefix(4)), size: 30)
+                    FaceStack(users: Array(others.prefix(4)), size: 26)
                     Text(ListFormatter.localizedString(byJoining: others.prefix(3).map(\.firstName) + ["you"]))
                         .pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
             }
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Booking code").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
-                    Text(booking.confirmationCode ?? "—").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(Pc.ink)
+                    Text("Booking code").font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink2)
+                    Text(booking.confirmationCode ?? "—").font(.system(size: 14, weight: .bold, design: .monospaced)).foregroundStyle(Pc.ink)
                 }
                 Spacer()
                 if booking.balancePaise > 0 {
                     VStack(alignment: .trailing, spacing: 1) {
-                        Text("Balance").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink2)
-                        Text(Fmt.rupees(booking.balancePaise)).font(PcFont.rounded(16, .bold)).foregroundStyle(Pc.ink)
+                        Text("Balance").font(.system(size: 11, weight: .bold)).foregroundStyle(Pc.ink2)
+                        Text(Fmt.rupees(booking.balancePaise)).font(PcFont.rounded(14, .bold)).foregroundStyle(Pc.ink)
                     }
                     Button("Pay") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("bookings")) }
                         .buttonStyle(.pc(.outline, compact: true))
@@ -135,7 +135,7 @@ struct TicketCard: View {
                         Image(systemName: "bubble.left.and.bubble.right.fill")
                         Text("Meet the circle")
                         if unread > 0 {
-                            Text("\(unread)").font(.system(size: 12, weight: .heavy)).monospacedDigit()
+                            Text("\(unread)").font(.system(size: 11, weight: .heavy)).monospacedDigit()
                                 .foregroundStyle(Pc.ink).padding(.horizontal, 7).frame(minHeight: 20).background(Capsule().fill(Pc.raised))
                         }
                     }
@@ -160,9 +160,9 @@ struct PastTripCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {
-                SeatRing(seats: RingSeats.trip(booking.trip, you: session.user), size: 96, past: true, dots: .none, centre: .photo(booking.trip.image))
+                SeatRing(seats: RingSeats.trip(booking.trip, you: session.user), size: 80, past: true, dots: .none, centre: .photo(booking.trip.image))
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Went · \(Fmt.dayMonth(booking.travelDate))").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink3)
+                    Text("Went · \(Fmt.dayMonth(booking.travelDate))").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink3)
                     Text(booking.trip.title).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
                     Text("\(booking.guests) spot\(booking.guests == 1 ? "" : "s") · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
@@ -197,7 +197,7 @@ struct PlanTripCard: View {
         let counts = SeatCounts(plan: post)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {
-                SeatRing(seats: RingSeats.plan(post), size: 104, plan: true, womenOnly: post.audience == .women,
+                SeatRing(seats: RingSeats.plan(post), size: 88, plan: true, womenOnly: post.audience == .women,
                          dots: .none, centre: .user(post.author), waiting: requested ? session.user : nil)
                     .padding(.trailing, requested ? 18 : 0)
                 VStack(alignment: .leading, spacing: 5) {
@@ -208,7 +208,7 @@ struct PlanTripCard: View {
                     Text(post.displayTitle).pcFont(.title3).foregroundStyle(Pc.ink).lineLimit(2)
                     Text(Fmt.range(post.startsOn, post.endsOn)).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
                     if requested {
-                        Label("Waiting for \(post.author.firstName)", systemImage: "clock.fill").font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink)
+                        Label("Waiting for \(post.author.firstName)", systemImage: "clock.fill").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink)
                     } else {
                         SeatCaption(counts: counts, noun: "spots", font: .system(size: 12.5, weight: .semibold))
                     }
@@ -238,14 +238,14 @@ struct PastTripRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(spacing: 0) {
-                Text(Fmt.dayNumber(booking.travelDate)).font(PcFont.rounded(22)).foregroundStyle(Pc.ink)
-                Text(Fmt.monthShort(booking.travelDate)).font(.system(size: 11, weight: .heavy)).foregroundStyle(Pc.ink2)
+                Text(Fmt.dayNumber(booking.travelDate)).font(PcFont.rounded(19)).foregroundStyle(Pc.ink)
+                Text(Fmt.monthShort(booking.travelDate)).font(.system(size: 10.5, weight: .heavy)).foregroundStyle(Pc.ink2)
             }
             .frame(width: 44)
             PcAsyncImage(media: booking.trip.image, targetSize: CGSize(width: 60, height: 60)).frame(width: 60, height: 60)
                 .clipShape(Pc.shape(Pc.imageRadius))
             VStack(alignment: .leading, spacing: 2) {
-                Text(booking.trip.title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2)
+                Text(booking.trip.title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2)
                 Text(booking.storyPrompt == true ? "Share it with your group · +20 pts" : "Booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2)
             }
             Spacer(minLength: 4)

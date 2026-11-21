@@ -118,12 +118,12 @@ struct TripDetailView: View {
                         Capsule().fill(.white.opacity(i == page ? 1 : 0.5)).frame(width: i == page ? 16 : 6, height: 6)
                     }
                 }
-                .padding(.bottom, 134)
+                .padding(.bottom, PcTokens.ringHero / 2 + 14)
                 .accessibilityElement()
                 .accessibilityLabel("Photo \(page + 1) of \(images.count)")
             }
         }
-        .containerRelativeFrame(.vertical) { h, _ in max(320, h * 0.45) }
+        .containerRelativeFrame(.vertical) { h, _ in max(280, h * 0.4) }
         .clipped()
     }
 
@@ -158,7 +158,7 @@ struct TripDetailView: View {
                 .background(Circle().fill(Pc.paper))
         }
         .buttonStyle(.pcPress)
-        .padding(.top, -122)
+        .padding(.top, -(PcTokens.ringHero / 2 + 2))
     }
 
     private func header(_ t: TripLite) -> some View {
@@ -171,7 +171,7 @@ struct TripDetailView: View {
                 .padding(.top, 8)
             if dots != .faces && counts.going > 0 {
                 Label(session.isSignedIn ? "Faces show once you're travelling together" : "Sign in to see who's going", systemImage: "lock.fill")
-                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3)
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3)
             }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
@@ -194,9 +194,9 @@ struct TripDetailView: View {
         if let host = t.host {
             (Text(place.isEmpty ? "hosted by " : "\(place) · hosted by ") + Text(host.name).fontWeight(.bold).foregroundStyle(Pc.ink)
              + (host.isIdVerified ? Text(" ") + Text(Image(systemName: "checkmark.seal.fill")).foregroundStyle(Pc.ink2) : Text("")))
-                .font(.system(size: 15)).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
+                .font(.system(size: 14)).foregroundStyle(Pc.ink2).multilineTextAlignment(.center)
         } else if !place.isEmpty {
-            Text(place).font(.system(size: 15)).foregroundStyle(Pc.ink2)
+            Text(place).font(.system(size: 14)).foregroundStyle(Pc.ink2)
         }
     }
 
@@ -207,17 +207,17 @@ struct TripDetailView: View {
             if let host = t.host {
                 Button { router.push(.profile(username: host.username)) } label: {
                     HStack(spacing: 12) {
-                        Avatar(user: host, size: 48, ring: Pc.rule)
+                        Avatar(user: host, size: 42, ring: Pc.rule)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack(spacing: 6) {
-                                Text(host.name).font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+                                Text(host.name).font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink)
                                 if host.isIdVerified { VerifiedBadge() }
                                 PcTag(text: "Host", style: .host)
                             }
                             Text("Hosted on UnSOLO · \(detail?.rating.map { "\($0.count) reviews" } ?? "new host")").pcFont(.small).foregroundStyle(Pc.ink2)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink2)
+                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundStyle(Pc.ink2)
                     }
                     .padding(14)
                     .pcCard()
@@ -238,18 +238,18 @@ struct TripDetailView: View {
                     let counts = SeatCounts(departure: dep, hasHost: d.host != nil)
                     Button { selectedDate = dep.date } label: {
                         HStack(spacing: 12) {
-                            MiniArc(counts: counts, size: 40)
+                            MiniArc(counts: counts, size: 36)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(Fmt.weekdayDayMonth(dep.date)).font(.system(size: 15, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink)
+                                Text(Fmt.weekdayDayMonth(dep.date)).font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink)
                                 Text(counts.isFull ? "Full · \(counts.total)/\(counts.total)" : "\(counts.open) of \(counts.total) open")
                                     .pcFont(.small, weight: counts.isFull ? .bold : .regular).foregroundStyle(counts.isFull ? Pc.full : Pc.ink2)
                             }
                             Spacer()
                             Image(systemName: selected ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 22, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.rule)
+                                .font(.system(size: 19, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.rule)
                         }
                         .padding(.horizontal, 12)
-                        .frame(minHeight: 60)
+                        .frame(minHeight: 52)
                         .pcSelectable(selected, radius: Pc.radius)
                         .opacity(counts.isFull && !selected ? 0.7 : 1)
                         .contentShape(Rectangle())
@@ -271,7 +271,7 @@ struct TripDetailView: View {
                         Label {
                             Text(item).pcFont(.body).foregroundStyle(Pc.ink)
                         } icon: {
-                            Image(systemName: "checkmark.circle.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+                            Image(systemName: "checkmark.circle.fill").font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.ink)
                         }
                     }
                 }
@@ -319,9 +319,9 @@ struct TripDetailView: View {
         let saved = app.marks.isSaved(slug)
         return HStack(spacing: 12) {
             Button { withAnimation(.snappy) { app.marks.toggleSaved(slug) } } label: {
-                Image(systemName: saved ? "heart.fill" : "heart").font(.system(size: 19, weight: .bold))
+                Image(systemName: saved ? "heart.fill" : "heart").font(.system(size: 16.5, weight: .bold))
                     .foregroundStyle(saved ? Pc.red : Pc.ink)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 44, height: 44)
                     .overlay(Circle().strokeBorder(Pc.rule, lineWidth: 1.5))
                     .contentShape(Circle())
             }
@@ -349,14 +349,14 @@ struct StoryMiniCard: View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomLeading) {
                 PcAsyncImage(media: post.media.first)
-                    .frame(width: 230, height: 150)
+                    .frame(width: 200, height: 125)
                     .clipShape(Pc.shape(Pc.imageRadius))
                 Avatar(user: post.author, size: 28).background(Circle().fill(Pc.raised).padding(-2)).padding(10)
             }
-            Text(post.displayTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
+            Text(post.displayTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
             Text("\(post.author.firstName) · \(post.reactions.love) loved").pcFont(.small).foregroundStyle(Pc.ink2)
         }
-        .frame(width: 230, alignment: .leading)
+        .frame(width: 200, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }
@@ -387,7 +387,7 @@ struct WhoIsGoingSheet: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                SeatRing(seats: RingSeats.trip(trip, detailSeats: seats, you: you), size: 176, dots: dots,
+                SeatRing(seats: RingSeats.trip(trip, detailSeats: seats, you: you), size: 150, dots: dots,
                          badge: trip.host.map { RingBadge(user: $0, kind: .host) }, centre: .photo(trip.image))
                     .padding(.top, 34)
                 SeatCaption(counts: counts, font: .system(size: 14, weight: .semibold)).padding(.top, 10)
@@ -412,7 +412,7 @@ struct WhoIsGoingSheet: View {
                 .padding(.top, 8)
                 if dots != .faces {
                     Label(dots == .none ? "Sign in to see initials. Counts are always shown." : "Faces show once you're travelling together.", systemImage: "lock.fill")
-                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).padding(.top, 12)
+                        .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3).padding(.top, 12)
                 }
             }
             .padding(.horizontal, 20)
@@ -439,20 +439,20 @@ struct WhoIsGoingSheet: View {
         HStack(spacing: 12) {
             avatar
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
+                Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
                 Text(subtitle).pcFont(.small).monospacedDigit().foregroundStyle(Pc.ink2)
             }
             Spacer()
             trailing()
         }
-        .frame(minHeight: 64)
+        .frame(minHeight: 56)
         .overlay(alignment: .bottom) { HairlineRule() }
         .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder private func travellerAvatar(_ user: UserLite?, isYou: Bool) -> some View {
         if isYou {
-            Text("You").font(.system(size: 13, weight: .heavy)).foregroundStyle(PcTokens.light.onGold)
+            Text("You").font(.system(size: 12, weight: .heavy)).foregroundStyle(PcTokens.light.onGold)
                 .frame(width: 44, height: 44).background(Circle().fill(Pc.gold)).overlay(Circle().strokeBorder(Pc.stroke, lineWidth: 1.5))
         } else if dots == .faces {
             Avatar(user: user, size: 44)
@@ -460,9 +460,9 @@ struct WhoIsGoingSheet: View {
             ZStack {
                 Circle().fill(Pc.taken)
                 if dots == .initials, let user {
-                    Text(user.initials).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.raised)
+                    Text(user.initials).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.raised)
                 } else {
-                    Image(systemName: "person.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.raised)
+                    Image(systemName: "person.fill").font(.system(size: 14.5, weight: .bold)).foregroundStyle(Pc.raised)
                 }
             }
             .frame(width: 44, height: 44)

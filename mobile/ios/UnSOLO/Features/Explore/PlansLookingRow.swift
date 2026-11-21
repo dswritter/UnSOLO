@@ -21,8 +21,8 @@ struct PlansLookingRow: View {
 
     var body: some View {
         let list = plans
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Plans looking for people").padding(.horizontal, 20)
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Plans looking for people").padding(.horizontal, 18)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     PlanInviteCard(planning: list.count, faces: Array(list.map(\.author).prefix(3)))
@@ -51,14 +51,14 @@ struct PlanInviteCard: View {
         VStack(alignment: .leading, spacing: 8) {
             Button(action: compose) {
                 HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "plus").font(.system(size: 19, weight: .heavy)).foregroundStyle(Pc.raised)
-                        .frame(width: 44, height: 44)
+                    Image(systemName: "plus").font(.system(size: 16.5, weight: .heavy)).foregroundStyle(Pc.raised)
+                        .frame(width: 38, height: 38)
                         .background(Circle().fill(Pc.ink))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Going somewhere? Post a plan.").font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
+                        Text("Going somewhere? Post a plan.").font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(Pc.ink)
                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         Text("Travellers heading your way ask to join. No booking, no money.")
-                            .font(.system(size: 13)).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                            .font(.system(size: 12)).foregroundStyle(Pc.ink2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
                 }
@@ -68,19 +68,19 @@ struct PlanInviteCard: View {
             .accessibilityLabel("Post a plan. Travellers heading your way ask to join. No booking, no money.")
             Button { router.select(.tribe) } label: {
                 HStack(spacing: 6) {
-                    if !faces.isEmpty { FaceStack(users: Array(faces.prefix(3)), size: 22) }
-                    Text("\(planning) planning in Tribe →").font(.system(size: 13.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
+                    if !faces.isEmpty { FaceStack(users: Array(faces.prefix(3)), size: 19) }
+                    Text("\(planning) planning in Tribe →").font(.system(size: 12.5, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(1)
                 }
                 .frame(minHeight: PcTokens.touch)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.pcPress)
-            .padding(.leading, 56)
+            .padding(.leading, 50)
             .accessibilityLabel("\(planning) plans in the Tribe")
         }
-        .padding(16)
-        .frame(width: 300, alignment: .leading)
-        .frame(minHeight: 168, alignment: .top)
+        .padding(14)
+        .frame(width: 280, alignment: .leading)
+        .frame(minHeight: 140, alignment: .top)
         .pcPencilled()
         .contentShape(Pc.shape())
         .onTapGesture(perform: compose)
@@ -94,25 +94,25 @@ struct ExplorePlanCard: View {
         let counts = SeatCounts(plan: post)
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
-                SeatRing(seats: RingSeats.plan(post), size: 72, plan: true, womenOnly: post.audience == .women, dots: .none, centre: .user(post.author))
+                SeatRing(seats: RingSeats.plan(post), size: 60, plan: true, womenOnly: post.audience == .women, dots: .none, centre: .user(post.author))
                 VStack(alignment: .leading, spacing: 4) {
                     if post.audience == .women { PcTag(text: "Women only", style: .women) }
-                    Text(post.displayTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(post.displayTitle).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink).lineLimit(2).multilineTextAlignment(.leading)
                     Text("\(Fmt.range(post.startsOn, post.endsOn)) · \(post.place?.name.components(separatedBy: ",").first ?? "")")
                         .pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
             HStack(spacing: 6) {
-                Avatar(user: post.author, size: 22)
-                Text(post.author.firstName).font(.system(size: 13, weight: .semibold)).foregroundStyle(Pc.ink2).lineLimit(1)
+                Avatar(user: post.author, size: 19)
+                Text(post.author.firstName).font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink2).lineLimit(1)
                 Spacer(minLength: 4)
                 SeatCaption(counts: counts, noun: "spots", font: .system(size: 12.5, weight: .semibold))
             }
         }
-        .padding(14)
-        .frame(width: 270, alignment: .leading)
-        .frame(minHeight: 168, alignment: .top)
+        .padding(12)
+        .frame(width: 240, alignment: .leading)
+        .frame(minHeight: 140, alignment: .top)
         .pcPencilled()
         .accessibilityElement(children: .combine)
     }

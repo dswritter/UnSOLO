@@ -40,7 +40,7 @@ struct SeatCounts: Hashable {
 struct SeatCaption: View {
     let counts: SeatCounts
     var noun = "spots"
-    var font: Font = .system(size: 13, weight: .semibold)
+    var font: Font = .system(size: 12, weight: .semibold)
 
     var body: some View {
         text.font(font).monospacedDigit().lineLimit(1).minimumScaleFactor(0.85)
@@ -453,18 +453,18 @@ struct SeatRing: View {
         .padding(.horizontal, onPhoto ? 12 : 0)
         .padding(.vertical, onPhoto ? 5 : 0)
         .background { if onPhoto { Capsule().fill(Pc.scrim) } }
-        .frame(maxWidth: geo.centreRadius * 1.75)
+        .frame(maxWidth: geo.centreRadius * 1.9)
         .accessibilityHidden(true)
     }
 
     private func badgeView(_ b: RingBadge) -> some View {
         HStack(spacing: 5) {
-            Avatar(user: b.user, size: 20)
-            Text(b.kind == .host ? "HOST" : "ORGANISER").font(.system(size: 11, weight: .heavy)).tracking(0.4)
+            Avatar(user: b.user, size: 18)
+            Text(b.kind == .host ? "HOST" : "ORGANISER").font(.system(size: 10.5, weight: .heavy)).tracking(0.4)
         }
         .padding(.leading, 3)
         .padding(.trailing, 9)
-        .frame(height: 26)
+        .frame(height: 23)
         .foregroundStyle(b.kind == .host ? PcTokens.light.onGold : Pc.ink)
         .background(Capsule().fill(b.kind == .host ? Pc.gold : Pc.raised))
         .overlay(Capsule().strokeBorder(Pc.stroke, lineWidth: 1.5))
@@ -475,10 +475,10 @@ struct SeatRing: View {
     private func waitingFace(_ user: UserLite) -> some View {
         let p = geo.point(-28, geo.radius + 30 + (geo.showsDots ? 8 : 0))
         return ZStack(alignment: .bottomTrailing) {
-            Avatar(user: user, size: 40)
+            Avatar(user: user, size: 34)
                 .overlay(Circle().strokeBorder(Pc.paper, lineWidth: 2.5).padding(-2.5))
                 .overlay(Circle().strokeBorder(Pc.stroke, lineWidth: 1.5).padding(-4))
-            Image(systemName: "clock.fill").font(.system(size: 11, weight: .heavy))
+            Image(systemName: "clock.fill").font(.system(size: 10.5, weight: .heavy))
                 .foregroundStyle(PcTokens.light.onGold)
                 .frame(width: 20, height: 20)
                 .background(Circle().fill(Pc.gold))
@@ -558,7 +558,7 @@ struct StoryRing: View {
     let user: UserLite?
     var segments: Int = 1
     var seen: Int = 0
-    var size: CGFloat = 64
+    var size: CGFloat = 56
     var isMine = false
 
     var body: some View {
@@ -584,7 +584,7 @@ struct StoryRing: View {
             }
             Avatar(user: user, size: size - 12)
             if isMine {
-                Image(systemName: "plus").font(.system(size: 12, weight: .heavy)).foregroundStyle(Pc.onPine)
+                Image(systemName: "plus").font(.system(size: 11, weight: .heavy)).foregroundStyle(Pc.onPine)
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(Pc.pine))
                     .background(Circle().fill(Pc.paper).padding(-2.5))

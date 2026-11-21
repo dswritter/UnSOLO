@@ -324,7 +324,7 @@ struct OTPField: View {
         TextField("6-digit code", text: $code)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
-            .font(.system(size: 24, weight: .semibold, design: .monospaced))
+            .font(.system(size: 21, weight: .semibold, design: .monospaced))
             .tracking(8)
             .padding(.horizontal, 12)
             .frame(minHeight: 56)
@@ -353,7 +353,7 @@ private extension EmailAuthView {
 struct GoogleMark: View {
     var body: some View {
         Text("G")
-            .font(.system(size: 15, weight: .bold))
+            .font(.system(size: 14, weight: .bold))
             .foregroundStyle(Color(red: 0.26, green: 0.52, blue: 0.96))
             .frame(width: 24, height: 24)
             .background(Circle().fill(.white))

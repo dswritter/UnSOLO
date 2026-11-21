@@ -73,17 +73,18 @@ enum PcTextStyle {
 
     var size: CGFloat {
         switch self {
-        case .display: 32
-        case .title1: 26
-        case .title2: 21
-        case .title3: 17
-        case .body, .bodyStrong: 15
-        case .small: 13
-        case .label: 12
-        case .num: 16
-        case .numLarge: 28
-        case .price: 22
-        case .code: 11
+        // Density pass (Nov 2026): about 0.85× the first Full Circle sizes, close to Airbnb / MakeMyTrip.
+        case .display: 28
+        case .title1: 22
+        case .title2: 18
+        case .title3: 15
+        case .body, .bodyStrong: 14
+        case .small: 12
+        case .label: 11
+        case .num: 15
+        case .numLarge: 24
+        case .price: 17
+        case .code: 10
         }
     }
     var weight: Font.Weight {

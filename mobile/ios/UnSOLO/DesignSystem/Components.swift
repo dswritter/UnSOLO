@@ -37,11 +37,11 @@ struct PcButtonStyle: ButtonStyle {
         let pressed = configuration.isPressed
         let plain = kind == .link || kind == .danger
         configuration.label
-            .font(.system(size: compact ? 14 : 16, weight: .bold))
+            .font(.system(size: compact ? 13 : 15, weight: .bold))
             .lineLimit(1)
             .minimumScaleFactor(0.8)
-            .padding(.horizontal, plain ? 4 : (compact ? 18 : 24))
-            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: plain ? 32 : (compact ? 40 : PcTokens.buttonTall))
+            .padding(.horizontal, plain ? 4 : (compact ? 14 : 20))
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: plain ? 30 : (compact ? 34 : PcTokens.buttonTall))
             .foregroundStyle(foreground)
             .background {
                 switch kind {
@@ -128,7 +128,7 @@ struct GlassIcon: View {
     var tint: Color = Pc.ink
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 17, weight: .bold))
+            .font(.system(size: 15, weight: .bold))
             .foregroundStyle(tint)
             .frame(width: 40, height: 40)
             .background(.ultraThinMaterial, in: Circle())
@@ -152,15 +152,15 @@ struct PcTag: View {
     var body: some View {
         HStack(spacing: 4) {
             if let symbol = icon ?? defaultIcon {
-                Image(systemName: symbol).font(.system(size: 10.5, weight: .bold))
+                Image(systemName: symbol).font(.system(size: 10, weight: .bold))
             }
             Text(style == .host || style == .organiser ? text.uppercased() : text)
                 .font(.system(size: style == .host || style == .organiser ? 10.5 : 12, weight: style == .host ? .heavy : .bold))
                 .tracking(style == .host || style == .organiser ? 0.5 : 0)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 9)
-        .frame(minHeight: 22)
+        .padding(.horizontal, 8)
+        .frame(minHeight: 20)
         .foregroundStyle(foreground)
         .background(Capsule().fill(background))
         .overlay {
@@ -296,10 +296,10 @@ struct PcSegmented<T: Hashable>: View {
                     withAnimation(.snappy(duration: PcTokens.motionStandard)) { selection = item.0 }
                 } label: {
                     Text(item.1)
-                        .font(.system(size: 14, weight: selected ? .bold : .semibold))
+                        .font(.system(size: 13, weight: selected ? .bold : .semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 34)
                         .foregroundStyle(selected ? Pc.raised : Pc.ink2)
                         .background {
                             if selected { Capsule().fill(Pc.ink).matchedGeometryEffect(id: "seg", in: ns) }
@@ -350,12 +350,12 @@ struct PcChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if selected && showsCheck { Image(systemName: "checkmark").font(.system(size: 12, weight: .heavy)) }
-                else if let icon { Image(systemName: icon).font(.system(size: 14, weight: .bold)) }
-                Text(text).font(.system(size: 14, weight: selected ? .bold : .semibold)).lineLimit(1)
+                if selected && showsCheck { Image(systemName: "checkmark").font(.system(size: 11, weight: .heavy)) }
+                else if let icon { Image(systemName: icon).font(.system(size: 13, weight: .bold)) }
+                Text(text).font(.system(size: 13.5, weight: selected ? .bold : .semibold)).lineLimit(1)
             }
-            .padding(.horizontal, 15)
-            .frame(minHeight: 40)
+            .padding(.horizontal, 13)
+            .frame(minHeight: 36)
             .foregroundStyle(selected ? Pc.raised : Pc.ink)
             .background(Capsule().fill(selected ? tint : Pc.raised))
             .overlay {
@@ -404,12 +404,12 @@ struct FactChip: View {
     let text: String
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: symbol).font(.system(size: 14, weight: .bold))
-            Text(text).font(.system(size: 14, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
+            Image(systemName: symbol).font(.system(size: 13, weight: .bold))
+            Text(text).font(.system(size: 13, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
         }
         .foregroundStyle(Pc.ink)
-        .padding(.horizontal, 12)
-        .frame(minHeight: 36)
+        .padding(.horizontal, 10)
+        .frame(minHeight: 30)
         .background(Capsule().fill(Pc.raised))
         .overlay(Capsule().strokeBorder(Pc.rule, lineWidth: 1))
         .accessibilityElement(children: .combine)
@@ -425,7 +425,7 @@ struct SectionHeader: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(title).pcFont(.title2, weight: .heavy).foregroundStyle(Pc.ink)
+            Text(title).font(.system(.title3, design: .rounded, weight: .heavy)).foregroundStyle(Pc.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             if let trailing {
@@ -444,7 +444,7 @@ struct Overline: View {
     let text: String
     var color: Color = Pc.ink2
     var body: some View {
-        Text(text.uppercased()).font(.system(size: 11, weight: .heavy)).tracking(0.7).foregroundStyle(color)
+        Text(text.uppercased()).font(.system(size: 10.5, weight: .heavy)).tracking(0.7).foregroundStyle(color)
     }
 }
 
@@ -459,12 +459,12 @@ struct BadgeIcon: View {
     var body: some View {
         ZStack(alignment: .topTrailing) {
             Image(systemName: systemName)
-                .font(.system(size: 19, weight: .bold))
+                .font(.system(size: 16.5, weight: .bold))
                 .foregroundStyle(Pc.ink)
                 .frame(width: PcTokens.touch, height: PcTokens.touch)
             if count > 0 {
                 Text(count > 99 ? "99+" : "\(count)")
-                    .font(.system(size: 11, weight: .heavy).monospacedDigit())
+                    .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
                     .foregroundStyle(Pc.raised)
                     .padding(.horizontal, 4)
                     .frame(minWidth: 18, minHeight: 18)
@@ -485,7 +485,7 @@ struct BadgeIcon: View {
 struct CountPill: View {
     let count: Int
     var body: some View {
-        Text("\(count)").font(.system(size: 11, weight: .heavy).monospacedDigit()).foregroundStyle(Pc.raised)
+        Text("\(count)").font(.system(size: 10.5, weight: .heavy).monospacedDigit()).foregroundStyle(Pc.raised)
             .padding(.horizontal, 6).frame(minWidth: 20, minHeight: 20).background(Capsule().fill(Pc.ink))
     }
 }
@@ -496,7 +496,7 @@ struct OfflineBanner: View {
     var text = "Offline · showing saved"
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "wifi.slash").font(.system(size: 13, weight: .bold))
+            Image(systemName: "wifi.slash").font(.system(size: 12, weight: .bold))
             Text(text).pcFont(.label)
             Spacer()
         }
@@ -512,7 +512,7 @@ struct CommunityPlanLabel: View {
     var text = "Community plan · not a booking"
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: "checkmark.shield.fill").font(.system(size: 12, weight: .bold))
+            Image(systemName: "checkmark.shield.fill").font(.system(size: 11, weight: .bold))
             Text(text).pcFont(.label, weight: .semibold)
         }
         .foregroundStyle(Pc.ink2)
@@ -522,7 +522,7 @@ struct CommunityPlanLabel: View {
 struct VerifiedBadge: View {
     var body: some View {
         Image(systemName: "checkmark.seal.fill")
-            .font(.system(size: 14, weight: .bold))
+            .font(.system(size: 13, weight: .bold))
             .foregroundStyle(Pc.ink2)
             .accessibilityLabel("Verified")
     }
@@ -535,11 +535,11 @@ struct DateChip: View {
     let ymd: String?
     var body: some View {
         VStack(spacing: 0) {
-            Text(Fmt.dayNumber(ymd)).font(PcFont.rounded(20)).foregroundStyle(Pc.ink)
-            Text(Fmt.monthShort(ymd).uppercased()).font(.system(size: 11, weight: .heavy)).tracking(0.4).foregroundStyle(Pc.ink2)
+            Text(Fmt.dayNumber(ymd)).font(PcFont.rounded(16)).foregroundStyle(Pc.ink)
+            Text(Fmt.monthShort(ymd).uppercased()).font(.system(size: 10.5, weight: .heavy)).tracking(0.4).foregroundStyle(Pc.ink2)
         }
-        .frame(width: 46, height: 50)
-        .background(Pc.raised, in: Pc.shape(14))
+        .frame(width: 40, height: 44)
+        .background(Pc.raised, in: Pc.shape(12))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Fmt.weekdayDayMonth(ymd))
     }
@@ -571,17 +571,17 @@ struct FormRow<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(label).font(.system(size: 12, weight: .bold)).foregroundStyle(labelColor)
+                Text(label).font(.system(size: 11, weight: .bold)).foregroundStyle(labelColor)
                 content
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
             .frame(maxWidth: .infinity, alignment: .leading)
             .pcField()
             if let hint { Text(hint).pcFont(.small).foregroundStyle(Pc.ink2).fixedSize(horizontal: false, vertical: true).padding(.horizontal, 6) }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
 }
 
@@ -615,9 +615,9 @@ struct BottomActionBar<Leading: View, Trailing: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             trailing
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
         .pcBarBackground()
     }
 }
@@ -655,7 +655,7 @@ struct PcStepper: View {
         HStack(spacing: 12) {
             step("minus", enabled: value > range.lowerBound) { value -= 1 }
                 .accessibilityLabel("Fewer")
-            Text("\(value)").font(PcFont.rounded(18, .heavy)).foregroundStyle(Pc.ink).frame(minWidth: 22)
+            Text("\(value)").font(PcFont.rounded(16, .heavy)).foregroundStyle(Pc.ink).frame(minWidth: 22)
             step("plus", enabled: value < range.upperBound) { value += 1 }
                 .accessibilityLabel("More")
         }
@@ -673,9 +673,9 @@ struct PcStepper: View {
 
     private func step(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 15, weight: .heavy))
+            Image(systemName: symbol).font(.system(size: 14, weight: .heavy))
                 .foregroundStyle(enabled ? Pc.ink : Pc.ink3)
-                .frame(width: 40, height: 40)
+                .frame(width: 34, height: 34)
                 .overlay(Circle().strokeBorder(Pc.rule, lineWidth: 1.5))
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
@@ -691,8 +691,8 @@ struct EmptyState: View {
     var message: String?
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: symbol).font(.system(size: 26, weight: .bold)).foregroundStyle(Pc.ink2)
-                .frame(width: 64, height: 64).background(Circle().fill(Pc.tonal))
+            Image(systemName: symbol).font(.system(size: 22, weight: .bold)).foregroundStyle(Pc.ink2)
+                .frame(width: 54, height: 54).background(Circle().fill(Pc.tonal))
             Text(title).pcFont(.title3).foregroundStyle(Pc.ink).multilineTextAlignment(.center)
             if let message { Text(message).pcFont(.small).foregroundStyle(Pc.ink2).multilineTextAlignment(.center) }
         }
@@ -713,19 +713,19 @@ struct SearchDock: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").font(.system(size: 18, weight: .bold)).foregroundStyle(Pc.ink)
-                    .padding(.leading, 18)
-                (Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(Pc.ink)
-                    + Text("  ·  \(subtitle)").font(.system(size: 14, weight: .medium)).foregroundStyle(Pc.ink2))
+                Image(systemName: "magnifyingglass").font(.system(size: 16, weight: .bold)).foregroundStyle(Pc.ink)
+                    .padding(.leading, 16)
+                (Text(title).font(.system(size: 14, weight: .bold)).foregroundStyle(Pc.ink)
+                    + Text("  ·  \(subtitle)").font(.system(size: 13, weight: .medium)).foregroundStyle(Pc.ink2))
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 ZStack(alignment: .topTrailing) {
-                    Image(systemName: "slider.horizontal.3").font(.system(size: 16, weight: .bold))
+                    Image(systemName: "slider.horizontal.3").font(.system(size: 14.5, weight: .bold))
                         .foregroundStyle(Pc.ink)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 38, height: 38)
                         .background(Circle().fill(Pc.tonal))
                     if activeFilters > 0 {
-                        Text("\(activeFilters)").font(.system(size: 10, weight: .heavy)).foregroundStyle(Pc.raised)
+                        Text("\(activeFilters)").font(.system(size: 9.5, weight: .heavy)).foregroundStyle(Pc.raised)
                             .frame(width: 17, height: 17).background(Circle().fill(Pc.ink))
                             .offset(x: 3, y: -3)
                     }
@@ -759,8 +759,8 @@ struct PcToggleRow: View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    if let icon { Image(systemName: icon).font(.system(size: 13, weight: .bold)) }
-                    Text(title).font(.system(size: 15, weight: .bold))
+                    if let icon { Image(systemName: icon).font(.system(size: 12, weight: .bold)) }
+                    Text(title).font(.system(size: 14, weight: .bold))
                 }
                 .foregroundStyle(titleColor)
                 if let subtitle { Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2).fixedSize(horizontal: false, vertical: true) }

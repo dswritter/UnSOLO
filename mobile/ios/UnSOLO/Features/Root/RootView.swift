@@ -27,10 +27,10 @@ struct RootView: View {
         .overlay(alignment: .bottom) {
             if router.isAtRoot { PcTabBar() }
         }
-        .overlay(alignment: .bottom) { ToastView().padding(.bottom, router.isAtRoot ? 140 : 96) }
+        .overlay(alignment: .bottom) { ToastView().padding(.bottom, router.isAtRoot ? 124 : 86) }
         .pcScreen()
         .sheet(isPresented: $router.showPostSheet) {
-            PostTypeSheet().presentationDetents([.height(470), .large]).presentationDragIndicator(.visible).pcSheet()
+            PostTypeSheet().presentationDetents([.height(410), .large]).presentationDragIndicator(.visible).pcSheet()
         }
         .fullScreenCover(item: $router.composer) { kind in
             ComposerHost(kind: kind).environment(app).environment(router).environment(session)
@@ -138,7 +138,7 @@ struct PcTabBar: View {
             youItem
         }
         .padding(.horizontal, 6)
-        .padding(.top, 7)
+        .padding(.top, 5)
         .frame(height: PcTokens.tabBar, alignment: .top)
         .pcBarBackground()
     }
@@ -149,13 +149,13 @@ struct PcTabBar: View {
             VStack(spacing: 3) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: selected ? tab.selectedSymbol : tab.symbol)
-                        .font(.system(size: 19, weight: .bold))
+                        .font(.system(size: 16.5, weight: .bold))
                         .foregroundStyle(selected ? Pc.ink : Pc.ink3)
-                        .frame(width: 54, height: 30)
+                        .frame(width: 48, height: 27)
                         .background { if selected { Capsule().fill(Pc.tonal) } }
                     if badge > 0 {
                         Text("\(min(badge, 99))")
-                            .font(.system(size: 10.5, weight: .heavy).monospacedDigit())
+                            .font(.system(size: 10, weight: .heavy).monospacedDigit())
                             .foregroundStyle(Pc.raised)
                             .padding(.horizontal, 5)
                             .frame(minWidth: 18, minHeight: 18)
@@ -164,10 +164,10 @@ struct PcTabBar: View {
                             .offset(x: 2, y: -4)
                     }
                 }
-                Text(tab.title).font(.system(size: 11, weight: .bold))
+                Text(tab.title).font(.system(size: 10.5, weight: .bold))
                     .foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 46)
             .contentShape(Rectangle())
         }
         .buttonStyle(.pcPress)
@@ -178,14 +178,14 @@ struct PcTabBar: View {
     private var postButton: some View {
         Button { app.requireVerified("Sign in to post") { router.showPostSheet = true } } label: {
             Image(systemName: "plus")
-                .font(.system(size: 22, weight: .heavy))
+                .font(.system(size: 19, weight: .heavy))
                 .foregroundStyle(Pc.onPine)
-                .frame(width: 56, height: 56)
+                .frame(width: 50, height: 50)
                 .background(Circle().fill(Pc.pine))
                 .background(Circle().fill(Pc.paper).padding(-4))
                 .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
-                .offset(y: -14)
-                .frame(maxWidth: .infinity, minHeight: 52)
+                .offset(y: -12)
+                .frame(maxWidth: .infinity, minHeight: 46)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.pcPress)
@@ -198,17 +198,17 @@ struct PcTabBar: View {
             VStack(spacing: 3) {
                 Group {
                     if let user = session.user {
-                        Avatar(user: user, size: 26, ring: selected ? Pc.ink : .clear)
+                        Avatar(user: user, size: 23, ring: selected ? Pc.ink : .clear)
                     } else {
-                        Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 20, weight: .bold))
+                        Image(systemName: selected ? "person.crop.circle.fill" : "person.crop.circle").font(.system(size: 17, weight: .bold))
                             .foregroundStyle(selected ? Pc.ink : Pc.ink3)
                     }
                 }
-                .frame(width: 54, height: 30)
+                .frame(width: 48, height: 27)
                 .background { if selected { Capsule().fill(Pc.tonal) } }
-                Text("You").font(.system(size: 11, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.ink3)
+                Text("You").font(.system(size: 10.5, weight: .bold)).foregroundStyle(selected ? Pc.ink : Pc.ink3)
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 46)
             .contentShape(Rectangle())
         }
         .buttonStyle(.pcPress)
@@ -247,8 +247,8 @@ struct AppHeader<Trailing: View>: View {
             }
             .buttonStyle(.pcPress)
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 8)
+        .padding(.leading, 18)
+        .padding(.trailing, 6)
         .frame(minHeight: PcTokens.topBar)
     }
 }
