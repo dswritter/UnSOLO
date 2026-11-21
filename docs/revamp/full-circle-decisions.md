@@ -27,6 +27,15 @@ You found photos, cards and type bigger than other sites. I measured Airbnb and 
   - Listing rows show about 6 cards across a desktop (they showed about 4.8), and about 1.6 on a phone.
 - **Shape:** card radius 20 (was 28), image radius 16 (was 20), sheets 24, tab bar 60.
 - **Touch targets stay at least 44px.**
+- **Fix: clipped Leaving soon cards on smaller desktops.**
+  - Five fixed columns left each card about 210px at 1280px wide, so titles, captions and the button were cut off.
+  - The grid now picks 2–5 columns from its own width (container queries), so a card is never under about 250px. It always shows two full rows.
+  - Cards adapt to their own width: titles wrap to two lines, the caption truncates, and the "Grab a spot" pill hides below 236px (the whole card is the link).
+  - Checked from 800px to 1920px: no overflow.
+- **The rest of the home page got the same pass:**
+  - "Trips by vibe": 3 per row, 6 on wide screens.
+  - Region tiles, host and review cards, the leaderboard and "How UnSOLO works" are all about 0.85×.
+  - The gaps between sections are smaller.
 - **On phones,** "Next few weeks" now starts above the fold on Explore.
 
 ## Review round 4 (user request)

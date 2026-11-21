@@ -62,20 +62,21 @@ export function TripRingCard({ trip: t, ringSize = 72, className, priority }: { 
             center={spotsCenter(n, left, ringSize * 0.27)} className="fc-tcard-ring" />
         )}
         <div className="min-w-0 flex-1 pt-9">
-          <h3 className="truncate text-[15px] leading-tight">{t.title}</h3>
+          <h3 className="line-clamp-2 text-[15px] leading-tight" title={t.title}>{t.title}</h3>
           <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">{t.durationDays}D/{Math.max(t.durationDays - 1, 0)}N · {t.place?.name ?? 'India'}</p>
         </div>
       </div>
       <div className="px-3.5 pb-3.5 pt-2">
         <div className="flex items-center justify-between gap-2">
           {t.host
-            ? <span className="pc-tag pc-tag-verified min-w-0"><BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="truncate">{t.host.name}</span></span>
-            : <span className="pc-tag pc-tag-hosted">UnSOLO trip</span>}
-          <span className="fc-caption shrink-0 text-[12px]">{seatLine(t)}</span>
+            ? <span className="pc-tag pc-tag-verified min-w-0 shrink"><BadgeCheck className="h-3.5 w-3.5 shrink-0" aria-hidden /><span className="truncate">{t.host.name}</span></span>
+            : <span className="pc-tag pc-tag-hosted shrink-0">UnSOLO trip</span>}
+          <span className="fc-caption min-w-0 truncate text-right text-[12px]">{seatLine(t)}</span>
         </div>
         <div className="mt-2.5 flex items-center justify-between gap-2">
-          <span className="pc-price">{rupees(t.priceFromPaise)}<small>/person</small></span>
-          <span className="pc-btn pc-btn-sm pc-btn-quiet">{full ? 'Notify me' : 'Grab a spot'}</span>
+          <span className="pc-price whitespace-nowrap">{rupees(t.priceFromPaise)}<small>/person</small></span>
+          {/* The whole card is the link; the pill is a visual cue and hides when the card is narrow. */}
+          <span className="fc-tcard-cta pc-btn pc-btn-sm pc-btn-quiet shrink-0">{full ? 'Notify me' : 'Grab a spot'}</span>
         </div>
       </div>
     </article>

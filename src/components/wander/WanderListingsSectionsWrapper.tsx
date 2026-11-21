@@ -63,7 +63,7 @@ export function WanderListingsSectionsWrapper({
   // row gets breathing room and a hairline divider; empty rows collapse away.
   return <div className="flex flex-col divide-y divide-border/45">
     {orderedTypes.flatMap((type, index) => [
-      <div key={type} className="py-7 first:pt-0 empty:hidden md:py-9">{slots[type]}</div>,
+      <div key={type} className="py-6 first:pt-0 empty:hidden md:py-7">{slots[type]}</div>,
       index === 1 && interludeSlot ? <div key="interlude" className="py-6 empty:hidden md:hidden">{interludeSlot}</div> : null,
     ])}
   </div>

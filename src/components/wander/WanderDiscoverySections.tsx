@@ -41,7 +41,7 @@ function DiscoveryHeader({ eyebrow, title, subtitle, href, actionLabel = 'View a
   )
 }
 
-const sectionClass = 'mt-7 border-t border-border/45 pt-7 md:mt-9 md:pt-9'
+const sectionClass = 'mt-6 border-t border-border/45 pt-6 md:mt-7 md:pt-7'
 const tripsLabel = (n: number) => `${n} trip${n === 1 ? '' : 's'}`
 
 export async function WanderVibesSection() {
@@ -51,16 +51,16 @@ export async function WanderVibesSection() {
     <section aria-label="Trips by vibe" className={sectionClass}>
       <DiscoveryHeader eyebrow="Pick your mood" title="Trips by vibe" subtitle="Jump straight to the kind of trip you're craving." />
       {/* Host photos are 16:9 banners: tiles keep that shape (mobile: swipe row, desktop: 3 per row). */}
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide md:mx-0 md:grid md:grid-cols-2 md:gap-4 md:overflow-visible md:px-0 lg:grid-cols-3">
+      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 scrollbar-hide md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 xl:grid-cols-6">
         {vibes.map(vibe => (
           <Link key={vibe.id} href={wanderSearchHref({ tab: 'trips', ...vibe.params })}
-            className="group relative isolate flex aspect-video w-[82%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[24px] border border-foreground/10 p-4 md:w-auto md:p-5">
+            className="group relative isolate flex aspect-video w-[72%] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[18px] border border-foreground/10 p-3.5 md:w-auto md:p-4">
             <CoverImage src={vibe.imageUrl} sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 82vw" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
             <div className="relative text-white">
-              <span className="mb-1.5 inline-flex rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold backdrop-blur">{tripsLabel(vibe.tripCount)}</span>
-              <h3 className="text-base font-black leading-tight md:text-lg">{vibe.label}</h3>
-              <p className="mt-0.5 line-clamp-2 text-xs text-white/80">{vibe.blurb}</p>
+              <span className="mb-1 inline-flex rounded-full bg-white/20 px-2 py-0.5 text-[10.5px] font-bold backdrop-blur">{tripsLabel(vibe.tripCount)}</span>
+              <h3 className="text-[15px] font-black leading-tight md:text-base">{vibe.label}</h3>
+              <p className="mt-0.5 line-clamp-1 text-[11.5px] text-white/80">{vibe.blurb}</p>
             </div>
           </Link>
         ))}
@@ -75,16 +75,16 @@ export async function WanderRegionsSection() {
   return (
     <section aria-label="Browse by region" className={sectionClass}>
       <DiscoveryHeader eyebrow="Where to next" title="Browse by region" href={wanderSearchHref({ tab: 'trips' })} actionLabel="All trips" />
-      <div className="grid auto-rows-[9.5rem] grid-cols-2 gap-3 md:auto-rows-[12rem] md:grid-cols-4 md:gap-4">
+      <div className="grid auto-rows-[8rem] grid-cols-2 gap-3 md:auto-rows-[9.5rem] md:grid-cols-4 md:gap-4">
         {regions.map((region, i) => (
           <Link key={region.key} href={wanderSearchHref({ tab: 'trips', q: region.query })}
-            className={`group relative isolate flex flex-col justify-end overflow-hidden rounded-2xl border border-foreground/10 p-4 shadow-sm ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
+            className={`group relative isolate flex flex-col justify-end overflow-hidden rounded-[16px] border border-foreground/10 p-3.5 shadow-sm ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
             <CoverImage src={region.imageUrl} fallbackSrc={region.fallbackImageUrl} sizes={i === 0 ? '(min-width: 768px) 50vw, 100vw' : '(min-width: 768px) 25vw, 50vw'} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
             <div className="relative flex items-end justify-between gap-2 text-white">
               <div className="min-w-0">
-                <h3 className={`${i === 0 ? 'text-2xl md:text-3xl' : 'text-base md:text-lg'} font-black leading-tight`}>{region.label}</h3>
-                {region.caption ? <p className="truncate text-xs text-white/80 md:text-sm">{region.caption}</p> : null}
+                <h3 className={`${i === 0 ? 'text-xl md:text-2xl' : 'text-[15px] md:text-base'} font-black leading-tight`}>{region.label}</h3>
+                {region.caption ? <p className="truncate text-[11.5px] text-white/80 md:text-xs">{region.caption}</p> : null}
               </div>
               <span className="shrink-0 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold backdrop-blur">{tripsLabel(region.tripCount)}</span>
             </div>
@@ -105,7 +105,7 @@ export async function WanderHostsSection() {
       <WanderCarousel label="Hosts">
         {hosts.map(host => (
           <Link key={host.id} href={`/profile/${host.username}`}
-            className="wander-frost-panel group flex w-[15.5rem] shrink-0 snap-start flex-col p-4 transition hover:border-primary/40 md:w-[17rem]">
+            className="wander-frost-panel group flex w-[14rem] shrink-0 snap-start flex-col p-3.5 transition hover:border-primary/40 md:w-[15rem]">
             <div className="flex items-center gap-3">
               <Avatar className="h-14 w-14 border-2 border-primary/30">
                 <AvatarImage src={host.avatarUrl || ''} alt="" />
@@ -124,8 +124,8 @@ export async function WanderHostsSection() {
               {host.tripsHosted > 0 ? <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5">{host.tripsHosted} hosted</span> : null}
               <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5">{host.liveListings} live</span>
             </div>
-            <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm text-muted-foreground">{host.bio || `Hosting trips on UnSOLO as @${host.username}.`}</p>
-            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary">View profile <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+            <p className="mt-2.5 line-clamp-2 min-h-[2.25rem] text-[13px] text-muted-foreground">{host.bio || `Hosting trips on UnSOLO as @${host.username}.`}</p>
+            <span className="mt-2.5 inline-flex items-center gap-1 text-[13px] font-semibold text-primary">View profile <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
           </Link>
         ))}
       </WanderCarousel>
@@ -141,7 +141,7 @@ export async function WanderReviewsSection() {
       <DiscoveryHeader eyebrow="Straight from the trail" title="What travellers say" />
       <WanderCarousel label="Traveller reviews">
         {reviews.map(review => (
-          <article key={review.id} className="wander-frost-panel flex w-[17.5rem] shrink-0 snap-start flex-col overflow-hidden md:w-[20rem]">
+          <article key={review.id} className="wander-frost-panel flex w-[15.5rem] shrink-0 snap-start flex-col overflow-hidden md:w-[17rem]">
             <div className="group relative h-36 shrink-0 overflow-hidden">
               <CoverImage src={review.imageUrl} sizes="320px" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -149,11 +149,11 @@ export async function WanderReviewsSection() {
                 {[0, 1, 2, 3, 4].map(i => <Star key={i} className="h-4 w-4 fill-current" />)}
               </div>
             </div>
-            <div className="flex flex-1 flex-col p-4">
-              <Quote className="h-5 w-5 text-primary/60" aria-hidden />
+            <div className="flex flex-1 flex-col p-3.5">
+              <Quote className="h-4 w-4 text-primary/60" aria-hidden />
               {review.title ? <h3 className="mt-1 line-clamp-1 font-bold">{review.title}</h3> : null}
-              <p className="mt-1 line-clamp-5 flex-1 text-sm text-foreground/80">{review.body}</p>
-              <div className="mt-4 flex items-center gap-2.5 border-t border-foreground/10 pt-3">
+              <p className="mt-1 line-clamp-4 flex-1 text-[13px] text-foreground/80">{review.body}</p>
+              <div className="mt-3 flex items-center gap-2.5 border-t border-foreground/10 pt-3">
                 <Link href={`/profile/${review.reviewer.username}`} className="shrink-0">
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={review.reviewer.avatarUrl || ''} alt="" />
@@ -188,7 +188,7 @@ export async function WanderLeaderboardTeaser() {
   if (!top.length) return null
   return (
     <section aria-label="Leaderboard" className={sectionClass}>
-      <div className="wander-frost-panel p-5 md:p-7">
+      <div className="wander-frost-panel p-4 md:p-6">
         <DiscoveryHeader eyebrow="Leaderboard" title={isMonthly ? 'Top travellers this month' : 'Top travellers on UnSOLO'}
           subtitle="Earn points for every trip, review and new destination." href="/leaderboard" actionLabel="Full board" />
         <div className="grid gap-4 md:grid-cols-[1fr_minmax(16rem,20rem)] md:items-center">
@@ -228,12 +228,12 @@ export function WanderDiscoverySkeleton({ variant }: { variant: 'grid' | 'row' |
     <div className={`${sectionClass} animate-pulse`} aria-hidden>
       <div className="mb-4 h-6 w-48 rounded-md bg-foreground/10" />
       {variant === 'grid' ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
-          {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="aspect-video rounded-[24px] bg-foreground/[0.07]" />)}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4 xl:grid-cols-6">
+          {[0, 1, 2, 3, 4, 5].map(i => <div key={i} className="aspect-video rounded-[18px] bg-foreground/[0.07]" />)}
         </div>
       ) : variant === 'row' ? (
         <div className="flex gap-3 overflow-hidden md:gap-4">
-          {[0, 1, 2, 3].map(i => <div key={i} className="h-60 w-[17rem] shrink-0 rounded-2xl bg-foreground/[0.07]" />)}
+          {[0, 1, 2, 3, 4].map(i => <div key={i} className="h-52 w-[15rem] shrink-0 rounded-2xl bg-foreground/[0.07]" />)}
         </div>
       ) : (
         <div className="h-44 rounded-2xl bg-foreground/[0.07]" />

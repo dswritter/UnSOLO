@@ -292,3 +292,31 @@ a:active > .fc-tab-post, button:active > .fc-tab-post { transform: scale(0.94); 
 .fc-invite:focus-within { outline: 2px solid var(--pc-ink); outline-offset: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .fc-invite { transition: none; } .fc-invite:active { transform: none; } }
+
+/* ── Leaving soon grid: column count from the space available, two full rows ──
+   A trip card needs ~250px for the ring, title, caption and button, so columns are chosen by the
+   section's own width (container queries), not by viewport breakpoints. */
+@layer components {
+.fc-leaving { container-type: inline-size; }
+.fc-leaving-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fc-leaving-grid > :nth-child(n+5) { display: none; }
+@container (min-width: 782px) {
+  .fc-leaving-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .fc-leaving-grid > :nth-child(n+5) { display: flex; }
+  .fc-leaving-grid > :nth-child(n+7) { display: none; }
+}
+@container (min-width: 1048px) {
+  .fc-leaving-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fc-leaving-grid > :nth-child(n+7) { display: flex; }
+  .fc-leaving-grid > :nth-child(n+9) { display: none; }
+}
+@container (min-width: 1314px) {
+  .fc-leaving-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .fc-leaving-grid > :nth-child(n+9) { display: flex; }
+}
+
+/* Trip cards adapt to their own width wherever they sit (grid, pager, results). */
+.fc-tcard { container-type: inline-size; }
+.fc-tcard-cta { display: none; }
+@container (min-width: 236px) { .fc-tcard-cta { display: inline-flex; } }
+}
