@@ -13,10 +13,21 @@ function safeRedirect(path: string | null | undefined) {
 }
 
 /**
- * Passwordless sign-in with a 6-digit code by email or SMS (Supabase Auth OTP). Same flow as the
- * Android/iOS apps. Phone sign-in needs a Supabase SMS provider (docs/revamp/setup-inputs.md §3);
- * email codes need the Supabase email template to include {{ .Token }}.
+ * Passwordless sign-in with a 6-digit code. Email: Supabase Auth OTP (the email template must include
+ * {{ .Token }}). Phone: our own SMS gateway (2factor.in / MSG91) through /api/v1/auth/phone/*, which
+ * returns a Supabase session that we install with setSession. Same flow as the Android/iOS apps.
  */
+async function postJson<T>(url: string, body: unknown): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const json = await res.json().catch(() => null)
+    if (res.ok) return { ok: true, data: json as T }
+    return { ok: false, error: (json?.error?.message as string) || 'Something went wrong. Try again.' }
+  } catch {
+    return { ok: false, error: 'You seem to be offline. Try again.' }
+  }
+}
+
 export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
   const router = useRouter()
   const [mode, setMode] = useState<'email' | 'phone'>('email')
@@ -24,6 +35,7 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
   const [code, setCode] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [challenge, setChallenge] = useState<string | null>(null)
 
   function target() {
     if (mode === 'email') return value.trim().toLowerCase()
@@ -38,15 +50,20 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
       return
     }
     setBusy(true)
-    const supabase = createClient()
-    const { error } = mode === 'email'
-      ? await supabase.auth.signInWithOtp({ email: t, options: { shouldCreateUser: true } })
-      : await supabase.auth.signInWithOtp({ phone: t })
-    setBusy(false)
-    if (error) {
-      toast.error(mode === 'phone' && /provider|sms|phone/i.test(error.message) ? 'Phone sign-in isn’t switched on yet. Use email for now.' : error.message)
+    if (mode === 'phone') {
+      const r = await postJson<{ challenge: string; devCode?: string }>('/api/v1/auth/phone/start', { phone: t })
+      setBusy(false)
+      if (!r.ok) { toast.error(r.error); return }
+      setChallenge(r.data.challenge)
+      if (r.data.devCode) toast.message(`Dev code: ${r.data.devCode}`)
+      setSent(true)
+      toast.success('We sent you a 6-digit code')
       return
     }
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithOtp({ email: t, options: { shouldCreateUser: true } })
+    setBusy(false)
+    if (error) { toast.error(error.message); return }
     setSent(true)
     toast.success(mode === 'email' ? 'Check your inbox for a 6-digit code' : 'We sent you a 6-digit code')
   }
@@ -56,11 +73,18 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
     if (!t || !/^\d{6}$/.test(code)) return
     setBusy(true)
     const supabase = createClient()
-    const { error } = mode === 'email'
-      ? await supabase.auth.verifyOtp({ email: t, token: code, type: 'email' })
-      : await supabase.auth.verifyOtp({ phone: t, token: code, type: 'sms' })
-    setBusy(false)
-    if (error) { toast.error('That code didn’t work. Check it or ask for a new one.'); return }
+    if (mode === 'phone') {
+      if (!challenge) { setBusy(false); setSent(false); return }
+      const r = await postJson<{ access_token: string; refresh_token: string }>('/api/v1/auth/phone/verify', { challenge, code })
+      if (!r.ok) { setBusy(false); toast.error(r.error); return }
+      const { error } = await supabase.auth.setSession({ access_token: r.data.access_token, refresh_token: r.data.refresh_token })
+      setBusy(false)
+      if (error) { toast.error('Couldn’t sign you in. Try again.'); return }
+    } else {
+      const { error } = await supabase.auth.verifyOtp({ email: t, token: code, type: 'email' })
+      setBusy(false)
+      if (error) { toast.error('That code didn’t work. Check it or ask for a new one.'); return }
+    }
     router.replace(safeRedirect(redirectTo))
     router.refresh()
   }
@@ -71,7 +95,7 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
       <div className="mb-2 flex gap-2" role="radiogroup" aria-label="Code by">
         {(['email', 'phone'] as const).map((m) => (
           <button key={m} type="button" role="radio" aria-checked={mode === m} className="pc-chip"
-            onClick={() => { setMode(m); setSent(false); setValue(''); setCode('') }}>{m === 'email' ? 'Email' : 'Phone'}</button>
+            onClick={() => { setMode(m); setSent(false); setValue(''); setCode(''); setChallenge(null) }}>{m === 'email' ? 'Email' : 'Phone'}</button>
         ))}
       </div>
       {!sent ? (
@@ -89,7 +113,7 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
           <button type="button" className="pc-btn shrink-0" disabled={busy || code.length !== 6} onClick={verify}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}</button>
         </div>
       )}
-      {sent && <button type="button" className="pc-link mt-2 text-xs" onClick={() => { setSent(false); setCode('') }}>Use a different {mode}</button>}
+      {sent && <button type="button" className="pc-link mt-2 text-xs" onClick={() => { setSent(false); setCode(''); setChallenge(null) }}>Use a different {mode}</button>}
     </div>
   )
 }

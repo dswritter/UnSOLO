@@ -12,6 +12,7 @@ import {
   OTP_EXPIRY_MINUTES,
 } from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
+import { isPhonePlaceholderEmail } from '@/lib/auth/phone-login'
 
 function formatOtpRetryMessage(notBefore: Date): string {
   const sec = Math.ceil((notBefore.getTime() - Date.now()) / 1000)
@@ -201,7 +202,7 @@ export async function verifyPhoneOTP(phoneNumber: string, otpCode: string) {
   if (profileError) return { error: profileError.message }
 
   // Check if user qualifies as host (both phone + email verified)
-  const isHost = await checkAndSetHostStatus(supabase, user.id, !!user.email_confirmed_at)
+  const isHost = await checkAndSetHostStatus(supabase, user.id, !!user.email_confirmed_at && !isPhonePlaceholderEmail(user.email))
 
   revalidatePath('/host')
   revalidatePath('/host/verify')
@@ -232,7 +233,7 @@ export async function checkVerificationStatus() {
   if (profileError) throw profileError
   if (pendingError) throw pendingError
 
-  const isEmailVerified = !!user.email_confirmed_at
+  const isEmailVerified = !!user.email_confirmed_at && !isPhonePlaceholderEmail(user.email)
 
   if (isEmailVerified && !profile?.is_email_verified) {
     const { error } = await supabase

@@ -11,6 +11,7 @@ import type { ServiceEventScheduleEntry, ServiceListingType } from '@/types'
 import { itemHasDateBlock } from '@/lib/service-item-unavailability'
 import { incrementPromoOfferUsed, validateScopedPromoCode } from '@/lib/checkout-promos'
 import { RENTAL_EXTRA_COLUMNS, quoteRentalLine, type RentalItemPricing, type RentalRateOption } from '@/lib/rental-pricing'
+import { contactEmail } from '@/lib/auth/phone-login'
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
@@ -420,7 +421,7 @@ export async function createServiceListingOrder(
       currency: 'INR',
       bookingId: booking.id,
       prefill: {
-        email: user.email,
+        email: contactEmail(user.email),
       },
       notes: {
         listing_id: listingId,
@@ -830,7 +831,7 @@ export async function createRentalCartOrder(
       amount: chargePaise,
       currency: 'INR',
       bookingIds,
-      prefill: { email: user.email },
+      prefill: { email: contactEmail(user.email) },
     }
   } catch (error) {
     console.error('Error creating rental cart order:', error)

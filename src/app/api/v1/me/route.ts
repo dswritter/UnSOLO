@@ -4,6 +4,7 @@ import { ApiError, ok, parseJson, route } from '@/lib/api/http'
 import { toUserLite, PROFILE_LITE } from '@/lib/tribe/models'
 import { loadPreferences, savePreferences } from '@/lib/tribe/preferences'
 import { countUnreadMessages } from '@/lib/tribe/chats'
+import { contactEmail } from '@/lib/auth/phone-login'
 
 async function me(req: Request) {
   const ctx = await getApiContext(req)
@@ -18,7 +19,7 @@ async function me(req: Request) {
   const role = (p?.role as string) ?? 'user'
   return {
     user: {
-      ...toUserLite(p), email: user.email ?? null, phone: (p?.phone_number as string | null) ?? null,
+      ...toUserLite(p), email: contactEmail(user.email) || null, phone: (p?.phone_number as string | null) ?? null,
       gender: (priv?.gender as string | null) ?? null, homeCity: (priv?.home_city as string | null) ?? null,
       bio: (p?.bio as string | null) ?? null, dateOfBirth: (p?.date_of_birth as string | null) ?? null,
     },

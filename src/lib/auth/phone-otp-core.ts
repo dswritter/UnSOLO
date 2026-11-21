@@ -9,6 +9,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server'
 import { generateOTP, sendSMS } from '@/lib/sms/client'
 import { validateIndianPhone } from '@/lib/utils'
 import { MAX_OTP_PER_HOUR, MAX_OTP_VERIFY_ATTEMPTS, MIN_OTP_SEND_INTERVAL_SECONDS, OTP_EXPIRY_MINUTES } from '@/lib/constants'
+import { isPhonePlaceholderEmail } from '@/lib/auth/phone-login'
 
 export type OtpResult = { ok: true; devCode?: string } | { ok: false; error: string; retryAfter?: number }
 
@@ -71,7 +72,7 @@ export async function confirmPhoneOtp(user: User, rawPhone: string, code: string
     updated_at: new Date().toISOString(),
   }).eq('id', user.id)
   if (error) return { ok: false, error: 'Could not save your number. Try again.' }
-  if (user.email_confirmed_at) {
+  if (user.email_confirmed_at && !isPhonePlaceholderEmail(user.email)) {
     await svc.from('profiles').update({ is_host: true, is_email_verified: true, phone_public: true }).eq('id', user.id)
   }
   return { ok: true }

@@ -23,14 +23,17 @@ Migration 121 also closes three holes in production:
 | `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | Android push (FCM HTTP v1) | Firebase console → Project settings → Service accounts → Generate key |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID`, `APNS_PRODUCTION` | iOS push. Set `APNS_PRODUCTION=false` for TestFlight or debug builds. | Apple Developer → Keys → APNs key (.p8) **(needs the Apple developer ID)** |
 | `SUPPORT_EMAIL` | Shown in the apps' Help screen | Your support inbox |
-| `TWOFACTOR_API_KEY` or `MSG91_AUTH_KEY` / `MSG91_TEMPLATE_ID` | SMS codes for phone verification. These were already supported. | 2factor.in / MSG91 |
+| `TWOFACTOR_API_KEY` (optional `TWOFACTOR_OTP_TEMPLATE`), or `MSG91_AUTH_KEY` / `MSG91_TEMPLATE_ID` | SMS codes for phone **sign-in** and phone verification, on all platforms | 2factor.in / MSG91 |
 
 **Scheduled job:** call `GET /api/cron/tribe` with `Authorization: Bearer $CRON_SECRET` every 15 minutes. That cadence needs Vercel Pro cron, Supabase `pg_cron` plus `pg_net`, or any external scheduler. It expires requests and offers and sends any pushes that weren't sent inline. Sub-daily crons are not added to `vercel.json` because they fail Hobby-plan deploys.
 
 ## 3. Supabase Auth (Dashboard → Authentication)
 
 - **Email:** set up an SMTP sender (Resend works) under Auth → SMTP. Turn on "Confirm email". Also enable email OTP, which the apps use for 6-digit codes.
-- **Phone sign-in (optional):** Auth → Providers → Phone, with Twilio, MessageBird or Vonage. The apps' "Continue with phone" needs this. Phone *verification* of an existing account uses your 2factor or MSG91 key above.
+- **Phone sign-in:** no Supabase SMS provider is needed. Leave Auth → Providers → Phone off.
+  - Web, Android and iOS sign in by phone through `/api/v1/auth/phone/*`, which sends codes with the same 2factor.in or MSG91 key as phone verification (`TWOFACTOR_API_KEY`).
+  - If your 2factor account uses an approved DLT OTP template, set `TWOFACTOR_OTP_TEMPLATE` to its exact name.
+  - Email sign-in must stay enabled: phone-only accounts get a placeholder email (`<digits>@phone.unsolo.in`) that is never mailed.
 - **Redirect URLs:** add `unsolo://auth-callback` and `https://unsolo.in/auth/callback`.
 - **Google sign-in in the apps:** both apps reuse the Google provider the website already uses.
   - Add `unsolo://auth-callback` to the allowed redirect URLs.

@@ -26,6 +26,7 @@ import {
 } from '@/lib/checkout-promos'
 import type { JoinPreferences } from '@/types'
 import { z } from 'zod'
+import { contactEmail } from '@/lib/auth/phone-login'
 
 const customDateRequestEmailSchema = z.string().trim().max(254).email()
 
@@ -993,7 +994,7 @@ export async function createRazorpayOrder(
     bookingId: booking.id,
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
-      email: user.email || '',
+      email: contactEmail(user.email),
       ...(profile?.phone_number ? {
         contact: profile.phone_number.startsWith('+91')
           ? profile.phone_number
@@ -1310,7 +1311,7 @@ export async function createBookingBalanceOrder(bookingId: string) {
     .single()
 
   const prefill = {
-    email: user.email || '',
+    email: contactEmail(user.email),
     ...(profile?.phone_number ? {
       contact: profile.phone_number.startsWith('+91')
         ? profile.phone_number
@@ -3573,7 +3574,7 @@ export async function createCommunityTripOrder(
     currency: 'INR',
     keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
     prefill: {
-      email: user.email || '',
+      email: contactEmail(user.email),
       ...(profile?.phone_number ? { contact: profile.phone_number.startsWith('+91') ? profile.phone_number : `+91${profile.phone_number.replace(/\D/g, '').slice(-10)}` } : {}),
       name: profile?.full_name || '',
     },
