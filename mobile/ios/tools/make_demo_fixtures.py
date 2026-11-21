@@ -554,7 +554,7 @@ CONFIG = {
     "minAppVersion": {"android": "1.0.0", "ios": "1.0.0"},
     "supabase": {"url": "https://demo.supabase.co", "anonKey": "demo-anon-key"},
     "upload": {"maxBytes": 2097152, "maxEdge": 2048},
-    "support": {"whatsapp": "+910000000000", "email": "support@unsolo.in"},
+    "support": {"whatsapp": "+910000000000", "email": "hello@unsolo.in"},
 }
 
 LANDING = {"suggest": "tribe", "visits": {"explore": 4, "tribe": 9, "trips": 2}}

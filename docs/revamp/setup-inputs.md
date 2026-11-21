@@ -19,7 +19,7 @@ Migration 121 also closes three holes in production:
 | Variable | What it is | Where to get it |
 |---|---|---|
 | `CRON_SECRET` | 16+ random characters. Cron endpoints now **refuse** requests when it is missing. Previously they fell back to a hard-coded default. | Generate with `openssl rand -hex 24` |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push (VAPID). The subject is `mailto:support@unsolo.in`. | `npx web-push generate-vapid-keys` (one time, any machine), or any P-256 key generator |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push (VAPID). The subject is `mailto:hello@unsolo.in`. | `npx web-push generate-vapid-keys` (one time, any machine), or any P-256 key generator |
 | `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` | Android push (FCM HTTP v1) | Firebase console → Project settings → Service accounts → Generate key |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, `APNS_BUNDLE_ID`, `APNS_PRODUCTION` | iOS push. Set `APNS_PRODUCTION=false` for TestFlight or debug builds. | Apple Developer → Keys → APNs key (.p8) **(needs the Apple developer ID)** |
 | `SUPPORT_EMAIL` | Shown in the apps' Help screen | Your support inbox |

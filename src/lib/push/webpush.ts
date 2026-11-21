@@ -67,7 +67,7 @@ export async function sendWebPush(sub: WebPushSubscription, data: object): Promi
   if (!pub || !priv) return 'error'
   if (!isAllowedWebPushEndpoint(sub.endpoint)) return 'gone'
   const url = new URL(sub.endpoint)
-  const jwt = vapidJwt(url.origin, process.env.VAPID_SUBJECT || 'mailto:support@unsolo.in', pub, priv)
+  const jwt = vapidJwt(url.origin, process.env.VAPID_SUBJECT || 'mailto:hello@unsolo.in', pub, priv)
   const res = await fetch(sub.endpoint, {
     method: 'POST',
     headers: {
