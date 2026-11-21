@@ -80,7 +80,7 @@ fun HostScreen(nav: AppNav) {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(p.title ?: "Plan", style = Pc.type.title3, color = c.ink, modifier = Modifier.weight(1f))
-                    Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num.copy(fontSize = 13.sp), color = c.ink)
+                    Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num.copy(fontSize = 11.sp), color = c.ink)
                 }
                 Text("${p.place?.name.orEmpty()} · ${p.memberCount} of ${p.spotsTotal ?: p.seats.size} in · organiser ${p.author.firstName}", style = Pc.type.small, color = c.ink2)
                 Spacer(Modifier.height(10.dp))
@@ -140,7 +140,7 @@ fun OfferFormScreen(postId: String, nav: AppNav) {
                 Spacer(Modifier.height(4.dp))
                 Row {
                     Text(p.title ?: "Plan", style = Pc.type.title3, color = c.ink, modifier = Modifier.weight(1f))
-                    Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num.copy(fontSize = 13.sp), color = c.ink)
+                    Text(Fmt.range(p.startsOn, p.endsOn), style = Pc.type.num.copy(fontSize = 11.sp), color = c.ink)
                 }
                 Text("Group of ${p.spotsTotal ?: p.seats.size} · ${p.memberCount} in · ${p.estCostText ?: "no estimate"}", style = Pc.type.small, color = c.ink2)
             }

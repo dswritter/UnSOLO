@@ -67,31 +67,31 @@ private const val TNUM = "tnum"
  */
 @Immutable
 data class PcTypography(
-    val display: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 32.sp, lineHeight = 1.08.em, letterSpacing = (-0.02).em),
-    val title1: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, lineHeight = 1.12.em, letterSpacing = (-0.015).em),
-    val title2: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 1.18.em, letterSpacing = (-0.01).em),
-    val title3: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 1.22.em, letterSpacing = (-0.01).em),
-    val body: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 1.45.em),
-    val bodyStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 1.45.em),
-    val small: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 1.4.em),
-    val smallStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 1.4.em),
-    val label: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 1.3.em),
+    val display: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 28.sp, lineHeight = 1.08.em, letterSpacing = (-0.02).em),
+    val title1: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, lineHeight = 1.12.em, letterSpacing = (-0.015).em),
+    val title2: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 18.sp, lineHeight = 1.18.em, letterSpacing = (-0.01).em),
+    val title3: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 1.22.em, letterSpacing = (-0.01).em),
+    val body: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 1.45.em),
+    val bodyStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, lineHeight = 1.45.em),
+    val small: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 1.4.em),
+    val smallStrong: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 1.4.em),
+    val label: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 1.3.em),
     /** Buttons: Figtree 700. */
-    val button: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Bold, fontSize = 16.sp, lineHeight = 1.2.em),
+    val button: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Bold, fontSize = 14.sp, lineHeight = 1.2.em),
     /** Facts row (calendar · clock · wallet). */
-    val fact: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 1.35.em, fontFeatureSettings = TNUM),
+    val fact: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 1.35.em, fontFeatureSettings = TNUM),
     /** Inline numbers in sentences and counters. */
     val num: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 1.2.em, fontFeatureSettings = TNUM),
     /** Big numbers (ring centre, countdowns, date chips). */
-    val numLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, lineHeight = 1.0.em, letterSpacing = (-0.02).em, fontFeatureSettings = TNUM),
+    val numLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, lineHeight = 1.0.em, letterSpacing = (-0.02).em, fontFeatureSettings = TNUM),
     /** Prices in rows: Bricolage 800. */
-    val price: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, lineHeight = 1.15.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
+    val price: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, lineHeight = 1.15.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
     /** Hero prices (cards, bottom bar). */
-    val priceLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, lineHeight = 1.1.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
+    val priceLarge: TextStyle = TextStyle(fontFamily = PcFonts.display, fontWeight = FontWeight.ExtraBold, fontSize = 19.sp, lineHeight = 1.1.em, letterSpacing = (-0.01).em, fontFeatureSettings = TNUM),
     /** Badges (HOST / ORGANISER) and overlines: 11sp 800, tracked. */
-    val code: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, lineHeight = 1.25.em, letterSpacing = 0.05.em),
+    val code: TextStyle = TextStyle(fontFamily = PcFonts.body, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, lineHeight = 1.25.em, letterSpacing = 0.05.em),
     /** Wordmark. */
-    val wordmark: TextStyle = TextStyle(fontFamily = PcFonts.wordmark, fontWeight = FontWeight.Black, fontSize = 22.sp, lineHeight = 1.0.em, letterSpacing = (-0.025).em),
+    val wordmark: TextStyle = TextStyle(fontFamily = PcFonts.wordmark, fontWeight = FontWeight.Black, fontSize = 19.sp, lineHeight = 1.0.em, letterSpacing = (-0.025).em),
 )
 
 val LocalPcColors = staticCompositionLocalOf { PcTokens.Light }

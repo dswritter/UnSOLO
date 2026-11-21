@@ -84,8 +84,8 @@ fun PageHeader(
             }
             Text(title, style = Pc.type.display, color = Pc.colors.ink, modifier = Modifier.padding(start = Gutter, end = Gutter, bottom = 10.dp))
         } else {
-            Row(Modifier.fillMaxWidth().height(64.dp).padding(start = Gutter + 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = Pc.type.display.copy(fontSize = 34.sp), color = Pc.colors.ink, modifier = Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth().height(56.dp).padding(start = Gutter + 2.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = Pc.type.display.copy(fontSize = 29.sp), color = Pc.colors.ink, modifier = Modifier.weight(1f))
                 extra()
                 if (actions) HeaderActions(counts, onMessages, onActivity)
             }
@@ -107,7 +107,7 @@ fun DetailTopBar(title: String?, onBack: () -> Unit, trailing: String? = null, h
                 val hn = LocalHeaderNav.current
                 if (headerActions && hn != null) HeaderActions(LocalHeaderCountsUi.current, hn.onMessages, hn.onActivity)
             }
-            if (title != null && centerTitle) Text(title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp), color = Pc.colors.ink, maxLines = 1, modifier = Modifier.align(Alignment.Center))
+            if (title != null && centerTitle) Text(title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Pc.colors.ink, maxLines = 1, modifier = Modifier.align(Alignment.Center))
         }
     }
 }
@@ -118,7 +118,7 @@ fun ComposerTopBar(title: String, onCancel: () -> Unit) {
     Column(Modifier.fillMaxWidth().background(Pc.colors.paper).statusBarsPadding()) {
         Box(Modifier.fillMaxWidth().height(PcTokens.topBar)) {
             IconTap(PcIcons.Close, "Close", onCancel, Modifier.align(Alignment.CenterStart).padding(start = 4.dp))
-            Text(title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp), color = Pc.colors.ink, modifier = Modifier.align(Alignment.Center))
+            Text(title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Pc.colors.ink, modifier = Modifier.align(Alignment.Center))
         }
     }
 }
@@ -144,14 +144,14 @@ fun BottomActionBar(
     val c = Pc.colors
     Column(modifier.fillMaxWidth().background(c.raised.copy(alpha = 0.97f)).navigationBarsPadding().imePadding()) {
         Hairline(color = c.rule)
-        Row(Modifier.fillMaxWidth().padding(start = if (leading != null) 8.dp else Gutter + 2.dp, end = Gutter, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = if (leading != null) 6.dp else Gutter + 2.dp, end = Gutter, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (leading != null) { leading(); Spacer(Modifier.width(4.dp)) }
             Column(Modifier.weight(1f).padding(end = 12.dp)) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(title, style = if (titleMono) Pc.type.priceLarge else Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (titleSuffix != null) Text(titleSuffix, style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp), maxLines = 1)
                 }
-                if (subtitle != null) Text(subtitle, style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (subtitle != null) Text(subtitle, style = Pc.type.small.copy(fontSize = 11.sp), color = c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             PcButton(action, onAction, kind = kind, enabled = enabled, icon = actionIcon)
         }
@@ -177,18 +177,18 @@ fun PcBottomBar(selected: String?, tabs: List<TabSpec>, me: UserLite?, onSelect:
                         Modifier.weight(1f).fillMaxHeight().clickable(role = Role.Tab, onClickLabel = t.label) { onSelect(t.route) }.semantics { this.selected = isSel },
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
-                        Box(Modifier.size(width = 52.dp, height = 30.dp).clip(CircleShape).background(pill), contentAlignment = Alignment.Center) {
-                            if (t.route == "you" && me != null) Avatar(me, 24.dp, border = if (isSel) c.ink else Color.Transparent)
-                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.ink else c.ink3, size = 23.dp)
+                        Box(Modifier.size(width = 48.dp, height = 28.dp).clip(CircleShape).background(pill), contentAlignment = Alignment.Center) {
+                            if (t.route == "you" && me != null) Avatar(me, 22.dp, border = if (isSel) c.ink else Color.Transparent)
+                            else PcIcon(if (isSel) (t.iconSelected ?: t.icon) else t.icon, null, tint = if (isSel) c.ink else c.ink3, size = 21.dp)
                             if (t.badge > 0) CountBadge(t.badge, Modifier.align(Alignment.TopEnd).offset(4.dp, (-6).dp))
                         }
-                        Spacer(Modifier.height(3.dp))
-                        Text(t.label, style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.ink else c.ink3, maxLines = 1)
+                        Spacer(Modifier.height(2.dp))
+                        Text(t.label, style = Pc.type.label.copy(fontSize = 9.5.sp, fontWeight = FontWeight.Bold), color = if (isSel) c.ink else c.ink3, maxLines = 1)
                     }
                 }
             }
         }
-        PostTab(onPost, Modifier.align(Alignment.TopCenter).offset(y = (-14).dp))
+        PostTab(onPost, Modifier.align(Alignment.TopCenter).offset(y = (-12).dp))
     }
 }
 
@@ -196,12 +196,12 @@ fun PcBottomBar(selected: String?, tabs: List<TabSpec>, me: UserLite?, onSelect:
 private fun PostTab(onPost: () -> Unit, modifier: Modifier) {
     val c = Pc.colors
     Box(
-        modifier.size(64.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Post", onClick = onPost).semantics { contentDescription = "Post" },
+        modifier.size(56.dp).clip(CircleShape).clickable(role = Role.Button, onClickLabel = "Post", onClick = onPost).semantics { contentDescription = "Post" },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(60.dp).clip(CircleShape).background(c.paper), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(52.dp).shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.2f), spotColor = Color.Black.copy(alpha = 0.3f)).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
-                PcIcon(PcIcons.Plus, null, tint = c.onPine, size = 26.dp)
+        Box(Modifier.size(54.dp).clip(CircleShape).background(c.paper), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(46.dp).shadow(6.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.2f), spotColor = Color.Black.copy(alpha = 0.3f)).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
+                PcIcon(PcIcons.Plus, null, tint = c.onPine, size = 23.dp)
             }
         }
     }
@@ -216,11 +216,11 @@ fun TextTabs(items: List<Pair<String, String>>, selected: String, onSelect: (Str
             val sel = key == selected
             val bg by animateColorAsState(if (sel) c.ink else c.raised, tween(PcTokens.motionFast), label = "chip")
             val fg = if (sel) c.raised else c.ink
-            Box(Modifier.height(48.dp).clickable(role = Role.Tab) { onSelect(key) }.semantics { this.selected = sel }, contentAlignment = Alignment.Center) {
-                Row(Modifier.height(40.dp).clip(CircleShape).background(bg).then(if (sel) Modifier else Modifier.border(1.dp, c.rule, CircleShape)).padding(horizontal = 16.dp),
+            Box(Modifier.height(44.dp).clickable(role = Role.Tab) { onSelect(key) }.semantics { this.selected = sel }, contentAlignment = Alignment.Center) {
+                Row(Modifier.height(36.dp).clip(CircleShape).background(bg).then(if (sel) Modifier else Modifier.border(1.dp, c.rule, CircleShape)).padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically) {
-                    icons[key]?.let { PcIcon(it, null, tint = fg, size = 17.dp); Spacer(Modifier.width(6.dp)) }
-                    Text(label, style = Pc.type.smallStrong.copy(fontSize = 14.sp), color = fg, maxLines = 1)
+                    icons[key]?.let { PcIcon(it, null, tint = fg, size = 15.dp); Spacer(Modifier.width(6.dp)) }
+                    Text(label, style = Pc.type.smallStrong.copy(fontSize = 13.5.sp), color = fg, maxLines = 1)
                 }
             }
         }
@@ -241,7 +241,7 @@ fun PcSheet(onDismiss: () -> Unit, state: SheetState = rememberModalBottomSheetS
     ModalBottomSheet(
         onDismissRequest = onDismiss, sheetState = state, containerColor = c.raised, contentColor = c.ink,
         shape = RoundedCornerShape(topStart = PcTokens.radiusSheet, topEnd = PcTokens.radiusSheet), scrimColor = c.scrim,
-        dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(c.rule)) },
+        dragHandle = { Box(Modifier.padding(top = 8.dp, bottom = 8.dp).size(width = 36.dp, height = 4.dp).clip(CircleShape).background(c.rule)) },
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()).navigationBarsPadding().padding(bottom = 12.dp), content = content)
     }
@@ -252,6 +252,6 @@ fun PcSheet(onDismiss: () -> Unit, state: SheetState = rememberModalBottomSheetS
 fun SheetTitle(title: String, subtitle: String? = null) {
     Column(Modifier.padding(horizontal = Gutter + 4.dp).padding(bottom = 12.dp)) {
         Text(title, style = Pc.type.title1, color = Pc.colors.ink)
-        if (subtitle != null) Text(subtitle, style = Pc.type.small.copy(fontSize = 14.sp), color = Pc.colors.ink2, modifier = Modifier.padding(top = 2.dp))
+        if (subtitle != null) Text(subtitle, style = Pc.type.small.copy(fontSize = 12.sp), color = Pc.colors.ink2, modifier = Modifier.padding(top = 2.dp))
     }
 }

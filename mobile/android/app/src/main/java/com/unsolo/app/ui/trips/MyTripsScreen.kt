@@ -104,13 +104,13 @@ private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> U
     val faces = b.trip.goingFaces
     Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().raisedCard().clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (total > 0) SeatRing(total, taken - 1, 132.dp, you = YouSeat.You, people = listOfNotNull(b.trip.host) + faces, showFaces = true, me = me,
+            if (total > 0) SeatRing(total, taken - 1, 112.dp, you = YouSeat.You, people = listOfNotNull(b.trip.host) + faces, showFaces = true, me = me,
                 photo = b.trip.image, badge = b.trip.host?.let { RingBadge(it) })
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Tag(when (days) { 0L -> "Today"; 1L -> "Tomorrow"; else -> "In $days days" }, TagKind.Verified, icon = PcIcons.CalendarCheck)
                 Spacer(Modifier.height(8.dp))
-                Text(b.trip.title, style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(b.trip.title, style = Pc.type.title2.copy(fontSize = 16.5.sp), color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text("${Fmt.dowDayMonth(b.travelDate)} · ${b.confirmationCode ?: b.status}", style = Pc.type.small, color = c.ink2)
                 if (total > 0) SeatCaption(total, taken, Modifier.padding(top = 2.dp))
             }
@@ -126,7 +126,7 @@ private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> U
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text("Balance ", style = Pc.type.small, color = c.ink2)
-                        Text(MoneyFormat.rupees(b.balancePaise), style = Pc.type.price.copy(fontSize = 15.sp), color = c.ink)
+                        Text(MoneyFormat.rupees(b.balancePaise), style = Pc.type.price.copy(fontSize = 13.sp), color = c.ink)
                     }
                     Text("${MoneyFormat.rupees(b.paidPaise)} paid", style = Pc.type.label, color = c.ink2)
                 }
@@ -147,8 +147,8 @@ private fun PastCard(b: Booking, onOpen: (() -> Unit)? = null, onStory: () -> Un
     val total = b.trip.seatsTotal ?: 0
     Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().raisedCard().then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (total > 0) SeatRing(total, total - 1, 96.dp, you = YouSeat.You, past = true, photo = b.trip.image, dots = false, animate = false)
-            else ProgressiveImage(b.trip.image, Modifier.size(96.dp).clip(CircleShape))
+            if (total > 0) SeatRing(total, total - 1, 82.dp, you = YouSeat.You, past = true, photo = b.trip.image, dots = false, animate = false)
+            else ProgressiveImage(b.trip.image, Modifier.size(82.dp).clip(CircleShape))
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text("Went · ${Fmt.dayMonth(b.travelDate)}", style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink3)
@@ -167,7 +167,7 @@ private fun PlanTicket(p: Post, meId: String?, onOpen: () -> Unit, onChat: (() -
     val c = Pc.colors
     Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().pencilledCard().clickable(onClick = onOpen).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            com.unsolo.app.ui.tribe.PlanRing(p, 96.dp, meId)
+            com.unsolo.app.ui.tribe.PlanRing(p, 82.dp, meId)
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 if (p.viewer.isAuthor) { Tag("Organiser", TagKind.Organiser, height = 20.dp); Spacer(Modifier.height(6.dp)) }

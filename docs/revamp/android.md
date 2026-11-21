@@ -311,6 +311,13 @@ This pass follows user feedback that the app "looks more like old Windows UI". T
 > - The centre label is "8/12 spots left".
 > - User-facing copy says "spot". The CTA is "Grab a spot".
 > - Every photo goes through `ProgressiveImage`: the LQIP or thumb paints first, then the full image crossfades in. A Supabase `…/x.webp` gets its thumb from `…/x_thumb.webp`.
+> - **Sizes (density pass):** these match the type and size tokens.
+>   - **Type:** body 14, small 12, labels 11, titles 15–22, display 28.
+>   - **Controls:** touch targets 44dp, primary buttons 46dp, small buttons 34dp, chips 36dp, tab bar 60dp, top bar 52dp, search dock 50dp.
+>   - **Rings:** 200dp on the trip page, 72dp on cards, 38dp mini.
+>   - **Radii:** cards 20dp, images 16dp, sheets 24dp.
+>   - **Explore cards:** 78% of the width (at most 300dp) for trips, 62% for stays, activities and rentals. Photos are 16:10.
+>   - **List rows:** 60dp, with a 46dp thumb.
 > - Decisions are logged in `.oil-ui/full-circle/decisions-android.md`.
 
 

@@ -60,13 +60,13 @@ import com.unsolo.app.ui.theme.PcTokens
 val LocalDataSaver = staticCompositionLocalOf { false }
 
 /** Page gutter. */
-val Gutter = 16.dp
+val Gutter = 14.dp
 
 /** Small pill button height (primary is [PcTokens.buttonTall]). */
-val BtnSmall = 40.dp
+val BtnSmall = 34.dp
 
 /** Field / inner-block radius (inputs, inline cards inside a 28dp card). */
-val RadiusField = 18.dp
+val RadiusField = 14.dp
 
 // ---------- Surfaces ----------
 
@@ -148,13 +148,13 @@ fun Modifier.ruledBox(color: Color, radius: Dp = PcTokens.radiusM, width: Dp = 1
 // ---------- Icons, text ----------
 
 @Composable
-fun PcIcon(icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = Pc.colors.ink, size: Dp = 22.dp) {
+fun PcIcon(icon: ImageVector, contentDescription: String?, modifier: Modifier = Modifier, tint: Color = Pc.colors.ink, size: Dp = 20.dp) {
     Icon(icon, contentDescription, modifier.size(size), tint = tint)
 }
 
 /** 48dp round icon button. Badges: a count (pine) or a rose dot. */
 @Composable
-fun IconTap(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = Pc.colors.ink, badge: Boolean = false, badgeCount: Int = 0, iconSize: Dp = 22.dp) {
+fun IconTap(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, tint: Color = Pc.colors.ink, badge: Boolean = false, badgeCount: Int = 0, iconSize: Dp = 20.dp) {
     Box(
         modifier.size(PcTokens.touch).clip(CircleShape).clickable(role = Role.Button, onClickLabel = contentDescription, onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -178,10 +178,10 @@ fun GlassButton(icon: ImageVector, contentDescription: String, onClick: () -> Un
 @Composable
 fun CountBadge(count: Int, modifier: Modifier = Modifier) {
     Box(
-        modifier.defaultMinSize(minWidth = 20.dp, minHeight = 20.dp).clip(CircleShape).background(Pc.colors.red).padding(horizontal = 6.dp),
+        modifier.defaultMinSize(minWidth = 18.dp, minHeight = 18.dp).clip(CircleShape).background(Pc.colors.red).padding(horizontal = 5.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(if (count > 99) "99+" else "$count", style = Pc.type.label.copy(fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold), color = Color.White)
+        Text(if (count > 99) "99+" else "$count", style = Pc.type.label.copy(fontSize = 9.5.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold), color = Color.White)
     }
 }
 
@@ -195,9 +195,9 @@ fun LinkText(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, s
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier, trailing: String? = null, trailingLink: (() -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(horizontal = Gutter), verticalAlignment = Alignment.CenterVertically) {
-        Text(title, style = Pc.type.title1.copy(fontSize = 22.sp), color = Pc.colors.ink, modifier = Modifier.weight(1f).padding(vertical = 10.dp))
+        Text(title, style = Pc.type.title1.copy(fontSize = 20.sp), color = Pc.colors.ink, modifier = Modifier.weight(1f).padding(vertical = 8.dp))
         if (trailing != null) {
-            if (trailingLink != null) LinkText(trailing, trailingLink, style = Pc.type.smallStrong.copy(fontSize = 14.sp))
+            if (trailingLink != null) LinkText(trailing, trailingLink, style = Pc.type.smallStrong.copy(fontSize = 12.sp))
             else Text(trailing, style = Pc.type.smallStrong, color = Pc.colors.ink2)
         }
     }
@@ -271,13 +271,13 @@ fun PcButton(
                 .background(bg)
                 .then(if ((kind == BtnKind.Line || kind == BtnKind.Outline) && !dashed) Modifier.border(1.5.dp, if (enabled) c.ink else c.rule, shape) else Modifier)
                 .then(if (dashed) Modifier.dashedBorder(c.rule2, radius = height / 2, width = 1.5.dp, on = 5.dp, off = 4.dp) else Modifier)
-                .padding(horizontal = if (kind == BtnKind.Ghost) 12.dp else if (small) 18.dp else 24.dp),
+                .padding(horizontal = if (kind == BtnKind.Ghost) 10.dp else if (small) 14.dp else 20.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) { leading(); Spacer(Modifier.width(10.dp)) }
-            else if (icon != null) { PcIcon(icon, null, tint = fg, size = if (small) 16.dp else 18.dp); Spacer(Modifier.width(8.dp)) }
-            Text(text, style = Pc.type.button.copy(fontSize = if (small) 14.sp else 16.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            else if (icon != null) { PcIcon(icon, null, tint = fg, size = if (small) 14.dp else 16.dp); Spacer(Modifier.width(6.dp)) }
+            Text(text, style = Pc.type.button.copy(fontSize = if (small) 13.sp else 14.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -292,7 +292,7 @@ fun PcButton(
 enum class TagKind { Host, Organiser, Author, Kind, KindDashed, Muted, Women, Verified, Full }
 
 @Composable
-fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageVector? = null, height: Dp = 24.dp) {
+fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageVector? = null, height: Dp = 22.dp) {
     val c = Pc.colors
     val shape = RoundedCornerShape(PcTokens.radiusPill)
     val badge = kind == TagKind.Host || kind == TagKind.Organiser
@@ -320,7 +320,7 @@ fun Tag(text: String, kind: TagKind, modifier: Modifier = Modifier, icon: ImageV
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (ic != null) { PcIcon(ic, null, tint = fg, size = 14.dp); Spacer(Modifier.width(4.dp)) }
-        Text(if (badge) text.uppercase() else text, style = if (badge) Pc.type.code.copy(fontSize = 10.sp) else Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+        Text(if (badge) text.uppercase() else text, style = if (badge) Pc.type.code.copy(fontSize = 8.5.sp) else Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
             color = fg, maxLines = 1, softWrap = false)
     }
 }
@@ -455,15 +455,15 @@ fun ProgressiveImage(
 @Composable
 fun PcSwitch(checked: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null, onColor: Color = Pc.colors.ink) {
     val c = Pc.colors
-    val x by animateDpAsState(if (checked) 21.dp else 3.dp, tween(PcTokens.motionFast), label = "knob")
+    val x by animateDpAsState(if (checked) 19.dp else 3.dp, tween(PcTokens.motionFast), label = "knob")
     val track by animateColorAsState(if (checked) onColor else c.rule, tween(PcTokens.motionFast), label = "track")
     Box(
-        modifier.size(width = 52.dp, height = 48.dp).clickable(role = Role.Switch, onClickLabel = contentDescription) { onChange(!checked) },
+        modifier.size(width = 48.dp, height = 44.dp).clickable(role = Role.Switch, onClickLabel = contentDescription) { onChange(!checked) },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(width = 46.dp, height = 28.dp).clip(CircleShape).background(track)) {
+        Box(Modifier.size(width = 40.dp, height = 24.dp).clip(CircleShape).background(track)) {
             // On the yellow track the knob is black (white on yellow is ~1.6:1).
-            Box(Modifier.offset(x = x, y = 3.dp).size(22.dp).clip(CircleShape).background(if (checked && onColor == c.ink) c.raised else Color.White))
+            Box(Modifier.offset(x = x, y = 3.dp).size(18.dp).clip(CircleShape).background(if (checked && onColor == c.ink) c.raised else Color.White))
         }
     }
 }
@@ -478,16 +478,16 @@ fun PcChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modif
     Box(modifier.defaultMinSize(minHeight = PcTokens.touch).clickable(role = Role.Checkbox, onClick = onClick), contentAlignment = Alignment.Center) {
         Row(
             Modifier
-                .height(40.dp)
+                .height(36.dp)
                 .clip(shape)
                 .background(bg)
                 .then(if (selected) Modifier else Modifier.border(1.dp, c.rule, shape))
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (icon != null) { PcIcon(icon, null, tint = fg, size = 16.dp); Spacer(Modifier.width(6.dp)) }
+            if (icon != null) { PcIcon(icon, null, tint = fg, size = 15.dp); Spacer(Modifier.width(6.dp)) }
             else if (selected && !solidSelected) { PcIcon(PcIcons.Check, null, tint = fg, size = 16.dp); Spacer(Modifier.width(6.dp)) }
-            Text(text, style = Pc.type.smallStrong.copy(fontSize = 14.sp), color = fg, maxLines = 1)
+            Text(text, style = Pc.type.smallStrong.copy(fontSize = 13.5.sp), color = fg, maxLines = 1)
         }
     }
 }
@@ -502,7 +502,7 @@ fun FieldRow(
     placeholder: String = "",
     icon: ImageVector? = null,
     singleLine: Boolean = true,
-    style: TextStyle = Pc.type.body.copy(fontSize = 16.sp),
+    style: TextStyle = Pc.type.body.copy(fontSize = 14.sp),
     keyboardType: KeyboardType = KeyboardType.Text,
     helper: String? = null,
     error: String? = null,
@@ -510,7 +510,7 @@ fun FieldRow(
     labelColor: Color = Pc.colors.ink2,
 ) {
     val c = Pc.colors
-    Column(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+    Column(modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
         Text(label, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = labelColor)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -549,8 +549,8 @@ fun BoxedInput(value: String, onValue: (String) -> Unit, placeholder: String, mo
     val src = remember { MutableInteractionSource() }
     val focused by src.collectIsFocusedAsState()
     val shape = RoundedCornerShape(if (singleLine && minLines <= 1) PcTokens.radiusPill else RadiusField)
-    Row(modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp).clip(shape).background(c.raised)
-        .border(if (focused) 1.5.dp else 1.dp, if (focused) c.ink else c.rule, shape).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().defaultMinSize(minHeight = 44.dp).clip(shape).background(c.raised)
+        .border(if (focused) 1.5.dp else 1.dp, if (focused) c.ink else c.rule, shape).padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (leadingIcon != null) { PcIcon(leadingIcon, null, size = 18.dp, tint = c.ink2); Spacer(Modifier.width(10.dp)) }
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) Text(placeholder, style = style, color = c.ink3, maxLines = if (singleLine) 1 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis)
@@ -566,7 +566,7 @@ fun Stepper(value: Int, onValue: (Int) -> Unit, min: Int, max: Int) {
     val c = Pc.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
         StepBtn(PcIcons.Minus, "Fewer", value > min) { onValue(value - 1) }
-        Text("$value", style = Pc.type.num.copy(fontSize = 17.sp), color = c.ink, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
+        Text("$value", style = Pc.type.num.copy(fontSize = 14.5.sp), color = c.ink, modifier = Modifier.width(30.dp), textAlign = TextAlign.Center)
         StepBtn(PcIcons.Plus, "More", value < max) { onValue(value + 1) }
     }
 }
@@ -575,7 +575,7 @@ fun Stepper(value: Int, onValue: (Int) -> Unit, min: Int, max: Int) {
 private fun StepBtn(icon: ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
     val c = Pc.colors
     Box(Modifier.size(PcTokens.touch).clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(36.dp).clip(CircleShape).border(1.5.dp, c.rule, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(32.dp).clip(CircleShape).border(1.5.dp, c.rule, CircleShape), contentAlignment = Alignment.Center) {
             PcIcon(icon, label, tint = if (enabled) c.ink else c.ink3, size = 16.dp)
         }
     }
@@ -599,10 +599,10 @@ fun SwitchRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boo
 @Composable
 fun NavRow(title: String, subtitle: String? = null, icon: ImageVector? = null, onClick: () -> Unit, trailing: String? = null, danger: Boolean = false) {
     val c = Pc.colors
-    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).defaultMinSize(minHeight = 56.dp).padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).defaultMinSize(minHeight = 50.dp).padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         if (icon != null) {
-            Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(if (danger) c.red.copy(alpha = 0.08f) else c.tonal), contentAlignment = Alignment.Center) {
-                PcIcon(icon, null, tint = if (danger) c.red else c.ink, size = 20.dp)
+            Box(Modifier.size(34.dp).clip(RoundedCornerShape(12.dp)).background(if (danger) c.red.copy(alpha = 0.08f) else c.tonal), contentAlignment = Alignment.Center) {
+                PcIcon(icon, null, tint = if (danger) c.red else c.ink, size = 18.dp)
             }
             Spacer(Modifier.width(14.dp))
         }

@@ -129,7 +129,7 @@ fun AuthScreen(nav: AppNav) {
                     Spacer(Modifier.height(20.dp))
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         // Three travellers in, your gold seat drawing in, the rest open: take your place.
-                        SeatRing(total = 8, taken = 3, size = 168.dp, you = YouSeat.You,
+                        SeatRing(total = 8, taken = 3, size = 144.dp, you = YouSeat.You,
                             people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
                             spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
                     }

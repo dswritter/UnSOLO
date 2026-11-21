@@ -150,14 +150,14 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
                     Spacer(Modifier.width(10.dp))
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(post.author.firstName, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White)
+                            Text(post.author.firstName, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp), color = Color.White)
                             Text("  · ${Fmt.ago(post.createdAt)}", style = Pc.type.small, color = Color.White.copy(alpha = 0.8f))
                         }
                         val place = post.trip?.title ?: post.place?.name
                         if (place != null) Row(verticalAlignment = Alignment.CenterVertically) {
                             PcIcon(PcIcons.PinFilled, null, tint = Color.White, size = 12.dp)
                             Spacer(Modifier.width(3.dp))
-                            Text(place, style = Pc.type.small.copy(fontSize = 12.5.sp), color = Color.White.copy(alpha = 0.92f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(place, style = Pc.type.small.copy(fontSize = 11.sp), color = Color.White.copy(alpha = 0.92f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -167,7 +167,7 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
 
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             val caption = post.title ?: post.body.take(90)
-            if (caption.isNotBlank()) Text(caption, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp), color = Color.White,
+            if (caption.isNotBlank()) Text(caption, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = Color.White,
                 modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
             val t = post.trip
             val plan = plans[post.author.id]
@@ -187,8 +187,8 @@ fun StoryViewerScreen(startId: String, nav: AppNav) {
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f).height(48.dp).clip(CircleShape).background(Color(0x6B111111)).border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                    if (text.isEmpty()) Text("Reply to ${post.author.firstName}…", style = Pc.type.body.copy(fontSize = 14.sp), color = Color.White.copy(alpha = 0.85f))
-                    BasicTextField(text, { text = it.take(1000) }, singleLine = true, textStyle = Pc.type.body.copy(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White),
+                    if (text.isEmpty()) Text("Reply to ${post.author.firstName}…", style = Pc.type.body.copy(fontSize = 12.sp), color = Color.White.copy(alpha = 0.85f))
+                    BasicTextField(text, { text = it.take(1000) }, singleLine = true, textStyle = Pc.type.body.copy(color = Color.White, fontSize = 12.sp), cursorBrush = SolidColor(Color.White),
                         interactionSource = src, modifier = Modifier.fillMaxWidth())
                 }
                 if (text.isNotBlank()) {
@@ -212,7 +212,7 @@ private fun StoryLink(lead: @Composable () -> Unit, title: String, sub: String, 
         lead()
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f, fill = false)) {
-            Text(title, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 13.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 11.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(sub, style = Pc.type.label.copy(fontWeight = FontWeight.Medium), color = c.ink2, maxLines = 1)
         }
         Spacer(Modifier.width(10.dp))

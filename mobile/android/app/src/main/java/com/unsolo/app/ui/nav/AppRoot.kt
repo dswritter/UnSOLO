@@ -261,7 +261,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
                 }
             }
             if (!photoHeader) Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Pc.colors.paper))
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp, start = 16.dp, end = 16.dp)) { d ->
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 84.dp, start = 14.dp, end = 14.dp)) { d ->
                 Snackbar(containerColor = Pc.colors.ink, contentColor = Pc.colors.paper, shape = RoundedCornerShape(18.dp)) { Text(d.visuals.message, style = Pc.type.smallStrong) }
             }
         }

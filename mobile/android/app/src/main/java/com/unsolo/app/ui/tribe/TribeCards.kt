@@ -56,7 +56,7 @@ fun CardFrame(pencilled: Boolean = false, padded: Boolean = true, content: @Comp
     Column(
         Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth()
             .then(if (pencilled) Modifier.pencilledCard() else Modifier.raisedCard())
-            .then(if (padded) Modifier.padding(vertical = 16.dp) else Modifier),
+            .then(if (padded) Modifier.padding(vertical = 14.dp) else Modifier),
         content = content,
     )
 }
@@ -66,16 +66,16 @@ fun AuthorRow(p: Post, sub: String, onAuthor: () -> Unit, extra: @Composable () 
     val c = Pc.colors
     Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClickLabel = "Open ${p.author.firstName}'s profile", onClick = onAuthor), verticalAlignment = Alignment.CenterVertically) {
-            Avatar(p.author, 36.dp)
+            Avatar(p.author, 32.dp)
             Spacer(Modifier.width(10.dp))
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(p.author.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(p.author.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (p.author.isIdVerified) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
                     if (p.author.isHost) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host, height = 20.dp) }
                     extra()
                 }
-                Text(sub, style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub, style = Pc.type.small.copy(fontSize = 11.sp), color = c.ink3, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         trailing()
@@ -129,11 +129,11 @@ private fun ReactsRow(p: Post, actions: CardActions, modifier: Modifier = Modifi
 
 @Composable
 fun ReactBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, count: String?, label: String, tint: Color = Pc.colors.ink2, onClick: () -> Unit) {
-    Row(Modifier.clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick).defaultMinSize(minHeight = 48.dp, minWidth = 48.dp).padding(horizontal = 10.dp)
+    Row(Modifier.clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick).defaultMinSize(minHeight = 44.dp, minWidth = 44.dp).padding(horizontal = 9.dp)
         .semantics(mergeDescendants = true) { contentDescription = if (count != null) "$label, $count" else label },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-        PcIcon(icon, null, size = 21.dp, tint = tint)
-        if (count != null) { Spacer(Modifier.width(6.dp)); Text(count, style = Pc.type.num.copy(fontSize = 14.sp), color = if (tint == Pc.colors.ink2) Pc.colors.ink2 else tint) }
+        PcIcon(icon, null, size = 19.dp, tint = tint)
+        if (count != null) { Spacer(Modifier.width(6.dp)); Text(count, style = Pc.type.num.copy(fontSize = 12.sp), color = if (tint == Pc.colors.ink2) Pc.colors.ink2 else tint) }
     }
 }
 
@@ -173,10 +173,10 @@ fun PlanCard(item: PostItem, progress: Float?, actions: CardActions, meId: Strin
             AuthorRow(p, "Plan · looking for people · ${Fmt.ago(p.createdAt)}", { actions.author(p.author) },
                 trailing = { if (p.audience == "women") Tag("Women only", TagKind.Women) })
             LocalStateLine(item, progress, actions)
-            Text(p.title ?: "", style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp))
-            if (p.body.isNotBlank()) Text(p.body, style = Pc.type.small.copy(fontSize = 14.sp), color = c.ink2, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
+            Text(p.title ?: "", style = Pc.type.title2.copy(fontSize = 16.5.sp), color = c.ink, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 4.dp))
+            if (p.body.isNotBlank()) Text(p.body, style = Pc.type.small.copy(fontSize = 12.sp), color = c.ink2, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
             Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                PlanRing(p, 112.dp, meId)
+                PlanRing(p, 96.dp, meId)
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Facts(planFacts(p))
@@ -207,7 +207,7 @@ fun JoinButton(p: Post, onClick: () -> Unit) {
 }
 
 @Composable
-fun PhotoGrid(media: List<Media>, onClick: () -> Unit, progress: Float? = null, height: androidx.compose.ui.unit.Dp = 210.dp, rounded: Boolean = false) {
+fun PhotoGrid(media: List<Media>, onClick: () -> Unit, progress: Float? = null, height: androidx.compose.ui.unit.Dp = 180.dp, rounded: Boolean = false) {
     if (media.isEmpty()) return
     val c = Pc.colors
     Box(Modifier.fillMaxWidth().height(height).then(if (rounded) Modifier.padding(horizontal = 16.dp).clip(RoundedCornerShape(PcTokens.radiusImage)) else Modifier).clickable(onClick = onClick)) {
@@ -236,7 +236,7 @@ fun StoryCard(item: PostItem, progress: Float?, actions: CardActions) {
     val p = item.post
     val c = Pc.colors
     CardFrame(padded = false) {
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
         val sub = listOfNotNull("Story", p.trip?.title ?: p.place?.name, Fmt.ago(p.createdAt)).joinToString(" · ")
         AuthorRow(p, sub, { actions.author(p.author) })
         LocalStateLine(item, progress, actions)
@@ -244,7 +244,7 @@ fun StoryCard(item: PostItem, progress: Float?, actions: CardActions) {
         PhotoGrid(p.media, { actions.open(p) }, if (item.localState == LocalState.SENDING) progress else null)
         Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
             Text(p.title ?: p.body.take(80), style = Pc.type.title3, color = c.ink, modifier = Modifier.clickable { actions.open(p) })
-            if (p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.body.copy(fontSize = 14.5.sp), color = c.ink, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+            if (p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.body.copy(fontSize = 12.5.sp), color = c.ink, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
             p.trip?.let { t ->
                 Spacer(Modifier.height(10.dp))
                 HostedTripCard(t, { actions.openTrip(t) }, { actions.takeSeat(t) })
@@ -279,8 +279,8 @@ fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifie
                 if (voted) Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(c.ink.copy(alpha = if (mine) 0.16f else 0.08f)))
                 Row(Modifier.fillMaxSize().padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     if (mine) { PcIcon(PcIcons.CheckCircleFilled, null, size = 18.dp, tint = c.ink); Spacer(Modifier.width(6.dp)) }
-                    Text(o.label, style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (voted) Text("${o.votes * 100 / total}%", style = Pc.type.num.copy(fontSize = 14.sp), color = c.ink)
+                    Text(o.label, style = Pc.type.bodyStrong.copy(fontSize = 12.sp), color = c.ink, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (voted) Text("${o.votes * 100 / total}%", style = Pc.type.num.copy(fontSize = 12.sp), color = c.ink)
                 }
             }
         }
@@ -298,8 +298,8 @@ fun AskCard(item: PostItem, progress: Float?, actions: CardActions) {
         AuthorRow(p, listOfNotNull(if (isPoll) "Poll" else "Question", p.place?.name?.substringBefore(','), Fmt.ago(p.createdAt)).joinToString(" · "), { actions.author(p.author) },
             extra = { Spacer(Modifier.width(6.dp)); Tag(if (isPoll) "Poll" else "Question", TagKind.Verified, icon = if (isPoll) PcIcons.ChartBar else PcIcons.Question, height = 20.dp) })
         LocalStateLine(item, progress, actions)
-        Text(p.title ?: p.body, style = Pc.type.title2.copy(fontSize = 19.sp), color = c.ink, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).clickable { actions.open(p) })
-        if (p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.small.copy(fontSize = 14.sp), color = c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        Text(p.title ?: p.body, style = Pc.type.title2.copy(fontSize = 16.5.sp), color = c.ink, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp).clickable { actions.open(p) })
+        if (p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.small.copy(fontSize = 12.sp), color = c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         if (isPoll) { Spacer(Modifier.height(10.dp)); PollView(p, { actions.vote(p, it) }) }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.padding(start = 6.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {

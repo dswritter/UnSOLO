@@ -217,9 +217,9 @@ fun TribeScreen(nav: AppNav) {
 @Composable
 private fun StoryRailItem(user: UserLite?, label: String, segments: Int, seen: Int, mine: Boolean = false, onClick: () -> Unit) {
     val c = Pc.colors
-    Column(Modifier.width(66.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClickLabel = if (mine) "Add to your story" else "Open $label's stories", onClick = onClick).padding(vertical = 4.dp),
+    Column(Modifier.width(58.dp).clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClickLabel = if (mine) "Add to your story" else "Open $label's stories", onClick = onClick).padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        StoryRing(user, segments, seen, mine = mine, plus = mine)
+        StoryRing(user, segments, seen, mine = mine, plus = mine, size = 54.dp)
         Spacer(Modifier.height(5.dp))
         Text(label, style = Pc.type.label, color = if (mine) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -335,7 +335,7 @@ fun PostDetailScreen(id: String, nav: AppNav) {
             else item(key = "body") {
                 Column(Modifier.padding(horizontal = Gutter)) {
                     if (p.kind == PostKind.ASK && p.title != null && p.body.isNotBlank()) Text(p.body, style = Pc.type.body, color = c.ink)
-                    if (p.kind == PostKind.STORY && p.body.isNotBlank()) Text(p.body, style = Pc.type.body.copy(fontSize = 15.5.sp), color = c.ink)
+                    if (p.kind == PostKind.STORY && p.body.isNotBlank()) Text(p.body, style = Pc.type.body.copy(fontSize = 13.5.sp), color = c.ink)
                 }
                 if (p.kind == PostKind.ASK && p.poll != null) { Spacer(Modifier.height(12.dp)); PollView(p, { if (nav.requirePhone()) vm.vote(it) }, Modifier.padding(horizontal = 4.dp)) }
                 Spacer(Modifier.height(8.dp))
@@ -404,7 +404,7 @@ fun PostDetailScreen(id: String, nav: AppNav) {
 @Composable
 private fun StoryPhotos(p: Post) {
     val pager = rememberPagerState { p.media.size }
-    Box(Modifier.padding(horizontal = 14.dp).fillMaxWidth().height(240.dp).clip(RoundedCornerShape(22.dp))) {
+    Box(Modifier.padding(horizontal = 14.dp).fillMaxWidth().aspectRatio(16f / 10f).clip(RoundedCornerShape(PcTokens.radiusImage))) {
         HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i -> ProgressiveImage(p.media[i], Modifier.fillMaxSize()) }
         if (p.media.size > 1) Row(Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             repeat(p.media.size) { i -> Box(Modifier.size(if (i == pager.currentPage) 8.dp else 6.dp).clip(CircleShape).background(Color.White.copy(alpha = if (i == pager.currentPage) 1f else 0.6f))) }
@@ -424,11 +424,11 @@ private fun PlanHead(p: Post, meId: String?) {
             Tag("Community plan · not a booking", TagKind.Muted)
         }
         Spacer(Modifier.height(10.dp))
-        Text(p.title ?: "", style = Pc.type.display.copy(fontSize = 27.sp), color = c.ink)
+        Text(p.title ?: "", style = Pc.type.display.copy(fontSize = 23.sp), color = c.ink)
         Spacer(Modifier.height(8.dp))
         Facts(planFacts(p))
         Box(Modifier.fillMaxWidth().padding(top = 34.dp, bottom = 10.dp), contentAlignment = Alignment.Center) {
-            PlanRing(p, 200.dp, meId, badge = true, centerLabel = true)
+            PlanRing(p, 172.dp, meId, badge = true, centerLabel = true)
         }
         val waiting = p.viewer.membership == "requested"
         Text(if (waiting) buildAnnotatedString { withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("${p.memberCount} going") }; append(" · you're waiting at the edge") } else planCaption(total, p.memberCount),
@@ -463,14 +463,14 @@ private fun PostHead(p: Post, nav: AppNav, onMessage: (UserLite) -> Unit) {
                         if (p.kind == PostKind.PLAN) { Spacer(Modifier.width(6.dp)); Tag("Organiser", TagKind.Organiser, height = 20.dp) }
                         if (p.author.isHost) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host, height = 20.dp) }
                     }
-                    Text(listOfNotNull(p.trip?.title, p.place?.name.takeIf { p.trip == null }, Fmt.ago(p.createdAt)).joinToString(" · "), style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink3, maxLines = 1)
+                    Text(listOfNotNull(p.trip?.title, p.place?.name.takeIf { p.trip == null }, Fmt.ago(p.createdAt)).joinToString(" · "), style = Pc.type.small.copy(fontSize = 11.sp), color = c.ink3, maxLines = 1)
                 }
             }
             if (!p.viewer.isAuthor) PcButton("Message", { onMessage(p.author) }, kind = BtnKind.Outline, height = BtnSmall)
         }
         if (p.kind != PostKind.PLAN) {
             Spacer(Modifier.height(12.dp))
-            Text(p.title ?: if (p.kind == PostKind.ASK) p.body else "", style = if (p.kind == PostKind.STORY) Pc.type.title1 else Pc.type.display.copy(fontSize = 26.sp), color = c.ink)
+            Text(p.title ?: if (p.kind == PostKind.ASK) p.body else "", style = if (p.kind == PostKind.STORY) Pc.type.title1 else Pc.type.display.copy(fontSize = 22.5.sp), color = c.ink)
         }
     }
 }
@@ -513,7 +513,7 @@ private fun Reactions(p: Post, onReact: (String) -> Unit) {
                     Spacer(Modifier.width(6.dp))
                     Text(label, style = Pc.type.smallStrong, color = c.ink, maxLines = 1, softWrap = false)
                     Spacer(Modifier.width(6.dp))
-                    Text("$count", style = Pc.type.num.copy(fontSize = 13.sp), color = c.ink2, maxLines = 1, softWrap = false)
+                    Text("$count", style = Pc.type.num.copy(fontSize = 11.sp), color = c.ink2, maxLines = 1, softWrap = false)
                 }
             }
         }
@@ -535,7 +535,7 @@ private fun HostAnswer(cm: Comment) {
                 Tag("Host", TagKind.Host, height = 20.dp)
                 Text("  · top answer", style = Pc.type.label, color = c.ink3)
             }
-            Text(cm.body, style = Pc.type.small.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.padding(top = 4.dp))
+            Text(cm.body, style = Pc.type.small.copy(fontSize = 12.sp), color = c.ink, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }
@@ -565,7 +565,7 @@ private fun CommentRow(cm: Comment, p: Post, meId: String?, pending: Boolean, on
                     Spacer(Modifier.width(6.dp))
                     Text(if (pending) "sending…" else Fmt.ago(cm.createdAt), style = Pc.type.label, color = c.ink3)
                 }
-                Text(cm.body, style = Pc.type.body.copy(fontSize = 14.sp), color = c.ink)
+                Text(cm.body, style = Pc.type.body.copy(fontSize = 12.sp), color = c.ink)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!reply) CommentAction("Reply") { onReply(cm) }
@@ -659,8 +659,8 @@ private fun CommentBar(me: UserLite?, replyTo: Comment?, onCancelReply: () -> Un
 @Composable
 fun SendButton(enabled: Boolean, onClick: () -> Unit) {
     val c = Pc.colors
-    Box(Modifier.size(48.dp).clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClickLabel = "Send", onClick = onClick), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) c.ink else c.tonal), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(44.dp).clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClickLabel = "Send", onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(38.dp).clip(CircleShape).background(if (enabled) c.ink else c.tonal), contentAlignment = Alignment.Center) {
             PcIcon(PcIcons.Send, "Send", tint = if (enabled) c.raised else c.ink3, size = 20.dp)
         }
     }

@@ -112,7 +112,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     }
                 }
                 Row(Modifier.padding(horizontal = Gutter), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(user, 72.dp)
+                    Avatar(user, 60.dp)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,7 +330,7 @@ private fun SettingsHeader(text: String) {
 @Composable
 private fun TimeChip(value: String, presets: List<String>, onPick: (String) -> Unit) {
     val c = Pc.colors
-    Text(value, style = Pc.type.price.copy(fontSize = 14.sp), color = c.ink, modifier = Modifier.clip(CircleShape).background(tonal())
+    Text(value, style = Pc.type.price.copy(fontSize = 12.sp), color = c.ink, modifier = Modifier.clip(CircleShape).background(tonal())
         .clickable { onPick(presets[(presets.indexOf(value) + 1).mod(presets.size)]) }.padding(horizontal = 10.dp, vertical = 10.dp))
 }
 

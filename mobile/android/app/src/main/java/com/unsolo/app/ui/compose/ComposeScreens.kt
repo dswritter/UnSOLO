@@ -93,10 +93,10 @@ fun PostTypeSheet(onDismiss: () -> Unit, onPick: (String) -> Unit, onHosting: ()
 private fun KindTile(icon: ImageVector, title: String, sub: String, modifier: Modifier, onClick: () -> Unit) {
     val c = Pc.colors
     val shape = RoundedCornerShape(22.dp)
-    Column(modifier.heightIn(min = 132.dp).clip(shape).background(c.raised).border(1.dp, c.rule, shape).clickable(role = Role.Button, onClickLabel = "New $title", onClick = onClick).padding(14.dp),
+    Column(modifier.heightIn(min = 112.dp).clip(shape).background(c.raised).border(1.dp, c.rule, shape).clickable(role = Role.Button, onClickLabel = "New $title", onClick = onClick).padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.ink, size = 21.dp) }
-        Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 16.sp), color = c.ink)
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(12.dp)).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(icon, null, tint = c.ink, size = 18.dp) }
+        Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp), color = c.ink)
         Text(sub, style = Pc.type.small, color = c.ink2)
     }
 }
@@ -260,7 +260,7 @@ private fun Field(label: String, modifier: Modifier = Modifier, onClick: (() -> 
 }
 
 @Composable
-private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: String, maxLength: Int, singleLine: Boolean = true, style: androidx.compose.ui.text.TextStyle = Pc.type.bodyStrong.copy(fontSize = 16.sp), keyboardType: KeyboardType = KeyboardType.Text) {
+private fun InlineInput(value: String, onValue: (String) -> Unit, placeholder: String, maxLength: Int, singleLine: Boolean = true, style: androidx.compose.ui.text.TextStyle = Pc.type.bodyStrong.copy(fontSize = 14.sp), keyboardType: KeyboardType = KeyboardType.Text) {
     val c = Pc.colors
     Box(Modifier.fillMaxWidth().defaultMinSize(minHeight = 26.dp), contentAlignment = Alignment.CenterStart) {
         if (value.isEmpty()) Text(placeholder, style = style.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3.copy(alpha = 0.72f))
@@ -276,7 +276,7 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
     val women = vm.audience == "women"
     // Live preview: you hold the first seat (gold); the ring grows with the group size and turns rose for women-only.
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        SeatRing(total = vm.spots, taken = 0, size = 132.dp, you = YouSeat.You, plan = true, women = women, centerUser = me?.user, me = me?.user,
+        SeatRing(total = vm.spots, taken = 0, size = 112.dp, you = YouSeat.You, plan = true, women = women, centerUser = me?.user, me = me?.user,
             contentDescription = "Live preview: you plus ${vm.spots - 1} spots")
         Spacer(Modifier.height(6.dp))
         Text(buildAnnotatedString { append("Live preview · "); withStyle(SpanStyle(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = c.ink)) { append("you + ${vm.spots - 1} spots") } },
@@ -291,17 +291,17 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Field("When", Modifier.weight(1.6f), onClick = onDates) {
-            Text(vm.startsOn?.let { Fmt.range(it.toString(), (vm.endsOn ?: it).toString()) } ?: "Pick dates", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = if (vm.startsOn == null) c.ink3 else c.ink, maxLines = 1)
+            Text(vm.startsOn?.let { Fmt.range(it.toString(), (vm.endsOn ?: it).toString()) } ?: "Pick dates", style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = if (vm.startsOn == null) c.ink3 else c.ink, maxLines = 1)
         }
         val days = vm.startsOn?.let { s -> java.time.temporal.ChronoUnit.DAYS.between(s, vm.endsOn ?: s).toInt() + 1 }
         Field("Days", Modifier.weight(1f), onClick = onDates) {
-            Text(days?.toString() ?: "–", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = if (days == null) c.ink3 else c.ink)
+            Text(days?.toString() ?: "–", style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = if (days == null) c.ink3 else c.ink)
         }
     }
     Row(Modifier.fillMaxWidth().fieldBox().padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("People you're looking for", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
-            Text("${vm.spots - 1} more", style = Pc.type.bodyStrong.copy(fontSize = 16.sp), color = c.ink)
+            Text("${vm.spots - 1} more", style = Pc.type.bodyStrong.copy(fontSize = 14.sp), color = c.ink)
         }
         Stepper(vm.spots - 1, { vm.spots = it + 1 }, 1, 11)
     }
@@ -322,7 +322,7 @@ private fun PlanForm(vm: ComposeViewModel, onDates: () -> Unit, onPhotos: () -> 
         }
     }
     Field("Meeting point · only approved members see it") { InlineInput(vm.meetingPoint, { vm.meetingPoint = it }, "Majnu ka Tilla bus stand, 21:30", 120) }
-    Field("About the plan") { InlineInput(vm.body, { vm.body = it }, "Volvo up, two nights in Kalga, easy pace. Looking for…", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
+    Field("About the plan") { InlineInput(vm.body, { vm.body = it }, "Volvo up, two nights in Kalga, easy pace. Looking for…", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 14.sp)) }
     Column(Modifier.fillMaxWidth().fieldBox()) { PhotoStrip(vm.photos, onAdd = onPhotos, onRemove = { vm.photos.remove(it) }) }
 }
 
@@ -336,7 +336,7 @@ private fun PhotoStrip(photos: List<Uri>, onAdd: () -> Unit, onRemove: (Uri) -> 
             photos.forEachIndexed { i, u ->
                 Box(Modifier.size(84.dp).clip(RoundedCornerShape(16.dp))) {
                     AsyncImage(u, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    if (i == 0) Text("COVER", style = Pc.type.code.copy(fontSize = 9.sp), color = c.raised, modifier = Modifier.padding(5.dp).clip(CircleShape).background(c.ink).padding(horizontal = 6.dp, vertical = 2.dp))
+                    if (i == 0) Text("COVER", style = Pc.type.code.copy(fontSize = 7.5.sp), color = c.raised, modifier = Modifier.padding(5.dp).clip(CircleShape).background(c.ink).padding(horizontal = 6.dp, vertical = 2.dp))
                     Box(Modifier.align(Alignment.TopEnd).size(28.dp).clickable(onClickLabel = "Remove photo") { onRemove(u) }, contentAlignment = Alignment.Center) {
                         Box(Modifier.size(22.dp).clip(CircleShape).background(c.scrim), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Close, null, tint = Color.White, size = 13.dp) }
                     }
@@ -400,7 +400,7 @@ private fun StoryForm(vm: ComposeViewModel, onPhotos: () -> Unit) {
             SwitchRow("Show on the trip page", "Under \"From people who went\" on ${t.title}", vm.showOnTripPage, { vm.showOnTripPage = it })
         }
     }
-    Field("Tell it") { InlineInput(vm.body, { vm.body = it }, "Day 1 we were 10 strangers on a Volvo…", 4000, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
+    Field("Tell it") { InlineInput(vm.body, { vm.body = it }, "Day 1 we were 10 strangers on a Volvo…", 4000, singleLine = false, style = Pc.type.body.copy(fontSize = 14.sp)) }
 }
 
 @Composable
@@ -412,7 +412,7 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
         vm.pollOptions.forEachIndexed { i, o ->
             Row(Modifier.fillMaxWidth().fieldBox().padding(start = 14.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
-                    InlineInput(o, { vm.pollOptions[i] = it }, if (i < 2) "Option ${i + 1}" else "Option ${i + 1} (optional)", 60, style = Pc.type.body.copy(fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
+                    InlineInput(o, { vm.pollOptions[i] = it }, if (i < 2) "Option ${i + 1}" else "Option ${i + 1} (optional)", 60, style = Pc.type.body.copy(fontSize = 13.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold))
                 }
                 if (vm.pollOptions.size > 2) IconTap(PcIcons.Close, "Remove option ${i + 1}", { vm.pollOptions.removeAt(i) }, tint = c.ink3, iconSize = 18.dp)
             }
@@ -420,7 +420,7 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
         if (vm.pollOptions.size < 4) Row(Modifier.clip(CircleShape).clickable(role = Role.Button) { vm.pollOptions.add("") }.defaultMinSize(minHeight = 44.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             PcIcon(PcIcons.PlusCircle, null, size = 20.dp, tint = c.accentInk)
             Spacer(Modifier.width(6.dp))
-            Text("Add option", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 14.sp), color = c.accentInk)
+            Text("Add option", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, fontSize = 12.sp), color = c.accentInk)
         }
         Text("Polls stay open for 3 days. Everyone sees the results after voting.", style = Pc.type.small, color = c.ink2)
     }
@@ -430,6 +430,6 @@ private fun AskForm(vm: ComposeViewModel, isPoll: Boolean) {
             InlineInput(vm.place, { vm.place = it }, "Kasol, Parvati Valley", 80)
         }
     }
-    Field("Details (optional)") { InlineInput(vm.body, { vm.body = it }, "Dates, budget, what you care about", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 16.sp)) }
+    Field("Details (optional)") { InlineInput(vm.body, { vm.body = it }, "Dates, budget, what you care about", 1500, singleLine = false, style = Pc.type.body.copy(fontSize = 14.sp)) }
     Text("No links or prices in answers. Hosts answer as people, with their HOST tag.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = 4.dp))
 }

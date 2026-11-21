@@ -466,7 +466,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
  * sits 6dp inside.
  */
 @Composable
-fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Modifier, size: Dp = 62.dp, mine: Boolean = false, plus: Boolean = false) {
+fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Modifier, size: Dp = 54.dp, mine: Boolean = false, plus: Boolean = false) {
     val c = Pc.colors
     val segs = segments.coerceAtLeast(1)
     Box(modifier.size(size)) {
@@ -484,7 +484,7 @@ fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Mo
             }
         }
         Avatar(user, size - 12.dp, Modifier.align(Alignment.Center))
-        if (plus) Box(Modifier.align(Alignment.BottomEnd).size(24.dp).clip(CircleShape).background(c.paper).padding(2.dp).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
+        if (plus) Box(Modifier.align(Alignment.BottomEnd).size(21.dp).clip(CircleShape).background(c.paper).padding(2.dp).clip(CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
             PcIcon(PcIcons.Plus, null, tint = c.onPine, size = 14.dp)
         }
     }

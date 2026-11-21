@@ -275,7 +275,7 @@ private fun ChatRow(ch: ChatSummary, circle: CircleInfo?, myFirstName: String?, 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val last = ch.lastMessage
                     val who = last?.authorName?.let { if (it == myFirstName || it.substringBefore(' ') == myFirstName) "You: " else if (group) "${if (it.length <= 14) it else it.substringBefore(' ')}: " else "" }.orEmpty()
-                    Text(if (last != null) who + last.body else "", style = if (ch.unread > 0) Pc.type.smallStrong.copy(fontSize = 13.5.sp) else Pc.type.small.copy(fontSize = 13.5.sp), color = if (ch.unread > 0) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(if (last != null) who + last.body else "", style = if (ch.unread > 0) Pc.type.smallStrong.copy(fontSize = 11.5.sp) else Pc.type.small.copy(fontSize = 11.5.sp), color = if (ch.unread > 0) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     if (ch.unread > 0) { Spacer(Modifier.width(8.dp)); CountBadge(ch.unread) }
                 }
                 circle?.sub?.let { Text(it, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3, modifier = Modifier.padding(top = 1.dp)) }
@@ -397,7 +397,7 @@ private fun Bubble(m: ChatRepository.UiMessage, first: Boolean, last: Boolean, o
                 Text(if (msg.author.isHost) "${msg.author.name} · Host" else msg.author.firstName, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink2)
             }
             val shape = if (m.mine) RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 6.dp, bottomEnd = 20.dp)
-            Text(msg.body, style = Pc.type.body.copy(fontSize = 14.5.sp), color = if (m.mine) c.raised else c.ink,
+            Text(msg.body, style = Pc.type.body.copy(fontSize = 12.5.sp), color = if (m.mine) c.raised else c.ink,
                 modifier = Modifier.clip(shape).then(if (m.mine) Modifier else Modifier.combinedClickable(onClick = {}, onLongClick = onReport, onLongClickLabel = "Report message"))
                     .background(if (m.mine) c.ink.copy(alpha = if (m.state == LocalState.SENDING) 0.7f else 1f) else c.raised)
                     .then(if (m.mine) Modifier else Modifier.border(1.dp, c.rule, shape))
