@@ -237,11 +237,11 @@ fun ExploreScreen(nav: AppNav) {
                 }
             }
             if (rest.isNotEmpty()) {
-                val groups = rest.groupBy { monthLabel(it.nextDeparture) }
-                groups.forEach { (label, list) ->
-                    item(key = "m-$label", contentType = "section") { SectionHeader(label, Modifier.padding(top = 12.dp)) }
-                    items(list, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { nav.to(Routes.trip(t.slug)) } }
+                // One list, same as web: "Next few weeks" (dates already sorted soonest first).
+                item(key = "next-weeks", contentType = "section") {
+                    SectionHeader("Next few weeks", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
                 }
+                items(rest, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { nav.to(Routes.trip(t.slug)) } }
             }
         }
         SearchDock(
@@ -251,16 +251,6 @@ fun ExploreScreen(nav: AppNav) {
         )
     }
     if (searchSheet) ExploreSearchSheet(vm, items.size, onDismiss = { searchSheet = false })
-}
-
-private fun monthLabel(date: String?): String {
-    val d = Fmt.date(date) ?: return "Later"
-    val today = LocalDate.now(ZoneId.of("Asia/Kolkata"))
-    return when {
-        d.year == today.year && d.month == today.month -> "This month"
-        d.year == today.year -> d.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH)
-        else -> d.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.ENGLISH) + " ${d.year}"
-    }
 }
 
 /** Bottom search: a 56dp pill floating above the tab bar ("Where to? · Any week" + filter button). */
