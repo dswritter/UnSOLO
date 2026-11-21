@@ -18,6 +18,8 @@ import { PayoutDetailsForm } from '@/components/hosting/PayoutDetailsForm'
 import { toast } from 'sonner'
 import { CheckCircle, Circle, Phone, Mail, Shield, ArrowRight, Wallet, RefreshCw, X, Clock, Compass } from 'lucide-react'
 import { cn, PHONE_COUNTRY_CODES, type SupportedCountryCode } from '@/lib/utils'
+import { useWebOtp } from '@/hooks/useWebOtp'
+import { SMS_OTP_LENGTH } from '@/lib/constants'
 
 function isLocalDevHostname(): boolean {
   if (typeof window === 'undefined') return false
@@ -119,21 +121,8 @@ export function HostVerifyClient({ status, initialPayout }: {
     if (p && !('error' in p)) setPayout(p)
   }
 
-  // Web OTP autofill (Chrome/Android)
-  useEffect(() => {
-    if (step !== 'enter_otp' || typeof window === 'undefined') return
-    type OtpCred = { code?: string }
-    if (!('OTPCredential' in window)) return
-    const ac = new AbortController()
-    navigator.credentials
-      .get({ otp: { transport: ['sms'] as const }, signal: ac.signal } as CredentialRequestOptions)
-      .then((cred) => {
-        const code = (cred as OtpCred)?.code
-        if (code && /^\d{4,8}$/.test(code)) setOtp(code.replace(/\D/g, '').slice(0, 6))
-      })
-      .catch(() => {})
-    return () => ac.abort()
-  }, [step])
+  // SMS autofill (WebOTP where the browser supports it; iOS suggests it from the keyboard).
+  useWebOtp(step === 'enter_otp', setOtp, SMS_OTP_LENGTH)
 
   async function handleSendOTP() {
     const rule = PHONE_COUNTRY_CODES[countryCode]
@@ -183,7 +172,7 @@ export function HostVerifyClient({ status, initialPayout }: {
   }
 
   async function handleVerifyOTP() {
-    if (otp.length !== 6) { toast.error('Enter 6-digit OTP'); return }
+    if (otp.length !== SMS_OTP_LENGTH) { toast.error(`Enter ${SMS_OTP_LENGTH}-digit OTP`); return }
     setSending(true)
     const result = await verifyPhoneOTP(phone, otp)
     if (result.error) {
@@ -523,21 +512,21 @@ export function HostVerifyClient({ status, initialPayout }: {
 
           {!phoneVerified && emailVerified && step === 'enter_otp' && (
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">OTP sent to +91 {phone}. Enter the 6-digit code:</p>
+              <p className="text-xs text-muted-foreground">OTP sent to +91 {phone}. Enter the 4-digit code:</p>
               <Input
                 type="text"
                 name="one-time-code"
-                placeholder="6-digit OTP"
+                placeholder="4-digit OTP"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                maxLength={6}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, SMS_OTP_LENGTH))}
+                maxLength={SMS_OTP_LENGTH}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 className="bg-secondary border-border text-center text-lg tracking-widest font-mono"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button onClick={handleVerifyOTP} disabled={sending || otp.length !== 6}
+                <Button onClick={handleVerifyOTP} disabled={sending || otp.length !== SMS_OTP_LENGTH}
                   className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90">
                   {sending ? 'Verifying...' : 'Verify OTP'}
                 </Button>

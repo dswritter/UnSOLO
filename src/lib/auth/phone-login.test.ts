@@ -54,7 +54,7 @@ function makeDeps(opts: Opts = {}) {
     svc: svc as unknown as SupabaseClient,
     anon: anon as unknown as SupabaseClient,
     sendSMS: vi.fn(async (phone: string, otp: string) => { sms.push({ phone, otp }); return { success: true } }),
-    generateOTP: () => String(123456 + otpSeq++),
+    generateOTP: () => String(1234 + otpSeq++),
     secret: 'test-secret',
     now: () => now,
     production: true,
@@ -76,10 +76,10 @@ describe('phone sign-in: start', () => {
     const t = makeDeps()
     const r = await startPhoneLogin(t.deps, '+91 98765 43210', IP)
     expect(r.ok).toBe(true)
-    expect(t.sms).toEqual([{ phone: '9876543210', otp: '123456' }])
+    expect(t.sms).toEqual([{ phone: '9876543210', otp: '1234' }])
     if (r.ok) {
-      expect(r.challenge).not.toContain('123456')
-      expect(Buffer.from(r.challenge.split('.')[0], 'base64url').toString()).not.toContain('123456')
+      expect(r.challenge).not.toContain('1234')
+      expect(Buffer.from(r.challenge.split('.')[0], 'base64url').toString()).not.toContain('1234')
       expect(r.devCode).toBeUndefined()
     }
   })
@@ -135,7 +135,7 @@ describe('phone sign-in: verify', () => {
   it('rejects a wrong code, and a challenge edited to another number', async () => {
     const t = makeDeps({ owner: null })
     const { challenge, code } = await challengeFor(t)
-    expect(await verifyPhoneLogin(t.deps, challenge, '000000', IP)).toMatchObject({ ok: false, code: 'unauthorized' })
+    expect(await verifyPhoneLogin(t.deps, challenge, '0000', IP)).toMatchObject({ ok: false, code: 'unauthorized' })
     const [p, sig] = challenge.split('.')
     const payload = JSON.parse(Buffer.from(p, 'base64url').toString())
     const forged = `${Buffer.from(JSON.stringify({ ...payload, p: '9123456789' })).toString('base64url')}.${sig}`
@@ -146,7 +146,7 @@ describe('phone sign-in: verify', () => {
   it('locks a challenge after 5 attempts, even with the right code', async () => {
     const t = makeDeps({ owner: null })
     const { challenge, code } = await challengeFor(t)
-    for (let i = 0; i < 5; i++) await verifyPhoneLogin(t.deps, challenge, '000000', IP)
+    for (let i = 0; i < 5; i++) await verifyPhoneLogin(t.deps, challenge, '0000', IP)
     expect(await verifyPhoneLogin(t.deps, challenge, code, IP)).toMatchObject({ ok: false, code: 'rate_limited' })
   })
 
@@ -172,5 +172,17 @@ describe('placeholder emails', () => {
     expect(contactEmail('9876543210@phone.unsolo.in')).toBe('')
     expect(contactEmail('asha@example.com')).toBe('asha@example.com')
     expect(contactEmail(undefined)).toBe('')
+  })
+})
+
+describe('SMS code format', () => {
+  it('generates 4-digit codes (the approved SMS template has a 4-character slot)', async () => {
+    const { generateOTP } = await import('@/lib/sms/client')
+    for (let i = 0; i < 200; i++) expect(generateOTP()).toMatch(/^[1-9]\d{3}$/)
+  })
+  it('rejects codes that are not 4 digits before touching limits', async () => {
+    const t = makeDeps({ owner: null })
+    const { challenge } = await challengeFor(t)
+    expect(await verifyPhoneLogin(t.deps, challenge, '123456', IP)).toMatchObject({ ok: false, code: 'bad_request' })
   })
 })

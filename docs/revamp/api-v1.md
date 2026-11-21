@@ -74,9 +74,9 @@ Preferences { landingTab: "explore"|"tribe"|"trips", notify: { push: {plans,repl
 | GET | `/me/landing-suggestion` | user | → `{ suggest: "tribe"\|"trips"\|null, visits: { explore, tribe, trips } }`. Returns a tab when it was the most-opened tab over the last 14 days (at least 3 opens), it is not already the landing tab, and the prompt has not been dismissed. |
 | POST | `/me/landing-suggestion/dismiss` | user | → 204 |
 | POST | `/me/phone/start` | user | `{ phone: "+9198…" }` → `{ sent: true, devCode? }`. This is phone verification for an existing account. `devCode` is returned only when no SMS provider is configured, and only outside production. |
-| POST | `/me/phone/verify` | user | `{ phone, code }` → `{ verified: true }` |
+| POST | `/me/phone/verify` | user | `{ phone, code }` (4 digits) → `{ verified: true }` |
 | POST | `/auth/phone/start` | public | **Phone sign-in** through our SMS gateway (2factor.in or MSG91), not a Supabase SMS provider. `{ phone }` → `{ challenge, expiresIn: 300, devCode? }`. The challenge is signed and doesn't contain the code. Limits fail closed: one code per 30 s, 5 per number per hour, 20 per IP per hour, 60 per IP per day. |
-| POST | `/auth/phone/verify` | public | `{ challenge, code }` → the same session JSON as Supabase `/auth/v1/verify` (`access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`), plus `is_new`. Each code allows 5 tries and works once. It signs into the profile that has this verified number, or creates a phone-only account whose placeholder auth email is `<digits>@phone.unsolo.in`. That email is never mailed or shown: `/me` returns `email: null`. Refresh stays with Supabase. |
+| POST | `/auth/phone/verify` | public | `{ challenge, code }` (4 digits) → the same session JSON as Supabase `/auth/v1/verify` (`access_token`, `refresh_token`, `expires_in`, `expires_at`, `user`), plus `is_new`. Each code allows 5 tries and works once. It signs into the profile that has this verified number, or creates a phone-only account whose placeholder auth email is `<digits>@phone.unsolo.in`. That email is never mailed or shown: `/me` returns `email: null`. Refresh stays with Supabase. |
 | POST | `/devices` | user | `{ platform: "android"\|"ios"\|"web", token, appVersion?, locale? }` → 204 (upsert) |
 | DELETE | `/devices` | user | `{ token }` → 204 (call on sign-out) |
 

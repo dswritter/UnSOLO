@@ -9,7 +9,7 @@ import { phoneLoginDeps, requestIp } from '@/lib/auth/phone-login-deps'
  * plus `is_new` for first-time accounts.
  */
 export const POST = route(async (req: Request) => {
-  const body = await parseJson(req, z.object({ challenge: z.string().min(20).max(1000), code: z.string().min(6).max(6) }))
+  const body = await parseJson(req, z.object({ challenge: z.string().min(20).max(1000), code: z.string().regex(/^\d{4}$/) }))
   const r = await verifyPhoneLogin(phoneLoginDeps(), body.challenge, body.code, requestIp(req))
   if (!r.ok) throw new ApiError(r.code, r.error, { field: 'code', retryAfter: r.retryAfter })
   return ok({ ...r.session, is_new: r.isNew })

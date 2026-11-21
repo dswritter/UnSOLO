@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto'
+import { SMS_OTP_LENGTH } from '@/lib/constants'
 // ── SMS Gateway ─────────────────────────────────────────────
 // Priority: TWOFACTOR_API_KEY (2factor.in) → MSG91 → console fallback (dev).
 // `message` is the OTP digits for host phone verification.
@@ -110,5 +111,5 @@ export async function sendSMS(phone: string, message: string): Promise<{ success
 
 export function generateOTP(): string {
   // Cryptographically secure: Math.random() is predictable and must not back an OTP.
-  return randomInt(100000, 1000000).toString()
+  return randomInt(10 ** (SMS_OTP_LENGTH - 1), 10 ** SMS_OTP_LENGTH).toString()
 }

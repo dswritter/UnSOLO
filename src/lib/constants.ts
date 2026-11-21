@@ -62,6 +62,12 @@ export const UPLOAD_WEBP_THUMB_MAX_WIDTH = 320
 /** OTP expiry in minutes */
 // Matches the approved SMS template ("Valid for 5 mins").
 export const OTP_EXPIRY_MINUTES = 5
+/**
+ * Digits in an SMS code. The approved DLT template has a 4-character slot ("... is XXXX"). Four digits is
+ * 10,000 combinations, which is safe only because a code gets 5 tries (MAX_OTP_VERIFY_ATTEMPTS), one use,
+ * 5 minutes and per-phone / per-IP send limits. Email codes come from Supabase and stay 6 digits.
+ */
+export const SMS_OTP_LENGTH = 4
 
 /** Interest tags available for trip preferences */
 export const INTEREST_TAGS = [

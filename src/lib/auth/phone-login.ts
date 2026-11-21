@@ -2,7 +2,7 @@
  * Phone sign-in on our own SMS gateway (2factor.in / MSG91 via lib/sms/client), not a Supabase SMS
  * provider. Used by web, Android and iOS through /api/v1/auth/phone/{start,verify}.
  *
- * 1. start: rate-limit (fail closed: every SMS costs money), send a 6-digit code, return a signed
+ * 1. start: rate-limit (fail closed: every SMS costs money), send a 4-digit code, return a signed
  *    challenge `base64url(payload).base64url(HMAC(key, payload + "." + code))`. Nothing is stored;
  *    the code can't be recovered from the challenge without the server key.
  * 2. verify: check expiry, attempts (5 per challenge) and the HMAC; spend the challenge once.
@@ -17,7 +17,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { validateIndianPhone } from '@/lib/utils'
-import { MAX_OTP_VERIFY_ATTEMPTS, OTP_EXPIRY_MINUTES } from '@/lib/constants'
+import { MAX_OTP_VERIFY_ATTEMPTS, OTP_EXPIRY_MINUTES, SMS_OTP_LENGTH } from '@/lib/constants'
 
 export const PHONE_EMAIL_DOMAIN = 'phone.unsolo.in'
 export const phonePlaceholderEmail = (phone10: string) => `${phone10}@${PHONE_EMAIL_DOMAIN}`
@@ -106,7 +106,7 @@ function readChallenge(secret: string, challenge: string, code: string): { paylo
 }
 
 export async function verifyPhoneLogin(deps: PhoneLoginDeps, challenge: string, code: string, ip: string): Promise<VerifyResult> {
-  if (!/^\d{6}$/.test(code)) return { ok: false, code: 'bad_request', error: 'Enter the 6-digit code' }
+  if (!new RegExp(`^\\d{${SMS_OTP_LENGTH}}$`).test(code)) return { ok: false, code: 'bad_request', error: `Enter the ${SMS_OTP_LENGTH}-digit code` }
   const read = readChallenge(deps.secret, challenge, code)
   if (!read) return { ok: false, code: 'bad_request', error: 'That code request isn’t valid. Ask for a new code.' }
   const { payload, valid } = read

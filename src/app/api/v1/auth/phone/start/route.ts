@@ -3,7 +3,7 @@ import { ApiError, ok, parseJson, route } from '@/lib/api/http'
 import { startPhoneLogin } from '@/lib/auth/phone-login'
 import { phoneLoginDeps, requestIp } from '@/lib/auth/phone-login-deps'
 
-/** Phone sign-in, step 1 (no auth): text a 6-digit code via our SMS gateway; returns a signed challenge. */
+/** Phone sign-in, step 1 (no auth): text a 4-digit code via our SMS gateway; returns a signed challenge. */
 export const POST = route(async (req: Request) => {
   const { phone } = await parseJson(req, z.object({ phone: z.string().min(10).max(16) }))
   const r = await startPhoneLogin(phoneLoginDeps(), phone, requestIp(req))

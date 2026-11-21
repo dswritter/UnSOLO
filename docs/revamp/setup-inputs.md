@@ -32,7 +32,8 @@ Migration 121 also closes three holes in production:
 - **Email:** set up an SMTP sender (Resend works) under Auth → SMTP. Turn on "Confirm email". Also enable email OTP, which the apps use for 6-digit codes.
 - **Phone sign-in:** no Supabase SMS provider is needed. Leave Auth → Providers → Phone off.
   - Web, Android and iOS sign in by phone through `/api/v1/auth/phone/*`, which sends codes with the same 2factor.in or MSG91 key as phone verification (`TWOFACTOR_API_KEY`).
-  - If your 2factor account uses an approved DLT OTP template, set `TWOFACTOR_OTP_TEMPLATE` to its exact name.
+  - Set `TWOFACTOR_OTP_TEMPLATE=OTP1`, the approved DLT template ("Your OTP for Phone Verification is XXXX. Valid for 5 mins"). Because the template has a 4-character slot, SMS codes are **4 digits** and expire after **5 minutes**. Email codes stay 6 digits.
+  - Auto-fill: iOS suggests the code from the keyboard bar; Android apps read it with Google's SMS User Consent prompt (the user taps Allow once). Chrome on Android would need the template to end with a line like `@unsolo.in #1234` (WebOTP); the web code already listens for it.
   - Email sign-in must stay enabled: phone-only accounts get a placeholder email (`<digits>@phone.unsolo.in`) that is never mailed.
 - **Redirect URLs:** add `unsolo://auth-callback` and `https://unsolo.in/auth/callback`.
 - **Google sign-in in the apps:** both apps reuse the Google provider the website already uses.

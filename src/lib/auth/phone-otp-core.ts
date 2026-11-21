@@ -8,7 +8,7 @@ import type { User } from '@supabase/supabase-js'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { generateOTP, sendSMS } from '@/lib/sms/client'
 import { validateIndianPhone } from '@/lib/utils'
-import { MAX_OTP_PER_HOUR, MAX_OTP_VERIFY_ATTEMPTS, MIN_OTP_SEND_INTERVAL_SECONDS, OTP_EXPIRY_MINUTES } from '@/lib/constants'
+import { SMS_OTP_LENGTH, MAX_OTP_PER_HOUR, MAX_OTP_VERIFY_ATTEMPTS, MIN_OTP_SEND_INTERVAL_SECONDS, OTP_EXPIRY_MINUTES } from '@/lib/constants'
 import { isPhonePlaceholderEmail } from '@/lib/auth/phone-login'
 
 export type OtpResult = { ok: true; devCode?: string } | { ok: false; error: string; retryAfter?: number }
@@ -49,7 +49,7 @@ export async function startPhoneOtp(user: User, rawPhone: string): Promise<OtpRe
 export async function confirmPhoneOtp(user: User, rawPhone: string, code: string): Promise<OtpResult> {
   const phone = validateIndianPhone(rawPhone)
   if (!phone) return { ok: false, error: 'Enter a valid Indian mobile number' }
-  if (!/^\d{6}$/.test(code)) return { ok: false, error: 'Enter the 6-digit code' }
+  if (!new RegExp(`^\\d{${SMS_OTP_LENGTH}}$`).test(code)) return { ok: false, error: `Enter the ${SMS_OTP_LENGTH}-digit code` }
   const svc = createServiceRoleClient()
   const { data: rec } = await svc.from('phone_otp_verifications').select('id, otp_code, attempts')
     .eq('user_id', user.id).eq('phone_number', phone).eq('verified', false)

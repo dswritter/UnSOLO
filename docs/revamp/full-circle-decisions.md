@@ -15,6 +15,16 @@ The dark-green base and green buttons were dropped. The palette is now **UnSOLO 
 
 The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
 
+## Phone codes (user request)
+
+- **Phone sign-in and host phone verification share one code system:** your 2factor.in account, with the approved template `OTP1`. No Supabase SMS provider.
+- **4-digit codes, valid 5 minutes,** because the approved template has a 4-character slot and says "Valid for 5 mins". A 4-digit code has 10,000 values, so it is only safe because each code gets 5 tries and one use, and sends are capped per number (5 an hour) and per IP.
+- **Auto-fill:**
+  - Web: `autocomplete="one-time-code"` (iOS suggests it) and WebOTP (needs a `@unsolo.in #1234` line in the SMS, which the template lacks for now).
+  - Android: SMS User Consent prompt, no `READ_SMS` and no app hash.
+  - iOS: the keyboard bar via `.oneTimeCode`.
+  - The sign-in form submits as soon as the last digit is in.
+
 ## Density pass (user request)
 
 You found photos, cards and type bigger than other sites. I measured Airbnb and MakeMyTrip in the browser at 1440px and scaled Full Circle to about 0.85× everywhere. The full table is in [design-system.md](design-system.md#density).

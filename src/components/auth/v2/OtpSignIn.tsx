@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { validateIndianPhone } from '@/lib/utils'
+import { SMS_OTP_LENGTH } from '@/lib/constants'
+import { useWebOtp } from '@/hooks/useWebOtp'
 
 /** Only same-site relative paths (blocks open redirects such as //evil.com or https://…). */
 function safeRedirect(path: string | null | undefined) {
@@ -13,7 +15,7 @@ function safeRedirect(path: string | null | undefined) {
 }
 
 /**
- * Passwordless sign-in with a 6-digit code. Email: Supabase Auth OTP (the email template must include
+ * Passwordless sign-in with a code (4 digits by SMS, 6 by email). Email: Supabase Auth OTP (the email template must include
  * {{ .Token }}). Phone: our own SMS gateway (2factor.in / MSG91) through /api/v1/auth/phone/*, which
  * returns a Supabase session that we install with setSession. Same flow as the Android/iOS apps.
  */
@@ -36,6 +38,8 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
   const [challenge, setChallenge] = useState<string | null>(null)
+  const codeLen = mode === 'phone' ? SMS_OTP_LENGTH : 6
+  const autoVerified = useRef('')
 
   function target() {
     if (mode === 'email') return value.trim().toLowerCase()
@@ -57,7 +61,7 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
       setChallenge(r.data.challenge)
       if (r.data.devCode) toast.message(`Dev code: ${r.data.devCode}`)
       setSent(true)
-      toast.success('We sent you a 6-digit code')
+      toast.success(`We sent you a ${SMS_OTP_LENGTH}-digit code`)
       return
     }
     const supabase = createClient()
@@ -65,12 +69,12 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
     setBusy(false)
     if (error) { toast.error(error.message); return }
     setSent(true)
-    toast.success(mode === 'email' ? 'Check your inbox for a 6-digit code' : 'We sent you a 6-digit code')
+    toast.success(mode === 'email' ? 'Check your inbox for a 6-digit code' : `We sent you a ${SMS_OTP_LENGTH}-digit code`)
   }
 
   async function verify() {
     const t = target()
-    if (!t || !/^\d{6}$/.test(code)) return
+    if (!t || !new RegExp(`^\\d{${codeLen}}$`).test(code)) return
     setBusy(true)
     const supabase = createClient()
     if (mode === 'phone') {
@@ -88,6 +92,17 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
     router.replace(safeRedirect(redirectTo))
     router.refresh()
   }
+
+  // Fill from the SMS where the browser allows it, and sign in as soon as the code is complete.
+  useWebOtp(sent && mode === 'phone', (c) => setCode(c), SMS_OTP_LENGTH)
+  useEffect(() => {
+    if (sent && code.length === codeLen && !busy && autoVerified.current !== code) {
+      autoVerified.current = code
+      void verify()
+    }
+    if (code.length < codeLen) autoVerified.current = ''
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, sent])
 
   return (
     <div className="mt-4 border-t border-border pt-4">
@@ -108,9 +123,9 @@ export function OtpSignIn({ redirectTo }: { redirectTo: string | null }) {
         </div>
       ) : (
         <div className="flex gap-2">
-          <input className="pc-input pc-mono tracking-[0.3em]" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            inputMode="numeric" autoComplete="one-time-code" placeholder="6-digit code" aria-label="Code" />
-          <button type="button" className="pc-btn shrink-0" disabled={busy || code.length !== 6} onClick={verify}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}</button>
+          <input className="pc-input pc-mono tracking-[0.3em]" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, codeLen))}
+            inputMode="numeric" autoComplete="one-time-code" maxLength={codeLen} placeholder={`${codeLen}-digit code`} aria-label="Code" />
+          <button type="button" className="pc-btn shrink-0" disabled={busy || code.length !== codeLen} onClick={verify}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in'}</button>
         </div>
       )}
       {sent && <button type="button" className="pc-link mt-2 text-xs" onClick={() => { setSent(false); setCode(''); setChallenge(null) }}>Use a different {mode}</button>}

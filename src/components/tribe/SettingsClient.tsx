@@ -8,6 +8,8 @@ import type { Preferences } from '@/lib/tribe/preferences'
 import { INTERESTS } from '@/lib/tribe/preferences'
 import { enableWebPush, webPushSupported } from '@/lib/push/client'
 import { cn } from '@/lib/utils'
+import { useWebOtp } from '@/hooks/useWebOtp'
+import { SMS_OTP_LENGTH } from '@/lib/constants'
 
 type Me = { gender: string | null; homeCity: string | null; phone: string | null; isPhoneVerified: boolean; genderLocked?: boolean }
 
@@ -137,6 +139,7 @@ function PhoneSection({ me }: { me: Me }) {
   const [code, setCode] = useState('')
   const [stage, setStage] = useState<'idle' | 'sent' | 'done'>(me.isPhoneVerified ? 'done' : 'idle')
   const [busy, setBusy] = useState(false)
+  useWebOtp(stage === 'sent', setCode, SMS_OTP_LENGTH)
   async function start() {
     setBusy(true)
     try {
@@ -160,8 +163,8 @@ function PhoneSection({ me }: { me: Me }) {
           </div>
           {stage === 'sent' && (
             <div className="flex gap-2">
-              <input className="pc-input tabular-nums tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} aria-label="Verification code" />
-              <button type="button" className="pc-btn" disabled={busy || code.length !== 6} onClick={verify}>Verify</button>
+              <input className="pc-input tabular-nums tracking-[0.3em]" inputMode="numeric" autoComplete="one-time-code" maxLength={SMS_OTP_LENGTH} placeholder={`${SMS_OTP_LENGTH}-digit code`} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, SMS_OTP_LENGTH))} aria-label="Verification code" />
+              <button type="button" className="pc-btn" disabled={busy || code.length !== SMS_OTP_LENGTH} onClick={verify}>Verify</button>
             </div>
           )}
         </div>
