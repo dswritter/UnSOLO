@@ -110,6 +110,35 @@ struct NotificationsReadBody: Codable, Sendable { var ids: [String]?; var all: B
 struct DeviceBody: Codable, Sendable { var platform: String; var token: String; var appVersion: String?; var locale: String? }
 struct DeviceDeleteBody: Codable, Sendable { var token: String }
 struct PhoneStartBody: Codable, Sendable { var phone: String }
+struct PhoneAuthVerifyBody: Codable, Sendable { var challenge: String; var code: String }
+
+/// `POST /auth/phone/start` → an opaque challenge (2factor.in SMS). `devCode` only from non-production servers without an SMS key.
+struct PhoneAuthStart: Codable, Sendable, Equatable {
+    var challenge: String
+    var expiresIn: Int?
+    var devCode: String?
+}
+
+/// Phone sign-in failures keep the server's message; `retryAfter` comes from `Retry-After` on 429.
+struct PhoneAuthError: Error, LocalizedError, Equatable {
+    var code: String
+    var message: String
+    var retryAfter: TimeInterval?
+    var errorDescription: String? { message }
+
+    static func from(status: Int, data: Data, headers: [AnyHashable: Any]) -> PhoneAuthError {
+        let env = try? JSONDecoder().decode(ErrorEnvelope.self, from: data)
+        let retry = (headers["Retry-After"] as? String).flatMap(TimeInterval.init)
+        let fallback: String = switch status {
+        case 401: "That code didn't work. Check it, or send a new one."
+        case 429: "Too many tries. Wait a moment and try again."
+        case 400: "Enter a valid 10-digit mobile number."
+        default: "Something went wrong on our side. Try again."
+        }
+        return PhoneAuthError(code: env?.error.code ?? "server_error", message: env?.error.message ?? fallback,
+                              retryAfter: status == 429 ? (retry ?? 30) : nil)
+    }
+}
 struct PhoneVerifyBody: Codable, Sendable { var phone: String; var code: String }
 struct PatchMeBody: Codable, Sendable {
     var name: String?; var bio: String?; var gender: String?; var homeCity: String?
@@ -149,6 +178,35 @@ extension APIClient {
     func putPreferences(_ patch: PreferencesPatch) async throws -> Preferences { try await call(.put, "/me/preferences", body: patch) }
     func landingSuggestion() async throws -> LandingSuggestion { try await get("/me/landing-suggestion") }
     func dismissLandingSuggestion() async throws { try await callNoContent(.post, "/me/landing-suggestion/dismiss") }
+    // MARK: Phone sign-in (our 2factor.in endpoints, no auth header)
+
+    func authPhoneStart(_ phone: String) async throws -> PhoneAuthStart {
+        let data = try await publicPost("/auth/phone/start", body: PhoneStartBody(phone: phone))
+        return try decode(data)
+    }
+
+    /// Returns Supabase's session JSON (decoded as `SupabaseSession`) and `is_new`.
+    func authPhoneVerify(challenge: String, code: String) async throws -> (session: SupabaseSession, isNew: Bool) {
+        let data = try await publicPost("/auth/phone/verify", body: PhoneAuthVerifyBody(challenge: challenge, code: code))
+        struct Flag: Decodable { var is_new: Bool? }
+        do {
+            let s = try JSONDecoder().decode(SupabaseSession.self, from: data)
+            return (s, (try? JSONDecoder().decode(Flag.self, from: data))?.is_new ?? false)
+        } catch { throw APIError.decoding(String(describing: error)) }
+    }
+
+    private func publicPost(_ path: String, body: some Encodable & Sendable) async throws -> Data {
+        var req = URLRequest(url: makeURL(path))
+        req.httpMethod = "POST"
+        req.setValue(AppInfo.clientHeader, forHTTPHeaderField: "X-UnSOLO-Client")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSON.encoder().encode(body)
+        let (data, http) = try await transport.send(req)
+        guard (200..<300).contains(http.statusCode) else { throw PhoneAuthError.from(status: http.statusCode, data: data, headers: http.allHeaderFields) }
+        return data
+    }
+
     func phoneStart(_ phone: String) async throws -> PhoneStartResponse { try await call(.post, "/me/phone/start", body: PhoneStartBody(phone: phone)) }
     func phoneVerify(_ phone: String, code: String) async throws -> PhoneVerifyResponse {
         try await call(.post, "/me/phone/verify", body: PhoneVerifyBody(phone: phone, code: code))

@@ -111,11 +111,21 @@ final class SessionStore: AppBound {
         await didSignIn()
     }
 
-    func sendPhoneCode(_ phone: String) async throws { try await app?.auth.sendPhoneCode(phone) }
+    /// Phone sign-in step 1: `POST /api/v1/auth/phone/start` (2factor.in SMS). Returns the challenge to verify against.
+    func startPhoneSignIn(_ phone: String) async throws -> PhoneAuthStart {
+        guard let app else { throw APIError.offline }
+        return try await app.api.authPhoneStart(phone)
+    }
 
-    func verifyPhoneCode(phone: String, code: String) async throws {
-        try await app?.auth.verifyPhoneCode(phone: phone, code: code)
+    /// Phone sign-in step 2: `POST /api/v1/auth/phone/verify` → a Supabase session, stored like every other sign-in
+    /// (refresh stays on Supabase `/auth/v1/token?grant_type=refresh_token`). Returns `is_new`.
+    @discardableResult
+    func verifyPhoneSignIn(challenge: String, code: String) async throws -> Bool {
+        guard let app else { throw APIError.offline }
+        let r = try await app.api.authPhoneVerify(challenge: challenge, code: code)
+        await app.auth.adopt(r.session)
         await didSignIn()
+        return r.isNew
     }
 
     /// "Continue with Google": Supabase OAuth + PKCE in ASWebAuthenticationSession (no Google SDK).

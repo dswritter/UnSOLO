@@ -125,4 +125,15 @@ enum Fmt {
     static func duration(_ days: Int) -> String {
         days <= 1 ? "1 day" : "\(days)D/\(days - 1)N"
     }
+
+    /// Phone-only accounts carry a placeholder email `<digits>@phone.unsolo.in`; never show it.
+    static func isPlaceholderEmail(_ email: String?) -> Bool {
+        email?.lowercased().hasSuffix("@phone.unsolo.in") ?? false
+    }
+
+    /// The email to display, or nil for none / placeholder addresses.
+    static func displayEmail(_ email: String?) -> String? {
+        guard let email, !email.isEmpty, !isPlaceholderEmail(email) else { return nil }
+        return email
+    }
 }

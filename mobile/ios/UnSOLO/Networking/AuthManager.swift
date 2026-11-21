@@ -58,14 +58,6 @@ actor AuthManager {
         store(s)
     }
 
-    func sendPhoneCode(_ phone: String) async throws {
-        try await postNoContent("/otp", body: ["phone": phone])
-    }
-
-    func verifyPhoneCode(phone: String, code: String) async throws {
-        let s: SupabaseSession = try await post("/verify", body: ["type": "sms", "phone": phone, "token": code])
-        store(s)
-    }
 
     /// Google (and any Supabase OAuth provider) via PKCE: exchange the callback `code` with the verifier.
     func exchangePKCE(code: String, verifier: String) async throws {

@@ -209,6 +209,28 @@ actor DemoBackend {
             state.landingDismissed = true
             save()
             return noContent()
+        // Phone sign-in (our 2factor.in endpoints): any 10-digit number, any 6-digit code.
+        case ("POST", 3, "auth") where p[1] == "phone" && p[2] == "start":
+            let digits = String((r.json["phone"] as? String ?? "").filter(\.isNumber).suffix(10))
+            guard digits.count == 10 else { return err("bad_request", 400, "Enter a valid 10-digit mobile number.", field: "phone") }
+            return ok(PhoneAuthStart(challenge: "demo-challenge-\(digits)-\(UUID().uuidString.prefix(8))", expiresIn: 600, devCode: Self.demoOTP))
+        case ("POST", 3, "auth") where p[1] == "phone" && p[2] == "verify":
+            guard let challenge = r.json["challenge"] as? String, challenge.hasPrefix("demo-challenge-") else {
+                return err("bad_request", 400, "Start again: that sign-in request wasn't found.")
+            }
+            guard let code = r.json["code"] as? String, code.count == 6, code.allSatisfy(\.isNumber) else {
+                return err("unauthorized", 401, "That code didn't work. Check it, or send a new one.")
+            }
+            let digits = challenge.dropFirst("demo-challenge-".count).prefix(10)
+            state.me.user.isPhoneVerified = true
+            state.me.user.phone = "+91" + digits
+            save()
+            var body = (try? JSONSerialization.jsonObject(with: JSONEncoder().encode(SupabaseSession(
+                accessToken: "demo-access-\(UUID().uuidString)", refreshToken: "demo-refresh-\(UUID().uuidString)",
+                expiresIn: 3600, expiresAt: Int(Date().timeIntervalSince1970) + 3600, tokenType: "bearer")))) as? [String: Any] ?? [:]
+            body["user"] = ["id": state.me.user.id, "phone": "91" + digits, "email": "\(digits)@phone.unsolo.in"]
+            body["is_new"] = false
+            return DemoResult(status: 200, body: (try? JSONSerialization.data(withJSONObject: body)) ?? Data())
         case ("POST", 3, "me") where p[1] == "phone" && p[2] == "start":
             if let e = needAuth() { return e }
             return ok(PhoneStartResponse(sent: true, devCode: Self.demoOTP))

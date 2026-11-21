@@ -107,7 +107,8 @@ struct SettingsView: View {
                 }
                 group("Account") {
                     if session.isSignedIn, let me = session.me {
-                        infoRow("Email", me.user.email ?? "—")
+                        // Phone-only accounts have a placeholder `…@phone.unsolo.in` address: show the phone row only.
+                        if let email = Fmt.displayEmail(me.user.email) { infoRow("Email", email) }
                         HStack {
                             infoRow("Phone", me.user.phone.map(maskPhone) ?? "Not added")
                             if !me.user.isPhoneVerified {

@@ -180,15 +180,20 @@ struct EmailAuthView: View {
     }
 }
 
+/// Phone sign-in through UnSOLO's own endpoints (2factor.in SMS): start → challenge, verify(challenge, code) → session.
+/// "Change number" and "Resend" replace the challenge. Resend waits for `Retry-After` (30 s by default).
 struct PhoneAuthView: View {
     let onDone: () -> Void
     @Environment(SessionStore.self) private var session
     @Environment(AppModel.self) private var app
+    @State private var flow = PhoneSignInFlow()
     @State private var phone = ""
     @State private var code = ""
-    @State private var sent = false
     @State private var busy = false
     @State private var error: String?
+    @State private var now = Date()
+
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ScrollView {
@@ -196,36 +201,102 @@ struct PhoneAuthView: View {
                 Text("Phone").pcFont(.display).foregroundStyle(Pc.ink)
                 Text("We'll text you a 6-digit code. Your number is never shown to other travellers.").pcFont(.body).foregroundStyle(Pc.ink2)
                 PhoneField(phone: $phone)
-                if sent {
+                    .disabled(flow.challenge != nil)
+                    .opacity(flow.challenge != nil ? 0.6 : 1)
+                if flow.challenge != nil {
                     OTPField(code: $code)
-                    Button(busy ? "Checking…" : "Verify and continue") {
-                        run { try await session.verifyPhoneCode(phone: e164, code: code); onDone() }
+                    #if DEBUG
+                    if let dev = flow.devCode { Text("Code (no SMS provider on this server): \(dev)").pcFont(.num).foregroundStyle(Pc.goldInk) }
+                    #endif
+                    Button(busy ? "Checking…" : "Verify and continue") { verify() }
+                        .buttonStyle(.pc(.accent, fullWidth: true)).disabled(busy || code.count != 6)
+                    HStack {
+                        Button("Change number") { flow.reset(); code = ""; error = nil }.buttonStyle(.pcLink)
+                        Spacer()
+                        let wait = flow.secondsUntilResend(now: now)
+                        Button(wait > 0 ? "Resend in \(wait)s" : "Resend code") { start() }
+                            .buttonStyle(.pcLink).disabled(busy || wait > 0)
                     }
-                    .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || code.count != 6)
                 } else {
-                    Button(busy ? "Sending…" : "Send code") {
-                        run { try await session.sendPhoneCode(e164); sent = true }
-                    }
-                    .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || phone.count != 10)
+                    Button(busy ? "Sending…" : "Send code") { start() }
+                        .buttonStyle(.pc(.accent, fullWidth: true)).disabled(busy || phone.count != 10 || flow.secondsUntilResend(now: now) > 0)
                 }
-                if app.isDemo && sent { Text("Demo code: 123456").pcFont(.num).foregroundStyle(Pc.goldInk) }
-                if let error { Text(error).pcFont(.small).foregroundStyle(Pc.red) }
+                if let error { Text(error).pcFont(.small).foregroundStyle(Pc.red).fixedSize(horizontal: false, vertical: true) }
             }
             .padding(16)
         }
         .pcScreen()
         .navigationBarTitleDisplayMode(.inline)
+        .onReceive(ticker) { now = $0 }
     }
 
-    private var e164: String { "+91" + phone }
-
-    private func run(_ work: @escaping () async throws -> Void) {
+    private func start() {
         busy = true
         error = nil
         Task {
-            do { try await work() } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
+            do {
+                let r = try await session.startPhoneSignIn(phone)
+                flow.started(r, at: Date())
+                code = ""
+                #if DEBUG
+                if let dev = r.devCode { code = dev }
+                #endif
+            } catch let e as PhoneAuthError {
+                error = e.message
+                if let wait = e.retryAfter { flow.blockResend(for: wait, from: Date()) }
+            } catch {
+                self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
             busy = false
         }
+    }
+
+    private func verify() {
+        guard let challenge = flow.challenge else { return }
+        busy = true
+        error = nil
+        Task {
+            do {
+                // `is_new`: there is no separate first-run step on iOS yet; new and returning users continue the same way.
+                _ = try await session.verifyPhoneSignIn(challenge: challenge, code: code)
+                onDone()
+            } catch let e as PhoneAuthError {
+                error = e.message
+            } catch {
+                self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription
+            }
+            busy = false
+        }
+    }
+}
+
+/// The phone sign-in state the view keeps: the current challenge and the resend timer.
+struct PhoneSignInFlow: Equatable {
+    private(set) var challenge: String?
+    private(set) var devCode: String?
+    private(set) var resendAt: Date?
+    static let defaultResend: TimeInterval = 30
+
+    /// A new start (first send or resend) replaces the previous challenge.
+    mutating func started(_ r: PhoneAuthStart, at date: Date) {
+        challenge = r.challenge
+        devCode = r.devCode
+        resendAt = date.addingTimeInterval(Self.defaultResend)
+    }
+
+    mutating func blockResend(for seconds: TimeInterval, from date: Date) {
+        resendAt = date.addingTimeInterval(seconds)
+    }
+
+    /// "Change number": forget the challenge so a new one is requested.
+    mutating func reset() {
+        challenge = nil
+        devCode = nil
+    }
+
+    func secondsUntilResend(now: Date) -> Int {
+        guard let resendAt else { return 0 }
+        return max(0, Int(resendAt.timeIntervalSince(now).rounded(.up)))
     }
 }
 
