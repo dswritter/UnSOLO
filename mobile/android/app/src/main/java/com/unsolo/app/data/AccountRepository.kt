@@ -159,7 +159,7 @@ class AccountRepository(
     /** Demo builds only: signs in as the phone-verified demo traveller. */
     suspend fun signInDemo() = runAuth {
         val start = api.authPhoneStart(PhoneAuthStartRequest(DEMO_PHONE.takeLast(10)))
-        completeSignIn(api.authPhoneVerify(PhoneAuthVerifyRequest(start.challenge, "123456")))
+        completeSignIn(api.authPhoneVerify(PhoneAuthVerifyRequest(start.challenge, com.unsolo.app.core.demo.DEMO_SMS_CODE)))
     }
 
     private suspend fun runAuth(block: suspend () -> Unit): ApiResult<Unit> = apiCall { block() }

@@ -11,29 +11,29 @@ class PhoneSignInTest {
     @Test fun challengeFlow() {
         val f = PhoneSignInFlow()
         assertFalse(f.codeSent)
-        assertNull("no verify before start", f.verifyBody("123456"))
+        assertNull("no verify before start", f.verifyBody("1234"))
         assertEquals("9876543210", f.normalized("+91 98765 43210"))
         assertEquals("9876543210", f.normalized("919876543210"))
         assertTrue(f.valid("9876543210")); assertFalse(f.valid("1234567890")); assertFalse(f.valid("98765"))
 
-        f.onStarted("+919876543210", "c1", expiresInSec = 600, devCode = "123456", nowMs = 0)
+        f.onStarted("+919876543210", "c1", expiresInSec = 600, devCode = "1234", nowMs = 0)
         assertTrue(f.codeSent)
         assertEquals("9876543210", f.phone)
-        assertEquals("c1" to "123456", f.verifyBody("123456"))
-        assertNull("needs 6 digits", f.verifyBody("12345"))
+        assertEquals("c1" to "1234", f.verifyBody("1234"))
+        assertNull("needs 4 digits", f.verifyBody("123")); assertNull(f.verifyBody("12345"))
         assertEquals(30, f.resendInSec(0))
         assertFalse(f.canResend(29_000)); assertTrue(f.canResend(30_000))
 
         // Resend replaces the challenge; a 429 keeps it and waits out Retry-After.
         f.onStarted("9876543210", "c2", 600, null, nowMs = 31_000)
-        assertEquals("c2" to "654321", f.verifyBody("654321"))
+        assertEquals("c2" to "6543", f.verifyBody("6543"))
         f.onRateLimited(45, nowMs = 40_000)
         assertEquals(45, f.resendInSec(40_000))
         assertEquals("c2", f.challenge)
 
         // Change number drops it.
         f.reset()
-        assertFalse(f.codeSent); assertNull(f.verifyBody("654321"))
+        assertFalse(f.codeSent); assertNull(f.verifyBody("6543"))
     }
 
     @Test fun verifyResponseDecodesAsSupabaseSession() {

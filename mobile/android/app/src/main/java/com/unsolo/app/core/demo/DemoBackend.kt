@@ -242,20 +242,20 @@ class DemoBackend(private val context: Context) {
                 val raw = runCatching { json.parseToJsonElement(r.body ?: "{}").jsonObject["phone"]?.jsonPrimitive?.contentOrNull }.getOrNull().orEmpty()
                 val digits = raw.filter { it.isDigit() }.let { if (it.length > 10) it.takeLast(10) else it }
                 if (digits.length != 10 || digits.first() !in "6789") err(400, "bad_request", "Enter a 10-digit Indian mobile number.")
-                else okRaw(buildJsonObject { put("challenge", "demo-challenge-" + UUID.randomUUID()); put("expiresIn", 600); put("devCode", "123456") })
+                else okRaw(buildJsonObject { put("challenge", "demo-challenge-" + UUID.randomUUID()); put("expiresIn", 300); put("devCode", DEMO_SMS_CODE) })
             }
             p == listOf("auth", "phone", "verify") && m == "POST" -> run {
                 val o = runCatching { json.parseToJsonElement(r.body ?: "{}").jsonObject }.getOrNull()
                 val challenge = o?.get("challenge")?.jsonPrimitive?.contentOrNull.orEmpty()
                 val code = o?.get("code")?.jsonPrimitive?.contentOrNull.orEmpty()
                 if (!challenge.startsWith("demo-challenge-")) err(400, "bad_request", "Ask for a new code.")
-                else if (!code.matches(Regex("\\d{6}"))) err(401, "unauthorized", "That code didn't work. Check it or ask for a new one.")
+                else if (!code.matches(Regex("\\d{4}"))) err(401, "unauthorized", "That code didn't work. Check it or ask for a new one.")
                 else { setPhoneVerified(true); okRaw(JsonObject(session() + ("is_new" to kotlinx.serialization.json.JsonPrimitive(false)))) }
             }
-            p == listOf("me", "phone", "start") -> requireUser(r) ?: ok(PhoneStartResponse.serializer(), PhoneStartResponse(true, "123456"))
+            p == listOf("me", "phone", "start") -> requireUser(r) ?: ok(PhoneStartResponse.serializer(), PhoneStartResponse(true, DEMO_SMS_CODE))
             p == listOf("me", "phone", "verify") -> requireUser(r) ?: run {
                 val b = body(PhoneVerifyRequest.serializer(), r)
-                if (b.code != "123456") err(400, "bad_request", "That code didn't match. In demo mode the code is 123456.")
+                if (!b.code.matches(Regex("\\d{4}"))) err(400, "bad_request", "That code didn't match. In demo mode any 4 digits work, e.g. $DEMO_SMS_CODE.")
                 else { setPhoneVerified(true); ok(PhoneVerifyResponse.serializer(), PhoneVerifyResponse(true)) }
             }
             p == listOf("devices") -> requireUser(r) ?: noContent()
@@ -538,3 +538,6 @@ class DemoBackend(private val context: Context) {
         }.apply { isDaemon = true }.start()
     }
 }
+
+/** Demo SMS code (any 4 digits are accepted). */
+const val DEMO_SMS_CODE = "1234"

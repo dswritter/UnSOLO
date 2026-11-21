@@ -40,7 +40,7 @@ class PhoneSignInFlow(private val defaultCooldownSec: Long = 30) {
     fun verifyBody(code: String): Pair<String, String>? {
         val c = challenge ?: return null
         val digits = code.filter { it.isDigit() }
-        return if (digits.length == 6) c to digits else null
+        return if (SmsOtp.isValid(digits)) c to digits else null
     }
 
     /** "Change number": the old challenge is useless for a new number. */

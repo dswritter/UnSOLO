@@ -120,6 +120,8 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation(libs.play.services.location)
+    // SMS User Consent API: reads the one incoming OTP SMS after the user taps Allow (no READ_SMS, no app hash).
+    implementation(libs.play.services.auth.api.phone)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.androidx.credentials)

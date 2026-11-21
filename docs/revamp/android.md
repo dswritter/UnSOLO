@@ -20,7 +20,7 @@ cd mobile/android
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties    # gitignored
 cp secrets.properties.example secrets.properties               # optional; gitignored
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:testDebugUnitTest      # 42 JVM unit tests
+./gradlew :app:testDebugUnitTest      # 46 JVM unit tests
 ./gradlew :app:assembleRelease        # R8 + shrinkResources; unsigned until a keystore exists
 adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -200,7 +200,13 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
   - Refresh still goes through Supabase `/auth/v1/token?grant_type=refresh_token`.
   - Phone-only accounts have a placeholder `<digits>@phone.unsolo.in` email. It is never shown; the phone is shown instead (`AccountContact`).
   - The app has no first-run step yet, so `is_new` doesn't change where the user lands.
-  - Demo mode mocks both endpoints, and any 6-digit code works.
+  - **SMS codes are 4 digits** (the DLT template), constant `SMS_OTP_LENGTH` in `core/auth/SmsOtp.kt`, and they expire after 5 minutes. This applies to phone sign-in and to `/me/phone/start|verify`. Email codes stay 6 digits.
+  - **Auto-fill:** `SmsCodeAutofill` (`ui/components`) uses the Google Play services SMS User Consent API (`play-services-auth-api-phone`).
+    - It needs no `READ_SMS` permission and no app hash.
+    - It registers an exported receiver for `SMS_RETRIEVED_ACTION`, launches the consent intent, and takes the first standalone 4-digit number from the message.
+    - It restarts after every resend, because the listener times out after 5 minutes. The code is filled and submitted automatically, with a busy guard against double submit.
+    - It does nothing in demo mode, without Play services, or if the user declines. Manual entry always works.
+  - Demo mode mocks both endpoints, and any 4-digit code works (the dev code is 1234).
 - **Keep browsing as a guest.**
 
 **Tokens:**
