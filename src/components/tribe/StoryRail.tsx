@@ -82,7 +82,7 @@ export function StoryRail({ posts, me, signedIn, demo, className, onCard }: {
 
   if (!me && others.length === 0) return null
   const composeHref = signedIn ? '/tribe/new?kind=story' : '/login?redirectTo=%2Ftribe%2Fnew%3Fkind%3Dstory'
-  const S = 64
+  const S = 56
 
   return (
     <>

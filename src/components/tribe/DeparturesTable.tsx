@@ -19,7 +19,7 @@ const cachedDepartures = unstable_cache(
   { revalidate: 60, tags: ['explore-departures'] },
 )
 
-export async function loadExploreDepartures(limit = 16): Promise<TripLite[]> {
+export async function loadExploreDepartures(limit = 20): Promise<TripLite[]> {
   try {
     return await cachedDepartures(limit)
   } catch (e) {
@@ -33,33 +33,42 @@ export async function loadExploreDepartures(limit = 16): Promise<TripLite[]> {
  * with mini arcs. Cookie-free so the home page stays cacheable; seat counts come from aggregate
  * booking totals only (no faces). Renders nothing when there are no departures.
  */
+/** md: 3 cols → 6 cards, lg: 4 → 8, xl: 5 → 10, 2xl: 6 → 12. */
+function gridShow(i: number) {
+  if (i < 6) return undefined
+  if (i < 8) return 'md:hidden lg:flex'
+  if (i < 10) return 'md:hidden xl:flex'
+  return 'md:hidden 2xl:flex'
+}
+
 export async function DeparturesTable({ aside }: { aside?: React.ReactNode } = {}) {
   const items = await loadExploreDepartures()
   if (items.length === 0) return null
-  const soon = items.slice(0, 8)
-  const later = items.slice(8)
+  // Up to 12 cards: rows of 2/3/4/5/6 by width, with the extras hidden so every row is full.
+  const soon = items.slice(0, 12)
+  const later = items.slice(12)
   const list = later.length >= 4 ? later : items.slice(Math.max(0, items.length - 5))
   return (
     <>
-      <section aria-labelledby="leaving-soon-h" className="mx-auto w-full max-w-[1440px] mt-4 md:mt-8 md:px-6 lg:px-10">
+      <section aria-labelledby="leaving-soon-h" className="mx-auto w-full max-w-[1440px] mt-4 md:mt-6 md:px-6 lg:px-10">
         <div className="pc-section-h px-4 pb-3 md:px-0">
-          <h2 id="leaving-soon-h" className="md:text-[30px]">Leaving soon</h2>
+          <h2 id="leaving-soon-h" className="md:text-[22px]">Leaving soon</h2>
           <Link href="/?search=1&tab=trips#wander-explore">See all</Link>
         </div>
         <div className="fc-pager md:hidden">
-          {soon.map((t, i) => <TripRingCard key={t.id} trip={t} priority={i === 0} />)}
+          {soon.slice(0, 8).map((t, i) => <TripRingCard key={t.id} trip={t} priority={i === 0} />)}
         </div>
-        <div className="hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {soon.map((t, i) => <TripRingCard key={t.id} trip={t} ringSize={100} priority={i < 3} />)}
+        <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {soon.map((t, i) => <TripRingCard key={t.id} trip={t} priority={i < 4} className={gridShow(i)} />)}
         </div>
       </section>
-      <section aria-labelledby="this-month-h" className="mx-auto w-full max-w-[1440px] mt-8 grid gap-8 px-4 md:mt-12 md:px-6 lg:grid-cols-[1.55fr_1fr] lg:px-10">
+      <section aria-labelledby="this-month-h" className="mx-auto w-full max-w-[1440px] mt-7 grid gap-6 px-4 md:mt-9 md:px-6 lg:grid-cols-[1.55fr_1fr] lg:px-10">
         <div className="min-w-0">
           <div className="pc-section-h mb-1">
             <h2 id="this-month-h">Next few weeks</h2>
             <Link href="/?search=1&tab=trips#wander-explore">All departures</Link>
           </div>
-          <div className="md:rounded-[28px] md:border md:border-border md:bg-card md:px-5 md:py-1.5">
+          <div className="md:rounded-[20px] md:border md:border-border md:bg-card md:px-4 md:py-1">
             {list.map((t) => <TripListRow key={t.id} trip={t} />)}
           </div>
         </div>

@@ -83,7 +83,7 @@ function PlanCardAction({ post, signedIn }: { post: Post; signedIn: boolean }) {
 }
 
 /** Community plan: pencilled card, organiser face in the middle of a loose circle of spots, Request to join. */
-export function PlanCard({ post, signedIn, demo, ringSize = 112, compact }: { post: Post; signedIn: boolean; demo?: boolean; ringSize?: number; compact?: boolean }) {
+export function PlanCard({ post, signedIn, demo, ringSize = 92, compact }: { post: Post; signedIn: boolean; demo?: boolean; ringSize?: number; compact?: boolean }) {
   const r = planRing(post, signedIn)
   const total = r.segs.length
   return (

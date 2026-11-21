@@ -20,6 +20,23 @@ The token *names* are kept from Passenger Chart so existing code keeps compiling
 - `blue` is now the link colour, which is pine.
 - New roles: `pine`, `onPine`, `pineSoft`, `tonal`, `seatOpen`, `rose`, `roseSoft`, `roseOpen`, `full`, `selected`, `scrim`.
 
+## Density
+
+Sizes were checked against Airbnb and MakeMyTrip at 1440px and 375px (Airbnb: 14px body, 20px section titles, 13px card titles, 12px meta; MakeMyTrip: mostly 12–16px). Full Circle sits a little larger than both because cards carry a ring and a price, but within about 10%:
+
+| Element | Web | Apps (tokens) |
+|---|---|---|
+| Body text | 15px | body 14 |
+| Section title | 20px (22px for "Leaving soon" on desktop) | title2 18 |
+| Card title / meta / caption | 15 / 12.5 / 12px | title3 15, small 12 |
+| Price | 17px (16px on result cards) | num 15 |
+| Card ring / trip page ring | 72px / 176–208px | ringCard 72 / ringHero 200 |
+| Card photo | 16:10 | 16:10 |
+| Leaving soon per row | 2–6 by width (5 at 1440px) | pager card ~78% width, max 300 |
+| Listing row card | 13.25rem at xl (~6 across 1440px), 62vw on phones | ~62% width |
+
+Touch targets stay at least 44px: visuals shrink, hit areas don't.
+
 ## Look
 
 | Role | Light | Dark |
@@ -47,9 +64,9 @@ The token *names* are kept from Passenger Chart so existing code keeps compiling
   - **iOS** uses SF Pro Rounded (heavy or bold) for display text and SF Pro for body, so the app bundles no font files.
   - **Android** uses Google downloadable fonts for Bricolage and Figtree, with the system font as fallback.
 - **Shape:**
-  - Buttons are pills, 52px tall for primary actions and 40px for small ones.
-  - Cards have a 28px radius and a 1px `rule` border, with no shadow. Images have a 20px radius.
-  - Sheets have a 28px top radius.
+  - Buttons are pills, 46px tall for primary actions and 34px for small ones.
+  - Cards have a 20px radius and a 1px `rule` border, with no shadow. Images have a 16px radius.
+  - Sheets have a 24px top radius.
 - **Press** scales to 0.97. Under Reduce Motion, every motion becomes a fade.
 - **Icons:** Phosphor Bold on all platforms. Web and Android use Phosphor. iOS uses the closest SF Symbols at `.bold` weight.
 
@@ -84,7 +101,7 @@ N arc segments sit around a circular centre: a trip photo, an organiser's face, 
   - "8 of 12 open · 4 going";
   - "Full · 12/12".
   - The accessible label is "8 of 12 spots open".
-- **Mini arc** for lists: 44px. A thin `seatOpen` full circle with a 5px `pine` progress arc from 12 o'clock (`full` when sold out), and "k/n" in the centre.
+- **Mini arc** for lists: 38px. A thin `seatOpen` full circle with a 5px `pine` progress arc from 12 o'clock (`full` when sold out), and "k/n" in the centre.
 - **Motion:** taking a seat draws your arc in 420ms. When the last seat fills, the ring spins once (700ms) and turns `full`: the "Full circle" moment.
 
 **Story rings** reuse the same segmentation: one arc per story, `pine` for unseen and `rule` for seen. Your own ring is `gold`.
@@ -93,7 +110,7 @@ N arc segments sit around a circular centre: a trip photo, an organiser's face, 
 
 The things people use most sit in the bottom third of the screen.
 
-1. **Tab bar:** Explore · Tribe · **(+)** · My trips · You.
+1. **Tab bar (60px):** Explore · Tribe · **(+)** · My trips · You.
    - The centre **+** is a raised pine circle. It opens the "What are you sharing?" bottom sheet: Plan, Story, Question, Poll.
 2. **The primary action is pinned in a bottom bar** above the safe area, never in the top-right corner:
    - Trip page: save, price and **Grab a spot**.
@@ -118,14 +135,14 @@ Desktop web keeps a top navigation bar, since reach doesn't apply.
 
 | Component | Web class or component | Notes |
 |---|---|---|
-| Primary button | `.pc-btn` | Yellow pill with black text, 52px (`.pc-btn-sm` is 40px) |
+| Primary button | `.pc-btn` | Ink pill (`.pc-btn-sun` yellow for the one key action), 46px (`.pc-btn-sm` is 34px) |
 | Secondary button | `.pc-btn-outline` / `.pc-btn-quiet` | 1.5px pine outline / tonal fill |
-| Chip | `.pc-chip` | 40px pill. Selected is a pine fill |
-| Card | `.pc-card` (also `.pc-surface`, `.pc-printed`) | Surface, 28px radius, 1px rule |
+| Chip | `.pc-chip` | 36px pill. Selected is an ink fill |
+| Card | `.pc-card` (also `.pc-surface`, `.pc-printed`) | Surface, 20px radius, 1px rule |
 | Plan card | `.pc-pencilled` | Surface, 28px radius, 1px *dashed* `rule2`. Plans are pencilled in |
 | Tag | `.pc-tag-host` (gold), `.pc-tag-organiser` (ink), `.pc-tag-women` (rose), `.pc-tag-verified` (pine) | |
 | Seat ring | `<SeatRing>` | See above |
-| Mini arc | `<MiniArc>` | 44px |
+| Mini arc | `<MiniArc>` | 38px |
 | Bottom bar | `.pc-actionbar` | Blurred surface, top rule, safe-area padding |
 | Search dock | `.pc-dock` | 56px pill floating above the tab bar |
 | Sheet | `.pc-sheet` | 28px top radius, grab handle |

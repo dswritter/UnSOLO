@@ -230,7 +230,7 @@ export function SeatRing({
 }
 
 /** List progress arc: thin open track + pine fill from 12 o'clock, "k/n" in the middle. */
-export function MiniArc({ total, taken, size = 44, women, className }: { total: number; taken: number; size?: number; women?: boolean; className?: string }) {
+export function MiniArc({ total, taken, size = 38, women, className }: { total: number; taken: number; size?: number; women?: boolean; className?: string }) {
   const n = Math.max(total, 0)
   if (n === 0) return null
   const k = clamp(0, taken, n)

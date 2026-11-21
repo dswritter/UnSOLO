@@ -70,7 +70,7 @@ export function ImageGallery({ images, title }: ImageGalleryProps) {
     <>
       {/* Desktop mosaic: one large photo + up to four tiles */}
       {mosaic && (
-        <div className="relative hidden h-[26rem] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-[28px] md:grid">
+        <div className="relative hidden h-[22rem] grid-cols-4 grid-rows-2 gap-2 overflow-hidden rounded-[20px] md:grid">
           {images.slice(0, 5).map((img, i) => (
             <button
               key={img + i}

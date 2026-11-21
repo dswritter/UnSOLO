@@ -466,13 +466,14 @@ export function ExploreClient({
     [activitiesPastOnlyListings],
   )
 
+  // Density: one more column per breakpoint than the first pass (closer to Airbnb/MakeMyTrip).
   const tripGridClassName = cn(
-    'grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5',
-    isWanderShell ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+    'grid grid-cols-1 gap-3.5 sm:grid-cols-2 md:gap-4',
+    isWanderShell ? 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'lg:grid-cols-3 xl:grid-cols-4',
   )
   const serviceGridClassName = cn(
-    'grid grid-cols-2 gap-3 sm:gap-4 md:gap-5',
-    isWanderShell ? 'lg:grid-cols-3 2xl:grid-cols-4' : 'lg:grid-cols-2 xl:grid-cols-3',
+    'grid grid-cols-2 gap-3 md:gap-4',
+    isWanderShell ? 'lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5' : 'lg:grid-cols-3 xl:grid-cols-4',
   )
   return (
     <div

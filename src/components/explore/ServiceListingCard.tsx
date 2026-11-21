@@ -151,8 +151,8 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
         ) : null}
       </ListingCardMedia>
 
-      <div className="relative flex flex-1 flex-col p-2.5 md:p-3.5">
-        <h3 className={cn('line-clamp-2 text-xs font-semibold leading-snug md:text-[15px] md:font-bold', muted ? 'text-muted-foreground' : 'text-foreground')}>
+      <div className="relative flex flex-1 flex-col p-2.5 md:p-3">
+        <h3 className={cn('line-clamp-2 text-xs font-semibold leading-snug md:text-[14px] md:font-bold', muted ? 'text-muted-foreground' : 'text-foreground')}>
           {listing.title}
         </h3>
         {location || detail || optionCount > 1 ? (
@@ -170,7 +170,7 @@ export function ServiceListingCard({ listing, items, muted = false }: ServiceLis
             {listing.review_count > 0 ? <span>({listing.review_count})</span> : null}
           </p>
         ) : null}
-        <div className="mt-auto pt-2 md:pt-3">
+        <div className="mt-auto pt-2 md:pt-2.5">
           <ListingCardPrice amount={formatPrice(listing.price_paise)} suffix={unitShortLabel(listing.unit)} from muted={muted} />
         </div>
       </div>

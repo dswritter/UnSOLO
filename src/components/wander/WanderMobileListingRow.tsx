@@ -15,7 +15,8 @@ type RowKind = 'trips' | 'stays' | 'activities' | 'rentals'
 type ServiceWithItems = ExploreListPayload['serviceListings'][number]
 type Trip = ExploreListPayload['packages'][number]
 
-const cardClass = 'w-[80vw] max-w-[20rem] shrink-0 snap-start sm:w-[17rem]'
+// ~1.6 cards on a phone, ~6 across a 1440px desktop row (Airbnb shows 7 smaller ones).
+const cardClass = 'w-[62vw] max-w-[15rem] shrink-0 snap-start sm:w-[14rem] xl:w-[13.25rem]'
 
 export function WanderMobileListingRow({ children, initialIds, kind, viewAllHref, viewAllLabel }: {
   children: ReactNode[]

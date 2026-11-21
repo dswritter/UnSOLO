@@ -4,7 +4,7 @@ import type { TripCardBadge } from '@/lib/listing-card-format'
 
 export function listingCardShellClass(muted = false) {
   return cn(
-    'wander-frost-card group relative flex h-full flex-col overflow-hidden rounded-[24px] border border-border bg-card',
+    'wander-frost-card group relative flex h-full flex-col overflow-hidden rounded-[18px] border border-border bg-card',
     'cursor-pointer outline-none transition-[transform,box-shadow] duration-200 focus-visible:ring-2 focus-visible:ring-primary/50',
     'hover:border-[color:var(--pc-rule2)] active:scale-[0.985] motion-reduce:transition-none',
     muted && 'opacity-80 saturate-[0.85] hover:opacity-100',
@@ -47,7 +47,7 @@ export function ListingCardPrice({ amount, suffix, from = false, muted = false }
   return (
     <p className="flex min-w-0 flex-wrap items-baseline gap-x-0.5 text-[10px] leading-tight text-muted-foreground md:gap-x-1 md:text-xs">
       {from ? 'From ' : null}
-      <span className={cn('text-sm font-bold md:text-base', muted ? 'text-muted-foreground' : 'text-primary')}>{amount}</span>
+      <span className={cn('text-sm font-bold md:text-[15px]', muted ? 'text-muted-foreground' : 'text-primary')}>{amount}</span>
       {suffix ? <span className="whitespace-nowrap">/ {suffix}</span> : null}
     </p>
   )

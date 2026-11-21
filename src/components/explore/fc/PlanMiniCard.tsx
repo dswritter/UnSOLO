@@ -5,7 +5,7 @@ import { SeatRing, segsFromSeats } from '@/components/tribe/SeatRing'
 import { dateRange, initials, nights } from '@/components/tribe/format'
 
 /** Compact community-plan card (Explore aside / pager): organiser face in the middle of the plan ring. */
-export function PlanMiniCard({ post: p, ringSize = 96 }: { post: Post; ringSize?: number }) {
+export function PlanMiniCard({ post: p, ringSize = 80 }: { post: Post; ringSize?: number }) {
   const { segs } = segsFromSeats(p.seats, { hostIsBadge: false })
   const taken = segs.filter((s) => s.state !== 'open').length
   const n = nights(p.startsOn, p.endsOn)

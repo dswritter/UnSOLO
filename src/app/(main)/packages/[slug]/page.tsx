@@ -376,9 +376,9 @@ export default async function PackageDetailPage({
           </div>
         </div>
         <Suspense fallback={<div className="h-24" />}>
-          <TripCircle {...circleProps} size={196} className="relative -mt-[104px] px-4" heading={
+          <TripCircle {...circleProps} size={176} className="relative -mt-[94px] px-4" heading={
             <div className="mt-2 text-center">
-              <h1 className="text-[28px] leading-[1.1]">{package_.title}</h1>
+              <h1 className="text-[24px] leading-[1.12]">{package_.title}</h1>
               <p className="mt-1.5 text-[15px] text-muted-foreground">
                 {placeLine}{hostName ? <> · hosted by <span className="font-semibold text-foreground">{hostName}</span></> : null}
                 {hostData?.is_verified && <ShieldCheck className="ml-1 inline h-4 w-4 text-[color:var(--pc-accent-ink)]" aria-label="Verified host" />}
@@ -425,7 +425,7 @@ export default async function PackageDetailPage({
                 {isCommunityTrip ? <span className="pc-tag pc-tag-hosted">Community trip</span> : <span className="pc-tag pc-tag-hosted">UnSOLO trip</span>}
                 {showScarcePill && <span className="pc-tag pc-tag-women">Only {scarceSlotsLeft} left</span>}
               </div>
-              <h1 className="pc-display mt-3 text-[44px] leading-[1.02]">{package_.title}</h1>
+              <h1 className="pc-display mt-2.5 text-[34px] leading-[1.05]">{package_.title}</h1>
               <p className="mt-2 flex items-center gap-1.5 text-[17px] text-muted-foreground">
                 <MapPin className="h-4 w-4" aria-hidden />{placeLine}
                 {hostName && <> · hosted by <span className="font-semibold text-foreground">{hostName}</span></>}
@@ -639,7 +639,7 @@ export default async function PackageDetailPage({
             <div id="trip-booking-card" className="scroll-mt-24 lg:sticky lg:top-24">
               <Card className="pc-card gap-0 overflow-hidden py-0 text-card-foreground shadow-none ring-0">
                 <Suspense fallback={null}>
-                  <TripCircle {...circleProps} size={248} className="hidden border-b border-border px-6 pb-5 pt-7 md:block" />
+                  <TripCircle {...circleProps} size={208} className="hidden border-b border-border px-5 pb-4 pt-6 md:block" />
                 </Suspense>
                 <CardContent className="p-6 space-y-4">
                   {bookingsPaused && !isHost && (

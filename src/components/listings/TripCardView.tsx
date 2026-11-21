@@ -74,7 +74,7 @@ export function TripCardView({
       className={cn('fc-tcard group h-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--pc-ink)]', pastEdition && 'opacity-80 saturate-[0.85] hover:opacity-100')}
     >
       {/* Full Circle card: photo first, the seat ring overlapping its bottom edge (upcoming trips). */}
-      <div className="fc-tcard-photo !h-auto aspect-video">
+      <div className="fc-tcard-photo">
         {imageUrl ? (
           <>
             <LowResUnderlay src={imageUrl} />
@@ -95,30 +95,30 @@ export function TripCardView({
             onToggleInterest()
           }}
           disabled={togglePending}
-          className="pc-glassbtn absolute right-3 top-3 z-10 disabled:opacity-70"
+          className="pc-glassbtn absolute right-2.5 top-2.5 z-10 !h-9 !w-9 disabled:opacity-70"
           aria-label={interested ? 'Remove from saved' : 'Save trip'}
           aria-pressed={interested}
         >
-          <Heart className={cn('h-[18px] w-[18px]', interested ? 'fill-red-500 text-red-500' : '')} aria-hidden />
+          <Heart className={cn('h-4 w-4', interested ? 'fill-red-500 text-red-500' : '')} aria-hidden />
         </button>
       </div>
 
       <div className={cn('fc-tcard-main', !showRing && 'mt-0 pt-3')}>
         {showRing && (
-          <SeatRing segs={segsFromCounts(total, left)} size={84} showDots={false} className="fc-tcard-ring"
-            center={spotsCenter(total, left, 23)} />
+          <SeatRing segs={segsFromCounts(total, left)} size={68} showDots={false} className="fc-tcard-ring"
+            center={spotsCenter(total, left, 18)} />
         )}
-        <div className={cn('min-w-0 flex-1', showRing && 'pt-11')}>
-          <h3 className={cn('line-clamp-2 text-[17px] leading-tight', pastEdition && 'text-muted-foreground')}>{pkg.title}</h3>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">{compactTripDuration(pkg)}{location ? ` · ${location}` : ''}</p>
+        <div className={cn('min-w-0 flex-1', showRing && 'pt-9')}>
+          <h3 className={cn('line-clamp-2 text-[15px] leading-tight', pastEdition && 'text-muted-foreground')}>{pkg.title}</h3>
+          <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">{compactTripDuration(pkg)}{location ? ` · ${location}` : ''}</p>
         </div>
       </div>
-      <div className="mt-auto px-4 pb-4 pt-2.5">
+      <div className="mt-auto px-3.5 pb-3.5 pt-2">
         {dateLine && pastEdition ? <p className="mb-1.5 text-[12.5px] text-muted-foreground">{dateLine}{pkg.difficulty ? ` · ${pkg.difficulty}` : ''}</p> : null}
         <div className="flex items-center justify-between gap-2">
-          <span className="pc-price text-[18px]">{tiered ? <small className="!ml-0 mr-1">From</small> : null}{formatPrice(pkg.price_paise)}<small>/person</small></span>
+          <span className="pc-price text-[16px]">{tiered ? <small className="!ml-0 mr-1">From</small> : null}{formatPrice(pkg.price_paise)}<small>/person</small></span>
           {showRing ? (
-            <span className="fc-caption shrink-0 text-[12.5px]">{full ? <strong>Full</strong> : spotsBooked > 0 ? <><strong>{spotsBooked} going</strong></> : <strong>Be first</strong>}</span>
+            <span className="fc-caption shrink-0 text-[12px]">{full ? <strong>Full</strong> : spotsBooked > 0 ? <><strong>{spotsBooked} going</strong></> : <strong>Be first</strong>}</span>
           ) : interestCount > 0 ? (
             <span className="flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground" title={`${interestCount} interested`}>
               <Heart className="h-3 w-3 fill-red-400 text-red-400" aria-hidden="true" />{interestCount}

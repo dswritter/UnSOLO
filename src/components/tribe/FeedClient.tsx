@@ -258,7 +258,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
             <div className="pc-pencilled p-4 text-sm text-muted-foreground">
               No open plans near your dates yet. <Link href={composeHref('?kind=plan')} className="pc-link">Start one</Link> and people going your way can ask to join.
             </div>
-          ) : plansForYou.map((p) => <PlanCard key={p.id} post={p} signedIn={signedIn} demo={demo} ringSize={96} compact />)}
+          ) : plansForYou.map((p) => <PlanCard key={p.id} post={p} signedIn={signedIn} demo={demo} ringSize={84} compact />)}
           <section className="pc-card p-4 pb-3" aria-label="Trending questions">
             <h2 className="text-[17px]">Trending questions</h2>
             {trending.length === 0 ? (

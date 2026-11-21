@@ -21,7 +21,7 @@ export async function ExploreHeader() {
         </div>
         <Suspense fallback={null}><ExploreSearchDock /></Suspense>
       </div>
-      <div className="mx-auto w-full max-w-[1440px] hidden px-6 pt-6 md:block lg:px-10">
+      <div className="mx-auto w-full max-w-[1440px] hidden px-6 pt-4 md:block lg:px-10">
         <div className="fc-searchpanel">
           <WanderSearchBar listedActivities={listedActivities} variant="wander" layout="row" wanderSearchBasePath="/" className="max-w-none" />
         </div>

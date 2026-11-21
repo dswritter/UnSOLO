@@ -15,6 +15,20 @@ The dark-green base and green buttons were dropped. The palette is now **UnSOLO 
 
 The token key `pine` is kept for compatibility and now holds the yellow. Two tokens were added: `accentInk` and `taken`.
 
+## Density pass (user request)
+
+You found photos, cards and type bigger than other sites. I measured Airbnb and MakeMyTrip in the browser at 1440px and scaled Full Circle to about 0.85× everywhere. The full table is in [design-system.md](design-system.md#density).
+
+- **Type:** web body is 15px (it was 16). The apps' tokens shrank one step (body 14, titles 22/18/15).
+- **Cards:** photos are 16:10 instead of a fixed height, rings are 72px (they were 88–100), titles 15px (they were 17–19), and buttons and chips are smaller.
+- **Layout:**
+  - "Leaving soon" shows 5 cards per row at 1440px (it showed 4), and up to 6 on wider screens. Hidden extras keep every row full.
+  - Results grids gain a column.
+  - Listing rows show about 6 cards across a desktop (they showed about 4.8), and about 1.6 on a phone.
+- **Shape:** card radius 20 (was 28), image radius 16 (was 20), sheets 24, tab bar 60.
+- **Touch targets stay at least 44px.**
+- **On phones,** "Next few weeks" now starts above the fold on Explore.
+
 ## Review round 4 (user request)
 
 - **Wording: "spot", not "seat".** Rings, captions and buttons all say spot: "8/12 spots left", "12 spots open", "Grab a spot", "Request a spot". Code names (`seats`, `SeatRing`) are unchanged.
