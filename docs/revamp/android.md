@@ -20,7 +20,7 @@ cd mobile/android
 echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties    # gitignored
 cp secrets.properties.example secrets.properties               # optional; gitignored
 ./gradlew :app:assembleDebug          # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:testDebugUnitTest      # 39 JVM unit tests
+./gradlew :app:testDebugUnitTest      # 42 JVM unit tests
 ./gradlew :app:assembleRelease        # R8 + shrinkResources; unsigned until a keystore exists
 adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 ```
@@ -192,7 +192,15 @@ Every write goes through the outbox: posts, comments, poll votes, reactions, sav
 - **Email:**
   - Password: `/token?grant_type=password` or `/signup`.
   - 6-digit email code: `/otp`, then `/verify type=email`.
-- **Phone:** OTP through `/otp {phone}`, then `/verify type=sms`.
+- **Phone:** our own endpoints, not Supabase's `/otp` (which needs a Supabase SMS provider). The server sends the SMS through 2factor.in.
+  1. `POST /api/v1/auth/phone/start {phone}` returns an opaque `challenge`, plus `devCode` from non-production servers that have no SMS key. Debug builds prefill it.
+  2. `POST /api/v1/auth/phone/verify {challenge, code}` returns the Supabase session JSON plus `is_new`. The session is stored the same way as in the email-code flow.
+  - "Resend" replaces the challenge, and "Change number" drops it (`core/auth/PhoneSignInFlow`).
+  - The resend countdown follows `Retry-After` (default 30 s). Error messages come straight from the server.
+  - Refresh still goes through Supabase `/auth/v1/token?grant_type=refresh_token`.
+  - Phone-only accounts have a placeholder `<digits>@phone.unsolo.in` email. It is never shown; the phone is shown instead (`AccountContact`).
+  - The app has no first-run step yet, so `is_new` doesn't change where the user lands.
+  - Demo mode mocks both endpoints, and any 6-digit code works.
 - **Keep browsing as a guest.**
 
 **Tokens:**

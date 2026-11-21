@@ -129,8 +129,14 @@ class AccountRepository(
     }
     suspend fun sendEmailCode(email: String) = runAuth { auth.sendEmailCode(email.trim()) }
     suspend fun verifyEmailCode(email: String, code: String) = runAuth { completeSignIn(auth.verifyEmailCode(email.trim(), code.trim())) }
-    suspend fun sendPhoneCode(phone: String) = runAuth { auth.sendPhoneCode(phone) }
-    suspend fun verifyPhoneCode(phone: String, code: String) = runAuth { completeSignIn(auth.verifyPhoneCode(phone, code.trim())) }
+    /** POST /auth/phone/start: returns the opaque challenge (and a devCode on non-production servers without SMS). */
+    suspend fun startPhoneSignIn(phone10: String): ApiResult<PhoneAuthStartResponse> = apiCall { api.authPhoneStart(PhoneAuthStartRequest(phone10)) }
+    /** POST /auth/phone/verify: stores the session like the email-code flow. Ok(true) means a new account. */
+    suspend fun verifyPhoneSignIn(challenge: String, code: String): ApiResult<Boolean> = apiCall {
+        val s = api.authPhoneVerify(PhoneAuthVerifyRequest(challenge, code.trim()))
+        completeSignIn(s)
+        s.isNew
+    }
     suspend fun recover(email: String) = runAuth { auth.recover(email.trim()) }
 
     // ---- Google ----
@@ -152,8 +158,8 @@ class AccountRepository(
 
     /** Demo builds only: signs in as the phone-verified demo traveller. */
     suspend fun signInDemo() = runAuth {
-        auth.sendPhoneCode(DEMO_PHONE)
-        completeSignIn(auth.verifyPhoneCode(DEMO_PHONE, "123456"))
+        val start = api.authPhoneStart(PhoneAuthStartRequest(DEMO_PHONE.takeLast(10)))
+        completeSignIn(api.authPhoneVerify(PhoneAuthVerifyRequest(start.challenge, "123456")))
     }
 
     private suspend fun runAuth(block: suspend () -> Unit): ApiResult<Unit> = apiCall { block() }

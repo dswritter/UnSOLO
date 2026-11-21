@@ -66,9 +66,53 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
         else -> run({ g.account.verifyEmailCode(email, code) }, done)
     }
 
-    fun submitPhone(done: () -> Unit) =
-        if (!codeSent) run({ g.account.sendPhoneCode(e164) }) { codeSent = true; info = "We sent a code to $e164." + if (DemoMode.enabled) " Demo: any 6 digits work." else "" }
-        else run({ g.account.verifyPhoneCode(e164, code) }, done)
+    // ---- Phone sign-in: POST /api/v1/auth/phone/start → challenge, then /verify with challenge + code ----
+    val phoneFlow = com.unsolo.app.core.auth.PhoneSignInFlow()
+    var phoneSent by mutableStateOf(false)
+    var nowMs by mutableLongStateOf(System.currentTimeMillis())
+
+    /** Send (or resend) a code; a resend replaces the challenge. */
+    fun startPhone() {
+        if (busy) return
+        busy = true; error = null
+        val digits = phoneFlow.normalized(phone)
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            when (val r = g.account.startPhoneSignIn(digits)) {
+                is ApiResult.Ok -> {
+                    phoneFlow.onStarted(digits, r.value.challenge, r.value.expiresIn, r.value.devCode, now)
+                    phoneSent = true
+                    val dev = r.value.devCode?.takeIf { com.unsolo.app.BuildConfig.DEBUG }
+                    code = dev ?: ""
+                    info = "We sent a 6-digit code to +91 $digits." + (dev?.let { " Test code: $it (debug build)." } ?: "")
+                }
+                is ApiResult.Err -> {
+                    if (r.status == 429) phoneFlow.onRateLimited(r.retryAfterSec, now)
+                    error = r.message ?: r.userMessage()
+                }
+                ApiResult.Offline -> error = "You're offline. Check your connection."
+            }
+            nowMs = System.currentTimeMillis()
+            busy = false
+        }
+    }
+
+    fun verifyPhone(done: () -> Unit) {
+        val (challenge, digits) = phoneFlow.verifyBody(code) ?: return
+        if (busy) return
+        busy = true; error = null
+        viewModelScope.launch {
+            when (val r = g.account.verifyPhoneSignIn(challenge, digits)) {
+                // is_new: there is no first-run (name) step in the app yet; new and returning users both land back where they were.
+                is ApiResult.Ok -> done()
+                is ApiResult.Err -> error = r.message ?: r.userMessage()
+                ApiResult.Offline -> error = "You're offline. Check your connection."
+            }
+            busy = false
+        }
+    }
+
+    fun changeNumber() { phoneFlow.reset(); phoneSent = false; code = ""; info = null; error = null }
 
     fun forgot() = run({ g.account.recover(email) }) { info = "If that email has an account, a reset link is on its way." }
     fun demo(done: () -> Unit) = run({ g.account.signInDemo() }, done)
@@ -116,7 +160,7 @@ fun AuthScreen(nav: AppNav) {
     }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar(when (vm.step) { "email" -> "Continue with email"; "phone" -> "Continue with phone"; else -> null }, headerActions = false, onBack = {
-            if (vm.step == "welcome") nav.back() else { vm.step = "welcome"; vm.codeSent = false; vm.code = ""; vm.error = null; vm.info = null }
+            if (vm.step == "welcome") nav.back() else { vm.step = "welcome"; vm.codeSent = false; vm.changeNumber(); vm.code = ""; vm.error = null; vm.info = null }
         })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 16.dp)) {
             when (vm.step) {
@@ -179,19 +223,26 @@ fun AuthScreen(nav: AppNav) {
                 }
                 "phone" -> {
                     Label("Mobile number")
-                    Row {
+                    if (!vm.phoneSent) Row {
                         Text("+91", style = Pc.type.num, color = c.ink, modifier = Modifier.padding(top = 14.dp, end = 10.dp))
                         BoxedInput(vm.phone, { vm.phone = it.filter(Char::isDigit).take(10) }, "98XXXXXXXX", Modifier.weight(1f), keyboardType = KeyboardType.Phone, style = Pc.type.num)
+                    } else Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("+91 ${vm.phoneFlow.phone}", style = Pc.type.num, color = c.ink, modifier = Modifier.weight(1f))
+                        LinkText("Change number", { vm.changeNumber() }, style = Pc.type.smallStrong)
                     }
-                    if (vm.codeSent) {
+                    if (vm.phoneSent) {
+                        LaunchedEffect(vm.phoneFlow.challenge) { while (true) { vm.nowMs = System.currentTimeMillis(); kotlinx.coroutines.delay(1000) } }
                         Spacer(Modifier.height(12.dp))
                         Label("6-digit code")
                         BoxedInput(vm.code, { vm.code = it.filter(Char::isDigit).take(6) }, "••••••", keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
+                        val wait = vm.phoneFlow.resendInSec(vm.nowMs)
+                        if (wait > 0) Text("Resend code in 0:%02d".format(wait), style = Pc.type.small, color = c.ink3, modifier = Modifier.padding(top = 10.dp))
+                        else LinkText("Resend code", { vm.startPhone() }, style = Pc.type.smallStrong)
                     }
                     Messages(vm)
                     Spacer(Modifier.height(16.dp))
-                    PcButton(if (vm.codeSent) "Verify" else "Send code", { vm.submitPhone(done) }, Modifier.fillMaxWidth(),
-                        enabled = !vm.busy && vm.phoneOk && (!vm.codeSent || vm.code.length == 6))
+                    PcButton(if (vm.phoneSent) "Verify" else "Send code", { if (vm.phoneSent) vm.verifyPhone(done) else vm.startPhone() }, Modifier.fillMaxWidth(),
+                        kind = BtnKind.Accent, enabled = !vm.busy && (if (vm.phoneSent) vm.code.length == 6 else vm.phoneOk))
                     Spacer(Modifier.height(8.dp))
                     Text("Phone sign-in also verifies your number, which you need to post and join plans.", style = Pc.type.small, color = c.ink2)
                 }

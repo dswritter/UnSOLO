@@ -28,6 +28,9 @@ interface ApiService {
     @PUT("me/preferences") suspend fun putPreferences(@Body partial: kotlinx.serialization.json.JsonObject): Preferences
     @GET("me/landing-suggestion") suspend fun landingSuggestion(): LandingSuggestion
     @POST("me/landing-suggestion/dismiss") suspend fun dismissLandingSuggestion(): Response<Unit>
+    // Phone sign-in (no auth needed): our own endpoints, not Supabase /auth/v1/otp.
+    @POST("auth/phone/start") suspend fun authPhoneStart(@Body body: PhoneAuthStartRequest): PhoneAuthStartResponse
+    @POST("auth/phone/verify") suspend fun authPhoneVerify(@Body body: PhoneAuthVerifyRequest): SupaSession
     @POST("me/phone/start") suspend fun phoneStart(@Body body: PhoneStartRequest): PhoneStartResponse
     @POST("me/phone/verify") suspend fun phoneVerify(@Body body: PhoneVerifyRequest): PhoneVerifyResponse
     @POST("devices") suspend fun registerDevice(@Body body: DeviceRequest): Response<Unit>

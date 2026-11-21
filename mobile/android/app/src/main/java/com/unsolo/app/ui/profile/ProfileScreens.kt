@@ -309,7 +309,7 @@ fun SettingsScreen(nav: AppNav) {
                 NavRow("Privacy and terms", null, PcIcons.Shield, { nav.openWeb("/privacy") })
                 if (signedIn) {
                     InsetRule(start = 66.dp)
-                    NavRow("Sign out", null, PcIcons.Logout, { scope.launch { g.account.signOut(g.push.currentToken()); nav.tab(Routes.EXPLORE) } }, danger = true)
+                    NavRow("Sign out", com.unsolo.app.core.auth.AccountContact.label(me?.user?.email, me?.user?.phone)?.let { "Signed in as $it" }, PcIcons.Logout, { scope.launch { g.account.signOut(g.push.currentToken()); nav.tab(Routes.EXPLORE) } }, danger = true)
                 }
             }
             Text("UnSOLO ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})" + if (DemoMode.enabled) " · demo data" else "", style = Pc.type.label, color = c.ink3, modifier = Modifier.navigationBarsPadding().padding(Gutter))

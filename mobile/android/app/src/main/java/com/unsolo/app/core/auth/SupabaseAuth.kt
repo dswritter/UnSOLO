@@ -41,13 +41,7 @@ class SupabaseAuth(private val client: OkHttpClient, private val config: () -> S
         decode(post("verify", buildJsonObject { put("type", "email"); put("email", email); put("token", code) }))
     }
 
-    suspend fun sendPhoneCode(phone: String) = withContext(Dispatchers.IO) {
-        post("otp", buildJsonObject { put("phone", phone) }); Unit
-    }
-
-    suspend fun verifyPhoneCode(phone: String, code: String): SupaSession = withContext(Dispatchers.IO) {
-        decode(post("verify", buildJsonObject { put("type", "sms"); put("phone", phone); put("token", code) }))
-    }
+    // Phone sign-in moved to POST /api/v1/auth/phone/{start,verify} (see AccountRepository); refresh stays here.
 
     /** Google ID token from Credential Manager → Supabase session. [nonce] is the raw (unhashed) nonce. */
     suspend fun signInWithIdToken(provider: String, idToken: String, nonce: String): SupaSession = withContext(Dispatchers.IO) {

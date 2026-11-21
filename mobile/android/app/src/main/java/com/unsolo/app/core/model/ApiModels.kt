@@ -352,6 +352,17 @@ data class LandingSuggestion(val suggest: String? = null, val visits: Visits = V
 @Serializable
 data class PhoneStartRequest(val phone: String)
 
+/** POST /auth/phone/start (sign-in with a phone code; 2factor.in on the server). */
+@Serializable
+data class PhoneAuthStartRequest(val phone: String)
+
+@Serializable
+data class PhoneAuthStartResponse(val challenge: String, val expiresIn: Long = 600, val devCode: String? = null)
+
+/** POST /auth/phone/verify → a Supabase session (+ is_new). */
+@Serializable
+data class PhoneAuthVerifyRequest(val challenge: String, val code: String)
+
 @Serializable
 data class PhoneStartResponse(val sent: Boolean = false, val devCode: String? = null)
 
@@ -586,6 +597,8 @@ data class SupaUser(val id: String, val email: String? = null, val phone: String
 data class SupaSession(
     @SerialName("access_token") val accessToken: String,
     @SerialName("refresh_token") val refreshToken: String,
+    /** Only from POST /auth/phone/verify: the account was just created. */
+    @SerialName("is_new") val isNew: Boolean = false,
     @SerialName("expires_in") val expiresIn: Long = 3600,
     @SerialName("expires_at") val expiresAt: Long? = null,
     @SerialName("token_type") val tokenType: String = "bearer",

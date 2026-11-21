@@ -237,6 +237,21 @@ class DemoBackend(private val context: Context) {
                 ok(LandingSuggestion.serializer(), LandingSuggestion(suggest, visits))
             }
             p == listOf("me", "landing-suggestion", "dismiss") -> requireUser(r) ?: run { prefs.edit().putBoolean("landing_dismissed", true).apply(); noContent() }
+            // Phone sign-in (mirrors src/app/api/v1/auth/phone/*): any 10-digit Indian mobile, any 6-digit code.
+            p == listOf("auth", "phone", "start") && m == "POST" -> run {
+                val raw = runCatching { json.parseToJsonElement(r.body ?: "{}").jsonObject["phone"]?.jsonPrimitive?.contentOrNull }.getOrNull().orEmpty()
+                val digits = raw.filter { it.isDigit() }.let { if (it.length > 10) it.takeLast(10) else it }
+                if (digits.length != 10 || digits.first() !in "6789") err(400, "bad_request", "Enter a 10-digit Indian mobile number.")
+                else okRaw(buildJsonObject { put("challenge", "demo-challenge-" + UUID.randomUUID()); put("expiresIn", 600); put("devCode", "123456") })
+            }
+            p == listOf("auth", "phone", "verify") && m == "POST" -> run {
+                val o = runCatching { json.parseToJsonElement(r.body ?: "{}").jsonObject }.getOrNull()
+                val challenge = o?.get("challenge")?.jsonPrimitive?.contentOrNull.orEmpty()
+                val code = o?.get("code")?.jsonPrimitive?.contentOrNull.orEmpty()
+                if (!challenge.startsWith("demo-challenge-")) err(400, "bad_request", "Ask for a new code.")
+                else if (!code.matches(Regex("\\d{6}"))) err(401, "unauthorized", "That code didn't work. Check it or ask for a new one.")
+                else { setPhoneVerified(true); okRaw(JsonObject(session() + ("is_new" to kotlinx.serialization.json.JsonPrimitive(false)))) }
+            }
             p == listOf("me", "phone", "start") -> requireUser(r) ?: ok(PhoneStartResponse.serializer(), PhoneStartResponse(true, "123456"))
             p == listOf("me", "phone", "verify") -> requireUser(r) ?: run {
                 val b = body(PhoneVerifyRequest.serializer(), r)
