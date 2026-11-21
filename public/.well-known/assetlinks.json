@@ -1,11 +1,14 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.unsolo.app",
       "sha256_cert_fingerprints": [
-        "FB:EB:6F:BD:FE:D8:CA:0E:1C:60:F3:74:E1:D6:3A:40:9E:73:86:C6:76:BD:9B:FF:B5:1D:DF:D8:C3:BE:40:73"
+        "FB:EB:6F:BD:FE:D8:CA:0E:1C:60:F3:74:E1:D6:3A:40:9E:73:86:C6:76:BD:9B:FF:B5:1D:DF:D8:C3:BE:40:73",
+        "C4:58:1F:D2:79:33:25:EB:53:F4:D4:DB:AC:71:9B:F4:74:9A:19:FC:BC:7A:2D:02:09:76:CD:6A:14:4C:3D:58"
       ]
     }
   }
