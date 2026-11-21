@@ -95,6 +95,8 @@ actor DemoBackend {
     private let landing: LandingSuggestion
     private let saveURL: URL
     private let persist: Bool
+    /// SMS codes are 4 digits (the approved DLT template); email codes (Supabase) stay 6.
+    static let demoSmsOTP = "1234"
     static let demoOTP = "123456"
 
     init(persist: Bool = true) {
@@ -209,16 +211,16 @@ actor DemoBackend {
             state.landingDismissed = true
             save()
             return noContent()
-        // Phone sign-in (our 2factor.in endpoints): any 10-digit number, any 6-digit code.
+        // Phone sign-in (our 2factor.in endpoints): any 10-digit number, any 4-digit code.
         case ("POST", 3, "auth") where p[1] == "phone" && p[2] == "start":
             let digits = String((r.json["phone"] as? String ?? "").filter(\.isNumber).suffix(10))
             guard digits.count == 10 else { return err("bad_request", 400, "Enter a valid 10-digit mobile number.", field: "phone") }
-            return ok(PhoneAuthStart(challenge: "demo-challenge-\(digits)-\(UUID().uuidString.prefix(8))", expiresIn: 600, devCode: Self.demoOTP))
+            return ok(PhoneAuthStart(challenge: "demo-challenge-\(digits)-\(UUID().uuidString.prefix(8))", expiresIn: 300, devCode: Self.demoSmsOTP))
         case ("POST", 3, "auth") where p[1] == "phone" && p[2] == "verify":
             guard let challenge = r.json["challenge"] as? String, challenge.hasPrefix("demo-challenge-") else {
                 return err("bad_request", 400, "Start again: that sign-in request wasn't found.")
             }
-            guard let code = r.json["code"] as? String, code.count == 6, code.allSatisfy(\.isNumber) else {
+            guard let code = r.json["code"] as? String, code.count == smsOtpLength, code.allSatisfy(\.isNumber) else {
                 return err("unauthorized", 401, "That code didn't work. Check it, or send a new one.")
             }
             let digits = challenge.dropFirst("demo-challenge-".count).prefix(10)
@@ -233,10 +235,10 @@ actor DemoBackend {
             return DemoResult(status: 200, body: (try? JSONSerialization.data(withJSONObject: body)) ?? Data())
         case ("POST", 3, "me") where p[1] == "phone" && p[2] == "start":
             if let e = needAuth() { return e }
-            return ok(PhoneStartResponse(sent: true, devCode: Self.demoOTP))
+            return ok(PhoneStartResponse(sent: true, devCode: Self.demoSmsOTP))
         case ("POST", 3, "me") where p[1] == "phone" && p[2] == "verify":
             if let e = needAuth() { return e }
-            guard (r.json["code"] as? String) == Self.demoOTP else { return err("bad_request", 400, "That code didn't match. Try 123456.") }
+            guard (r.json["code"] as? String) == Self.demoSmsOTP else { return err("bad_request", 400, "That code didn't match. Try \(Self.demoSmsOTP).") }
             state.me.user.isPhoneVerified = true
             if let ph = r.json["phone"] as? String { state.me.user.phone = ph }
             save()

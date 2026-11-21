@@ -1,7 +1,7 @@
 import AuthenticationServices
 import SwiftUI
 
-/// Welcome: Email (password or 6-digit code) · Phone (SMS code) · browse as guest.
+/// Welcome: Email (password or 6-digit email code) · Phone (SMS code) · browse as guest.
 /// Sign in with Apple is shown but disabled until UnSOLO has an Apple developer ID.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var app
@@ -57,7 +57,7 @@ struct WelcomeView: View {
                     }
                     Button("Browse as guest") { dismiss() }.buttonStyle(.pcLink).frame(maxWidth: .infinity)
                     if app.isDemo {
-                        Text("Demo mode: any email + 6-character password works, and every code is 123456.")
+                        Text("Demo mode: any email + 6-character password works. Email codes are 123456 and SMS codes are 1234.")
                             .pcFont(.small).foregroundStyle(Pc.goldInk).padding(10).background(Pc.goldBg, in: Pc.shape(Pc.radius))
                     }
                     Text("By continuing you agree to the Terms and the Refund policy. UnSOLO is for travellers 18+.")
@@ -137,9 +137,9 @@ struct EmailAuthView: View {
                     .buttonStyle(.pcLink).disabled(!validEmail)
                 } else {
                     if codeSent {
-                        field("6-digit code") { OTPField(code: $code) }
-                        Button(busy ? "Checking…" : "Verify") { run { try await session.verifyEmailCode(email: email, code: code) } }
-                            .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || code.count != 6)
+                        field("\(emailOtpLength)-digit code") { OTPField(code: $code, length: emailOtpLength, busy: busy) { verifyEmail() } }
+                        Button(busy ? "Checking…" : "Verify") { verifyEmail() }
+                            .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || code.count != emailOtpLength)
                         Button("Send a new code") { sendCode() }.buttonStyle(.pcLink)
                     } else {
                         Button(busy ? "Sending…" : "Send code") { sendCode() }
@@ -157,11 +157,17 @@ struct EmailAuthView: View {
 
     private var validEmail: Bool { email.range(of: #"^[^@\s]+@[^@\s]+\.[^@\s]+$"#, options: .regularExpression) != nil }
 
+    private func verifyEmail() {
+        let c = code
+        run { try await session.verifyEmailCode(email: email, code: c) }
+    }
+
     private func sendCode() {
         run(finishOnSuccess: false) {
             try await session.sendEmailCode(email)
             codeSent = true
-            info = "We sent a 6-digit code to \(email)."
+            info = "We sent a \(emailOtpLength)-digit code to \(email)."
+            code = ""
         }
     }
 
@@ -199,17 +205,17 @@ struct PhoneAuthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Phone").pcFont(.display).foregroundStyle(Pc.ink)
-                Text("We'll text you a 6-digit code. Your number is never shown to other travellers.").pcFont(.body).foregroundStyle(Pc.ink2)
+                Text("We'll text you a \(smsOtpLength)-digit code. Your number is never shown to other travellers.").pcFont(.body).foregroundStyle(Pc.ink2)
                 PhoneField(phone: $phone)
                     .disabled(flow.challenge != nil)
                     .opacity(flow.challenge != nil ? 0.6 : 1)
                 if flow.challenge != nil {
-                    OTPField(code: $code)
+                    OTPField(code: $code, length: smsOtpLength, busy: busy) { verify() }
                     #if DEBUG
                     if let dev = flow.devCode { Text("Code (no SMS provider on this server): \(dev)").pcFont(.num).foregroundStyle(Pc.goldInk) }
                     #endif
                     Button(busy ? "Checking…" : "Verify and continue") { verify() }
-                        .buttonStyle(.pc(.accent, fullWidth: true)).disabled(busy || code.count != 6)
+                        .buttonStyle(.pc(.accent, fullWidth: true)).disabled(busy || code.count != smsOtpLength)
                     HStack {
                         Button("Change number") { flow.reset(); code = ""; error = nil }.buttonStyle(.pcLink)
                         Spacer()
@@ -322,10 +328,10 @@ struct PhoneVerifyView: View {
                         .pcFont(.body).foregroundStyle(Pc.ink2)
                     PhoneField(phone: $phone)
                     if sent {
-                        OTPField(code: $code)
+                        OTPField(code: $code, length: smsOtpLength, busy: busy) { verify() }
                         if let devCode { Text("Code (no SMS provider configured): \(devCode)").pcFont(.num).foregroundStyle(Pc.goldInk) }
                         Button(busy ? "Checking…" : "Verify") { verify() }
-                            .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || code.count != 6)
+                            .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || code.count != smsOtpLength)
                     } else {
                         Button(busy ? "Sending…" : "Send code") { start() }
                             .buttonStyle(.pc(.primary, fullWidth: true)).disabled(busy || phone.count != 10)
@@ -345,6 +351,7 @@ struct PhoneVerifyView: View {
         Task {
             do {
                 devCode = try await session.startPhoneVerification("+91" + phone)
+                code = ""
                 sent = true
             } catch { self.error = (error as? APIError)?.errorDescription ?? error.localizedDescription }
             busy = false
@@ -389,10 +396,50 @@ struct PhoneField: View {
     }
 }
 
+/// SMS codes (phone sign-in and phone verification) are 4 digits; email codes (from Supabase) stay 6.
+let smsOtpLength = 4
+let emailOtpLength = 6
+
+/// Decides when a code field should submit by itself: once when the code reaches its length, never twice for the
+/// same code (a failed code stays blocked until the user edits it), and never while a request is running.
+struct OTPAutoSubmit: Equatable {
+    let length: Int
+    private(set) var lastSubmitted: String?
+
+    init(length: Int) { self.length = length }
+
+    mutating func shouldSubmit(code: String, busy: Bool) -> Bool {
+        guard code.count == length, code.allSatisfy(\.isNumber) else {
+            if code.count < length { lastSubmitted = nil } // edited or cleared: the same code may be tried again
+            return false
+        }
+        guard !busy, code != lastSubmitted else { return false }
+        lastSubmitted = code
+        return true
+    }
+
+    static func digits(_ raw: String, length: Int) -> String { String(raw.filter(\.isNumber).prefix(length)) }
+}
+
+/// One-time-code field shared by the SMS and email screens. `.oneTimeCode` lets iOS offer the code from the incoming
+/// Messages notification in the QuickType bar (no clipboard, no entitlements). Reaching `length` digits submits once.
 struct OTPField: View {
     @Binding var code: String
+    var length: Int = smsOtpLength
+    var busy = false
+    var onComplete: () -> Void = {}
+    @State private var gate: OTPAutoSubmit
+
+    init(code: Binding<String>, length: Int = smsOtpLength, busy: Bool = false, onComplete: @escaping () -> Void = {}) {
+        _code = code
+        self.length = length
+        self.busy = busy
+        self.onComplete = onComplete
+        _gate = State(initialValue: OTPAutoSubmit(length: length))
+    }
+
     var body: some View {
-        TextField("6-digit code", text: $code)
+        TextField("\(length)-digit code", text: $code)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
             .font(.system(size: 21, weight: .semibold, design: .monospaced))
@@ -401,8 +448,9 @@ struct OTPField: View {
             .frame(minHeight: 56)
             .pcField()
             .onChange(of: code) { _, v in
-                let digits = String(v.filter(\.isNumber).prefix(6))
-                if digits != v { code = digits }
+                let digits = OTPAutoSubmit.digits(v, length: length)
+                if digits != v { code = digits; return }
+                if gate.shouldSubmit(code: digits, busy: busy) { onComplete() }
             }
     }
 }
