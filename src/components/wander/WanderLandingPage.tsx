@@ -12,9 +12,9 @@ import { DeparturesTable } from '@/components/tribe/DeparturesTable'
 
 function LeavingSoonSkeleton() {
   return (
-    <div className="mx-auto mt-6 max-w-[1280px] px-4 md:px-6" aria-hidden>
+    <div className="mx-auto mt-4 w-full max-w-[1440px] px-4 md:mt-8 md:px-6 lg:px-10" aria-hidden>
       <div className="pc-skel h-7 w-40" />
-      <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-3"><div className="pc-skel h-[360px] rounded-[28px]" /><div className="pc-skel hidden h-[360px] rounded-[28px] md:block" /><div className="pc-skel hidden h-[360px] rounded-[28px] md:block" /></div>
+      <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <div key={i} className={`pc-skel h-[380px] rounded-[28px] ${i === 0 ? '' : i === 1 ? 'hidden md:block' : i === 2 ? 'hidden lg:block' : 'hidden xl:block'}`} />)}</div>
     </div>
   )
 }

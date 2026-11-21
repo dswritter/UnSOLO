@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import { loadUpcomingTrips } from '@/lib/tribe/trips'
@@ -7,9 +8,20 @@ import { DEMO_TRIPS } from '@/lib/tribe/demo-trips'
 import type { TripLite } from '@/lib/tribe/models'
 import { TripListRow, TripRingCard } from '@/components/explore/fc/TripCards'
 
+/**
+ * Public and cookie-free (aggregate counts, no faces), so it is cached like the listing rows below.
+ * Uncached it ran three database round trips on every home load before "Leaving soon" could paint.
+ * Errors are not cached: they throw out of the cached function and fall back below.
+ */
+const cachedDepartures = unstable_cache(
+  async (limit: number) => (await loadUpcomingTrips({ db: createPublicClient(), service: createServiceRoleClient, user: null }, { limit })).items,
+  ['explore-departures-v1'],
+  { revalidate: 60, tags: ['explore-departures'] },
+)
+
 export async function loadExploreDepartures(limit = 16): Promise<TripLite[]> {
   try {
-    return (await loadUpcomingTrips({ db: createPublicClient(), service: createServiceRoleClient, user: null }, { limit })).items
+    return await cachedDepartures(limit)
   } catch (e) {
     if (shouldUseDemo(e)) return DEMO_TRIPS.slice(0, limit)
     return []

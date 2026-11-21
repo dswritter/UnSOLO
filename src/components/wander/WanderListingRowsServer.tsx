@@ -62,7 +62,11 @@ export function WanderListingRowsServer({ activeTab }: { activeTab: ActiveTab })
     <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 md:py-9 lg:px-10">
       <div className="md:hidden"><WanderRecentlyViewedStrip /></div>
       <WanderListingsSectionsWrapper
-        trips={<Suspense fallback={<WanderRowFallback kind="trips" title="popular trips" activeTab={activeTab} />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>}
+        // Trips: "Leaving soon" + "Next few weeks" above already list upcoming departures, so the
+        // old "Departing soon" row only shows once another category leads (they are hidden then).
+        trips={activeTab && activeTab !== 'trips'
+          ? <Suspense fallback={<WanderRowFallback kind="trips" title="popular trips" activeTab={activeTab} />}><WanderTripsRowServer activeTab={activeTab} /></Suspense>
+          : null}
         stays={<Suspense fallback={<WanderRowFallback kind="stays" title="stays" activeTab={activeTab} />}><WanderServiceRowServer type="stays" activeTab={activeTab} /></Suspense>}
         activities={<Suspense fallback={<WanderRowFallback kind="activities" title="activities" activeTab={activeTab} />}><WanderServiceRowServer type="activities" activeTab={activeTab} /></Suspense>}
         rentals={<Suspense fallback={<WanderRowFallback kind="rentals" title="rentals" activeTab={activeTab} />}><WanderServiceRowServer type="rentals" activeTab={activeTab} /></Suspense>}

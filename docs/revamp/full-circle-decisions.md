@@ -33,6 +33,8 @@ The token key `pine` is kept for compatibility and now holds the yellow. Two tok
   - Cards now load the full photo resized by Next instead of only the 320px thumb, so they are sharp on retina screens too.
   - The apps already did thumb-first; every photo there now goes through it.
 - **Bug: stays, rentals and activities search was still empty.** Real cause: the query asked for `compare_at_price_paise`, which exists only on `packages`. PostgREST rejected the whole query, and the error was swallowed into "0 results". This affected `main` too. The column is removed, and a test now checks every selected column against the `service_listings` migrations.
+- **One upcoming-trips section, not two.** The older "Departing soon / Popular trips" row repeated "Leaving soon" and "Next few weeks", so it's hidden while trips lead the page. It returns, in its usual place, when Stays, Activities or Rentals are picked, since "Leaving soon" is hidden then.
+- **"Leaving soon" loads faster.** Its data, and the plans row next to it, were fetched fresh on every home load (about three database round trips each). They are now cached for 60 seconds, like the rows below. They are public and cookie-free; seat counts are aggregates and include no faces. The loading skeleton now matches the real grid.
 - **Hydration fix:** the "How UnSOLO works" panel renders after hydration, since sign-in state is only known in the browser. It caused a mismatch on every home load.
 
 ## Review round 3 (user request)

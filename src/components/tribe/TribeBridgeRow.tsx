@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { unstable_cache } from 'next/cache'
 import { createPublicClient } from '@/lib/supabase/public-client'
 import { loadPosts } from '@/lib/tribe/load'
 import { DEMO_POSTS, shouldUseDemo } from '@/lib/tribe/demo'
@@ -6,14 +7,19 @@ import { todayIST, type Post, type UserLite } from '@/lib/tribe/models'
 import { PlanMiniCard } from '@/components/explore/fc/PlanMiniCard'
 import { PlanInvite } from '@/components/explore/fc/PlanInvite'
 
+/** Public, signed-out view of open plans; cached so the home page doesn't wait on it every load. */
+const cachedOpenPlans = unstable_cache(async (limit: number): Promise<{ plans: Post[]; planningCount: number }> => {
+  const db = createPublicClient()
+  const { data, error, count } = await db.from('posts').select('id', { count: 'exact' }).eq('kind', 'plan').eq('status', 'live')
+    .gte('starts_on', todayIST()).order('created_at', { ascending: false }).limit(limit * 2)
+  if (error) throw error
+  const posts = await loadPosts(db, (data ?? []).map((r) => String(r.id)), null)
+  return { plans: posts.filter((p) => (p.spotsTotal ?? 0) > p.memberCount && p.audience !== 'verified').slice(0, limit), planningCount: count ?? posts.length }
+}, ['explore-open-plans-v1'], { revalidate: 60, tags: ['explore-open-plans'] })
+
 async function loadOpenPlans(limit: number): Promise<{ plans: Post[]; planningCount: number }> {
   try {
-    const db = createPublicClient()
-    const { data, error, count } = await db.from('posts').select('id', { count: 'exact' }).eq('kind', 'plan').eq('status', 'live')
-      .gte('starts_on', todayIST()).order('created_at', { ascending: false }).limit(limit * 2)
-    if (error) throw error
-    const posts = await loadPosts(db, (data ?? []).map((r) => String(r.id)), null)
-    return { plans: posts.filter((p) => (p.spotsTotal ?? 0) > p.memberCount && p.audience !== 'verified').slice(0, limit), planningCount: count ?? posts.length }
+    return await cachedOpenPlans(limit)
   } catch (e) {
     if (shouldUseDemo(e)) {
       const plans = DEMO_POSTS.filter((p) => p.kind === 'plan')
