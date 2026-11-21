@@ -458,6 +458,8 @@ struct MeResponse: Codable, Sendable {
     var user: MeUser
     var role: String?
     var isStaff: Bool
+    /// A confirmed email or a verified phone (nil from older servers: fall back to the phone).
+    var canParticipate: Bool?
     var preferences: Preferences
     var counts: Counts
 }

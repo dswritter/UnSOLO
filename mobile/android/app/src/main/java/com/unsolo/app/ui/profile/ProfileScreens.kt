@@ -70,7 +70,7 @@ fun YouScreen(nav: AppNav) {
     if (!signedIn || user == null) {
         Column(Modifier.fillMaxSize().background(c.paper).verticalScroll(rememberScrollState())) {
             PageHeader("You", LocalHeaderCounts.current, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
-            EmptyState("Browse freely. Sign in to join.", "Posting, joining plans and chats need an account with a verified phone.", action = "Sign in or create account", onAction = { nav.to(Routes.AUTH) })
+            EmptyState("Browse freely. Sign in to join.", "Posting, joining plans and chats need an account with a verified email or phone.", action = "Sign in or create account", onAction = { nav.to(Routes.AUTH) })
             FormCard { NavRow("Settings", "Landing tab, data saver", PcIcons.Sliders, { nav.to(Routes.SETTINGS) }) }
         }
         return
@@ -301,7 +301,7 @@ fun SettingsScreen(nav: AppNav) {
             FormCard {
                 if (signedIn) {
                     val verified = me?.user?.isPhoneVerified == true
-                    NavRow(if (verified) "Phone verified" else "Verify your phone", me?.user?.phone ?: "Needed to post, comment and join plans", PcIcons.Phone, { if (!verified) nav.to(Routes.PHONE) }, trailing = if (verified) "✓" else null)
+                    NavRow(if (verified) "Phone verified" else "Verify your phone", me?.user?.phone ?: "Needed to host trips; lets you sign in by SMS", PcIcons.Phone, { if (!verified) nav.to(Routes.PHONE) }, trailing = if (verified) "✓" else null)
                     InsetRule(start = 66.dp)
                     NavRow("Leaderboard", "Points from stories and trips", PcIcons.Trophy, { nav.openWeb("/leaderboard") })
                     InsetRule(start = 66.dp)

@@ -492,3 +492,10 @@ These are things the mockups or this brief need that api-v1 doesn't define. The 
 - **Demo backend:** its state resets when the process restarts (see section 2).
 - **Screenshots:** they are from the final build except `plan_detail*.png` and `plan_composer*.png`. Those were taken before the Messages and Activity icons were added to detail top bars.
 - **Payments:** stay on the web, by design for P2.
+
+## Play Store release
+
+- Targets Android 16 (API 36), as Google Play requires for new apps and updates from 31 Aug 2026. AGP 8.10.1, Gradle 8.11.1.
+- Release builds are signed with the **upload key**: `mobile/android/upload-keystore.jks` plus `mobile/android/keystore.properties`. Both are gitignored. Back them up together; without them, updates can't be uploaded until Google support resets the upload key.
+- Play App Signing re-signs builds for users. After the first upload, copy the app signing key's SHA-1 into a second Android OAuth client in Google Cloud (package `com.unsolo.app`), and add its SHA-256 to `public/.well-known/assetlinks.json`.
+- Build: `./gradlew :app:bundleRelease`, which writes `app/build/outputs/bundle/release/app-release.aab`. Raise `versionCode` for every upload.

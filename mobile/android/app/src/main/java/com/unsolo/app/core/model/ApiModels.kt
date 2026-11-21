@@ -299,6 +299,8 @@ data class MeResponse(
     val user: UserLite,
     val role: String? = null,
     val isStaff: Boolean = false,
+    /** Server: a confirmed email or a verified phone (null from older servers → fall back to the phone). */
+    val canParticipate: Boolean? = null,
     val preferences: Preferences = Preferences(),
     val counts: Counts = Counts(),
 )
@@ -322,8 +324,24 @@ data class Flags(
     val pushEnabled: Boolean = true,
 )
 
+/** The server sends versions as numbers (1) or text ("1.2.0"); both decode to text. */
+object VersionTextSerializer : kotlinx.serialization.KSerializer<String?> {
+    override val descriptor = kotlinx.serialization.descriptors.PrimitiveSerialDescriptor("VersionText", kotlinx.serialization.descriptors.PrimitiveKind.STRING)
+    override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): String? {
+        val e = (decoder as? kotlinx.serialization.json.JsonDecoder)?.decodeJsonElement() ?: return decoder.decodeString()
+        val p = e as? kotlinx.serialization.json.JsonPrimitive ?: return null
+        return if (p is kotlinx.serialization.json.JsonNull) null else p.content
+    }
+    override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: String?) {
+        if (value == null) encoder.encodeNull() else encoder.encodeString(value)
+    }
+}
+
 @Serializable
-data class MinAppVersion(val android: String? = null, val ios: String? = null)
+data class MinAppVersion(
+    @Serializable(with = VersionTextSerializer::class) val android: String? = null,
+    @Serializable(with = VersionTextSerializer::class) val ios: String? = null,
+)
 
 @Serializable
 data class SupabaseConfig(val url: String = "", val anonKey: String = "")

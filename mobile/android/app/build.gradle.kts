@@ -17,17 +17,23 @@ val secrets = Properties().apply {
     val f = rootProject.file("secrets.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
+// Play upload key (keystore.properties + upload-keystore.jks, both gitignored; see docs/revamp/android.md).
+val keystore = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 fun secret(name: String): String = (secrets.getProperty(name) ?: System.getenv(name) ?: "").trim()
     .replace("\\", "\\\\").replace("\"", "\\\"")
 
 android {
     namespace = "com.unsolo.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.unsolo.app"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -36,6 +42,17 @@ android {
         // Google "Web application" OAuth client ID (the one configured in Supabase → Auth → Google).
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${secret("GOOGLE_WEB_CLIENT_ID")}\"")
         buildConfigField("String", "WEB_BASE_URL", "\"https://unsolo.in\"")
+    }
+
+    signingConfigs {
+        if (keystore.getProperty("storeFile") != null) {
+            create("upload") {
+                storeFile = rootProject.file(keystore.getProperty("storeFile"))
+                storePassword = keystore.getProperty("storePassword")
+                keyAlias = keystore.getProperty("keyAlias")
+                keyPassword = keystore.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -49,8 +66,8 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "API_BASE_URL", "\"https://unsolo.in/api/v1/\"")
             buildConfigField("boolean", "DEMO_MODE", "false")
-            // Signing: the team supplies a keystore (see docs/revamp/android.md). Until then release
-            // builds are unsigned and must be signed by CI / Play App Signing.
+            // Signed with the upload key when keystore.properties exists; Play App Signing re-signs for users.
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
         }
     }
 

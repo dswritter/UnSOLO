@@ -102,7 +102,7 @@ class AccountRepository(
         UserLite(it.id, it.username, it.name, it.avatarUrl, it.isPhoneVerified, it.isIdVerified, it.isHost)
     } ?: UserLite(session.session?.userId ?: "me", "you", "You")
 
-    val canPost: Boolean get() = session.isSignedIn && me.value?.user?.isPhoneVerified == true
+    val canPost: Boolean get() = session.isSignedIn && me.value.let { it != null && (it.canParticipate ?: it.user.isPhoneVerified) }
 
     suspend fun refreshMe(): ApiResult<MeResponse> {
         if (!session.isSignedIn) return ApiResult.Err(401, "unauthorized", null)

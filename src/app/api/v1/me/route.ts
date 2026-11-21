@@ -4,7 +4,7 @@ import { ApiError, ok, parseJson, route } from '@/lib/api/http'
 import { toUserLite, PROFILE_LITE } from '@/lib/tribe/models'
 import { loadPreferences, savePreferences } from '@/lib/tribe/preferences'
 import { countUnreadMessages } from '@/lib/tribe/chats'
-import { contactEmail } from '@/lib/auth/phone-login'
+import { contactEmail, hasVerifiedEmail } from '@/lib/auth/phone-login'
 
 async function me(req: Request) {
   const ctx = await getApiContext(req)
@@ -25,6 +25,8 @@ async function me(req: Request) {
     },
     role,
     isStaff: role !== 'user',
+    /** A confirmed email or a verified phone: enough to post, comment, vote and join plans. */
+    canParticipate: hasVerifiedEmail(user) || p?.is_phone_verified === true,
     preferences: prefs,
     counts: { unreadNotifications: unreadN.count ?? 0, unreadMessages },
   }

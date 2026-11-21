@@ -287,14 +287,14 @@ final class AppModel {
 
     // MARK: Gating
 
-    /// Posting, joining, reacting and commenting need sign-in and a verified phone (product-spec §4).
+    /// Posting, joining, reacting and commenting need sign-in and a confirmed email or verified phone.
     func requireVerified(_ reason: String, _ action: @escaping () -> Void) {
         if !session.isSignedIn {
             router.authReason = reason
             router.afterGate = action
             router.gateNeedsPhone = true
             router.authSheet = true
-        } else if !session.isPhoneVerified {
+        } else if !session.canParticipate {
             router.afterGate = action
             router.gateNeedsPhone = true
             router.phoneSheet = true

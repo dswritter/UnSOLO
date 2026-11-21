@@ -13,6 +13,8 @@ final class SessionStore: AppBound {
     var unreadMessages = 0
 
     var isPhoneVerified: Bool { me?.user.isPhoneVerified ?? false }
+    /// Enough to post, comment, vote and join plans: a confirmed email or a verified phone.
+    var canParticipate: Bool { me.map { $0.canParticipate ?? $0.user.isPhoneVerified } ?? false }
     var user: UserLite? { me?.user.lite }
     var initials: String { me?.user.lite.initials ?? "" }
 

@@ -91,7 +91,7 @@ struct WelcomeView: View {
         router.authReason = nil
         Task {
             try? await Task.sleep(for: .milliseconds(400))
-            if app.session.isPhoneVerified || !router.gateNeedsPhone {
+            if app.session.canParticipate || !router.gateNeedsPhone {
                 app.runAfterGate()
             } else {
                 router.phoneSheet = true
