@@ -60,7 +60,8 @@ export const UPLOAD_WEBP_FULL_MAX_WIDTH = 1920
 export const UPLOAD_WEBP_THUMB_MAX_WIDTH = 320
 
 /** OTP expiry in minutes */
-export const OTP_EXPIRY_MINUTES = 10
+// Matches the approved SMS template ("Valid for 5 mins").
+export const OTP_EXPIRY_MINUTES = 5
 
 /** Interest tags available for trip preferences */
 export const INTEREST_TAGS = [

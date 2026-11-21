@@ -150,10 +150,10 @@ describe('phone sign-in: verify', () => {
     expect(await verifyPhoneLogin(t.deps, challenge, code, IP)).toMatchObject({ ok: false, code: 'rate_limited' })
   })
 
-  it('expires codes after 10 minutes', async () => {
+  it('expires codes after 5 minutes', async () => {
     const t = makeDeps({ owner: null })
     const { challenge, code } = await challengeFor(t)
-    t.advance(11 * 60_000)
+    t.advance(6 * 60_000)
     expect(await verifyPhoneLogin(t.deps, challenge, code, IP)).toMatchObject({ ok: false, code: 'unauthorized' })
   })
 
