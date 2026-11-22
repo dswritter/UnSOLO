@@ -119,7 +119,9 @@ class AccountRepository(
     private suspend fun completeSignIn(s: SupaSession) {
         session.update(s.toStored())
         refreshMe()
-        onSignedIn()
+        // Push registration and the feed/chat/trip refreshes run after the screen moves on: waiting for
+        // them (an FCM token can take a while) left sign-in stuck on "Signing you in…".
+        scope.launch { runCatching { onSignedIn() } }
     }
 
     suspend fun signInWithPassword(email: String, password: String) = runAuth { completeSignIn(auth.signInWithPassword(email.trim(), password)) }

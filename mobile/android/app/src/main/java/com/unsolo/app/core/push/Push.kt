@@ -69,7 +69,7 @@ class PushRegistrar(private val app: UnsoloApp) {
         val g = app.graph
         if (!g.session.isSignedIn || !g.config.config.value.flags.pushEnabled) return
         if (!Firebase.available(app)) return
-        val token = runCatching { FirebaseMessaging.getInstance().token.await() }.getOrNull() ?: return
+        val token = runCatching { kotlinx.coroutines.withTimeout(20_000) { FirebaseMessaging.getInstance().token.await() } }.getOrNull() ?: return
         onToken(token)
     }
 
