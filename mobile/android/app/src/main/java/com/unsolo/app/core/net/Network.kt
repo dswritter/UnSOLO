@@ -92,6 +92,11 @@ class Network(context: Context, session: SessionManager, demo: DemoApiIntercepto
         .addInterceptor(AuthInterceptor(session, apiHost))
         .addInterceptor(demo) // after auth so the demo backend sees who is signed in
         .authenticator(TokenAuthenticator(session, authProvider))
+        // The server resizes and stores photos before it answers: give uploads longer.
+        .addInterceptor { chain ->
+            val req = chain.request()
+            if (req.method == "POST" && req.url.encodedPath.endsWith("/uploads")) chain.withReadTimeout(90, TimeUnit.SECONDS).proceed(req) else chain.proceed(req)
+        }
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)

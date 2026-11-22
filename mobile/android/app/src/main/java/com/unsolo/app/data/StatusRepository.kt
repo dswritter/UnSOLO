@@ -204,6 +204,14 @@ class StatusRepository(
         events.emit(AppEvent.Message("Story cancelled"))
     }
 
+    /** "Offline" also covers a server that didn't answer in time: say which it was. */
+    private fun offlineReason(): String {
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val caps = cm?.getNetworkCapabilities(cm.activeNetwork)
+        val online = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        return if (online) "UnSOLO's server didn't answer in time. Try again in a minute." else "You're offline."
+    }
+
     /** Shares photos (or just text) as statuses. Returns null on success, else a message to show. */
     private suspend fun share(uris: List<Uri>, caption: String?, audience: String): String? {
         try {
@@ -223,7 +231,7 @@ class StatusRepository(
                 when (val r = apiCall { api.upload(part, "story".toRequestBody("text/plain".toMediaType())) }) {
                     is ApiResult.Ok -> { refs += StatusMediaRef(r.value.url); files += out; report(i, 1f) }
                     is ApiResult.Err -> return r.message ?: "Couldn't upload that photo."
-                    ApiResult.Offline -> return "You're offline."
+                    ApiResult.Offline -> return offlineReason()
                 }
             }
             return when (val r = apiCall { api.createStatus(CreateStatusRequest(refs, caption?.trim()?.ifBlank { null }, audience)) }) {
@@ -234,7 +242,7 @@ class StatusRepository(
                     null
                 }
                 is ApiResult.Err -> r.message ?: "Couldn't share your story."
-                ApiResult.Offline -> "You're offline."
+                ApiResult.Offline -> offlineReason()
             }
         } finally { _posting.value = false }
     }

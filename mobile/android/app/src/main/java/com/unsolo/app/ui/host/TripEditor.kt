@@ -396,7 +396,7 @@ private fun PhotosStep(f: TripForm, nav: AppNav, set: (TripForm) -> Unit) {
     Label("Photos", "Up to 12, cropped to 16:9. The first one is the cover.")
     // Crop each picked photo in turn, then upload it.
     queue.firstOrNull()?.let { src ->
-        androidx.compose.ui.window.Dialog({ queue = queue.drop(1) }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = true)) {
+        androidx.compose.ui.window.Dialog({ queue = queue.drop(1) }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             PhotoEditor(src, onCancel = { queue = queue.drop(1) }, aspects = TripAspects) { out ->
                 queue = queue.drop(1)
                 uploading++

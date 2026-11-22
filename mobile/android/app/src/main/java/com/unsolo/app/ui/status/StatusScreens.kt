@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -222,7 +223,8 @@ fun StatusViewerScreen(authorId: String, nav: AppNav) {
     val start = authors.indexOfFirst { it.user.id == authorId }.coerceAtLeast(0)
     val pager = rememberPagerState(initialPage = start) { authors.size }
     val scope = rememberCoroutineScope()
-    // Down closes; up opens your gallery to add a story.
+    // Down closes; up opens the reply box with the keyboard.
+    var replyAsk by remember { mutableIntStateOf(0) }
     val drop = remember { androidx.compose.animation.core.Animatable(0f) }
     val tickUp = rememberTick()
     Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
@@ -231,7 +233,7 @@ fun StatusViewerScreen(authorId: String, nav: AppNav) {
                 scope.launch {
                     when {
                         drop.value > 260f -> nav.back()
-                        drop.value < -220f -> { tickUp(); drop.animateTo(0f); if (nav.requirePhone()) nav.to(Routes.statusNew()) }
+                        drop.value < -160f -> { tickUp(); replyAsk++; drop.animateTo(0f) }
                         else -> drop.animateTo(0f)
                     }
                 }
@@ -250,23 +252,23 @@ fun StatusViewerScreen(authorId: String, nav: AppNav) {
                 rotationY = (-offset * 75f).coerceIn(-90f, 90f)
             }) {
             StatusPlayer(
-                author = a, active = pager.currentPage == page, own = a.user.id == meId, nav = nav,
+                author = a, active = pager.currentPage == page, own = a.user.id == meId, nav = nav, replyAsk = replyAsk,
                 onDone = { scope.launch { if (page < authors.lastIndex) pager.animateScrollToPage(page + 1) else nav.back() } },
                 onBack = { scope.launch { if (page > 0) pager.animateScrollToPage(page - 1) } },
             )
             }
         }
         // Swipe-up hint while dragging up.
-        if (drop.value < -40f) Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 120.dp).graphicsLayer { alpha = (-drop.value / 220f).coerceIn(0f, 1f) },
+        if (drop.value < -40f) Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 120.dp).graphicsLayer { alpha = (-drop.value / 160f).coerceIn(0f, 1f) },
             horizontalAlignment = Alignment.CenterHorizontally) {
             PcIcon(PcIcons.ChevronUp, null, tint = Color.White, size = 28.dp)
-            Text(if (drop.value < -220f) "Let go to add a story" else "Swipe up to add a story", style = Pc.type.bodyStrong, color = Color.White)
+            Text(if (drop.value < -160f) "Let go to reply" else "Swipe up to reply", style = Pc.type.bodyStrong, color = Color.White)
         }
     }
 }
 
 @Composable
-private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, nav: AppNav, onDone: () -> Unit, onBack: () -> Unit) {
+private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, nav: AppNav, replyAsk: Int = 0, onDone: () -> Unit, onBack: () -> Unit) {
     val repo = nav.graph.statuses
     val items = author.items
     if (items.isEmpty()) return
@@ -284,6 +286,12 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     val bursts = remember { mutableStateListOf<EmojiBurst>() }
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val tick = rememberTick(strong = true)
+    val replyFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    // Swiped up: put the cursor in the reply box and bring up the keyboard.
+    LaunchedEffect(replyAsk) {
+        if (replyAsk > 0 && active) { runCatching { replyFocus.requestFocus() }; keyboard?.show() }
+    }
     var progress by remember(author.user.id, idx) { mutableFloatStateOf(0f) }
     // The clock starts only once the photo is on screen (text stories start at once).
     var ready by remember(item.id) { mutableStateOf(item.type != "image" || item.media == null) }
@@ -381,12 +389,13 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 10.dp)) {
             if (typing) MentionSuggestions(draft, nav) { start, u -> draft = (draft.substring(0, start) + "@${u.username} ").take(500) }
             if (own && !typing) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
-            Row(Modifier.fillMaxWidth().clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.55f), CircleShape).background(Color.Black.copy(alpha = 0.25f))
+            val ring by androidx.compose.animation.animateColorAsState(if (typing) Color.White else Color.White.copy(alpha = 0.55f), label = "ring")
+            Row(Modifier.fillMaxWidth().clip(CircleShape).border(if (typing) 2.dp else 1.dp, ring, CircleShape).background(Color.Black.copy(alpha = if (typing) 0.55f else 0.25f))
                 .padding(start = 18.dp, end = 6.dp).heightIn(min = 46.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
                     if (draft.isEmpty()) Text(if (own) "Add a comment…" else "Reply to ${author.user.firstName}…", style = Pc.type.body, color = Color.White.copy(alpha = 0.75f))
                     BasicTextField(draft, { draft = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), maxLines = 3,
-                        modifier = Modifier.fillMaxWidth().onFocusChanged { typing = it.isFocused })
+                        modifier = Modifier.fillMaxWidth().focusRequester(replyFocus).onFocusChanged { typing = it.isFocused })
                 }
                 if (draft.isNotBlank()) {
                     if (sending) androidx.compose.material3.CircularProgressIndicator(Modifier.padding(10.dp).size(20.dp), color = Color.White, strokeWidth = 2.dp)
