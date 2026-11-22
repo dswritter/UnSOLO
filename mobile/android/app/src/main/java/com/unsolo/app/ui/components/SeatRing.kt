@@ -457,7 +457,7 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
             drawCircle(open, rr, center, style = Stroke(2.dp.toPx()))
             if (k > 0) drawArc(prog, -90f, 360f * k / n, false, tl, Size(rr * 2, rr * 2), style = Stroke(stroke, cap = StrokeCap.Round))
         }
-        Text("$k/$total", style = Pc.type.label.copy(fontSize = (if (size < 40.dp) 10f else 11f).sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.02).sp, fontFeatureSettings = "tnum"), color = c.ink, maxLines = 1, softWrap = false)
+        Text(if (past) "$k" else "$k/$total", style = Pc.type.label.copy(fontSize = (if (size < 40.dp) 10f else 11f).sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.02).sp, fontFeatureSettings = "tnum"), color = c.ink, maxLines = 1, softWrap = false)
     }
 }
 

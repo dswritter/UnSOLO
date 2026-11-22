@@ -65,6 +65,8 @@ class StatusRepository(
     private val compressor: ImageCompressor,
     private val scope: CoroutineScope,
     private val events: AppEvents,
+    private val db: com.unsolo.app.core.db.AppDatabase,
+    private val myUsername: () -> String?,
 ) {
     private val _rail = MutableStateFlow<List<StatusAuthor>>(emptyList())
     val rail: StateFlow<List<StatusAuthor>> = _rail.asStateFlow()
@@ -125,11 +127,37 @@ class StatusRepository(
         return r is ApiResult.Ok
     }
 
-    suspend fun comments(id: String) = apiCall { api.statusComments(id) }
+    // ---- Comments: the saved copy shows at once, the fresh one replaces it ----
+
+    private val commentsS = ListSerializer(StatusComment.serializer())
+    private val _comments = MutableStateFlow<Map<String, List<StatusComment>>>(emptyMap())
+    /** Comments per story, as last seen (memory, backed by the on-phone cache). */
+    val comments: StateFlow<Map<String, List<StatusComment>>> = _comments.asStateFlow()
+
+    private fun putComments(id: String, list: List<StatusComment>) {
+        _comments.value = _comments.value + (id to list)
+        scope.launch { runCatching { db.cache().putAs("status_comments:$id", commentsS, list) } }
+    }
+
+    /** Saved copy first (instant), then the server's. Returns false if the refresh failed. */
+    suspend fun loadComments(id: String): Boolean {
+        if (id !in _comments.value) runCatching { db.cache().getAs("status_comments:$id", commentsS) }.getOrNull()?.let { _comments.value = _comments.value + (id to it) }
+        val r = apiCall { api.statusComments(id) }
+        if (r is ApiResult.Ok) putComments(id, r.value.items)
+        return r is ApiResult.Ok
+    }
+
+    /** Loads a story's comments in the background while it plays, so opening them is instant. */
+    fun prefetchComments(item: StatusItem) {
+        if (item.commentCount > 0 && _comments.value[item.id]?.size != item.commentCount) scope.launch { loadComments(item.id) }
+    }
 
     suspend fun comment(id: String, body: String): ApiResult<StatusComment> {
         val r = apiCall { api.commentStatus(id, StatusCommentRequest(body.trim())) }
-        if (r is ApiResult.Ok) patchItem(id) { it.copy(commentCount = it.commentCount + 1) }
+        if (r is ApiResult.Ok) {
+            patchItem(id) { it.copy(commentCount = it.commentCount + 1) }
+            putComments(id, _comments.value[id].orEmpty() + r.value)
+        }
         return r
     }
 
@@ -203,8 +231,41 @@ class StatusRepository(
         } finally { _posting.value = false }
     }
 
-    /** People to @mention, by name or username. */
-    suspend fun people(q: String): List<UserLite> = (apiCall { api.people(q) } as? ApiResult.Ok)?.value?.items.orEmpty()
+    // ---- @mentions: instant local matches, then the server's ----
+
+    private val peopleHits = java.util.concurrent.ConcurrentHashMap<String, List<UserLite>>()
+    private val _known = MutableStateFlow<List<UserLite>>(emptyList())
+
+    /** People you follow and people in the stories row: matched on the phone while the search runs. */
+    fun warmPeople() {
+        if (_known.value.isNotEmpty()) return
+        _known.value = _rail.value.map { it.user }
+        scope.launch {
+            val me = myUsername() ?: return@launch
+            (apiCall { api.following(me) } as? ApiResult.Ok)?.value?.items?.let { f -> _known.value = (f + _known.value).distinctBy { it.id } }
+        }
+    }
+
+    private fun matches(u: UserLite, q: String): Boolean {
+        val t = q.lowercase()
+        return u.username.lowercase().startsWith(t) || u.name.lowercase().split(' ').any { it.startsWith(t) } || (t.length >= 3 && (u.username.lowercase().contains(t) || u.name.lowercase().contains(t)))
+    }
+
+    /** Matches we already have for [q]: earlier answers for it (or a shorter start of it), plus people you follow. */
+    fun peopleNow(q: String): List<UserLite> {
+        val t = q.lowercase()
+        val cached = peopleHits[t] ?: (t.length - 1 downTo 1).firstNotNullOfOrNull { peopleHits[t.take(it)] }?.filter { matches(it, t) }.orEmpty()
+        return (_known.value.filter { matches(it, t) } + cached).distinctBy { it.id }.take(10)
+    }
+
+    /** People to @mention, by name or username (answers are remembered for this session). */
+    suspend fun people(q: String): List<UserLite> {
+        val t = q.lowercase()
+        peopleHits[t]?.let { return (_known.value.filter { u -> matches(u, t) } + it).distinctBy { u -> u.id }.take(10) }
+        val r = (apiCall { api.people(q) } as? ApiResult.Ok)?.value?.items ?: return peopleNow(q)
+        peopleHits[t] = r
+        return (_known.value.filter { matches(it, t) } + r).distinctBy { it.id }.take(10)
+    }
 
     // ---- Archive (on this phone only) ----
 

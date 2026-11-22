@@ -30,7 +30,7 @@ export async function searchPeople(db: SupabaseClient, q: string, viewerId: stri
   if (!term) return []
   const like = `%${term.replace(/[%_]/g, (c) => `\\${c}`)}%`
   const { data, error } = await db.from('profiles').select(PROFILE_LITE)
-    .or(`username.ilike.${like},full_name.ilike.${like}`).limit(40)
+    .or(`username.ilike.${like},full_name.ilike.${like}`).limit(25)
   if (error) throw error
   let rows = (data ?? []) as Row[]
   let follows = new Set<string>()

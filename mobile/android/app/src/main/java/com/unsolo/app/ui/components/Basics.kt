@@ -682,9 +682,28 @@ fun PullRefresh(onRefresh: suspend () -> Unit, modifier: Modifier = Modifier, co
     )
 }
 
-/** A light tap of feedback for small confirmations (react, vote, follow, save). */
+/**
+ * A short, crisp buzz for small confirmations (react, vote, follow, save). Uses the vibrator's
+ * "click" effect directly: the soft view haptics are off on many phones (Samsung's default).
+ */
 @Composable
-fun rememberTick(): () -> Unit {
-    val h = androidx.compose.ui.platform.LocalHapticFeedback.current
-    return remember(h) { { h.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) } }
+fun rememberTick(strong: Boolean = false): () -> Unit {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val view = androidx.compose.ui.platform.LocalView.current
+    return remember(ctx) {
+        val vib: android.os.Vibrator? = if (android.os.Build.VERSION.SDK_INT >= 31)
+            (ctx.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator
+        else @Suppress("DEPRECATION") (ctx.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator)
+        val tick: () -> Unit = {
+            val ok = runCatching {
+                if (vib?.hasVibrator() == true) {
+                    if (android.os.Build.VERSION.SDK_INT >= 29) vib.vibrate(android.os.VibrationEffect.createPredefined(if (strong) android.os.VibrationEffect.EFFECT_HEAVY_CLICK else android.os.VibrationEffect.EFFECT_CLICK))
+                    else vib.vibrate(android.os.VibrationEffect.createOneShot(if (strong) 30 else 18, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                    true
+                } else false
+            }.getOrDefault(false)
+            if (!ok) view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+        tick
+    }
 }

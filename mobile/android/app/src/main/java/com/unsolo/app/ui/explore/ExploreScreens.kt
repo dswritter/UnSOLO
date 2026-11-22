@@ -536,7 +536,8 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
             t.place?.name?.let { Text(it, style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         } else Row(Modifier.padding(horizontal = 6.dp).overlapUp(36.dp), verticalAlignment = Alignment.Top) {
             RingMount {
-                SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
+                if (isPastDate(t.nextDeparture)) SeatRing(ring, PcTokens.ringCard, past = true, centerLabel = (if (ring.filled > 0) "${ring.filled}" else "✓") to (if (ring.filled > 0) "went" else "done"))
+                else SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
             }
             Column(Modifier.weight(1f).padding(start = 10.dp, top = 40.dp)) {
                 Text(t.title, style = Pc.type.title2.copy(fontSize = 15.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -622,12 +623,13 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
                     style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(10.dp))
-            if (ring.total > 0 && t.nextDeparture != null) MiniArc(ring.total, ring.taken)
+            val gone = isPastDate(t.nextDeparture)
+            if (ring.total > 0 && t.nextDeparture != null) MiniArc(ring.total, ring.taken, past = gone)
             Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.price, color = c.ink)
                 if (t.isListing) Text("per ${t.unit ?: "booking"}", style = Pc.type.small, color = c.ink2)
-                else if (t.nextDeparture != null) Text(if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full) c.full else c.ink2)
+                else if (t.nextDeparture != null) Text(if (gone) "Done" else if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full && !gone) c.full else c.ink2)
             }
         }
         Hairline()
@@ -644,7 +646,7 @@ fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: S
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("$label · ${Fmt.dayMonth(t.nextDeparture)}", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 11.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
+            Text(listOfNotNull(if (isPastDate(t.nextDeparture)) "Trip done" else t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
         }
         Box(Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onTake).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text("Grab a spot →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.5.sp), color = c.accentInk, maxLines = 1)
@@ -798,11 +800,18 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                         val names = faces.map { it.firstName }.filter { it.isNotBlank() }
                         Row(Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.tonal).clickable(onClickLabel = "See who's going") { whoSheet = true }
                             .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            MiniArc(ring.total, ring.taken, size = 32.dp)
+                            val gone = isPastDate(date)
+                            MiniArc(ring.total, ring.taken, size = 32.dp, past = gone)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(if (ring.full) "Full" else "$left of ${ring.total} spots left", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (ring.full) c.full else c.ink)
                                 Text(when {
+                                    gone -> "Trip done · ${Fmt.dayMonth(date)}"
+                                    ring.full -> "Full"
+                                    else -> "$left of ${ring.total} spots left"
+                                }, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (ring.full && !gone) c.full else c.ink)
+                                Text(when {
+                                    gone && names.isNotEmpty() -> names.take(2).joinToString(", ") + (if (ring.filled > names.take(2).size) " +${ring.filled - names.take(2).size}" else "") + " travelled"
+                                    gone -> if (ring.filled > 0) "${ring.filled} travelled on this one" else "This date has passed"
                                     names.isNotEmpty() -> names.take(2).joinToString(", ") + (if (ring.filled > names.take(2).size) " +${ring.filled - names.take(2).size}" else "") + " going"
                                     ring.filled > 0 -> "${ring.filled} going · faces show once you book"
                                     else -> "Be the first in the circle"
@@ -836,13 +845,14 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                     LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(deps, key = { it.date }) { d ->
                             val sel = d.date == date
-                            val full = d.seatsLeft <= 0
+                            val gone = isPastDate(d.date)
+                            val full = d.seatsLeft <= 0 && !gone
                             val shape = RoundedCornerShape(14.dp)
                             Column(Modifier.width(96.dp).clip(shape).background(if (sel) c.ink else c.raised).border(1.dp, if (sel) c.ink else c.rule, shape)
                                 .clickable(role = Role.RadioButton) { vm.selectedDate.value = d.date }.padding(horizontal = 10.dp, vertical = 10.dp)) {
                                 Text(Fmt.dowUpper(d.date), style = Pc.type.code.copy(fontSize = 10.sp), color = if (sel) c.raised.copy(alpha = 0.8f) else c.ink2)
                                 Text(Fmt.dayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (sel) c.raised else c.ink)
-                                Text(if (full) "Full" else "${d.seatsLeft} left", style = Pc.type.small, color = if (sel) c.raised.copy(alpha = 0.85f) else if (full) c.full else c.ink2)
+                                Text(if (gone) "Done" else if (full) "Full" else "${d.seatsLeft} left", style = Pc.type.small, color = if (sel) c.raised.copy(alpha = 0.85f) else if (full) c.full else if (gone) c.ink3 else c.ink2)
                             }
                         }
                     }
@@ -901,11 +911,12 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
             subtitle = when {
                 t.isListing -> t.place?.name ?: "Book on UnSOLO"
                 date == null -> "Dates on request"
+                isPastDate(date) -> "${Fmt.dowDayMonth(date)} has passed · ask for the next one"
                 left > 0 -> "${Fmt.dowDayMonth(date)} · $left ${if (left == 1) "spot" else "spots"} left"
                 else -> "${Fmt.dowDayMonth(date)} is full · pick another date"
             },
-            action = if (t.isListing) "Book" else if (date == null) "Ask for dates" else "Grab a spot", kind = BtnKind.Accent, enabled = t.isListing || date == null || left > 0,
-            onAction = { if (t.isListing) t.webPath?.let { nav.openWeb(it) } else vm.takeSeat(nav, date) },
+            action = if (t.isListing) "Book" else if (date == null || isPastDate(date)) "Ask for dates" else "Grab a spot", kind = BtnKind.Accent, enabled = t.isListing || date == null || isPastDate(date) || left > 0,
+            onAction = { if (t.isListing) t.webPath?.let { nav.openWeb(it) } else vm.takeSeat(nav, if (isPastDate(date)) null else date) },
             leading = { IconTap(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", { vm.toggleSave() }, tint = if (saved) c.rose else c.ink) },
         )
     }
@@ -1000,6 +1011,9 @@ fun StoryRailCard(s: Post, onClick: () -> Unit) {
 
 /** Centre word under the seat count. */
 fun seatsLeftWord(open: Int, full: Boolean) = spotsWord(open, full)
+
+/** A departure date that has already gone: shown as "N travelled", never "full". */
+fun isPastDate(date: String?) = (Fmt.daysUntil(date) ?: 0) < 0
 
 /**
  * Invite card that leads "Plans looking for people". The whole card opens the plan composer;

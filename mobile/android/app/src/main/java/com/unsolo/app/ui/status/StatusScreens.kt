@@ -7,6 +7,9 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.verticalScroll
@@ -164,8 +167,17 @@ fun StatusViewerScreen(authorId: String, nav: AppNav) {
     // A person outside the rail (opened from their profile) plays on their own.
     var single by remember { mutableStateOf<StatusAuthor?>(null) }
     var loaded by remember { mutableStateOf(false) }
-    LaunchedEffect(authorId) { if (rail.none { it.user.id == authorId }) single = repo.forUser(authorId); loaded = true }
-    val authors = remember(rail, single) { if (rail.any { it.user.id == authorId }) rail.filter { it.items.isNotEmpty() } else listOfNotNull(single) }
+    // Everyone in the stories row plays in order, so swiping sideways moves to the next or previous
+    // person, even when you started from someone's profile.
+    LaunchedEffect(authorId) {
+        if (rail.isEmpty()) repo.refresh()
+        if (repo.rail.value.none { it.user.id == authorId }) single = repo.forUser(authorId)
+        loaded = true
+    }
+    val authors = remember(rail, single) {
+        val live = rail.filter { it.items.isNotEmpty() }
+        if (live.any { it.user.id == authorId }) live else listOfNotNull(single) + live
+    }
     DarkBars()
     if (authors.isEmpty()) {
         Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
@@ -177,20 +189,45 @@ fun StatusViewerScreen(authorId: String, nav: AppNav) {
     val start = authors.indexOfFirst { it.user.id == authorId }.coerceAtLeast(0)
     val pager = rememberPagerState(initialPage = start) { authors.size }
     val scope = rememberCoroutineScope()
+    // Down closes; up opens your gallery to add a story.
     val drop = remember { androidx.compose.animation.core.Animatable(0f) }
+    val tickUp = rememberTick()
     Box(Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
         detectVerticalDragGestures(
-            onDragEnd = { scope.launch { if (drop.value > 260f) nav.back() else drop.animateTo(0f) } },
+            onDragEnd = {
+                scope.launch {
+                    when {
+                        drop.value > 260f -> nav.back()
+                        drop.value < -220f -> { tickUp(); drop.animateTo(0f); if (nav.requirePhone()) nav.to(Routes.statusNew()) }
+                        else -> drop.animateTo(0f)
+                    }
+                }
+            },
             onDragCancel = { scope.launch { drop.animateTo(0f) } },
-        ) { ch, dy -> if (dy > 0 || drop.value > 0) { ch.consume(); scope.launch { drop.snapTo((drop.value + dy).coerceAtLeast(0f)) } } }
+        ) { ch, dy -> ch.consume(); scope.launch { drop.snapTo((drop.value + if (drop.value < 0 || dy < 0 && drop.value <= 0) dy * 0.5f else dy).coerceIn(-400f, 2000f)) } }
     }) {
-        HorizontalPager(pager, Modifier.fillMaxSize().graphicsLayer { translationY = drop.value; val s = 1f - (drop.value / 3000f); scaleX = s; scaleY = s }, key = { authors[it].user.id }) { page ->
+        HorizontalPager(pager, Modifier.fillMaxSize().graphicsLayer { translationY = drop.value.coerceAtLeast(0f) + drop.value.coerceAtMost(0f) * 0.4f; val s = 1f - (kotlin.math.abs(drop.value) / 3000f); scaleX = s; scaleY = s },
+            key = { authors[it].user.id }, beyondViewportPageCount = 1) { page ->
             val a = authors[page]
+            // A cube turn between people, like flipping to the next one's stories.
+            val offset = (pager.currentPage - page) + pager.currentPageOffsetFraction
+            Box(Modifier.fillMaxSize().graphicsLayer {
+                cameraDistance = 12f * density
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(if (offset < 0) 0f else 1f, 0.5f)
+                rotationY = (-offset * 75f).coerceIn(-90f, 90f)
+            }) {
             StatusPlayer(
                 author = a, active = pager.currentPage == page, own = a.user.id == meId, nav = nav,
                 onDone = { scope.launch { if (page < authors.lastIndex) pager.animateScrollToPage(page + 1) else nav.back() } },
                 onBack = { scope.launch { if (page > 0) pager.animateScrollToPage(page - 1) } },
             )
+            }
+        }
+        // Swipe-up hint while dragging up.
+        if (drop.value < -40f) Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 120.dp).graphicsLayer { alpha = (-drop.value / 220f).coerceIn(0f, 1f) },
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            PcIcon(PcIcons.ChevronUp, null, tint = Color.White, size = 28.dp)
+            Text(if (drop.value < -220f) "Let go to add a story" else "Swipe up to add a story", style = Pc.type.bodyStrong, color = Color.White)
         }
     }
 }
@@ -208,7 +245,12 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     var confirmDelete by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf(false) }
     var commentsOpen by remember { mutableStateOf(false) }
-    val tick = rememberTick()
+    var typing by remember { mutableStateOf(false) }
+    var draft by rememberSaveable(item.id) { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    val bursts = remember { mutableStateListOf<EmojiBurst>() }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val tick = rememberTick(strong = true)
     var progress by remember(author.user.id, idx) { mutableFloatStateOf(0f) }
     // The clock starts only once the photo is on screen (text stories start at once).
     var ready by remember(item.id) { mutableStateOf(item.type != "image" || item.media == null) }
@@ -216,8 +258,9 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     fun next() { if (idx < items.lastIndex) idx++ else onDone() }
     fun prev() { if (idx > 0) idx-- else onBack() }
     LaunchedEffect(active, item.id) { if (active && !own) repo.markSeen(author.user.id, item.id) }
-    LaunchedEffect(active, item.id, paused, confirmDelete, ready, picker, commentsOpen) {
-        if (!active || paused || confirmDelete || !ready || picker || commentsOpen) return@LaunchedEffect
+    LaunchedEffect(active, item.id) { if (active) repo.prefetchComments(item) }
+    LaunchedEffect(active, item.id, paused, confirmDelete, ready, picker, commentsOpen, typing) {
+        if (!active || paused || confirmDelete || !ready || picker || commentsOpen || typing) return@LaunchedEffect
         while (progress < 1f) { kotlinx.coroutines.delay(40); progress = (progress + 40f / 5500f).coerceAtMost(1f) }
         next()
     }
@@ -259,30 +302,33 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
                     Text(if (own) "Your story" else author.user.firstName, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = Color.White)
                     Text("  · ${Fmt.ago(item.createdAt)}", style = Pc.type.small, color = Color.White.copy(alpha = 0.8f))
                 }
+                IconTap(PcIcons.Close, "Close", { nav.back() }, tint = Color.White)
             }
         }
-        // Actions sit at the bottom, in thumb reach.
-        if (picker) Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 78.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            StatusReactions.forEach { (k, e) ->
-                Text(e, fontSize = 28.sp, modifier = Modifier.clip(CircleShape).background(if (item.myReaction == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
-                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; if (nav.requirePhone()) { tick(); scope.launch { repo.react(item, k) } } }.padding(6.dp))
-            }
+        // Instagram-style: actions stacked on the right, a full-width comment bar along the bottom.
+        val mine = item.myReaction
+        val total = item.reactions.values.sum()
+        fun react(k: String) {
+            if (!nav.requirePhone()) return
+            val adding = mine != k
+            tick()
+            if (adding) bursts += EmojiBurst(System.nanoTime(), StatusReactions.toMap()[k] ?: "🏔️")
+            scope.launch { repo.react(item, k) }
         }
-        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            StoryAction(PcIcons.Close, "Close") { nav.back() }
-            Spacer(Modifier.weight(1f))
+        item.caption?.takeIf { item.type == "image" }?.let {
+            Text(mentionText(it) { u -> nav.to(Routes.profile(u)) }, style = Pc.type.bodyStrong, color = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().navigationBarsPadding().imePadding().padding(start = 14.dp, end = 76.dp, bottom = 74.dp)
+                    .clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
+        }
+        Column(Modifier.align(Alignment.BottomEnd).navigationBarsPadding().imePadding().padding(end = 6.dp, bottom = 72.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             // Tap: "Take me there" (or take your reaction back). Hold: pick another.
-            val mine = item.myReaction
-            val total = item.reactions.values.sum()
-            Column(Modifier.clip(RoundedCornerShape(14.dp)).combinedClickableCompat(
-                onClick = { if (nav.requirePhone()) { tick(); scope.launch { repo.react(item, mine ?: "wanderlust") } } },
-                onLongClick = { picker = !picker },
-            ).padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(StatusReactions.toMap()[mine] ?: "🏔️", fontSize = 22.sp, modifier = Modifier.graphicsLayer { alpha = if (mine == null) 0.85f else 1f })
-                Text(if (total > 0) "$total" else if (mine == null) "React" else reactionLabel(mine), style = Pc.type.label, color = Color.White.copy(alpha = 0.9f))
+            Column(Modifier.clip(RoundedCornerShape(14.dp)).combinedClickableCompat(onClick = { react(mine ?: "wanderlust") }, onLongClick = { tick(); picker = !picker })
+                .padding(horizontal = 10.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                val pop by androidx.compose.animation.core.animateFloatAsState(if (mine != null) 1.15f else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.35f, stiffness = 500f), label = "pop")
+                Text(StatusReactions.toMap()[mine] ?: "🏔️", fontSize = 26.sp, modifier = Modifier.graphicsLayer { alpha = if (mine == null) 0.85f else 1f; scaleX = pop; scaleY = pop })
+                Text(if (total > 0) "$total" else "React", style = Pc.type.label, color = Color.White.copy(alpha = 0.9f))
             }
-            StoryAction(PcIcons.Chat, if (item.commentCount > 0) "${item.commentCount}" else "Comment") { commentsOpen = true }
+            StoryAction(PcIcons.Chat, if (item.commentCount > 0) "${item.commentCount}" else "Comments") { commentsOpen = true }
             if (own) {
                 StoryAction(PcIcons.Plus, "Add") { nav.to(Routes.statusNew()) }
                 StoryAction(PcIcons.Trash, "Delete") { confirmDelete = true }
@@ -291,13 +337,42 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
                 nav.share(if (own) "My story on UnSOLO: https://unsolo.in/profile/${author.user.username}" else "${author.user.firstName}'s story on UnSOLO: https://unsolo.in/profile/${author.user.username}")
             }
         }
-        item.caption?.takeIf { item.type == "image" }?.let {
-            Text(mentionText(it) { u -> nav.to(Routes.profile(u)) }, style = Pc.type.bodyStrong, color = Color.White, textAlign = TextAlign.Center,
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 84.dp)
-                    .clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
+        if (picker) Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().imePadding().padding(bottom = 70.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.75f)).padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            StatusReactions.forEach { (k, e) ->
+                Text(e, fontSize = 30.sp, modifier = Modifier.clip(CircleShape).background(if (mine == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
+                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; react(k) }.padding(6.dp))
+            }
         }
-        if (own) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f),
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 64.dp))
+        // Comment bar
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 10.dp)) {
+            if (own && !typing) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f), modifier = Modifier.padding(start = 6.dp, bottom = 6.dp))
+            Row(Modifier.fillMaxWidth().clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.55f), CircleShape).background(Color.Black.copy(alpha = 0.25f))
+                .padding(start = 18.dp, end = 6.dp).heightIn(min = 46.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    if (draft.isEmpty()) Text(if (own) "Add a comment…" else "Reply to ${author.user.firstName}…", style = Pc.type.body, color = Color.White.copy(alpha = 0.75f))
+                    BasicTextField(draft, { draft = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), maxLines = 3,
+                        modifier = Modifier.fillMaxWidth().onFocusChanged { typing = it.isFocused })
+                }
+                if (draft.isNotBlank()) {
+                    if (sending) androidx.compose.material3.CircularProgressIndicator(Modifier.padding(10.dp).size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    else IconTap(PcIcons.Send, "Send", {
+                        if (!nav.requirePhone()) return@IconTap
+                        sending = true
+                        scope.launch {
+                            when (repo.comment(item.id, draft)) {
+                                is com.unsolo.app.core.net.ApiResult.Ok -> { tick(); draft = ""; focus.clearFocus(); nav.graph.events.emit(AppEvent.Message("Comment sent")) }
+                                else -> nav.graph.events.emit(AppEvent.Message("Couldn't send that. Try again."))
+                            }
+                            sending = false
+                        }
+                    }, tint = Color.White)
+                } else {
+                    Text("🏔️", fontSize = 22.sp, modifier = Modifier.clip(CircleShape).clickable(onClickLabel = "Take me there") { react("wanderlust") }.padding(10.dp))
+                }
+            }
+        }
+        FloatingEmojis(bursts, Modifier.fillMaxSize()) { done -> bursts.removeAll { it.id == done } }
     }
     if (commentsOpen) StatusCommentsSheet(item, own, nav) { commentsOpen = false }
     if (confirmDelete) PcSheet({ confirmDelete = false }) {
@@ -317,6 +392,40 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     }
 }
 
+/** One reaction's flurry of emojis. */
+data class EmojiBurst(val id: Long, val emoji: String)
+
+/**
+ * The reaction you tapped floats up the screen: a dozen copies rising from the react button,
+ * drifting sideways, growing and fading out.
+ */
+@Composable
+private fun FloatingEmojis(bursts: List<EmojiBurst>, modifier: Modifier, onDone: (Long) -> Unit) {
+    Box(modifier) {
+        bursts.forEach { b ->
+            key(b.id) {
+                val rnd = remember { kotlin.random.Random(b.id) }
+                val parts = remember { List(12) { Triple(rnd.nextFloat(), rnd.nextFloat(), rnd.nextInt(0, 380)) } }
+                val t = remember { androidx.compose.animation.core.Animatable(0f) }
+                LaunchedEffect(Unit) { t.animateTo(1f, androidx.compose.animation.core.tween(1900, easing = androidx.compose.animation.core.LinearOutSlowInEasing)); onDone(b.id) }
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
+                    parts.forEach { (dx, sz, delay) ->
+                        val local = ((t.value * 1900f - delay) / 1500f).coerceIn(0f, 1f)
+                        if (local > 0f && local < 1f) Text(b.emoji, fontSize = (24 + sz * 22).sp, modifier = Modifier.graphicsLayer {
+                            translationX = w * 0.82f - (dx * w * 0.75f) * local + kotlin.math.sin(local * 9f + dx * 6f) * 24f
+                            translationY = h * 0.78f - local * h * (0.55f + sz * 0.3f)
+                            alpha = if (local < 0.15f) local / 0.15f else 1f - ((local - 0.6f) / 0.4f).coerceIn(0f, 1f)
+                            val sc = 0.6f + local * 0.7f; scaleX = sc; scaleY = sc
+                            rotationZ = (dx - 0.5f) * 40f * local
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Story reactions: "Take me there" (a traveller's love) first. */
 val StatusReactions = listOf("wanderlust" to "🏔️", "love" to "❤️", "wow" to "😮", "haha" to "😂", "clap" to "👏", "fire" to "🔥")
 private fun reactionLabel(k: String) = when (k) { "wanderlust" -> "Take me there"; "love" -> "Love"; "wow" -> "Wow"; "haha" -> "Haha"; "clap" -> "Clap"; else -> "Fire" }
@@ -329,11 +438,14 @@ private fun Modifier.combinedClickableCompat(onClick: () -> Unit, onLongClick: (
 private fun StatusCommentsSheet(item: StatusItem, own: Boolean, nav: AppNav, onDismiss: () -> Unit) {
     val repo = nav.graph.statuses
     val c = Pc.colors
-    var list by remember(item.id) { mutableStateOf<List<StatusComment>?>(null) }
+    val cached by repo.comments.collectAsStateWithLifecycle()
+    var fetched by remember(item.id) { mutableStateOf(false) }
+    // The saved copy shows at once; a fresh one replaces it quietly. Nothing to load when there are none.
+    val list = cached[item.id] ?: if (fetched || item.commentCount == 0) emptyList() else null
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(item.id) { list = (repo.comments(item.id) as? com.unsolo.app.core.net.ApiResult.Ok)?.value?.items ?: emptyList() }
+    LaunchedEffect(item.id) { repo.loadComments(item.id); fetched = true }
     PcSheet(onDismiss) {
         SheetTitle("Comments")
         if (own && item.reactions.isNotEmpty()) Row(Modifier.padding(horizontal = Gutter, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -342,8 +454,8 @@ private fun StatusCommentsSheet(item: StatusItem, own: Boolean, nav: AppNav, onD
         Column(Modifier.padding(horizontal = Gutter).heightIn(max = 360.dp).verticalScrollCompat(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when {
                 list == null -> androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = c.ink2, strokeWidth = 2.dp)
-                list!!.isEmpty() -> Text("No comments yet. Say something kind.", style = Pc.type.body, color = c.ink2)
-                else -> list!!.forEach { cm ->
+                list.isEmpty() -> Text("No comments yet. Say something kind.", style = Pc.type.body, color = c.ink2)
+                else -> list.forEach { cm ->
                     Row {
                         Avatar(cm.author, 30.dp); Spacer(Modifier.width(10.dp))
                         Column {
@@ -362,7 +474,7 @@ private fun StatusCommentsSheet(item: StatusItem, own: Boolean, nav: AppNav, onD
                 sending = true
                 scope.launch {
                     when (val r = repo.comment(item.id, text)) {
-                        is com.unsolo.app.core.net.ApiResult.Ok -> { list = (list ?: emptyList()) + r.value; text = "" }
+                        is com.unsolo.app.core.net.ApiResult.Ok -> { text = "" }
                         else -> nav.graph.events.emit(AppEvent.Message("Couldn't post that. Try again."))
                     }
                     sending = false
@@ -518,11 +630,13 @@ private fun MentionSuggestions(caption: String, nav: AppNav, onPick: (Int, UserL
     val q = m?.groupValues?.get(2).orEmpty()
     var hits by remember { mutableStateOf<List<UserLite>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { nav.graph.statuses.warmPeople() }
     LaunchedEffect(m != null, q) {
-        hits = emptyList()
-        if (m == null || q.isEmpty()) return@LaunchedEffect
+        if (m == null || q.isEmpty()) { hits = emptyList(); return@LaunchedEffect }
+        // People we already know show at once; the server's answer fills in a moment later.
+        hits = nav.graph.statuses.peopleNow(q)
         searching = true
-        kotlinx.coroutines.delay(200)
+        kotlinx.coroutines.delay(120)
         hits = nav.graph.statuses.people(q)
         searching = false
     }
@@ -555,11 +669,12 @@ private fun PeoplePickerSheet(nav: AppNav, onDismiss: () -> Unit, onPick: (UserL
     val c = Pc.colors
     var q by remember { mutableStateOf("") }
     var hits by remember { mutableStateOf<List<UserLite>?>(emptyList()) }
+    LaunchedEffect(Unit) { nav.graph.statuses.warmPeople() }
     LaunchedEffect(q) {
         val t = q.trim().removePrefix("@")
         if (t.isEmpty()) { hits = emptyList(); return@LaunchedEffect }
-        hits = null
-        kotlinx.coroutines.delay(220)
+        hits = nav.graph.statuses.peopleNow(t).ifEmpty { null }
+        kotlinx.coroutines.delay(120)
         hits = nav.graph.statuses.people(t)
     }
     PcSheet(onDismiss) {
