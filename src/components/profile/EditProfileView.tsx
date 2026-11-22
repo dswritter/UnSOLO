@@ -17,6 +17,7 @@ import { getInitials } from '@/lib/utils'
 import { Pencil, Clock, Check, X, Camera, Upload, Phone, Globe, Lock, AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { LocationSearch } from '@/components/profile/LocationSearch'
+import { EmergencyContactCard } from '@/components/profile/EmergencyContactCard'
 import { UPLOAD_MAX_IMAGE_BYTES, UPLOAD_IMAGE_TOO_LARGE_MESSAGE } from '@/lib/constants'
 
 const DEFAULT_AVATARS = [
@@ -480,6 +481,8 @@ export function EditProfileView({
             </div>
           </CardContent>
         </Card>
+
+        <EmergencyContactCard />
 
         {/* Privacy Settings */}
         <Card className="bg-card border-border">

@@ -42,7 +42,9 @@ export function InterestButton({ packageId, initialCount, initialInterested, isL
     setLoading(false)
   }
 
-  const label = interested ? 'Remove interest' : "I'm interested in this trip"
+  const label = interested
+    ? 'Saved · we’ll tell you if the price drops or it’s nearly full. Tap to remove'
+    : 'Save · we’ll tell you if the price drops or it’s nearly full'
 
   return (
     <div className="flex items-center">

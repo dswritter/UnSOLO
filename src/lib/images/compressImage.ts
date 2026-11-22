@@ -63,7 +63,7 @@ function supportsWebp() {
 }
 
 /** Upload with progress (XHR) to /api/v1/uploads. Runs in the background while the UI shows the local preview. */
-export function uploadImage(blob: Blob, purpose: 'post' | 'story' | 'avatar' | 'host', onProgress?: (p: number) => void, signal?: AbortSignal) {
+export function uploadImage(blob: Blob, purpose: 'post' | 'story' | 'avatar' | 'host' | 'review', onProgress?: (p: number) => void, signal?: AbortSignal) {
   return new Promise<{ url: string; thumbUrl: string; lqip: string; width: number | null; height: number | null; bytes: number }>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', '/api/v1/uploads')

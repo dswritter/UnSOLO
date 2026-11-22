@@ -14,6 +14,7 @@ import { userHasTripChatAccess } from '@/lib/chat/tripChatAccess'
 import { getMessagingBasePath } from '@/lib/routing/messagingBasePath'
 import { WANDER_HOME_SEARCH_HREF } from '@/lib/routing/wanderLandingPath'
 import { TribeTripContextPanel } from '@/components/chat/TribeTripContextPanel'
+import { TripLiveLocation } from '@/components/chat/TripLiveLocation'
 import { packageNextDepartureLine } from '@/lib/package-trip-calendar'
 
 type PackageJoin = {
@@ -202,28 +203,31 @@ export default async function TribeRoomPage({ params }: { params: Promise<{ room
   return (
     <div className="flex h-full min-h-0 flex-1 bg-transparent">
     <div className="flex flex-col h-full min-h-0 min-w-0 flex-1">
-      <TribeRoomCoordinator
-        roomId={roomId}
-        roomName={displayName}
-        roomType={room.type as 'trip' | 'general' | 'direct'}
-        roomImageUrl={roomImageUrl}
-        currentUser={profile as Profile}
-        bootstrapMemberProfiles={bootstrapMemberProfiles}
-        chatListPath={listPath}
-        tripHostUserId={tripHostUserId}
-        hydrator={
-          <Suspense fallback={null}>
-            <TribeRoomHydrationLoader
-              roomId={roomId}
-              userId={user.id}
-              pinId={pinId}
-              roomType={String(room.type)}
-              packageId={packageId}
-              tripPkgCal={tripPkgCal}
-            />
-          </Suspense>
-        }
-      />
+      {room.type === 'trip' ? <TripLiveLocation roomId={roomId} /> : null}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <TribeRoomCoordinator
+          roomId={roomId}
+          roomName={displayName}
+          roomType={room.type as 'trip' | 'general' | 'direct'}
+          roomImageUrl={roomImageUrl}
+          currentUser={profile as Profile}
+          bootstrapMemberProfiles={bootstrapMemberProfiles}
+          chatListPath={listPath}
+          tripHostUserId={tripHostUserId}
+          hydrator={
+            <Suspense fallback={null}>
+              <TribeRoomHydrationLoader
+                roomId={roomId}
+                userId={user.id}
+                pinId={pinId}
+                roomType={String(room.type)}
+                packageId={packageId}
+                tripPkgCal={tripPkgCal}
+              />
+            </Suspense>
+          }
+        />
+      </div>
     </div>
     {room.type === 'trip' && pkg ? (
       <TribeTripContextPanel

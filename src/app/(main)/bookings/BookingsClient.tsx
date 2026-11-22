@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, Mountain, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus, Loader2 } from 'lucide-react'
+import { MapPin, Calendar, Users, MessageCircle, Star, X, CheckCircle, ArrowRight, AlertTriangle, Edit2, CreditCard, Clock, Ban, CalendarPlus, Loader2, FileText } from 'lucide-react'
 import { formatPrice, formatDate, getTripCountdown, listingScheduleTodayISO } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
 import {
@@ -18,7 +18,6 @@ import {
   packageDurationShortLabel,
   type TripPackageCalendar,
 } from '@/lib/package-trip-calendar'
-import { submitReview } from '@/actions/profile'
 import { TravellerPartialCancel, FullCancellationSummary, type PartialCancellationRow } from '@/components/bookings/PartialCancellation'
 import { BookingChangeRequest, type ChangeRequestRow } from '@/components/bookings/BookingChangeRequest'
 import { joinGroupByInvite } from '@/actions/group-booking'
@@ -42,6 +41,8 @@ import { useRouter } from 'next/navigation'
 import type { Booking, JoinPreferences } from '@/types'
 import { HostRatingCard } from '@/components/hosting/HostRatingCard'
 import Script from 'next/script'
+import { SosButton } from '@/components/trips/SosButton'
+import { TripCountdownCard } from '@/components/trips/TripCountdownCard'
 
 /** Open (or create + join) this trip's group chat, then navigate to the room. */
 async function goToTripChat(
@@ -143,8 +144,7 @@ export function BookingsClient({
   changeRequestsByBooking = {},
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [reviewingId, setReviewingId] = useState<string | null>(null)
-  const [reviewed, setReviewed] = useState<Set<string>>(new Set(reviewedBookingIds))
+  const [reviewed] = useState<Set<string>>(() => new Set(reviewedBookingIds))
   const [ratedHosts, setRatedHosts] = useState<Set<string>>(new Set(ratedHostBookingIds))
   const [ratingBookingId, setRatingBookingId] = useState<string | null>(null)
   const [joinCode, setJoinCode] = useState('')
@@ -159,12 +159,6 @@ export function BookingsClient({
   const [timeView, setTimeView] = useState<'upcoming' | 'past'>('upcoming')
   const [filterMonth, setFilterMonth] = useState('')
 
-  // Review form state
-  const [ratingDest, setRatingDest] = useState(0)
-  const [ratingExp, setRatingExp] = useState(0)
-  const [reviewTitle, setReviewTitle] = useState('')
-  const [reviewBody, setReviewBody] = useState('')
-  const [submitting, setSubmitting] = useState(false)
 
   // Apply filters to bookings
   let filteredBookings = bookings
@@ -221,20 +215,10 @@ export function BookingsClient({
 
   const upcomingCount = (showSolo ? upcoming.length + filteredIncompleteJoin.length : 0) + (showGroup ? groupTripsUpcoming.length : 0)
   const pastCount = (showSolo ? past.length : 0) + (showGroup ? groupTripsPast.length : 0)
-  const nextTrip = [...upcoming]
-    .filter((b) => b.status === 'confirmed' && b.travel_date)
+  // Unfiltered: the countdown is about your next trip whatever the filters show.
+  const nextTrip = bookings
+    .filter((b) => b.status === 'confirmed' && b.travel_date && b.package && !isPackageTripEnded(b, scheduleToday))
     .sort((a, b) => (a.travel_date ?? '').localeCompare(b.travel_date ?? ''))[0]
-  const daysToNextTrip = nextTrip?.travel_date
-    ? Math.max(0, Math.round((new Date(`${nextTrip.travel_date.slice(0, 10)}T12:00:00`).getTime() - new Date(`${scheduleToday}T12:00:00`).getTime()) / 86_400_000))
-    : null
-
-  function openReview(bookingId: string) {
-    setReviewingId(bookingId)
-    setRatingDest(0)
-    setRatingExp(0)
-    setReviewTitle('')
-    setReviewBody('')
-  }
 
   async function handleDismissServiceBooking(bookingId: string) {
     setDismissingServiceId(bookingId)
@@ -253,49 +237,6 @@ export function BookingsClient({
     }
     toast.success('Removed from My Trips')
     router.refresh()
-  }
-
-  async function handleSubmitReview(booking: Booking) {
-    if (ratingDest === 0 || ratingExp === 0) {
-      toast.error('Please rate both categories')
-      return
-    }
-    if (!booking.package_id) {
-      toast.error('Unable to submit review for this booking')
-      return
-    }
-    setSubmitting(true)
-    const result = await submitReview(
-      booking.id,
-      booking.package_id,
-      ratingDest,
-      ratingExp,
-      reviewTitle,
-      reviewBody,
-    )
-    if (result.error) {
-      toast.error(result.error)
-    } else {
-      toast.success('Review submitted! Thank you!')
-      setReviewed(prev => new Set([...prev, booking.id]))
-      setReviewingId(null)
-    }
-    setSubmitting(false)
-  }
-
-  function StarRating({ value, onChange, label }: { value: number; onChange: (v: number) => void; label: string }) {
-    return (
-      <div className="space-y-1">
-        <label className="text-xs text-muted-foreground">{label}</label>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map(i => (
-            <button key={i} onClick={() => onChange(i)} className="focus:outline-none">
-              <Star className={`h-6 w-6 transition-colors ${i <= value ? 'text-primary fill-primary' : 'text-foreground/35 hover:text-primary/60'}`} />
-            </button>
-          ))}
-        </div>
-      </div>
-    )
   }
 
   function renderGroupBookingCard(group: GroupBookingInfo) {
@@ -445,6 +386,26 @@ export function BookingsClient({
   return (
     <div className="space-y-8">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <SosButton />
+      {nextTrip?.package && nextTrip.travel_date ? (
+        <TripCountdownCard
+          trip={{
+            bookingId: nextTrip.id,
+            title: nextTrip.package.title,
+            place: nextTrip.package.destination?.name ?? null,
+            slug: nextTrip.package.slug,
+            start: nextTrip.travel_date.slice(0, 10),
+            end: tripEndDateIsoForBooking(nextTrip.travel_date, tripCalFromPackage(nextTrip.package)),
+            image: nextTrip.package.images?.[0] ? storageThumbnailUrl(nextTrip.package.images[0]) || nextTrip.package.images[0] : null,
+            chatRoomId: null,
+          }}
+          onOpenChat={() => void goToTripChat(nextTrip.package_id, router)}
+        />
+      ) : null}
+      <Link href="/buddies" className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm hover:border-primary">
+        <span className="flex items-center gap-2 font-semibold text-foreground"><Users className="h-4 w-4" aria-hidden />Travel buddies</span>
+        <span className="flex items-center gap-1 text-muted-foreground">People going where you are<ArrowRight className="h-4 w-4" aria-hidden /></span>
+      </Link>
       <div role="tablist" aria-label="Trips by time" className="flex gap-2">
         {([['upcoming', 'Upcoming', upcomingCount], ['past', 'Past', pastCount]] as const).map(([id, label, count]) => (
           <button
@@ -459,31 +420,6 @@ export function BookingsClient({
           </button>
         ))}
       </div>
-
-      {timeView === 'upcoming' && nextTrip?.package && daysToNextTrip != null && (
-        <div className="pc-card grid overflow-hidden p-0 sm:grid-cols-[minmax(0,20rem)_1fr]">
-          <div className="relative h-48 bg-[color:var(--pc-tonal)] sm:h-full sm:min-h-[200px]">
-            {nextTrip.package.images?.[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={nextTrip.package.images[0]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : null}
-            <span className="absolute left-3 top-3 inline-flex h-8 items-center rounded-full bg-white/95 px-3 text-[13px] font-bold text-[#111111] shadow-sm">
-              {daysToNextTrip === 0 ? 'Departs today' : `Departs in ${daysToNextTrip} day${daysToNextTrip === 1 ? '' : 's'}`}
-            </span>
-          </div>
-          <div className="flex flex-col gap-3 p-5">
-            <div>
-              <p className="pc-eyebrow text-[color:var(--pc-accent-ink)]">Your next trip</p>
-              <h2 className="mt-1.5 text-[24px] leading-tight text-foreground">{nextTrip.package.title}</h2>
-              <p className="text-sm text-muted-foreground">{formatDate(nextTrip.travel_date!)}</p>
-            </div>
-            <div className="mt-auto flex flex-wrap gap-2">
-              <Link href="/community" className="pc-btn flex-1 sm:flex-none"><MessageCircle className="h-4 w-4" aria-hidden />Meet the circle</Link>
-              <Link href={`/packages/${nextTrip.package.slug}`} className="pc-btn pc-btn-outline flex-1 sm:flex-none">View trip</Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
@@ -610,7 +546,7 @@ export function BookingsClient({
           <h2 className="text-xl font-bold mb-4">Service Bookings</h2>
           <div className="space-y-4">
             {visibleServiceBookings.map((booking) => {
-              const listing = (booking as any).service_listings
+              const listing = (booking as unknown as { service_listings?: { images?: string[] | null; title?: string | null; location?: string | null; type?: string | null; slug?: string | null } | null }).service_listings
               const rawListingImg = listing?.images?.[0]
               const imageUrl = rawListingImg
                 ? (storageThumbnailUrl(rawListingImg) || rawListingImg)
@@ -732,8 +668,7 @@ export function BookingsClient({
                   booking={booking}
                   expanded={expandedId === booking.id}
                   onToggle={() => setExpandedId(expandedId === booking.id ? null : booking.id)}
-                  showReview={booking.status === 'completed' && !reviewed.has(booking.id)}
-                  onReview={() => openReview(booking.id)}
+                  showReview={(booking.status === 'completed' || booking.status === 'confirmed') && !!booking.package_id && !reviewed.has(booking.id)}
                   hasReviewed={reviewed.has(booking.id)}
                   showHostRating={booking.status === 'completed' && !!booking.package?.host_id && !ratedHosts.has(booking.id)}
                   onRateHost={() => setRatingBookingId(booking.id)}
@@ -748,43 +683,6 @@ export function BookingsClient({
                   existingChangeRequests={changeRequestsByBooking[booking.id] || []}
                 />
 
-                {/* Review form */}
-                {reviewingId === booking.id && (
-                  <Card className="bg-card border-primary/30 mt-2 ml-4">
-                    <CardContent className="p-5 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-sm">Write a Review</h3>
-                        <button onClick={() => setReviewingId(null)}><X className="h-4 w-4 text-muted-foreground" /></button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <StarRating value={ratingDest} onChange={setRatingDest} label="Destination / Landscape" />
-                        <StarRating value={ratingExp} onChange={setRatingExp} label="Experience with UnSOLO" />
-                      </div>
-
-                      <Input
-                        placeholder="Review title (optional)"
-                        value={reviewTitle}
-                        onChange={e => setReviewTitle(e.target.value)}
-                        className="bg-secondary border-border"
-                      />
-                      <Textarea
-                        placeholder="Share your experience..."
-                        value={reviewBody}
-                        onChange={e => setReviewBody(e.target.value)}
-                        rows={3}
-                        className="bg-secondary border-border resize-none"
-                      />
-                      <Button
-                        onClick={() => handleSubmitReview(booking)}
-                        disabled={submitting || ratingDest === 0 || ratingExp === 0}
-                        className="bg-primary text-black font-bold hover:bg-primary/90"
-                      >
-                        {submitting ? 'Submitting...' : 'Submit Review'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
             ))}
           </div>
@@ -1178,7 +1076,6 @@ function BookingItem({
   expanded,
   onToggle,
   showReview,
-  onReview,
   hasReviewed,
   showHostRating,
   onRateHost,
@@ -1193,7 +1090,6 @@ function BookingItem({
   expanded: boolean
   onToggle: () => void
   showReview?: boolean
-  onReview?: () => void
   hasReviewed?: boolean
   showHostRating?: boolean
   onRateHost?: () => void
@@ -1367,10 +1263,15 @@ function BookingItem({
                     <MessageCircle className="mr-1 h-3 w-3" /> Trip Chat
                   </Button>
                 )}
-                {showReview && onReview && (
-                  <Button size="sm" className="bg-primary text-primary-foreground text-xs relative z-10" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onReview(); }}>
-                    <Star className="mr-1 h-3 w-3" /> Write Review
-                  </Button>
+                {booking.package && booking.status === 'confirmed' && tripEndIso && listingScheduleTodayISO() <= tripEndIso && (
+                  <Link href={`/bookings/${booking.id}/pack`} className="inline-flex h-8 items-center rounded-md border border-border px-2.5 text-xs font-medium hover:border-primary">
+                    <FileText className="mr-1 h-3 w-3" aria-hidden /> Trip pack
+                  </Link>
+                )}
+                {showReview && (
+                  <Link href={`/review/${booking.id}`} className="relative z-10 inline-flex h-8 items-center rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground">
+                    <Star className="mr-1 h-3 w-3" aria-hidden /> Review this trip
+                  </Link>
                 )}
                 {hasReviewed && (
                   <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
@@ -1605,9 +1506,6 @@ function CancelRequester({
   useEffect(() => {
     if (!open || isPendingBook) return
     let cancelled = false
-    setPreviewLoading(true)
-    setPreviewError(null)
-    setPreview(null)
     void getTravelerCancellationPreview(bookingId).then(res => {
       if (cancelled) return
       setPreviewLoading(false)
@@ -1672,7 +1570,11 @@ function CancelRequester({
         variant="outline"
         size="sm"
         className="border-red-500/30 text-red-400 text-xs hover:bg-red-500/10"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          // Reset the preview here (not in the effect) so opening shows a fresh load.
+          if (!isPendingBook) { setPreviewLoading(true); setPreviewError(null); setPreview(null) }
+          setOpen(true)
+        }}
       >
         {isPendingBook ? (
           <>

@@ -52,12 +52,15 @@ self.addEventListener('fetch', (event) => {
     return
   }
   if (req.mode === 'navigate' && url.origin === location.origin) {
+    // Trip packs (/bookings/{id}/pack) are kept for places with no signal. Their HTML is only the
+    // page shell (the details load in the browser and are kept in localStorage), so it is safe to keep.
+    const tripPack = /^\/bookings\/[0-9a-f-]{36}\/pack\/?$/i.test(url.pathname)
     event.respondWith((async () => {
       try {
         const res = await fetch(req)
         // Privacy: never keep signed-in / personalised pages (private or no-store) in Cache Storage.
         const cc = res.headers.get('cache-control') || ''
-        if (res.ok && !/no-store|private/i.test(cc)) (await caches.open(PAGES)).put(req, res.clone()).then(() => trim(PAGES, 30))
+        if (res.ok && (tripPack || !/no-store|private/i.test(cc))) (await caches.open(PAGES)).put(req, res.clone()).then(() => trim(PAGES, 30))
         return res
       } catch {
         return (await caches.match(req)) || (await caches.match('/offline')) || Response.error()

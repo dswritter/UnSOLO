@@ -13,11 +13,13 @@ async function me(req: Request) {
   const user = requireUser(ctx)
   const [{ data: p }, { data: priv }, prefs, unreadN, unreadMessages] = await Promise.all([
     ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number, status_text, status_visibility, location, instagram_url, website_url, username_changed_at, trips_private, states_private, phone_public`).eq('id', user.id).single(),
-    ctx.db.from('profile_private').select('gender, home_city, emergency_name, emergency_phone').eq('user_id', user.id).maybeSingle(),
+    ctx.db.from('profile_private').select('gender, home_city').eq('user_id', user.id).maybeSingle(),
     loadPreferences(ctx.db, user.id),
     ctx.db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false),
     countUnreadMessages(ctx.db, user.id),
   ])
+  // Emergency contact (migration 124): read on its own so /me keeps working if the columns aren't there yet.
+  const { data: em } = await ctx.db.from('profile_private').select('emergency_name, emergency_phone').eq('user_id', user.id).maybeSingle()
   const role = (p?.role as string) ?? 'user'
   return {
     user: {
@@ -31,7 +33,7 @@ async function me(req: Request) {
       /** When you can next change your username (40 days after the last change); null = now. */
       usernameChangeAfter: usernameChangeAfter(p?.username_changed_at as string | null),
       /** Told by SMS when you raise an SOS on a trip. Only you see it. */
-      emergencyName: (priv?.emergency_name as string | null) ?? null, emergencyPhone: (priv?.emergency_phone as string | null) ?? null,
+      emergencyName: (em?.emergency_name as string | null) ?? null, emergencyPhone: (em?.emergency_phone as string | null) ?? null,
       tripsPrivate: p?.trips_private === true, statesPrivate: p?.states_private === true, phonePublic: p?.phone_public === true,
     },
     role,

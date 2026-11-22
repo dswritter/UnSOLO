@@ -51,6 +51,8 @@ export function useSignOut() {
 function clearDeviceState() {
   try {
     for (const k of ['unsolo.outbox.v1', 'unsolo.landingTab', 'unsolo.tabVisits']) localStorage.removeItem(k)
+    // Offline trip packs (booking, host phone, co-travellers) are personal: drop them too.
+    for (const k of Object.keys(localStorage)) if (k.startsWith('unsolo.tripPack.')) localStorage.removeItem(k)
   } catch { /* storage unavailable */ }
   try {
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return

@@ -7,6 +7,23 @@ import type { Review } from '@/types'
 import { EditableReviewCard } from './EditableReviewCard'
 import { formatDate } from '@/lib/utils'
 import { storageThumbnailUrl } from '@/lib/images/storageThumbUrl'
+import { ImageLightbox } from '@/components/ui/ImageLightbox'
+
+/** Review photos as small thumbnails; each opens full size. */
+function ReviewPhotos({ urls }: { urls: string[] | null | undefined }) {
+  const list = (urls ?? []).filter(Boolean).slice(0, 6)
+  if (!list.length) return null
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {list.map((u, i) => (
+        <ImageLightbox key={u} src={u} alt={`Review photo ${i + 1}`} className="h-20 w-20 overflow-hidden rounded-lg bg-secondary">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={storageThumbnailUrl(u) || u} alt="" loading="lazy" className="h-full w-full object-cover" />
+        </ImageLightbox>
+      ))}
+    </div>
+  )
+}
 
 interface ReviewsSectionProps {
   reviews: (Review & { user?: { id?: string; username: string; full_name: string | null; avatar_url: string | null } })[]
@@ -23,7 +40,7 @@ export function ReviewsSection({
   averageExperience,
   currentUserId,
 }: ReviewsSectionProps) {
-  const [updatingReviewId, setUpdatingReviewId] = useState<string | null>(null)
+  const [, setUpdatingReviewId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleUpdateReview = async (review: Review) => {
@@ -136,6 +153,7 @@ export function ReviewsSection({
                       )}
                     </div>
                   )}
+                  <ReviewPhotos urls={review.images} />
                 </div>
               )
             })}

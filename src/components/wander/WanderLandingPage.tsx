@@ -9,6 +9,7 @@ import {
 } from '@/components/wander/WanderListingRowsServer'
 import { TribeBridgeRow } from '@/components/tribe/TribeBridgeRow'
 import { DeparturesTable } from '@/components/tribe/DeparturesTable'
+import { ExploreViewSwitch } from '@/components/explore/ExploreViewSwitch'
 
 function LeavingSoonSkeleton() {
   return (
@@ -53,20 +54,22 @@ export async function WanderLandingPage({
           <Suspense fallback={<div className="h-40" />}>
             <ExploreHeader />
           </Suspense>
-          {/* Trips (default): departures and plans lead. Another category: its listings lead instead. */}
-          {!activeTab || activeTab === 'trips' ? (
-            <>
-              <Suspense fallback={<LeavingSoonSkeleton />}>
-                <DeparturesTable aside={<TribeBridgeRow layout="aside" />} />
-              </Suspense>
-              <Suspense fallback={null}>
-                <TribeBridgeRow />
-              </Suspense>
-            </>
-          ) : null}
-          <Suspense fallback={<WanderListingRowsSkeleton />}>
-            <WanderListingRowsServer activeTab={activeTab} />
-          </Suspense>
+          <ExploreViewSwitch initialView={sp.view === 'map' ? 'map' : 'list'} category={activeTab ?? 'all'}>
+            {/* Trips (default): departures and plans lead. Another category: its listings lead instead. */}
+            {!activeTab || activeTab === 'trips' ? (
+              <>
+                <Suspense fallback={<LeavingSoonSkeleton />}>
+                  <DeparturesTable aside={<TribeBridgeRow layout="aside" />} />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <TribeBridgeRow />
+                </Suspense>
+              </>
+            ) : null}
+            <Suspense fallback={<WanderListingRowsSkeleton />}>
+              <WanderListingRowsServer activeTab={activeTab} />
+            </Suspense>
+          </ExploreViewSwitch>
           {/* Room for the bottom search dock above the tab bar (mobile). */}
           <div className="h-24 md:hidden" aria-hidden />
         </>

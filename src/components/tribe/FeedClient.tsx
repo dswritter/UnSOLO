@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { Avatar, PlanCard, PostCard, TripStub } from './PostCard'
 import { StoryRail } from './StoryRail'
 import { ComposeSheet } from './ComposeSheet'
+import { TripCountdownLoader } from '@/components/trips/TripCountdownCard'
 
 type Filter = 'all' | 'plan' | 'story' | 'question' | 'poll' | 'saved'
 type FeedItem = Post | { kind: 'placed_trip'; trip: TripLite }
@@ -148,6 +149,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
               </button>
             ))}
             <button type="button" onClick={askLocation} aria-pressed={!!coords}><MapPin aria-hidden />{coords ? 'Near you' : 'Near me'}</button>
+            {signedIn ? <Link href="/buddies"><UsersRound aria-hidden />Travel buddies</Link> : null}
           </nav>
           <p className="pc-eyebrow px-3.5 pb-2 pt-6">Your circles</p>
           {!signedIn ? (
@@ -190,6 +192,8 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
           <p className="mt-1.5 text-sm text-muted-foreground">Plans, stories and questions from travellers{demo ? ' · sample posts (local preview)' : ''}</p>
         </div>
 
+        {signedIn && !demo ? <TripCountdownLoader className="mb-3 px-4 md:px-0 lg:mb-4" /> : null}
+
         <div className="fc-rail-wrap lg:mb-4 lg:rounded-[var(--pc-radius-card)] lg:border lg:border-[color:var(--pc-rule)] lg:bg-[color:var(--pc-raised)] lg:px-4 lg:pb-2 lg:pt-4">
           <StoryRail posts={pool} me={me ?? null} signedIn={signedIn} demo={demo} className="lg:px-0" />
         </div>
@@ -213,6 +217,7 @@ export function FeedClient({ initial, nextDepartures: initialDepartures, signedI
               <button key={f.id} type="button" className="pc-chip" aria-pressed={filter === f.id} onClick={() => choose(f.id)}>{f.label}</button>
             ))}
             <button type="button" className="pc-chip" aria-pressed={!!coords} onClick={askLocation}><MapPin className="h-3.5 w-3.5" aria-hidden /> Near me</button>
+            {signedIn ? <Link href="/buddies" className="pc-chip"><UsersRound className="h-3.5 w-3.5" aria-hidden /> Buddies</Link> : null}
           </div>
         </div>
 

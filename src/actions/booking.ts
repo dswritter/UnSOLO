@@ -1,6 +1,5 @@
 'use server'
 
-import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient, createServiceRoleClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
@@ -1477,9 +1476,19 @@ export async function toggleInterest(packageId: string) {
 
   if (existing) {
     await supabase.from('package_interests').delete().eq('id', existing.id)
+    // Saved trips (price-drop and nearly-full alerts) follow the heart. Same as DELETE /api/v1/trips/{slug}/save.
+    await supabase.from('saved_trips').delete().eq('user_id', user.id).eq('package_id', packageId)
     return { interested: false }
   } else {
     await supabase.from('package_interests').insert({ package_id: packageId, user_id: user.id })
+    // Same as PUT /api/v1/trips/{slug}/save: remember the price so the daily job can spot a drop.
+    try {
+      const { data: priced } = await supabase.from('packages').select('price_paise').eq('id', packageId).maybeSingle()
+      await supabase.from('saved_trips').upsert(
+        { user_id: user.id, package_id: packageId, price_paise: priced?.price_paise ?? null },
+        { onConflict: 'user_id,package_id', ignoreDuplicates: true },
+      )
+    } catch { /* alerts are best effort */ }
 
     // Notify host (community trip) or admins (UnSOLO trip)
     try {
@@ -1957,7 +1966,7 @@ export async function confirmTravelerCancellation(
   bookingId: string,
   reason: string,
 ): Promise<ConfirmTravelerCancellationResult> {
-  const { supabase, user } = await getActionAuth()
+  const { user } = await getActionAuth()
   if (!user) return { error: 'Not authenticated' }
 
   const trimmed = reason.trim()
