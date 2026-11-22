@@ -703,9 +703,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
     val ring = if (date == t.nextDeparture && !detail?.seats.isNullOrEmpty()) ringFromSeats(detail!!.seats, me?.user?.id, seatsTotal = dep?.seatsTotal ?: t.seatsTotal)
         else if (dep != null) ringFromCounts(dep.seatsTotal, dep.seatsLeft) else ringFromCounts(t.seatsTotal, t.seatsLeft)
     val left = dep?.seatsLeft ?: t.seatsLeft ?: (ring.total - ring.filled)
-    // Taller cover (about 4:5, at most 58% of the screen) so portrait photos aren't cut down to a strip.
-    val conf = LocalConfiguration.current
-    val coverH = minOf(conf.screenWidthDp * 1.2f, conf.screenHeightDp * 0.58f).dp
+    // Trip photos are 16:9 (the host form crops to it), so the cover is 16:9 too: nothing cut off.
     var viewer by remember { mutableStateOf<Int?>(null) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -716,13 +714,14 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
         LazyColumn(Modifier.weight(1f), state = listState) {
             item(key = "cover", contentType = "cover") {
                 val pager = rememberPagerState { images.size.coerceAtLeast(1) }
-                Box(Modifier.fillMaxWidth().height(coverH)) {
+                // Starts below the status bar so the top of the photo isn't hidden behind it.
+                Box(Modifier.fillMaxWidth().background(c.paper).statusBarsPadding().aspectRatio(16f / 9f)) {
                     HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i ->
                         ProgressiveImage(images.getOrNull(i), Modifier.fillMaxSize().clickable(onClickLabel = "View photo") { viewer = i }, t.title)
                     }
                     Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(140.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x59111111)))))
-                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(110.dp).background(Brush.verticalGradient(listOf(Color(0x40111111), Color.Transparent))))
-                    Row(Modifier.statusBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp).fillMaxWidth()) {
+                    Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(72.dp).background(Brush.verticalGradient(listOf(Color(0x33111111), Color.Transparent))))
+                    Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp).fillMaxWidth()) {
                         GlassButton(PcIcons.Back, "Back", { nav.back() })
                         Spacer(Modifier.weight(1f))
                         GlassButton(PcIcons.Share, "Share", { nav.share("${t.title} on UnSOLO: https://unsolo.in/packages/${t.slug}") })
@@ -735,7 +734,7 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 // Under the photo, not over it: the cover stays fully visible.
                 Box(Modifier.fillMaxWidth().padding(top = 14.dp), contentAlignment = Alignment.Center) {
                     RingMount(pad = 6.dp, color = c.paper) {
-                        SeatRing(ring, PcTokens.ringHero, photo = t.image, badge = t.host?.let { RingBadge(it) },
+                        SeatRing(ring, 128.dp, photo = t.image, badge = t.host?.let { RingBadge(it) },
                             spotsLabel = true,
                             spinOnAppear = ring.full, onClick = { whoSheet = true })
                     }
