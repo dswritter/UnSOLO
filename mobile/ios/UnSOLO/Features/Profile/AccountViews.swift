@@ -148,6 +148,8 @@ struct EditProfileView: View {
     @State private var statesPrivate = false
     @State private var phonePublic = false
     @State private var avatarUrl: String?
+    @State private var emergencyName = ""
+    @State private var emergencyPhone = ""
     @State private var photo: PhotosPickerItem?
     @State private var uploading = false
     @State private var saving = false
@@ -170,7 +172,8 @@ struct EditProfileView: View {
             dateOfBirth: dobText != nil && dobText != u.dateOfBirth ? dobText : nil,
             tripsPrivate: tripsPrivate == (u.tripsPrivate ?? false) ? nil : tripsPrivate,
             statesPrivate: statesPrivate == (u.statesPrivate ?? false) ? nil : statesPrivate,
-            phonePublic: phonePublic == (u.phonePublic ?? false) ? nil : phonePublic)
+            phonePublic: phonePublic == (u.phonePublic ?? false) ? nil : phonePublic,
+            emergencyName: changed(emergencyName, u.emergencyName), emergencyPhone: changed(emergencyPhone, u.emergencyPhone))
     }
     private var dirty: Bool { loaded && !patch.isEmpty }
 
@@ -210,6 +213,7 @@ struct EditProfileView: View {
         statusFollowers = u.statusVisibility == "followers"; location = u.location ?? ""; instagram = u.instagram ?? ""
         website = u.website ?? ""; dob = Fmt.day(u.dateOfBirth); tripsPrivate = u.tripsPrivate ?? false
         statesPrivate = u.statesPrivate ?? false; phonePublic = u.phonePublic ?? false; avatarUrl = u.avatarUrl
+        emergencyName = u.emergencyName ?? ""; emergencyPhone = u.emergencyPhone ?? ""
         loaded = true
     }
 
@@ -283,6 +287,13 @@ struct EditProfileView: View {
                                        displayedComponents: .date)
                                 .datePickerStyle(.graphical).tint(Pc.ink)
                         }
+                    }
+                }
+                group("Emergency contact") {
+                    Text("Told by SMS if you raise an SOS on a trip. Never shown on your profile.").pcFont(.small).foregroundStyle(Pc.ink2)
+                    field("Name", key: "emergencyName") { input("Who should we tell?", $emergencyName, limit: 80) }
+                    field("Phone", key: "emergencyPhone", help: "A 10-digit Indian mobile number.") {
+                        input("98765 43210", $emergencyPhone, limit: 14, icon: "phone").keyboardType(.phonePad)
                     }
                 }
                 group("What others see") {

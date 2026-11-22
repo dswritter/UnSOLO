@@ -54,6 +54,7 @@ struct TripDetailView: View {
                         host(lite)
                         if let d = detail {
                             stories(d)
+                            TripReviewsSection(reviews: d.reviews ?? [])
                             if let desc = d.description, !desc.isEmpty {
                                 section("About this trip") { Text(desc).pcFont(.body).foregroundStyle(Pc.ink).fixedSize(horizontal: false, vertical: true) }
                             }

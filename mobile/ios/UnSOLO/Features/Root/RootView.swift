@@ -41,6 +41,9 @@ struct RootView: View {
         .fullScreenCover(item: $router.statusViewer) { item in
             StatusViewer(item: item).environment(app).environment(router).environment(session)
         }
+        .sheet(item: $router.reviewComposer) { item in
+            ReviewComposer(item: item).environment(app).environment(router).environment(session).pcSheet()
+        }
         .fullScreenCover(item: $router.storyComposer) { item in
             StatusComposer(archiveId: item.archiveId).environment(app).environment(router).environment(session)
         }
@@ -129,6 +132,9 @@ struct RouteView: View {
         case .offers: OffersView()
         case .storyArchive: StatusArchiveView()
         case .exploreAll(let category): ExploreAllView(category: ExploreCategory(rawValue: category) ?? .trips)
+        case .exploreMap: ExploreMapView()
+        case .buddies: BuddiesView()
+        case .tripPack(let id): TripPackView(bookingId: id)
         }
     }
 }

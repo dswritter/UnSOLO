@@ -218,7 +218,8 @@ struct ProfileContent: View {
         HStack(spacing: 10) {
             if isMe {
                 Button("Edit profile") { router.push(.editProfile) }.buttonStyle(.pc(.outline, fullWidth: true, compact: true))
-                Button("Add story") { app.requireVerified("Sign in to share a story") { router.storyComposer = StoryComposeItem() } }
+                // The + on your photo adds a story.
+                Button("Invite friends") { router.push(.referrals) }
                     .buttonStyle(.pc(.accent, fullWidth: true, compact: true))
                 if session.me?.user.isHost == true || app.flags.hostOffersEnabled {
                     Button("Hosting") { router.push(.hostHub) }.buttonStyle(.pc(.outline, fullWidth: true, compact: true))
@@ -312,7 +313,7 @@ struct ProfileContent: View {
     private var ownLinks: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 8)
-            linkRow("Invite friends", subtitle: "Give ₹200, get ₹200", icon: "gift") { router.push(.referrals) }
+            linkRow("Travel buddies", subtitle: "People going where you're going", icon: "person.2.wave.2") { router.push(.buddies) }
             linkRow("Offers", subtitle: "Promo codes and combos", icon: "bolt") { router.push(.offers) }
             linkRow("Leaderboard", subtitle: "Points from stories and trips", icon: "trophy") { router.push(.leaderboard) }
             linkRow("Story archive", subtitle: "Stories you shared, kept on this phone", icon: "archivebox") { router.push(.storyArchive) }

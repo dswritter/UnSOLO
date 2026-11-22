@@ -33,6 +33,7 @@ final class AppModel {
     let chat: ChatRepo
     let profiles: ProfileRepo
     let statuses: StatusRepo
+    let safety: SafetyRepo
     /// Saved trips and watched stories (device only).
     let marks = LocalMarks()
 
@@ -77,9 +78,10 @@ final class AppModel {
         chat = ChatRepo()
         profiles = ProfileRepo()
         statuses = StatusRepo()
+        safety = SafetyRepo()
 
         router.tab = AppTab(landing.landingTab)
-        for repo in [session, explore, tribe, trips, activity, chat, profiles, statuses] as [any AppBound] { repo.bind(self) }
+        for repo in [session, explore, tribe, trips, activity, chat, profiles, statuses, safety] as [any AppBound] { repo.bind(self) }
         uploads.bind(self)
         outbox.isOnline = { [weak connectivity] in connectivity?.isOnline ?? true }
         outbox.onChange = { [weak self] in self?.pendingOutbox = self?.outbox.pendingCount ?? 0 }
@@ -123,7 +125,7 @@ final class AppModel {
             await session.refreshMe()
             await checkLandingSuggestion()
             await sync()
-            Task { await statuses.refresh() }
+            Task { await statuses.refresh(); await safety.refreshSos(); await safety.syncSavedTrips() }
             PushManager.shared.refreshRegistration { [weak self] token in self?.registerDevice(token) }
         }
         uploads.resumeAll()
@@ -187,7 +189,7 @@ final class AppModel {
     func foregrounded() async {
         await analytics.foregrounded()
         guard launched else { return }
-        if session.isSignedIn { await sync(); await statuses.refresh() }
+        if session.isSignedIn { await sync(); await statuses.refresh(); await safety.refreshSos() }
         await outbox.drain()
     }
 

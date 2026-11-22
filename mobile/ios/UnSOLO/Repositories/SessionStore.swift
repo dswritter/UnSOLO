@@ -189,6 +189,8 @@ final class SessionStore: AppBound {
         await app.trips.refresh()
         await app.activity.refresh()
         await app.statuses.refresh()
+        await app.safety.refreshSos()
+        await app.safety.syncSavedTrips()
         await app.checkLandingSuggestion()
         PushManager.shared.refreshRegistration { [weak app] token in app?.registerDevice(token) }
     }
@@ -224,6 +226,7 @@ final class SessionStore: AppBound {
         if let token = UserDefaults.standard.string(forKey: "push.token") {
             try? await app.api.unregisterDevice(token: token)
         }
+        await app.safety.stopSharing()
         await app.auth.signOut()
         app.store.wipePrivate()
         app.transportCacheReset()
@@ -234,6 +237,9 @@ final class SessionStore: AppBound {
         app.activity.items = []
         app.chat.chats = []
         app.statuses.clear()
+        WidgetBridge.clear()
+        app.safety.sos = nil
+        app.safety.buddies = nil
         await app.tribe.refreshFeed(key: "all")
     }
 }

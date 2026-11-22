@@ -140,6 +140,20 @@ enum DebugLaunch {
         case "referrals": r.tab = .you; r.push(.referrals)
         case "offers": r.tab = .you; r.push(.offers)
         case "exploreAll": r.tab = .explore; r.push(.exploreAll(category: "stays"))
+        case "exploreMap": r.tab = .explore; r.push(.exploreMap)
+        case "buddies": r.tab = .trips; r.push(.buddies)
+        case "tripPack":
+            r.tab = .trips
+            await app.trips.refresh()
+            if let b = app.trips.myTrips.upcoming.first { r.push(.tripPack(bookingId: b.id)) }
+        case "sos":
+            UserDefaults.standard.set(true, forKey: "demoOnTrip")
+            r.tab = .trips
+            await app.safety.refreshSos()
+        case "review":
+            r.tab = .trips
+            await app.trips.refresh()
+            if let b = app.trips.myTrips.past.first { r.reviewComposer = ReviewComposeItem(bookingId: b.id, title: b.trip.title) }
         case "profileTravel": r.tab = .tribe; r.push(.profile(username: "ananyasingh"))
         case "welcome": r.authSheet = true
         case "phoneVerify": r.phoneSheet = true

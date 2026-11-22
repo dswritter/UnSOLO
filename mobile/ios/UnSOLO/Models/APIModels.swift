@@ -100,6 +100,7 @@ struct TripDetail: Codable, Hashable, Sendable {
     var rating: Rating?
     @DefaultEmpty var stories: [Post]
     var planningCount: Int?
+    var reviews: [TripReview]? = nil
     var kind: String? = nil
     var unit: String? = nil
     var webPath: String? = nil
@@ -342,6 +343,12 @@ struct Booking: Codable, Hashable, Sendable, Identifiable {
     var trip: TripLite
     var chatRoomId: String?
     var storyPrompt: Bool?
+    var endDate: String? = nil
+    /// Today is one of the trip's days (SOS shows then).
+    var onTrip: Bool? = nil
+    /// Over and not reviewed yet: "Review this trip".
+    var canReview: Bool? = nil
+    var reviewed: Bool? = nil
 }
 
 enum NotificationCategory: String, Codable, Sendable, CaseIterable {
@@ -467,6 +474,8 @@ struct MeUser: Codable, Hashable, Sendable {
     var tripsPrivate: Bool? = nil
     var statesPrivate: Bool? = nil
     var phonePublic: Bool? = nil
+    var emergencyName: String? = nil
+    var emergencyPhone: String? = nil
 
     var lite: UserLite {
         UserLite(id: id, username: username, name: name, avatarUrl: avatarUrl, isPhoneVerified: isPhoneVerified,

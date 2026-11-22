@@ -1,8 +1,8 @@
 import Foundation
 import Observation
 
-/// Device-only marks with no API behind them yet:
-/// - saved trips (the heart on trip cards; the API only has saves for posts),
+/// Marks kept on the device:
+/// - saved trips (the heart on trip cards; also saved on the server when signed in, for price-drop and seats-left alerts),
 /// - which stories you've watched (story rail rings turn from pine to "seen").
 @MainActor
 @Observable
@@ -13,6 +13,8 @@ final class LocalMarks {
     private(set) var savedTrips: Set<String>
     private(set) var seenStories: Set<String>
     @ObservationIgnored private let defaults: UserDefaults
+    /// Told about every heart tap (slug, saved) so the server copy follows.
+    @ObservationIgnored var onToggle: ((String, Bool) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -23,7 +25,17 @@ final class LocalMarks {
     func isSaved(_ slug: String) -> Bool { savedTrips.contains(slug) }
 
     func toggleSaved(_ slug: String) {
-        if savedTrips.contains(slug) { savedTrips.remove(slug) } else { savedTrips.insert(slug) }
+        let on = !savedTrips.contains(slug)
+        if on { savedTrips.insert(slug) } else { savedTrips.remove(slug) }
+        defaults.set(Array(savedTrips), forKey: Self.savedKey)
+        onToggle?(slug, on)
+    }
+
+    /// Adds trips saved elsewhere (the server's list); never removes.
+    func merge(_ slugs: [String]) {
+        let next = savedTrips.union(slugs)
+        guard next != savedTrips else { return }
+        savedTrips = next
         defaults.set(Array(savedTrips), forKey: Self.savedKey)
     }
 

@@ -93,7 +93,14 @@ struct ExploreView: View {
         ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                AppHeader(showsWordmark: true)
+                AppHeader(showsWordmark: true) {
+                    Button { router.push(.exploreMap) } label: {
+                        Image(systemName: "map").font(.system(size: 16.5)).foregroundStyle(Pc.ink)
+                            .frame(width: PcTokens.touch, height: PcTokens.touch)
+                    }
+                    .buttonStyle(.pcPress)
+                    .accessibilityLabel("Map")
+                }
                     .id("top")
                     .overlay {
                         // No visible page title: the chips sit right under the top bar. VoiceOver still gets a heading.

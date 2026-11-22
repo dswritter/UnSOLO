@@ -26,6 +26,8 @@ final class TripsRepo: AppBound {
             app.store.upsertPosts(r.plans + r.requested)
             app.tribe.absorb(r.plans + r.requested)
             state = .loaded
+            Task { await app.safety.prefetchPacks(r.upcoming) }
+            WidgetBridge.update(upcoming: r.upcoming)
         } catch {
             state = .failed(error.localizedDescription)
         }

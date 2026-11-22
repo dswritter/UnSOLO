@@ -266,6 +266,8 @@ struct ProfilePatch: Codable, Sendable, Equatable {
     var tripsPrivate: Bool?
     var statesPrivate: Bool?
     var phonePublic: Bool?
+    var emergencyName: String?
+    var emergencyPhone: String?
 
     var isEmpty: Bool { self == ProfilePatch() }
 }

@@ -9,5 +9,9 @@
 		<string>applinks:unsolo.in</string>
 		<string>applinks:www.unsolo.in</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.in.unsolo.app</string>
+	</array>
 </dict>
 </plist>

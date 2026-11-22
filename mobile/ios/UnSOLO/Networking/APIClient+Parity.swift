@@ -43,6 +43,21 @@ extension APIClient {
         try await get("/explore", query: ["q": q, "category": category, "cursor": cursor, "limit": "\(limit)"])
     }
 
+    // MARK: Trip safety, alerts and maps
+
+    func sosStatus() async throws -> SosStatus { try await get("/sos") }
+    func raiseSos(_ body: SosBody) async throws -> SosAlert { try await call(.post, "/sos", body: body) }
+    func updateSos(_ id: String, _ body: SosUpdateBody) async throws { try await callNoContent(.put, "/sos/\(id)", body: body) }
+    func liveLocations(roomId: String) async throws -> LiveLocationsResponse { try await get("/chats/\(roomId)/live-location") }
+    func shareLiveLocation(roomId: String, _ body: LiveLocationBody) async throws { try await callNoContent(.put, "/chats/\(roomId)/live-location", body: body) }
+    func stopLiveLocation(roomId: String) async throws { try await callNoContent(.delete, "/chats/\(roomId)/live-location") }
+    func savedTrips() async throws -> SavedTripsResponse { try await get("/me/saved-trips") }
+    func addSavedTrips(_ slugs: [String]) async throws { try await callNoContent(.post, "/me/saved-trips", body: SavedTripsBody(slugs: slugs)) }
+    func buddies() async throws -> BuddiesResponse { try await get("/buddies") }
+    func mapPins(category: String) async throws -> MapPinsResponse { try await get("/explore/map", query: ["category": category]) }
+    func postReview(_ body: ReviewBody) async throws -> ReviewCreated { try await call(.post, "/reviews", body: body) }
+    func tripPack(bookingId: String) async throws -> TripPack { try await get("/my/trips/\(bookingId)/pack") }
+
     // MARK: Foreground upload with progress (stories, avatar)
 
     /// `POST /uploads` with a multipart body, reporting how much has been sent (0…1).

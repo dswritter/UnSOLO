@@ -2,30 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UNSOLO_API_BASE_URL</key>
-	<string>$(API_BASE_URL)</string>
-	<key>UNSOLO_WEB_BASE_URL</key>
-	<string>$(WEB_BASE_URL)</string>
-	<key>UNSOLO_SUPABASE_URL</key>
-	<string>$(SUPABASE_URL)</string>
-	<key>UNSOLO_SUPABASE_ANON_KEY</key>
-	<string>$(SUPABASE_ANON_KEY)</string>
-	<key>UNSOLO_DEMO_MODE</key>
-	<string>$(UNSOLO_DEMO_MODE)</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>UnSOLO uses your approximate location to suggest plans, departures and stays near you. Your location is rounded and never shown to other travellers.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Pick photos for your plans and stories. UnSOLO only sees the photos you choose.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Take a photo for your story or plan.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-		<string>fetch</string>
-		<string>processing</string>
-	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>in.unsolo.app.refresh</string>
@@ -42,6 +18,8 @@
 			</array>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSExceptionDomains</key>
@@ -55,5 +33,32 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo for your story or plan.</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>TripSafety</key>
+		<string>Your exact location helps your host and the UnSOLO team find you in an SOS, and your group see where you are while you share it.</string>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>UnSOLO uses your location to suggest plans and stays near you (rounded, never shown to others), to send it with an SOS, and to share it with your trip group when you choose to.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pick photos for your plans and stories. UnSOLO only sees the photos you choose.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>UNSOLO_API_BASE_URL</key>
+	<string>$(API_BASE_URL)</string>
+	<key>UNSOLO_DEMO_MODE</key>
+	<string>$(UNSOLO_DEMO_MODE)</string>
+	<key>UNSOLO_SUPABASE_ANON_KEY</key>
+	<string>$(SUPABASE_ANON_KEY)</string>
+	<key>UNSOLO_SUPABASE_URL</key>
+	<string>$(SUPABASE_URL)</string>
+	<key>UNSOLO_WEB_BASE_URL</key>
+	<string>$(WEB_BASE_URL)</string>
 </dict>
 </plist>

@@ -195,6 +195,8 @@ actor DemoBackend {
             if let v = j["tripsPrivate"] as? Bool { state.me.user.tripsPrivate = v }
             if let v = j["statesPrivate"] as? Bool { state.me.user.statesPrivate = v }
             if let v = j["phonePublic"] as? Bool { state.me.user.phonePublic = v }
+            if let v = j["emergencyName"] as? String { state.me.user.emergencyName = v.isEmpty ? nil : v }
+            if let v = j["emergencyPhone"] as? String { state.me.user.emergencyPhone = v.isEmpty ? nil : v }
             if let v = j["username"] as? String, !v.isEmpty, v != state.me.user.username {
                 if var prof = state.profiles.removeValue(forKey: state.me.user.username) { prof.user.username = v; state.profiles[v] = prof }
                 state.me.user.username = v
@@ -517,6 +519,77 @@ actor DemoBackend {
             }
             return ok(ReferralsResponse(code: "TRAVEL200", link: "https://unsolo.in/r/TRAVEL200", creditsPaise: 20_000, total: people.count,
                                         pending: 1, credited: 1, people: Array(people)))
+        case ("GET", 1, "sos"):
+            if let e = needAuth() { return e }
+            let today = Fmt.ymd(Date())
+            let on = state.bookingsUpcoming.filter { $0.travelDate <= today && ($0.endDate ?? $0.travelDate) >= today }
+            return ok(SosStatus(onTrip: !on.isEmpty || UserDefaults.standard.bool(forKey: "demoOnTrip"),
+                                trips: (on.isEmpty ? Array(state.bookingsUpcoming.prefix(1)) : on).map {
+                                    SosTrip(bookingId: $0.id, title: $0.trip.title, slug: $0.trip.slug, start: $0.travelDate, end: $0.endDate)
+                                },
+                                emergencyContact: state.me.user.emergencyPhone.map { EmergencyContact(name: state.me.user.emergencyName, phone: $0) },
+                                supportWhatsapp: "+919999999999"))
+        case ("POST", 1, "sos"):
+            if let e = needAuth() { return e }
+            return ok(SosAlert(id: UUID().uuidString.lowercased(), notified: ["team": "3 notified", "host": "notified"],
+                               trip: state.bookingsUpcoming.first.map { .init(title: $0.trip.title, slug: $0.trip.slug) },
+                               host: SosHost(name: state.bookingsUpcoming.first?.trip.host?.name, phone: "+919800000000"),
+                               emergencyContact: state.me.user.emergencyPhone.map { EmergencyContact(name: state.me.user.emergencyName, phone: $0) },
+                               supportWhatsapp: "+919999999999", message: "SOS from \(state.me.user.name). Please call me."), status: 201)
+        case ("PUT", 2, "sos"):
+            return needAuth() ?? noContent()
+        case (_, 3, "chats") where p[2] == "live-location":
+            if let e = needAuth() { return e }
+            if r.method == "GET" { return ok(LiveLocationsResponse(items: [])) }
+            return noContent()
+        case (_, 3, "trips") where p[2] == "save":
+            return needAuth() ?? noContent()
+        case (_, 2, "me") where p[1] == "saved-trips":
+            if let e = needAuth() { return e }
+            return r.method == "GET" ? ok(SavedTripsResponse(slugs: [])) : noContent()
+        case ("GET", 1, "buddies"):
+            if let e = needAuth() { return e }
+            let people = state.profiles.values.map(\.user.lite).filter { $0.id != state.me.user.id }.sorted { $0.name < $1.name }.prefix(3)
+            let trip = state.bookingsUpcoming.first?.trip
+            return ok(BuddiesResponse(items: people.enumerated().map { i, u in
+                Buddy(user: u, score: 30 - i * 5, reasons: i == 0 ? ["Same departure", "Similar budget"] : ["Saved the same trip"],
+                      trip: trip.map { .init(slug: $0.slug, title: $0.title) }, planId: nil)
+            }))
+        case ("GET", 2, "explore") where p[1] == "map":
+            let coords: [String: (Double, Double)] = ["manali": (32.24, 77.19), "spiti": (32.25, 78.03), "rishikesh": (30.09, 78.27), "goa": (15.49, 73.83),
+                                                      "kasol": (32.01, 77.31), "jaipur": (26.91, 75.79), "munnar": (10.09, 77.06), "leh": (34.15, 77.58)]
+            var pins: [MapPin] = []
+            for (cat, list) in explore {
+                for (i, t) in list.enumerated() {
+                    let key = coords.keys.first { (t.place?.name.lowercased() ?? "").contains($0) || t.slug.contains($0) }
+                    let c = key.flatMap { coords[$0] } ?? (20 + Double(i % 8) * 1.7, 74 + Double(i % 5) * 2.1)
+                    pins.append(MapPin(kind: ["trips": "trip", "stays": "stay", "activities": "activity", "rentals": "rental"][cat] ?? "trip", id: t.id, slug: t.slug, postId: nil, title: t.title,
+                                       place: t.place?.name, lat: c.0, lng: c.1, priceFromPaise: t.priceFromPaise, unit: t.unit,
+                                       date: t.nextDeparture, seatsLeft: t.seatsLeft, spotsLeft: nil, image: t.image))
+                }
+            }
+            let cat = r.query["category"] ?? "all"
+            let want = ["trips": "trip", "stays": "stay", "activities": "activity", "rentals": "rental", "plans": "plan"][cat]
+            if let want { pins = pins.filter { $0.kind == want } }
+            return ok(MapPinsResponse(pins: pins))
+        case ("POST", 1, "reviews"):
+            if let e = needAuth() { return e }
+            if let id = r.json["bookingId"] as? String, let i = state.bookingsPast.firstIndex(where: { $0.id == id }) {
+                state.bookingsPast[i].canReview = false
+                state.bookingsPast[i].reviewed = true
+                save()
+            }
+            return ok(ReviewCreated(id: UUID().uuidString.lowercased()), status: 201)
+        case ("GET", 4, "my") where p[1] == "trips" && p[3] == "pack":
+            if let e = needAuth() { return e }
+            guard let b = (state.bookingsUpcoming + state.bookingsPast).first(where: { $0.id == p[2] }) else { return err("not_found", 404) }
+            let d = details[b.trip.slug]
+            return ok(TripPack(bookingId: b.id, status: b.status, confirmationCode: b.confirmationCode, guests: b.guests, startDate: b.travelDate,
+                               endDate: b.endDate, departureTime: "21:30", returnTime: nil, totalPaise: b.totalPaise, paidPaise: b.paidPaise,
+                               balancePaise: b.balancePaise, specialRequests: nil, trip: b.trip, description: d?.description, includes: d?.includes ?? [],
+                               cancellationPolicy: "Free cancellation up to 7 days before departure.", host: .init(user: b.trip.host, phone: "+919800000000"),
+                               travellers: b.trip.goingFaces, chatRoomId: b.chatRoomId, support: .init(whatsapp: "+919999999999", email: "hello@unsolo.in"),
+                               helplines: [Helpline(label: "Emergency", phone: "112"), Helpline(label: "Tourist helpline", phone: "1363")], generatedAt: Date()))
         case ("GET", 1, "offers"):
             let offers = [OfferItem(id: "o1", name: "On your first booking", label: "₹500 off", type: "promo", promoCode: "FIRSTSOLO", validUntil: "2026-12-31")]
             let combos = [OfferCombo(id: "c1", title: "Spiti circuit + Kaza homestay", subtitle: "Book both, save 10%",

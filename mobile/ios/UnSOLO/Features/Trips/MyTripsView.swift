@@ -17,6 +17,7 @@ struct MyTripsView: View {
                 if !session.isSignedIn {
                     signedOut
                 } else {
+                    SosBar()
                     ChipTabs(items: [(.upcoming, "Upcoming · \(my.upcoming.count)"), (.plans, "Plans · \(my.plans.count + my.requested.count)"), (.past, "Past · \(my.past.count)")],
                              selection: $segment)
                         .padding(.bottom, 8)
@@ -63,7 +64,24 @@ struct MyTripsView: View {
         }
         VStack(spacing: 12) {
             ForEach(my.upcoming) { b in TicketCard(booking: b) }
-            if let last = my.past.first(where: { $0.storyPrompt == true }) { PastTripCard(booking: last) }
+            if let r = my.past.first(where: { $0.canReview == true }) { PastTripCard(booking: r) }
+            else if let last = my.past.first(where: { $0.storyPrompt == true }) { PastTripCard(booking: last) }
+            if !my.upcoming.isEmpty || !my.past.isEmpty {
+                Button { router.push(.buddies) } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "person.2.wave.2").font(.system(size: 16)).foregroundStyle(Pc.ink).frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Travel buddies").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+                            Text("People going where you're going").pcFont(.small).foregroundStyle(Pc.ink2)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right").foregroundStyle(Pc.ink3)
+                    }
+                    .padding(14)
+                    .pcCard()
+                }
+                .buttonStyle(.pcPress)
+            }
         }
         .padding(.horizontal, 14)
         Color.clear.frame(height: 20)
@@ -150,6 +168,10 @@ struct TicketCard: View {
             }
             .padding(12)
             .background(Pc.tonal, in: Pc.shape(Pc.radius))
+            Button { router.push(.tripPack(bookingId: booking.id)) } label: {
+                Label(app.safety.pack(booking.id) != nil ? "Trip pack · saved offline" : "Trip pack", systemImage: "arrow.down.doc")
+            }
+            .buttonStyle(.pc(.quiet, fullWidth: true, compact: true))
             if let room = booking.chatRoomId {
                 let unread = app.chat.chats.first { $0.id == room }?.unread ?? 0
                 Button { router.push(.chat(roomId: room, title: booking.trip.title)) } label: {
@@ -194,6 +216,12 @@ struct PastTripCard: View {
                     Text("\(booking.guestsLabel) · booking \(booking.confirmationCode ?? "")").pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
                 }
                 Spacer(minLength: 0)
+            }
+            if booking.canReview == true {
+                Button { router.reviewComposer = ReviewComposeItem(bookingId: booking.id, title: booking.trip.title) } label: {
+                    Label("Review this trip", systemImage: "star.bubble")
+                }
+                .buttonStyle(.pc(.accent, fullWidth: true, compact: true))
             }
             if booking.storyPrompt == true {
                 Button { router.openCompose(.story, tripSlug: booking.trip.slug) } label: {

@@ -103,6 +103,38 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(DeepLink.parse(path: "/referrals"), .referrals)
     }
 
+    func testSafetyModelsDecode() throws {
+        let sos = #"{"onTrip":true,"trips":[{"bookingId":"b1","title":"Spiti","slug":"spiti","start":"2026-11-20","end":"2026-11-26"}],"emergencyContact":{"name":"Ma","phone":"9876543210"},"supportWhatsapp":"+919999999999"}"#
+        let s = try JSON.decoder().decode(SosStatus.self, from: Data(sos.utf8))
+        XCTAssertTrue(s.onTrip)
+        XCTAssertEqual(s.emergencyContact?.phone, "9876543210")
+        let pins = #"{"pins":[{"kind":"stay","id":"x","slug":"tent","title":"Tent","place":"Mukteshwar","lat":29.4,"lng":79.6,"priceFromPaise":65000,"unit":"night","image":null}]}"#
+        XCTAssertEqual(try JSON.decoder().decode(MapPinsResponse.self, from: Data(pins.utf8)).pins.first?.unit, "night")
+        let buddies = #"{"items":[{"user":\#(user),"score":12,"reasons":["Same departure"],"trip":{"slug":"spiti","title":"Spiti"},"planId":null}]}"#
+        XCTAssertEqual(try JSON.decoder().decode(BuddiesResponse.self, from: Data(buddies.utf8)).items.first?.reasons, ["Same departure"])
+        let live = #"{"items":[{"user":\#(user),"lat":32.2,"lng":77.1,"accuracy":12,"startedAt":"2026-11-22T08:00:00Z","updatedAt":"2026-11-22T08:05:00Z","expiresAt":"2026-11-22T09:00:00Z","mine":true}]}"#
+        XCTAssertEqual(try JSON.decoder().decode(LiveLocationsResponse.self, from: Data(live.utf8)).items.first?.mine, true)
+    }
+
+    func testWidgetPicksSoonestUnfinishedTrip() throws {
+        func booking(_ id: String, _ date: String, end: String? = nil) throws -> Booking {
+            let json = """
+            {"id":"\(id)","status":"confirmed","travelDate":"\(date)","guests":1,"totalPaise":100,"paidPaise":100,"balancePaise":0,"confirmationCode":null,
+             "trip":{"id":"t\(id)","slug":"trip-\(id)","title":"Trip \(id)","priceFromPaise":100,"durationDays":3},"chatRoomId":null\(end.map { ",\"endDate\":\"\($0)\"" } ?? "")}
+            """
+            return try JSON.decoder().decode(Booking.self, from: Data(json.utf8))
+        }
+        let list = [try booking("a", "2026-12-10"), try booking("b", "2026-11-20", end: "2026-11-25"), try booking("c", "2026-11-01", end: "2026-11-03")]
+        XCTAssertEqual(WidgetBridge.next(list, today: "2026-11-22")?.id, "b", "a trip under way comes first; finished ones are skipped")
+        XCTAssertEqual(WidgetBridge.next(list, today: "2026-11-26")?.id, "a")
+    }
+
+    func testReviewDeepLink() {
+        let id = "3f2a1c9e-1b2c-4d5e-8f90-123456789abc"
+        XCTAssertEqual(DeepLink.parse(path: "/review/\(id)"), .review(bookingId: id))
+        XCTAssertNil(DeepLink.parse(path: "/review/not-an-id"))
+    }
+
     func testExpiresInText() {
         let now = Date()
         XCTAssertEqual(StatusTimeText.expiresIn(now.addingTimeInterval(5 * 3600 + 60), now: now), "in 5h")

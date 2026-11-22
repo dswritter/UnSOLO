@@ -14,6 +14,7 @@ enum DeepLink: Equatable, Hashable, Sendable {
     case leaderboard
     case referrals
     case offers
+    case review(bookingId: String)
 
     static let allowedHosts: Set<String> = ["unsolo.in", "www.unsolo.in"]
 
@@ -67,6 +68,10 @@ enum DeepLink: Equatable, Hashable, Sendable {
             // Stays, activities and rentals open the same native page as trips.
             if s.count == 3, ["stays", "activities", "rentals"].contains(s[1]), isSlug(s[2]) { return .trip(slug: s[2]) }
             return nil
+        case "review":
+            // "How was {trip}?" the day after a trip: /review/{bookingId}
+            if s.count == 2, isUUID(s[1]) { return .review(bookingId: s[1].lowercased()) }
+            return nil
         case "leaderboard": return s.count == 1 ? .leaderboard : nil
         case "referrals": return s.count == 1 ? .referrals : nil
         case "offers": return s.count == 1 ? .offers : nil
@@ -110,6 +115,7 @@ enum DeepLink: Equatable, Hashable, Sendable {
         case .leaderboard: return URL(string: "\(base)/leaderboard")!
         case .referrals: return URL(string: "\(base)/referrals")!
         case .offers: return URL(string: "\(base)/offers")!
+        case .review(let id): return URL(string: "\(base)/review/\(id)")!
         }
     }
 }
