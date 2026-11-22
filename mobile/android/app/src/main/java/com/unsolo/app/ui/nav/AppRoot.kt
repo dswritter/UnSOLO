@@ -55,7 +55,7 @@ import com.unsolo.app.ui.compose.PostTypeSheet
 import com.unsolo.app.ui.explore.ExploreScreen
 import com.unsolo.app.ui.explore.SearchScreen
 import com.unsolo.app.ui.explore.TripDetailScreen
-import com.unsolo.app.ui.host.HostScreen
+import com.unsolo.app.ui.host.PlansForHostsScreen
 import com.unsolo.app.ui.host.OfferFormScreen
 import com.unsolo.app.ui.host.OffersReviewScreen
 import com.unsolo.app.ui.profile.ProfileScreen
@@ -416,7 +416,16 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
         val kind = it.arguments?.getString("kind")?.takeIf { k -> k in listOf("plan", "story", "ask", "poll") } ?: "plan"
         ComposeScreen(kind, nav)
     }
-    composable(Routes.HOST) { HostScreen(nav) }
+    composable(Routes.HOST, deepLinks = links("/host")) { com.unsolo.app.ui.host.HostDashboardScreen(nav) }
+    composable(Routes.HOST_PLANS) { PlansForHostsScreen(nav) }
+    composable(Routes.HOST_TRIP, arguments = listOf(navArgument("id") { type = NavType.StringType })) {
+        val id = it.arguments?.getString("id"); if (DeepLinks.validId(id)) com.unsolo.app.ui.host.HostTripScreen(nav, id!!) else InvalidLink(nav)
+    }
+    composable(Routes.HOST_EDIT, arguments = listOf(navArgument("id") { type = NavType.StringType; nullable = true; defaultValue = null })) {
+        com.unsolo.app.ui.host.TripEditorScreen(nav, it.arguments?.getString("id")?.takeIf { s -> DeepLinks.validId(s) })
+    }
+    composable(Routes.HOST_PAYOUT) { com.unsolo.app.ui.host.PayoutScreen(nav) }
+    composable(Routes.HOST_EARNINGS) { com.unsolo.app.ui.host.EarningsScreen(nav) }
     composable(Routes.OFFER_FORM, arguments = listOf(navArgument("postId") { type = NavType.StringType })) {
         val id = it.arguments?.getString("postId")
         if (DeepLinks.validId(id)) OfferFormScreen(id!!, nav) else InvalidLink(nav)

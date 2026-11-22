@@ -209,6 +209,8 @@ Chat covers trip groups, plan groups, community rooms and DMs. It reuses the exi
 
 Daily cron `GET /api/cron/trips` (Vercel Cron, needs `CRON_SECRET`): price drop and ≤3 spots alerts on saved trips (`trip_alert`), "How was {trip}?" 1–3 days after it ends (`review_request`, link `/review/{bookingId}`), geocodes destinations for the map.
 
+Hosting (dashboard, trip create/edit, join requests, payout, earnings under `/host/**`): see [api-v1-host.md](api-v1-host.md).
+
 ## Standard analytics events
 
 | Event | Props |

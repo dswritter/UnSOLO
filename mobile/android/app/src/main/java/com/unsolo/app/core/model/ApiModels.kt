@@ -472,6 +472,77 @@ data class PatchMeRequest(
     val support: PackSupport = PackSupport(), val helplines: List<Helpline> = emptyList(), val generatedAt: String = "",
 )
 
+// ---- Host (docs/revamp/api-v1-host.md) ----
+
+@Serializable data class HostPlace(val name: String = "", val state: String? = null)
+@Serializable data class HostDeparture(val date: String, val returnDate: String? = null, val closed: Boolean = false, val cutoff: String? = null, val booked: Int = 0)
+@Serializable data class HostTripSummary(
+    val id: String, val slug: String = "", val title: String = "", val image: Media? = null, val place: HostPlace? = null,
+    val priceFromPaise: Long = 0, val durationDays: Int = 0, val tripDays: Int? = null, val tripNights: Int? = null, val maxGroupSize: Int = 0,
+    val moderationStatus: String = "pending", val isActive: Boolean = false, val bookingsPaused: Boolean = false,
+    val nextDeparture: String? = null, val departures: List<HostDeparture> = emptyList(),
+    val pendingRequests: Int = 0, val approvedRequests: Int = 0, val bookingCount: Int = 0,
+)
+@Serializable data class HostServiceSummary(val id: String, val slug: String = "", val title: String = "", val type: String = "", val status: String = "pending",
+                                            val isActive: Boolean = false, val image: Media? = null, val itemCount: Int = 0, val bookingCount: Int = 0, val webEditPath: String? = null)
+@Serializable data class HostStats(val totalTrips: Int = 0, val activeTrips: Int = 0, val pendingRequests: Int = 0, val totalEarnedPaise: Long = 0, val pendingPayoutPaise: Long = 0)
+@Serializable data class HostAttention(val kind: String = "", val title: String = "", val body: String? = null, val tripId: String? = null, val listingId: String? = null)
+@Serializable data class HostUpcoming(val tripId: String, val title: String = "", val date: String = "", val booked: Int = 0, val maxGroupSize: Int = 0)
+@Serializable data class HostDashboard(
+    val isHost: Boolean = false, val payoutConfigured: Boolean = false, val stats: HostStats = HostStats(), val attention: List<HostAttention> = emptyList(),
+    val trips: List<HostTripSummary> = emptyList(), val services: List<HostServiceSummary> = emptyList(), val upcoming: List<HostUpcoming> = emptyList(),
+)
+@Serializable data class JoinRequestUser(
+    val id: String, val username: String = "", val name: String = "", val avatarUrl: String? = null, val isPhoneVerified: Boolean = false, val isIdVerified: Boolean = false,
+    val bio: String? = null, val location: String? = null, val age: Int? = null, val tripsCompleted: Int = 0, val score: Int = 0,
+) { fun lite() = UserLite(id = id, username = username, name = name, avatarUrl = avatarUrl, isPhoneVerified = isPhoneVerified, isIdVerified = isIdVerified) }
+@Serializable data class JoinRequest(val id: String, val status: String = "pending", val message: String? = null, val hostResponse: String? = null,
+                                     val paymentDeadline: String? = null, val createdAt: String = "", val user: JoinRequestUser)
+@Serializable data class HostRequests(val pending: List<JoinRequest> = emptyList(), val processed: List<JoinRequest> = emptyList())
+@Serializable data class RosterTraveller(val name: String = "", val age: Int? = null, val gender: String? = null)
+@Serializable data class RosterLead(val id: String = "", val username: String = "", val name: String = "", val avatarUrl: String? = null, val phone: String? = null) {
+    fun lite() = UserLite(id = id, username = username, name = name, avatarUrl = avatarUrl)
+}
+@Serializable data class RosterBooking(val id: String, val status: String = "", val travelDate: String = "", val confirmationCode: String? = null, val guests: Int = 1,
+                                       val lead: RosterLead = RosterLead(), val travellers: List<RosterTraveller> = emptyList(), val coupon: String? = null,
+                                       val discountPaise: Long = 0, val refundPaise: Long? = null, val refundStatus: String? = null)
+@Serializable data class HostTripDetail(val trip: HostTripSummary, val requests: HostRequests = HostRequests(), val roster: List<RosterBooking> = emptyList(),
+                                        val interested: List<UserLite> = emptyList(), val pendingClaims: Int = 0, val webManagePath: String? = null)
+@Serializable data class HostTripPatch(val isActive: Boolean? = null, val bookingsPaused: Boolean? = null, val closeDate: HostCloseDate? = null, val cutoff: HostCutoff? = null)
+@Serializable data class HostCloseDate(val date: String, val closed: Boolean)
+@Serializable data class HostCutoff(val date: String, val cutoff: String?)
+@Serializable data class HostDecision(val decision: String, val reason: String? = null)
+@Serializable data class HostServicePatch(val isActive: Boolean)
+@Serializable data class HostDestination(val id: String, val name: String = "", val state: String? = null)
+@Serializable data class HostNewDestination(val name: String, val state: String)
+@Serializable data class HostFormOptions(val destinations: List<HostDestination> = emptyList(), val includes: List<String> = emptyList(), val interestTags: List<String> = emptyList(),
+                                         val maxGroupSize: Int = 50, val platformFeePercent: Double = 15.0)
+@Serializable data class MeetingPoint(val lat: Double, val lon: Double, val label: String = "")
+@Serializable data class PriceVariant(val description: String = "", val pricePaise: Long = 0, val compareAtPaise: Long? = null)
+@Serializable data class DeparturePair(val date: String, val returnDate: String)
+@Serializable data class JoinPrefs(
+    val paymentTiming: String = "pay_on_booking", val tokenDepositEnabled: Boolean = false, val tokenAmountPaise: Long? = null,
+    val minTripsCompleted: Int? = null, val genderPreference: String? = null, val interestTags: List<String> = emptyList(), val minAge: Int? = null, val maxAge: Int? = null,
+)
+@Serializable data class TripForm(
+    val title: String = "", val destinationId: String = "", val shortDescription: String? = null, val description: String = "", val searchKeywords: String? = null,
+    val meetingAddress: String? = null, val meetingPoint: MeetingPoint? = null,
+    val pricePaise: Long = 0, val compareAtPaise: Long? = null, val priceVariants: List<PriceVariant> = emptyList(),
+    val tripDays: Int = 3, val tripNights: Int = 2, val excludeFirstDayTravel: Boolean = true,
+    val departureTime: String = "morning", val returnTime: String = "morning", val maxGroupSize: Int = 12, val difficulty: String = "moderate",
+    val departures: List<DeparturePair> = emptyList(), val includes: List<String> = emptyList(), val images: List<String> = emptyList(),
+    val joinPreferences: JoinPrefs = JoinPrefs(),
+)
+@Serializable data class TripSaved(val id: String = "", val slug: String = "", val moderationStatus: String = "pending", val needsReapproval: Boolean = false)
+@Serializable data class DeletedTrip(val archived: Boolean = false)
+@Serializable data class HostPayout(val method: String? = null, val upiId: String? = null, val bankAccountName: String? = null, val bankAccountNumberMasked: String? = null,
+                                    val bankIfsc: String? = null, val configured: Boolean = false)
+@Serializable data class HostPayoutUpdate(val method: String, val upiId: String? = null, val bankAccountName: String? = null, val bankAccountNumber: String? = null, val bankIfsc: String? = null)
+@Serializable data class EarningTotals(val earnedPaise: Long = 0, val pendingPaise: Long = 0, val paidPaise: Long = 0)
+@Serializable data class EarningItem(val bookingId: String = "", val tripTitle: String = "", val travelDate: String? = null, val totalPaise: Long = 0, val platformFeePaise: Long = 0,
+                                     val hostPaise: Long = 0, val payoutStatus: String = "pending", val payoutDate: String? = null, val payoutReference: String? = null)
+@Serializable data class HostEarnings(val totals: EarningTotals = EarningTotals(), val items: List<EarningItem> = emptyList())
+
 /** GET /me/referrals */
 @Serializable
 data class ReferralPerson(val username: String = "", val name: String = "", val avatarUrl: String? = null, val status: String = "pending")

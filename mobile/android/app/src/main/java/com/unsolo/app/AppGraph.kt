@@ -77,6 +77,7 @@ class AppGraph(val app: UnsoloApp) {
     val statuses by lazy { StatusRepository(app, api, compressor, appScope, events, db) { account.me.value?.user?.username } }
     val tribe: TribeRepository by lazy { TribeRepository(app, db, api, outbox, account, analytics, events, appScope, compressor) }
     val explore by lazy { ExploreRepository(db, api, tribe) { com.unsolo.app.core.widget.TripCountdownWidget.updateAll(app) } }
+    val host by lazy { HostRepository(db, api) }
     val trips by lazy { TripsRepository(db, api, settings, appScope) { session.isSignedIn } }
     val precise by lazy { com.unsolo.app.core.device.PreciseLocation(app) }
     val chat by lazy { ChatRepository(db, api, outbox, account) }

@@ -8,7 +8,8 @@ import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
@@ -44,20 +45,22 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-private val Aspects = listOf("story" to 9f / 16f, "4:5" to 4f / 5f, "1:1" to 1f, "original" to 0f)
-private fun aspectLabel(k: String) = when (k) { "story" -> "Story"; "original" -> "Original"; else -> k }
+val StoryAspects = listOf("story" to 9f / 16f, "4:5" to 4f / 5f, "1:1" to 1f, "original" to 0f)
+private fun aspectLabel(k: String) = when (k) { "story" -> "Story"; "original" -> "Original"; "wide" -> "16:9"; else -> k }
+/** Trip photos: always 16:9, like the web. */
+val TripAspects = listOf("wide" to 16f / 9f)
 
 /**
  * Crop and rotate a photo before it goes in a story. Pinch to zoom, drag to place it under the
  * frame, pick a shape, rotate in quarter turns. "Done" writes a new JPEG and returns its Uri.
  */
 @Composable
-fun PhotoEditor(source: Uri, onCancel: () -> Unit, onDone: (Uri) -> Unit) {
+fun PhotoEditor(source: Uri, onCancel: () -> Unit, aspects: List<Pair<String, Float>> = StoryAspects, onDone: (Uri) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val tick = rememberTick()
     var bitmap by remember(source) { mutableStateOf<Bitmap?>(null) }
-    var aspectKey by remember { mutableStateOf("story") }
+    var aspectKey by remember { mutableStateOf(aspects.first().first) }
     var zoom by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var saving by remember { mutableStateOf(false) }
@@ -65,12 +68,12 @@ fun PhotoEditor(source: Uri, onCancel: () -> Unit, onDone: (Uri) -> Unit) {
     LaunchedEffect(source) { bitmap = withContext(Dispatchers.IO) { decodeUpright(context, source, 2400) } }
     DarkBarsForEditor()
     val bmp = bitmap
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Column(Modifier.fillMaxSize().background(Color.Black).systemBarsPadding()) {
         if (bmp == null) {
-            androidx.compose.material3.CircularProgressIndicator(Modifier.align(Alignment.Center).size(36.dp), color = Color.White, strokeWidth = 3.dp)
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(36.dp), color = Color.White, strokeWidth = 3.dp) }
         } else {
             val iw = bmp.width.toFloat(); val ih = bmp.height.toFloat()
-            val aspect = Aspects.first { it.first == aspectKey }.second.takeIf { it > 0f } ?: (iw / ih)
+            val aspect = aspects.first { it.first == aspectKey }.second.takeIf { it > 0f } ?: (iw / ih)
             // The crop frame: as big as fits with a margin, centred.
             fun frame(): Rect {
                 val w = box.width.toFloat(); val h = box.height.toFloat()
@@ -89,13 +92,17 @@ fun PhotoEditor(source: Uri, onCancel: () -> Unit, onDone: (Uri) -> Unit) {
                 return Offset(o.x.coerceIn(-mx, mx), o.y.coerceIn(-my, my))
             }
             val img = remember(bmp) { bmp.asImageBitmap() }
-            Canvas(Modifier.fillMaxSize().onSizeChanged { box = it }.pointerInput(bmp, aspectKey, box) {
-                detectTransformGestures { _, pan, gz, _ ->
-                    val nz = (zoom * gz).coerceIn(1f, 6f)
-                    zoom = nz
-                    offset = clamp(offset + pan, base * nz)
-                }
-            }) {
+            // Pinch to zoom and drag at the same time; always reads the latest frame and scale.
+            val latestBase by rememberUpdatedState(base)
+            val latestClamp by rememberUpdatedState<(Offset, Float) -> Offset>({ o, sc -> clamp(o, sc) })
+            fun zoomTo(nz: Float) { zoom = nz.coerceIn(1f, 6f); offset = latestClamp(offset, latestBase * zoom) }
+            val transform = androidx.compose.foundation.gestures.rememberTransformableState { zc, pan, _ ->
+                zoom = (zoom * zc).coerceIn(1f, 6f)
+                offset = latestClamp(offset + pan, latestBase * zoom)
+            }
+            Canvas(Modifier.weight(1f).fillMaxWidth().onSizeChanged { box = it }
+                .pointerInput(bmp) { detectTapGestures(onDoubleTap = { zoomTo(if (zoom > 1.5f) 1f else 2.5f) }) }
+                .transformable(transform)) {
                 if (f == Rect.Zero) return@Canvas
                 val dw = iw * scale; val dh = ih * scale
                 val left = f.center.x + offset.x - dw / 2; val top = f.center.y + offset.y - dh / 2
@@ -109,11 +116,18 @@ fun PhotoEditor(source: Uri, onCancel: () -> Unit, onDone: (Uri) -> Unit) {
                     drawLine(Color.White.copy(alpha = 0.35f), Offset(f.left, y), Offset(f.right, y), 1.dp.toPx())
                 }
             }
-            // Bottom controls: shapes, rotate, done.
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.55f)).navigationBarsPadding().padding(12.dp),
+            // Controls under the photo (never over it, never under the system bars).
+            Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Aspects.forEach { (k, _) ->
+                Text("Pinch or double-tap to zoom · drag to move", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconTap(PcIcons.Minus, "Zoom out", { zoomTo(zoom / 1.25f) }, tint = Color.White, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                    androidx.compose.material3.Slider(zoom, { zoomTo(it) }, Modifier.width(180.dp), valueRange = 1f..6f,
+                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(alpha = 0.25f)))
+                    IconTap(PcIcons.Plus, "Zoom in", { zoomTo(zoom * 1.25f) }, tint = Color.White, modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                }
+                if (aspects.size > 1) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    aspects.forEach { (k, _) ->
                         val on = k == aspectKey
                         Text(aspectLabel(k), style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold), color = if (on) Color.Black else Color.White,
                             modifier = Modifier.clip(CircleShape).background(if (on) Color.White else Color.White.copy(alpha = 0.16f))

@@ -26,6 +26,21 @@ interface ApiService {
     @PATCH("me") suspend fun patchMe(@Body body: PatchMeRequest): MeResponse
     @HTTP(method = "DELETE", path = "me", hasBody = true) suspend fun deleteMe(@Body body: DeleteAccountRequest): DeleteAccountResponse
     @GET("me/referrals") suspend fun referrals(): ReferralsResponse
+    // Host
+    @GET("host") suspend fun hostDashboard(): HostDashboard
+    @GET("host/form-options") suspend fun hostFormOptions(): HostFormOptions
+    @POST("host/destinations") suspend fun hostCreateDestination(@Body body: HostNewDestination): HostDestination
+    @POST("host/trips") suspend fun hostCreateTrip(@Body body: TripForm): TripSaved
+    @GET("host/trips/{id}") suspend fun hostTrip(@Path("id") id: String): HostTripDetail
+    @GET("host/trips/{id}/form") suspend fun hostTripForm(@Path("id") id: String): TripForm
+    @PUT("host/trips/{id}") suspend fun hostUpdateTrip(@Path("id") id: String, @Body body: TripForm): TripSaved
+    @PATCH("host/trips/{id}") suspend fun hostPatchTrip(@Path("id") id: String, @Body body: HostTripPatch): HostTripSummary
+    @DELETE("host/trips/{id}") suspend fun hostDeleteTrip(@Path("id") id: String): DeletedTrip
+    @PUT("host/requests/{id}") suspend fun hostDecide(@Path("id") id: String, @Body body: HostDecision): JoinRequest
+    @PATCH("host/services/{id}") suspend fun hostPatchService(@Path("id") id: String, @Body body: HostServicePatch): HostServiceSummary
+    @GET("host/payout") suspend fun hostPayout(): HostPayout
+    @PUT("host/payout") suspend fun hostSavePayout(@Body body: HostPayoutUpdate): HostPayout
+    @GET("host/earnings") suspend fun hostEarnings(): HostEarnings
     // Trip safety, alerts, maps
     @GET("sos") suspend fun sosStatus(): SosStatus
     @POST("sos") suspend fun sos(@Body body: SosRequest): SosResponse

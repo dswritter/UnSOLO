@@ -39,6 +39,13 @@ object Routes {
     const val BUDDIES = "buddies"
     const val EXPLORE_MAP = "explore-map?category={category}"
     const val GROUP_MAP = "group-map/{roomId}"
+    const val HOST_PLANS = "host-plans"
+    const val HOST_TRIP = "host-trip/{id}"
+    const val HOST_EDIT = "host-edit?id={id}"
+    const val HOST_PAYOUT = "host-payout"
+    const val HOST_EARNINGS = "host-earnings"
+    fun hostTrip(id: String) = "host-trip/${enc(id)}"
+    fun hostEdit(id: String? = null) = if (id == null) "host-edit" else "host-edit?id=${enc(id)}"
     fun sos(bookingId: String? = null) = if (bookingId == null) "sos" else "sos?booking=${enc(bookingId)}"
     fun pack(bookingId: String) = "pack/${enc(bookingId)}"
     fun review(bookingId: String) = "review/${enc(bookingId)}"
@@ -94,6 +101,11 @@ object DeepLinks {
             seg == listOf("leaderboard") -> Routes.LEADERBOARD
             seg.size == 2 && seg[0] == "review" && validId(seg[1]) -> Routes.review(seg[1])
             seg == listOf("buddies") -> Routes.BUDDIES
+            seg == listOf("host") -> Routes.HOST
+            seg == listOf("host", "create") -> Routes.hostEdit()
+            seg == listOf("host", "payout") -> Routes.HOST_PAYOUT
+            seg.size == 2 && seg[0] == "host" && validId(seg[1]) -> Routes.hostTrip(seg[1])
+            seg.size == 3 && seg[0] == "host" && seg[2] == "edit" && validId(seg[1]) -> Routes.hostEdit(seg[1])
             seg == listOf("sos") -> Routes.sos()
             seg.size == 3 && seg[0] == "bookings" && seg[2] == "pack" && validId(seg[1]) -> Routes.pack(seg[1])
             seg == listOf("bookings") -> Routes.TRIPS

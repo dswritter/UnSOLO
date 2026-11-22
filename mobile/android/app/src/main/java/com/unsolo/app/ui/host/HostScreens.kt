@@ -47,8 +47,9 @@ class HostViewModel(private val g: AppGraph) : ViewModel() {
     init { viewModelScope.launch { g.tribe.refreshFeed(PostKind.PLAN) } }
 }
 
+/** Open tribe plans that want a host: offer to run one. */
 @Composable
-fun HostScreen(nav: AppNav) {
+fun PlansForHostsScreen(nav: AppNav) {
     val vm: HostViewModel = viewModel { HostViewModel(nav.graph) }
     val plans by vm.plans.collectAsStateWithLifecycle()
     val me by vm.me.collectAsStateWithLifecycle()
@@ -59,12 +60,9 @@ fun HostScreen(nav: AppNav) {
             Column(Modifier.statusBarsPadding()) {
                 Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconTap(PcIcons.Back, "Back", { nav.back() })
-                    Text("Hosting", style = Pc.type.display, color = c.ink, modifier = Modifier.weight(1f))
-                    PcButton("New trip", { nav.openWeb("/host") }, icon = PcIcons.Plus, height = BtnSmall)
+                    Text("Plans wanting a host", style = Pc.type.title1, color = c.ink, modifier = Modifier.weight(1f))
                 }
             }
-            InsetRule()
-            NavRow("Departures, bookings and payouts", "Managed on unsolo.in for now", PcIcons.Briefcase, { nav.openWeb("/host") })
             InsetRule()
             if (!isHost) Text("Hosts make offers as people, with the HOST tag. Become a host on unsolo.in to send offers.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(Gutter))
             SectionHeader("Plans looking for a host", Modifier.padding(top = 8.dp), trailing = "${plans.size} open")
