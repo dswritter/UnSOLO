@@ -590,7 +590,11 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
     var caption by rememberSaveableString()
     var audience by remember { mutableStateOf("all") }
     var tagging by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Int?>(null) }
+    // How each photo sits in the story (pinch, twist, drag right on the preview).
+    val fits = remember { mutableStateMapOf<Uri, StoryFit>() }
+    var preparing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         uris.forEach { if (photos.size < 10 && it !in photos) photos += it }
     }
@@ -612,18 +616,22 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
         } else {
             val pager = rememberPagerState { photos.size }
             HorizontalPager(pager, Modifier.fillMaxSize()) { i ->
+                val src = photos[i]
+                val fit = fits[src] ?: StoryFit()
                 Box(Modifier.fillMaxSize()) {
-                    coil3.compose.AsyncImage(photos[i], null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                    IconTap(PcIcons.Close, "Remove this photo", { photos.removeAt(i) }, tint = Color.White,
+                    StoryCanvas(src, fit, { fits[src] = it }, Modifier.statusBarsPadding())
+                    IconTap(PcIcons.Close, "Remove this photo", { fits.remove(src); photos.removeAt(i) }, tint = Color.White,
                         modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 56.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)))
-                    // Crop and rotate, like Instagram.
-                    Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 112.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
-                        .clickable(onClickLabel = "Crop or rotate this photo") { editing = i }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        PcIcon(PcIcons.Edit, null, tint = Color.White, size = 16.dp); Spacer(Modifier.width(6.dp))
-                        Text("Crop", style = Pc.type.smallStrong, color = Color.White)
+                    // Moved it? One tap puts it back.
+                    if (fit.touched) Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 112.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                        .clickable(onClickLabel = "Put the photo back as it was") { fits.remove(src) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PcIcon(PcIcons.Refresh, null, tint = Color.White, size = 16.dp); Spacer(Modifier.width(6.dp))
+                        Text("Reset", style = Pc.type.smallStrong, color = Color.White)
                     }
                 }
             }
+            if (fits.isEmpty()) Text("Pinch, twist or drag the photo to fit your story", style = Pc.type.label, color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.align(Alignment.Center).padding(top = 260.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 12.dp, vertical = 6.dp))
             if (photos.size > 1) Text("${pager.currentPage + 1} / ${photos.size}", style = Pc.type.label, color = Color.White,
                 modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp))
         }
@@ -632,11 +640,6 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Spacer(Modifier.weight(1f))
             PcButton("Archive", { nav.to(Routes.STATUS_ARCHIVE) }, kind = BtnKind.Ghost, height = BtnSmall)
         }
-        editing?.let { i -> photos.getOrNull(i)?.let { src ->
-            androidx.compose.ui.window.Dialog({ editing = null }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-                PhotoEditor(src, onCancel = { editing = null }) { out -> if (i < photos.size) photos[i] = out; editing = null }
-            }
-        } }
         if (tagging) PeoplePickerSheet(nav, onDismiss = { tagging = false }) { u ->
             tagging = false
             caption = (caption.trimEnd().let { if (it.isEmpty()) it else "$it " } + "@${u.username} ").take(500)
@@ -667,12 +670,19 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                 AudienceChip("Followers", audience == "followers") { audience = "followers" }
                 Spacer(Modifier.weight(1f))
                 PcButton("Share", {
-                    // Goes up in the background: the ring on "Your story" shows how far, a message says when it's done.
-                    if (repo.shareInBackground(photos.toList(), caption, audience)) {
-                        nav.graph.events.emit(AppEvent.Message(if (photos.isEmpty()) "Sharing your story…" else "Sharing your story… you can keep using the app."))
-                        nav.back()
+                    if (preparing) return@PcButton
+                    preparing = true
+                    scope.launch {
+                        // Photos you moved go up exactly as framed; untouched ones go up whole.
+                        val out = photos.toList().map { u -> fits[u]?.takeIf { it.touched }?.let { renderStory(context, u, it) } ?: u }
+                        preparing = false
+                        // Goes up in the background: the ring on "Your story" shows how far, a message says when it's done.
+                        if (repo.shareInBackground(out, caption, audience)) {
+                            nav.graph.events.emit(AppEvent.Message(if (photos.isEmpty()) "Sharing your story…" else "Sharing your story… you can keep using the app."))
+                            nav.back()
+                        }
                     }
-                }, kind = BtnKind.Accent, enabled = (photos.isNotEmpty() || caption.isNotBlank()) && !posting)
+                }, kind = BtnKind.Accent, loading = preparing, enabled = (photos.isNotEmpty() || caption.isNotBlank()) && !posting)
             }
         }
     }

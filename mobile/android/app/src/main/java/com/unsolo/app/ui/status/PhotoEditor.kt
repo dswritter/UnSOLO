@@ -223,10 +223,10 @@ private fun EditorPill(label: String, primary: Boolean = false, loading: Boolean
 }
 
 /** Within 3° of a quarter turn counts as straight. */
-private fun snapAngle(a: Float): Float { val q = Math.round(a / 90f) * 90f; return if (abs(a - q) < 3f) q else a }
+internal fun snapAngle(a: Float): Float { val q = Math.round(a / 90f) * 90f; return if (abs(a - q) < 3f) q else a }
 
 /** Smallest scale at which the photo, turned [deg], still covers a [fw]×[fh] frame. */
-private fun coverScale(fw: Float, fh: Float, iw: Float, ih: Float, deg: Float): Float {
+internal fun coverScale(fw: Float, fh: Float, iw: Float, ih: Float, deg: Float): Float {
     if (fw <= 0f || fh <= 0f) return 1f
     val r = Math.toRadians(deg.toDouble()); val c = abs(cos(r)).toFloat(); val s = abs(sin(r)).toFloat()
     return max((fw * c + fh * s) / iw, (fw * s + fh * c) / ih)
@@ -243,7 +243,7 @@ private fun clampOffset(o: Offset, scale: Float, deg: Float, fw: Float, fh: Floa
 }
 
 /** Draws what's inside the frame at the photo's own resolution (long side ≤ 2160) into a JPEG. */
-private fun renderCrop(context: Context, bmp: Bitmap, f: Rect, scale: Float, deg: Float, o: Offset): Uri {
+internal fun renderCrop(context: Context, bmp: Bitmap, f: Rect, scale: Float, deg: Float, o: Offset): Uri {
     var k = 1f / scale
     val longSide = max(f.width, f.height) * k
     if (longSide > 2160f) k *= 2160f / longSide
@@ -291,7 +291,7 @@ private fun DarkBarsForEditor() {
 private fun Bitmap.rotate(deg: Float): Bitmap = Bitmap.createBitmap(this, 0, 0, width, height, Matrix().apply { postRotate(deg) }, true)
 
 /** Decodes [uri] no larger than [maxSide] on its long side, turned the right way up (EXIF). */
-private fun decodeUpright(context: Context, uri: Uri, maxSide: Int): Bitmap? = runCatching {
+internal fun decodeUpright(context: Context, uri: Uri, maxSide: Int): Bitmap? = runCatching {
     val cr = context.contentResolver
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
