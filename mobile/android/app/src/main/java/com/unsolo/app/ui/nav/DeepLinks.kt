@@ -30,6 +30,9 @@ object Routes {
     const val LEADERBOARD = "leaderboard"
     const val LEGAL = "legal/{page}"
     const val PEOPLE = "people/{username}/{kind}"
+    const val EDIT_PROFILE = "edit-profile"
+    const val REFERRALS = "referrals"
+    const val OFFERS_ALL = "offers-all"
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun trip(slug: String) = "trip/${enc(slug)}"
@@ -73,6 +76,11 @@ object DeepLinks {
             seg == listOf("tribe") -> Routes.TRIBE
             seg.size == 3 && seg[0] == "tribe" && seg[1] == "p" && validId(seg[2]) -> Routes.post(seg[2])
             seg.size == 2 && seg[0] == "packages" && validSlug(seg[1]) -> Routes.trip(seg[1])
+            seg.size == 3 && seg[0] == "listings" && validSlug(seg[2]) -> Routes.trip(seg[2])
+            seg == listOf("profile", "edit") -> Routes.EDIT_PROFILE
+            seg == listOf("referrals") -> Routes.REFERRALS
+            seg == listOf("offers") -> Routes.OFFERS_ALL
+            seg == listOf("leaderboard") -> Routes.LEADERBOARD
             seg == listOf("bookings") -> Routes.TRIPS
             seg.size == 2 && seg[0] == "profile" && validUsername(seg[1]) -> Routes.profile(seg[1])
             seg.size == 2 && seg[0] == "chat" && validId(seg[1]) -> Routes.chat(seg[1])

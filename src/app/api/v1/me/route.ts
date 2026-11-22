@@ -12,7 +12,7 @@ async function me(req: Request) {
   const ctx = await getApiContext(req)
   const user = requireUser(ctx)
   const [{ data: p }, { data: priv }, prefs, unreadN, unreadMessages] = await Promise.all([
-    ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number, status_text, status_visibility`).eq('id', user.id).single(),
+    ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number, status_text, status_visibility, location, instagram_url, website_url, username_changed_at, trips_private, states_private, phone_public`).eq('id', user.id).single(),
     ctx.db.from('profile_private').select('gender, home_city').eq('user_id', user.id).maybeSingle(),
     loadPreferences(ctx.db, user.id),
     ctx.db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false),
@@ -25,6 +25,12 @@ async function me(req: Request) {
       gender: (priv?.gender as string | null) ?? null, homeCity: (priv?.home_city as string | null) ?? null,
       bio: (p?.bio as string | null) ?? null, dateOfBirth: (p?.date_of_birth as string | null) ?? null,
       statusText: (p?.status_text as string | null) ?? null, statusVisibility: (p?.status_visibility as string | null) ?? 'public',
+      location: (p?.location as string | null) ?? null,
+      instagram: ((p?.instagram_url as string | null) ?? '').replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '') || null,
+      website: (p?.website_url as string | null) ?? null,
+      /** When you can next change your username (40 days after the last change); null = now. */
+      usernameChangeAfter: usernameChangeAfter(p?.username_changed_at as string | null),
+      tripsPrivate: p?.trips_private === true, statesPrivate: p?.states_private === true, phonePublic: p?.phone_public === true,
     },
     role,
     isStaff: role !== 'user',
@@ -37,7 +43,24 @@ async function me(req: Request) {
 
 export const GET = route(async (req: Request) => ok(await me(req)))
 
+const USERNAME_COOLDOWN_MS = 40 * 86_400_000
+function usernameChangeAfter(changedAt: string | null | undefined): string | null {
+  if (!changedAt) return null
+  const t = new Date(changedAt).getTime() + USERNAME_COOLDOWN_MS
+  return t > Date.now() ? new Date(t).toISOString() : null
+}
+
 const Patch = z.object({
+  username: z.string().trim().regex(/^[a-zA-Z0-9_]{3,30}$/, 'Use 3–30 letters, numbers or _').optional(),
+  location: z.string().trim().max(80).nullable().optional(),
+  /** Just the handle; "@" and a pasted instagram.com link are fine too. */
+  instagram: z.string().trim().max(120).nullable().optional(),
+  website: z.string().trim().max(200).nullable().optional(),
+  /** A photo uploaded first via /uploads (purpose avatar). */
+  avatarUrl: z.string().url().max(600).nullable().optional(),
+  tripsPrivate: z.boolean().optional(),
+  statesPrivate: z.boolean().optional(),
+  phonePublic: z.boolean().optional(),
   name: z.string().trim().min(1).max(80).optional(),
   bio: z.string().trim().max(500).optional(),
   gender: z.enum(['woman', 'man', 'nonbinary', 'prefer_not']).nullable().optional(),
@@ -68,6 +91,37 @@ export const PATCH = route(async (req: Request) => {
     pub.status_text = b.statusText || null
   }
   if (b.statusVisibility !== undefined) pub.status_visibility = b.statusVisibility
+  if (b.location !== undefined) pub.location = b.location || null
+  if (b.instagram !== undefined) {
+    const h = (b.instagram ?? '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/[/?#].*$/, '')
+    if (h && !/^[a-zA-Z0-9._]{1,30}$/.test(h)) throw new ApiError('bad_request', 'Use just your Instagram username: letters, numbers, . and _', { field: 'instagram' })
+    pub.instagram_url = h ? `https://instagram.com/${h}` : null
+  }
+  if (b.website !== undefined) {
+    let w = b.website || null
+    if (w && !/^https?:\/\//i.test(w)) w = `https://${w}`
+    if (w) { try { new URL(w) } catch { throw new ApiError('bad_request', 'That doesn’t look like a web address', { field: 'website' }) } }
+    pub.website_url = w
+  }
+  if (b.avatarUrl !== undefined) {
+    const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}/storage/v1/object/public/`
+    if (b.avatarUrl && !b.avatarUrl.startsWith(base)) throw new ApiError('bad_request', 'Upload the photo first', { field: 'avatarUrl' })
+    pub.avatar_url = b.avatarUrl
+  }
+  if (b.tripsPrivate !== undefined) pub.trips_private = b.tripsPrivate
+  if (b.statesPrivate !== undefined) pub.states_private = b.statesPrivate
+  if (b.phonePublic !== undefined) pub.phone_public = b.phonePublic
+  if (b.username !== undefined) {
+    const { data: cur } = await ctx.db.from('profiles').select('username, username_changed_at').eq('id', user.id).single()
+    if (cur && String(cur.username).toLowerCase() !== b.username.toLowerCase()) {
+      const after = usernameChangeAfter(cur.username_changed_at as string | null)
+      if (after) throw new ApiError('conflict', `You can change your username again on ${new Date(after).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`, { field: 'username' })
+      const { data: taken } = await ctx.service().from('profiles').select('id').ilike('username', b.username.replace(/_/g, '\\_')).neq('id', user.id).maybeSingle()
+      if (taken) throw new ApiError('conflict', 'That username is taken', { field: 'username' })
+      pub.username = b.username
+      pub.username_changed_at = new Date().toISOString()
+    }
+  }
   if (Object.keys(pub).length) {
     const { error } = await ctx.db.from('profiles').update({ ...pub, updated_at: new Date().toISOString() }).eq('id', user.id)
     if (error) throw error

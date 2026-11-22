@@ -208,6 +208,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     var confirmDelete by remember { mutableStateOf(false) }
     var picker by remember { mutableStateOf(false) }
     var commentsOpen by remember { mutableStateOf(false) }
+    val tick = rememberTick()
     var progress by remember(author.user.id, idx) { mutableFloatStateOf(0f) }
     // The clock starts only once the photo is on screen (text stories start at once).
     var ready by remember(item.id) { mutableStateOf(item.type != "image" || item.media == null) }
@@ -265,7 +266,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             StatusReactions.forEach { (k, e) ->
                 Text(e, fontSize = 28.sp, modifier = Modifier.clip(CircleShape).background(if (item.myReaction == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
-                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; if (nav.requirePhone()) scope.launch { repo.react(item, k) } }.padding(6.dp))
+                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; if (nav.requirePhone()) { tick(); scope.launch { repo.react(item, k) } } }.padding(6.dp))
             }
         }
         Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -275,7 +276,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             val mine = item.myReaction
             val total = item.reactions.values.sum()
             Column(Modifier.clip(RoundedCornerShape(14.dp)).combinedClickableCompat(
-                onClick = { if (nav.requirePhone()) scope.launch { repo.react(item, mine ?: "wanderlust") } },
+                onClick = { if (nav.requirePhone()) { tick(); scope.launch { repo.react(item, mine ?: "wanderlust") } } },
                 onLongClick = { picker = !picker },
             ).padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(StatusReactions.toMap()[mine] ?: "🏔️", fontSize = 22.sp, modifier = Modifier.graphicsLayer { alpha = if (mine == null) 0.85f else 1f })

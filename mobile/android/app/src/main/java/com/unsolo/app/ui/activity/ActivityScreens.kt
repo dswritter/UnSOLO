@@ -91,6 +91,7 @@ fun ActivityScreen(nav: AppNav) {
     var tab by rememberSaveable { mutableStateOf("all") }
     val waiting = reqs.sumOf { (_, r) -> r.count { it.state == "requested" } }
     val c = Pc.colors
+    PullRefresh({ nav.graph.activity.refresh(); nav.graph.explore.refreshMyTrips() }, Modifier.fillMaxSize().background(c.paper)) {
     LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
         item(key = "h") {
             PageHeader("Activity", LocalHeaderCounts.current, { nav.to(Routes.INBOX) }, { }, onBack = { nav.back() }) {
@@ -145,6 +146,7 @@ fun ActivityScreen(nav: AppNav) {
             }
         }
         item { Spacer(Modifier.navigationBarsPadding().height(24.dp)) }
+    }
     }
 }
 

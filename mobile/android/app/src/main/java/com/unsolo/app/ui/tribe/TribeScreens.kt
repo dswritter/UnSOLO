@@ -160,7 +160,10 @@ fun TribeScreen(nav: AppNav) {
         return
     }
     val items = feed?.items.orEmpty()
-    LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(Unit) { nav.reselected.collect { if (it == Routes.TRIBE) listState.animateScrollToItem(0) } }
+    PullRefresh({ vm.refresh().join(); nav.graph.statuses.refresh() }, Modifier.fillMaxSize().background(c.paper)) {
+    LazyColumn(Modifier.fillMaxSize().background(c.paper), state = listState) {
         item(key = "header", contentType = "header") {
             PageHeader("Tribe", counts, { if (nav.requireSignIn()) nav.to(Routes.INBOX) }, { if (nav.requireSignIn()) nav.to(Routes.ACTIVITY) })
         }
@@ -204,6 +207,7 @@ fun TribeScreen(nav: AppNav) {
             }
         }
         item(key = "pad") { Spacer(Modifier.height(24.dp)) }
+    }
     }
 }
 

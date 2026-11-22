@@ -121,6 +121,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     val openTab: (String) -> Unit = { t -> tab = t; scope.launch { kotlinx.coroutines.delay(60); grid.animateScrollToItem(1) } }
     // Nothing fresh yet: placeholders where the details go (a cached copy shows with a thin bar instead).
     val waiting = loading && profile?.stats == null
+    val tick = rememberTick()
+    LaunchedEffect(own) { if (own) nav.reselected.collect { if (it == Routes.YOU) grid.animateScrollToItem(0) } }
     LaunchedEffect(own) { if (own) vm.loadPhoneRequests() }
     var report by remember { mutableStateOf(false) }
     val c = Pc.colors
@@ -130,10 +132,11 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     val tiles = posts.filter { it.kind != PostKind.PLAN }
 
     if (editStatus) StatusEditSheet(user, onDismiss = { editStatus = false }) { text, vis ->
-        val r = nav.graph.account.patchMe(PatchMeRequest(statusText = text, statusVisibility = vis))
+        val r = nav.graph.account.saveProfile(PatchMeRequest(statusText = text, statusVisibility = vis))
         if (r is ApiResult.Ok<*>) { editStatus = false; nav.graph.tribe.refreshProfile(username) }
         else nav.graph.events.emit(com.unsolo.app.data.AppEvent.Message((r as? ApiResult.Err)?.message ?: "Couldn't save that. Try again."))
     }
+    PullRefresh({ nav.graph.tribe.refreshProfile(username); nav.graph.statuses.refresh(); if (own) vm.loadPhoneRequests() }, Modifier.fillMaxSize().background(c.paper)) {
     LazyVerticalGrid(GridCells.Fixed(3), Modifier.fillMaxSize().background(c.paper), state = grid, contentPadding = PaddingValues(horizontal = 0.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item(span = { GridItemSpan(3) }, key = "head") {
             Column {
@@ -166,12 +169,12 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (own) {
+                        PcButton("Edit profile", { nav.to(Routes.EDIT_PROFILE) }, Modifier.weight(1f), kind = BtnKind.Outline)
                         PcButton("Add story", { if (nav.requirePhone()) nav.to(Routes.statusNew()) }, Modifier.weight(1f), kind = BtnKind.Accent)
-                        PcButton("Settings", { nav.to(Routes.SETTINGS) }, Modifier.weight(1f), kind = BtnKind.Outline)
                         if (user?.isHost == true || nav.graph.config.config.value.flags.hostOffersEnabled) PcButton("Hosting", { nav.to(Routes.HOST) }, Modifier.weight(1f), kind = BtnKind.Outline)
                     } else {
                         val following = profile?.isFollowing == true
-                        PcButton(if (following) "Following" else if (profile?.followsYou == true) "Follow back" else "Follow", { if (nav.requireSignIn()) vm.follow(!following) },
+                        PcButton(if (following) "Following" else if (profile?.followsYou == true) "Follow back" else "Follow", { if (nav.requireSignIn()) { tick(); vm.follow(!following) } },
                             Modifier.weight(1f), kind = if (following) BtnKind.Outline else BtnKind.Primary)
                         PcButton("Message", { if (nav.requireSignIn()) user?.let { u -> vm.message(u.id) { nav.to(Routes.chat(it)) } } }, Modifier.weight(1f), kind = BtnKind.Outline)
                     }
@@ -258,6 +261,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
         }
         item(span = { GridItemSpan(3) }) { Spacer(Modifier.height(24.dp)) }
     }
+    }
     if (report && user != null) ReportSheet(user, onDismiss = { report = false }, onSubmit = { r, d -> report = false; if (nav.requireSignIn()) vm.report(user.id, r, d) },
         onBlock = { report = false; if (nav.requireSignIn()) { vm.block(user.id); nav.back() } })
 }
@@ -324,10 +328,13 @@ fun SettingsScreen(nav: AppNav) {
             if (signedIn) {
                 var editStatus by remember { mutableStateOf(false) }
                 SettingsSection("Profile", startOpen = true) {
+                    NavRow("Edit profile", "Photo, name, username, bio, links, privacy", PcIcons.User, { nav.to(Routes.EDIT_PROFILE) })
+                    NavRow("Invite friends", "Give ₹200, get ₹200", PcIcons.Ticket, { nav.to(Routes.REFERRALS) })
+                    NavRow("Offers", "Promo codes and combos", PcIcons.Lightning, { nav.to(Routes.OFFERS_ALL) })
                     NavRow("Status", me?.user?.statusText ?: "Set a status, like \"Off to Spiti next week\"", PcIcons.Edit, { editStatus = true })
                 }
                 if (editStatus) StatusEditSheet(me?.user, onDismiss = { editStatus = false }) { text, vis ->
-                    val r = g.account.patchMe(PatchMeRequest(statusText = text, statusVisibility = vis))
+                    val r = g.account.saveProfile(PatchMeRequest(statusText = text, statusVisibility = vis))
                     if (r is ApiResult.Ok<*>) { editStatus = false; me?.user?.username?.let { u -> g.tribe.refreshProfile(u) } }
                     else g.events.emit(com.unsolo.app.data.AppEvent.Message((r as? ApiResult.Err)?.message ?: "Couldn't save that. Try again."))
                 }

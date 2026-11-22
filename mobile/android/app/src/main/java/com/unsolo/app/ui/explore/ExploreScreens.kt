@@ -241,7 +241,9 @@ fun ExploreScreen(nav: AppNav) {
 
     Box(Modifier.fillMaxSize().background(c.paper)) {
         val exploreList = androidx.compose.foundation.lazy.rememberLazyListState()
+        LaunchedEffect(Unit) { nav.reselected.collect { if (it == Routes.EXPLORE) exploreList.animateScrollToItem(0) } }
         val tabsStuck by remember { derivedStateOf { exploreList.firstVisibleItemIndex > 0 } }
+        PullRefresh({ vm.refresh().join(); nav.graph.statuses.refresh() }, Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize().then(swipe), state = exploreList, contentPadding = PaddingValues(bottom = PcTokens.searchDock + 40.dp)) {
             item(key = "header", contentType = "header") {
                 Column(Modifier.statusBarsPadding()) {
@@ -324,6 +326,7 @@ fun ExploreScreen(nav: AppNav) {
                         { showAll = true }, Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 12.dp), kind = BtnKind.Outline)
                 }
             }
+        }
         }
         SearchDock(
             label = query.ifBlank { "Where to?" }, sub = window.label, filters = vm.filterCount,

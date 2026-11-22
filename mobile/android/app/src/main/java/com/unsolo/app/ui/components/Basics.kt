@@ -16,6 +16,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -645,4 +646,45 @@ fun OfflineBanner(visible: Boolean, demo: Boolean = false) {
 @Composable
 fun ClickableRow(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     Row(modifier.clickable(role = Role.Button, onClick = onClick), verticalAlignment = Alignment.CenterVertically, content = content)
+}
+
+/**
+ * Pull down to refresh, with a soft tick when it lets go. [onRefresh] runs the reload; the spinner
+ * stays until it returns (at least a beat, so a fast reload still reads as "done").
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun PullRefresh(onRefresh: suspend () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    val scope = rememberCoroutineScope()
+    var refreshing by remember { mutableStateOf(false) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val state = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            refreshing = true
+            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+            scope.launch {
+                val t = System.currentTimeMillis()
+                runCatching { onRefresh() }
+                val left = 450 - (System.currentTimeMillis() - t)
+                if (left > 0) kotlinx.coroutines.delay(left)
+                refreshing = false
+            }
+        },
+        modifier = modifier,
+        state = state,
+        indicator = {
+            androidx.compose.material3.pulltorefresh.PullToRefreshDefaults.Indicator(state = state, isRefreshing = refreshing,
+                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding(), containerColor = Pc.colors.raised, color = Pc.colors.ink)
+        },
+        content = content,
+    )
+}
+
+/** A light tap of feedback for small confirmations (react, vote, follow, save). */
+@Composable
+fun rememberTick(): () -> Unit {
+    val h = androidx.compose.ui.platform.LocalHapticFeedback.current
+    return remember(h) { { h.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove) } }
 }

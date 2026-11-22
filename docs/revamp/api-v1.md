@@ -69,7 +69,7 @@ Preferences { landingTab: "explore"|"tribe"|"trips", notify: { push: {plans,repl
 |---|---|---|---|
 | GET | `/config` | public | → `{ flags: { tribeEnabled, tribePostingEnabled, hostOffersEnabled, pushEnabled }, minAppVersion: { android, ios }, supabase: { url, anonKey }, upload: { maxBytes: 2097152, maxEdge: 2048 }, support: { whatsapp, email } }` |
 | GET | `/me` | user | → `{ user: UserLite & { email, phone, gender, homeCity, bio, dateOfBirth }, role, isStaff, preferences: Preferences, counts: { unreadNotifications, unreadMessages } }` |
-| PATCH | `/me` | user | `{ name?, bio?, gender?, homeCity?, homeLat?, homeLng?, dateOfBirth? }` → `/me` |
+| PATCH | `/me` | user | `{ name?, username? (every 40 days), bio?, location?, instagram?, website?, avatarUrl?, tripsPrivate?, statesPrivate?, phonePublic?, gender?, homeCity?, homeLat?, homeLng?, dateOfBirth? }` → `/me` |
 | GET / PUT | `/me/preferences` | user | `Preferences` (PUT accepts a partial object) |
 | GET | `/me/landing-suggestion` | user | → `{ suggest: "tribe"\|"trips"\|null, visits: { explore, tribe, trips } }`. Returns a tab when it was the most-opened tab over the last 14 days (at least 3 opens), it is not already the landing tab, and the prompt has not been dismissed. |
 | POST | `/me/landing-suggestion/dismiss` | user | → 204 |
@@ -100,6 +100,8 @@ Store tokens in the Android Keystore (EncryptedSharedPreferences) or the iOS Key
 | GET | `/explore?q=&category=trips\|stays\|activities\|rentals&month=YYYY-MM&cursor=&limit=20` | public | → `{ items: TripLite[], nextCursor }`. Trips: sorted by next departure. Stays/activities/rentals: public listings as TripLite with `kind` (stay/activity/rental), `unit` (night/person/day) and `webPath` (`/listings/{category}/{slug}`, opened on the web); no departures or seats |
 | GET | `/places?q=&limit=8` | public | → `{ items: { name, slug, lat, lng, detail }[] }`: suggestions for the place field (our destinations, places in live posts, then OpenStreetMap; empty q = popular) |
 | GET | `/people?q=&limit=10` | user | → `{ items: UserLite[] }`: travellers by name or username for @mentions (people you follow first; not you or people you blocked) |
+| GET | `/me/referrals` | user | → `{ code, link, creditsPaise, total, pending, credited, people[] }`: your invite code and who joined with it |
+| GET | `/offers` | public | → `{ sections: { id, title, subtitle, badge, offers: { name, label, promoCode, validUntil }[], combos: { title, primary: { label, path }, secondary }[] }[] }` (same as unsolo.in/offers) |
 | GET | `/users/{username}` | public | Profile: `user` (bio, statusText, location, instagramUrl, websiteUrl, travelStyle, joinedAt, followers, following), `stats` (trips, states, reviews, listings, points, rank, tier), `followsYou`, `isFollowing`, `phone` (masked unless public/approved), `travel` (states, trips, mutualPlaces), `badges` (earned, next), `listings`, `reviewsWritten`, `host` (travellers, reviews, reachedOut on your own), `connections` (mutual, rooms, shared), `posts`, `openPlan` |
 | PUT/DELETE | `/users/{username}/follow` | signed in | Follow / unfollow → `{ isFollowing, followers, following }` |
 | POST | `/users/{username}/phone-request` | verified contact | Ask for their number |

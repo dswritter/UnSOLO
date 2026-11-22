@@ -87,6 +87,8 @@ class AppNav(
     val openPostSheet: () -> Unit,
 ) {
     fun to(route: String) = controller.navigate(route) { launchSingleTop = true }
+    /** Tapping the tab you're on: its screen scrolls back to the top. */
+    val reselected = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 1)
     fun back() { if (!controller.popBackStack()) tab(Routes.EXPLORE) }
     fun tab(route: String) = controller.navigate(route) {
         popUpTo(controller.graph.findStartDestination().id) { saveState = true }
@@ -99,6 +101,12 @@ class AppNav(
     fun link(path: String?) {
         val r = DeepLinks.routeForPath(path) ?: Routes.ACTIVITY
         if (r in Routes.tabs) tab(r) else to(r)
+    }
+
+    /** A same-site path: opens the screen in the app when there is one, otherwise the page on unsolo.in. */
+    fun openPath(path: String) {
+        val r = DeepLinks.routeForPath(path)
+        if (r == null) openWeb(path) else if (r in Routes.tabs) tab(r) else to(r)
     }
 
     /** Payments stay on the web: open /packages/{slug}?book=1 in a Custom Tab. */
@@ -310,7 +318,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
                 }
                 if (route in tabRoutes) {
                     OfflineBanner(visible = !online, demo = demoFallback)
-                    PcBottomBar(route, tabs, me, onSelect = { nav.tab(it) }, onPost = { postSheet = true })
+                    PcBottomBar(route, tabs, me, onSelect = { if (it == route) nav.reselected.tryEmit(it) else nav.tab(it) }, onPost = { postSheet = true })
                 }
             }
             if (!photoHeader) Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Pc.colors.paper))
@@ -347,7 +355,9 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
     }
     composable(Routes.PROFILE, arguments = listOf(navArgument("username") { type = NavType.StringType }), deepLinks = links("/profile/{username}")) {
         val u = it.arguments?.getString("username")
-        if (DeepLinks.validUsername(u)) ProfileScreen(u!!, nav) else InvalidLink(nav)
+        // unsolo.in/profile/edit is the edit page, not someone called "edit".
+        if (u == "edit") com.unsolo.app.ui.profile.EditProfileScreen(nav)
+        else if (DeepLinks.validUsername(u)) ProfileScreen(u!!, nav) else InvalidLink(nav)
     }
     composable(Routes.CHAT, arguments = listOf(navArgument("roomId") { type = NavType.StringType }), deepLinks = links("/chat/{roomId}")) {
         val id = it.arguments?.getString("roomId")
@@ -371,6 +381,9 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
     }
     composable(Routes.STATUS_ARCHIVE) { com.unsolo.app.ui.status.StatusArchiveScreen(nav) }
     composable(Routes.LEADERBOARD, deepLinks = links("/leaderboard")) { com.unsolo.app.ui.profile.LeaderboardScreen(nav) }
+    composable(Routes.EDIT_PROFILE) { com.unsolo.app.ui.profile.EditProfileScreen(nav) }
+    composable(Routes.REFERRALS, deepLinks = links("/referrals")) { com.unsolo.app.ui.profile.ReferralsScreen(nav) }
+    composable(Routes.OFFERS_ALL, deepLinks = links("/offers")) { com.unsolo.app.ui.profile.OffersScreen(nav) }
     composable(Routes.LEGAL, arguments = listOf(navArgument("page") { type = NavType.StringType })) {
         val p = it.arguments?.getString("page")
         if (p in setOf("privacy", "terms", "refund-policy")) com.unsolo.app.ui.profile.LegalScreen(p!!, nav) else InvalidLink(nav)

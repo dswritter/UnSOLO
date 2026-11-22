@@ -225,6 +225,16 @@ class AccountRepository(
         outbox.enqueueMerged(OutboxType.PATCH_ME, AppJson.encodeToJsonElement(PatchMeRequest.serializer(), patch).jsonObject)
     }
 
+    /** Saves profile changes now (not via the outbox) so a taken username or bad link can be shown. */
+    suspend fun saveProfile(patch: PatchMeRequest): ApiResult<MeResponse> {
+        val r = apiCall { api.patchMe(patch) }
+        if (r is ApiResult.Ok) applyMe(r.value)
+        return r
+    }
+
+    suspend fun referrals() = apiCall { api.referrals() }
+    suspend fun offers() = apiCall { api.offers() }
+
     suspend fun applyPreferences(p: Preferences) {
         me.value?.let { db.cache().putAs(KEY_ME, MeResponse.serializer(), it.copy(preferences = p)) }
     }

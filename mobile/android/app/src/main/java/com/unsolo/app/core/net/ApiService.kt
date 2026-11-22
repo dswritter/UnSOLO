@@ -25,6 +25,8 @@ interface ApiService {
     @GET("me") suspend fun me(): MeResponse
     @PATCH("me") suspend fun patchMe(@Body body: PatchMeRequest): MeResponse
     @HTTP(method = "DELETE", path = "me", hasBody = true) suspend fun deleteMe(@Body body: DeleteAccountRequest): DeleteAccountResponse
+    @GET("me/referrals") suspend fun referrals(): ReferralsResponse
+    @GET("offers") suspend fun offers(): OffersResponse
     @GET("me/preferences") suspend fun preferences(): Preferences
     @PUT("me/preferences") suspend fun putPreferences(@Body partial: kotlinx.serialization.json.JsonObject): Preferences
     @GET("me/landing-suggestion") suspend fun landingSuggestion(): LandingSuggestion

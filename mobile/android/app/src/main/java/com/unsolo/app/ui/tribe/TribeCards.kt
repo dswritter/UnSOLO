@@ -129,7 +129,8 @@ private fun ReactsRow(p: Post, actions: CardActions, modifier: Modifier = Modifi
 
 @Composable
 fun ReactBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, count: String?, label: String, tint: Color = Pc.colors.ink2, onClick: () -> Unit) {
-    Row(Modifier.clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = onClick).defaultMinSize(minHeight = 44.dp, minWidth = 44.dp).padding(horizontal = 9.dp)
+    val tick = rememberTick()
+    Row(Modifier.clip(CircleShape).clickable(role = Role.Button, onClickLabel = label, onClick = { tick(); onClick() }).defaultMinSize(minHeight = 44.dp, minWidth = 44.dp).padding(horizontal = 9.dp)
         .semantics(mergeDescendants = true) { contentDescription = if (count != null) "$label, $count" else label },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         PcIcon(icon, null, size = 19.dp, tint = tint)
@@ -258,6 +259,7 @@ fun StoryCard(item: PostItem, progress: Float?, actions: CardActions) {
 /** Poll: tap a row to vote; after voting, result bars, with your choice in gold. */
 @Composable
 fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifier) {
+    val tick = rememberTick()
     val poll = p.poll ?: return
     val c = Pc.colors
     val sum = poll.options.sumOf { it.votes }
@@ -273,7 +275,7 @@ fun PollView(p: Post, onVote: (PollOption) -> Unit, modifier: Modifier = Modifie
                 Modifier.fillMaxWidth().height(48.dp).clip(shape)
                     .background(if (voted) c.tonal else c.raised)
                     .border(if (mine) 2.dp else 1.5.dp, if (mine) c.ink else if (voted) Color.Transparent else c.rule, shape)
-                    .clickable(role = Role.RadioButton, onClickLabel = if (mine) "Take back your vote" else "Vote ${o.label}") { onVote(o) }
+                    .clickable(role = Role.RadioButton, onClickLabel = if (mine) "Take back your vote" else "Vote ${o.label}") { tick(); onVote(o) }
                     .semantics(mergeDescendants = true) { contentDescription = if (voted) "${o.label}, ${o.votes * 100 / total} percent${if (mine) ", your vote" else ""}" else "Vote ${o.label}" },
             ) {
                 if (voted) Box(Modifier.fillMaxHeight().fillMaxWidth(frac).background(c.ink.copy(alpha = if (mine) 0.16f else 0.08f)))

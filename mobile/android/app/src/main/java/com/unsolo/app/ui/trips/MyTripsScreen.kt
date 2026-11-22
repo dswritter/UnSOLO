@@ -63,7 +63,10 @@ fun MyTripsScreen(nav: AppNav) {
     // Open where there's something: Upcoming, else Plans, else Past.
     LaunchedEffect(data) { if (tab == null && data != null) tab = when { d.upcoming.isNotEmpty() -> "upcoming"; d.plans.isNotEmpty() || d.requested.isNotEmpty() -> "plans"; d.past.isNotEmpty() -> "past"; else -> "upcoming" } }
     val unreadByRoom = chats.associate { it.id to it.unread }
-    LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(Unit) { nav.reselected.collect { if (it == Routes.TRIPS) listState.animateScrollToItem(0) } }
+    PullRefresh({ nav.graph.explore.refreshMyTrips(); nav.graph.chat.refreshChats() }, Modifier.fillMaxSize().background(c.paper)) {
+    LazyColumn(Modifier.fillMaxSize().background(c.paper), state = listState) {
         item(key = "h") {
             PageHeader("Bookings", counts, { nav.to(Routes.INBOX) }, { nav.to(Routes.ACTIVITY) })
             Segmented(listOf("upcoming" to "Upcoming · ${d.upcoming.size}", "plans" to "Plans · ${d.plans.size + d.requested.size}", "past" to "Past · ${d.past.size}"), tab ?: "upcoming", { tab = it })
@@ -100,6 +103,7 @@ fun MyTripsScreen(nav: AppNav) {
             }
         }
         item { Spacer(Modifier.navigationBarsPadding().height(24.dp)) }
+    }
     }
 }
 

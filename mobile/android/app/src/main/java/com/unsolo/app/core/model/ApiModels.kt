@@ -44,6 +44,12 @@ data class UserLite(
     val phone: String? = null,
     val gender: String? = null,
     val dateOfBirth: String? = null,
+    val instagram: String? = null,
+    val website: String? = null,
+    val usernameChangeAfter: String? = null,
+    val tripsPrivate: Boolean = false,
+    val statesPrivate: Boolean = false,
+    val phonePublic: Boolean = false,
 ) {
     val initials: String
         get() = name.split(' ', '-', '.').filter { it.isNotBlank() }.take(2)
@@ -409,7 +415,37 @@ data class PatchMeRequest(
     val dateOfBirth: String? = null,
     val statusText: String? = null,
     val statusVisibility: String? = null,
+    val username: String? = null,
+    val location: String? = null,
+    val instagram: String? = null,
+    val website: String? = null,
+    val avatarUrl: String? = null,
+    val tripsPrivate: Boolean? = null,
+    val statesPrivate: Boolean? = null,
+    val phonePublic: Boolean? = null,
 )
+
+/** GET /me/referrals */
+@Serializable
+data class ReferralPerson(val username: String = "", val name: String = "", val avatarUrl: String? = null, val status: String = "pending")
+@Serializable
+data class ReferralsResponse(
+    val code: String? = null, val link: String? = null, val creditsPaise: Long = 0,
+    val total: Int = 0, val pending: Int = 0, val credited: Int = 0, val people: List<ReferralPerson> = emptyList(),
+)
+
+/** GET /offers */
+@Serializable
+data class OfferItem(val id: String, val name: String = "", val label: String = "", val type: String? = null, val promoCode: String? = null, val validUntil: String? = null)
+@Serializable
+data class OfferLink(val label: String = "", val path: String = "")
+@Serializable
+data class OfferCombo(val id: String, val title: String = "", val subtitle: String? = null, val primary: OfferLink = OfferLink(), val secondary: OfferLink = OfferLink())
+@Serializable
+data class OfferSection(val id: String, val title: String = "", val subtitle: String? = null, val badge: String? = null,
+                        val offers: List<OfferItem> = emptyList(), val combos: List<OfferCombo> = emptyList())
+@Serializable
+data class OffersResponse(val sections: List<OfferSection> = emptyList())
 
 @Serializable
 data class Flags(
