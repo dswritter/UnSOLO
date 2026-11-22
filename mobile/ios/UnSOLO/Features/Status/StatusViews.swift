@@ -129,7 +129,7 @@ struct MyStoryAvatar: View {
 // MARK: - Viewer
 
 /// Full-screen stories, Instagram-style: tap right/left for next/previous, hold to pause, swipe sideways
-/// (a cube turn) through everyone's stories, swipe down to close, swipe up to add one from your photos.
+/// (a cube turn) through everyone's stories, swipe down to close, swipe up to reply (opens the keyboard).
 /// Close sits top right; react, comments, add/delete and share are stacked on the right; a full-width
 /// comment bar runs along the bottom (typing pauses the story).
 struct StatusViewer: View {
@@ -145,6 +145,10 @@ struct StatusViewer: View {
     @State private var dragX: CGFloat = 0
     @State private var dragY: CGFloat = 0
     @State private var axis: Axis?
+    /// Bumped by a swipe up: the story on screen focuses its reply field.
+    @State private var replyAsk = 0
+
+    private static let replyPull: CGFloat = 80
 
     /// Everyone in the stories row plays in order (yours first), so swiping sideways moves between people,
     /// even when you started from someone's profile.
@@ -174,7 +178,7 @@ struct StatusViewer: View {
                         if abs(i - page) <= 1 {
                             // offset: 0 = on screen, -1 = the next person (to the right), 1 = the previous one.
                             let offset = Double(page - i) - Double(dragX / w)
-                            StatusPlayer(authorId: a.user.id, active: i == page && axis == nil, own: a.user.id == session.user?.id,
+                            StatusPlayer(authorId: a.user.id, active: i == page && axis == nil, own: a.user.id == session.user?.id, replyAsk: replyAsk,
                                          onDone: { advance(+1, w) }, onBack: { advance(-1, w) }, onClose: { dismiss() })
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 .offset(x: CGFloat(i - page) * w + dragX)
@@ -187,10 +191,10 @@ struct StatusViewer: View {
                     if dragY < -30 {
                         VStack(spacing: 4) {
                             Image(systemName: "chevron.up").font(.system(size: 24, weight: .bold))
-                            Text(dragY < -110 ? "Let go to add a story" : "Swipe up to add a story").pcFont(.bodyStrong)
+                            Text(dragY < -Self.replyPull ? "Let go to reply" : "Swipe up to reply").pcFont(.bodyStrong)
                         }
                         .foregroundStyle(.white)
-                        .opacity(min(1, Double(-dragY) / 110))
+                        .opacity(min(1, Double(-dragY / Self.replyPull)))
                         .frame(maxHeight: .infinity, alignment: .bottom)
                         .padding(.bottom, 130)
                         .allowsHitTesting(false)
@@ -217,10 +221,10 @@ struct StatusViewer: View {
                     else { withAnimation(.spring(duration: 0.3)) { dragX = 0 } }
                 } else if dragY > 160 {
                     dismiss()
-                } else if dragY < -110 {
+                } else if dragY < -Self.replyPull {
                     Haptics.tick()
                     withAnimation(.spring(duration: 0.25)) { dragY = 0 }
-                    addStory()
+                    replyAsk += 1
                 } else {
                     withAnimation(.spring(duration: 0.25)) { dragY = 0 }
                 }
@@ -262,16 +266,6 @@ struct StatusViewer: View {
         } completion: {
             page = target
             dragX = 0
-        }
-    }
-
-    private func addStory() {
-        app.requireVerified("Sign in to share a story") {
-            router.statusViewer = nil
-            Task {
-                try? await Task.sleep(for: .milliseconds(450))
-                router.storyComposer = StoryComposeItem()
-            }
         }
     }
 }
@@ -328,6 +322,7 @@ private struct StatusPlayer: View {
     let authorId: String
     let active: Bool
     let own: Bool
+    var replyAsk = 0
     let onDone: () -> Void
     let onBack: () -> Void
     let onClose: () -> Void
@@ -399,6 +394,7 @@ private struct StatusPlayer: View {
             next()
         }
         .onChange(of: active, initial: true) { _, on in markSeen(on); if !on { typing = false } }
+        .onChange(of: replyAsk) { _, n in if n > 0 && active { typing = true } }
         .onChange(of: item?.id) { _, _ in markSeen(active); draft = "" }
         .sheet(isPresented: $commentsOpen) {
             if let item { StatusCommentsSheet(itemId: item.id, own: own).presentationDetents([.medium, .large]).pcSheet() }
@@ -645,8 +641,9 @@ private struct StatusPlayer: View {
             .padding(.leading, 18)
             .padding(.trailing, 4)
             .frame(minHeight: 46)
-            .background(Capsule().fill(.black.opacity(0.25)))
-            .overlay(Capsule().strokeBorder(.white.opacity(0.55), lineWidth: 1))
+            .background(Capsule().fill(.black.opacity(typing ? 0.55 : 0.25)))
+            .overlay(Capsule().strokeBorder(.white.opacity(typing ? 1 : 0.55), lineWidth: typing ? 2 : 1))
+            .animation(.easeOut(duration: 0.15), value: typing)
         }
         .padding(.horizontal, 12)
     }
@@ -945,25 +942,44 @@ struct PersonRow: View {
 /// Share a story: up to 10 photos (from the library or your archive), an optional caption, who can see it.
 /// Opens the photo picker straight away; text-only works too. Share closes at once and the story goes up
 /// in the background (the ring on "Your story" shows how far).
+/// A photo in the composer: the original bytes, the upright preview it's edited on, and how it's framed.
+private struct ComposerShot: Identifiable, Sendable {
+    let id = UUID()
+    let data: Data
+    let image: UIImage
+    var fit = StoryFit()
+
+    init?(_ data: Data) {
+        guard let img = StoryMath.decode(data) else { return nil }
+        self.data = data
+        image = img
+    }
+
+    /// Untouched photos go up as they are; moved ones exactly as framed.
+    var upload: Data { fit.touched ? (StoryMath.render(image, fit: fit) ?? data) : data }
+}
+
 struct StatusComposer: View {
     let archiveId: String?
     @Environment(AppModel.self) private var app
     @Environment(Router.self) private var router
     @Environment(\.dismiss) private var dismiss
-    @State private var photos: [Data] = []
+    @State private var shots: [ComposerShot] = []
+    @State private var moved = false
+    @State private var preparing = false
     @State private var caption = ""
     @State private var audience = "all"
     @State private var tagging = false
     @State private var pickerOpen = false
     @State private var picked: [PhotosPickerItem] = []
-    @State private var page = 0
+    @State private var page: UUID?
     @State private var showArchive = false
     @FocusState private var typing: Bool
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            if photos.isEmpty {
+            if shots.isEmpty {
                 TextField("", text: $caption, prompt: Text("Type a story, or add photos").foregroundStyle(.white.opacity(0.5)), axis: .vertical)
                     .font(.system(size: 24, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
@@ -971,28 +987,7 @@ struct StatusComposer: View {
                     .focused($typing)
                     .padding(28)
             } else {
-                TabView(selection: $page) {
-                    ForEach(Array(photos.enumerated()), id: \.offset) { i, d in
-                        ZStack(alignment: .topTrailing) {
-                            if let img = UIImage(data: d) {
-                                Image(uiImage: img).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
-                            Button { photos.remove(at: i); page = max(0, min(page, photos.count - 1)) } label: {
-                                Image(systemName: "xmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(.white)
-                                    .frame(width: 36, height: 36).background(Circle().fill(.black.opacity(0.4)))
-                            }
-                            .padding(.top, 56).padding(.trailing, 8)
-                            .accessibilityLabel("Remove this photo")
-                        }
-                        .tag(i)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                if photos.count > 1 {
-                    Text("\(page + 1) / \(photos.count)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 4).background(Capsule().fill(.black.opacity(0.45)))
-                        .frame(maxHeight: .infinity, alignment: .top).padding(.top, 14)
-                }
+                pager
             }
             VStack {
                 HStack {
@@ -1010,12 +1005,12 @@ struct StatusComposer: View {
             }
         }
         .preferredColorScheme(.dark)
-        .photosPicker(isPresented: $pickerOpen, selection: $picked, maxSelectionCount: max(1, 10 - photos.count), matching: .images, photoLibrary: .shared())
+        .photosPicker(isPresented: $pickerOpen, selection: $picked, maxSelectionCount: max(1, 10 - shots.count), matching: .images, photoLibrary: .shared())
         .onChange(of: picked) { _, items in
             guard !items.isEmpty else { return }
             Task {
                 for it in items {
-                    if photos.count < 10, let d = try? await it.loadTransferable(type: Data.self) { photos.append(d) }
+                    if shots.count < 10, let d = try? await it.loadTransferable(type: Data.self), let shot = ComposerShot(d) { add(shot) }
                 }
                 picked = []
             }
@@ -1046,14 +1041,98 @@ struct StatusComposer: View {
     private func loadArchived(_ id: String) {
         app.statuses.loadArchive()
         guard let a = app.statuses.archive.first(where: { $0.id == id }), let d = try? Data(contentsOf: app.statuses.url(of: a)) else { return }
-        if photos.count < 10 { photos.append(d) }
+        if shots.count < 10, let shot = ComposerShot(d) { add(shot) }
         if caption.isEmpty { caption = a.caption ?? "" }
+    }
+
+    private func add(_ shot: ComposerShot) {
+        shots.append(shot)
+        if page == nil { page = shot.id }
+    }
+
+    private var pageIndex: Int { shots.firstIndex { $0.id == page } ?? 0 }
+
+    /// Zoomed in past "whole": one finger drags the photo, so the pager stops.
+    private var currentZoomed: Bool {
+        guard let s = shots.first(where: { $0.id == page }), s.fit.touched else { return false }
+        return s.fit.scale > StoryMath.fitScale(s.fit.frame, s.image.size, StoryMath.snap(s.fit.angle)) * 1.02
+    }
+
+    /// Each photo full screen in a 9:16 frame, edited in place; swipe sideways for the next one.
+    private var pager: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach($shots) { $shot in
+                    ZStack(alignment: .topTrailing) {
+                        StoryCanvas(image: shot.image, fit: $shot.fit, onMove: { moved = true })
+                        VStack(alignment: .trailing, spacing: 8) {
+                            Button { remove(shot.id) } label: {
+                                Image(systemName: "xmark").font(.system(size: 13, weight: .heavy)).foregroundStyle(.white)
+                                    .frame(width: 36, height: 36).background(Circle().fill(.black.opacity(0.4)))
+                            }
+                            .accessibilityLabel("Remove this photo")
+                            if shot.fit.touched {
+                                chip("Reset", selected: false) {
+                                    withAnimation(.easeOut(duration: 0.2)) { shot.fit = StoryFit(frame: shot.fit.frame) }
+                                }
+                                .accessibilityLabel("Reset the photo")
+                            }
+                        }
+                        .padding(.top, 56).padding(.trailing, 8)
+                    }
+                    .containerRelativeFrame([.horizontal, .vertical])
+                    .id(shot.id)
+                }
+            }
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $page)
+        .scrollIndicators(.hidden)
+        .scrollDisabled(currentZoomed)
+        .ignoresSafeArea(.keyboard)
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                if shots.count > 1 {
+                    Text("\(pageIndex + 1) / \(shots.count)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 4).background(Capsule().fill(.black.opacity(0.45)))
+                }
+                if !moved {
+                    Text("Pinch, twist or drag the photo to fit your story").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 6).background(Capsule().fill(.black.opacity(0.5)))
+                        .transition(.opacity)
+                }
+            }
+            .padding(.top, 14)
+            .allowsHitTesting(false)
+            .animation(.easeOut(duration: 0.2), value: moved)
+        }
+    }
+
+    private func remove(_ id: UUID) {
+        guard let i = shots.firstIndex(where: { $0.id == id }) else { return }
+        shots.remove(at: i)
+        if page == id { page = shots.isEmpty ? nil : shots[min(i, shots.count - 1)].id }
+    }
+
+    private func share() {
+        let list = shots
+        preparing = true
+        Task {
+            // Moved photos are drawn off the main thread; untouched ones go as they are.
+            let photos = await Task.detached(priority: .userInitiated) { list.map(\.upload) }.value
+            preparing = false
+            if app.statuses.shareInBackground(photos: photos, caption: caption, audience: audience) {
+                app.showToast(photos.isEmpty ? "Sharing your story…" : "Sharing your story… you can keep using the app.")
+                dismiss()
+            }
+        }
     }
 
     private var bottom: some View {
         VStack(alignment: .leading, spacing: 10) {
             MentionSuggestions(caption: $caption)
-            if !photos.isEmpty {
+            if !shots.isEmpty {
                 TextField("", text: $caption, prompt: Text("Add a caption…").foregroundStyle(.white.opacity(0.6)), axis: .vertical)
                     .lineLimit(1...4)
                     .font(.system(size: 14))
@@ -1075,14 +1154,9 @@ struct StatusComposer: View {
                 chip("Everyone", selected: audience == "all") { audience = "all" }
                 chip("Followers", selected: audience == "followers") { audience = "followers" }
                 Spacer()
-                Button("Share") {
-                    if app.statuses.shareInBackground(photos: photos, caption: caption, audience: audience) {
-                        app.showToast(photos.isEmpty ? "Sharing your story…" : "Sharing your story… you can keep using the app.")
-                        dismiss()
-                    }
-                }
+                Button(preparing ? "Sharing…" : "Share", action: share)
                 .buttonStyle(.pcAccent)
-                .disabled((photos.isEmpty && caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || app.statuses.posting)
+                .disabled((shots.isEmpty && caption.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || app.statuses.posting || preparing)
             }
         }
         .padding(14)
