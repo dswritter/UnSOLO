@@ -50,7 +50,8 @@ export function MobileChatBottomBar({
     const supabase = createClient()
     let cancelled = false
     async function poll() {
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+      if (document.visibilityState !== 'visible') return
+      const twoMinAgo = new Date(Date.now() - 4 * 60 * 1000).toISOString()
       const { data } = await supabase
         .from('user_presence')
         .select('user_id')
@@ -60,7 +61,7 @@ export function MobileChatBottomBar({
       setOnlineUserIds(new Set((data as { user_id: string }[]).map(r => r.user_id)))
     }
     poll()
-    const interval = setInterval(poll, 60_000)
+    const interval = setInterval(poll, 2 * 60_000)
     return () => {
       cancelled = true
       clearInterval(interval)

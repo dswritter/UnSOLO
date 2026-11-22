@@ -52,7 +52,7 @@ class LiveLocationService : Service() {
         job = scope.launch {
             var first = true
             launch { delay(minutes * 60_000L); stopSharing(graph, room) }
-            graph.precise.updates(30_000).collect { f ->
+            graph.precise.updates(60_000).collect { f ->
                 val r = graph.trips.shareLocation(room, LiveLocationUpdate(f.lat, f.lng, f.accuracy, if (first) minutes else null))
                 if (r is ApiResult.Ok) first = false
             }

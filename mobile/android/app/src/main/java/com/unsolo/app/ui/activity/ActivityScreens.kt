@@ -302,12 +302,12 @@ class ChatViewModel(private val g: AppGraph, val roomId: String) : ViewModel() {
         }
     }
 
-    /** Polls ?after= every 4s, backing off to 15s after a minute without new messages (contract). */
+    /** Polls ?after= every 6s, backing off to 20s after a minute and 45s after 5 minutes without new messages. */
     suspend fun pollLoop() {
         var lastNew = System.currentTimeMillis()
         while (true) {
-            val quiet = System.currentTimeMillis() - lastNew > 60_000
-            delay(if (quiet) 15_000 else 4_000)
+            val idle = System.currentTimeMillis() - lastNew
+            delay(when { idle > 300_000 -> 45_000L; idle > 60_000 -> 20_000L; else -> 6_000L })
             val r = g.chat.fetch(roomId, poll = true)
             if (r is ApiResult.Ok && r.value > 0) { lastNew = System.currentTimeMillis(); g.chat.markRead(roomId) }
         }

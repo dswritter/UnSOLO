@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.unsolo.app.core.live.LiveLocationService
 import com.unsolo.app.core.model.*
 import com.unsolo.app.core.net.ApiResult
@@ -599,8 +600,11 @@ fun GroupMapScreen(nav: AppNav, roomId: String) {
         val m = pending ?: return@rememberLocationAsk
         if (android.os.Build.VERSION.SDK_INT >= 33) notifAsk.launch(Manifest.permission.POST_NOTIFICATIONS) else { LiveLocationService.start(context, roomId, m, name); pending = null }
     }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(roomId) {
-        while (true) { (g.trips.liveLocations(roomId) as? ApiResult.Ok)?.let { items = it.value.items }; delay(20_000) }
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            while (true) { (g.trips.liveLocations(roomId) as? ApiResult.Ok)?.let { items = it.value.items }; delay(30_000) }
+        }
     }
     if (choose) PcSheet({ choose = false }) {
         SheetTitle("Share your live location", "Everyone in ${name ?: "this group"} can see where you are until the time is up. You can stop any time.")

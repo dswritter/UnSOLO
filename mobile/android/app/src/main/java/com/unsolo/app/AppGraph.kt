@@ -118,7 +118,8 @@ class AppGraph(val app: UnsoloApp) {
         if (r !is ApiResult.Ok) return r !is ApiResult.Offline
         val s = r.value
         if (s.removedPosts.isNotEmpty()) { db.posts().deleteMany(s.removedPosts); db.feed().removeRefs(s.removedPosts) }
-        s.posts.take(30).forEach { id -> tribe.refreshPost(id) }
+        // Only refresh posts this phone already shows (the rest load fresh when opened), a few at most.
+        if (s.posts.isNotEmpty()) db.posts().getMany(s.posts.take(100)).map { it.id }.take(8).forEach { id -> tribe.refreshPost(id) }
         if (s.memberships.isNotEmpty()) explore.refreshMyTrips()
         if (s.unreadNotifications > 0) activity.refresh()
         settings.setLastSync(s.serverTime)

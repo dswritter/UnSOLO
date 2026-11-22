@@ -1097,7 +1097,8 @@ export function ChatWindow({
     const sb = createBrowserClient()
 
     async function checkPresence() {
-      const oneMinAgo = new Date(Date.now() - 60 * 1000).toISOString()
+      if (document.visibilityState !== 'visible') return
+      const oneMinAgo = new Date(Date.now() - 4 * 60 * 1000).toISOString()
       const { data } = await sb
         .from('user_presence')
         .select('user_id')
@@ -1110,19 +1111,12 @@ export function ChatWindow({
     }
 
     checkPresence()
-    const interval = setInterval(checkPresence, 60000)
-
-    // Subscribe to presence table changes for instant updates
-    const channel = sb
-      .channel('chat-presence-' + roomId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_presence' }, () => {
-        checkPresence()
-      })
-      .subscribe()
+    // Poll only. (A realtime listener on user_presence re-queried on every heartbeat from every
+    // user, which multiplied database load by the number of people online.)
+    const interval = setInterval(checkPresence, 2 * 60_000)
 
     return () => {
       clearInterval(interval)
-      sb.removeChannel(channel)
     }
   }, [memberProfiles, roomId])
 

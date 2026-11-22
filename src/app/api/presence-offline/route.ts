@@ -1,20 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: Request) {
+/**
+ * Tab closed: mark the signed-in user offline (sendBeacon carries the session cookie).
+ * Only ever touches your own row; the body's userId is ignored.
+ */
+export async function POST() {
   try {
-    const { userId } = await request.json()
-    if (!userId) return NextResponse.json({ ok: false })
-
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-
-    await supabase
-      .from('user_presence')
-      .upsert({ user_id: userId, last_seen: new Date().toISOString(), is_online: false })
-
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ ok: false })
+    await supabase.from('user_presence').update({ last_seen: new Date().toISOString(), is_online: false }).eq('user_id', user.id)
     return NextResponse.json({ ok: true })
   } catch {
     return NextResponse.json({ ok: false })

@@ -350,12 +350,13 @@ export function ChatSidebar({
   useEffect(() => {
     const supabase = createClient()
     async function checkPresence() {
-      const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+      if (document.visibilityState !== 'visible') return
+      const twoMinAgo = new Date(Date.now() - 4 * 60 * 1000).toISOString()
       const { data } = await supabase.from('user_presence').select('user_id').eq('is_online', true).gte('last_seen', twoMinAgo)
       if (data) setOnlineUsers(new Set((data as { user_id: string }[]).map(d => d.user_id)))
     }
     checkPresence()
-    const interval = setInterval(checkPresence, 60000)
+    const interval = setInterval(checkPresence, 2 * 60_000)
     return () => clearInterval(interval)
   }, [])
 

@@ -26,6 +26,7 @@ export function ActiveUnSOLOs({ currentUserId }: { currentUserId: string }) {
     const supabase = createClient()
 
     async function fetchOnline() {
+      if (document.visibilityState !== 'visible') return
       const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
       const { data } = await supabase
         .from('user_presence')
@@ -49,22 +50,11 @@ export function ActiveUnSOLOs({ currentUserId }: { currentUserId: string }) {
     }
 
     fetchOnline()
-
-    // Subscribe to changes in user_presence table
-    const channel = supabase
-      .channel('active-unsolos')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'user_presence' },
-        () => {
-          // Re-fetch on any presence change
-          fetchOnline()
-        }
-      )
-      .subscribe()
+    // Poll every 2 minutes (a realtime listener here re-queried on every heartbeat from every user).
+    const interval = setInterval(fetchOnline, 2 * 60_000)
 
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(interval)
     }
   }, [currentUserId])
 

@@ -16,7 +16,10 @@ async function run(req: Request) {
   const { data: expired, error } = await svc.rpc('expire_tribe_items')
   if (error) console.error('[cron/tribe] expire', error.message)
   const pushes = await dispatchPendingPushes({ limit: 500 })
-  return NextResponse.json({ expired: expired ?? null, pushes })
+  // Old analytics rows and finished live locations (keeps the small database's disk work down).
+  const { data: pruned, error: pruneErr } = await svc.rpc('prune_housekeeping')
+  if (pruneErr) console.error('[cron/tribe] prune', pruneErr.message)
+  return NextResponse.json({ expired: expired ?? null, pushes, pruned: pruned ?? null })
 }
 
 export const GET = run
