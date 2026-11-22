@@ -25,8 +25,12 @@ class ExploreRepository(private val db: AppDatabase, private val api: ApiService
     fun observeExplore(category: String, q: String = ""): Flow<List<TripLite>> =
         db.trips().observeList(listKey(category, q)).map { rows -> rows.mapNotNull { liteS.decOrNull(it.liteJson) } }
 
-    suspend fun refreshExplore(category: String, q: String = ""): ApiResult<Unit> {
-        val r = apiCall { api.explore(q = q.ifBlank { null }, category = category) }
+    /**
+     * First page of a list (replaces the cached one); with [cursor], the next page appended after
+     * [offset] rows. Returns the cursor for the page after, or null at the end.
+     */
+    suspend fun refreshExplore(category: String, q: String = "", cursor: String? = null, offset: Int = 0, limit: Int = PAGE): ApiResult<String?> {
+        val r = apiCall { api.explore(q = q.ifBlank { null }, category = category, cursor = cursor, limit = limit) }
         if (r !is ApiResult.Ok) return r as? ApiResult.Err ?: ApiResult.Offline
         val key = listKey(category, q)
         db.withTransaction {
@@ -34,11 +38,13 @@ class ExploreRepository(private val db: AppDatabase, private val api: ApiService
                 val existing = db.trips().get(t.slug)
                 db.trips().upsert(TripEntity(t.slug, liteS.enc(t), existing?.detailJson))
             }
-            db.trips().clearList(key)
-            db.trips().insertEntries(r.value.items.mapIndexed { i, t -> ExploreEntryEntity(key, i, t.slug) })
+            if (cursor == null) db.trips().clearList(key)
+            db.trips().insertEntries(r.value.items.mapIndexed { i, t -> ExploreEntryEntity(key, offset + i, t.slug) })
         }
-        return ApiResult.Ok(Unit)
+        return ApiResult.Ok(r.value.nextCursor)
     }
+
+    companion object { const val PAGE = 12 }
 
     /** Detail when cached, else the list row (so the screen opens instantly from Explore). */
     fun observeTrip(slug: String): Flow<Pair<TripLite?, TripDetail?>> = db.trips().observe(slug).map { e ->

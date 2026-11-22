@@ -434,11 +434,12 @@ fun ProgressiveImage(
     contentDescription: String? = null,
     contentScale: ContentScale = ContentScale.Crop,
     colorFilter: androidx.compose.ui.graphics.ColorFilter? = null,
+    placeholder: Color? = null,
 ) {
     val c = Pc.colors
     val saver = LocalDataSaver.current
     val ctx = LocalContext.current
-    Box(modifier.background(c.tonal)) {
+    Box(modifier.background(placeholder ?: c.tonal)) {
         if (media == null) return@Box
         val lqip = remember(media.lqip) { decodeLqip(media.lqip) }
         if (lqip != null) Image(lqip, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop, colorFilter = colorFilter)

@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -139,11 +142,34 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
         }
     }
 
+    /** Cursor for the next page (null: none or not loaded yet). Pages are 12 cards: fewer rows, less data. */
+    val nextCursor = MutableStateFlow<String?>(null)
+    val loadingMore = MutableStateFlow(false)
+
     fun refresh() = viewModelScope.launch {
         refreshing.value = true
         val r = g.explore.refreshExplore(category.value, query.value.trim())
+        nextCursor.value = (r as? ApiResult.Ok)?.value
         error.value = when (r) { is ApiResult.Err -> "Couldn't refresh"; ApiResult.Offline -> null; else -> null }
         refreshing.value = false
+    }
+
+    fun loadMore() {
+        val cursor = nextCursor.value ?: return
+        if (loadingMore.value) return
+        loadingMore.value = true
+        viewModelScope.launch {
+            val r = g.explore.refreshExplore(category.value, query.value.trim(), cursor = cursor, offset = all.value.size)
+            if (r is ApiResult.Ok) nextCursor.value = r.value
+            loadingMore.value = false
+        }
+    }
+
+    /** Swipe on Explore: the next or previous tab (Trips, Stays, Activities, Rentals). */
+    fun stepCategory(by: Int) {
+        val keys = Categories.map { it.first }
+        val i = keys.indexOf(category.value) + by
+        if (i in keys.indices) category.value = keys[i]
     }
 
     fun clearFilters() { query.value = ""; window.value = WhenWindow.Any; openOnly.value = false; price.value = PriceCap.Any }
@@ -188,12 +214,26 @@ fun ExploreScreen(nav: AppNav) {
     val counts = LocalHeaderCounts.current
     val locLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) vm.nearMe() }
     var searchSheet by remember { mutableStateOf(false) }
+    var showAll by rememberSaveable { mutableStateOf(false) }
+    val nextCursor by vm.nextCursor.collectAsStateWithLifecycle()
     val c = Pc.colors
     val leaving = items.take(3)
     val rest = items.drop(3)
+    // "More" shows a few rows; the rest are a tap away in the full list (fewer rows, fewer images).
+    val restShown = rest.take(MORE_ROWS)
+    val moreCount = items.size - leaving.size - restShown.size
+    val swipe = rememberCategorySwipe(vm)
+
+    if (showAll) {
+        AllResultsScreen(vm, nav, onFilters = { searchSheet = true }, onBack = { showAll = false })
+        if (searchSheet) ExploreSearchSheet(vm, items.size, onDismiss = { searchSheet = false })
+        return
+    }
 
     Box(Modifier.fillMaxSize().background(c.paper)) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = PcTokens.searchDock + 40.dp)) {
+        val exploreList = androidx.compose.foundation.lazy.rememberLazyListState()
+        val tabsStuck by remember { derivedStateOf { exploreList.firstVisibleItemIndex > 0 } }
+        LazyColumn(Modifier.fillMaxSize().then(swipe), state = exploreList, contentPadding = PaddingValues(bottom = PcTokens.searchDock + 40.dp)) {
             item(key = "header", contentType = "header") {
                 Column(Modifier.statusBarsPadding()) {
                     Row(Modifier.fillMaxWidth().height(PcTokens.topBar).padding(start = Gutter + 2.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -203,6 +243,11 @@ fun ExploreScreen(nav: AppNav) {
                     }
                     // "Find your circle" is a heading for screen readers only; the chips sit right under the top bar.
                     Box(Modifier.fillMaxWidth().height(1.dp).semantics { heading(); contentDescription = "Find your circle" })
+                }
+            }
+            // The tabs stay pinned while you scroll; swiping the page left or right also switches them.
+            stickyHeader(key = "tabs", contentType = "tabs") {
+                Column(Modifier.fillMaxWidth().background(c.paper).then(if (tabsStuck) Modifier.statusBarsPadding() else Modifier)) {
                     TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons)
                     Spacer(Modifier.height(6.dp))
                 }
@@ -222,7 +267,7 @@ fun ExploreScreen(nav: AppNav) {
                     }
                 }
             } else {
-                item(key = "hero-h", contentType = "section") { SectionHeader(when (category) { "stays" -> "Places to stay"; "activities" -> "Things to do"; "rentals" -> "Rent for the road"; else -> "Leaving soon" }, trailing = "See all", trailingLink = { searchSheet = true }) }
+                item(key = "hero-h", contentType = "section") { SectionHeader(when (category) { "stays" -> "Places to stay"; "activities" -> "Things to do"; "rentals" -> "Rent for the road"; else -> "Leaving soon" }, trailing = "See all", trailingLink = { showAll = true }) }
                 item(key = "pager", contentType = "pager") {
                     val w = LocalConfiguration.current.screenWidthDp.dp
                     val pager = rememberPagerState { leaving.size }
@@ -258,10 +303,13 @@ fun ExploreScreen(nav: AppNav) {
             if (rest.isNotEmpty()) {
                 // One list, same as web: "Next few weeks" (dates already sorted soonest first).
                 item(key = "next-weeks", contentType = "section") {
-                    if (category == "trips") SectionHeader("More trips", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
-                    else SectionHeader("More ${categoryNoun(category)}", Modifier.padding(top = 12.dp))
+                    SectionHeader(if (category == "trips") "More trips" else "More ${categoryNoun(category)}", Modifier.padding(top = 12.dp), trailing = "See all", trailingLink = { showAll = true })
                 }
-                items(rest, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { openTrip(nav, t) } }
+                items(restShown, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { openTrip(nav, t) } }
+                if (moreCount > 0 || nextCursor != null) item(key = "see-all", contentType = "more") {
+                    PcButton(if (nextCursor == null) "See all ${items.size} ${categoryNoun(category).let { if (category == "trips") "trips" else it }}" else "See all ${categoryNoun(category).let { if (category == "trips") "trips" else it }}",
+                        { showAll = true }, Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 12.dp), kind = BtnKind.Outline)
+                }
             }
         }
         SearchDock(
@@ -270,7 +318,66 @@ fun ExploreScreen(nav: AppNav) {
             modifier = Modifier.align(Alignment.BottomCenter).padding(start = Gutter, end = Gutter, bottom = 18.dp),
         )
     }
-    if (searchSheet) ExploreSearchSheet(vm, items.size, onDismiss = { searchSheet = false })
+    if (searchSheet) ExploreSearchSheet(vm, items.size, onDismiss = { searchSheet = false }, onShow = { searchSheet = false; showAll = true })
+}
+
+private const val MORE_ROWS = 5
+
+/** Horizontal swipe anywhere on the page moves to the next / previous tab; the page leans with the finger. */
+@Composable
+private fun rememberCategorySwipe(vm: ExploreViewModel): Modifier {
+    val threshold = with(androidx.compose.ui.platform.LocalDensity.current) { 72.dp.toPx() }
+    var drag by remember { mutableFloatStateOf(0f) }
+    val lean by androidx.compose.animation.core.animateFloatAsState(if (drag == 0f) 0f else drag * 0.25f, label = "lean")
+    return Modifier
+        .graphicsLayer { translationX = lean }
+        .pointerInput(Unit) {
+            detectHorizontalDragGestures(
+                onDragEnd = { if (drag < -threshold) vm.stepCategory(1) else if (drag > threshold) vm.stepCategory(-1); drag = 0f },
+                onDragCancel = { drag = 0f },
+            ) { change, dx -> drag += dx; change.consume() }
+        }
+}
+
+/**
+ * "See all": every card for the current tab and filters, full width, 12 at a time: the next page
+ * loads as you near the end. Filters and tabs stay at hand; swipe switches tabs here too.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AllResultsScreen(vm: ExploreViewModel, nav: AppNav, onFilters: () -> Unit, onBack: () -> Unit) {
+    val c = Pc.colors
+    val items by vm.items.collectAsStateWithLifecycle()
+    val category by vm.category.collectAsStateWithLifecycle()
+    val saved by vm.saved.collectAsStateWithLifecycle()
+    val next by vm.nextCursor.collectAsStateWithLifecycle()
+    val loadingMore by vm.loadingMore.collectAsStateWithLifecycle()
+    val query by vm.query.collectAsStateWithLifecycle()
+    val window by vm.window.collectAsStateWithLifecycle()
+    androidx.activity.compose.BackHandler(onBack = onBack)
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val nearEnd by remember { derivedStateOf { list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 >= list.layoutInfo.totalItemsCount - 3 } }
+    LaunchedEffect(nearEnd, next) { if (nearEnd && next != null) vm.loadMore() }
+    Box(Modifier.fillMaxSize().background(c.paper)) {
+        Column(Modifier.fillMaxSize()) {
+            DetailTopBar(if (category == "trips") "All trips" else "All ${categoryNoun(category)}", onBack = onBack, headerActions = false)
+            TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons)
+            LazyColumn(Modifier.weight(1f).then(rememberCategorySwipe(vm)), state = list,
+                contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 8.dp, bottom = PcTokens.searchDock + 40.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                if (items.isEmpty()) item { EmptyState("Nothing matches", "Try another place or clear the filters.", action = "Clear filters", onAction = { vm.clearFilters() }) }
+                items(items, key = { "all-" + it.slug }, contentType = { "card" }) { t ->
+                    TripCard(t, t.slug in saved, onSave = { vm.toggleSave(t.slug) }, onOpen = { openTrip(nav, t) }, onTake = { takeSeat(nav, t, "explore_all") })
+                }
+                if (next != null || loadingMore) item(key = "more") {
+                    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = c.ink2, strokeWidth = 2.dp)
+                    }
+                }
+            }
+        }
+        SearchDock(label = query.ifBlank { "Where to?" }, sub = window.label, filters = vm.filterCount, onClick = onFilters,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(start = Gutter, end = Gutter, bottom = 18.dp))
+    }
 }
 
 /** Bottom search: a 56dp pill floating above the tab bar ("Where to? · Any week" + filter button). */
@@ -301,7 +408,7 @@ fun SearchDock(label: String, sub: String, filters: Int, onClick: () -> Unit, mo
 }
 
 @Composable
-private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -> Unit) {
+private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -> Unit, onShow: () -> Unit = onDismiss) {
     val q by vm.query.collectAsStateWithLifecycle()
     val cat by vm.category.collectAsStateWithLifecycle()
     val w by vm.window.collectAsStateWithLifecycle()
@@ -330,7 +437,7 @@ private fun ExploreSearchSheet(vm: ExploreViewModel, count: Int, onDismiss: () -
         Spacer(Modifier.height(10.dp))
         Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             PcButton("Clear", { vm.clearFilters() }, kind = BtnKind.Ghost)
-            PcButton(if (count == 1) "Show 1 departure" else "Show $count departures", onDismiss, Modifier.weight(1f), kind = BtnKind.Accent)
+            PcButton(if (count == 1) "Show 1 result" else "Show $count results", onShow, Modifier.weight(1f), kind = BtnKind.Accent)
         }
     }
 }
@@ -468,7 +575,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
                     style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(10.dp))
-            if (ring.total > 0) MiniArc(ring.total, ring.taken)
+            if (ring.total > 0 && t.nextDeparture != null) MiniArc(ring.total, ring.taken)
             Spacer(Modifier.width(12.dp))
             Column(horizontalAlignment = Alignment.End) {
                 Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.price, color = c.ink)
@@ -592,17 +699,23 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
     val ring = if (date == t.nextDeparture && !detail?.seats.isNullOrEmpty()) ringFromSeats(detail!!.seats, me?.user?.id, seatsTotal = dep?.seatsTotal ?: t.seatsTotal)
         else if (dep != null) ringFromCounts(dep.seatsTotal, dep.seatsLeft) else ringFromCounts(t.seatsTotal, t.seatsLeft)
     val left = dep?.seatsLeft ?: t.seatsLeft ?: (ring.total - ring.filled)
-    val coverH = (LocalConfiguration.current.screenHeightDp * 0.45f).dp
+    // Taller cover (about 4:5, at most 58% of the screen) so portrait photos aren't cut down to a strip.
+    val conf = LocalConfiguration.current
+    val coverH = minOf(conf.screenWidthDp * 1.2f, conf.screenHeightDp * 0.58f).dp
+    var viewer by remember { mutableStateOf<Int?>(null) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val pastCover by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
     Box(Modifier.fillMaxSize()) {
+    viewer?.let { PhotoViewer(images, it, t.title) { viewer = null } }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         LazyColumn(Modifier.weight(1f), state = listState) {
             item(key = "cover", contentType = "cover") {
                 val pager = rememberPagerState { images.size.coerceAtLeast(1) }
                 Box(Modifier.fillMaxWidth().height(coverH)) {
-                    HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i -> ProgressiveImage(images.getOrNull(i), Modifier.fillMaxSize(), t.title) }
+                    HorizontalPager(pager, Modifier.fillMaxSize(), key = { it }) { i ->
+                        ProgressiveImage(images.getOrNull(i), Modifier.fillMaxSize().clickable(onClickLabel = "View photo") { viewer = i }, t.title)
+                    }
                     Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(140.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x59111111)))))
                     Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().height(110.dp).background(Brush.verticalGradient(listOf(Color(0x40111111), Color.Transparent))))
                     Row(Modifier.statusBarsPadding().padding(horizontal = 8.dp, vertical = 4.dp).fillMaxWidth()) {
@@ -615,7 +728,8 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 }
             }
             item(key = "ring", contentType = "ring") {
-                Box(Modifier.fillMaxWidth().overlapUp(98.dp), contentAlignment = Alignment.Center) {
+                // Under the photo, not over it: the cover stays fully visible.
+                Box(Modifier.fillMaxWidth().padding(top = 14.dp), contentAlignment = Alignment.Center) {
                     RingMount(pad = 6.dp, color = c.paper) {
                         SeatRing(ring, PcTokens.ringHero, photo = t.image, badge = t.host?.let { RingBadge(it) },
                             spotsLabel = true,
