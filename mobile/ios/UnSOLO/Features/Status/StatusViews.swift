@@ -944,19 +944,25 @@ struct PersonRow: View {
 /// in the background (the ring on "Your story" shows how far).
 /// A photo in the composer: the original bytes, the upright preview it's edited on, and how it's framed.
 private struct ComposerShot: Identifiable, Sendable {
-    let id = UUID()
+    let id: UUID
     let data: Data
     let image: UIImage
     var fit = StoryFit()
 
-    init?(_ data: Data) {
+    init?(_ data: Data, id: UUID = UUID()) {
         guard let img = StoryMath.decode(data) else { return nil }
+        self.id = id
         self.data = data
         image = img
     }
 
     /// Untouched photos go up as they are; moved ones exactly as framed.
     var upload: Data { fit.touched ? (StoryMath.render(image, fit: fit) ?? data) : data }
+}
+
+private struct CropTarget: Identifiable {
+    let id: UUID
+    let data: Data
 }
 
 struct StatusComposer: View {
@@ -973,6 +979,7 @@ struct StatusComposer: View {
     @State private var pickerOpen = false
     @State private var picked: [PhotosPickerItem] = []
     @State private var page: UUID?
+    @State private var cropping: CropTarget?
     @State private var showArchive = false
     @FocusState private var typing: Bool
 
@@ -1013,6 +1020,13 @@ struct StatusComposer: View {
                     if shots.count < 10, let d = try? await it.loadTransferable(type: Data.self), let shot = ComposerShot(d) { add(shot) }
                 }
                 picked = []
+            }
+        }
+        .fullScreenCover(item: $cropping) { t in
+            PhotoCropEditor(data: t.data, onCancel: { cropping = nil }) { jpeg in
+                // The cropped photo replaces this one and sits whole in the story frame (it can still be pinched there).
+                if let i = shots.firstIndex(where: { $0.id == t.id }), let shot = ComposerShot(jpeg, id: t.id) { shots[i] = shot }
+                cropping = nil
             }
         }
         .sheet(isPresented: $tagging) {
@@ -1071,6 +1085,8 @@ struct StatusComposer: View {
                                     .frame(width: 36, height: 36).background(Circle().fill(.black.opacity(0.4)))
                             }
                             .accessibilityLabel("Remove this photo")
+                            chip("Crop", selected: false) { cropping = CropTarget(id: shot.id, data: shot.data) }
+                                .accessibilityLabel("Crop the photo")
                             if shot.fit.touched {
                                 chip("Reset", selected: false) {
                                     withAnimation(.easeOut(duration: 0.2)) { shot.fit = StoryFit(frame: shot.fit.frame) }

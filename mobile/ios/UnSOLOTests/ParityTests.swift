@@ -186,6 +186,19 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(StoryMath.frame(in: CGSize(width: 400, height: 900)), CGSize(width: 400, height: 400.0 * 16 / 9))
     }
 
+    func testCropKeepsThePhotoUnderTheFrame() throws {
+        let f = CGSize(width: 100, height: 100), img = CGSize(width: 400, height: 200)
+        let s = StoryMath.coverScale(f, img, 0) // 0.5: the photo is 200x100 on screen
+        XCTAssertEqual(s, 0.5, accuracy: 1e-9)
+        let o = StoryMath.clampCover(CGSize(width: 500, height: 30), s, 0, f, img)
+        XCTAssertEqual(o.width, 50, accuracy: 1e-9, "slides until its edge meets the frame's")
+        XCTAssertEqual(o.height, 0, accuracy: 1e-9)
+        let img2 = UIGraphicsImageRenderer(size: img).image { c in UIColor.blue.setFill(); c.fill(CGRect(origin: .zero, size: img)) }
+        let data = try XCTUnwrap(StoryMath.renderCrop(img2, frame: CGSize(width: 80, height: 100), scale: 0.5, angle: 0, offset: .zero))
+        let out = try XCTUnwrap(UIImage(data: data))
+        XCTAssertEqual(out.size, CGSize(width: 160, height: 200), "the photo's own resolution")
+    }
+
     func testStoryRenderIs916() throws {
         let img = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { c in
             UIColor.red.setFill(); c.fill(CGRect(x: 0, y: 0, width: 400, height: 300))

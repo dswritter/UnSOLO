@@ -205,7 +205,7 @@ struct StoryCanvas: View {
 /// UIKit recognisers, since SwiftUI's own gestures don't give the fingers' centre or a two-finger pan.
 /// Pinch carries zoom and the two-finger move, rotation the twist; the one-finger pan only starts when zoomed in,
 /// so otherwise the pager gets the swipe. While any of them runs, the enclosing scroll view stops paging.
-private struct StoryGestures: UIViewRepresentable {
+struct StoryGestures: UIViewRepresentable {
     let zoomed: () -> Bool
     let center: CGPoint
     let onChange: (CGFloat, Double, CGSize, CGSize) -> Void
