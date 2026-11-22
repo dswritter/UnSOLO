@@ -8,8 +8,13 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// FCM is optional until the team adds app/google-services.json (see docs/revamp/android.md).
-if (file("google-services.json").exists()) {
+// Store ID. com.unsolo.app is taken on Android by apps signed with keys we don't hold, so Play
+// can't register it for us; in.unsolo.app follows our domain (unsolo.in) and matches the iOS bundle ID.
+// Code stays in the com.unsolo.app namespace.
+val appId = "in.unsolo.app"
+
+// FCM turns on once app/google-services.json has a client for this applicationId (see docs/revamp/android.md).
+if (file("google-services.json").let { it.exists() && it.readText().contains("\"$appId\"") }) {
     apply(plugin = "com.google.gms.google-services")
 }
 
@@ -31,7 +36,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.unsolo.app"
+        applicationId = appId
         minSdk = 26
         targetSdk = 36
         versionCode = 1

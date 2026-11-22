@@ -38,13 +38,13 @@ Migration 121 also closes three holes in production:
 - **Redirect URLs:** add `unsolo://auth-callback` and `https://unsolo.in/auth/callback`.
 - **Google sign-in in the apps:** both apps reuse the Google provider the website already uses.
   - Add `unsolo://auth-callback` to the allowed redirect URLs.
-  - **Android, for the one-tap Google sheet:** create an *Android* OAuth client in Google Cloud for package `com.unsolo.app` with your release and debug SHA-1. Put the existing *Web* client ID in `mobile/android/secrets.properties` as `GOOGLE_WEB_CLIENT_ID`. Without it, the app falls back to the browser sign-in flow.
+  - **Android, for the one-tap Google sheet:** create an *Android* OAuth client in Google Cloud for package `in.unsolo.app` with your release and debug SHA-1. Put the existing *Web* client ID in `mobile/android/secrets.properties` as `GOOGLE_WEB_CLIENT_ID`. Without it, the app falls back to the browser sign-in flow.
 
 ## 4. Android (`mobile/android`)
 
 | What | Where it goes |
 |---|---|
-| `google-services.json` from Firebase (package `com.unsolo.app`) | `mobile/android/app/google-services.json`. The Google Services plugin turns on only when this file is present. |
+| `google-services.json` from Firebase (package `in.unsolo.app`) | `mobile/android/app/google-services.json`. The Google Services plugin turns on only when this file is present. |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | `mobile/android/secrets.properties`. Copy it from `secrets.properties.example`. |
 | Release keystore and passwords | `mobile/android/keystore.properties`, which is gitignored. The SHA-256 fingerprint must match `public/.well-known/assetlinks.json`. |
 | Play Console app and internal testing track | Google Play Console |

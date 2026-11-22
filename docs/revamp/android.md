@@ -35,7 +35,7 @@ adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk
 | R8 and resource shrinking | Off | On |
 | Size | About 14.9 MB | About 2.8 MB |
 
-- **applicationId:** `com.unsolo.app` in both build types, so the existing `assetlinks.json` applies.
+- **applicationId:** `in.unsolo.app` in both build types (code namespace stays `com.unsolo.app`). `com.unsolo.app` is already used on Android by apps signed with keys we don't hold, so Play won't register it for us.
 - **SDK levels:** minSdk 26; compileSdk and targetSdk 35.
 
 **Supabase:** the app reads `supabase.url` and `supabase.anonKey` from `GET /config` at launch. The `SUPABASE_URL` and `SUPABASE_ANON_KEY` values in `secrets.properties` (read into `BuildConfig`) are only fallbacks. No secret is in the source.
@@ -429,9 +429,9 @@ This pass follows user feedback that the app "looks more like old Windows UI". T
 |---|---|
 | `app/google-services.json`, plus an FCM service account on the server | Push. The plugin is applied automatically when the file exists. |
 | Release keystore (upload key) and `keystore.properties`, or Play App Signing | Signed release builds. Not configured: `*.jks` and `keystore.properties` are gitignored. |
-| Play Console app `com.unsolo.app` with an internal testing track | Distribution (product spec rollout, weeks 3–4) |
+| Play Console app `in.unsolo.app` with an internal testing track | Distribution (product spec rollout, weeks 3–4) |
 | Google **Web application** OAuth client ID, set as `GOOGLE_WEB_CLIENT_ID` in `secrets.properties` (same client as Supabase → Auth → Providers → Google) | Native Google sign-in through Credential Manager. Without it, the app uses the Custom Tab fallback. |
-| Google **Android** OAuth client for `com.unsolo.app` with the SHA-1 of the upload and Play signing certs (`./gradlew signingReport`) | Credential Manager rejects the app without it |
+| Google **Android** OAuth client for `in.unsolo.app` with the SHA-1 of the upload and Play signing certs (`./gradlew signingReport`) | Credential Manager rejects the app without it |
 | `unsolo://auth-callback` in Supabase → Auth → URL Configuration → Redirect URLs | The PKCE Custom Tab fallback |
 | Supabase URL and anon key | Served from `/config` (preferred), or put in `secrets.properties` |
 | Supabase phone provider (2factor, MSG91 or Twilio) | Phone OTP sign-in and `/me/phone/start` in production |
@@ -497,5 +497,5 @@ These are things the mockups or this brief need that api-v1 doesn't define. The 
 
 - Targets Android 16 (API 36), as Google Play requires for new apps and updates from 31 Aug 2026. AGP 8.10.1, Gradle 8.11.1.
 - Release builds are signed with the **upload key**: `mobile/android/upload-keystore.jks` plus `mobile/android/keystore.properties`. Both are gitignored. Back them up together; without them, updates can't be uploaded until Google support resets the upload key.
-- Play App Signing re-signs builds for users. After the first upload, copy the app signing key's SHA-1 into a second Android OAuth client in Google Cloud (package `com.unsolo.app`), and add its SHA-256 to `public/.well-known/assetlinks.json`.
+- Play App Signing re-signs builds for users. After the first upload, copy the app signing key's SHA-1 into a second Android OAuth client in Google Cloud (package `in.unsolo.app`), and add its SHA-256 to `public/.well-known/assetlinks.json`.
 - Build: `./gradlew :app:bundleRelease`, which writes `app/build/outputs/bundle/release/app-release.aab`. Raise `versionCode` for every upload.

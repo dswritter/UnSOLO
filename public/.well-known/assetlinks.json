@@ -11,5 +11,18 @@
         "C4:58:1F:D2:79:33:25:EB:53:F4:D4:DB:AC:71:9B:F4:74:9A:19:FC:BC:7A:2D:02:09:76:CD:6A:14:4C:3D:58"
       ]
     }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.unsolo.app",
+      "sha256_cert_fingerprints": [
+        "C4:58:1F:D2:79:33:25:EB:53:F4:D4:DB:AC:71:9B:F4:74:9A:19:FC:BC:7A:2D:02:09:76:CD:6A:14:4C:3D:58",
+        "CA:AD:52:05:11:31:C3:EA:C5:4F:8F:CF:B2:5B:7F:B0:BF:6B:0A:3D:EA:58:F8:86:45:50:B1:56:8F:26:5E:73"
+      ]
+    }
   }
 ]
