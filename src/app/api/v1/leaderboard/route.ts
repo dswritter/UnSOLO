@@ -14,17 +14,20 @@ const shape = (e: Entry, rank: number | null) => ({
   monthlyTrips: e.monthly_trips ?? null,
 })
 
-/** GET /leaderboard: the all-time top 100 (ties share a rank), this month's top 20, and your standing. Same board as the web. */
+/**
+ * GET /leaderboard: the all-time top 100, this month's top 20, and your standing. Same board and
+ * order as the web; rank = position on the board (ties ordered as the web orders them), so your
+ * "You're #N" always matches your row.
+ */
 export const GET = route(async (req: Request) => {
   const ctx = await getApiContext(req)
   const { entries, monthlyEntries } = await getCachedLeaderboardBoard()
-  let rank = 0, prev: number | null = null
-  const all = entries.map((e, i) => { if (e.total_score !== prev) { rank = i + 1; prev = e.total_score } return shape(e, rank) })
+  const all = entries.map((e, i) => shape(e, i + 1))
   let me = null
   if (ctx.user) {
-    const r = await getLeaderboardRank(ctx.db, ctx.user.id)
     const mine = all.find((e) => e.user.id === ctx.user!.id)
-    me = { rank: r, entry: mine ?? null }
+    // Off the top 100: 1 + people with more points.
+    me = { rank: mine?.rank ?? await getLeaderboardRank(ctx.db, ctx.user.id), entry: mine ?? null }
   }
   return ok({ entries: all, monthly: monthlyEntries.map((e, i) => shape(e, i + 1)), me }, { cache: ctx.user ? 'private' : 'public', req })
 })

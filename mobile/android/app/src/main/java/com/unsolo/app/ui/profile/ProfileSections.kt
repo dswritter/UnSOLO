@@ -38,13 +38,18 @@ val IndianStates = listOf(
 /** Status line, bio, place / Instagram / website, travel style, joined. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ProfileAbout(user: UserLite, followsYou: Boolean, nav: AppNav) {
+fun ProfileAbout(user: UserLite, followsYou: Boolean, nav: AppNav, onEditStatus: (() -> Unit)? = null) {
     val c = Pc.colors
     Column(Modifier.padding(horizontal = Gutter)) {
-        user.statusText?.let {
-            Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(14.dp)).background(c.goldBg).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Your own: tap to change it (or set one).
+        val status = user.statusText
+        if (status != null || onEditStatus != null) {
+            Row(Modifier.padding(top = 10.dp).clip(RoundedCornerShape(14.dp)).background(if (status != null) c.goldBg else c.tonal)
+                .then(if (onEditStatus != null) Modifier.clickable(onClickLabel = "Edit your status", onClick = onEditStatus) else Modifier)
+                .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("💭", fontSize = 14.sp); Spacer(Modifier.width(6.dp))
-                Text(it, style = Pc.type.bodyStrong, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(status ?: "Set a status", style = Pc.type.bodyStrong, color = if (status != null) c.ink else c.ink2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (onEditStatus != null) { Spacer(Modifier.width(8.dp)); PcIcon(PcIcons.Edit, null, size = 14.dp, tint = c.ink2) }
             }
         }
         user.bio?.takeIf { it.isNotBlank() }?.let { Text(it, style = Pc.type.body, color = c.ink, modifier = Modifier.padding(top = 10.dp)) }

@@ -33,6 +33,7 @@ data class UserLite(
     val following: Int? = null,
     val location: String? = null,
     val statusText: String? = null,
+    val statusVisibility: String? = null,
     val instagramUrl: String? = null,
     val websiteUrl: String? = null,
     val travelStyle: List<String> = emptyList(),
@@ -402,6 +403,8 @@ data class PatchMeRequest(
     val homeLat: Double? = null,
     val homeLng: Double? = null,
     val dateOfBirth: String? = null,
+    val statusText: String? = null,
+    val statusVisibility: String? = null,
 )
 
 @Serializable

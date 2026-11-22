@@ -114,6 +114,11 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     var tab by rememberSaveable { mutableStateOf("posts") }
     val phoneRequests by vm.phoneRequests.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
+    var editStatus by remember { mutableStateOf(false) }
+    val grid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    // A stat opens its tab and scrolls to it (the tab content starts at item 1).
+    val openTab: (String) -> Unit = { t -> tab = t; scope.launch { kotlinx.coroutines.delay(60); grid.animateScrollToItem(1) } }
     // Nothing fresh yet: placeholders where the details go (a cached copy shows with a thin bar instead).
     val waiting = loading && profile?.stats == null
     LaunchedEffect(own) { if (own) vm.loadPhoneRequests() }
@@ -124,7 +129,12 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
     val plans = posts.filter { it.kind == PostKind.PLAN }
     val tiles = posts.filter { it.kind != PostKind.PLAN }
 
-    LazyVerticalGrid(GridCells.Fixed(3), Modifier.fillMaxSize().background(c.paper), contentPadding = PaddingValues(horizontal = 0.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    if (editStatus) StatusEditSheet(user, onDismiss = { editStatus = false }) { text, vis ->
+        val r = nav.graph.account.patchMe(PatchMeRequest(statusText = text, statusVisibility = vis))
+        if (r is ApiResult.Ok<*>) { editStatus = false; nav.graph.tribe.refreshProfile(username) }
+        else nav.graph.events.emit(com.unsolo.app.data.AppEvent.Message((r as? ApiResult.Err)?.message ?: "Couldn't save that. Try again."))
+    }
+    LazyVerticalGrid(GridCells.Fixed(3), Modifier.fillMaxSize().background(c.paper), state = grid, contentPadding = PaddingValues(horizontal = 0.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item(span = { GridItemSpan(3) }, key = "head") {
             Column {
                 Column(Modifier.statusBarsPadding()) {
@@ -151,7 +161,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     }
                 }
                 if (loading) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = Gutter, vertical = 6.dp).height(2.dp).clip(CircleShape), color = c.gold, trackColor = c.tonal)
-                if (waiting) ProfileSkeleton() else if (user != null) ProfileAbout(user, profile?.followsYou == true, nav)
+                if (waiting) ProfileSkeleton() else if (user != null) ProfileAbout(user, profile?.followsYou == true, nav, onEditStatus = if (own) ({ editStatus = true }) else null)
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (own) {
@@ -171,7 +181,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     when (key) {
                         "leaderboard" -> nav.to(Routes.LEADERBOARD)
                         "followers", "following" -> nav.to(Routes.people(username, key))
-                        else -> tab = key
+                        else -> openTab(key)
                     }
                 }
                 if (!own) ConnectionsCard(profile?.connections, profile?.travel?.mutualPlaces.orEmpty(), nav)
@@ -309,14 +319,26 @@ fun SettingsScreen(nav: AppNav) {
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar("Settings", onBack = { nav.back() })
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            SettingsHeader("Start the app on")
-            Segmented(Tab.landingChoices.map { it to Tab.label(it) }, local?.landingTab ?: Tab.EXPLORE, { t -> scope.launch { g.account.setLandingTab(t) } })
-            Text("We may suggest a change if you open another tab most.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 8.dp))
+            if (signedIn) {
+                var editStatus by remember { mutableStateOf(false) }
+                SettingsSection("Profile", startOpen = true) {
+                    NavRow("Status", me?.user?.statusText ?: "Set a status, like \"Off to Spiti next week\"", PcIcons.Edit, { editStatus = true })
+                }
+                if (editStatus) StatusEditSheet(me?.user, onDismiss = { editStatus = false }) { text, vis ->
+                    val r = g.account.patchMe(PatchMeRequest(statusText = text, statusVisibility = vis))
+                    if (r is ApiResult.Ok<*>) { editStatus = false; me?.user?.username?.let { u -> g.tribe.refreshProfile(u) } }
+                    else g.events.emit(com.unsolo.app.data.AppEvent.Message((r as? ApiResult.Err)?.message ?: "Couldn't save that. Try again."))
+                }
+            }
+            SettingsSection("Start the app on", startOpen = true) {
+                Segmented(Tab.landingChoices.map { it to Tab.label(it) }, local?.landingTab ?: Tab.EXPLORE, { t -> scope.launch { g.account.setLandingTab(t) } }, Modifier.padding(bottom = 12.dp))
+            }
 
             if (signedIn) {
-                SettingsHeader("Notifications")
                 val push = prefs.notify.push
-                FormCard {
+                val onCount = listOf(push.plans, push.replies, push.messages, push.trips, push.tags, push.marketing).count { it }
+                val qh = prefs.notify.quietHours
+                SettingsSection("Notifications", summary = "$onCount of 6 on" + (qh?.let { " · quiet ${it.from}–${it.to}" } ?: "")) {
                     listOf(
                         Triple("plans", "Plans and requests", push.plans), Triple("replies", "Replies and answers", push.replies),
                         Triple("messages", "Messages", push.messages), Triple("trips", "Trips and payments", push.trips),
@@ -329,7 +351,8 @@ fun SettingsScreen(nav: AppNav) {
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Quiet hours", style = Pc.type.bodyStrong, color = c.ink)
-                            Text("Messages and trip alerts still come through", style = Pc.type.small, color = c.ink2)
+                            // What it means, in plain words.
+                            Text("Between these times, plan, reply and offer alerts arrive silently, no sound or buzz. Messages and trip alerts still ring.", style = Pc.type.small, color = c.ink2)
                         }
                         val q = prefs.notify.quietHours ?: QuietHours()
                         TimeChip(q.from, QuietPresets) { v -> setNotify(prefs.notify.copy(quietHours = q.copy(from = v))) }
@@ -339,8 +362,7 @@ fun SettingsScreen(nav: AppNav) {
                 }
             }
 
-            SettingsHeader("Suggestions")
-            FormCard {
+            SettingsSection("Suggestions", summary = listOfNotNull("Near me".takeIf { local?.nearMe == true }, "${prefs.interests.size} interests".takeIf { signedIn && prefs.interests.isNotEmpty() }).joinToString(" · ").ifEmpty { "Location, gender, interests" }) {
                 SwitchRow("Suggestions near me", "Uses approximate location only, never stored", local?.nearMe == true, { on ->
                     if (on) locLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                     else scope.launch { g.settings.setNearMe(false); if (signedIn) g.account.updatePreferences(buildJsonObject { put("suggestByLocation", false) }) }
@@ -369,19 +391,23 @@ fun SettingsScreen(nav: AppNav) {
                 }
             }
 
-            SettingsHeader("Data")
-            FormCard { SwitchRow("Data saver", "Low-resolution photos only", local?.dataSaver == true, { v -> scope.launch { g.account.setDataSaver(v) } }) }
+            SettingsSection("Data", summary = if (local?.dataSaver == true) "Data saver on" else "Data saver off") {
+                SwitchRow("Data saver", "Low-resolution photos only", local?.dataSaver == true, { v -> scope.launch { g.account.setDataSaver(v) } })
+            }
 
-            SettingsHeader("Account")
-            FormCard {
+            SettingsSection("Account", startOpen = true) {
                 if (signedIn) {
                     val verified = me?.user?.isPhoneVerified == true
                     NavRow(if (verified) "Phone verified" else "Verify your phone", me?.user?.phone ?: "Needed to host trips; lets you sign in by SMS", PcIcons.Phone, { if (!verified) nav.to(Routes.PHONE) }, trailing = if (verified) "✓" else null)
                     InsetRule(start = 66.dp)
-                    NavRow("Leaderboard", "Points from stories and trips", PcIcons.Trophy, { nav.openWeb("/leaderboard") })
+                    NavRow("Leaderboard", "Points from stories and trips", PcIcons.Trophy, { nav.to(Routes.LEADERBOARD) })
                     InsetRule(start = 66.dp)
                 } else { NavRow("Sign in", "Or create an account", PcIcons.User, { nav.to(Routes.AUTH) }); InsetRule(start = 66.dp) }
-                NavRow("Privacy and terms", null, PcIcons.Shield, { nav.openWeb("/privacy") })
+                NavRow("Privacy policy", null, PcIcons.Shield, { nav.to(Routes.legal("privacy")) })
+                InsetRule(start = 66.dp)
+                NavRow("Terms", null, PcIcons.Shield, { nav.to(Routes.legal("terms")) })
+                InsetRule(start = 66.dp)
+                NavRow("Refund policy", null, PcIcons.Shield, { nav.to(Routes.legal("refund-policy")) })
                 if (signedIn) {
                     InsetRule(start = 66.dp)
                     NavRow("Sign out", com.unsolo.app.core.auth.AccountContact.label(me?.user?.email, me?.user?.phone)?.let { "Signed in as $it" }, PcIcons.Logout, { scope.launch { g.account.signOut(g.push.currentToken()); nav.tab(Routes.EXPLORE) } }, danger = true)
@@ -399,6 +425,46 @@ fun SettingsScreen(nav: AppNav) {
 private fun NotifyChannels.with(key: String, v: Boolean) = when (key) {
     "plans" -> copy(plans = v); "replies" -> copy(replies = v); "messages" -> copy(messages = v)
     "trips" -> copy(trips = v); "tags" -> copy(tags = v); else -> copy(marketing = v)
+}
+
+/** A settings group that folds: title and a one-line summary; tap to open. */
+@Composable
+private fun SettingsSection(title: String, summary: String? = null, startOpen: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    val c = Pc.colors
+    var open by rememberSaveable(title) { mutableStateOf(startOpen) }
+    Column(Modifier.padding(horizontal = Gutter, vertical = 6.dp).fillMaxWidth().raisedCard()) {
+        Row(Modifier.fillMaxWidth().clickable(onClickLabel = if (open) "Collapse" else "Expand") { open = !open }.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
+                if (!open && summary != null) Text(summary, style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            PcIcon(if (open) PcIcons.ChevronUp else PcIcons.ChevronDown, null, size = 18.dp, tint = c.ink2)
+        }
+        androidx.compose.animation.AnimatedVisibility(open) { Column(content = content) }
+    }
+}
+
+/** Your profile status line and who sees it. */
+@Composable
+internal fun StatusEditSheet(user: UserLite?, onDismiss: () -> Unit, onSave: suspend (String, String) -> Unit) {
+    val c = Pc.colors
+    val scope = rememberCoroutineScope()
+    var text by rememberSaveable { mutableStateOf(user?.statusText.orEmpty()) }
+    var vis by rememberSaveable { mutableStateOf(user?.statusVisibility ?: "public") }
+    var busy by remember { mutableStateOf(false) }
+    PcSheet(onDismiss) {
+        SheetTitle("Your status", "A line on your profile, like \"Off to Spiti next week\".")
+        Column(Modifier.padding(horizontal = Gutter), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            BoxedInput(text, { text = it.take(140) }, "What are you up to?")
+            Text("${text.length}/140", style = Pc.type.label, color = c.ink3)
+            Segmented(listOf("public" to "Everyone", "followers" to "Followers only"), vis, { vis = it })
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (!user?.statusText.isNullOrBlank()) PcButton("Clear", { busy = true; scope.launch { onSave("", vis); busy = false } }, Modifier.weight(1f), kind = BtnKind.Outline, enabled = !busy)
+                PcButton("Save", { busy = true; scope.launch { onSave(text.trim(), vis); busy = false } }, Modifier.weight(1f), kind = BtnKind.Accent, loading = busy)
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
 }
 
 @Composable

@@ -7,7 +7,7 @@ export const MAX_ACTIVE_STATUS = 10
 /** Statuses disappear this long after posting. */
 export const STATUS_TTL_MS = 24 * 60 * 60 * 1000
 
-export const STATUS_SELECT = `id, author_id, media_url, media_type, caption, link_url, bg_color, created_at, expires_at, author:profiles(${PROFILE_LITE})`
+export const STATUS_SELECT = `id, author_id, media_url, media_type, caption, link_url, bg_color, created_at, expires_at, author:profiles!status_stories_author_id_fkey(${PROFILE_LITE})`
 
 export type StatusItem = {
   id: string

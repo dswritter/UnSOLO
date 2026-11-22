@@ -1,6 +1,5 @@
 import type { ApiContext } from '@/lib/api/context'
 import { ApiError } from '@/lib/api/http'
-import { getLeaderboardRankByScore } from '@/lib/leaderboard-rank'
 import { badgeProgress, mutualPlaces, profileTierProgress, visitedPlaces } from '@/lib/profile/publicProfileSummary'
 import { loadHostConnections, loadViewerRelation } from '@/app/(main)/profile/[username]/profileConnections'
 import { loadPosts, loadViewer } from '@/lib/tribe/load'
@@ -22,6 +21,14 @@ export function visibleStatus(text: unknown, visibility: unknown, own: boolean, 
   const t = typeof text === 'string' && text.trim() ? text.trim() : null
   if (!t) return null
   return visibility === 'followers' && !own && !following ? null : t
+}
+
+async function boardPosition(svc: ReturnType<ApiContext['service']>, userId: string, score: number) {
+  const [above, tiedBefore] = await Promise.all([
+    svc.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).gt('total_score', score),
+    svc.from('leaderboard_scores').select('user_id', { count: 'exact', head: true }).eq('total_score', score).lt('user_id', userId),
+  ])
+  return (above.count ?? 0) + (tiedBefore.count ?? 0) + 1
 }
 
 const BOOKING_TRIP = 'id, travel_date, status, package:packages(title, slug, destination:destinations(name, state))'
@@ -68,7 +75,8 @@ export async function loadAppProfile(ctx: ApiContext, username: string) {
   const bookings = [...own_, ...claimed].sort((a, b) => String(b.travel_date ?? '').localeCompare(String(a.travel_date ?? '')))
   const places = visitedPlaces(bookings as never)
   const score = Number((board.data as Row | null)?.total_score ?? 0)
-  const rank = score > 0 ? await getLeaderboardRankByScore(ctx.db, score) : null
+  // Position on the board, ordered like the web board (points, then id), so it matches the leaderboard row.
+  const rank = score > 0 ? await boardPosition(svc, id, score) : null
   const tier = profileTierProgress(score)
   const badges = badgeProgress(((achievements.data ?? []) as Row[]).map((a) => String(a.achievement_key)))
   const tripsPrivate = p.trips_private === true && !own

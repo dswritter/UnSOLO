@@ -19,6 +19,8 @@ import com.unsolo.app.core.model.LeaderboardResponse
 import com.unsolo.app.core.model.UserLite
 import com.unsolo.app.core.net.ApiResult
 import com.unsolo.app.core.net.apiCall
+import com.unsolo.app.data.getAs
+import com.unsolo.app.data.putAs
 import com.unsolo.app.ui.components.*
 import com.unsolo.app.ui.nav.AppNav
 import com.unsolo.app.ui.nav.Routes
@@ -30,11 +32,22 @@ fun LeaderboardScreen(nav: AppNav) {
     val c = Pc.colors
     var data by remember { mutableStateOf<LeaderboardResponse?>(null) }
     var failed by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(true) }
     var tab by remember { mutableStateOf("all") }
     val meId = nav.graph.account.me.value?.user?.id
-    LaunchedEffect(Unit) { when (val r = apiCall { nav.graph.api.leaderboard() }) { is ApiResult.Ok -> data = r.value; else -> failed = true } }
+    // Last copy at once, then the fresh one.
+    LaunchedEffect(Unit) {
+        val cache = nav.graph.db.cache()
+        cache.getAs("leaderboard", LeaderboardResponse.serializer())?.let { data = it }
+        when (val r = apiCall { nav.graph.api.leaderboard() }) {
+            is ApiResult.Ok -> { data = r.value; cache.putAs("leaderboard", LeaderboardResponse.serializer(), r.value) }
+            else -> failed = true
+        }
+        refreshing = false
+    }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar("Leaderboard", onBack = { nav.back() }, headerActions = false)
+        if (refreshing && data != null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = c.gold, trackColor = c.tonal)
         Segmented(listOf("all" to "All time", "month" to "This month"), tab, { tab = it }, Modifier.padding(horizontal = Gutter))
         val d = data
         when {
@@ -74,12 +87,19 @@ private fun LeaderRow(e: LeaderEntry, monthly: Boolean, me: Boolean, onClick: ()
 fun PeopleScreen(username: String, kind: String, nav: AppNav) {
     val c = Pc.colors
     var list by remember { mutableStateOf<List<UserLite>?>(null) }
+    var refreshing by remember { mutableStateOf(true) }
     LaunchedEffect(username, kind) {
+        val cache = nav.graph.db.cache()
+        val key = "people:$username:$kind"
+        cache.getAs(key, com.unsolo.app.core.model.UserListResponse.serializer())?.let { list = it.items }
         val r = apiCall { if (kind == "followers") nav.graph.api.followers(username) else nav.graph.api.following(username) }
-        list = (r as? ApiResult.Ok)?.value?.items ?: emptyList()
+        if (r is ApiResult.Ok) { list = r.value.items; cache.putAs(key, com.unsolo.app.core.model.UserListResponse.serializer(), r.value) }
+        else if (list == null) list = emptyList()
+        refreshing = false
     }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar(if (kind == "followers") "Followers" else "Following", onBack = { nav.back() }, headerActions = false)
+        if (refreshing && list != null) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp), color = c.gold, trackColor = c.tonal)
         val l = list
         when {
             l == null -> Column(Modifier.padding(Gutter)) { repeat(6) { Box(Modifier.padding(vertical = 6.dp).fillMaxWidth().height(48.dp).clip(RoundedCornerShape(12.dp)).background(c.tonal)) } }

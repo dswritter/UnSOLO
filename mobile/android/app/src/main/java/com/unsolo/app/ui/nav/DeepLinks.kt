@@ -28,6 +28,7 @@ object Routes {
     const val STATUS_NEW = "status-new?archive={archive}"
     const val STATUS_ARCHIVE = "status-archive"
     const val LEADERBOARD = "leaderboard"
+    const val LEGAL = "legal/{page}"
     const val PEOPLE = "people/{username}/{kind}"
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
@@ -37,6 +38,7 @@ object Routes {
     fun chat(roomId: String) = "chat/${enc(roomId)}"
     fun compose(kind: String) = "compose/$kind"
     fun story(postId: String) = "story/${enc(postId)}"
+    fun legal(page: String) = "legal/$page"
     fun people(username: String, kind: String) = "people/${enc(username)}/$kind"
     fun status(authorId: String) = "status/${enc(authorId)}"
     fun statusNew(archiveId: String? = null) = if (archiveId == null) "status-new" else "status-new?archive=${enc(archiveId)}"

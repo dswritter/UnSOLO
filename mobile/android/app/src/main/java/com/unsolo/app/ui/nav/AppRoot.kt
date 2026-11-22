@@ -195,6 +195,9 @@ class MainViewModel(private val g: AppGraph) : ViewModel() {
      */
     private var pickedThisLaunch = false
 
+    /** Back after a while: the tab on screen is this launch's start; the next tab you pick counts. */
+    fun newSession(route: String?) { firstRoute = true; pickedThisLaunch = false; recordTab(route) }
+
     fun recordTab(route: String?) = viewModelScope.launch {
         val auto = firstRoute
         firstRoute = false
@@ -252,6 +255,20 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
 
     LaunchedEffect(Unit) { newIntents.collect { controller.handleDeepLink(it) } }
     LaunchedEffect(route) { vm.recordTab(route) }
+    // Coming back after a while counts as a new launch (Android often resumes instead of restarting).
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        var stoppedAt = 0L
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            when (e) {
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> stoppedAt = System.currentTimeMillis()
+                androidx.lifecycle.Lifecycle.Event.ON_START -> if (stoppedAt > 0 && System.currentTimeMillis() - stoppedAt > 60_000) vm.newSession(controller.currentBackStackEntry?.destination?.route)
+                else -> Unit
+            }
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
     LaunchedEffect(Unit) { vm.checkLanding() }
     LaunchedEffect(Unit) {
         graph.events.flow.collect { e ->
@@ -354,6 +371,10 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
     }
     composable(Routes.STATUS_ARCHIVE) { com.unsolo.app.ui.status.StatusArchiveScreen(nav) }
     composable(Routes.LEADERBOARD, deepLinks = links("/leaderboard")) { com.unsolo.app.ui.profile.LeaderboardScreen(nav) }
+    composable(Routes.LEGAL, arguments = listOf(navArgument("page") { type = NavType.StringType })) {
+        val p = it.arguments?.getString("page")
+        if (p in setOf("privacy", "terms", "refund-policy")) com.unsolo.app.ui.profile.LegalScreen(p!!, nav) else InvalidLink(nav)
+    }
     composable(Routes.PEOPLE, arguments = listOf(navArgument("username") { type = NavType.StringType }, navArgument("kind") { type = NavType.StringType })) {
         val u = it.arguments?.getString("username"); val k = it.arguments?.getString("kind")
         if (DeepLinks.validUsername(u) && (k == "followers" || k == "following")) com.unsolo.app.ui.profile.PeopleScreen(u!!, k!!, nav) else InvalidLink(nav)

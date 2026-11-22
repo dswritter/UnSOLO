@@ -48,7 +48,7 @@ export function DmSidebarAvatarMenu({
       const sb = createClient()
       const { data, error } = await sb
         .from('status_stories')
-        .select('id, author_id, media_url, created_at, expires_at, author:profiles(username, full_name, avatar_url)')
+        .select('id, author_id, media_url, created_at, expires_at, author:profiles!status_stories_author_id_fkey(username, full_name, avatar_url)')
         .eq('author_id', userId)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })

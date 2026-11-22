@@ -6,12 +6,13 @@ import { loadPreferences, savePreferences } from '@/lib/tribe/preferences'
 import { countUnreadMessages } from '@/lib/tribe/chats'
 import { contactEmail, hasVerifiedEmail } from '@/lib/auth/phone-login'
 import { deleteAccount } from '@/lib/account/delete-account'
+import { screenText } from '@/lib/moderation/screen'
 
 async function me(req: Request) {
   const ctx = await getApiContext(req)
   const user = requireUser(ctx)
   const [{ data: p }, { data: priv }, prefs, unreadN, unreadMessages] = await Promise.all([
-    ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number`).eq('id', user.id).single(),
+    ctx.db.from('profiles').select(`${PROFILE_LITE}, role, bio, date_of_birth, phone_number, status_text, status_visibility`).eq('id', user.id).single(),
     ctx.db.from('profile_private').select('gender, home_city').eq('user_id', user.id).maybeSingle(),
     loadPreferences(ctx.db, user.id),
     ctx.db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_read', false),
@@ -23,6 +24,7 @@ async function me(req: Request) {
       ...toUserLite(p), email: contactEmail(user.email) || null, phone: (p?.phone_number as string | null) ?? null,
       gender: (priv?.gender as string | null) ?? null, homeCity: (priv?.home_city as string | null) ?? null,
       bio: (p?.bio as string | null) ?? null, dateOfBirth: (p?.date_of_birth as string | null) ?? null,
+      statusText: (p?.status_text as string | null) ?? null, statusVisibility: (p?.status_visibility as string | null) ?? 'public',
     },
     role,
     isStaff: role !== 'user',
@@ -43,6 +45,9 @@ const Patch = z.object({
   homeLat: z.number().min(-90).max(90).nullable().optional(),
   homeLng: z.number().min(-180).max(180).nullable().optional(),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  /** The status line on your profile ("Off to Spiti next week"); empty clears it. */
+  statusText: z.string().trim().max(140).nullable().optional(),
+  statusVisibility: z.enum(['public', 'followers']).optional(),
 }).strict()
 
 export const PATCH = route(async (req: Request) => {
@@ -58,6 +63,11 @@ export const PATCH = route(async (req: Request) => {
   if (b.name !== undefined) pub.full_name = b.name
   if (b.bio !== undefined) pub.bio = b.bio
   if (b.dateOfBirth !== undefined) pub.date_of_birth = b.dateOfBirth
+  if (b.statusText !== undefined) {
+    if (b.statusText && screenText(b.statusText).hold) throw new ApiError('bad_request', 'That status can’t be shown. Please keep it kind and safe.', { field: 'statusText' })
+    pub.status_text = b.statusText || null
+  }
+  if (b.statusVisibility !== undefined) pub.status_visibility = b.statusVisibility
   if (Object.keys(pub).length) {
     const { error } = await ctx.db.from('profiles').update({ ...pub, updated_at: new Date().toISOString() }).eq('id', user.id)
     if (error) throw error

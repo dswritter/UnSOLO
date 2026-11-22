@@ -143,10 +143,10 @@ object LandingPolicy {
 
     /**
      * The last [STREAK] launches all went (first) to one tab that isn't the start tab → that tab.
-     * "Not now" holds the offer back for 30 days; it was shown less than a week ago → no.
+     * "Not now" holds the offer back for a week; otherwise it waits 2 days after it was last shown.
      */
     fun streakSuggestion(picks: List<String>, currentLanding: String, dismissed: Boolean, lastShownAt: Long, now: Long): String? {
-        if (lastShownAt > 0 && now - lastShownAt < (if (dismissed) 30L * 24 * 3600_000 else COOLDOWN_MS)) return null
+        if (lastShownAt > 0 && now - lastShownAt < (if (dismissed) 7L * 24 * 3600_000 else 2L * 24 * 3600_000)) return null
         val last = picks.takeLast(STREAK)
         if (last.size < STREAK || last.toSet().size != 1) return null
         val tab = last.first()

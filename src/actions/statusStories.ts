@@ -80,7 +80,7 @@ export async function getStatusStripForHome(): Promise<{
 
   const { data: rows } = await supabase
     .from('status_stories')
-    .select('id, author_id, media_url, created_at, expires_at, author:profiles(username, full_name, avatar_url)')
+    .select('id, author_id, media_url, created_at, expires_at, author:profiles!status_stories_author_id_fkey(username, full_name, avatar_url)')
     .gt('expires_at', new Date().toISOString())
     .in('author_id', authorIds)
     .order('created_at', { ascending: false })
@@ -114,7 +114,7 @@ export async function getStatusStoriesForProfile(authorId: string, viewerUserId:
 
   const { data: rows } = await supabase
     .from('status_stories')
-    .select('id, author_id, media_url, created_at, expires_at, author:profiles(username, full_name, avatar_url)')
+    .select('id, author_id, media_url, created_at, expires_at, author:profiles!status_stories_author_id_fkey(username, full_name, avatar_url)')
     .eq('author_id', authorId)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })

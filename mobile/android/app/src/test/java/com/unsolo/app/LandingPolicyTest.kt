@@ -65,9 +65,9 @@ class LandingPolicyTest {
         assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "explore", "tribe"), "explore", false, 0, now))
         assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe"), "explore", false, 0, now))
         assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "tribe", false, 0, now))
-        // Shown yesterday: wait. Dismissed 10 days ago: still waiting (30 days).
+        // Shown yesterday: wait (2 days). Dismissed 5 days ago: still waiting (a week); 8 days: ask again.
         assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", false, now - 86_400_000, now))
-        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 10 * 86_400_000L, now))
-        assertEquals("tribe", LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 31 * 86_400_000L, now))
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 5 * 86_400_000L, now))
+        assertEquals("tribe", LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 8 * 86_400_000L, now))
     }
 }
