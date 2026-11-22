@@ -4,16 +4,18 @@ import { ApiError, ok, parseWith, route } from '@/lib/api/http'
 import { loadPosts, loadTripOccupancy, loadViewer } from '@/lib/tribe/load'
 import { PACKAGE_LITE, PROFILE_LITE, mediaFromUrl, toTripLite, toUserLite, todayIST, placeSlug, type Seat } from '@/lib/tribe/models'
 import { countPlanning } from '@/lib/tribe/trips'
+import { loadListingDetail } from '@/lib/tribe/listings'
 
 type Ctx = { params: Promise<{ slug: string }> }
 
+/** A hosted trip, or (same shape, kind set) a stay, activity or rental with this slug. */
 export const GET = route(async (req: Request, { params }: Ctx) => {
   const slug = parseWith(z.string().regex(/^[a-z0-9-]{1,120}$/), (await params).slug)
   const ctx = await getApiContext(req)
   const { data: r } = await ctx.db.from('packages')
     .select(`${PACKAGE_LITE}, description, short_description, includes`)
     .eq('slug', slug).eq('is_active', true).maybeSingle()
-  if (!r) throw new ApiError('not_found', 'This trip is not available')
+  if (!r) return ok(await loadListingDetail(ctx, slug), { cache: ctx.user ? 'private' : 'public', req })
   const row = r as Record<string, unknown>
   const today = todayIST()
   const dates = ((row.departure_dates as string[] | null) ?? []).filter((d) => d >= today).sort().slice(0, 8)

@@ -53,6 +53,7 @@ object PcIcons {
     val Back by lazy { stroke("back", "M19.5,12H4.5M10.5,6L4.5,12L10.5,18") }
     val ChevronRight by lazy { stroke("chevron", "M9,5L16,12L9,19") }
     val ChevronDown by lazy { stroke("chevron_down", "M6,9L12,15L18,9") }
+    val ChevronUp by lazy { stroke("chevron_up", "M6,15L12,9L18,15") }
     val ArrowRight by lazy { stroke("arrow_right", "M4.5,12H19.5M13.5,6L19.5,12L13.5,18") }
     val Share by lazy { stroke("share", "M16.5,8.5a2.5,2.5 0 1,0 0,-5a2.5,2.5 0 1,0 0,5z", "M7.5,14.5a2.5,2.5 0 1,0 0,-5a2.5,2.5 0 1,0 0,5z", "M16.5,20.5a2.5,2.5 0 1,0 0,-5a2.5,2.5 0 1,0 0,5z", "M9.7,10.8L14.3,7.2M9.7,13.2L14.3,16.8") }
     val Flag by lazy { stroke("flag", "M5,21V4", "M5,4H18L15.5,8.5L18,13H5") }

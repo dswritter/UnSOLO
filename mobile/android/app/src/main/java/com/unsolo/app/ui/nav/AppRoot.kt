@@ -238,7 +238,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
     val tabs = listOf(
         TabSpec(Routes.EXPLORE, "Explore", PcIcons.Compass, iconSelected = PcIcons.CompassFilled),
         TabSpec(Routes.TRIBE, "Tribe", PcIcons.UsersThree),
-        TabSpec(Routes.TRIPS, "My trips", PcIcons.Ticket),
+        TabSpec(Routes.TRIPS, "Bookings", PcIcons.Ticket),
         TabSpec(Routes.YOU, "You", PcIcons.UserCircle),
     )
 

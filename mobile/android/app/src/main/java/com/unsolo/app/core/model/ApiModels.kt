@@ -133,8 +133,11 @@ data class TripDetail(
     val rating: Rating? = null,
     val stories: List<Post> = emptyList(),
     val planningCount: Int? = null,
+    val kind: String = "trip",
+    val unit: String? = null,
+    val webPath: String? = null,
 ) {
-    fun lite() = TripLite(id, slug, title, place, image, priceFromPaise, durationDays, nextDeparture, seatsLeft, seatsTotal, host, goingFaces)
+    fun lite() = TripLite(id, slug, title, place, image, priceFromPaise, durationDays, nextDeparture, seatsLeft, seatsTotal, host, goingFaces, kind, unit, webPath)
 }
 
 object PostKind {

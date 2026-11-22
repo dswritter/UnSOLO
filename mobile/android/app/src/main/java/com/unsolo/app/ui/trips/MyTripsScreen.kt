@@ -49,8 +49,8 @@ fun MyTripsScreen(nav: AppNav) {
     val c = Pc.colors
     if (!signedIn) {
         Column(Modifier.fillMaxSize().background(c.paper)) {
-            PageHeader("My trips", counts, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
-            EmptyState("Your circles live here", "Sign in to see bookings, plans you've joined and their group chats.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
+            PageHeader("Bookings", counts, { nav.to(Routes.AUTH) }, { nav.to(Routes.AUTH) })
+            EmptyState("Your bookings live here", "Sign in to see trips, stays, activities and rentals you've booked, plans you've joined and their group chats.", action = "Sign in", onAction = { nav.to(Routes.AUTH) })
         }
         return
     }
@@ -58,18 +58,27 @@ fun MyTripsScreen(nav: AppNav) {
     val data by vm.trips.collectAsStateWithLifecycle()
     val chats by vm.chats.collectAsStateWithLifecycle()
     val me by nav.graph.account.me.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf("upcoming") }
+    var tab by rememberSaveable { mutableStateOf<String?>(null) }
     val d = data ?: MyTripsResponse()
+    // Open where there's something: Upcoming, else Plans, else Past.
+    LaunchedEffect(data) { if (tab == null && data != null) tab = when { d.upcoming.isNotEmpty() -> "upcoming"; d.plans.isNotEmpty() || d.requested.isNotEmpty() -> "plans"; d.past.isNotEmpty() -> "past"; else -> "upcoming" } }
     val unreadByRoom = chats.associate { it.id to it.unread }
     LazyColumn(Modifier.fillMaxSize().background(c.paper)) {
         item(key = "h") {
-            PageHeader("My trips", counts, { nav.to(Routes.INBOX) }, { nav.to(Routes.ACTIVITY) })
-            Segmented(listOf("upcoming" to "Upcoming · ${d.upcoming.size}", "plans" to "Plans · ${d.plans.size + d.requested.size}", "past" to "Past · ${d.past.size}"), tab, { tab = it })
+            PageHeader("Bookings", counts, { nav.to(Routes.INBOX) }, { nav.to(Routes.ACTIVITY) })
+            Segmented(listOf("upcoming" to "Upcoming · ${d.upcoming.size}", "plans" to "Plans · ${d.plans.size + d.requested.size}", "past" to "Past · ${d.past.size}"), tab ?: "upcoming", { tab = it })
             Spacer(Modifier.height(8.dp))
         }
-        when (tab) {
+        when (tab ?: "upcoming") {
             "upcoming" -> {
-                if (d.upcoming.isEmpty()) item { EmptyState("No trips yet", "Grab a spot on a departure, or ask to join a plan in Tribe.", action = "Explore departures", onAction = { nav.tab(Routes.EXPLORE) }) }
+                // "No bookings yet" only for people who've never booked; otherwise a short nudge.
+                if (d.upcoming.isEmpty() && d.past.isEmpty()) item { EmptyState("No bookings yet", "Grab a spot on a trip, book a stay or a rental, or ask to join a plan in Tribe.", action = "Explore", onAction = { nav.tab(Routes.EXPLORE) }) }
+                else if (d.upcoming.isEmpty()) item {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Nothing coming up yet.", style = Pc.type.body, color = c.ink2, modifier = Modifier.weight(1f))
+                        LinkText("Find your next", { nav.tab(Routes.EXPLORE) }, style = Pc.type.smallStrong)
+                    }
+                }
                 items(d.upcoming, key = { "b-" + it.id }, contentType = { "ticket" }) { b ->
                     UpcomingCard(b, me?.user, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") })
                 }
@@ -86,7 +95,7 @@ fun MyTripsScreen(nav: AppNav) {
                 items(d.requested, key = { "r-" + it.id }, contentType = { "plan" }) { p -> PlanTicket(p, me?.user?.id, onOpen = { nav.to(Routes.post(p.id)) }, onChat = null) }
             }
             else -> {
-                if (d.past.isEmpty()) item { EmptyState("No past trips", "Trips you've been on show up here, with a prompt to share your story.") }
+                if (d.past.isEmpty()) item { EmptyState("Nothing past yet", "Trips, stays and activities you've done show up here.") }
                 items(d.past, key = { "past-" + it.id }) { b -> PastCard(b, onOpen = { nav.to(Routes.trip(b.trip.slug)) }) { nav.to(Routes.compose(PostKind.STORY)) } }
             }
         }

@@ -26,6 +26,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -145,10 +149,15 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
     /** Cursor for the next page (null: none or not loaded yet). Pages are 12 cards: fewer rows, less data. */
     val nextCursor = MutableStateFlow<String?>(null)
     val loadingMore = MutableStateFlow(false)
+    /** Tabs (category + search) fetched at least once this session: until then an empty list means "loading", not "none". */
+    val loaded = MutableStateFlow<Set<String>>(emptySet())
+    private fun key() = category.value + "|" + query.value.trim()
 
     fun refresh() = viewModelScope.launch {
         refreshing.value = true
+        val k = key()
         val r = g.explore.refreshExplore(category.value, query.value.trim())
+        if (r !is ApiResult.Offline) loaded.value = loaded.value + k
         nextCursor.value = (r as? ApiResult.Ok)?.value
         error.value = when (r) { is ApiResult.Err -> "Couldn't refresh"; ApiResult.Offline -> null; else -> null }
         refreshing.value = false
@@ -190,10 +199,10 @@ private fun takeSeat(nav: AppNav, t: TripLite, screen: String) {
     nav.openWeb("/packages/${t.slug}?book=1")
 }
 
-/** Trips open natively; stays, activities and rentals open their listing page (booking lives there). */
+/** Everything opens natively (trips and listings share the detail page). */
 private fun openTrip(nav: AppNav, t: TripLite) {
-    val path = t.webPath
-    if (t.isListing && path != null) nav.openWeb(path) else nav.to(Routes.trip(t.slug))
+    // Stays, activities and rentals open the same native page as trips; only booking goes to the web.
+    nav.to(Routes.trip(t.slug))
 }
 
 private fun categoryNoun(category: String) = when (category) { "stays" -> "stays"; "activities" -> "activities"; "rentals" -> "rentals"; else -> "departures" }
@@ -256,11 +265,11 @@ fun ExploreScreen(nav: AppNav) {
                 item(key = "empty") {
                     val noun = categoryNoun(category)
                     val refreshing by vm.refreshing.collectAsStateWithLifecycle()
+                    val loaded by vm.loaded.collectAsStateWithLifecycle()
                     val offline = !nav.graph.connectivity.online.collectAsStateWithLifecycle().value
                     when {
-                        refreshing -> Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                            androidx.compose.material3.CircularProgressIndicator(Modifier.size(24.dp), color = c.ink2, strokeWidth = 2.dp)
-                        }
+                        // Not fetched yet (or fetching): placeholders shaped like the cards, never a bare page.
+                        !offline && (refreshing || "$category|${query.trim()}" !in loaded) -> ExploreSkeleton()
                         vm.filterCount > 0 || query.isNotBlank() -> EmptyState("No $noun match", if (category == "trips") "Try another week or clear the filters." else "Try another place or clear the filters.", action = "Clear filters", onAction = { vm.clearFilters() })
                         offline -> EmptyState("You're offline", "Connect to see $noun.", action = "Retry", onAction = { vm.refresh() })
                         else -> EmptyState("No $noun yet", "New ones are added every week.", action = "Refresh", onAction = { vm.refresh() })
@@ -326,6 +335,37 @@ fun ExploreScreen(nav: AppNav) {
 }
 
 private const val MORE_ROWS = 5
+
+/** Placeholder cards and rows that pulse while a tab loads. */
+@Composable
+private fun ExploreSkeleton() {
+    val c = Pc.colors
+    val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "sk")
+    val a by pulse.animateFloat(0.45f, 0.9f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "sk-a")
+    val block = Modifier.graphicsLayer { alpha = a }.clip(RoundedCornerShape(12.dp)).background(c.tonal)
+    Column(Modifier.fillMaxWidth().padding(horizontal = Gutter).semantics { contentDescription = "Loading" }) {
+        Box(block.padding(top = 6.dp).width(140.dp).height(22.dp))
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            repeat(2) { i ->
+                Column(Modifier.width(if (i == 0) 280.dp else 120.dp)) {
+                    Box(block.fillMaxWidth().aspectRatio(16f / 10f))
+                    Spacer(Modifier.height(10.dp)); Box(block.fillMaxWidth(0.8f).height(16.dp))
+                    Spacer(Modifier.height(6.dp)); Box(block.fillMaxWidth(0.5f).height(12.dp))
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        repeat(3) {
+            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(block.size(46.dp))
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) { Box(block.fillMaxWidth(0.7f).height(14.dp)); Spacer(Modifier.height(6.dp)); Box(block.fillMaxWidth(0.45f).height(11.dp)) }
+                Box(block.width(54.dp).height(16.dp))
+            }
+        }
+    }
+}
 
 /** Horizontal swipe anywhere on the page moves to the next / previous tab; the page leans with the finger. */
 @Composable
@@ -689,6 +729,9 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
     val signedIn by vm.signedIn.collectAsStateWithLifecycle()
     var whoSheet by remember { mutableStateOf(false) }
     val c = Pc.colors
+    // "More like this": the cached Explore list for the same tab (no extra request).
+    val kindCat = when ((detail?.lite() ?: lite)?.kind) { "stay" -> "stays"; "activity" -> "activities"; "rental" -> "rentals"; else -> "trips" }
+    val related by remember(kindCat, slug) { nav.graph.explore.observeExplore(kindCat).map { l -> l.filter { it.slug != slug }.take(8) } }.collectAsStateWithLifecycle(emptyList())
     if (lite == null && detail == null) {
         Column(Modifier.fillMaxSize().background(c.paper)) {
             DetailTopBar(null, onBack = { nav.back() })
@@ -730,70 +773,73 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                         modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
-            item(key = "ring", contentType = "ring") {
-                // Under the photo, not over it: the cover stays fully visible.
-                Box(Modifier.fillMaxWidth().padding(top = 14.dp), contentAlignment = Alignment.Center) {
-                    RingMount(pad = 6.dp, color = c.paper) {
-                        SeatRing(ring, 128.dp, photo = t.image, badge = t.host?.let { RingBadge(it) },
-                            spotsLabel = true,
-                            spinOnAppear = ring.full, onClick = { whoSheet = true })
-                    }
-                }
-            }
             item(key = "title") {
-                Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    // Title and host directly under the ring, then the seat line and privacy, then the facts.
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(t.title, style = Pc.type.display.copy(fontSize = 24.sp), color = c.ink, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(listOfNotNull(t.place?.name, t.host?.let { "hosted by ${it.name}" }).joinToString(" · "), style = Pc.type.body, color = c.ink2, textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false))
-                            if (t.host?.isIdVerified == true) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        SeatCaption(ring.total, ring.filled, textAlign = TextAlign.Center)
-                        val privacy = when {
-                            !signedIn -> "Sign in to see who's going"
-                            !ring.coTraveller -> "Faces show once you're travelling together"
-                            else -> null
-                        }
-                        if (privacy != null) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            PcIcon(PcIcons.Lock, null, size = 13.dp, tint = c.ink3); Spacer(Modifier.width(4.dp))
-                            Text(privacy, style = Pc.type.label, color = c.ink3)
+                Column(Modifier.fillMaxWidth().padding(horizontal = Gutter).padding(top = 14.dp)) {
+                    Text(t.title, style = Pc.type.display.copy(fontSize = 24.sp), color = c.ink)
+                    t.place?.name?.let { Text(it, style = Pc.type.body, color = c.ink2, modifier = Modifier.padding(top = 2.dp)) }
+                    // Host: a small face right beside the name.
+                    t.host?.let { h ->
+                        Row(Modifier.padding(top = 12.dp).clip(RoundedCornerShape(12.dp)).clickable { if (h.username.isNotBlank()) nav.to(Routes.profile(h.username)) }.padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Avatar(h, 30.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(buildAnnotatedString { append("Hosted by "); withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = c.ink)) { append(h.name) } },
+                                style = Pc.type.body, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                            if (h.isIdVerified) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
+                            if (h.isHost) { Spacer(Modifier.width(6.dp)); Tag("Host", TagKind.Host, height = 20.dp) }
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
+                    // Seats: one line, with who's booked (faces show to co-travellers).
+                    if (!t.isListing && date != null) {
+                        val faces = detail?.goingFaces?.ifEmpty { null } ?: t.goingFaces
+                        val names = faces.map { it.firstName }.filter { it.isNotBlank() }
+                        Row(Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.tonal).clickable(onClickLabel = "See who's going") { whoSheet = true }
+                            .padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            MiniArc(ring.total, ring.taken, size = 32.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (ring.full) "Full" else "$left of ${ring.total} spots left", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (ring.full) c.full else c.ink)
+                                Text(when {
+                                    names.isNotEmpty() -> names.take(2).joinToString(", ") + (if (ring.filled > names.take(2).size) " +${ring.filled - names.take(2).size}" else "") + " going"
+                                    ring.filled > 0 -> "${ring.filled} going · faces show once you book"
+                                    else -> "Be the first in the circle"
+                                }, style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            if (faces.isNotEmpty()) FaceStack(faces.take(3), size = 26.dp)
+                            PcIcon(PcIcons.ChevronRight, null, size = 16.dp, tint = c.ink3)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
                     val back = Fmt.date(date)?.plusDays((t.durationDays - 1).coerceAtLeast(0).toLong())?.toString()
-                    // One left-aligned row of fact chips that scrolls sideways.
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InfoChip(PcIcons.Calendar, if (t.durationDays > 1) "${Fmt.dayMonth(date)} – ${Fmt.dayMonth(back)}" else Fmt.dowDayMonth(date))
-                        if (t.durationDays > 0) InfoChip(PcIcons.Clock, Fmt.nights(t.durationDays))
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (!t.isListing) InfoChip(PcIcons.Calendar, if (date == null) "Dates on request" else if (t.durationDays > 1) "${Fmt.dayMonth(date)} – ${Fmt.dayMonth(back)}" else Fmt.dowDayMonth(date))
+                        if (!t.isListing && t.durationDays > 0) InfoChip(PcIcons.Clock, Fmt.nights(t.durationDays))
                         InfoChip(PcIcons.Star, detail?.rating?.takeIf { it.count > 0 }?.let { "%.1f · %d reviews".format(it.avg, it.count) } ?: "New")
                     }
                     if (!detail?.description.isNullOrBlank()) {
-                        Spacer(Modifier.height(16.dp))
-                        Text(detail!!.description, style = Pc.type.body, color = c.ink, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp))
+                        var more by rememberSaveable { mutableStateOf(false) }
+                        val long = detail!!.description.length > 320
+                        Text(detail.description, style = Pc.type.body, color = c.ink, maxLines = if (long && !more) 6 else Int.MAX_VALUE, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth().padding(top = 14.dp))
+                        if (long) LinkText(if (more) "Show less" else "Read more", { more = !more }, style = Pc.type.smallStrong)
                     }
                 }
             }
             val deps = detail?.departures.orEmpty()
-            if (deps.isNotEmpty()) item(key = "deps") {
-                Column(Modifier.padding(top = 16.dp)) {
+            if (deps.size > 1) item(key = "deps") {
+                // Dates side by side; the selected one sets the seats line and the bar below.
+                Column(Modifier.padding(top = 14.dp)) {
                     SectionHeader("Pick a date", trailing = "${deps.size} dates")
-                    Column(Modifier.padding(horizontal = Gutter), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        deps.forEach { d ->
+                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(deps, key = { it.date }) { d ->
                             val sel = d.date == date
                             val full = d.seatsLeft <= 0
-                            val shape = RoundedCornerShape(RadiusField)
-                            Row(Modifier.fillMaxWidth().clip(shape).background(c.raised).border(if (sel) 2.dp else 1.dp, if (sel) c.ink else c.rule, shape)
-                                .clickable(role = Role.RadioButton) { vm.selectedDate.value = d.date }.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                MiniArc(d.seatsTotal, d.seatsTotal - d.seatsLeft, size = 38.dp)
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(Fmt.dowDayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp), color = c.ink)
-                                    Text(if (full) "Full" else "${d.seatsLeft} open", style = Pc.type.small, color = if (full) c.full else c.ink2)
-                                }
-                                if (sel) PcIcon(PcIcons.CheckCircleFilled, "Selected", tint = c.ink, size = 22.dp)
+                            val shape = RoundedCornerShape(14.dp)
+                            Column(Modifier.width(96.dp).clip(shape).background(if (sel) c.ink else c.raised).border(1.dp, if (sel) c.ink else c.rule, shape)
+                                .clickable(role = Role.RadioButton) { vm.selectedDate.value = d.date }.padding(horizontal = 10.dp, vertical = 10.dp)) {
+                                Text(Fmt.dowUpper(d.date), style = Pc.type.code.copy(fontSize = 10.sp), color = if (sel) c.raised.copy(alpha = 0.8f) else c.ink2)
+                                Text(Fmt.dayMonth(d.date), style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = if (sel) c.raised else c.ink)
+                                Text(if (full) "Full" else "${d.seatsLeft} left", style = Pc.type.small, color = if (sel) c.raised.copy(alpha = 0.85f) else if (full) c.full else c.ink2)
                             }
                         }
                     }
@@ -801,34 +847,24 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
             }
             val includes = detail?.includes.orEmpty()
             if (includes.isNotEmpty()) item(key = "inc") {
-                Column(Modifier.padding(top = 16.dp)) {
-                    SectionHeader("Included")
-                    FormCard {
-                        includes.forEachIndexed { i, inc ->
-                            if (i > 0) InsetRule(start = 52.dp)
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Box(Modifier.size(24.dp).clip(CircleShape).background(c.tonal), contentAlignment = Alignment.Center) { PcIcon(PcIcons.Check, null, size = 14.dp, tint = c.ink) }
-                                Spacer(Modifier.width(12.dp))
-                                Text(inc, style = Pc.type.body, color = c.ink)
-                            }
-                        }
+                var open by rememberSaveable { mutableStateOf(false) }
+                Column(Modifier.padding(start = Gutter, end = Gutter, top = 16.dp).fillMaxWidth().raisedCard()) {
+                    Row(Modifier.fillMaxWidth().clickable(onClickLabel = if (open) "Hide" else "Show") { open = !open }.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (t.isListing) "Amenities" else "What's included", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.weight(1f))
+                        Text("${includes.size}", style = Pc.type.small, color = c.ink2)
+                        Spacer(Modifier.width(6.dp))
+                        PcIcon(if (open) PcIcons.ChevronUp else PcIcons.ChevronDown, null, size = 18.dp, tint = c.ink2)
                     }
-                }
-            }
-            t.host?.let { h ->
-                item(key = "host") {
-                    Row(Modifier.padding(start = Gutter, end = Gutter, top = 16.dp).fillMaxWidth().raisedCard().clickable { if (h.username.isNotBlank()) nav.to(Routes.profile(h.username)) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(52.dp).border(2.dp, c.rule, CircleShape).padding(3.dp)) { Avatar(h, 46.dp) }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(h.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                                Spacer(Modifier.width(6.dp))
-                                if (h.isHost) Tag("Host", TagKind.Host, height = 20.dp)
+                    androidx.compose.animation.AnimatedVisibility(open) {
+                        Column(Modifier.padding(bottom = 6.dp)) {
+                            includes.forEach { inc ->
+                                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    PcIcon(PcIcons.Check, null, size = 16.dp, tint = c.ink)
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(inc, style = Pc.type.body, color = c.ink)
+                                }
                             }
-                            Text(detail?.rating?.takeIf { it.count > 0 }?.let { "★ %.1f · %d reviews".format(it.avg, it.count) } ?: "Verified host", style = Pc.type.small, color = c.ink2)
                         }
-                        PcIcon(PcIcons.ChevronRight, null, size = 18.dp, tint = c.ink3)
                     }
                 }
             }
@@ -845,12 +881,28 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
             if (planning != null && planning >= 3) item(key = "bridge") {
                 TribeBridgeRow(planning, t.place?.name ?: t.title, 0, detail.goingFaces) { nav.tab(Routes.TRIBE) }
             }
+            if (related.isNotEmpty()) item(key = "related") {
+                Column(Modifier.padding(top = 18.dp)) {
+                    SectionHeader(if (t.isListing) "More like this" else "More trips")
+                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(related, key = { "rel-" + it.slug }) { r ->
+                            TripCard(r, false, onSave = {}, onOpen = { openTrip(nav, r) }, onTake = { takeSeat(nav, r, "trip_related") }, modifier = Modifier.width(260.dp))
+                        }
+                    }
+                }
+            }
             item(key = "end") { Spacer(Modifier.height(20.dp)) }
         }
         BottomActionBar(
-            title = MoneyFormat.rupees(t.priceFromPaise), titleMono = true, titleSuffix = "/person",
-            subtitle = if (left > 0) "${Fmt.dowDayMonth(date)} · $left ${if (left == 1) "spot" else "spots"} left" else "${Fmt.dowDayMonth(date)} is full · pick another date",
-            action = "Grab a spot", kind = BtnKind.Accent, enabled = left > 0, onAction = { vm.takeSeat(nav, date) },
+            title = MoneyFormat.rupees(t.priceFromPaise), titleMono = true, titleSuffix = "/${if (t.isListing) t.unit ?: "booking" else "person"}",
+            subtitle = when {
+                t.isListing -> t.place?.name ?: "Book on UnSOLO"
+                date == null -> "Dates on request"
+                left > 0 -> "${Fmt.dowDayMonth(date)} · $left ${if (left == 1) "spot" else "spots"} left"
+                else -> "${Fmt.dowDayMonth(date)} is full · pick another date"
+            },
+            action = if (t.isListing) "Book" else if (date == null) "Ask for dates" else "Grab a spot", kind = BtnKind.Accent, enabled = t.isListing || date == null || left > 0,
+            onAction = { if (t.isListing) t.webPath?.let { nav.openWeb(it) } else vm.takeSeat(nav, date) },
             leading = { IconTap(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", { vm.toggleSave() }, tint = if (saved) c.rose else c.ink) },
         )
     }

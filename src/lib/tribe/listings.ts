@@ -1,9 +1,14 @@
 import type { ApiContext } from '@/lib/api/context'
+import { ApiError } from '@/lib/api/http'
+import { SERVICE_LISTING_PUBLIC_COLUMNS } from '@/lib/explore/cachedPublicServiceData'
 import { getCachedPublicServiceListings } from '@/lib/explore/cachedPublicServiceData'
 import type { ServiceListingType } from '@/types'
 import { PROFILE_LITE, mediaFromUrl, toUserLite, type TripLite } from './models'
 
 type Row = Record<string, unknown>
+
+/** Columns for a listing card (bookings join). */
+export const LISTING_LITE = 'id, slug, title, images, price_paise, unit, type, location, latitude, longitude, host_id, destination:destinations(name, slug)'
 
 /** Explore tab → service_listings.type, and the TripLite.kind the apps get back. */
 export const LISTING_CATEGORIES = { stays: 'stay', activities: 'activity', rentals: 'rental' } as const
@@ -61,5 +66,40 @@ export async function loadServiceListings(
   return {
     items: rows.map((r) => listingToTripLite(r, category, r.host_id ? hostBy.get(String(r.host_id)) ?? null : null)),
     hasMore: total > offset + rows.length,
+  }
+}
+
+/** service_listings.type → Explore tab (getting-around listings sit with rentals). */
+export function categoryForType(type: unknown): ListingCategory {
+  return type === 'stays' || type === 'activities' ? type : 'rentals'
+}
+
+/**
+ * GET /trips/{slug} for a listing: the trip-detail shape (description, includes = amenities,
+ * images, rating) with kind/unit/webPath, no departures or seats. Public, approved listings only.
+ */
+export async function loadListingDetail(ctx: Pick<ApiContext, 'db' | 'service'>, slug: string) {
+  const { data } = await ctx.service().from('service_listings')
+    .select(`${SERVICE_LISTING_PUBLIC_COLUMNS}, destination:destinations(id, name, slug)`)
+    .eq('slug', slug).eq('is_active', true)
+    .or('status.eq.approved,and(status.eq.pending,first_approved_at.not.is.null)')
+    .maybeSingle()
+  if (!data) throw new ApiError('not_found', 'This listing is not available')
+  const r = data as Row
+  const host = r.host_id ? (await ctx.db.from('profiles').select(PROFILE_LITE).eq('id', r.host_id).maybeSingle()).data : null
+  const lite = listingToTripLite(r, categoryForType(r.type), host ? toUserLite(host as Row) : null)
+  const images = (Array.isArray(r.images) ? (r.images as string[]) : []).map((u) => mediaFromUrl(u)).filter((m): m is NonNullable<typeof m> => !!m)
+  const amenities = Array.isArray(r.amenities) ? (r.amenities as unknown[]).map(String).filter(Boolean) : []
+  const count = Number(r.review_count ?? 0)
+  return {
+    ...lite,
+    description: String(r.description ?? r.short_description ?? ''),
+    includes: amenities,
+    images,
+    departures: [],
+    seats: [],
+    rating: { avg: count && r.average_rating != null ? Number(r.average_rating) : null, count },
+    stories: [],
+    planningCount: 0,
   }
 }
