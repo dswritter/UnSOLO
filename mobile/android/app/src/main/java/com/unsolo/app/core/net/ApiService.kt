@@ -48,6 +48,7 @@ interface ApiService {
     @GET("leaderboard") suspend fun leaderboard(): LeaderboardResponse
     @GET("users/{username}/followers") suspend fun followers(@Path("username") username: String): UserListResponse
     @GET("users/{username}/following") suspend fun following(@Path("username") username: String): UserListResponse
+    @GET("people") suspend fun people(@Query("q") q: String, @Query("limit") limit: Int = 8): PeopleResponse
     @GET("places") suspend fun places(@Query("q") q: String, @Query("limit") limit: Int = 6): PlacesResponse
     @GET("explore") suspend fun explore(
         @Query("q") q: String? = null,

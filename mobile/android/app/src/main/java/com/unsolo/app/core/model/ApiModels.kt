@@ -227,6 +227,10 @@ data class PlaceHit(val name: String, val slug: String? = null, val lat: Double?
 @Serializable
 data class PlacesResponse(val items: List<PlaceHit> = emptyList())
 
+/** GET /people?q= (for @mentions) */
+@Serializable
+data class PeopleResponse(val items: List<UserLite> = emptyList())
+
 /** PUT /posts/{id}/vote */
 @Serializable
 data class VoteRequest(val choice: String?)

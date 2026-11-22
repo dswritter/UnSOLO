@@ -3,6 +3,7 @@ import { getApiContext, requireVerifiedContact } from '@/lib/api/context'
 import { ApiError, ok, parseJson, parseQuery, route } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
+import { notifyStoryMentions } from '@/lib/profile/mentions'
 import { MAX_ACTIVE_STATUS, STATUS_SELECT, STATUS_TTL_MS, groupStatuses, loadStatusExtras } from '@/lib/statusStories/api'
 
 type Row = Record<string, unknown>
@@ -38,7 +39,10 @@ const Body = z.object({
   audience: z.enum(['all', 'followers']).default('all'),
 })
 
-/** POST /statuses: one status per photo (the caption goes with each), or a text status. Gone in 24 hours. */
+/**
+ * POST /statuses: one status per photo (the caption goes with each), or a text status. Gone in 24 hours.
+ * `@username` in the caption mentions that person and sends them a notification.
+ */
 export const POST = route(async (req: Request) => {
   const ctx = await getApiContext(req)
   const user = await requireVerifiedContact(ctx)
@@ -66,6 +70,13 @@ export const POST = route(async (req: Request) => {
     : [{ author_id: user.id, media_url: null, media_type: 'text', caption, bg_color: '#1a1a2e', expires_at: expires, audience }]
   const { data, error } = await ctx.db.from('status_stories').insert(rows).select(STATUS_SELECT)
   if (error) throw error
+  // People tagged with @username hear about it (only those who can see the story).
+  if (caption && caption.includes('@')) {
+    const svc = ctx.service()
+    const { data: me } = await svc.from('profiles').select('full_name, username').eq('id', user.id).maybeSingle()
+    const name = String((me as Row | null)?.full_name || (me as Row | null)?.username || 'Someone')
+    await notifyStoryMentions(svc, { id: user.id, name, username: (me as Row | null)?.username as string | undefined }, caption, b.audience).catch(() => 0)
+  }
   return ok({ authors: groupStatuses((data ?? []) as Row[], new Set(), user.id) }, { status: 201 })
 })
 

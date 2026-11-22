@@ -149,7 +149,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 }
                 Row(Modifier.padding(horizontal = Gutter), verticalAlignment = Alignment.CenterVertically) {
                     // A ring when they have live stories: tap to play them.
-                    if (user != null) com.unsolo.app.ui.status.StatusAvatar(nav, user, 64.dp) else Avatar(user, 60.dp)
+                    if (user != null && own) com.unsolo.app.ui.status.MyStoryAvatar(nav, user, 64.dp)
+                    else if (user != null) com.unsolo.app.ui.status.StatusAvatar(nav, user, 64.dp) else Avatar(user, 60.dp)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,6 +166,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (own) {
+                        PcButton("Add story", { if (nav.requirePhone()) nav.to(Routes.statusNew()) }, Modifier.weight(1f), kind = BtnKind.Accent)
                         PcButton("Settings", { nav.to(Routes.SETTINGS) }, Modifier.weight(1f), kind = BtnKind.Outline)
                         if (user?.isHost == true || nav.graph.config.config.value.flags.hostOffersEnabled) PcButton("Hosting", { nav.to(Routes.HOST) }, Modifier.weight(1f), kind = BtnKind.Outline)
                     } else {

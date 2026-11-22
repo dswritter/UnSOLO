@@ -99,12 +99,13 @@ Store tokens in the Android Keystore (EncryptedSharedPreferences) or the iOS Key
 |---|---|---|---|
 | GET | `/explore?q=&category=trips\|stays\|activities\|rentals&month=YYYY-MM&cursor=&limit=20` | public | → `{ items: TripLite[], nextCursor }`. Trips: sorted by next departure. Stays/activities/rentals: public listings as TripLite with `kind` (stay/activity/rental), `unit` (night/person/day) and `webPath` (`/listings/{category}/{slug}`, opened on the web); no departures or seats |
 | GET | `/places?q=&limit=8` | public | → `{ items: { name, slug, lat, lng, detail }[] }`: suggestions for the place field (our destinations, places in live posts, then OpenStreetMap; empty q = popular) |
+| GET | `/people?q=&limit=10` | user | → `{ items: UserLite[] }`: travellers by name or username for @mentions (people you follow first; not you or people you blocked) |
 | GET | `/users/{username}` | public | Profile: `user` (bio, statusText, location, instagramUrl, websiteUrl, travelStyle, joinedAt, followers, following), `stats` (trips, states, reviews, listings, points, rank, tier), `followsYou`, `isFollowing`, `phone` (masked unless public/approved), `travel` (states, trips, mutualPlaces), `badges` (earned, next), `listings`, `reviewsWritten`, `host` (travellers, reviews, reachedOut on your own), `connections` (mutual, rooms, shared), `posts`, `openPlan` |
 | PUT/DELETE | `/users/{username}/follow` | signed in | Follow / unfollow → `{ isFollowing, followers, following }` |
 | POST | `/users/{username}/phone-request` | verified contact | Ask for their number |
 | GET | `/me/phone-requests` · PUT `/me/phone-requests/{id}` `{ approve }` | signed in | Pending requests for your number; share or decline |
 | GET | `/statuses?user=` | signed in | → `{ authors: { user, items: StatusItem[], unseen, latestAt }[] }`: live 24-hour stories you can see (yours first, then unseen); `user` = one person's |
-| POST | `/statuses` `{ media: { url }[] ≤10, caption?, audience: all\|followers }` | verified contact | One story per photo (or a text story), expires in 24 h, max 10 live; photos uploaded first via `/uploads` purpose `story` |
+| POST | `/statuses` `{ media: { url }[] ≤10, caption?, audience: all\|followers }` | verified contact | One story per photo (or a text story), expires in 24 h, max 10 live; photos uploaded first via `/uploads` purpose `story`; `@username` in the caption notifies that person (`story_mention`) if they can see it |
 | PUT | `/statuses/{id}/reaction` `{ kind: wanderlust\|love\|wow\|haha\|clap\|fire \| null }` | signed in | One reaction per person (migration 123) → `{ reactions, myReaction }` |
 | GET/POST | `/statuses/{id}/comments` `{ body }` | signed in / verified contact | Comments on a story, visible to whoever can see it |
 | GET | `/leaderboard` | public | `{ entries (top 100, ranked), monthly (top 20), me: { rank, entry } }` (same board as the web) |

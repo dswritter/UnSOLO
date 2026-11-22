@@ -21,6 +21,35 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.util.UUID
+import okhttp3.MediaType
+import okhttp3.RequestBody
+import okio.BufferedSink
+import okio.ForwardingSink
+import okio.buffer
+
+/** Wraps a request body and reports how much of it has been sent (0..1). */
+private class ProgressBody(private val inner: RequestBody, private val onProgress: (Float) -> Unit) : RequestBody() {
+    override fun contentType(): MediaType? = inner.contentType()
+    override fun contentLength(): Long = inner.contentLength()
+    override fun writeTo(sink: BufferedSink) {
+        val total = contentLength().coerceAtLeast(1)
+        var sent = 0L
+        var lastPct = -1
+        val counting = object : ForwardingSink(sink) {
+            override fun write(source: okio.Buffer, byteCount: Long) {
+                super.write(source, byteCount)
+                sent += byteCount
+                val pct = (sent * 100 / total).toInt()
+                if (pct != lastPct) { lastPct = pct; onProgress(sent.toFloat() / total) }
+            }
+        }.buffer()
+        inner.writeTo(counting)
+        counting.flush()
+    }
+}
+
+/** A story being sent in the background: [progress] 0..1 across all photos; [error] once it failed (tap to retry). */
+data class StoryUpload(val progress: Float, val photos: Int, val error: String? = null)
 
 /** A status you shared, kept on this phone after it expires so you can share it again. */
 @Serializable
@@ -41,6 +70,10 @@ class StatusRepository(
     val rail: StateFlow<List<StatusAuthor>> = _rail.asStateFlow()
     private val _posting = MutableStateFlow(false)
     val posting: StateFlow<Boolean> = _posting.asStateFlow()
+    private val _upload = MutableStateFlow<StoryUpload?>(null)
+    /** The story going up right now (or the one that failed), for the ring on "Your story" and your profile. */
+    val upload: StateFlow<StoryUpload?> = _upload.asStateFlow()
+    private var lastShare: Triple<List<Uri>, String?, String>? = null
 
     suspend fun refresh(): ApiResult<Unit> {
         val r = apiCall { api.statuses() }
@@ -106,35 +139,72 @@ class StatusRepository(
         return r is ApiResult.Ok
     }
 
-    /** Shares photos (or just text) as statuses. Returns null on success, else a message to show. */
-    suspend fun share(uris: List<Uri>, caption: String?, audience: String): String? {
-        if (_posting.value) return "Already sharing"
+    /**
+     * Starts sharing in the background and returns at once, so you can leave the composer. Progress
+     * shows as a ring on "Your story"; a message says when it's up (or why it failed, tap to retry).
+     */
+    fun shareInBackground(uris: List<Uri>, caption: String?, audience: String): Boolean {
+        if (_posting.value) { events.emit(AppEvent.Message("Your last story is still going up.")); return false }
+        lastShare = Triple(uris, caption, audience)
         _posting.value = true
+        _upload.value = StoryUpload(0f, uris.size.coerceAtMost(10))
+        scope.launch {
+            val err = runCatching { share(uris, caption, audience) }.getOrElse { "Couldn't share your story." }
+            if (err == null) {
+                _upload.value = null
+                lastShare = null
+                events.emit(AppEvent.Message(if (uris.isEmpty()) "Your story is up." else "Your story is up. It disappears in 24 hours and stays in your archive."))
+            } else {
+                _upload.value = _upload.value?.copy(error = err) ?: StoryUpload(0f, uris.size, err)
+                events.emit(AppEvent.Message("$err Tap Your story to try again."))
+            }
+        }
+        return true
+    }
+
+    /** Tries the failed story again. */
+    fun retryUpload() { val l = lastShare ?: return; _upload.value = null; shareInBackground(l.first, l.second, l.third) }
+
+    /** Forgets the failed story. */
+    fun dismissUpload() { if (!_posting.value) { _upload.value = null; lastShare = null } }
+
+    /** Shares photos (or just text) as statuses. Returns null on success, else a message to show. */
+    private suspend fun share(uris: List<Uri>, caption: String?, audience: String): String? {
         try {
             val dir = File(context.cacheDir, "status_out").apply { mkdirs() }
             val refs = mutableListOf<StatusMediaRef>()
             val files = mutableListOf<File>()
-            for (u in uris.take(10)) {
+            val list = uris.take(10)
+            // Each photo: a little for compressing, the rest for sending; the last 5% is creating the story.
+            val per = if (list.isEmpty()) 0f else 0.95f / list.size
+            fun report(i: Int, f: Float) { _upload.value = _upload.value?.copy(progress = (i * per + f * per).coerceIn(0f, 0.95f)) }
+            for ((i, u) in list.withIndex()) {
                 val out = File(dir, UUID.randomUUID().toString() + ".jpg")
                 runCatching { compressor.compress(u, out) }.getOrElse { return "Couldn't read a photo. Try another." }
-                val part = MultipartBody.Part.createFormData("file", out.name, out.asRequestBody("image/jpeg".toMediaType()))
+                report(i, 0.15f)
+                val body = ProgressBody(out.asRequestBody("image/jpeg".toMediaType())) { sent -> report(i, 0.15f + 0.85f * sent) }
+                val part = MultipartBody.Part.createFormData("file", out.name, body)
                 when (val r = apiCall { api.upload(part, "story".toRequestBody("text/plain".toMediaType())) }) {
-                    is ApiResult.Ok -> { refs += StatusMediaRef(r.value.url); files += out }
+                    is ApiResult.Ok -> { refs += StatusMediaRef(r.value.url); files += out; report(i, 1f) }
                     is ApiResult.Err -> return r.message ?: "Couldn't upload that photo."
-                    ApiResult.Offline -> return "You're offline. Try again when you're connected."
+                    ApiResult.Offline -> return "You're offline."
                 }
             }
             return when (val r = apiCall { api.createStatus(CreateStatusRequest(refs, caption?.trim()?.ifBlank { null }, audience)) }) {
                 is ApiResult.Ok -> {
+                    _upload.value = _upload.value?.copy(progress = 1f)
                     files.forEach { archive(it, caption) }
                     refresh()
                     null
                 }
                 is ApiResult.Err -> r.message ?: "Couldn't share your story."
-                ApiResult.Offline -> "You're offline. Try again when you're connected."
+                ApiResult.Offline -> "You're offline."
             }
         } finally { _posting.value = false }
     }
+
+    /** People to @mention, by name or username. */
+    suspend fun people(q: String): List<UserLite> = (apiCall { api.people(q) } as? ApiResult.Ok)?.value?.items.orEmpty()
 
     // ---- Archive (on this phone only) ----
 

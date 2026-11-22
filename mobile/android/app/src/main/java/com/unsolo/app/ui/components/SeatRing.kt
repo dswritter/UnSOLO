@@ -466,9 +466,31 @@ fun MiniArc(total: Int, taken: Int, modifier: Modifier = Modifier, size: Dp = Pc
  * sits 6dp inside.
  */
 @Composable
-fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Modifier, size: Dp = 54.dp, mine: Boolean = false, plus: Boolean = false) {
+fun StoryRing(user: UserLite?, segments: Int, seen: Int, modifier: Modifier = Modifier, size: Dp = 54.dp, mine: Boolean = false, plus: Boolean = false,
+              progress: Float? = null, failed: Boolean = false) {
     val c = Pc.colors
     val segs = segments.coerceAtLeast(1)
+    if (progress != null || failed) {
+        // A story going up: a faint track with the sent part filling clockwise (red when it failed).
+        val shown by androidx.compose.animation.core.animateFloatAsState((progress ?: 0f).coerceIn(0.02f, 1f), label = "upload")
+        val spin = androidx.compose.animation.core.rememberInfiniteTransition(label = "uploadSpin")
+        val pulse by spin.animateFloat(0.55f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(700), androidx.compose.animation.core.RepeatMode.Reverse), label = "pulse")
+        Box(modifier.size(size)) {
+            Canvas(Modifier.fillMaxSize()) {
+                val rr = this.size.width / 2f - 2.5.dp.toPx()
+                val tl = Offset(this.size.width / 2f - rr, this.size.height / 2f - rr)
+                drawCircle(c.rule, rr, center, style = Stroke(3.dp.toPx()))
+                if (failed) drawCircle(c.red, rr, center, style = Stroke(3.dp.toPx()))
+                else drawArc(c.pine.copy(alpha = pulse), -90f, 360f * shown, false, tl, Size(rr * 2, rr * 2), style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+            }
+            Avatar(user, size - 12.dp, Modifier.align(Alignment.Center).graphicsLayer { alpha = if (failed) 0.6f else 0.75f })
+            Box(Modifier.align(Alignment.BottomEnd).size(21.dp).clip(CircleShape).background(c.paper).padding(2.dp).clip(CircleShape).background(if (failed) c.red else c.pine), contentAlignment = Alignment.Center) {
+                if (failed) Text("!", style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = Color.White)
+                else Text("${((progress ?: 0f) * 100).toInt().coerceIn(0, 99)}", style = Pc.type.label.copy(fontSize = 8.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.onPine)
+            }
+        }
+        return
+    }
     Box(modifier.size(size)) {
         Canvas(Modifier.fillMaxSize()) {
             val rr = this.size.width / 2f - 2.5.dp.toPx()

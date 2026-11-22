@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,6 +68,7 @@ import kotlin.math.abs
 fun StatusRail(nav: AppNav, modifier: Modifier = Modifier, hideWhenEmpty: Boolean = false, title: String? = null) {
     val repo = nav.graph.statuses
     val rail by repo.rail.collectAsStateWithLifecycle()
+    val upload by repo.upload.collectAsStateWithLifecycle()
     val me = nav.graph.account.me.collectAsStateWithLifecycle().value?.user
     val signedIn by nav.graph.account.isSignedIn.collectAsStateWithLifecycle()
     LaunchedEffect(signedIn) { if (signedIn) repo.refresh() }
@@ -77,9 +79,9 @@ fun StatusRail(nav: AppNav, modifier: Modifier = Modifier, hideWhenEmpty: Boolea
         if (title != null) SectionHeader(title, trailing = if (signedIn) "Archive" else null, trailingLink = { nav.to(Routes.STATUS_ARCHIVE) })
         LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "mine") {
-                RailItem(me, "Your story", mine?.items?.size ?: 1, 0, mine = mine == null, plus = true) {
-                    if (!nav.requirePhone()) return@RailItem
-                    if (mine != null) nav.to(Routes.status(mine.user.id)) else nav.to(Routes.statusNew())
+                val label = when { upload?.error != null -> "Tap to retry"; upload != null -> "Sharing ${(upload!!.progress * 100).toInt()}%"; else -> "Your story" }
+                RailItem(me, label, mine?.items?.size ?: 1, 0, mine = mine == null, plus = true, progress = upload?.progress, failed = upload?.error != null) {
+                    openMyStory(nav, me, mine)
                 }
             }
             items(others, key = { it.user.id }) { a ->
@@ -90,13 +92,14 @@ fun StatusRail(nav: AppNav, modifier: Modifier = Modifier, hideWhenEmpty: Boolea
 }
 
 @Composable
-private fun RailItem(user: UserLite?, label: String, segments: Int, seen: Int, mine: Boolean = false, plus: Boolean = false, onClick: () -> Unit) {
+private fun RailItem(user: UserLite?, label: String, segments: Int, seen: Int, mine: Boolean = false, plus: Boolean = false,
+                     progress: Float? = null, failed: Boolean = false, onClick: () -> Unit) {
     val c = Pc.colors
     Column(Modifier.width(62.dp).clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClickLabel = "Open $label", onClick = onClick).padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        StoryRing(user, segments, seen, mine = mine, plus = plus, size = 58.dp)
+        StoryRing(user, segments, seen, mine = mine, plus = plus, size = 58.dp, progress = progress, failed = failed)
         Spacer(Modifier.height(5.dp))
-        Text(label, style = Pc.type.label, color = if (plus) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = Pc.type.label, color = if (failed) c.red else if (plus) c.ink else c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -113,6 +116,37 @@ fun StatusAvatar(nav: AppNav, user: UserLite, size: Dp, onClick: (() -> Unit)? =
             StoryRing(user, a.items.size, a.items.count { it.seen }, size = size)
         }
     } else Box(Modifier.clip(CircleShape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)) { Avatar(user, size) }
+}
+
+/**
+ * Your own avatar on the You page: the upload ring while a story goes up, a retry when it failed,
+ * your story ring when you have some (tap to play), otherwise a "+" that opens the composer.
+ */
+@Composable
+fun MyStoryAvatar(nav: AppNav, user: UserLite, size: Dp) {
+    val repo = nav.graph.statuses
+    val rail by repo.rail.collectAsStateWithLifecycle()
+    val upload by repo.upload.collectAsStateWithLifecycle()
+    LaunchedEffect(user.id) { if (rail.none { it.user.id == user.id }) repo.refresh() }
+    val mine = rail.firstOrNull { it.user.id == user.id }?.takeIf { it.items.isNotEmpty() }
+    val u = upload
+    val label = when { u?.error != null -> "Retry your story"; u != null -> "Your story is going up"; mine != null -> "Play your stories"; else -> "Add to your story" }
+    Box(Modifier.clip(CircleShape).clickable(onClickLabel = label) { openMyStory(nav, user, mine) }) {
+        StoryRing(user, mine?.items?.size ?: 1, 0, size = size, mine = mine == null, plus = mine == null, progress = u?.progress, failed = u?.error != null)
+    }
+}
+
+/** What tapping "Your story" does: retry a failed one, wait for one going up, play yours, or start one. */
+fun openMyStory(nav: AppNav, user: UserLite?, mine: StatusAuthor?) {
+    val repo = nav.graph.statuses
+    val u = repo.upload.value
+    if (!nav.requirePhone()) return
+    when {
+        u?.error != null -> repo.retryUpload()
+        u != null -> nav.graph.events.emit(AppEvent.Message("Your story is going up. We'll tell you when it's done."))
+        mine != null && user != null -> nav.to(Routes.status(user.id))
+        else -> nav.to(Routes.statusNew())
+    }
 }
 
 // ---------------- Viewer ----------------
@@ -198,7 +232,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             }
         } else {
             Box(Modifier.fillMaxSize().background(Color(0xFF1A1A2E)).padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(item.caption.orEmpty(), style = Pc.type.display.copy(fontSize = 26.sp), color = Color.White, textAlign = TextAlign.Center)
+                Text(mentionText(item.caption.orEmpty()) { nav.to(Routes.profile(it)) }, style = Pc.type.display.copy(fontSize = 26.sp), color = Color.White, textAlign = TextAlign.Center)
             }
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.5f), 0.18f to Color.Transparent, 0.7f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.55f))))
@@ -257,7 +291,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             }
         }
         item.caption?.takeIf { item.type == "image" }?.let {
-            Text(it, style = Pc.type.bodyStrong, color = Color.White, textAlign = TextAlign.Center,
+            Text(mentionText(it) { u -> nav.to(Routes.profile(u)) }, style = Pc.type.bodyStrong, color = Color.White, textAlign = TextAlign.Center,
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 84.dp)
                     .clip(RoundedCornerShape(16.dp)).background(Color(0x6B111111)).padding(horizontal = 14.dp, vertical = 10.dp))
         }
@@ -380,7 +414,7 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
     val photos = remember { mutableStateListOf<Uri>() }
     var caption by rememberSaveableString()
     var audience by remember { mutableStateOf("all") }
-    val scope = rememberCoroutineScope()
+    var tagging by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         uris.forEach { if (photos.size < 10 && it !in photos) photos += it }
     }
@@ -416,7 +450,13 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Spacer(Modifier.weight(1f))
             PcButton("Archive", { nav.to(Routes.STATUS_ARCHIVE) }, kind = BtnKind.Ghost, height = BtnSmall)
         }
+        if (tagging) PeoplePickerSheet(nav, onDismiss = { tagging = false }) { u ->
+            tagging = false
+            caption = (caption.trimEnd().let { if (it.isEmpty()) it else "$it " } + "@${u.username} ").take(500)
+        }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().imePadding().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Typing @name suggests people; picking one finishes the mention.
+            MentionSuggestions(caption, nav) { start, u -> caption = (caption.substring(0, start) + "@${u.username} ").take(500) }
             if (photos.isNotEmpty()) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Color(0x99111111)).padding(horizontal = 16.dp, vertical = 12.dp)) {
                 if (caption.isEmpty()) Text("Add a caption…", style = Pc.type.body, color = Color.White.copy(alpha = 0.6f))
                 BasicTextField(caption, { caption = it.take(500) }, textStyle = Pc.type.body.copy(color = Color.White), cursorBrush = SolidColor(Color.White), modifier = Modifier.fillMaxWidth())
@@ -424,16 +464,123 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconTap(PcIcons.Camera, "Add photos", { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, tint = Color.White,
                     modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = 0.16f)))
+                AudienceChip("@ Tag people", false) { tagging = true }
+                val tagged = extractMentions(caption).size
+                if (tagged > 0) Text("$tagged tagged", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AudienceChip("Everyone", audience == "all") { audience = "all" }
                 AudienceChip("Followers", audience == "followers") { audience = "followers" }
                 Spacer(Modifier.weight(1f))
                 PcButton("Share", {
-                    scope.launch {
-                        val err = repo.share(photos.toList(), caption, audience)
-                        if (err == null) { nav.graph.events.emit(AppEvent.Message("Shared. It disappears in 24 hours and stays in your archive.")); nav.back() }
-                        else nav.graph.events.emit(AppEvent.Message(err))
+                    // Goes up in the background: the ring on "Your story" shows how far, a message says when it's done.
+                    if (repo.shareInBackground(photos.toList(), caption, audience)) {
+                        nav.graph.events.emit(AppEvent.Message(if (photos.isEmpty()) "Sharing your story…" else "Sharing your story… you can keep using the app."))
+                        nav.back()
                     }
-                }, kind = BtnKind.Accent, enabled = photos.isNotEmpty() || caption.isNotBlank(), loading = posting)
+                }, kind = BtnKind.Accent, enabled = (photos.isNotEmpty() || caption.isNotBlank()) && !posting)
+            }
+        }
+    }
+}
+
+// ---------------- Mentions ----------------
+
+/** `@username` anywhere in a caption (not inside an email). */
+private val MENTION_RE = Regex("(^|[^A-Za-z0-9_.@\\-])@([A-Za-z0-9_][A-Za-z0-9_.\\-]{0,39})")
+/** An `@name` being typed at the end of the caption. */
+private val MENTION_TAIL = Regex("(^|\\s)@([A-Za-z0-9_.\\-]{0,40})$")
+
+private fun extractMentions(text: String) = MENTION_RE.findAll(text).map { it.groupValues[2].trimEnd('.', '-').lowercase() }.filter { it.isNotEmpty() }.toSet()
+
+/** The caption with each @username bold and tappable (opens their profile). */
+private fun mentionText(text: String, onMention: (String) -> Unit): androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.buildAnnotatedString {
+    var last = 0
+    for (m in MENTION_RE.findAll(text)) {
+        val at = m.range.first + m.groupValues[1].length
+        val name = m.groupValues[2].trimEnd('.', '-')
+        if (name.isEmpty()) continue
+        append(text.substring(last, at))
+        withLink(androidx.compose.ui.text.LinkAnnotation.Clickable("m:$name",
+            androidx.compose.ui.text.TextLinkStyles(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline))) { onMention(name) }) {
+            append("@$name")
+        }
+        last = at + 1 + name.length
+    }
+    append(text.substring(last))
+}
+
+/** People matching the @name being typed, in a row above the caption. Tapping one finishes it ([onPick] gets where the @ starts). */
+@Composable
+private fun MentionSuggestions(caption: String, nav: AppNav, onPick: (Int, UserLite) -> Unit) {
+    val m = MENTION_TAIL.find(caption)
+    val q = m?.groupValues?.get(2).orEmpty()
+    var hits by remember { mutableStateOf<List<UserLite>>(emptyList()) }
+    var searching by remember { mutableStateOf(false) }
+    LaunchedEffect(m != null, q) {
+        hits = emptyList()
+        if (m == null || q.isEmpty()) return@LaunchedEffect
+        searching = true
+        kotlinx.coroutines.delay(200)
+        hits = nav.graph.statuses.people(q)
+        searching = false
+    }
+    if (m == null) return
+    val start = m.range.first + m.groupValues[1].length
+    when {
+        q.isEmpty() -> Text("Type a name or username to mention someone", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
+        hits.isEmpty() -> Text(if (searching) "Looking for “$q”…" else "No one called “$q” on UnSOLO", style = Pc.type.small, color = Color.White.copy(alpha = 0.7f))
+        else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(hits, key = { it.id }) { u -> PersonChip(u) { onPick(start, u) } }
+        }
+    }
+}
+
+@Composable
+private fun PersonChip(u: UserLite, onClick: () -> Unit) {
+    Row(Modifier.clip(CircleShape).background(Color(0xCC111111)).clickable(onClickLabel = "Mention ${u.name}", onClick = onClick).padding(start = 4.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Avatar(u, 28.dp); Spacer(Modifier.width(8.dp))
+        Column {
+            Text(u.name, style = Pc.type.smallStrong, color = Color.White, maxLines = 1)
+            Text("@${u.username}", style = Pc.type.label, color = Color.White.copy(alpha = 0.7f), maxLines = 1)
+        }
+    }
+}
+
+/** Search people on UnSOLO by name or username and pick one to tag. */
+@Composable
+private fun PeoplePickerSheet(nav: AppNav, onDismiss: () -> Unit, onPick: (UserLite) -> Unit) {
+    val c = Pc.colors
+    var q by remember { mutableStateOf("") }
+    var hits by remember { mutableStateOf<List<UserLite>?>(emptyList()) }
+    LaunchedEffect(q) {
+        val t = q.trim().removePrefix("@")
+        if (t.isEmpty()) { hits = emptyList(); return@LaunchedEffect }
+        hits = null
+        kotlinx.coroutines.delay(220)
+        hits = nav.graph.statuses.people(t)
+    }
+    PcSheet(onDismiss) {
+        SheetTitle("Tag people")
+        BoxedInput(q, { q = it.take(40) }, "Search by name or username", Modifier.padding(horizontal = Gutter).fillMaxWidth())
+        Column(Modifier.padding(horizontal = Gutter, vertical = 10.dp).heightIn(min = 120.dp, max = 360.dp).verticalScrollCompat(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            val list = hits
+            when {
+                list == null -> androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = c.ink2, strokeWidth = 2.dp)
+                q.isBlank() -> Text("Find travellers to mention. They'll get a notification if they can see your story.", style = Pc.type.small, color = c.ink2)
+                list.isEmpty() -> Text("No one called “${q.trim()}” on UnSOLO", style = Pc.type.body, color = c.ink2)
+                else -> list.forEach { u ->
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Tag ${u.name}") { onPick(u) }.padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Avatar(u, 38.dp); Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(u.name, style = Pc.type.bodyStrong, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text("@${u.username}", style = Pc.type.small, color = c.ink2, maxLines = 1)
+                        }
+                        if (u.isIdVerified) VerifiedMark()
+                    }
+                }
             }
         }
     }
