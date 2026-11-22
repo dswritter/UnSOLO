@@ -33,6 +33,17 @@ object Routes {
     const val EDIT_PROFILE = "edit-profile"
     const val REFERRALS = "referrals"
     const val OFFERS_ALL = "offers-all"
+    const val SOS = "sos?booking={booking}"
+    const val PACK = "pack/{bookingId}"
+    const val REVIEW = "review/{bookingId}"
+    const val BUDDIES = "buddies"
+    const val EXPLORE_MAP = "explore-map?category={category}"
+    const val GROUP_MAP = "group-map/{roomId}"
+    fun sos(bookingId: String? = null) = if (bookingId == null) "sos" else "sos?booking=${enc(bookingId)}"
+    fun pack(bookingId: String) = "pack/${enc(bookingId)}"
+    fun review(bookingId: String) = "review/${enc(bookingId)}"
+    fun exploreMap(category: String = "all") = "explore-map?category=${enc(category)}"
+    fun groupMap(roomId: String) = "group-map/${enc(roomId)}"
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun trip(slug: String) = "trip/${enc(slug)}"
@@ -81,6 +92,10 @@ object DeepLinks {
             seg == listOf("referrals") -> Routes.REFERRALS
             seg == listOf("offers") -> Routes.OFFERS_ALL
             seg == listOf("leaderboard") -> Routes.LEADERBOARD
+            seg.size == 2 && seg[0] == "review" && validId(seg[1]) -> Routes.review(seg[1])
+            seg == listOf("buddies") -> Routes.BUDDIES
+            seg == listOf("sos") -> Routes.sos()
+            seg.size == 3 && seg[0] == "bookings" && seg[2] == "pack" && validId(seg[1]) -> Routes.pack(seg[1])
             seg == listOf("bookings") -> Routes.TRIPS
             seg.size == 2 && seg[0] == "profile" && validUsername(seg[1]) -> Routes.profile(seg[1])
             seg.size == 2 && seg[0] == "chat" && validId(seg[1]) -> Routes.chat(seg[1])

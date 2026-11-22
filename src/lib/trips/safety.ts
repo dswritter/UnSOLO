@@ -14,7 +14,7 @@ export async function staffIds(svc: SupabaseClient): Promise<string[]> {
 
 export async function notify(svc: SupabaseClient, userIds: string[], n: { type: string; title: string; body?: string | null; link?: string | null; metadata?: Record<string, unknown> }) {
   await Promise.all([...new Set(userIds)].map((id) => svc.rpc('create_notification', {
-    p_user_id: id, p_type: n.type, p_title: n.title, p_body: n.body ?? null, p_link: n.link ?? null, p_metadata: n.metadata ?? {},
+    p_user_id: id, p_type: n.type, p_title: n.title, p_body: n.body ?? null, p_link: n.link ?? null, p_metadata: { category: 'trips', ...(n.metadata ?? {}) },
   })))
 }
 

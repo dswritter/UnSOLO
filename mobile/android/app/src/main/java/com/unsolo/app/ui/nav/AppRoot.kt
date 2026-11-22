@@ -278,6 +278,9 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
     LaunchedEffect(Unit) { vm.checkLanding() }
+    // Saved trips follow you across devices (and power the price-drop / nearly-full alerts).
+    val signedInNow by nav.graph.account.isSignedIn.collectAsStateWithLifecycle()
+    LaunchedEffect(signedInNow) { if (signedInNow) nav.graph.trips.syncSaved() }
     LaunchedEffect(Unit) {
         graph.events.flow.collect { e ->
             when (e) {
@@ -384,6 +387,22 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
     composable(Routes.EDIT_PROFILE) { com.unsolo.app.ui.profile.EditProfileScreen(nav) }
     composable(Routes.REFERRALS, deepLinks = links("/referrals")) { com.unsolo.app.ui.profile.ReferralsScreen(nav) }
     composable(Routes.OFFERS_ALL, deepLinks = links("/offers")) { com.unsolo.app.ui.profile.OffersScreen(nav) }
+    composable(Routes.SOS, arguments = listOf(navArgument("booking") { type = NavType.StringType; nullable = true; defaultValue = null })) {
+        com.unsolo.app.ui.trips.SosScreen(nav, it.arguments?.getString("booking")?.takeIf { b -> DeepLinks.validId(b) })
+    }
+    composable(Routes.PACK, arguments = listOf(navArgument("bookingId") { type = NavType.StringType }), deepLinks = links("/bookings/{bookingId}/pack")) {
+        val id = it.arguments?.getString("bookingId"); if (DeepLinks.validId(id)) com.unsolo.app.ui.trips.TripPackScreen(nav, id!!) else InvalidLink(nav)
+    }
+    composable(Routes.REVIEW, arguments = listOf(navArgument("bookingId") { type = NavType.StringType }), deepLinks = links("/review/{bookingId}")) {
+        val id = it.arguments?.getString("bookingId"); if (DeepLinks.validId(id)) com.unsolo.app.ui.trips.ReviewScreen(nav, id!!) else InvalidLink(nav)
+    }
+    composable(Routes.BUDDIES, deepLinks = links("/buddies")) { com.unsolo.app.ui.trips.BuddiesScreen(nav) }
+    composable(Routes.EXPLORE_MAP, arguments = listOf(navArgument("category") { type = NavType.StringType; defaultValue = "all" })) {
+        com.unsolo.app.ui.trips.ExploreMapScreen(nav, it.arguments?.getString("category")?.takeIf { c -> c in setOf("all", "trips", "stays", "activities", "rentals", "plans") } ?: "all")
+    }
+    composable(Routes.GROUP_MAP, arguments = listOf(navArgument("roomId") { type = NavType.StringType })) {
+        val id = it.arguments?.getString("roomId"); if (DeepLinks.validId(id)) com.unsolo.app.ui.trips.GroupMapScreen(nav, id!!) else InvalidLink(nav)
+    }
     composable(Routes.LEGAL, arguments = listOf(navArgument("page") { type = NavType.StringType })) {
         val p = it.arguments?.getString("page")
         if (p in setOf("privacy", "terms", "refund-policy")) com.unsolo.app.ui.profile.LegalScreen(p!!, nav) else InvalidLink(nav)

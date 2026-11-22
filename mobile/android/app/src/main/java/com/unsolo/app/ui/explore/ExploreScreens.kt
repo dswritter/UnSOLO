@@ -182,7 +182,7 @@ class ExploreViewModel(private val g: AppGraph) : ViewModel() {
     }
 
     fun clearFilters() { query.value = ""; window.value = WhenWindow.Any; openOnly.value = false; price.value = PriceCap.Any }
-    fun toggleSave(slug: String) = viewModelScope.launch { g.settings.toggleSavedTrip(slug) }
+    fun toggleSave(slug: String) { g.trips.toggleSaved(slug) }
 
     fun nearMe() = viewModelScope.launch {
         val loc = g.location.get()
@@ -259,7 +259,11 @@ fun ExploreScreen(nav: AppNav) {
             // The tabs stay pinned while you scroll; swiping the page left or right also switches them.
             stickyHeader(key = "tabs", contentType = "tabs") {
                 Column(Modifier.fillMaxWidth().background(c.paper).then(if (tabsStuck) Modifier.statusBarsPadding() else Modifier)) {
-                    TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) { TextTabs(Categories, category, { vm.category.value = it }, icons = CategoryIcons) }
+                        // Same category, on a map.
+                        IconTap(PcIcons.Pin, "Show on map", { nav.to(Routes.exploreMap(category)) })
+                    }
                     Spacer(Modifier.height(6.dp))
                 }
             }
@@ -714,7 +718,7 @@ class TripViewModel(private val g: AppGraph, val slug: String) : ViewModel() {
         }
     }
 
-    fun toggleSave() = viewModelScope.launch { g.settings.toggleSavedTrip(slug) }
+    fun toggleSave() { g.trips.toggleSaved(slug) }
 
     fun takeSeat(nav: AppNav, date: String?) {
         g.analytics.track("trip.take_seat", "trip_detail", mapOf("slug" to slug, "date" to date))
@@ -753,11 +757,13 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
     val left = dep?.seatsLeft ?: t.seatsLeft ?: (ring.total - ring.filled)
     // Trip photos are 16:9 (the host form crops to it), so the cover is 16:9 too: nothing cut off.
     var viewer by remember { mutableStateOf<Int?>(null) }
+    var reviewPhotos by remember { mutableStateOf<Pair<List<Media>, Int>?>(null) }
 
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val pastCover by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
     Box(Modifier.fillMaxSize()) {
     viewer?.let { PhotoViewer(images, it, t.title) { viewer = null } }
+    reviewPhotos?.let { (ph, i) -> PhotoViewer(ph, i, "Review photo") { reviewPhotos = null } }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         LazyColumn(Modifier.weight(1f), state = listState) {
             item(key = "cover", contentType = "cover") {
@@ -859,6 +865,31 @@ fun TripDetailScreen(slug: String, nav: AppNav) {
                 }
             }
             val includes = detail?.includes.orEmpty()
+            val reviews = detail?.reviews.orEmpty()
+            if (reviews.isNotEmpty()) item(key = "reviews") {
+                Column(Modifier.padding(top = 16.dp)) {
+                    SectionHeader("What travellers say", trailing = detail?.rating?.takeIf { it.count > 0 }?.let { "★ %.1f · %d".format(it.avg, it.count) })
+                    LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        items(reviews, key = { it.id }) { r ->
+                            Column(Modifier.width(270.dp).raisedCard().padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Avatar(r.author, 28.dp); Spacer(Modifier.width(8.dp))
+                                    Text(r.author.firstName, style = Pc.type.smallStrong, color = c.ink, modifier = Modifier.weight(1f))
+                                    Text("★".repeat(r.rating.coerceIn(0, 5)), style = Pc.type.small, color = c.gold)
+                                }
+                                r.title?.let { Text(it, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, modifier = Modifier.padding(top = 8.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                r.body?.let { Text(it, style = Pc.type.small, color = c.ink2, maxLines = 4, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)) }
+                                if (r.photos.isNotEmpty()) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    r.photos.take(3).forEachIndexed { i, m ->
+                                        ProgressiveImage(m, Modifier.size(70.dp).clip(RoundedCornerShape(10.dp)).clickable { reviewPhotos = r.photos to i })
+                                    }
+                                    if (r.photos.size > 3) Text("+${r.photos.size - 3}", style = Pc.type.smallStrong, color = c.ink2, modifier = Modifier.align(Alignment.CenterVertically))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (includes.isNotEmpty()) item(key = "inc") {
                 var open by rememberSaveable { mutableStateOf(false) }
                 Column(Modifier.padding(start = Gutter, end = Gutter, top = 16.dp).fillMaxWidth().raisedCard()) {

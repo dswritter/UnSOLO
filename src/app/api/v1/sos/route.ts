@@ -1,4 +1,6 @@
+import { after } from 'next/server'
 import { z } from 'zod'
+import { dispatchPendingPushes } from '@/lib/push/dispatch'
 import { getApiContext, requireUser } from '@/lib/api/context'
 import { ok, parseJson, route } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
@@ -75,6 +77,8 @@ export const POST = route(async (req: Request) => {
   if (priv?.emergency_phone) tasks.push(sendSosSms(String(priv.emergency_phone), [name, trip?.title ?? 'trip', map ?? 'unsolo.in']).then((r) => { notified.emergencySms = r }))
   await Promise.allSettled(tasks)
   await svc.from('sos_alerts').update({ notified }).eq('id', alert.id)
+  // Push now, not on the next sweep.
+  after(() => dispatchPendingPushes({ limit: 100 }).then(() => undefined))
 
   return ok({
     id: alert.id,

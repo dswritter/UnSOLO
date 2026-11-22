@@ -116,6 +116,12 @@ class LocalSettings(private val context: Context) {
     suspend fun toggleSavedTrip(slug: String) {
         context.dataStore.edit { p -> val cur = p[K.savedTrips] ?: emptySet(); p[K.savedTrips] = if (slug in cur) cur - slug else (cur + slug).toList().takeLast(200).toSet() }
     }
+    suspend fun setSavedTrip(slug: String, saved: Boolean) {
+        context.dataStore.edit { p -> val cur = p[K.savedTrips] ?: emptySet(); p[K.savedTrips] = if (saved) (cur + slug).toList().takeLast(200).toSet() else cur - slug }
+    }
+    suspend fun addSavedTrips(slugs: Collection<String>) {
+        context.dataStore.edit { p -> p[K.savedTrips] = ((p[K.savedTrips] ?: emptySet()) + slugs).toList().takeLast(200).toSet() }
+    }
     suspend fun markStorySeen(postId: String) {
         context.dataStore.edit { p -> val cur = p[K.seenStories] ?: emptySet(); if (postId !in cur) p[K.seenStories] = (cur + postId).toList().takeLast(500).toSet() }
     }

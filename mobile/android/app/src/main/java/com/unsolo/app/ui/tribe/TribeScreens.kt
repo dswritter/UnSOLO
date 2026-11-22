@@ -106,7 +106,7 @@ class FeedViewModel(private val g: AppGraph) : ViewModel() {
     fun loadMore() = viewModelScope.launch { g.tribe.loadMore(kind) }
     fun react(p: Post, k: String) = viewModelScope.launch { g.tribe.toggleReaction(p.id, k) }
     fun save(p: Post) = viewModelScope.launch { g.tribe.toggleSave(p.id) }
-    fun saveTrip(t: TripLite) = viewModelScope.launch { g.settings.toggleSavedTrip(t.slug) }
+    fun saveTrip(t: TripLite) = viewModelScope.launch { g.trips.toggleSaved(t.slug) }
     fun vote(p: Post, o: PollOption) = viewModelScope.launch { g.tribe.vote(p.id, o) }
     fun retry(p: Post) = viewModelScope.launch {
         val clientId = p.id.removePrefix("local:")
@@ -169,6 +169,11 @@ fun TribeScreen(nav: AppNav) {
         }
         item(key = "stories", contentType = "stories") {
             com.unsolo.app.ui.status.StatusRail(nav, Modifier.padding(bottom = 2.dp))
+            if (nav.graph.account.isSignedIn.collectAsStateWithLifecycle().value) Row(Modifier.padding(horizontal = Gutter, vertical = 4.dp).clip(CircleShape).background(c.tonal)
+                .clickable { nav.to(Routes.BUDDIES) }.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                PcIcon(PcIcons.UsersThree, null, tint = c.ink, size = 16.dp); Spacer(Modifier.width(6.dp))
+                Text("Find travel buddies", style = Pc.type.smallStrong, color = c.ink)
+            }
         }
         item(key = "filters", contentType = "filters") {
             TextTabs(Filters, filter, { vm.filter.value = it }, Modifier.padding(top = 8.dp, bottom = 4.dp))

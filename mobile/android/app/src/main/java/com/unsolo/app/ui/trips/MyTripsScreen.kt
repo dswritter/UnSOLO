@@ -63,6 +63,8 @@ fun MyTripsScreen(nav: AppNav) {
     // Open where there's something: Upcoming, else Plans, else Past.
     LaunchedEffect(data) { if (tab == null && data != null) tab = when { d.upcoming.isNotEmpty() -> "upcoming"; d.plans.isNotEmpty() || d.requested.isNotEmpty() -> "plans"; d.past.isNotEmpty() -> "past"; else -> "upcoming" } }
     val unreadByRoom = chats.associate { it.id to it.unread }
+    // Trip packs for the next fortnight stay on the phone, ready for places with no signal.
+    LaunchedEffect(d.upcoming.map { it.id }) { if (d.upcoming.isNotEmpty()) nav.graph.trips.prefetchPacks(d.upcoming) }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(Unit) { nav.reselected.collect { if (it == Routes.TRIPS) listState.animateScrollToItem(0) } }
     PullRefresh({ nav.graph.explore.refreshMyTrips(); nav.graph.chat.refreshChats() }, Modifier.fillMaxSize().background(c.paper)) {
@@ -82,13 +84,27 @@ fun MyTripsScreen(nav: AppNav) {
                         LinkText("Find your next", { nav.tab(Routes.EXPLORE) }, style = Pc.type.smallStrong)
                     }
                 }
+                // The next trip on top: countdown (or "Day 2 of 5" with SOS while you're on it).
+                d.upcoming.firstOrNull { it.trip.kind == "trip" }?.let { next -> item(key = "countdown") { TripCountdownCard(next, nav) } }
+                if (d.upcoming.isNotEmpty()) item(key = "buddies") {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(RadiusField)).background(c.tonal).clickable { nav.to(Routes.BUDDIES) }
+                        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PcIcon(PcIcons.UsersThree, null, tint = c.ink, size = 20.dp); Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("Travel buddies", style = Pc.type.bodyStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.ink)
+                            Text("People going your way at the same time", style = Pc.type.small, color = c.ink2)
+                        }
+                        PcIcon(PcIcons.ChevronRight, null, tint = c.ink3, size = 16.dp)
+                    }
+                }
                 items(d.upcoming, key = { "b-" + it.id }, contentType = { "ticket" }) { b ->
-                    UpcomingCard(b, me?.user, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") })
+                    UpcomingCard(b, me?.user, b.chatRoomId?.let { unreadByRoom[it] } ?: 0, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onChat = { b.chatRoomId?.let { nav.to(Routes.chat(it)) } }, onPay = { nav.openWeb("/bookings") },
+                        onPack = if (b.trip.kind == "trip") ({ nav.to(Routes.pack(b.id)) }) else null)
                 }
                 d.past.firstOrNull { it.storyPrompt }?.let { last ->
                     item(key = "last") {
                         SectionHeader("Last trip", Modifier.padding(top = 8.dp))
-                        PastCard(last) { nav.to(Routes.compose(PostKind.STORY)) }
+                        PastCard(last, onReview = if (last.canReview) ({ nav.to(Routes.review(last.id)) }) else null) { nav.to(Routes.compose(PostKind.STORY)) }
                     }
                 }
             }
@@ -99,7 +115,7 @@ fun MyTripsScreen(nav: AppNav) {
             }
             else -> {
                 if (d.past.isEmpty()) item { EmptyState("Nothing past yet", "Trips, stays and activities you've done show up here.") }
-                items(d.past, key = { "past-" + it.id }) { b -> PastCard(b, onOpen = { nav.to(Routes.trip(b.trip.slug)) }) { nav.to(Routes.compose(PostKind.STORY)) } }
+                items(d.past, key = { "past-" + it.id }) { b -> PastCard(b, onOpen = { nav.to(Routes.trip(b.trip.slug)) }, onReview = if (b.canReview) ({ nav.to(Routes.review(b.id)) }) else null) { nav.to(Routes.compose(PostKind.STORY)) } }
             }
         }
         item { Spacer(Modifier.navigationBarsPadding().height(24.dp)) }
@@ -109,7 +125,7 @@ fun MyTripsScreen(nav: AppNav) {
 
 /** Booked trip: your gold seat in the ring, co-travellers' faces, "Meet the circle". */
 @Composable
-private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> Unit, onChat: () -> Unit, onPay: () -> Unit) {
+private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> Unit, onChat: () -> Unit, onPay: () -> Unit, onPack: (() -> Unit)? = null) {
     val c = Pc.colors
     val days = Fmt.daysUntil(b.travelDate) ?: 0
     val total = b.trip.seatsTotal ?: 0
@@ -146,16 +162,19 @@ private fun UpcomingCard(b: Booking, me: UserLite?, unread: Int, onOpen: () -> U
                 Text("Pay on unsolo.in", style = Pc.type.smallStrong.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), color = c.accentInk)
             }
         }
-        if (b.chatRoomId != null) {
+        if (b.chatRoomId != null || onPack != null) {
             Spacer(Modifier.height(12.dp))
-            PcButton(if (unread > 0) "Meet the circle · $unread new" else "Meet the circle", onChat, Modifier.fillMaxWidth(), icon = PcIcons.ChatsCircle)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (b.chatRoomId != null) PcButton(if (unread > 0) "Meet the circle · $unread new" else "Meet the circle", onChat, Modifier.weight(1f), icon = PcIcons.ChatsCircle)
+                if (onPack != null) PcButton("Trip pack", onPack, kind = BtnKind.Outline, icon = PcIcons.Backpack)
+            }
         }
     }
 }
 
 /** Past trip: desaturated ring, "Went · date", a prompt to post a story. */
 @Composable
-private fun PastCard(b: Booking, onOpen: (() -> Unit)? = null, onStory: () -> Unit) {
+private fun PastCard(b: Booking, onOpen: (() -> Unit)? = null, onReview: (() -> Unit)? = null, onStory: () -> Unit) {
     val c = Pc.colors
     val total = b.trip.seatsTotal ?: 0
     Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp).fillMaxWidth().raisedCard().then(if (onOpen != null) Modifier.clickable(onClick = onOpen) else Modifier).padding(16.dp)) {
@@ -170,7 +189,10 @@ private fun PastCard(b: Booking, onOpen: (() -> Unit)? = null, onStory: () -> Un
             }
         }
         Spacer(Modifier.height(12.dp))
-        PcButton("Post a story", onStory, Modifier.fillMaxWidth(), kind = BtnKind.Outline, icon = PcIcons.Camera, height = BtnSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onReview != null) PcButton("Review this trip", onReview, Modifier.weight(1f), kind = BtnKind.Accent, icon = PcIcons.Star, height = BtnSmall)
+            PcButton("Post a story", onStory, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Camera, height = BtnSmall)
+        }
     }
 }
 

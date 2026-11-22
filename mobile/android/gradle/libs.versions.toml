@@ -1,4 +1,5 @@
 [versions]
+osmdroid = "6.1.20"
 agp = "8.10.1"
 kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
@@ -28,6 +29,7 @@ googleid = "1.1.1"
 playAuth = "21.1.1"
 
 [libraries]
+osmdroid = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroid" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splash" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }

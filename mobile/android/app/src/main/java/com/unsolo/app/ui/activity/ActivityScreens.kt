@@ -350,6 +350,7 @@ fun ChatScreen(roomId: String, nav: AppNav) {
                     val sub = circle?.let { ci -> "${ci.othersTaken + 1} of ${ci.total} · ${ci.sub.substringAfter(" · ", ci.sub)}" } ?: if (chat?.type == "direct") "Direct message" else "Group"
                     Text(sub, style = Pc.type.label.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium), color = c.ink3, maxLines = 1)
                 }
+                if (chat?.type == "trip" || chat?.type == "plan" || chat?.type == "group") IconTap(PcIcons.Pin, "Group map and live location", { nav.to(Routes.groupMap(roomId)) })
                 IconTap(PcIcons.Flag, "Report or block", { reportMsg = null; report = true })
             }
             Hairline()

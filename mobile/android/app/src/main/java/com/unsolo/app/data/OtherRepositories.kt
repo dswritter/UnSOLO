@@ -16,7 +16,7 @@ import kotlinx.serialization.json.add
 import java.time.Instant
 import java.util.UUID
 
-class ExploreRepository(private val db: AppDatabase, private val api: ApiService, private val tribe: TribeRepository) {
+class ExploreRepository(private val db: AppDatabase, private val api: ApiService, private val tribe: TribeRepository, private val onTripsChanged: () -> Unit = {}) {
     private val liteS = TripLite.serializer()
     private val detailS = TripDetail.serializer()
 
@@ -79,6 +79,7 @@ class ExploreRepository(private val db: AppDatabase, private val api: ApiService
         if (r is ApiResult.Ok) {
             db.cache().putAs("my_trips", MyTripsResponse.serializer(), r.value)
             tribe.applyPosts(r.value.plans + r.value.requested)
+            onTripsChanged()
         }
         return r
     }

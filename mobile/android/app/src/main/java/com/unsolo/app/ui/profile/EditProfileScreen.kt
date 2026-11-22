@@ -106,6 +106,8 @@ fun EditProfileScreen(nav: AppNav) {
     var statesPrivate by rememberSaveable { mutableStateOf(u.statesPrivate) }
     var phonePublic by rememberSaveable { mutableStateOf(u.phonePublic) }
     var avatarUrl by rememberSaveable { mutableStateOf(u.avatarUrl) }
+    var emName by rememberSaveable { mutableStateOf(u.emergencyName.orEmpty()) }
+    var emPhone by rememberSaveable { mutableStateOf(u.emergencyPhone.orEmpty().removePrefix("+91")) }
     var uploading by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Pair<String?, String>?>(null) } // field to message
@@ -126,6 +128,8 @@ fun EditProfileScreen(nav: AppNav) {
         tripsPrivate = tripsPrivate.takeIf { it != u.tripsPrivate },
         statesPrivate = statesPrivate.takeIf { it != u.statesPrivate },
         phonePublic = phonePublic.takeIf { it != u.phonePublic },
+        emergencyName = emName.trim().takeIf { it != u.emergencyName.orEmpty() },
+        emergencyPhone = emPhone.trim().takeIf { it != u.emergencyPhone.orEmpty().removePrefix("+91") },
     )
     val dirty = patch != PatchMeRequest()
     val usernameLocked = u.usernameChangeAfter != null
@@ -225,6 +229,14 @@ fun EditProfileScreen(nav: AppNav) {
                         PcIcon(PcIcons.Calendar, null, tint = c.ink2, size = 18.dp); Spacer(Modifier.width(10.dp))
                         Text(if (dob.isEmpty()) "Add your birthday" else longDate(dob), style = Pc.type.body, color = if (dob.isEmpty()) c.ink3 else c.ink)
                     }
+                }
+            }
+            FormGroup("Safety") {
+                Field("Emergency contact", error, "emergencyName", help = "Texted with your location if you raise an SOS on a trip. Only you can see this.") {
+                    BoxedInput(emName, { emName = it.take(80) }, "Their name", Modifier.fillMaxWidth())
+                }
+                Field("Their mobile", error, "emergencyPhone") {
+                    BoxedInput(emPhone, { emPhone = it.filter { ch -> ch.isDigit() }.take(10) }, "10-digit number", Modifier.fillMaxWidth(), keyboardType = KeyboardType.Phone, leadingIcon = PcIcons.Phone)
                 }
             }
             FormGroup("What others see", inset = false) {

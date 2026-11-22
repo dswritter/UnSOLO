@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">UnSOLO</string>
+    <string name="widget_countdown_label">Trip countdown</string>
+    <string name="widget_countdown_description">Days to your next UnSOLO trip, or which day of it you\'re on.</string>
 </resources>

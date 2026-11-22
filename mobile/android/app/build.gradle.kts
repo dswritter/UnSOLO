@@ -142,6 +142,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation(libs.play.services.location)
+    implementation(libs.osmdroid) // OpenStreetMap: Explore map, group live location
     // SMS User Consent API: reads the one incoming OTP SMS after the user taps Allow (no READ_SMS, no app hash).
     implementation(libs.play.services.auth.api.phone)
     implementation(platform(libs.firebase.bom))

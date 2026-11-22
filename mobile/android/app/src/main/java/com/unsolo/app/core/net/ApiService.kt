@@ -26,6 +26,21 @@ interface ApiService {
     @PATCH("me") suspend fun patchMe(@Body body: PatchMeRequest): MeResponse
     @HTTP(method = "DELETE", path = "me", hasBody = true) suspend fun deleteMe(@Body body: DeleteAccountRequest): DeleteAccountResponse
     @GET("me/referrals") suspend fun referrals(): ReferralsResponse
+    // Trip safety, alerts, maps
+    @GET("sos") suspend fun sosStatus(): SosStatus
+    @POST("sos") suspend fun sos(@Body body: SosRequest): SosResponse
+    @PUT("sos/{id}") suspend fun sosUpdate(@Path("id") id: String, @Body body: SosUpdate): Response<Unit>
+    @GET("chats/{roomId}/live-location") suspend fun liveLocations(@Path("roomId") roomId: String): LiveLocationsResponse
+    @PUT("chats/{roomId}/live-location") suspend fun shareLocation(@Path("roomId") roomId: String, @Body body: LiveLocationUpdate): LiveLocationAck
+    @DELETE("chats/{roomId}/live-location") suspend fun stopLocation(@Path("roomId") roomId: String): Response<Unit>
+    @PUT("trips/{slug}/save") suspend fun saveTrip(@Path("slug") slug: String): Response<Unit>
+    @DELETE("trips/{slug}/save") suspend fun unsaveTrip(@Path("slug") slug: String): Response<Unit>
+    @GET("me/saved-trips") suspend fun savedTrips(): SavedSlugs
+    @POST("me/saved-trips") suspend fun addSavedTrips(@Body body: SavedSlugs): Response<Unit>
+    @GET("buddies") suspend fun buddies(): BuddiesResponse
+    @GET("explore/map") suspend fun mapPins(@Query("category") category: String = "all"): MapPinsResponse
+    @POST("reviews") suspend fun review(@Body body: ReviewCreate): IdResponse
+    @GET("my/trips/{bookingId}/pack") suspend fun tripPack(@Path("bookingId") bookingId: String): TripPack
     @GET("offers") suspend fun offers(): OffersResponse
     @GET("me/preferences") suspend fun preferences(): Preferences
     @PUT("me/preferences") suspend fun putPreferences(@Body partial: kotlinx.serialization.json.JsonObject): Preferences

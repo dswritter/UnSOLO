@@ -50,6 +50,8 @@ data class UserLite(
     val tripsPrivate: Boolean = false,
     val statesPrivate: Boolean = false,
     val phonePublic: Boolean = false,
+    val emergencyName: String? = null,
+    val emergencyPhone: String? = null,
 ) {
     val initials: String
         get() = name.split(' ', '-', '.').filter { it.isNotBlank() }.take(2)
@@ -147,6 +149,7 @@ data class TripDetail(
     val rating: Rating? = null,
     val stories: List<Post> = emptyList(),
     val planningCount: Int? = null,
+    val reviews: List<TripReview> = emptyList(),
     val kind: String = "trip",
     val unit: String? = null,
     val webPath: String? = null,
@@ -337,6 +340,11 @@ data class Booking(
     val trip: TripLite,
     val chatRoomId: String? = null,
     val storyPrompt: Boolean = false,
+    val endDate: String? = null,
+    /** On the trip today: SOS, live location, trip pack. */
+    val onTrip: Boolean = false,
+    val canReview: Boolean = false,
+    val reviewed: Boolean = false,
 )
 
 @Immutable
@@ -423,6 +431,45 @@ data class PatchMeRequest(
     val tripsPrivate: Boolean? = null,
     val statesPrivate: Boolean? = null,
     val phonePublic: Boolean? = null,
+    val emergencyName: String? = null,
+    val emergencyPhone: String? = null,
+)
+
+// ---- Trip safety, alerts, maps (migration 124) ----
+
+@Serializable data class TripReview(val id: String, val rating: Int = 0, val title: String? = null, val body: String? = null, val photos: List<Media> = emptyList(), val createdAt: String = "", val author: UserLite)
+@Serializable data class Contact(val name: String? = null, val phone: String? = null)
+@Serializable data class SosTrip(val bookingId: String = "", val title: String = "", val slug: String = "", val start: String = "", val end: String = "")
+@Serializable data class SosStatus(val onTrip: Boolean = false, val trips: List<SosTrip> = emptyList(), val emergencyContact: Contact? = null, val supportWhatsapp: String? = null)
+@Serializable data class SosRequest(val lat: Double? = null, val lng: Double? = null, val accuracy: Double? = null, val note: String? = null, val bookingId: String? = null)
+@Serializable data class SosTripRef(val title: String = "", val slug: String = "")
+@Serializable data class SosResponse(val id: String, val notified: Map<String, String> = emptyMap(), val trip: SosTripRef? = null, val host: Contact? = null,
+                                     val emergencyContact: Contact? = null, val supportWhatsapp: String? = null, val message: String = "")
+@Serializable data class SosUpdate(val lat: Double? = null, val lng: Double? = null, val accuracy: Double? = null, val status: String? = null)
+@Serializable data class LiveLocationItem(val user: UserLite, val lat: Double, val lng: Double, val accuracy: Double? = null, val startedAt: String = "", val updatedAt: String = "", val expiresAt: String = "", val mine: Boolean = false)
+@Serializable data class LiveLocationsResponse(val items: List<LiveLocationItem> = emptyList())
+@Serializable data class LiveLocationUpdate(val lat: Double, val lng: Double, val accuracy: Double? = null, val minutes: Int? = null)
+@Serializable data class LiveLocationAck(val expiresAt: String = "")
+@Serializable data class BuddyTripRef(val slug: String = "", val title: String = "")
+@Serializable data class Buddy(val user: UserLite, val score: Int = 0, val reasons: List<String> = emptyList(), val trip: BuddyTripRef? = null, val planId: String? = null)
+@Serializable data class BuddiesResponse(val items: List<Buddy> = emptyList())
+@Serializable data class MapPin(val kind: String, val id: String, val slug: String? = null, val postId: String? = null, val title: String = "", val place: String? = null,
+                                val lat: Double, val lng: Double, val priceFromPaise: Long? = null, val unit: String? = null, val date: String? = null,
+                                val seatsLeft: Int? = null, val spotsLeft: Int? = null, val image: Media? = null)
+@Serializable data class MapPinsResponse(val pins: List<MapPin> = emptyList())
+@Serializable data class ReviewCreate(val bookingId: String, val ratingDestination: Int, val ratingExperience: Int, val title: String? = null, val body: String? = null, val photos: List<String> = emptyList())
+@Serializable data class IdResponse(val id: String = "")
+@Serializable data class SavedSlugs(val slugs: List<String> = emptyList())
+@Serializable data class Helpline(val label: String = "", val phone: String = "")
+@Serializable data class PackHost(val user: UserLite, val phone: String? = null)
+@Serializable data class PackSupport(val whatsapp: String? = null, val email: String? = null)
+@Serializable data class TripPack(
+    val bookingId: String, val status: String = "", val confirmationCode: String? = null, val guests: Int = 1,
+    val startDate: String = "", val endDate: String = "", val departureTime: String? = null, val returnTime: String? = null,
+    val totalPaise: Long = 0, val paidPaise: Long = 0, val balancePaise: Long = 0, val specialRequests: String? = null,
+    val trip: TripLite, val description: String = "", val includes: List<String> = emptyList(), val cancellationPolicy: String? = null,
+    val host: PackHost? = null, val travellers: List<UserLite> = emptyList(), val chatRoomId: String? = null,
+    val support: PackSupport = PackSupport(), val helplines: List<Helpline> = emptyList(), val generatedAt: String = "",
 )
 
 /** GET /me/referrals */
