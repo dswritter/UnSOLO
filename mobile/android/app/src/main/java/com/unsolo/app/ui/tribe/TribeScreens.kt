@@ -117,6 +117,7 @@ class FeedViewModel(private val g: AppGraph) : ViewModel() {
         g.outbox.kick()
     }
     fun discard(p: Post) = viewModelScope.launch { g.tribe.deleteLocalOrRemote(p.id) }
+    val pendingDelete = MutableStateFlow<Post?>(null)
 }
 
 fun sharePost(nav: AppNav, p: Post) {
@@ -136,7 +137,37 @@ fun cardActions(nav: AppNav, vm: FeedViewModel) = CardActions(
     retry = { vm.retry(it) },
     discard = { vm.discard(it) },
     share = { sharePost(nav, it) },
+    delete = { vm.pendingDelete.value = it },
 )
+
+/** "Delete this post?" for your own post; on yes it disappears from the feed and your profile. */
+@Composable
+fun DeletePostSheet(p: Post, onDismiss: () -> Unit, onDeleted: () -> Unit, nav: AppNav) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    PcSheet(onDismiss) {
+        SheetTitle("Delete this post?", when (p.kind) {
+            PostKind.PLAN -> "The plan, its chat and requests go away. Members are told it's off."
+            else -> "It's removed from Tribe and your profile, with its comments and reactions. This can't be undone."
+        })
+        Row(Modifier.padding(horizontal = Gutter, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PcButton("Keep", onDismiss, Modifier.weight(1f), kind = BtnKind.Outline)
+            PcButton("Delete", {
+                busy = true
+                scope.launch {
+                    val ok = nav.graph.tribe.deleteLocalOrRemote(p.id)
+                    busy = false
+                    if (ok) {
+                        nav.graph.account.me.value?.user?.username?.let { nav.graph.tribe.refreshProfile(it) }
+                        nav.graph.events.emit(com.unsolo.app.data.AppEvent.Message("Post deleted"))
+                        onDeleted()
+                    } else nav.graph.events.emit(com.unsolo.app.data.AppEvent.Message("Couldn't delete it. Try again."))
+                }
+            }, Modifier.weight(1f), kind = BtnKind.Danger, loading = busy)
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
 
 @Composable
 fun TribeScreen(nav: AppNav) {
@@ -150,6 +181,8 @@ fun TribeScreen(nav: AppNav) {
     val me by vm.me.collectAsStateWithLifecycle()
     val counts = LocalHeaderCounts.current
     val actions = remember(vm) { cardActions(nav, vm) }
+    val toDelete by vm.pendingDelete.collectAsStateWithLifecycle()
+    toDelete?.let { p -> DeletePostSheet(p, onDismiss = { vm.pendingDelete.value = null }, onDeleted = { vm.pendingDelete.value = null }, nav = nav) }
     val c = Pc.colors
 
     if (!flags.flags.tribeEnabled) {
@@ -300,6 +333,7 @@ fun PostDetailScreen(id: String, nav: AppNav) {
     val me by vm.me.collectAsStateWithLifecycle()
     var joinSheet by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
     var reportTarget by remember { mutableStateOf<Triple<String, String, UserLite?>?>(null) }
     var replyTo by remember { mutableStateOf<Comment?>(null) }
     var toast by remember { mutableStateOf<String?>(null) }
@@ -320,7 +354,7 @@ fun PostDetailScreen(id: String, nav: AppNav) {
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar(kindLabel, onBack = { nav.back() }, headerActions = false, centerTitle = true) {
             IconTap(PcIcons.Share, "Share", { vm.share(p); nav.share("${p.title ?: "A post"} on UnSOLO Tribe: https://unsolo.in/tribe/p/${p.id}") })
-            IconTap(PcIcons.More, "More: report or block", { menu = true })
+            IconTap(PcIcons.More, "More options", { menu = true })
         }
         LazyColumn(Modifier.weight(1f)) {
             if (p.kind == PostKind.STORY && p.media.isNotEmpty()) item(key = "pager") { StoryPhotos(p) }
@@ -392,7 +426,9 @@ fun PostDetailScreen(id: String, nav: AppNav) {
         onBlock = { menu = false; if (nav.requireSignIn()) vm.block(p.author.id) { toast = it; nav.back() } },
         onCancel = { menu = false; vm.cancelPlan { toast = it } },
         onShare = { menu = false; nav.share("https://unsolo.in/tribe/p/${p.id}") },
-        onSave = { menu = false; if (nav.requireSignIn()) vm.save() })
+        onSave = { menu = false; if (nav.requireSignIn()) vm.save() },
+        onDelete = { menu = false; deleting = true })
+    if (deleting) DeletePostSheet(p, onDismiss = { deleting = false }, onDeleted = { deleting = false; nav.back() }, nav = nav)
     reportTarget?.let { (type, tid, user) ->
         ReportSheet(user, onDismiss = { reportTarget = null }, onSubmit = { reason, details ->
             reportTarget = null
@@ -690,12 +726,13 @@ fun JoinSheet(p: Post, onDismiss: () -> Unit, onSend: (String) -> Unit) {
 }
 
 @Composable
-private fun PostMenuSheet(p: Post, onDismiss: () -> Unit, onReport: () -> Unit, onBlock: () -> Unit, onCancel: () -> Unit, onShare: () -> Unit, onSave: () -> Unit) {
+private fun PostMenuSheet(p: Post, onDismiss: () -> Unit, onReport: () -> Unit, onBlock: () -> Unit, onCancel: () -> Unit, onShare: () -> Unit, onSave: () -> Unit, onDelete: () -> Unit = {}) {
     PcSheet(onDismiss) {
         NavRow("Share", icon = PcIcons.Share, onClick = onShare)
         NavRow(if (p.viewer.saved) "Saved" else "Save", if (p.viewer.saved) "Tap to remove from saved" else "Find it later in your profile", if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, onClick = onSave)
         if (p.viewer.isAuthor) {
             if (p.kind == PostKind.PLAN && p.status == "live") NavRow("Cancel this plan", "Members get a notification", PcIcons.Close, onClick = onCancel, danger = true)
+            NavRow("Delete post", "Removes it from Tribe and your profile", PcIcons.Trash, onClick = onDelete, danger = true)
         } else {
             NavRow("Report post", "Spam, scam, unsafe meetup…", PcIcons.Flag, onClick = onReport)
             NavRow("Block ${p.author.firstName}", "You won't see each other's posts or messages", PcIcons.Lock, onClick = onBlock, danger = true)

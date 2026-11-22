@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ArrowLeft, Clock3, Flag, Lock, MessageCircle, MoreHorizontal, SendHorizontal, Share2, UserX, X } from 'lucide-react'
+import { ArrowLeft, Clock3, Flag, Lock, MessageCircle, MoreHorizontal, SendHorizontal, Share2, Trash2, UserX, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch, ApiClientError, newClientId } from '@/lib/api/client'
 import { track } from '@/lib/analytics/client'
@@ -252,7 +252,16 @@ export function PostDetailClient({ post: initial, comments: initialComments, off
       {reportOpen && <ReportSheet onClose={() => setReportOpen(false)} onSend={report} />}
       <MoreSheet open={menuOpen} post={post} onClose={() => setMenuOpen(false)} onShare={() => { setMenuOpen(false); void share() }}
         onReport={() => { setMenuOpen(false); if (signedIn) setReportOpen(true); else requireSignIn() }}
-        onBlock={() => (signedIn ? block() : requireSignIn())} />
+        onBlock={() => (signedIn ? block() : requireSignIn())}
+        onDelete={async () => {
+          try {
+            await apiFetch(`/posts/${post.id}`, { method: 'DELETE' })
+            setMenuOpen(false)
+            toast.success('Post deleted')
+            router.push('/tribe')
+            router.refresh()
+          } catch (e) { toast.error((e as Error).message || 'Couldn’t delete it. Try again.') }
+        }} />
     </div>
   )
 }
@@ -464,13 +473,21 @@ function Comments({ comments, post, isAsk, onReply }: { comments: Comment[]; pos
   )
 }
 
-function MoreSheet({ open, post, onClose, onShare, onReport, onBlock }: { open: boolean; post: Post; onClose: () => void; onShare: () => void; onReport: () => void; onBlock: () => void }) {
+function MoreSheet({ open, post, onClose, onShare, onReport, onBlock, onDelete }: { open: boolean; post: Post; onClose: () => void; onShare: () => void; onReport: () => void; onBlock: () => void; onDelete: () => Promise<void> }) {
   const [confirmBlock, setConfirmBlock] = useState(false)
-  const close = () => { setConfirmBlock(false); onClose() }
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const close = () => { setConfirmBlock(false); setConfirmDelete(false); onClose() }
   return (
-    <Sheet open={open} onClose={close} title={confirmBlock ? `Block ${post.author.name}?` : 'Post options'} labelledTitle={confirmBlock}
-      description={confirmBlock ? 'You won’t see each other’s posts or messages. They aren’t told.' : undefined}>
-      {confirmBlock ? (
+    <Sheet open={open} onClose={close} title={confirmDelete ? 'Delete this post?' : confirmBlock ? `Block ${post.author.name}?` : 'Post options'} labelledTitle={confirmBlock || confirmDelete}
+      description={confirmDelete ? 'It’s removed from Tribe and your profile, with its comments and reactions. This can’t be undone.' : confirmBlock ? 'You won’t see each other’s posts or messages. They aren’t told.' : undefined}>
+      {confirmDelete ? (
+        <div className="fc-sheet-actions">
+          <button type="button" className="pc-btn pc-btn-danger pc-btn-block" disabled={deleting}
+            onClick={async () => { setDeleting(true); await onDelete(); setDeleting(false); setConfirmDelete(false) }}>{deleting ? 'Deleting…' : 'Delete post'}</button>
+          <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" onClick={() => setConfirmDelete(false)}>Keep it</button>
+        </div>
+      ) : confirmBlock ? (
         <div className="fc-sheet-actions">
           <button type="button" className="pc-btn pc-btn-danger pc-btn-block" onClick={onBlock}>Block {firstName(post.author)}</button>
           <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" onClick={() => setConfirmBlock(false)}>Cancel</button>
@@ -478,6 +495,9 @@ function MoreSheet({ open, post, onClose, onShare, onReport, onBlock }: { open: 
       ) : (
         <div className="mt-2 space-y-1">
           <button type="button" className="fc-menu-row" onClick={onShare}><Share2 aria-hidden />Share</button>
+          {post.viewer.isAuthor && (
+            <button type="button" className="fc-menu-row is-danger" onClick={() => setConfirmDelete(true)}><Trash2 aria-hidden />Delete post</button>
+          )}
           {!post.viewer.isAuthor && <>
             <button type="button" className="fc-menu-row" onClick={onReport}><Flag aria-hidden />Report</button>
             <button type="button" className="fc-menu-row is-danger" onClick={() => setConfirmBlock(true)}><UserX aria-hidden />Block {firstName(post.author)}</button>

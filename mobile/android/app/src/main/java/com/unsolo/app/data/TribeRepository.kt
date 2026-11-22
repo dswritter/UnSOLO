@@ -446,14 +446,18 @@ class TribeRepository(
         return r as? ApiResult.Err ?: ApiResult.Offline
     }
 
-    suspend fun deleteLocalOrRemote(postId: String) {
-        if (postId.startsWith("local:")) {
+    /** Deletes your post (or a draft still on the phone). True when it's gone. */
+    suspend fun deleteLocalOrRemote(postId: String): Boolean {
+        return if (postId.startsWith("local:")) {
             val clientId = postId.removePrefix("local:")
             db.outbox().byClientId(clientId)?.let { db.outbox().delete(it.id) }
             db.media().deleteOwner(clientId)
             db.posts().delete(postId)
+            true
         } else {
-            if (apiUnit { api.deletePost(postId) } is ApiResult.Ok) { db.posts().delete(postId); db.feed().removeRefs(listOf(postId)) }
+            val ok = apiUnit { api.deletePost(postId) } is ApiResult.Ok
+            if (ok) { db.posts().delete(postId); db.feed().removeRefs(listOf(postId)) }
+            ok
         }
     }
 

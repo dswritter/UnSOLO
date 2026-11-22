@@ -48,6 +48,8 @@ class CardActions(
     val retry: (Post) -> Unit,
     val discard: (Post) -> Unit,
     val share: (Post) -> Unit = {},
+    /** Your own post: asks, then deletes it. */
+    val delete: ((Post) -> Unit)? = null,
 )
 
 /** Cards: surface, 28dp, 1dp rule; plans are pencilled (dashed). 12dp between cards. */
@@ -122,6 +124,7 @@ private fun ReactsRow(p: Post, actions: CardActions, modifier: Modifier = Modifi
         ReactBtn(PcIcons.ChatCircle, "${p.commentCount}", "Comments") { actions.open(p) }
         ReactBtn(PcIcons.Share, null, "Share") { actions.share(p) }
         Spacer(Modifier.weight(1f))
+        if (p.viewer.isAuthor && actions.delete != null) IconTap(PcIcons.Trash, "Delete your post", { actions.delete.invoke(p) }, tint = c.ink3)
         if (primary != null) primary()
         else IconTap(if (p.viewer.saved) PcIcons.BookmarkFilled else PcIcons.Bookmark, if (p.viewer.saved) "Saved" else "Save", { actions.save(p) }, tint = if (p.viewer.saved) c.ink else c.ink2)
     }
