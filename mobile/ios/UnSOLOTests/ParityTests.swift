@@ -164,4 +164,35 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(ChatRepo.pollInterval(quietFor: 90), .seconds(20))
         XCTAssertEqual(ChatRepo.pollInterval(quietFor: 400), .seconds(45))
     }
+
+    func testStoryFitMath() {
+        let f = CGSize(width: 90, height: 160), img = CGSize(width: 400, height: 300) // landscape photo
+        XCTAssertEqual(StoryMath.snap(88.5), 90)
+        XCTAssertEqual(StoryMath.snap(85), 85)
+        XCTAssertEqual(StoryMath.fitScale(f, img, 0), 90 / 400, accuracy: 1e-9, "whole: the width fits")
+        XCTAssertEqual(StoryMath.coverScale(f, img, 0), 160 / 300, accuracy: 1e-9, "fill: the height covers")
+        // Filled: wider than the frame, so it slides sideways without a gap; same height, so no vertical slack.
+        let s = StoryMath.coverScale(f, img, 0)
+        let o = StoryMath.clamp(CGSize(width: 500, height: 40), s, f, img, 0)
+        XCTAssertEqual(o.width, (400 * s - 90) / 2, accuracy: 1e-9)
+        XCTAssertEqual(o.height, 0, accuracy: 1e-9)
+        // Double-tap toggles whole <-> fill; zoom stays within whole … 8x fill.
+        let start = StoryFit(frame: f)
+        let filled = StoryMath.toggled(start, img: img, at: .zero)
+        XCTAssertEqual(filled.scale, s, accuracy: 1e-9)
+        XCTAssertEqual(StoryMath.toggled(filled, img: img, at: .zero).scale, 90 / 400, accuracy: 1e-9)
+        XCTAssertEqual(StoryMath.moved(start, img: img, zoom: 100, degrees: 0, pan: .zero, pivot: .zero).scale, s * 8, accuracy: 1e-9)
+        XCTAssertEqual(StoryMath.moved(start, img: img, zoom: 0.1, degrees: 0, pan: .zero, pivot: .zero).scale, 90 / 400, accuracy: 1e-9)
+        XCTAssertEqual(StoryMath.frame(in: CGSize(width: 400, height: 900)), CGSize(width: 400, height: 400.0 * 16 / 9))
+    }
+
+    func testStoryRenderIs916() throws {
+        let img = UIGraphicsImageRenderer(size: CGSize(width: 400, height: 300)).image { c in
+            UIColor.red.setFill(); c.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
+        }
+        let data = try XCTUnwrap(StoryMath.render(img, fit: StoryFit(scale: 1, frame: CGSize(width: 90, height: 160))))
+        let out = try XCTUnwrap(UIImage(data: data))
+        XCTAssertEqual(out.size.width / out.size.height, 9.0 / 16.0, accuracy: 0.01)
+        XCTAssertLessThanOrEqual(max(out.size.width, out.size.height), 2160)
+    }
 }
