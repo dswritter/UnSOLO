@@ -168,8 +168,13 @@ struct TripDetailView: View {
         return VStack(spacing: 6) {
             Text(t.title).pcFont(.title1).foregroundStyle(Pc.ink).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             hostLine(t)
-            SeatCaption(counts: counts, font: .system(size: 14, weight: .semibold))
-                .padding(.top, 8)
+            if Fmt.isPast(selectedDate ?? t.nextDeparture) {
+                Text(counts.going > 0 ? "Trip done · \(counts.going) travelled on \(Fmt.dayMonth(selectedDate ?? t.nextDeparture))" : "This date has passed")
+                    .font(.system(size: 14, weight: .semibold)).foregroundStyle(Pc.ink2).padding(.top, 8)
+            } else {
+                SeatCaption(counts: counts, font: .system(size: 14, weight: .semibold))
+                    .padding(.top, 8)
+            }
             if dots != .faces && counts.going > 0 {
                 Label(session.isSignedIn ? "Faces show once you're travelling together" : "Sign in to see who's going", systemImage: "lock.fill")
                     .font(.system(size: 11, weight: .semibold)).foregroundStyle(Pc.ink3)
@@ -237,13 +242,14 @@ struct TripDetailView: View {
                 ForEach(d.departures, id: \.date) { dep in
                     let selected = (selectedDate ?? d.nextDeparture) == dep.date
                     let counts = SeatCounts(departure: dep, hasHost: d.host != nil)
+                    let gone = Fmt.isPast(dep.date)
                     Button { selectedDate = dep.date } label: {
                         HStack(spacing: 12) {
                             MiniArc(counts: counts, size: 36)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(Fmt.weekdayDayMonth(dep.date)).font(.system(size: 14, weight: .bold)).monospacedDigit().foregroundStyle(Pc.ink)
-                                Text(counts.isFull ? "Full · \(counts.total)/\(counts.total)" : "\(counts.open) of \(counts.total) open")
-                                    .pcFont(.small, weight: counts.isFull ? .bold : .regular).foregroundStyle(counts.isFull ? Pc.full : Pc.ink2)
+                                Text(gone ? "Done · \(counts.going) travelled" : counts.isFull ? "Full · \(counts.total)/\(counts.total)" : "\(counts.open) of \(counts.total) open")
+                                    .pcFont(.small, weight: counts.isFull && !gone ? .bold : .regular).foregroundStyle(gone ? Pc.ink3 : counts.isFull ? Pc.full : Pc.ink2)
                             }
                             Spacer()
                             Image(systemName: selected ? "checkmark.circle.fill" : "circle")
@@ -252,7 +258,7 @@ struct TripDetailView: View {
                         .padding(.horizontal, 12)
                         .frame(minHeight: 52)
                         .pcSelectable(selected, radius: Pc.radius)
-                        .opacity(counts.isFull && !selected ? 0.7 : 1)
+                        .opacity((counts.isFull || gone) && !selected ? 0.7 : 1)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.pcPress)
@@ -337,14 +343,20 @@ struct TripDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Button("Book") { app.openListing(t) }.buttonStyle(.pcAccent)
             } else {
+            let gone = Fmt.isPast(date)
             VStack(alignment: .leading, spacing: 1) {
                 PriceText(paise: t.priceFromPaise)
-                Text(left == 0 ? "Full on \(Fmt.dayMonth(date))" : "\(Fmt.dayMonth(date)) · \(left) spot\(left == 1 ? "" : "s") left")
-                    .pcFont(.small).foregroundStyle(left == 0 ? Pc.full : Pc.ink2).lineLimit(1)
+                Text(date == nil ? "Dates on request" : gone ? "\(Fmt.weekdayDayMonth(date)) has passed · ask for the next one"
+                     : left == 0 ? "Full on \(Fmt.dayMonth(date))" : "\(Fmt.dayMonth(date)) · \(left) spot\(left == 1 ? "" : "s") left")
+                    .pcFont(.small).foregroundStyle(left == 0 && !gone && date != nil ? Pc.full : Pc.ink2).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(left == 0 ? "Join waitlist" : "Grab a spot") { app.openBooking(slug: slug, date: date) }
-                .buttonStyle(.pcAccent)
+            if date == nil || gone {
+                Button("Ask for dates") { app.openBooking(slug: slug, date: nil) }.buttonStyle(.pcAccent)
+            } else {
+                Button(left == 0 ? "Join waitlist" : "Grab a spot") { app.openBooking(slug: slug, date: date) }
+                    .buttonStyle(.pcAccent)
+            }
             }
         }
         .padding(.horizontal, 16)

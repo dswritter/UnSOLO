@@ -135,6 +135,22 @@ final class ParityTests: XCTestCase {
         XCTAssertNil(DeepLink.parse(path: "/review/not-an-id"))
     }
 
+    @MainActor
+    func testMentionLocalMatching() throws {
+        let u = try JSON.decoder().decode(UserLite.self, from: Data(user.utf8)) // Asha Rao, @asha
+        XCTAssertTrue(StatusRepo.matches(u, "as"))
+        XCTAssertTrue(StatusRepo.matches(u, "ra"), "a later word of the name")
+        XCTAssertFalse(StatusRepo.matches(u, "ha"), "short queries match starts only")
+        XCTAssertTrue(StatusRepo.matches(u, "sha"), "3+ letters match anywhere")
+    }
+
+    func testPastDeparture() {
+        let now = Fmt.day("2026-11-22")!
+        XCTAssertTrue(Fmt.isPast("2026-11-21", now: now))
+        XCTAssertFalse(Fmt.isPast("2026-11-22", now: now))
+        XCTAssertFalse(Fmt.isPast(nil, now: now))
+    }
+
     func testExpiresInText() {
         let now = Date()
         XCTAssertEqual(StatusTimeText.expiresIn(now.addingTimeInterval(5 * 3600 + 60), now: now), "in 5h")

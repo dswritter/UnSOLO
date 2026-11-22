@@ -120,14 +120,43 @@ final class StatusRepo: AppBound {
         }
     }
 
-    func comments(_ id: String) async -> [StatusComment] {
-        (try? await app?.api.statusComments(id))?.items ?? []
+    // MARK: Comments: the saved copy shows at once, the fresh one replaces it
+
+    /// Comments per story, as last seen (memory, backed by the on-phone cache).
+    var comments: [String: [StatusComment]] = [:]
+    @ObservationIgnored private var loadingComments: Set<String> = []
+
+    private func putComments(_ id: String, _ list: [StatusComment]) {
+        comments[id] = list
+        app?.store.setEntry("status_comments:\(id)", list, isPrivate: true)
+    }
+
+    /// Saved copy first (instant), then the server's. Returns false if the refresh failed.
+    @discardableResult
+    func loadComments(_ id: String) async -> Bool {
+        guard let app else { return false }
+        if comments[id] == nil, let saved = app.store.entry([StatusComment].self, "status_comments:\(id)") { comments[id] = saved }
+        guard let r = try? await app.api.statusComments(id) else { return false }
+        putComments(id, r.items)
+        return true
+    }
+
+    /// Loads a story's comments in the background while it plays, so opening them is instant.
+    func prefetchComments(_ item: StatusItem) {
+        let n = item.commentCount ?? 0
+        guard n > 0, comments[item.id]?.count != n, !loadingComments.contains(item.id) else { return }
+        loadingComments.insert(item.id)
+        Task {
+            await loadComments(item.id)
+            loadingComments.remove(item.id)
+        }
     }
 
     func comment(_ id: String, body: String) async -> StatusComment? {
         guard let app else { return nil }
         guard let c = try? await app.api.commentStatus(id, body: body.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
         patchItem(id) { $0.commentCount = ($0.commentCount ?? 0) + 1 }
+        putComments(id, (comments[id] ?? []) + [c])
         return c
     }
 
@@ -218,8 +247,56 @@ final class StatusRepo: AppBound {
         }
     }
 
-    /// People to @mention, by name or username.
-    func people(_ q: String) async -> [UserLite] { (try? await app?.api.people(q))?.items ?? [] }
+    // MARK: @mentions: instant local matches, then the server's
+
+    @ObservationIgnored private var peopleHits: [String: [UserLite]] = [:]
+    @ObservationIgnored private var known: [UserLite] = []
+    @ObservationIgnored private var warmed = false
+
+    /// People you follow and people in the stories row, matched on the phone while the search runs.
+    func warmPeople() {
+        guard !warmed, let app else { return }
+        warmed = true
+        known = rail.map(\.user).filter { $0.id != app.session.user?.id }
+        guard let me = app.session.user?.username else { return }
+        Task {
+            if let f = try? await app.api.following(me) {
+                var seen = Set<String>()
+                known = (f.items + known).filter { seen.insert($0.id).inserted }
+            }
+        }
+    }
+
+    static func matches(_ u: UserLite, _ q: String) -> Bool {
+        let t = q.lowercased(), un = u.username.lowercased(), n = u.name.lowercased()
+        return un.hasPrefix(t) || n.split(separator: " ").contains { $0.hasPrefix(t) } || (t.count >= 3 && (un.contains(t) || n.contains(t)))
+    }
+
+    private func merged(_ a: [UserLite], _ b: [UserLite]) -> [UserLite] {
+        var seen = Set<String>()
+        return Array((a + b).filter { seen.insert($0.id).inserted }.prefix(10))
+    }
+
+    /// Matches we already have for `q`: earlier answers for it (or a shorter start of it), plus people you follow.
+    func peopleNow(_ q: String) -> [UserLite] {
+        let t = q.lowercased()
+        var cached = peopleHits[t]
+        if cached == nil {
+            for n in stride(from: t.count - 1, through: 1, by: -1) {
+                if let hit = peopleHits[String(t.prefix(n))] { cached = hit.filter { Self.matches($0, t) }; break }
+            }
+        }
+        return merged(known.filter { Self.matches($0, t) }, cached ?? [])
+    }
+
+    /// People to @mention, by name or username (answers are remembered for this session).
+    func people(_ q: String) async -> [UserLite] {
+        let t = q.lowercased()
+        if let hit = peopleHits[t] { return merged(known.filter { Self.matches($0, t) }, hit) }
+        guard let r = try? await app?.api.people(q) else { return peopleNow(q) }
+        peopleHits[t] = r.items
+        return merged(known.filter { Self.matches($0, t) }, r.items)
+    }
 
     // MARK: Archive (this phone only)
 
@@ -263,5 +340,5 @@ final class StatusRepo: AppBound {
         if let data = try? JSON.encoder().encode(archive) { try? data.write(to: Self.indexURL, options: .atomic) }
     }
 
-    func clear() { rail = []; singles = [:] }
+    func clear() { rail = []; singles = [:]; comments = [:]; peopleHits = [:]; known = []; warmed = false }
 }

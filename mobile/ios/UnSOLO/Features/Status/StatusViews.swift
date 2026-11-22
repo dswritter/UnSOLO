@@ -128,75 +128,199 @@ struct MyStoryAvatar: View {
 
 // MARK: - Viewer
 
-/// Full-screen stories, person by person: tap right/left for next/previous, hold to pause, swipe sideways
-/// for the next person, swipe down to close. Yours show add and delete.
+/// Full-screen stories, Instagram-style: tap right/left for next/previous, hold to pause, swipe sideways
+/// (a cube turn) through everyone's stories, swipe down to close, swipe up to add one from your photos.
+/// Close sits top right; react, comments, add/delete and share are stacked on the right; a full-width
+/// comment bar runs along the bottom (typing pauses the story).
 struct StatusViewer: View {
     let item: StatusViewerItem
     @Environment(AppModel.self) private var app
+    @Environment(Router.self) private var router
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = 0
     @State private var loaded = false
-    @State private var dragY: CGFloat = 0
     @State private var authors: [StatusAuthor] = []
+    @State private var dragX: CGFloat = 0
+    @State private var dragY: CGFloat = 0
+    @State private var axis: Axis?
 
+    /// Everyone in the stories row plays in order (yours first), so swiping sideways moves between people,
+    /// even when you started from someone's profile.
     private func resolve() -> [StatusAuthor] {
         let repo = app.statuses
-        if repo.rail.contains(where: { $0.user.id == item.authorId }) {
-            let me = session.user?.id
-            // Yours first, then the rail order you saw.
-            let list = repo.rail.filter { !$0.items.isEmpty && !app.tribe.blockedUserIds.contains($0.user.id) }
-            return list.filter { $0.user.id == me } + list.filter { $0.user.id != me }
-        }
-        return repo.singles[item.authorId].map { [$0] } ?? []
+        let me = session.user?.id
+        let live = repo.rail.filter { !$0.items.isEmpty && !app.tribe.blockedUserIds.contains($0.user.id) }
+        let ordered = live.filter { $0.user.id == me } + live.filter { $0.user.id != me }
+        if ordered.contains(where: { $0.user.id == item.authorId }) { return ordered }
+        return (repo.singles[item.authorId].map { [$0] } ?? []) + ordered
     }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if authors.isEmpty {
-                Text(loaded ? "This story has expired" : "Loading…").pcFont(.body).foregroundStyle(.white)
-                    .task(id: loaded) {
-                        guard loaded else { return }
-                        try? await Task.sleep(for: .milliseconds(900))
-                        if !Task.isCancelled && authors.isEmpty { dismiss() }
-                    }
-            } else {
-                TabView(selection: $page) {
+        GeometryReader { geo in
+            let w = max(geo.size.width, 1)
+            ZStack {
+                Color.black.ignoresSafeArea()
+                if authors.isEmpty {
+                    Text(loaded ? "This story has expired" : "Loading…").pcFont(.body).foregroundStyle(.white)
+                        .task(id: loaded) {
+                            guard loaded else { return }
+                            try? await Task.sleep(for: .milliseconds(900))
+                            if !Task.isCancelled && authors.isEmpty { dismiss() }
+                        }
+                } else {
                     ForEach(Array(authors.enumerated()), id: \.element.id) { i, a in
-                        StatusPlayer(authorId: a.user.id, active: page == i, own: a.user.id == session.user?.id,
-                                     onDone: { if i < authors.count - 1 { withAnimation { page = i + 1 } } else { dismiss() } },
-                                     onBack: { if i > 0 { withAnimation { page = i - 1 } } },
-                                     onClose: { dismiss() })
-                            .tag(i)
+                        if abs(i - page) <= 1 {
+                            // offset: 0 = on screen, -1 = the next person (to the right), 1 = the previous one.
+                            let offset = Double(page - i) - Double(dragX / w)
+                            StatusPlayer(authorId: a.user.id, active: i == page && axis == nil, own: a.user.id == session.user?.id,
+                                         onDone: { advance(+1, w) }, onBack: { advance(-1, w) }, onClose: { dismiss() })
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .offset(x: CGFloat(i - page) * w + dragX)
+                                .rotation3DEffect(.degrees(reduceMotion ? 0 : max(-90, min(90, -offset * 75))), axis: (0, 1, 0),
+                                                  anchor: offset < 0 ? .leading : .trailing, perspective: 0.6)
+                                .zIndex(i == page ? 1 : 0)
+                                .allowsHitTesting(i == page)
+                        }
+                    }
+                    if dragY < -30 {
+                        VStack(spacing: 4) {
+                            Image(systemName: "chevron.up").font(.system(size: 24, weight: .bold))
+                            Text(dragY < -110 ? "Let go to add a story" : "Swipe up to add a story").pcFont(.bodyStrong)
+                        }
+                        .foregroundStyle(.white)
+                        .opacity(min(1, Double(-dragY) / 110))
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 130)
+                        .allowsHitTesting(false)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea()
             }
+            .offset(y: dragY > 0 ? dragY : dragY * 0.4)
+            .scaleEffect(1 - min(abs(dragY), 600) / 3000)
+            .simultaneousGesture(DragGesture(minimumDistance: 16).onChanged { v in
+                if axis == nil { axis = abs(v.translation.width) > abs(v.translation.height) ? .horizontal : .vertical }
+                if axis == .horizontal {
+                    var x = v.translation.width
+                    // Resist past the first and last person.
+                    if (page == 0 && x > 0) || (page == authors.count - 1 && x < 0) { x *= 0.3 }
+                    dragX = x
+                } else {
+                    dragY = max(-200, v.translation.height)
+                }
+            }.onEnded { v in
+                if axis == .horizontal {
+                    let predicted = v.predictedEndTranslation.width
+                    if (dragX < -w * 0.25 || predicted < -w * 0.5) && page < authors.count - 1 { advance(+1, w) }
+                    else if (dragX > w * 0.25 || predicted > w * 0.5) && page > 0 { advance(-1, w) }
+                    else { withAnimation(.spring(duration: 0.3)) { dragX = 0 } }
+                } else if dragY > 160 {
+                    dismiss()
+                } else if dragY < -110 {
+                    Haptics.tick()
+                    withAnimation(.spring(duration: 0.25)) { dragY = 0 }
+                    addStory()
+                } else {
+                    withAnimation(.spring(duration: 0.25)) { dragY = 0 }
+                }
+                axis = nil
+            })
         }
-        .offset(y: dragY)
-        .scaleEffect(1 - min(dragY, 600) / 3000)
-        .gesture(DragGesture(minimumDistance: 24).onChanged { v in
-            if v.translation.height > abs(v.translation.width) { dragY = max(0, v.translation.height) }
-        }.onEnded { _ in
-            if dragY > 160 { dismiss() } else { withAnimation(.spring(duration: 0.25)) { dragY = 0 } }
-        })
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .task {
+            if app.statuses.rail.isEmpty { await app.statuses.refresh() }
             if !app.statuses.rail.contains(where: { $0.user.id == item.authorId }) { _ = await app.statuses.load(user: item.authorId) }
             authors = resolve()
             page = authors.firstIndex { $0.user.id == item.authorId } ?? 0
             loaded = true
+            app.statuses.warmPeople()
         }
         .onChange(of: app.statuses.rail) { _, _ in
             // Keep the list in step with deletions, without jumping pages.
             let fresh = resolve()
             if fresh.map(\.id) != authors.map(\.id) {
-                if fresh.isEmpty { dismiss() } else { authors = fresh; page = min(page, fresh.count - 1) }
+                let current = authors.indices.contains(page) ? authors[page].id : nil
+                if fresh.isEmpty { dismiss() } else {
+                    authors = fresh
+                    page = current.flatMap { id in fresh.firstIndex { $0.id == id } } ?? min(page, fresh.count - 1)
+                }
             }
         }
+    }
+
+    /// Next (+1) or previous (-1) person; past the last one closes.
+    private func advance(_ by: Int, _ w: CGFloat) {
+        let target = page + by
+        guard authors.indices.contains(target) else {
+            if by > 0 { dismiss() } else { withAnimation(.spring(duration: 0.3)) { dragX = 0 } }
+            return
+        }
+        withAnimation(.easeInOut(duration: reduceMotion ? 0.01 : 0.35)) {
+            dragX = by > 0 ? -w : w
+        } completion: {
+            page = target
+            dragX = 0
+        }
+    }
+
+    private func addStory() {
+        app.requireVerified("Sign in to share a story") {
+            router.statusViewer = nil
+            Task {
+                try? await Task.sleep(for: .milliseconds(450))
+                router.storyComposer = StoryComposeItem()
+            }
+        }
+    }
+}
+
+/// One reaction's flurry of emojis.
+private struct EmojiBurst: Identifiable, Equatable {
+    let id = UUID()
+    let emoji: String
+    let start = Date()
+}
+
+/// The reaction you tapped floats up the screen: a dozen copies rising from the react button,
+/// drifting sideways, growing and fading out.
+private struct FloatingEmojis: View {
+    let bursts: [EmojiBurst]
+    static let duration: Double = 1.9
+
+    var body: some View {
+        GeometryReader { geo in
+            TimelineView(.animation) { tl in
+                ZStack {
+                    ForEach(bursts) { b in
+                        let t = tl.date.timeIntervalSince(b.start)
+                        ForEach(0..<12, id: \.self) { k in
+                            let seed = Self.rand(b.id, k)
+                            let local = max(0, min(1, (t - seed.delay) / 1.5))
+                            if local > 0 && local < 1 {
+                                Text(b.emoji)
+                                    .font(.system(size: 24 + seed.size * 22))
+                                    .scaleEffect(0.6 + local * 0.7)
+                                    .rotationEffect(.degrees((seed.dx - 0.5) * 40 * local))
+                                    .opacity(local < 0.15 ? local / 0.15 : 1 - max(0, min(1, (local - 0.6) / 0.4)))
+                                    .position(x: geo.size.width * 0.86 - seed.dx * geo.size.width * 0.75 * local + sin(local * 9 + seed.dx * 6) * 24,
+                                              y: geo.size.height * 0.72 - local * geo.size.height * (0.55 + seed.size * 0.3))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    /// Stable per-particle randomness from the burst id.
+    private static func rand(_ id: UUID, _ k: Int) -> (dx: Double, size: Double, delay: Double) {
+        var h = UInt64(truncatingIfNeeded: id.hashValue) &+ UInt64(k) &* 0x9E3779B97F4A7C15
+        func next() -> Double { h ^= h << 13; h ^= h >> 7; h ^= h << 17; return Double(h % 10_000) / 10_000 }
+        return (next(), next(), next() * 0.38)
     }
 }
 
@@ -218,6 +342,10 @@ private struct StatusPlayer: View {
     @State private var confirmDelete = false
     @State private var image: UIImage?
     @State private var thumb: UIImage?
+    @State private var draft = ""
+    @State private var sending = false
+    @State private var bursts: [EmojiBurst] = []
+    @FocusState private var typing: Bool
 
     private static let duration: Double = 5.5
 
@@ -226,43 +354,43 @@ private struct StatusPlayer: View {
     private var index: Int { min(max(0, idx ?? 0), max(0, items.count - 1)) }
     private var item: StatusItem? { items.indices.contains(index) ? items[index] : nil }
     private var ready: Bool { item.map { !$0.isImage || image != nil } ?? false }
+    private var running: Bool { active && !paused && !picker && !commentsOpen && !confirmDelete && !typing && ready }
 
     private struct ClockKey: Equatable { let id: String?; let running: Bool }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                Color.black
-                content
-                LinearGradient(stops: [.init(color: .black.opacity(0.5), location: 0), .init(color: .clear, location: 0.18),
-                                       .init(color: .clear, location: 0.7), .init(color: .black.opacity(0.55), location: 1)],
-                               startPoint: .top, endPoint: .bottom)
-                    .allowsHitTesting(false)
-                // Tap left third = back, elsewhere = next; hold = pause.
-                Color.clear.contentShape(Rectangle())
-                    .gesture(SpatialTapGesture().onEnded { v in
-                        if held { held = false; return }
-                        if picker { picker = false; return }
-                        v.location.x < geo.size.width / 3 ? prev() : next()
-                    })
-                    .simultaneousGesture(LongPressGesture(minimumDuration: 0.25).onEnded { _ in paused = true; held = true }
-                        .sequenced(before: DragGesture(minimumDistance: 0)).onEnded { _ in paused = false })
-                VStack(spacing: 0) {
-                    top
-                    Spacer()
-                    bottom
+        ZStack {
+            GeometryReader { geo in
+                ZStack {
+                    Color.black
+                    content
+                    LinearGradient(stops: [.init(color: .black.opacity(0.5), location: 0), .init(color: .clear, location: 0.18),
+                                           .init(color: .clear, location: 0.65), .init(color: .black.opacity(0.6), location: 1)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .allowsHitTesting(false)
+                    // Tap left third = back, elsewhere = next; hold = pause.
+                    Color.clear.contentShape(Rectangle())
+                        .gesture(SpatialTapGesture().onEnded { v in
+                            if held { held = false; return }
+                            if typing { typing = false; return }
+                            if picker { picker = false; return }
+                            v.location.x < geo.size.width / 3 ? prev() : next()
+                        })
+                        .onLongPressGesture(minimumDuration: 0.25, maximumDistance: 12, perform: { held = true }, onPressingChanged: { paused = $0 })
                 }
-                .padding(.top, geo.safeAreaInsets.top + 6)
-                .padding(.bottom, geo.safeAreaInsets.bottom + 6)
             }
+            .ignoresSafeArea()
+            VStack(spacing: 0) {
+                top
+                Spacer(minLength: 0)
+                bottom
+            }
+            FloatingEmojis(bursts: bursts).ignoresSafeArea()
         }
-        .ignoresSafeArea()
-        .onAppear {
-            if idx == nil { idx = items.firstIndex { !$0.isSeen } ?? 0 }
-        }
+        .onAppear { if idx == nil { idx = items.firstIndex { !$0.isSeen } ?? 0 } }
         .task(id: item?.id) { await loadImage() }
-        .task(id: ClockKey(id: item?.id, running: active && !paused && !picker && !commentsOpen && !confirmDelete && ready)) {
-            guard active, !paused, !picker, !commentsOpen, !confirmDelete, ready, item != nil else { return }
+        .task(id: ClockKey(id: item?.id, running: running)) {
+            guard running, item != nil else { return }
             while progress < 1 {
                 try? await Task.sleep(for: .milliseconds(40))
                 if Task.isCancelled { return }
@@ -270,8 +398,8 @@ private struct StatusPlayer: View {
             }
             next()
         }
-        .onChange(of: active, initial: true) { _, on in markSeen(on) }
-        .onChange(of: item?.id) { _, _ in markSeen(active) }
+        .onChange(of: active, initial: true) { _, on in markSeen(on); if !on { typing = false } }
+        .onChange(of: item?.id) { _, _ in markSeen(active); draft = "" }
         .sheet(isPresented: $commentsOpen) {
             if let item { StatusCommentsSheet(itemId: item.id, own: own).presentationDetents([.medium, .large]).pcSheet() }
         }
@@ -289,7 +417,9 @@ private struct StatusPlayer: View {
     }
 
     private func markSeen(_ on: Bool) {
-        guard on, !own, let item, !item.isSeen else { return }
+        guard on, let item else { return }
+        app.statuses.prefetchComments(item)
+        guard !own, !item.isSeen else { return }
         app.statuses.markSeen(authorId: authorId, id: item.id)
     }
 
@@ -301,6 +431,40 @@ private struct StatusPlayer: View {
     private func prev() {
         progress = 0
         if index > 0 { idx = index - 1 } else { onBack() }
+    }
+
+    private func react(_ kind: String) {
+        guard let item else { return }
+        app.requireVerified("Sign in to react") {
+            let adding = item.myReaction != kind
+            Haptics.strong()
+            if adding { bursts.append(EmojiBurst(emoji: StoryReaction.emoji(kind) ?? "🏔️")) }
+            Task {
+                await app.statuses.react(item, kind: kind)
+                try? await Task.sleep(for: .seconds(FloatingEmojis.duration))
+                bursts.removeAll { Date().timeIntervalSince($0.start) > FloatingEmojis.duration }
+            }
+        }
+    }
+
+    private func sendComment() {
+        guard let item else { return }
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        app.requireVerified("Sign in to comment") {
+            sending = true
+            Task {
+                if await app.statuses.comment(item.id, body: text) != nil {
+                    Haptics.strong()
+                    draft = ""
+                    typing = false
+                    app.showToast("Comment sent")
+                } else {
+                    app.showToast("Couldn't send that. Try again.")
+                }
+                sending = false
+            }
+        }
     }
 
     private func loadImage() async {
@@ -339,7 +503,7 @@ private struct StatusPlayer: View {
     }
 
     private var top: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack(spacing: 4) {
                 ForEach(items.indices, id: \.self) { i in
                     GeometryReader { g in
@@ -361,83 +525,130 @@ private struct StatusPlayer: View {
                     } label: {
                         HStack(spacing: 10) {
                             Avatar(user: user, size: 36)
-                            Text(own ? "Your story" : user.firstName).font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                            Text(own ? "Your story" : user.firstName).font(.system(size: 15, weight: .bold)).foregroundStyle(.white).lineLimit(1)
                             if let item { Text("· \(Fmt.relative(item.createdAt))").font(.system(size: 12)).foregroundStyle(.white.opacity(0.8)).lineLimit(1).fixedSize() }
                         }
                     }
                     .buttonStyle(.plain)
                 }
                 Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.system(size: 18, weight: .bold)).foregroundStyle(.white).frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Close")
             }
-            .padding(.horizontal, 12)
+            .padding(.leading, 12)
+            .padding(.trailing, 4)
         }
+        .padding(.top, 6)
     }
 
     @ViewBuilder private var bottom: some View {
-        VStack(spacing: 10) {
-            if let item, item.isImage, let caption = item.caption, !caption.isEmpty {
-                MentionText(text: caption, font: .system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.black.opacity(0.42)))
-                    .padding(.horizontal, 20)
-            }
-            if own, let item {
-                Text("Disappears \(StatusTimeText.expiresIn(item.expiresAt)) · saved on this phone").font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.75))
-            }
-            if picker, let item {
-                HStack(spacing: 4) {
-                    ForEach(StoryReaction.all, id: \.key) { r in
-                        Button {
-                            picker = false
-                            app.requireVerified("Sign in to react") { Task { await app.statuses.react(item, kind: r.key) } }
-                        } label: {
-                            Text(r.emoji).font(.system(size: 28)).padding(6)
-                                .background(Circle().fill(item.myReaction == r.key ? .white.opacity(0.25) : .clear))
-                        }
-                        .accessibilityLabel(StoryReaction.label(r.key))
+        if let item {
+            VStack(spacing: 10) {
+                HStack(alignment: .bottom, spacing: 8) {
+                    if item.isImage, let caption = item.caption, !caption.isEmpty {
+                        MentionText(text: caption, font: .system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(RoundedRectangle(cornerRadius: 16).fill(Color.black.opacity(0.42)))
                     }
+                    Spacer(minLength: 0)
+                    actionColumn(item)
                 }
-                .padding(.horizontal, 8).padding(.vertical, 6)
-                .background(Capsule().fill(.black.opacity(0.7)))
-            }
-            HStack(spacing: 0) {
-                action("xmark", "Close") { onClose() }
-                Spacer()
-                if let item {
-                    let mine = item.myReaction
-                    let total = item.totalReactions
-                    VStack(spacing: 2) {
-                        Text(StoryReaction.emoji(mine) ?? "🏔️").font(.system(size: 22)).opacity(mine == nil ? 0.85 : 1)
-                        Text(total > 0 ? "\(total)" : mine == nil ? "React" : StoryReaction.label(mine!))
-                            .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
-                    }
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .contentShape(Rectangle())
-                    // Tap: "Take me there" (or take your reaction back). Hold: pick another.
-                    .onTapGesture { app.requireVerified("Sign in to react") { Task { await app.statuses.react(item, kind: mine ?? "wanderlust") } } }
-                    .onLongPressGesture(minimumDuration: 0.35) { Haptics.tap(); picker.toggle() }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(mine == nil ? "Take me there" : "Your reaction: \(StoryReaction.label(mine!))")
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityAction(named: "More reactions") { picker.toggle() }
-                    action("bubble.left", (item.commentCount ?? 0) > 0 ? "\(item.commentCount!)" : "Comment") { commentsOpen = true }
-                    if own {
-                        action("plus", "Add") { router.statusViewer = nil; router.storyComposer = StoryComposeItem() }
-                        action("trash", "Delete") { confirmDelete = true }
-                    }
-                    if let user = author?.user {
-                        ShareLink(item: URL(string: "https://unsolo.in/profile/\(user.username)")!,
-                                  message: Text(own ? "My story on UnSOLO" : "\(user.firstName)'s story on UnSOLO")) {
-                            actionLabel("square.and.arrow.up", "Share")
+                .padding(.leading, 14)
+                .padding(.trailing, 6)
+                if picker {
+                    HStack(spacing: 4) {
+                        ForEach(StoryReaction.all, id: \.key) { r in
+                            Button { picker = false; react(r.key) } label: {
+                                Text(r.emoji).font(.system(size: 30)).padding(6)
+                                    .background(Circle().fill(item.myReaction == r.key ? .white.opacity(0.25) : .clear))
+                            }
+                            .accessibilityLabel(StoryReaction.label(r.key))
                         }
                     }
+                    .padding(.horizontal, 8).padding(.vertical, 6)
+                    .background(Capsule().fill(.black.opacity(0.75)))
+                    .transition(.scale.combined(with: .opacity))
                 }
+                commentBar(item)
             }
-            .padding(.horizontal, 6)
+            .padding(.bottom, 8)
+            .animation(.snappy(duration: 0.2), value: picker)
         }
+    }
+
+    private func actionColumn(_ item: StatusItem) -> some View {
+        let mine = item.myReaction
+        let total = item.totalReactions
+        return VStack(spacing: 6) {
+            // Tap: "Take me there" (or take your reaction back). Hold: pick another.
+            VStack(spacing: 2) {
+                Text(StoryReaction.emoji(mine) ?? "🏔️").font(.system(size: 26)).opacity(mine == nil ? 0.85 : 1)
+                    .scaleEffect(mine != nil ? 1.15 : 1)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.35), value: mine)
+                Text(total > 0 ? "\(total)" : "React").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .contentShape(Rectangle())
+            .onTapGesture { react(mine ?? "wanderlust") }
+            .onLongPressGesture(minimumDuration: 0.35) { Haptics.strong(); picker.toggle() }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(mine == nil ? "Take me there" : "Your reaction: \(StoryReaction.label(mine!))")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: "More reactions") { picker.toggle() }
+            action("bubble.left", (item.commentCount ?? 0) > 0 ? "\(item.commentCount!)" : "Comments") { commentsOpen = true }
+            if own {
+                action("plus", "Add") { router.statusViewer = nil; Task { try? await Task.sleep(for: .milliseconds(450)); router.storyComposer = StoryComposeItem() } }
+                action("trash", "Delete") { confirmDelete = true }
+            }
+            if let user = author?.user {
+                ShareLink(item: URL(string: "https://unsolo.in/profile/\(user.username)")!,
+                          message: Text(own ? "My story on UnSOLO" : "\(user.firstName)'s story on UnSOLO")) {
+                    actionLabel("paperplane", "Share")
+                }
+            }
+        }
+    }
+
+    private func commentBar(_ item: StatusItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if own && !typing {
+                Text("Disappears \(StatusTimeText.expiresIn(item.expiresAt)) · saved on this phone").font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7)).padding(.leading, 6)
+            }
+            HStack(spacing: 4) {
+                TextField("", text: $draft, prompt: Text(own ? "Add a comment…" : "Reply to \(author?.user.firstName ?? "them")…").foregroundStyle(.white.opacity(0.75)),
+                          axis: .vertical)
+                    .lineLimit(1...3)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white)
+                    .tint(.white)
+                    .focused($typing)
+                    .submitLabel(.send)
+                    .onSubmit(sendComment)
+                    .onChange(of: draft) { _, v in if v.count > 500 { draft = String(v.prefix(500)) } }
+                if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if sending { ProgressView().tint(.white).frame(width: 44, height: 44) }
+                    else {
+                        Button(action: sendComment) {
+                            Image(systemName: "paperplane.fill").font(.system(size: 17, weight: .semibold)).foregroundStyle(.white).frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Send")
+                    }
+                } else {
+                    Button { react("wanderlust") } label: { Text("🏔️").font(.system(size: 22)).frame(width: 44, height: 44) }
+                        .accessibilityLabel("Take me there")
+                }
+            }
+            .padding(.leading, 18)
+            .padding(.trailing, 4)
+            .frame(minHeight: 46)
+            .background(Capsule().fill(.black.opacity(0.25)))
+            .overlay(Capsule().strokeBorder(.white.opacity(0.55), lineWidth: 1))
+        }
+        .padding(.horizontal, 12)
     }
 
     private func action(_ symbol: String, _ label: String, _ run: @escaping () -> Void) -> some View {
@@ -446,13 +657,12 @@ private struct StatusPlayer: View {
 
     private func actionLabel(_ symbol: String, _ label: String) -> some View {
         VStack(spacing: 2) {
-            Image(systemName: symbol).font(.system(size: 20, weight: .semibold)).foregroundStyle(.white).frame(height: 26)
+            Image(systemName: symbol).font(.system(size: 22, weight: .semibold)).foregroundStyle(.white).frame(height: 28)
             Text(label).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.9))
         }
-        .padding(.horizontal, 12).padding(.vertical, 6)
+        .padding(.horizontal, 10).padding(.vertical, 5)
         .contentShape(Rectangle())
     }
-
 }
 
 enum StatusTimeText {
@@ -465,17 +675,19 @@ enum StatusTimeText {
     }
 }
 
-/// Comments on a story: everyone who can see it sees them. Your own shows the reactions breakdown on top.
+/// Comments on a story: everyone who can see it sees them. The saved copy shows at once and a fresh one
+/// replaces it quietly. Your own story shows the reactions breakdown on top.
 private struct StatusCommentsSheet: View {
     let itemId: String
     let own: Bool
     @Environment(AppModel.self) private var app
-    @State private var list: [StatusComment]?
+    @State private var fetched = false
     @State private var text = ""
     @State private var sending = false
 
     var body: some View {
         let item = app.statuses.item(itemId)
+        let list = app.statuses.comments[itemId] ?? ((fetched || (item?.commentCount ?? 0) == 0) ? [] : nil)
         VStack(alignment: .leading, spacing: 12) {
             SheetHeader(title: "Comments")
             if own, let r = item?.reactions, !r.isEmpty {
@@ -519,7 +731,7 @@ private struct StatusCommentsSheet: View {
                     app.requireVerified("Sign in to comment") {
                         sending = true
                         Task {
-                            if let c = await app.statuses.comment(itemId, body: text) { list = (list ?? []) + [c]; text = "" }
+                            if await app.statuses.comment(itemId, body: text) != nil { text = "" }
                             else { app.showToast("Couldn't post that. Try again.") }
                             sending = false
                         }
@@ -530,7 +742,7 @@ private struct StatusCommentsSheet: View {
             }
         }
         .padding(20)
-        .task { list = await app.statuses.comments(itemId) }
+        .task { _ = await app.statuses.loadComments(itemId); fetched = true }
     }
 }
 
@@ -646,10 +858,12 @@ private struct MentionSuggestions: View {
             }
         }
         .task(id: tail?.query) {
-            hits = []
-            guard let q = tail?.query, !q.isEmpty else { return }
+            app.statuses.warmPeople()
+            guard let q = tail?.query, !q.isEmpty else { hits = []; return }
+            // People we already know show at once; the server's answer fills in a moment later.
+            hits = app.statuses.peopleNow(q)
             searching = true
-            try? await Task.sleep(for: .milliseconds(200))
+            try? await Task.sleep(for: .milliseconds(120))
             if Task.isCancelled { return }
             hits = await app.statuses.people(q)
             searching = false
@@ -695,9 +909,11 @@ struct PeoplePickerSheet: View {
         .padding(20)
         .task(id: q) {
             let t = q.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "@", with: "")
+            app.statuses.warmPeople()
             guard !t.isEmpty else { hits = []; return }
-            hits = nil
-            try? await Task.sleep(for: .milliseconds(220))
+            let now = app.statuses.peopleNow(t)
+            hits = now.isEmpty ? nil : now
+            try? await Task.sleep(for: .milliseconds(120))
             if Task.isCancelled { return }
             hits = await app.statuses.people(t)
         }

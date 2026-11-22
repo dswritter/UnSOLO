@@ -64,6 +64,9 @@ enum Fmt {
         return "\(c.day ?? 0) \(months[(c.month ?? 1) - 1])"
     }
 
+    /// A departure date that has already gone: shown as "N travelled", never "full".
+    static func isPast(_ ymd: String?, now: Date = Date()) -> Bool { (daysUntil(ymd, now: now) ?? 0) < 0 }
+
     /// "26 Nov 2026" (falls back to the raw text).
     static func longDate(_ text: String?) -> String {
         guard let d = day(text.map { String($0.prefix(10)) }) else { return text ?? "" }

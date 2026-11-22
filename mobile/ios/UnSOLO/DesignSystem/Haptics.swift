@@ -9,5 +9,8 @@ enum Haptics {
 
     static func tick() { selection.selectionChanged() }
     static func tap() { impact.impactOccurred() }
+    /// A crisper buzz for story reactions and sent comments.
+    static func strong() { rigid.impactOccurred(intensity: 1) }
+    private static let rigid = UIImpactFeedbackGenerator(style: .rigid)
     static func success() { notify.notificationOccurred(.success) }
 }
