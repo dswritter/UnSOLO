@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
@@ -12,17 +12,17 @@ import { PhoneGateHost } from '@/components/auth/PhoneGateHost'
 // Full Circle type: Figtree (body, labels, numbers with tabular figures) + Bricolage Grotesque (headings, prices).
 // Bricolage is loaded with a plain Google Fonts stylesheet (see <head>): its multi-axis font files fail
 // next/font's build-time download on Vercel (Turbopack "Can't resolve …/internal/font/google/font").
-const figtree = Figtree({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+// Both are self-hosted (src/app/fonts, SIL Open Font License): next/font/google downloads them at build
+// time and that download sometimes fails on Vercel, failing the whole deploy (same Turbopack error).
+const figtree = localFont({
+  src: [{ path: "./fonts/Figtree-latin.woff2", weight: "400 700", style: "normal" }],
   display: "swap",
   variable: "--font-sans",
 });
 
 // Wordmark keeps the original UnSOLO type: Inter Black, tight tracking (main branch).
-const interWordmark = Inter({
-  subsets: ["latin"],
-  weight: ["900"],
+const interWordmark = localFont({
+  src: [{ path: "./fonts/Inter-latin.woff2", weight: "900", style: "normal" }],
   display: "swap",
   variable: "--font-wordmark",
 });
