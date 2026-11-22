@@ -593,6 +593,7 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
     // How each photo sits in the story (pinch, twist, drag right on the preview).
     val fits = remember { mutableStateMapOf<Uri, StoryFit>() }
     var preparing by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
@@ -622,8 +623,14 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                     StoryCanvas(src, fit, { fits[src] = it }, Modifier.statusBarsPadding())
                     IconTap(PcIcons.Close, "Remove this photo", { fits.remove(src); photos.removeAt(i) }, tint = Color.White,
                         modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 56.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)))
+                    // Crop the photo itself (smaller than the story, a shape of your own).
+                    Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 112.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                        .clickable(onClickLabel = "Crop this photo") { editing = i }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PcIcon(PcIcons.Edit, null, tint = Color.White, size = 16.dp); Spacer(Modifier.width(6.dp))
+                        Text("Crop", style = Pc.type.smallStrong, color = Color.White)
+                    }
                     // Moved it? One tap puts it back.
-                    if (fit.touched) Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 112.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                    if (fit.touched) Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 160.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
                         .clickable(onClickLabel = "Put the photo back as it was") { fits.remove(src) }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         PcIcon(PcIcons.Refresh, null, tint = Color.White, size = 16.dp); Spacer(Modifier.width(6.dp))
                         Text("Reset", style = Pc.type.smallStrong, color = Color.White)
@@ -640,6 +647,11 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Spacer(Modifier.weight(1f))
             PcButton("Archive", { nav.to(Routes.STATUS_ARCHIVE) }, kind = BtnKind.Ghost, height = BtnSmall)
         }
+        editing?.let { i -> photos.getOrNull(i)?.let { src ->
+            androidx.compose.ui.window.Dialog({ editing = null }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                PhotoEditor(src, onCancel = { editing = null }) { out -> if (i < photos.size) { fits.remove(src); photos[i] = out }; editing = null }
+            }
+        } }
         if (tagging) PeoplePickerSheet(nav, onDismiss = { tagging = false }) { u ->
             tagging = false
             caption = (caption.trimEnd().let { if (it.isEmpty()) it else "$it " } + "@${u.username} ").take(500)
