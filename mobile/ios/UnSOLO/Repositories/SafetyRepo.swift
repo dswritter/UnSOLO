@@ -122,8 +122,8 @@ final class SafetyRepo: AppBound {
 
     private func sendUpdate(_ f: PreciseLocation.Fix) {
         guard let app, let s = sharing else { return }
-        // At most one update every 45 s.
-        if let last = lastSent, Date().timeIntervalSince(last) < 45 { return }
+        // At most one update a minute.
+        if let last = lastSent, Date().timeIntervalSince(last) < 60 { return }
         lastSent = Date()
         Task { try? await app.api.shareLiveLocation(roomId: s.roomId, LiveLocationBody(lat: f.lat, lng: f.lng, accuracy: f.accuracy, minutes: nil)) }
     }

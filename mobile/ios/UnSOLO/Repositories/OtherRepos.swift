@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 // MARK: - My trips
 
@@ -103,7 +104,8 @@ struct ChatLine: Identifiable, Equatable {
 }
 
 /// Chat list + rooms. Sends are optimistic (pending bubble keyed by clientId, swapped for the server copy).
-/// While a room is open it polls `?after=` every 4 s, backing off to 15 s after a minute without new messages.
+/// While a room is open and the app is active it polls `?after=` every 6 s, backing off to 20 s after a minute
+/// without new messages and 45 s after five (same as Android, to keep database load down).
 @MainActor
 @Observable
 final class ChatRepo: AppBound {
@@ -114,9 +116,16 @@ final class ChatRepo: AppBound {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var lastNewAt = Date()
 
-    static let fastInterval: Duration = .seconds(4)
-    static let slowInterval: Duration = .seconds(15)
+    static let fastInterval: Duration = .seconds(6)
+    static let slowInterval: Duration = .seconds(20)
+    static let idleInterval: Duration = .seconds(45)
     static let backoffAfter: TimeInterval = 60
+    static let idleAfter: TimeInterval = 300
+
+    /// How long to wait before the next poll, given how long the room has been quiet.
+    static func pollInterval(quietFor: TimeInterval) -> Duration {
+        quietFor > idleAfter ? idleInterval : quietFor > backoffAfter ? slowInterval : fastInterval
+    }
 
     func bind(_ app: AppModel) {
         self.app = app
@@ -166,9 +175,10 @@ final class ChatRepo: AppBound {
             await self?.fetchLatest(roomId, initial: true)
             while !Task.isCancelled {
                 guard let self else { return }
-                let interval = Date().timeIntervalSince(self.lastNewAt) > Self.backoffAfter ? Self.slowInterval : Self.fastInterval
-                try? await Task.sleep(for: interval)
+                try? await Task.sleep(for: Self.pollInterval(quietFor: Date().timeIntervalSince(self.lastNewAt)))
                 if Task.isCancelled { return }
+                // Only while the app is in front; the next foreground tick catches up.
+                guard UIApplication.shared.applicationState == .active else { continue }
                 await self.fetchLatest(roomId, initial: false)
             }
         }

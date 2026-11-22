@@ -157,4 +157,11 @@ final class ParityTests: XCTestCase {
         XCTAssertEqual(StatusTimeText.expiresIn(now.addingTimeInterval(600), now: now), "in 10m")
         XCTAssertEqual(StatusTimeText.expiresIn(now.addingTimeInterval(10), now: now), "soon")
     }
+
+    @MainActor
+    func testChatPollBacksOff() {
+        XCTAssertEqual(ChatRepo.pollInterval(quietFor: 10), .seconds(6))
+        XCTAssertEqual(ChatRepo.pollInterval(quietFor: 90), .seconds(20))
+        XCTAssertEqual(ChatRepo.pollInterval(quietFor: 400), .seconds(45))
+    }
 }

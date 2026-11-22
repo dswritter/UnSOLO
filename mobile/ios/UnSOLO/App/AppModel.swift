@@ -208,7 +208,8 @@ final class AppModel {
             lastSync = r.serverTime
             store.setEntry("sync.since", r.serverTime, isPrivate: true)
             for id in r.removedPosts { tribe.drop(postId: id) }
-            for id in r.posts.prefix(20) { await tribe.refreshPost(id) }
+            // Only posts already on the phone, at most 8: the rest load when opened.
+            for id in r.posts.filter({ tribe.post($0) != nil }).prefix(8) { await tribe.refreshPost(id) }
             for m in r.memberships { tribe.applyMembership(postId: m.postId, state: m.state) }
             if let n = r.unreadNotifications { session.unreadNotifications = n }
             connectivity.markReachable()

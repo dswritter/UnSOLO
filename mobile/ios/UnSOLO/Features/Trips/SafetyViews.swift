@@ -240,7 +240,8 @@ struct LiveLocationSheet: View {
         .task {
             await app.safety.refreshLive(roomId)
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(20))
+                try? await Task.sleep(for: .seconds(30))
+                if Task.isCancelled { return }
                 await app.safety.refreshLive(roomId)
             }
         }
