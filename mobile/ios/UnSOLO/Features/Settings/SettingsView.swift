@@ -10,6 +10,7 @@ struct SettingsView: View {
     @State private var deleteBusy = false
     @State private var deleteError: String?
     @State private var locationDenied = false
+    @State private var editStatus = false
 
     static let interestOptions = ["Treks", "Mountains", "Beaches", "Backpacking", "Hostels", "Food", "Photography", "Spiritual",
                                   "Wildlife", "Road trips", "Festivals", "Weekend getaways", "Snow", "Rafting"]
@@ -21,6 +22,15 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Settings").pcFont(.display).foregroundStyle(Pc.ink).padding(.horizontal, 20).padding(.top, 4)
+                if session.isSignedIn {
+                    group("Profile") {
+                        navRow("Edit profile", "Photo, name, username, bio, links, privacy", "person.crop.circle") { router.push(.editProfile) }
+                        navRow("Invite friends", "Give ₹200, get ₹200", "gift") { router.push(.referrals) }
+                        navRow("Offers", "Promo codes and combos", "bolt") { router.push(.offers) }
+                        navRow("Status", session.me?.user.statusText ?? "Set a status, like \"Off to Spiti next week\"", "text.bubble") { editStatus = true }
+                        navRow("Leaderboard", "Points from stories and trips", "trophy") { router.push(.leaderboard) }
+                    }
+                }
                 group("Start the app on") {
                     PcSegmented(items: LandingTab.allCases.map { ($0, $0.label) }, selection: Binding(
                         get: { prefs.landingTab },
@@ -134,6 +144,8 @@ struct SettingsView: View {
                     if app.isDemo { infoRow("Data", app.fellBackToDemo ? "Demo (server unreachable)" : "Demo mode") }
                     if app.pendingOutbox > 0 { infoRow("Waiting to send", "\(app.pendingOutbox)") }
                     Button("Privacy policy") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("privacy")) }.buttonStyle(.pcLink)
+                    Button("Terms") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("terms")) }.buttonStyle(.pcLink)
+                    Button("Refund policy") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("refund-policy")) }.buttonStyle(.pcLink)
                     Button("Grievance officer and support") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("contact")) }.buttonStyle(.pcLink)
                 }
                 Color.clear.frame(height: 32)
@@ -145,6 +157,7 @@ struct SettingsView: View {
             Button("Sign out", role: .destructive) { Task { await session.signOut(); router.popToRoot(router.tab) } }
         } message: { Text("This device stops getting notifications. Saved data for your account is removed.") }
         .sheet(isPresented: $deleting) { deleteSheet.presentationDetents([.medium, .large]) }
+        .sheet(isPresented: $editStatus) { StatusEditSheet().presentationDetents([.height(360)]).pcSheet() }
     }
 
     /// Type DELETE, then the server removes the account and this device signs out.
@@ -233,6 +246,23 @@ struct SettingsView: View {
         var list = prefs.interests
         if let idx = list.firstIndex(of: i) { list.remove(at: idx) } else { list.append(i) }
         session.updatePreferences(PreferencesPatch(interests: list)) { $0.interests = list }
+    }
+
+    private func navRow(_ title: String, _ subtitle: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon).font(.system(size: 15)).frame(width: 26).foregroundStyle(Pc.ink)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+                    Text(subtitle).pcFont(.small).foregroundStyle(Pc.ink2).lineLimit(1)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Pc.ink3)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private func infoRow(_ label: String, _ value: String) -> some View {

@@ -9,7 +9,7 @@ enum AppTab: String, Hashable, CaseIterable {
         case .explore: "Explore"
         case .tribe: "Tribe"
         case .post: "Post"
-        case .trips: "My trips"
+        case .trips: "Bookings"
         case .you: "You"
         }
     }
@@ -68,6 +68,22 @@ enum Route: Hashable {
     case hostHub
     case offerForm(postId: String)
     case offerReview(postId: String)
+    case leaderboard
+    case people(username: String, kind: String)
+    case editProfile
+    case referrals
+    case offers
+    case storyArchive
+    case exploreAll(category: String)
+    case exploreMap
+    case buddies
+    case tripPack(bookingId: String)
+}
+
+/// Full-screen story composer (photos from the picker, or one from the archive).
+struct StoryComposeItem: Identifiable, Equatable {
+    var archiveId: String?
+    var id: String { archiveId ?? "new" }
 }
 
 enum ComposeKind: String, Identifiable {
@@ -81,6 +97,11 @@ struct StoryViewerItem: Identifiable, Equatable {
     let authorIds: [String]
     let start: Int
     var id: String { authorIds.joined(separator: ",") + "#\(start)" }
+}
+
+struct StatusViewerItem: Identifiable, Equatable {
+    let authorId: String
+    var id: String { authorId }
 }
 
 struct SafariItem: Identifiable, Equatable {
@@ -98,6 +119,13 @@ final class Router {
     var composerTripSlug: String?
     var safari: SafariItem?
     var storyViewer: StoryViewerItem?
+    /// 24-hour stories: the author to start on (the rest of the rail follows).
+    var statusViewer: StatusViewerItem?
+    var storyComposer: StoryComposeItem?
+    /// "How was your trip?" review composer (from Bookings or a review_request link).
+    var reviewComposer: ReviewComposeItem?
+    /// Bumped when the current tab is tapped again at its root: that tab scrolls to the top.
+    var reselected: [AppTab: Int] = [:]
     var authSheet = false
     var authReason: String?
     var phoneSheet = false
@@ -123,7 +151,9 @@ final class Router {
             showPostSheet = true
             return
         }
-        if newTab == tab { popToRoot(tab) }
+        if newTab == tab {
+            if path(tab).isEmpty { reselected[tab, default: 0] += 1 } else { popToRoot(tab) }
+        }
         tab = newTab
     }
 
@@ -137,6 +167,11 @@ final class Router {
         case .trip(let slug): push(.trip(slug: slug))
         case .profile(let u): push(.profile(username: u))
         case .chat(let r): push(.chat(roomId: r, title: nil))
+        case .editProfile: push(.editProfile)
+        case .leaderboard: push(.leaderboard)
+        case .referrals: push(.referrals)
+        case .offers: push(.offers)
+        case .review(let bookingId): reviewComposer = ReviewComposeItem(bookingId: bookingId, title: "your trip")
         }
     }
 

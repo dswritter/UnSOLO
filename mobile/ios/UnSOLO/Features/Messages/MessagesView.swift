@@ -156,6 +156,7 @@ struct ChatRoomView: View {
     @Environment(AppModel.self) private var app
     @Environment(SessionStore.self) private var session
     @State private var draft = ""
+    @State private var showLive = false
     @FocusState private var focused: Bool
 
     private var lines: [ChatLine] { app.chat.lines[roomId] ?? [] }
@@ -193,7 +194,19 @@ struct ChatRoomView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Pc.paper, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbar { ToolbarItem(placement: .principal) { header } }
+        .toolbar {
+            ToolbarItem(placement: .principal) { header }
+            if chat?.type != "direct" {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showLive = true } label: {
+                        Image(systemName: app.safety.sharing?.roomId == roomId ? "location.fill" : "location")
+                            .foregroundStyle(app.safety.sharing?.roomId == roomId ? Pc.green : Pc.ink)
+                    }
+                    .accessibilityLabel("Live location")
+                }
+            }
+        }
+        .sheet(isPresented: $showLive) { LiveLocationSheet(roomId: roomId).presentationDetents([.large]).pcSheet() }
         .task { if app.trips.myTrips.upcoming.isEmpty { await app.trips.refresh() } }
         .onAppear { app.chat.open(roomId) }
         .onDisappear { app.chat.close() }

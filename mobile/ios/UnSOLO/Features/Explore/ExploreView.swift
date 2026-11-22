@@ -93,7 +93,15 @@ struct ExploreView: View {
         ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                AppHeader(showsWordmark: true)
+                AppHeader(showsWordmark: true) {
+                    Button { router.push(.exploreMap) } label: {
+                        Image(systemName: "map").font(.system(size: 16.5)).foregroundStyle(Pc.ink)
+                            .frame(width: PcTokens.touch, height: PcTokens.touch)
+                    }
+                    .buttonStyle(.pcPress)
+                    .accessibilityLabel("Map")
+                }
+                    .id("top")
                     .overlay {
                         // No visible page title: the chips sit right under the top bar. VoiceOver still gets a heading.
                         Text("Explore").opacity(0).accessibilityAddTraits(.isHeader).allowsHitTesting(false)
@@ -106,7 +114,8 @@ struct ExploreView: View {
                 Color.clear.frame(height: PcTokens.searchDock + 22) // room for the search dock
             }
         }
-        .refreshable { await refresh() }
+        .refreshable { await refresh(); await app.statuses.refresh() }
+        .onChange(of: router.reselected[.explore]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
         .task {
             #if DEBUG
             if DebugLaunch.startScreen == "explorePlans" {
@@ -178,7 +187,8 @@ struct ExploreView: View {
                 ProgressView().tint(Pc.ink2).frame(maxWidth: .infinity).padding(40)
             }
         } else {
-            SectionHeader(title: "Leaving soon")
+            SectionHeader(title: category.heroTitle, trailing: filter.query.isEmpty ? "See all" : nil,
+                          trailingAction: filter.query.isEmpty ? { router.push(.exploreAll(category: category.rawValue)) } : nil)
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
                 .padding(.bottom, 10)
@@ -193,10 +203,17 @@ struct ExploreView: View {
             }
             .contentMargins(.horizontal, 16, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
+            StatusRail(hideWhenEmpty: true, title: "Stories").padding(.top, 18)
             if category == .trips && filter.isEmpty {
                 PlansLookingRow().padding(.top, 20).id("plans")
             }
-            monthSections
+            if category == .trips { monthSections } else { listingRows }
+            if filter.query.isEmpty {
+                Button("See all \(category.noun)") { router.push(.exploreAll(category: category.rawValue)) }
+                    .buttonStyle(.pc(.outline, fullWidth: true))
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+            }
             Color.clear.frame(height: 16)
         }
     }
@@ -215,6 +232,20 @@ struct ExploreView: View {
             VStack(spacing: 0) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { i, t in
                     TripListRow(trip: t, category: category, showsDivider: i < rows.count - 1) { router.push(.trip(slug: t.slug)) }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// Stays, activities and rentals have no departures: one "More …" list instead of months.
+    @ViewBuilder private var listingRows: some View {
+        let rest = Array(trips.dropFirst(leavingSoon.count))
+        if !rest.isEmpty {
+            SectionHeader(title: "More \(category.noun)").padding(.horizontal, 18).padding(.top, 20).padding(.bottom, 2)
+            VStack(spacing: 0) {
+                ForEach(Array(rest.prefix(8).enumerated()), id: \.element.id) { i, t in
+                    TripListRow(trip: t, category: category, showsDivider: i < min(rest.count, 8) - 1) { router.push(.trip(slug: t.slug)) }
                 }
             }
             .padding(.horizontal, 16)
@@ -269,17 +300,20 @@ struct TripCard: View {
                     }
                     Spacer(minLength: 4)
                     if showsRing {
-                        Text(counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : "\(counts.going) going")
-                            .font(.system(size: 12, weight: .bold)).foregroundStyle(counts.isFull ? Pc.full : Pc.ink)
+                        let gone = Fmt.isPast(trip.nextDeparture)
+                        Text(gone ? (counts.going > 0 ? "\(counts.going) travelled" : "Trip done") : counts.isFull ? "Full" : counts.going == 0 ? "Be first in the circle" : "\(counts.going) going")
+                            .font(.system(size: 12, weight: .bold)).foregroundStyle(counts.isFull && !gone ? Pc.full : Pc.ink)
                             .lineLimit(1).fixedSize()
+                    } else if trip.isListing {
+                        Text(trip.place?.name.components(separatedBy: ",").first ?? "").pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2).lineLimit(1)
                     } else {
                         Text(category.meter(left: trip.seatsLeft, total: trip.seatsTotal)).pcFont(.small, weight: .semibold).foregroundStyle(Pc.ink2)
                     }
                 }
                 HStack {
-                    PriceText(paise: trip.priceFromPaise, unit: category.unit)
+                    PriceText(paise: trip.priceFromPaise, unit: trip.unit.map { "/\($0)" } ?? category.unit)
                     Spacer(minLength: 8)
-                    Button(counts.isFull && showsRing ? "See trip" : cta) { router.push(.trip(slug: trip.slug)) }
+                    Button(trip.isListing ? "View" : Fmt.isPast(trip.nextDeparture) ? "Ask for dates" : counts.isFull && showsRing ? "See trip" : cta) { router.push(.trip(slug: trip.slug)) }
                         .buttonStyle(.pc(.quiet, compact: true))
                 }
             }
@@ -305,7 +339,7 @@ struct TripCard: View {
                     LinearGradient(colors: [.clear, PcTokens.light.ink.opacity(0.28)], startPoint: .top, endPoint: .bottom).frame(height: 70)
                 }
             HStack(alignment: .top) {
-                DateChip(ymd: trip.nextDeparture)
+                if !trip.isListing { DateChip(ymd: trip.nextDeparture) }
                 Spacer()
                 SaveTripButton(slug: trip.slug)
             }
@@ -391,7 +425,7 @@ struct TripListRow: View {
                 if category == .trips { MiniArc(counts: counts) }
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(Fmt.rupees(trip.priceFromPaise)).font(PcFont.rounded(15)).foregroundStyle(Pc.ink).lineLimit(1).fixedSize()
-                    Text(category == .trips ? (counts.isFull ? "Full" : "\(counts.open) open") : category.meter(left: trip.seatsLeft, total: trip.seatsTotal))
+                    Text(trip.isListing ? "per \(trip.unit ?? "booking")" : category == .trips ? (Fmt.isPast(trip.nextDeparture) ? "Done" : counts.isFull ? "Full" : "\(counts.open) open") : category.meter(left: trip.seatsLeft, total: trip.seatsTotal))
                         .pcFont(.small, weight: counts.isFull ? .bold : .regular).foregroundStyle(counts.isFull ? Pc.full : Pc.ink2).lineLimit(1)
                 }
                 .frame(minWidth: 56, alignment: .trailing)
@@ -411,6 +445,7 @@ struct TripListRow: View {
 
     private var subtitle: String {
         let place = trip.place?.name.components(separatedBy: ",").first ?? ""
+        if trip.isListing { return place }
         return [Fmt.weekdayDayMonth(trip.nextDeparture), category == .trips ? Fmt.duration(trip.durationDays) : nil, place.isEmpty ? nil : place]
             .compactMap { $0 }.joined(separator: " · ")
     }

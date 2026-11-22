@@ -130,6 +130,31 @@ enum DebugLaunch {
                                            place: Place(name: held ? "Kasol, Parvati Valley" : "Chopta, Uttarakhand", slug: nil, lat: nil, lng: nil),
                                            startsOn: "2026-12-11", endsOn: "2026-12-13", spotsTotal: 4, audience: .verified,
                                            estCostText: "Est. ₹6,000 each", photos: [photo]))
+        case "statusViewer":
+            r.tab = .tribe
+            await app.statuses.refresh()
+            if let a = app.statuses.rail.first(where: { $0.user.id != app.session.user?.id }) { r.statusViewer = StatusViewerItem(authorId: a.user.id) }
+        case "statusComposer": r.tab = .tribe; r.storyComposer = StoryComposeItem()
+        case "leaderboard": r.tab = .you; r.push(.leaderboard)
+        case "editProfile": r.tab = .you; r.push(.editProfile)
+        case "referrals": r.tab = .you; r.push(.referrals)
+        case "offers": r.tab = .you; r.push(.offers)
+        case "exploreAll": r.tab = .explore; r.push(.exploreAll(category: "stays"))
+        case "exploreMap": r.tab = .explore; r.push(.exploreMap)
+        case "buddies": r.tab = .trips; r.push(.buddies)
+        case "tripPack":
+            r.tab = .trips
+            await app.trips.refresh()
+            if let b = app.trips.myTrips.upcoming.first { r.push(.tripPack(bookingId: b.id)) }
+        case "sos":
+            UserDefaults.standard.set(true, forKey: "demoOnTrip")
+            r.tab = .trips
+            await app.safety.refreshSos()
+        case "review":
+            r.tab = .trips
+            await app.trips.refresh()
+            if let b = app.trips.myTrips.past.first { r.reviewComposer = ReviewComposeItem(bookingId: b.id, title: b.trip.title) }
+        case "profileTravel": r.tab = .tribe; r.push(.profile(username: "ananyasingh"))
         case "welcome": r.authSheet = true
         case "phoneVerify": r.phoneSheet = true
         case "landingPrompt": r.landingPrompt = .tribe

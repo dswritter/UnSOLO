@@ -48,10 +48,11 @@ struct TribeFeedView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                AppHeader(title: "Tribe")
-                StoryRail().padding(.top, 2)
+                AppHeader(title: "Tribe").id("top")
+                StatusRail().padding(.top, 2)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(FeedFilter.allCases, id: \.self) { f in
@@ -87,7 +88,13 @@ struct TribeFeedView: View {
                 if !items.isEmpty { CaughtUpFooter(departures: app.tribe.feeds[filter.feedKey]?.nextDepartures ?? []) }
             }
         }
-        .refreshable { await app.tribe.refreshFeed(key: filter.feedKey) }
+        .refreshable {
+            async let a: Void = app.tribe.refreshFeed(key: filter.feedKey)
+            async let b: Void = app.statuses.refresh()
+            _ = await (a, b)
+        }
+        .onChange(of: router.reselected[.tribe]) { _, _ in withAnimation { proxy.scrollTo("top", anchor: .top) } }
+        }
         .pcScreen()
         .toolbar(.hidden, for: .navigationBar)
         .task(id: filter) { await app.tribe.refreshFeed(key: filter.feedKey) }
@@ -639,13 +646,14 @@ struct PollView: View {
 
     var body: some View {
         let voted = poll.myChoice != nil
+        let total = max(poll.totalVotes, 1)
         VStack(spacing: 7) {
             ForEach(poll.options) { o in
-                let share = poll.totalVotes > 0 ? Double(o.votes) / Double(poll.totalVotes) : 0
+                let share = Double(o.votes) / Double(total)
                 let mine = poll.myChoice == o.id
                 Button {
-                    guard !voted, !post.isLocal else { return }
-                    app.requireVerified("Sign in to vote") { withAnimation(.easeOut(duration: 0.45)) { app.tribe.vote(post.id, option: o) } }
+                    guard !post.isLocal else { return }
+                    app.requireVerified("Sign in to vote") { withAnimation(.easeOut(duration: 0.3)) { app.tribe.vote(post.id, option: o) } }
                 } label: {
                     ZStack(alignment: .leading) {
                         if voted {
@@ -671,11 +679,11 @@ struct PollView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.pcPress)
-                .disabled(voted)
                 .accessibilityLabel(voted ? "\(o.label), \(Int((share * 100).rounded())) percent\(mine ? ", your vote" : "")" : "Vote for \(o.label)")
+                .accessibilityHint(mine ? "Takes back your vote" : voted ? "Changes your vote" : "")
                 .accessibilityAddTraits(mine ? .isSelected : [])
             }
-            Text(voted ? "\(poll.totalVotes) votes · you voted" : "\(poll.totalVotes) votes · tap to vote")
+            Text(voted ? "\(poll.totalVotes) \(poll.totalVotes == 1 ? "vote" : "votes") · tap to change" : "Tap an option to vote · \(poll.totalVotes) votes")
                 .font(.system(size: 12, weight: .semibold)).foregroundStyle(Pc.ink3).frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 2)
         }

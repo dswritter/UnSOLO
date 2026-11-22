@@ -94,6 +94,30 @@ final class SessionStore: AppBound {
         Task { await app.outbox.drain() }
     }
 
+    /// PATCH /me with the extended profile fields, straight to the server (not queued: the editor waits for it).
+    /// Returns nil on success, else the field the server rejected (if any) and a message to show.
+    func saveProfileDetailed(_ patch: ProfilePatch) async -> (field: String?, message: String)? {
+        guard let app else { return (nil, "Couldn't save. Try again.") }
+        guard !patch.isEmpty else { return nil }
+        do {
+            let me = try await app.api.patchProfile(patch)
+            setMe(me)
+            return nil
+        } catch APIError.offline {
+            return (nil, "You're offline. Your changes are still here; save when you're connected.")
+        } catch APIError.badRequest(let m, let field) {
+            return (field, m ?? "Couldn't save. Try again.")
+        } catch APIError.decoding {
+            // Saved (2xx), just a reply shape we didn't expect: reload instead of saying it failed.
+            await refreshMe()
+            return nil
+        } catch {
+            return (nil, error.localizedDescription)
+        }
+    }
+
+    func saveProfile(_ patch: ProfilePatch) async -> String? { await saveProfileDetailed(patch)?.message }
+
     // MARK: Auth flows (Supabase direct)
 
     func signIn(email: String, password: String) async throws {
@@ -164,6 +188,9 @@ final class SessionStore: AppBound {
         await app.tribe.refreshFeed(key: "all")
         await app.trips.refresh()
         await app.activity.refresh()
+        await app.statuses.refresh()
+        await app.safety.refreshSos()
+        await app.safety.syncSavedTrips()
         await app.checkLandingSuggestion()
         PushManager.shared.refreshRegistration { [weak app] token in app?.registerDevice(token) }
     }
@@ -199,6 +226,7 @@ final class SessionStore: AppBound {
         if let token = UserDefaults.standard.string(forKey: "push.token") {
             try? await app.api.unregisterDevice(token: token)
         }
+        await app.safety.stopSharing()
         await app.auth.signOut()
         app.store.wipePrivate()
         app.transportCacheReset()
@@ -208,6 +236,10 @@ final class SessionStore: AppBound {
         app.trips.myTrips = .empty
         app.activity.items = []
         app.chat.chats = []
+        app.statuses.clear()
+        WidgetBridge.clear()
+        app.safety.sos = nil
+        app.safety.buddies = nil
         await app.tribe.refreshFeed(key: "all")
     }
 }

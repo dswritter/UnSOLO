@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import UIKit
 
 // MARK: - My trips
 
@@ -26,6 +27,8 @@ final class TripsRepo: AppBound {
             app.store.upsertPosts(r.plans + r.requested)
             app.tribe.absorb(r.plans + r.requested)
             state = .loaded
+            Task { await app.safety.prefetchPacks(r.upcoming) }
+            WidgetBridge.update(upcoming: r.upcoming)
         } catch {
             state = .failed(error.localizedDescription)
         }
@@ -101,7 +104,8 @@ struct ChatLine: Identifiable, Equatable {
 }
 
 /// Chat list + rooms. Sends are optimistic (pending bubble keyed by clientId, swapped for the server copy).
-/// While a room is open it polls `?after=` every 4 s, backing off to 15 s after a minute without new messages.
+/// While a room is open and the app is active it polls `?after=` every 6 s, backing off to 20 s after a minute
+/// without new messages and 45 s after five (same as Android, to keep database load down).
 @MainActor
 @Observable
 final class ChatRepo: AppBound {
@@ -112,9 +116,16 @@ final class ChatRepo: AppBound {
     @ObservationIgnored private var pollTask: Task<Void, Never>?
     @ObservationIgnored private var lastNewAt = Date()
 
-    static let fastInterval: Duration = .seconds(4)
-    static let slowInterval: Duration = .seconds(15)
+    static let fastInterval: Duration = .seconds(6)
+    static let slowInterval: Duration = .seconds(20)
+    static let idleInterval: Duration = .seconds(45)
     static let backoffAfter: TimeInterval = 60
+    static let idleAfter: TimeInterval = 300
+
+    /// How long to wait before the next poll, given how long the room has been quiet.
+    static func pollInterval(quietFor: TimeInterval) -> Duration {
+        quietFor > idleAfter ? idleInterval : quietFor > backoffAfter ? slowInterval : fastInterval
+    }
 
     func bind(_ app: AppModel) {
         self.app = app
@@ -164,9 +175,10 @@ final class ChatRepo: AppBound {
             await self?.fetchLatest(roomId, initial: true)
             while !Task.isCancelled {
                 guard let self else { return }
-                let interval = Date().timeIntervalSince(self.lastNewAt) > Self.backoffAfter ? Self.slowInterval : Self.fastInterval
-                try? await Task.sleep(for: interval)
+                try? await Task.sleep(for: Self.pollInterval(quietFor: Date().timeIntervalSince(self.lastNewAt)))
                 if Task.isCancelled { return }
+                // Only while the app is in front; the next foreground tick catches up.
+                guard UIApplication.shared.applicationState == .active else { continue }
                 await self.fetchLatest(roomId, initial: false)
             }
         }
@@ -258,5 +270,69 @@ final class ProfileRepo: AppBound {
         } catch {
             state[username] = .failed(error.localizedDescription)
         }
+    }
+
+    /// Follow / unfollow: the button flips at once; the server's counts replace the guess.
+    func setFollow(_ username: String, on: Bool) async {
+        guard let app else { return }
+        let before = profiles[username]
+        if var p = profile(username) {
+            p.isFollowing = on
+            p.user.followers = max(0, p.user.followers + (on ? 1 : -1))
+            profiles[username] = p
+        }
+        Haptics.tick()
+        do {
+            let r = try await app.api.follow(username, on: on)
+            if var p = profiles[username] {
+                p.isFollowing = r.isFollowing
+                if let f = r.followers { p.user.followers = f }
+                profiles[username] = p
+                app.store.setEntry("profile:\(username)", p)
+            }
+        } catch {
+            if let before { profiles[username] = before }
+            app.showToast("Couldn't update that. Try again.")
+        }
+    }
+
+    func requestPhone(_ username: String) async {
+        guard let app else { return }
+        do {
+            try await app.api.requestPhone(username)
+            if var p = profiles[username], var ph = p.phone { ph.request = "pending"; p.phone = ph; profiles[username] = p }
+            app.showToast("Asked. You'll see their number once they share it.")
+        } catch {
+            app.showToast("Couldn't send the request. Try again.")
+        }
+    }
+
+    /// Own profile: who's asking for your number.
+    var phoneRequests: [PhoneRequestItem] = []
+
+    func loadPhoneRequests() async {
+        guard let app, app.session.isSignedIn, let r = try? await app.api.phoneRequests() else { return }
+        phoneRequests = r.items
+    }
+
+    func decidePhoneRequest(_ r: PhoneRequestItem, approve: Bool) async {
+        guard let app else { return }
+        phoneRequests.removeAll { $0.id == r.id }
+        do { try await app.api.decidePhoneRequest(r.id, approve: approve) } catch {
+            phoneRequests.append(r)
+            app.showToast("Couldn't save that. Try again.")
+        }
+    }
+
+    /// Followers or following of a person (saved copy first).
+    func people(_ username: String, kind: String) -> [UserLite]? {
+        app?.store.entry([UserLite].self, "people:\(username):\(kind)")
+    }
+
+    func refreshPeople(_ username: String, kind: String) async -> [UserLite]? {
+        guard let app else { return nil }
+        let r = try? await (kind == "followers" ? app.api.followers(username) : app.api.following(username))
+        if let items = r?.items { app.store.setEntry("people:\(username):\(kind)", items) }
+        return r?.items
     }
 }

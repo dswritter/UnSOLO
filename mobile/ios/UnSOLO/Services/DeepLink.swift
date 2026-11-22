@@ -10,6 +10,11 @@ enum DeepLink: Equatable, Hashable, Sendable {
     case profile(username: String)
     case chat(roomId: String)
     case explore
+    case editProfile
+    case leaderboard
+    case referrals
+    case offers
+    case review(bookingId: String)
 
     static let allowedHosts: Set<String> = ["unsolo.in", "www.unsolo.in"]
 
@@ -53,11 +58,23 @@ enum DeepLink: Equatable, Hashable, Sendable {
         case "bookings":
             return s.count == 1 ? .bookings : nil
         case "profile":
+            if s.count == 2, s[1] == "edit" { return .editProfile }
             if s.count == 2, isUsername(s[1]) { return .profile(username: s[1]) }
             return nil
         case "chat":
             if s.count == 2, isUUID(s[1]) { return .chat(roomId: s[1].lowercased()) }
             return nil
+        case "listings":
+            // Stays, activities and rentals open the same native page as trips.
+            if s.count == 3, ["stays", "activities", "rentals"].contains(s[1]), isSlug(s[2]) { return .trip(slug: s[2]) }
+            return nil
+        case "review":
+            // "How was {trip}?" the day after a trip: /review/{bookingId}
+            if s.count == 2, isUUID(s[1]) { return .review(bookingId: s[1].lowercased()) }
+            return nil
+        case "leaderboard": return s.count == 1 ? .leaderboard : nil
+        case "referrals": return s.count == 1 ? .referrals : nil
+        case "offers": return s.count == 1 ? .offers : nil
         case "explore", nil:
             return s.count <= 1 ? .explore : nil
         default:
@@ -94,6 +111,11 @@ enum DeepLink: Equatable, Hashable, Sendable {
         case .profile(let u): return URL(string: "\(base)/profile/\(u)")!
         case .chat(let r): return URL(string: "\(base)/chat/\(r)")!
         case .explore: return URL(string: base)!
+        case .editProfile: return URL(string: "\(base)/profile/edit")!
+        case .leaderboard: return URL(string: "\(base)/leaderboard")!
+        case .referrals: return URL(string: "\(base)/referrals")!
+        case .offers: return URL(string: "\(base)/offers")!
+        case .review(let id): return URL(string: "\(base)/review/\(id)")!
         }
     }
 }

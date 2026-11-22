@@ -185,6 +185,27 @@ actor DemoBackend {
             if let v = j["bio"] as? String { state.me.user.bio = v }
             if let v = j["gender"] as? String { state.me.user.gender = v }
             if let v = j["homeCity"] as? String { state.me.user.homeCity = v }
+            if let v = j["statusText"] as? String { state.me.user.statusText = v.isEmpty ? nil : v }
+            if let v = j["statusVisibility"] as? String { state.me.user.statusVisibility = v }
+            if let v = j["location"] as? String { state.me.user.location = v.isEmpty ? nil : v }
+            if let v = j["instagram"] as? String { state.me.user.instagram = v.isEmpty ? nil : v }
+            if let v = j["website"] as? String { state.me.user.website = v.isEmpty ? nil : v }
+            if let v = j["avatarUrl"] as? String { state.me.user.avatarUrl = v }
+            if let v = j["dateOfBirth"] as? String { state.me.user.dateOfBirth = v }
+            if let v = j["tripsPrivate"] as? Bool { state.me.user.tripsPrivate = v }
+            if let v = j["statesPrivate"] as? Bool { state.me.user.statesPrivate = v }
+            if let v = j["phonePublic"] as? Bool { state.me.user.phonePublic = v }
+            if let v = j["emergencyName"] as? String { state.me.user.emergencyName = v.isEmpty ? nil : v }
+            if let v = j["emergencyPhone"] as? String { state.me.user.emergencyPhone = v.isEmpty ? nil : v }
+            if let v = j["username"] as? String, !v.isEmpty, v != state.me.user.username {
+                if var prof = state.profiles.removeValue(forKey: state.me.user.username) { prof.user.username = v; state.profiles[v] = prof }
+                state.me.user.username = v
+            }
+            if var prof = state.profiles[state.me.user.username] {
+                prof.user.name = state.me.user.name; prof.user.bio = state.me.user.bio; prof.user.statusText = state.me.user.statusText
+                prof.user.location = state.me.user.location; prof.user.avatarUrl = state.me.user.avatarUrl
+                state.profiles[state.me.user.username] = prof
+            }
             save()
             return ok(state.me)
         case ("GET", 2, "me") where p[1] == "preferences": return needAuth() ?? ok(state.me.preferences)
@@ -358,7 +379,227 @@ actor DemoBackend {
             return ok(UploadResponse(url: "demo://photo/himachal?seed=\(seed)", thumbUrl: nil, lqip: nil, width: 2048, height: 1536,
                                      bytes: r.body?.count), status: 201)
         default:
+            if let extra = handleParity(r, signedIn: signedIn) { return extra }
             return err("not_found", 404, "Demo route not found: \(r.method) /\(p.joined(separator: "/"))")
+        }
+    }
+
+    // MARK: - Parity endpoints (stories, leaderboard, people, places, invites, offers, follow, votes)
+
+    private var demoStatuses: [StatusAuthor]?
+
+    private func statusesSeed() -> [StatusAuthor] {
+        if let s = demoStatuses { return s }
+        let now = Date()
+        let people = state.profiles.values.map(\.user).filter { $0.id != state.me.user.id }.sorted { $0.username < $1.username }.prefix(4)
+        let captions: [String?] = ["Sunrise at Tosh, worth the 5 am alarm", "Chai stop before the pass", nil, "Who's in for Kasol next weekend?"]
+        let seeded = people.enumerated().map { i, u -> StatusAuthor in
+            let items = (0..<(i % 2 + 1)).map { j -> StatusItem in
+                let at = now.addingTimeInterval(-Double((i * 3 + j + 1) * 3600))
+                return StatusItem(id: "demo-status-\(i)-\(j)", type: "image",
+                                  media: Media(url: "demo://photo/himachal?seed=\(i * 7 + j + 3)", thumbUrl: nil, lqip: nil, width: 1080, height: 1920),
+                                  caption: j == 0 ? captions[i % captions.count] : nil, linkUrl: nil, bgColor: nil, createdAt: at,
+                                  expiresAt: at.addingTimeInterval(86_400), seen: false, reactions: i == 0 ? ["wanderlust": 3, "love": 1] : [:],
+                                  myReaction: nil, commentCount: 0)
+            }
+            return StatusAuthor(user: u.lite, items: items, unseen: true, latestAt: items.last?.createdAt)
+        }
+        demoStatuses = seeded
+        return seeded
+    }
+
+    private func mutateStatus(_ id: String, _ f: (inout StatusItem) -> Void) {
+        var list = statusesSeed()
+        for a in list.indices { if let i = list[a].items.firstIndex(where: { $0.id == id }) { f(&list[a].items[i]) } }
+        demoStatuses = list
+    }
+
+    private func handleParity(_ r: DemoRequest, signedIn: Bool) -> DemoResult? {
+        let p = r.path
+        func needAuth() -> DemoResult? { signedIn ? nil : err("unauthorized", 401) }
+        switch (r.method, p.count, p.first ?? "") {
+        case ("GET", 1, "statuses"):
+            if let e = needAuth() { return e }
+            var list = statusesSeed()
+            if let u = r.query["user"], !u.isEmpty { list = list.filter { $0.user.id == u } }
+            return ok(StatusesResponse(authors: list))
+        case ("POST", 1, "statuses"):
+            if let e = needAuth() { return e }
+            let body = (try? JSON.decoder().decode(CreateStatusBody.self, from: r.body ?? Data())) ?? CreateStatusBody(media: [], caption: nil, audience: "all")
+            let now = Date()
+            let refs: [StatusMediaRef?] = body.media.isEmpty ? [nil] : body.media
+            let items = refs.map { m in
+                StatusItem(id: UUID().uuidString.lowercased(), type: m == nil ? "text" : "image",
+                           media: m.map { Media(url: $0.url, thumbUrl: nil, lqip: nil, width: nil, height: nil) }, caption: body.caption,
+                           linkUrl: nil, bgColor: m == nil ? "#1a1a2e" : nil, createdAt: now, expiresAt: now.addingTimeInterval(86_400),
+                           seen: true, reactions: [:], myReaction: nil, commentCount: 0)
+            }
+            var list = statusesSeed()
+            if let i = list.firstIndex(where: { $0.user.id == state.me.user.id }) { list[i].items += items; list[i].latestAt = now }
+            else { list.insert(StatusAuthor(user: state.me.user.lite, items: items, unseen: false, latestAt: now), at: 0) }
+            demoStatuses = list
+            return ok(StatusesResponse(authors: list), status: 201)
+        case ("DELETE", 2, "statuses"):
+            demoStatuses = statusesSeed().compactMap { a in var a = a; a.items.removeAll { $0.id == p[1] }; return a.items.isEmpty ? nil : a }
+            return noContent()
+        case ("POST", 2, "statuses") where p[1] == "seen":
+            for id in r.json["ids"] as? [String] ?? [] { mutateStatus(id) { $0.seen = true } }
+            return noContent()
+        case ("PUT", 3, "statuses") where p[2] == "reaction":
+            if let e = needAuth() { return e }
+            let kind = r.json["kind"] as? String
+            var out = StatusReactionResponse(reactions: [:], myReaction: kind)
+            mutateStatus(p[1]) { it in
+                var rx = it.reactions ?? [:]
+                if let old = it.myReaction { rx[old] = max(0, (rx[old] ?? 1) - 1) }
+                if let kind { rx[kind, default: 0] += 1 }
+                it.reactions = rx.filter { $0.value > 0 }
+                it.myReaction = kind
+                out = StatusReactionResponse(reactions: it.reactions, myReaction: kind)
+            }
+            return ok(out)
+        case ("GET", 3, "statuses") where p[2] == "comments":
+            return ok(StatusCommentsResponse(items: []))
+        case ("POST", 3, "statuses") where p[2] == "comments":
+            if let e = needAuth() { return e }
+            mutateStatus(p[1]) { $0.commentCount = ($0.commentCount ?? 0) + 1 }
+            return ok(StatusComment(id: UUID().uuidString.lowercased(), body: r.json["body"] as? String ?? "", createdAt: Date(), author: state.me.user.lite), status: 201)
+        case ("GET", 1, "people"):
+            if let e = needAuth() { return e }
+            let q = (r.query["q"] ?? "").lowercased()
+            let hits = state.profiles.values.map(\.user.lite).filter { $0.id != state.me.user.id && ($0.name.lowercased().contains(q) || $0.username.lowercased().contains(q)) }
+            return ok(PeopleResponse(items: Array(hits.sorted { $0.name < $1.name }.prefix(8))))
+        case ("GET", 1, "places"):
+            let all = [("Spiti Valley", "Himachal Pradesh"), ("Kasol", "Himachal Pradesh"), ("Tosh", "Himachal Pradesh"), ("Rishikesh", "Uttarakhand"),
+                       ("Gokarna", "Karnataka"), ("Bir Billing", "Himachal Pradesh"), ("Jaisalmer", "Rajasthan"), ("Munnar", "Kerala")]
+            let q = (r.query["q"] ?? "").lowercased()
+            let items = all.filter { q.isEmpty || $0.0.lowercased().contains(q) }.map {
+                PlaceHit(name: $0.0, slug: $0.0.lowercased().replacingOccurrences(of: " ", with: "-"), lat: nil, lng: nil, detail: $0.1)
+            }
+            return ok(PlacesResponse(items: Array(items.prefix(6))))
+        case ("PUT", 3, "posts") where p[2] == "vote":
+            if let e = needAuth() { return e }
+            let choice = r.json["choice"] as? String
+            mutatePost(p[1]) { post in post.poll = post.poll?.moved(to: choice) }
+            save()
+            guard let poll = state.posts[p[1]]?.poll else { return err("not_found", 404) }
+            return ok(VoteResponse(poll: poll))
+        case ("GET", 1, "leaderboard"):
+            let users = state.profiles.values.map(\.user).sorted { $0.tripsCount > $1.tripsCount }
+            let entries = users.enumerated().map { i, u in
+                LeaderEntry(rank: i + 1, user: u.lite, location: u.homeCity, points: max(10, 140 - i * 15), trips: u.tripsCount,
+                            reviews: i % 3, states: max(1, u.tripsCount / 2), monthlyTrips: i < 3 ? 1 : nil)
+            }
+            let mine = entries.first { $0.user.id == state.me.user.id }
+            return ok(LeaderboardResponse(entries: entries, monthly: Array(entries.prefix(3)), me: signedIn ? LeaderMe(rank: mine?.rank, entry: mine) : nil))
+        case ("PUT", 3, "users") where p[2] == "follow", ("DELETE", 3, "users") where p[2] == "follow":
+            if let e = needAuth() { return e }
+            let on = r.method == "PUT"
+            if var prof = state.profiles[p[1]] {
+                if prof.isFollowing != on { prof.user.followers = max(0, prof.user.followers + (on ? 1 : -1)) }
+                prof.isFollowing = on
+                state.profiles[p[1]] = prof
+                save()
+                return ok(FollowResponse(isFollowing: on, followers: prof.user.followers, following: prof.user.following))
+            }
+            return ok(FollowResponse(isFollowing: on, followers: nil, following: nil))
+        case ("GET", 3, "users") where p[2] == "followers" || p[2] == "following":
+            let others = state.profiles.values.map(\.user.lite).filter { $0.username != p[1] }.sorted { $0.name < $1.name }
+            return ok(UserListResponse(items: Array(others.prefix(p[2] == "followers" ? 3 : 2))))
+        case ("POST", 3, "users") where p[2] == "phone-request":
+            return needAuth() ?? noContent()
+        case ("GET", 2, "me") where p[1] == "phone-requests":
+            return needAuth() ?? ok(PhoneRequestsResponse(items: []))
+        case ("PUT", 3, "me") where p[1] == "phone-requests":
+            return needAuth() ?? noContent()
+        case ("GET", 2, "me") where p[1] == "referrals":
+            if let e = needAuth() { return e }
+            let people = state.profiles.values.map(\.user).filter { $0.id != state.me.user.id }.prefix(2).enumerated().map { i, u in
+                ReferralPerson(username: u.username, name: u.name, avatarUrl: u.avatarUrl, status: i == 0 ? "credited" : "pending")
+            }
+            return ok(ReferralsResponse(code: "TRAVEL200", link: "https://unsolo.in/r/TRAVEL200", creditsPaise: 20_000, total: people.count,
+                                        pending: 1, credited: 1, people: Array(people)))
+        case ("GET", 1, "sos"):
+            if let e = needAuth() { return e }
+            let today = Fmt.ymd(Date())
+            let on = state.bookingsUpcoming.filter { $0.travelDate <= today && ($0.endDate ?? $0.travelDate) >= today }
+            return ok(SosStatus(onTrip: !on.isEmpty || UserDefaults.standard.bool(forKey: "demoOnTrip"),
+                                trips: (on.isEmpty ? Array(state.bookingsUpcoming.prefix(1)) : on).map {
+                                    SosTrip(bookingId: $0.id, title: $0.trip.title, slug: $0.trip.slug, start: $0.travelDate, end: $0.endDate)
+                                },
+                                emergencyContact: state.me.user.emergencyPhone.map { EmergencyContact(name: state.me.user.emergencyName, phone: $0) },
+                                supportWhatsapp: "+919999999999"))
+        case ("POST", 1, "sos"):
+            if let e = needAuth() { return e }
+            return ok(SosAlert(id: UUID().uuidString.lowercased(), notified: ["team": "3 notified", "host": "notified"],
+                               trip: state.bookingsUpcoming.first.map { .init(title: $0.trip.title, slug: $0.trip.slug) },
+                               host: SosHost(name: state.bookingsUpcoming.first?.trip.host?.name, phone: "+919800000000"),
+                               emergencyContact: state.me.user.emergencyPhone.map { EmergencyContact(name: state.me.user.emergencyName, phone: $0) },
+                               supportWhatsapp: "+919999999999", message: "SOS from \(state.me.user.name). Please call me."), status: 201)
+        case ("PUT", 2, "sos"):
+            return needAuth() ?? noContent()
+        case (_, 3, "chats") where p[2] == "live-location":
+            if let e = needAuth() { return e }
+            if r.method == "GET" { return ok(LiveLocationsResponse(items: [])) }
+            return noContent()
+        case (_, 3, "trips") where p[2] == "save":
+            return needAuth() ?? noContent()
+        case (_, 2, "me") where p[1] == "saved-trips":
+            if let e = needAuth() { return e }
+            return r.method == "GET" ? ok(SavedTripsResponse(slugs: [])) : noContent()
+        case ("GET", 1, "buddies"):
+            if let e = needAuth() { return e }
+            let people = state.profiles.values.map(\.user.lite).filter { $0.id != state.me.user.id }.sorted { $0.name < $1.name }.prefix(3)
+            let trip = state.bookingsUpcoming.first?.trip
+            return ok(BuddiesResponse(items: people.enumerated().map { i, u in
+                Buddy(user: u, score: 30 - i * 5, reasons: i == 0 ? ["Same departure", "Similar budget"] : ["Saved the same trip"],
+                      trip: trip.map { .init(slug: $0.slug, title: $0.title) }, planId: nil)
+            }))
+        case ("GET", 2, "explore") where p[1] == "map":
+            let coords: [String: (Double, Double)] = ["manali": (32.24, 77.19), "spiti": (32.25, 78.03), "rishikesh": (30.09, 78.27), "goa": (15.49, 73.83),
+                                                      "kasol": (32.01, 77.31), "jaipur": (26.91, 75.79), "munnar": (10.09, 77.06), "leh": (34.15, 77.58)]
+            var pins: [MapPin] = []
+            for (cat, list) in explore {
+                for (i, t) in list.enumerated() {
+                    let key = coords.keys.first { (t.place?.name.lowercased() ?? "").contains($0) || t.slug.contains($0) }
+                    let c = key.flatMap { coords[$0] } ?? (20 + Double(i % 8) * 1.7, 74 + Double(i % 5) * 2.1)
+                    pins.append(MapPin(kind: ["trips": "trip", "stays": "stay", "activities": "activity", "rentals": "rental"][cat] ?? "trip", id: t.id, slug: t.slug, postId: nil, title: t.title,
+                                       place: t.place?.name, lat: c.0, lng: c.1, priceFromPaise: t.priceFromPaise, unit: t.unit,
+                                       date: t.nextDeparture, seatsLeft: t.seatsLeft, spotsLeft: nil, image: t.image))
+                }
+            }
+            let cat = r.query["category"] ?? "all"
+            let want = ["trips": "trip", "stays": "stay", "activities": "activity", "rentals": "rental", "plans": "plan"][cat]
+            if let want { pins = pins.filter { $0.kind == want } }
+            return ok(MapPinsResponse(pins: pins))
+        case ("POST", 1, "reviews"):
+            if let e = needAuth() { return e }
+            if let id = r.json["bookingId"] as? String, let i = state.bookingsPast.firstIndex(where: { $0.id == id }) {
+                state.bookingsPast[i].canReview = false
+                state.bookingsPast[i].reviewed = true
+                save()
+            }
+            return ok(ReviewCreated(id: UUID().uuidString.lowercased()), status: 201)
+        case ("GET", 4, "my") where p[1] == "trips" && p[3] == "pack":
+            if let e = needAuth() { return e }
+            guard let b = (state.bookingsUpcoming + state.bookingsPast).first(where: { $0.id == p[2] }) else { return err("not_found", 404) }
+            let d = details[b.trip.slug]
+            return ok(TripPack(bookingId: b.id, status: b.status, confirmationCode: b.confirmationCode, guests: b.guests, startDate: b.travelDate,
+                               endDate: b.endDate, departureTime: "21:30", returnTime: nil, totalPaise: b.totalPaise, paidPaise: b.paidPaise,
+                               balancePaise: b.balancePaise, specialRequests: nil, trip: b.trip, description: d?.description, includes: d?.includes ?? [],
+                               cancellationPolicy: "Free cancellation up to 7 days before departure.", host: .init(user: b.trip.host, phone: "+919800000000"),
+                               travellers: b.trip.goingFaces, chatRoomId: b.chatRoomId, support: .init(whatsapp: "+919999999999", email: "hello@unsolo.in"),
+                               helplines: [Helpline(label: "Emergency", phone: "112"), Helpline(label: "Tourist helpline", phone: "1363")], generatedAt: Date()))
+        case ("GET", 1, "offers"):
+            let offers = [OfferItem(id: "o1", name: "On your first booking", label: "₹500 off", type: "promo", promoCode: "FIRSTSOLO", validUntil: "2026-12-31")]
+            let combos = [OfferCombo(id: "c1", title: "Spiti circuit + Kaza homestay", subtitle: "Book both, save 10%",
+                                     primary: OfferLink(label: "Spiti winter circuit", path: "/packages/spiti-winter-circuit"), secondary: nil)]
+            return ok(OffersResponse(sections: [
+                OfferSection(id: "s1", title: "Featured platform deals", subtitle: "Offers for travellers right now.", badge: "Featured", offers: offers, combos: []),
+                OfferSection(id: "s2", title: "Trip + Stay combos", subtitle: "From host-linked trips and stays.", badge: "Auto", offers: [], combos: combos),
+            ]))
+        default:
+            return nil
         }
     }
 

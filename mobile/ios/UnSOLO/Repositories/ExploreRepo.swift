@@ -58,6 +58,34 @@ final class ExploreRepo: AppBound {
         }
     }
 
+    // MARK: "See all" (every card for a tab, 20 at a time)
+
+    var all: [ExploreCategory: [TripLite]] = [:]
+    var allCursor: [ExploreCategory: String] = [:]
+    var allState: [ExploreCategory: LoadState] = [:]
+    var allDone: Set<ExploreCategory> = []
+
+    func loadAll(_ category: ExploreCategory, query: String? = nil, reset: Bool = false) async {
+        guard let app, allState[category] != .loading || reset else { return }
+        if reset { allCursor[category] = nil; allDone.remove(category) }
+        guard !allDone.contains(category) else { return }
+        allState[category] = .loading
+        do {
+            let q = query?.trimmingCharacters(in: .whitespaces)
+            let page = try await app.api.explorePage(q: (q?.isEmpty ?? true) ? nil : q, category: category.rawValue, cursor: reset ? nil : allCursor[category])
+            app.store.upsertTrips(page.items)
+            var list = reset ? [] : (all[category] ?? [])
+            let known = Set(list.map(\.slug))
+            list += page.items.filter { !known.contains($0.slug) }
+            all[category] = list
+            if let c = page.nextCursor, !page.items.isEmpty { allCursor[category] = c } else { allDone.insert(category) }
+            allState[category] = .loaded
+        } catch {
+            if all[category] == nil { all[category] = lists[category] ?? [] }
+            allState[category] = .failed(error.localizedDescription)
+        }
+    }
+
     func search(_ q: String) async {
         guard let app, !q.isEmpty else { searchResults = []; return }
         if let page = try? await app.api.explore(q: q, category: nil, month: nil, cursor: nil) {

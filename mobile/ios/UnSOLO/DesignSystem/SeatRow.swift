@@ -560,9 +560,22 @@ struct StoryRing: View {
     var seen: Int = 0
     var size: CGFloat = 56
     var isMine = false
+    /// A story going up: the ring fills with how much has been sent (0…1).
+    var progress: Double? = nil
+    /// The last story failed to go up: a red ring (tap to retry).
+    var failed = false
 
     var body: some View {
         ZStack {
+            if failed {
+                Circle().strokeBorder(Pc.red, lineWidth: 3)
+            } else if let progress {
+                Circle().strokeBorder(Pc.rule, lineWidth: 3)
+                Circle().inset(by: 1.5).trim(from: 0, to: max(0.02, min(1, progress)))
+                    .stroke(Pc.gold, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.25), value: progress)
+            } else {
             Canvas { ctx, sz in
                 let c = CGPoint(x: sz.width / 2, y: sz.height / 2)
                 let r = sz.width / 2 - 2.5
@@ -582,8 +595,15 @@ struct StoryRing: View {
                     ctx.stroke(p, with: .color(color), style: StrokeStyle(lineWidth: isSeen || isMine ? 2 : 3, lineCap: .round))
                 }
             }
+            }
             Avatar(user: user, size: size - 12)
-            if isMine {
+            if failed {
+                Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .heavy)).foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(Pc.red))
+                    .background(Circle().fill(Pc.paper).padding(-2.5))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            } else if isMine && progress == nil {
                 Image(systemName: "plus").font(.system(size: 11, weight: .heavy)).foregroundStyle(Pc.onPine)
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(Pc.pine))
