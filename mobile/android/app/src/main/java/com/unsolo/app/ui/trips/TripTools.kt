@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -435,39 +436,86 @@ fun BuddiesScreen(nav: AppNav) {
     val g = nav.graph
     val c = Pc.colors
     var data by remember { mutableStateOf<List<Buddy>?>(null) }
-    var failed by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var attempt by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        g.trips.cachedBuddies()?.let { data = it.items }
-        when (val r = g.trips.buddies()) { is ApiResult.Ok -> data = r.value.items; else -> if (data == null) failed = true }
+    LaunchedEffect(attempt) {
+        error = null
+        if (data == null) g.trips.cachedBuddies()?.let { data = it.items }
+        when (val r = g.trips.buddies()) {
+            is ApiResult.Ok -> data = r.value.items
+            ApiResult.Offline -> if (data == null) error = "You're offline. Connect and try again."
+            is ApiResult.Err -> if (data == null) error = "Couldn't load matches right now. Try again in a moment."
+        }
     }
     Column(Modifier.fillMaxSize().background(c.paper)) {
         DetailTopBar("Travel buddies", onBack = { nav.back() })
-        val d = data
-        when {
-            d == null && failed -> EmptyState("Couldn't load buddies", "Check your connection and try again.")
-            d == null -> Text("Finding people…", style = Pc.type.body, color = c.ink2, modifier = Modifier.padding(Gutter))
-            d.isEmpty() -> EmptyState("No matches yet", "Book a trip, save a few, or post a plan. We'll match you with people going the same way at the same time.", action = "Explore trips") { nav.tab(Routes.EXPLORE) }
-            else -> LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-                item { Text("Matched on dates, places and budget. Say hi before you go.", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(horizontal = Gutter, vertical = 6.dp)) }
-                items(d, key = { it.user.id }) { b ->
-                    Row(Modifier.fillMaxWidth().clickable { if (b.user.username.isNotBlank()) nav.to(Routes.profile(b.user.username)) }.padding(horizontal = Gutter, vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                        com.unsolo.app.ui.status.StatusAvatar(nav, b.user, 48.dp)
+        LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
+            item {
+                // What this is, in one glance.
+                Row(Modifier.padding(horizontal = Gutter, vertical = 8.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.goldBg).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).background(c.raised), contentAlignment = Alignment.Center) { PcIcon(PcIcons.UsersThree, null, tint = c.ink, size = 26.dp) }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text("Going your way", style = Pc.type.title3, color = c.ink)
+                        Text("People on your departures, planning the same place around your dates, or eyeing the same trips.", style = Pc.type.small, color = c.ink2)
+                    }
+                }
+            }
+            val d = data
+            when {
+                d == null && error != null -> item {
+                    EmptyState("No matches loaded", error!!, Modifier.padding(top = 8.dp), action = "Try again") { attempt++ }
+                }
+                d == null -> items(5) { BuddySkeleton() }
+                d.isEmpty() -> item {
+                    EmptyState("No matches yet", "Book a trip, save a few, or post a plan. We'll match you with people going the same way at the same time.", action = "Explore trips") { nav.tab(Routes.EXPLORE) }
+                }
+                else -> items(d, key = { it.user.id }) { b ->
+                    Row(Modifier.padding(horizontal = Gutter, vertical = 5.dp).fillMaxWidth().raisedCard().clickable { if (b.user.username.isNotBlank()) nav.to(Routes.profile(b.user.username)) }.padding(14.dp),
+                        verticalAlignment = Alignment.Top) {
+                        com.unsolo.app.ui.status.StatusAvatar(nav, b.user, 52.dp)
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(b.user.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                                 if (b.user.isIdVerified) { Spacer(Modifier.width(4.dp)); VerifiedMark() }
                             }
-                            b.reasons.forEach { Text(it, style = Pc.type.small, color = c.ink2) }
+                            Spacer(Modifier.height(4.dp))
+                            b.reasons.forEach { reason ->
+                                Row(Modifier.padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
+                                    Box(Modifier.padding(top = 7.dp).size(5.dp).clip(CircleShape).background(c.pine)); Spacer(Modifier.width(8.dp))
+                                    Text(reason, style = Pc.type.small, color = c.ink2)
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PcButton("Say hi", {
+                                    if (nav.requireSignIn()) scope.launch { (g.tribe.openDirectChat(b.user.id) as? ApiResult.Ok)?.let { nav.to(Routes.chat(it.value.roomId)) } }
+                                }, kind = BtnKind.Accent, height = BtnSmall, icon = PcIcons.Chat)
+                                b.trip?.let { t -> PcButton("The trip", { nav.to(Routes.trip(t.slug)) }, kind = BtnKind.Outline, height = BtnSmall) }
+                                    ?: b.planId?.let { p -> PcButton("Their plan", { nav.to(Routes.post(p)) }, kind = BtnKind.Outline, height = BtnSmall) }
+                            }
                         }
-                        PcButton("Say hi", {
-                            if (nav.requireSignIn()) scope.launch { (g.tribe.openDirectChat(b.user.id) as? ApiResult.Ok)?.let { nav.to(Routes.chat(it.value.roomId)) } }
-                        }, kind = BtnKind.Outline, height = BtnSmall)
                     }
-                    Hairline(Modifier.padding(horizontal = Gutter))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BuddySkeleton() {
+    val c = Pc.colors
+    val a by androidx.compose.animation.core.rememberInfiniteTransition(label = "sk").animateFloat(0.4f, 0.9f,
+        androidx.compose.animation.core.infiniteRepeatable(tween(800), androidx.compose.animation.core.RepeatMode.Reverse), label = "a")
+    Row(Modifier.padding(horizontal = Gutter, vertical = 5.dp).fillMaxWidth().raisedCard().padding(14.dp)) {
+        Box(Modifier.size(52.dp).clip(CircleShape).background(c.tonal.copy(alpha = a)))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.fillMaxWidth(0.5f).height(14.dp).clip(CircleShape).background(c.tonal.copy(alpha = a)))
+            Box(Modifier.fillMaxWidth(0.85f).height(10.dp).clip(CircleShape).background(c.tonal.copy(alpha = a)))
+            Box(Modifier.width(90.dp).height(30.dp).clip(CircleShape).background(c.tonal.copy(alpha = a)))
         }
     }
 }

@@ -171,7 +171,7 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     if (own) {
                         PcButton("Edit profile", { nav.to(Routes.EDIT_PROFILE) }, Modifier.weight(1f), kind = BtnKind.Outline)
                         // Your avatar's "+" adds a story; this spot invites friends (₹200 each way).
-                        PcButton("Invite friends", { nav.to(Routes.REFERRALS) }, Modifier.weight(1f), kind = BtnKind.Accent)
+                        PcButton("Invite", { nav.to(Routes.REFERRALS) }, Modifier.weight(1f), kind = BtnKind.Accent, icon = PcIcons.Ticket)
                         if (user?.isHost == true || nav.graph.config.config.value.flags.hostOffersEnabled) PcButton("Hosting", { nav.to(Routes.HOST) }, Modifier.weight(1f), kind = BtnKind.Outline)
                     } else {
                         val following = profile?.isFollowing == true

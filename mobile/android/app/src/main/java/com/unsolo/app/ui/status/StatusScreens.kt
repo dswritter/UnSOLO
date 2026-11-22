@@ -139,16 +139,49 @@ fun MyStoryAvatar(nav: AppNav, user: UserLite, size: Dp) {
     }
 }
 
-/** What tapping "Your story" does: retry a failed one, wait for one going up, play yours, or start one. */
+/** Shown by tapping "Your story" while one is going up or failed: progress, cancel/retry/discard, your live ones. */
+val uploadSheetOpen = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+/** What tapping "Your story" does: the upload sheet while one is going up (or failed), else play yours or start one. */
 fun openMyStory(nav: AppNav, user: UserLite?, mine: StatusAuthor?) {
-    val repo = nav.graph.statuses
-    val u = repo.upload.value
     if (!nav.requirePhone()) return
     when {
-        u?.error != null -> repo.retryUpload()
-        u != null -> nav.graph.events.emit(AppEvent.Message("Your story is going up. We'll tell you when it's done."))
+        nav.graph.statuses.upload.value != null -> uploadSheetOpen.value = true
         mine != null && user != null -> nav.to(Routes.status(user.id))
         else -> nav.to(Routes.statusNew())
+    }
+}
+
+/** The sheet for a story going up: how far it is, Cancel; if it failed, why, Try again / Discard. Always: see your stories. */
+@Composable
+fun UploadSheet(nav: AppNav) {
+    val open by uploadSheetOpen.collectAsStateWithLifecycle()
+    val repo = nav.graph.statuses
+    val u by repo.upload.collectAsStateWithLifecycle()
+    val rail by repo.rail.collectAsStateWithLifecycle()
+    val me = nav.graph.account.me.collectAsStateWithLifecycle().value?.user
+    val c = Pc.colors
+    LaunchedEffect(u) { if (u == null) uploadSheetOpen.value = false }
+    if (!open || u == null) return
+    val up = u!!
+    val mine = rail.firstOrNull { it.user.id == me?.id }?.takeIf { it.items.isNotEmpty() }
+    PcSheet({ uploadSheetOpen.value = false }) {
+        SheetTitle(if (up.error != null) "Your story didn't go up" else "Sharing your story", if (up.error != null) up.error else "${up.photos} photo${if (up.photos == 1) "" else "s"} · you can keep using the app")
+        if (up.error == null) Column(Modifier.padding(horizontal = Gutter, vertical = 6.dp)) {
+            val shown by androidx.compose.animation.core.animateFloatAsState(up.progress, label = "p")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f).height(8.dp).clip(CircleShape).background(c.tonal)) { Box(Modifier.fillMaxHeight().fillMaxWidth(shown).clip(CircleShape).background(c.pine)) }
+                Spacer(Modifier.width(10.dp))
+                Text("${(up.progress * 100).toInt()}%", style = Pc.type.num, color = c.ink)
+            }
+        }
+        Column(Modifier.padding(horizontal = Gutter, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (up.error != null) {
+                PcButton("Try again", { uploadSheetOpen.value = false; repo.retryUpload() }, Modifier.fillMaxWidth(), kind = BtnKind.Accent)
+                PcButton("Discard it", { uploadSheetOpen.value = false; repo.dismissUpload() }, Modifier.fillMaxWidth(), kind = BtnKind.Outline)
+            } else PcButton("Cancel upload", { uploadSheetOpen.value = false; repo.cancelUpload() }, Modifier.fillMaxWidth(), kind = BtnKind.Danger)
+            if (mine != null && me != null) PcButton("See my stories", { uploadSheetOpen.value = false; nav.to(Routes.status(me.id)) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline)
+        }
     }
 }
 
@@ -404,20 +437,38 @@ private fun FloatingEmojis(bursts: List<EmojiBurst>, modifier: Modifier, onDone:
     Box(modifier) {
         bursts.forEach { b ->
             key(b.id) {
+                // 1) The emoji pops in the middle (spring), holds, then fades.
+                val pop = remember { androidx.compose.animation.core.Animatable(0f) }
+                val popAlpha = remember { androidx.compose.animation.core.Animatable(1f) }
+                // 2) Seven copies drift up from the react button, each at its own pace.
                 val rnd = remember { kotlin.random.Random(b.id) }
-                val parts = remember { List(12) { Triple(rnd.nextFloat(), rnd.nextFloat(), rnd.nextInt(0, 380)) } }
-                val t = remember { androidx.compose.animation.core.Animatable(0f) }
-                LaunchedEffect(Unit) { t.animateTo(1f, androidx.compose.animation.core.tween(1900, easing = androidx.compose.animation.core.LinearOutSlowInEasing)); onDone(b.id) }
+                val parts = remember { List(7) { i -> Triple(rnd.nextFloat(), 0.7f + rnd.nextFloat() * 0.6f, i * 110 + rnd.nextInt(0, 90)) } }
+                val clocks = remember { parts.map { androidx.compose.animation.core.Animatable(0f) } }
+                LaunchedEffect(Unit) {
+                    launch { pop.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 260f)) }
+                    launch { kotlinx.coroutines.delay(900); popAlpha.animateTo(0f, androidx.compose.animation.core.tween(450)) }
+                    parts.forEachIndexed { i, (_, speed, delay) ->
+                        launch {
+                            kotlinx.coroutines.delay(delay.toLong())
+                            clocks[i].animateTo(1f, androidx.compose.animation.core.tween((2600 / speed).toInt(), easing = androidx.compose.animation.core.FastOutSlowInEasing))
+                        }
+                    }
+                    kotlinx.coroutines.delay(4200); onDone(b.id)
+                }
                 androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
                     val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
-                    parts.forEach { (dx, sz, delay) ->
-                        val local = ((t.value * 1900f - delay) / 1500f).coerceIn(0f, 1f)
-                        if (local > 0f && local < 1f) Text(b.emoji, fontSize = (24 + sz * 22).sp, modifier = Modifier.graphicsLayer {
-                            translationX = w * 0.82f - (dx * w * 0.75f) * local + kotlin.math.sin(local * 9f + dx * 6f) * 24f
-                            translationY = h * 0.78f - local * h * (0.55f + sz * 0.3f)
-                            alpha = if (local < 0.15f) local / 0.15f else 1f - ((local - 0.6f) / 0.4f).coerceIn(0f, 1f)
-                            val sc = 0.6f + local * 0.7f; scaleX = sc; scaleY = sc
-                            rotationZ = (dx - 0.5f) * 40f * local
+                    Text(b.emoji, fontSize = 96.sp, modifier = Modifier.align(Alignment.Center).graphicsLayer {
+                        scaleX = pop.value; scaleY = pop.value; alpha = popAlpha.value * pop.value.coerceAtMost(1f)
+                    })
+                    parts.forEachIndexed { i, (dx, size, _) ->
+                        val t = clocks[i].value
+                        if (t > 0f && t < 1f) Text(b.emoji, fontSize = (26 * size).sp, modifier = Modifier.graphicsLayer {
+                            // From the react button (bottom right) up and a little to the left, swaying gently.
+                            translationX = w * 0.86f - dx * w * 0.35f * t + kotlin.math.sin(t * 5f + dx * 6f) * 18f
+                            translationY = h * 0.80f - t * h * 0.5f
+                            alpha = when { t < 0.12f -> t / 0.12f; t > 0.7f -> (1f - t) / 0.3f; else -> 1f }
+                            val sc = 0.7f + t * 0.5f; scaleX = sc; scaleY = sc
+                            rotationZ = (dx - 0.5f) * 24f * t
                         })
                     }
                 }
@@ -528,6 +579,7 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
     var caption by rememberSaveableString()
     var audience by remember { mutableStateOf("all") }
     var tagging by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<Int?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(10)) { uris ->
         uris.forEach { if (photos.size < 10 && it !in photos) photos += it }
     }
@@ -553,6 +605,12 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                     coil3.compose.AsyncImage(photos[i], null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     IconTap(PcIcons.Close, "Remove this photo", { photos.removeAt(i) }, tint = Color.White,
                         modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 56.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.4f)))
+                    // Crop and rotate, like Instagram.
+                    Row(Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 112.dp, end = 8.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                        .clickable(onClickLabel = "Crop or rotate this photo") { editing = i }.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        PcIcon(PcIcons.Edit, null, tint = Color.White, size = 16.dp); Spacer(Modifier.width(6.dp))
+                        Text("Crop", style = Pc.type.smallStrong, color = Color.White)
+                    }
                 }
             }
             if (photos.size > 1) Text("${pager.currentPage + 1} / ${photos.size}", style = Pc.type.label, color = Color.White,
@@ -563,6 +621,11 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
             Spacer(Modifier.weight(1f))
             PcButton("Archive", { nav.to(Routes.STATUS_ARCHIVE) }, kind = BtnKind.Ghost, height = BtnSmall)
         }
+        editing?.let { i -> photos.getOrNull(i)?.let { src ->
+            androidx.compose.ui.window.Dialog({ editing = null }, androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+                PhotoEditor(src, onCancel = { editing = null }) { out -> if (i < photos.size) photos[i] = out; editing = null }
+            }
+        } }
         if (tagging) PeoplePickerSheet(nav, onDismiss = { tagging = false }) { u ->
             tagging = false
             caption = (caption.trimEnd().let { if (it.isEmpty()) it else "$it " } + "@${u.username} ").take(500)
@@ -580,6 +643,13 @@ fun StatusComposeScreen(nav: AppNav, archiveId: String?) {
                 AudienceChip("@ Tag people", false) { tagging = true }
                 val tagged = extractMentions(caption).size
                 if (tagged > 0) Text("$tagged tagged", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f))
+            }
+            // One story at a time: while the last one is going up, say so and offer to cancel it.
+            if (posting) Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = 0.14f)).padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                val up by repo.upload.collectAsStateWithLifecycle()
+                Text("Your last story is going up · ${((up?.progress ?: 0f) * 100).toInt()}%", style = Pc.type.small, color = Color.White, modifier = Modifier.weight(1f))
+                PcButton("Cancel it", { repo.cancelUpload() }, kind = BtnKind.Ghost, height = BtnSmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AudienceChip("Everyone", audience == "all") { audience = "all" }

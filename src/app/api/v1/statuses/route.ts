@@ -56,7 +56,7 @@ export const POST = route(async (req: Request) => {
   // Photos must be ones we stored (our storage bucket), not any URL.
   const base = `${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}/storage/v1/object/public/`
   if (b.media.some((m) => !m.url.startsWith(base))) throw new ApiError('bad_request', 'Upload the photo first', { field: 'media' })
-  await enforceRateLimit(ctx, 'post')
+  await enforceRateLimit(ctx, 'story')
   const { count } = await ctx.db.from('status_stories').select('id', { count: 'exact', head: true })
     .eq('author_id', user.id).gt('expires_at', new Date().toISOString())
   const adding = b.media.length || 1

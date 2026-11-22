@@ -76,6 +76,7 @@ class StatusRepository(
     /** The story going up right now (or the one that failed), for the ring on "Your story" and your profile. */
     val upload: StateFlow<StoryUpload?> = _upload.asStateFlow()
     private var lastShare: Triple<List<Uri>, String?, String>? = null
+    private var shareJob: kotlinx.coroutines.Job? = null
 
     suspend fun refresh(): ApiResult<Unit> {
         val r = apiCall { api.statuses() }
@@ -176,15 +177,15 @@ class StatusRepository(
         lastShare = Triple(uris, caption, audience)
         _posting.value = true
         _upload.value = StoryUpload(0f, uris.size.coerceAtMost(10))
-        scope.launch {
-            val err = runCatching { share(uris, caption, audience) }.getOrElse { "Couldn't share your story." }
+        shareJob = scope.launch {
+            val err = try { share(uris, caption, audience) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { "Couldn't share your story." }
             if (err == null) {
                 _upload.value = null
                 lastShare = null
                 events.emit(AppEvent.Message(if (uris.isEmpty()) "Your story is up." else "Your story is up. It disappears in 24 hours and stays in your archive."))
             } else {
                 _upload.value = _upload.value?.copy(error = err) ?: StoryUpload(0f, uris.size, err)
-                events.emit(AppEvent.Message("$err Tap Your story to try again."))
+                events.emit(AppEvent.Message("Your story didn't go up: $err Tap Your story to try again or discard it."))
             }
         }
         return true
@@ -195,6 +196,13 @@ class StatusRepository(
 
     /** Forgets the failed story. */
     fun dismissUpload() { if (!_posting.value) { _upload.value = null; lastShare = null } }
+
+    /** Stops the story going up now (nothing is posted). */
+    fun cancelUpload() {
+        shareJob?.cancel(); shareJob = null
+        _posting.value = false; _upload.value = null; lastShare = null
+        events.emit(AppEvent.Message("Story cancelled"))
+    }
 
     /** Shares photos (or just text) as statuses. Returns null on success, else a message to show. */
     private suspend fun share(uris: List<Uri>, caption: String?, audience: String): String? {

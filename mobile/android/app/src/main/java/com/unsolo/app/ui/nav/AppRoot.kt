@@ -333,6 +333,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
             postSheet = false
             if (nav.requirePhone()) nav.to(if (kind == com.unsolo.app.ui.compose.KIND_STATUS) Routes.statusNew() else Routes.compose(kind))
         }, onHosting = { postSheet = false; nav.to(Routes.HOST) })
+        com.unsolo.app.ui.status.UploadSheet(nav)
         held?.let { h -> HeldPromptSheet(h.prompts, onDismiss = { held = null }, onOpen = { held = null; nav.to(Routes.post(h.postId)) }, onHost = { held = null; nav.openWeb("/host") }) }
         landing?.let { tab -> LandingPromptSheet(tab, onAccept = { vm.acceptLanding(tab) }, onDismiss = { vm.dismissLanding() }) }
     }

@@ -540,8 +540,12 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
             t.place?.name?.let { Text(it, style = Pc.type.small.copy(fontSize = 12.5.sp), color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis) }
         } else Row(Modifier.padding(horizontal = 6.dp).overlapUp(36.dp), verticalAlignment = Alignment.Top) {
             RingMount {
-                if (isPastDate(t.nextDeparture)) SeatRing(ring, PcTokens.ringCard, past = true, centerLabel = (if (ring.filled > 0) "${ring.filled}" else "✓") to (if (ring.filled > 0) "went" else "done"))
-                else SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
+                when {
+                    // No upcoming date (past-only or undated): no seat count to show, so never "full".
+                    t.nextDeparture == null || t.seatsLeft == null -> SeatRing(ringFromCounts(t.seatsTotal, t.seatsTotal), PcTokens.ringCard, past = true, centerLabel = "Ask" to "for dates")
+                    isPastDate(t.nextDeparture) -> SeatRing(ring, PcTokens.ringCard, past = true, centerLabel = (if (ring.filled > 0) "${ring.filled}" else "✓") to (if (ring.filled > 0) "went" else "done"))
+                    else -> SeatRing(ring, PcTokens.ringCard, spotsLabel = true)
+                }
             }
             Column(Modifier.weight(1f).padding(start = 10.dp, top = 40.dp)) {
                 Text(t.title, style = Pc.type.title2.copy(fontSize = 15.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -650,7 +654,7 @@ fun HostedTripCard(t: TripLite, onOpen: () -> Unit, onTake: () -> Unit, label: S
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text("$label · ${Fmt.dayMonth(t.nextDeparture)}", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.Bold, fontSize = 11.5.sp), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(if (isPastDate(t.nextDeparture)) "Trip done" else t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
+            Text(listOfNotNull(if (t.nextDeparture == null) "Dates on request" else if (isPastDate(t.nextDeparture)) "Trip done" else t.seatsLeft?.let { if (it == 0) "Full" else "$it spot${if (it == 1) "" else "s"} left" }, MoneyFormat.rupees(t.priceFromPaise)).joinToString(" · "), style = Pc.type.small, color = c.ink2, maxLines = 1)
         }
         Box(Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onTake).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
             Text("Grab a spot →", style = Pc.type.smallStrong.copy(fontWeight = FontWeight.ExtraBold, fontSize = 11.5.sp), color = c.accentInk, maxLines = 1)
