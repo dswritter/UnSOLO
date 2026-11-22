@@ -24,6 +24,9 @@ object Routes {
     const val OFFERS = "offers/{postId}"
     const val SEARCH = "search"
     const val STORY = "story/{id}"
+    const val STATUS = "status/{authorId}"
+    const val STATUS_NEW = "status-new?archive={archive}"
+    const val STATUS_ARCHIVE = "status-archive"
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
     fun trip(slug: String) = "trip/${enc(slug)}"
@@ -32,6 +35,8 @@ object Routes {
     fun chat(roomId: String) = "chat/${enc(roomId)}"
     fun compose(kind: String) = "compose/$kind"
     fun story(postId: String) = "story/${enc(postId)}"
+    fun status(authorId: String) = "status/${enc(authorId)}"
+    fun statusNew(archiveId: String? = null) = if (archiveId == null) "status-new" else "status-new?archive=${enc(archiveId)}"
     fun offerForm(postId: String) = "offer/${enc(postId)}"
     fun offers(postId: String) = "offers/${enc(postId)}"
 

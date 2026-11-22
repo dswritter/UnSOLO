@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getActionAuth } from '@/lib/auth/action-auth'
 import { getRequestAuth } from '@/lib/auth/request-session'
 import { serializeAudience, type StatusStoryAudience } from '@/lib/statusStories/audience'
+import { MAX_ACTIVE_STATUS } from '@/lib/statusStories/api'
 
 export type StatusStripStory = {
   id: string
@@ -121,7 +122,7 @@ export async function getStatusStoriesForProfile(authorId: string, viewerUserId:
   return (rows || []) as unknown as StatusStripStory[]
 }
 
-const MAX_ACTIVE_STATUS_PER_USER = 3
+const MAX_ACTIVE_STATUS_PER_USER = MAX_ACTIVE_STATUS
 
 async function buildAudiencePayload(input: {
   mode: StatusStoryAudience['mode']

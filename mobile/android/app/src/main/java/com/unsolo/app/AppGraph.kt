@@ -71,9 +71,10 @@ class AppGraph(val app: UnsoloApp) {
     }
     val account: AccountRepository by lazy {
         AccountRepository(db, api, supabase, session, settings, outbox, appScope,
-            onSignedIn = { push.register(); activity.refresh(); chat.refreshChats(); explore.refreshMyTrips(); syncNow() },
-            onSignedOut = { })
+            onSignedIn = { push.register(); statuses.refresh(); activity.refresh(); chat.refreshChats(); explore.refreshMyTrips(); syncNow() },
+            onSignedOut = { statuses.clear() })
     }
+    val statuses by lazy { StatusRepository(app, api, compressor, appScope, events) }
     val tribe: TribeRepository by lazy { TribeRepository(app, db, api, outbox, account, analytics, events, appScope, compressor) }
     val explore by lazy { ExploreRepository(db, api, tribe) }
     val chat by lazy { ChatRepository(db, api, outbox, account) }

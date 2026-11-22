@@ -157,6 +157,37 @@ data class Poll(val options: List<PollOption> = emptyList(), val myChoice: Strin
     })
 }
 
+/** A 24-hour status (GET /statuses). */
+@Immutable
+@Serializable
+data class StatusItem(
+    val id: String,
+    val type: String = "image",
+    val media: Media? = null,
+    val caption: String? = null,
+    val linkUrl: String? = null,
+    val bgColor: String? = null,
+    val createdAt: String,
+    val expiresAt: String,
+    val seen: Boolean = false,
+)
+
+@Immutable
+@Serializable
+data class StatusAuthor(val user: UserLite, val items: List<StatusItem> = emptyList(), val unseen: Boolean = false, val latestAt: String = "")
+
+@Serializable
+data class StatusesResponse(val authors: List<StatusAuthor> = emptyList())
+
+@Serializable
+data class StatusMediaRef(val url: String)
+
+@Serializable
+data class CreateStatusRequest(val media: List<StatusMediaRef> = emptyList(), val caption: String? = null, val audience: String = "all")
+
+@Serializable
+data class SeenStatusesRequest(val ids: List<String>)
+
 /** GET /places?q= : a suggestion for the place field ([detail] is the state or district). */
 @Immutable
 @Serializable

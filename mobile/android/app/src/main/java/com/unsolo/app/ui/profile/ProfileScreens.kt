@@ -114,7 +114,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     }
                 }
                 Row(Modifier.padding(horizontal = Gutter), verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(user, 60.dp)
+                    // A ring when they have live stories: tap to play them.
+                    if (user != null) com.unsolo.app.ui.status.StatusAvatar(nav, user, 64.dp) else Avatar(user, 60.dp)
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

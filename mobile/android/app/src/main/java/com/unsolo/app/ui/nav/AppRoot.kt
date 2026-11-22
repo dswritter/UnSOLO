@@ -267,7 +267,7 @@ fun AppRoot(graph: AppGraph, startRoute: String, newIntents: Flow<Intent>) {
         }
         if (postSheet) PostTypeSheet(onDismiss = { postSheet = false }, onPick = { kind ->
             postSheet = false
-            if (nav.requirePhone()) nav.to(Routes.compose(kind))
+            if (nav.requirePhone()) nav.to(if (kind == com.unsolo.app.ui.compose.KIND_STATUS) Routes.statusNew() else Routes.compose(kind))
         }, onHosting = { postSheet = false; nav.to(Routes.HOST) })
         held?.let { h -> HeldPromptSheet(h.prompts, onDismiss = { held = null }, onOpen = { held = null; nav.to(Routes.post(h.postId)) }, onHost = { held = null; nav.openWeb("/host") }) }
         landing?.let { tab -> LandingPromptSheet(tab, onAccept = { vm.acceptLanding(tab) }, onDismiss = { vm.dismissLanding() }) }
@@ -309,6 +309,14 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
         val id = it.arguments?.getString("id")
         if (DeepLinks.validId(id)) StoryViewerScreen(id!!, nav) else InvalidLink(nav)
     }
+    composable(Routes.STATUS, arguments = listOf(navArgument("authorId") { type = NavType.StringType })) {
+        val id = it.arguments?.getString("authorId")
+        if (DeepLinks.validId(id)) com.unsolo.app.ui.status.StatusViewerScreen(id!!, nav) else InvalidLink(nav)
+    }
+    composable(Routes.STATUS_NEW, arguments = listOf(navArgument("archive") { type = NavType.StringType; nullable = true; defaultValue = null })) {
+        com.unsolo.app.ui.status.StatusComposeScreen(nav, it.arguments?.getString("archive"))
+    }
+    composable(Routes.STATUS_ARCHIVE) { com.unsolo.app.ui.status.StatusArchiveScreen(nav) }
     composable(Routes.COMPOSE, arguments = listOf(navArgument("kind") { type = NavType.StringType })) {
         val kind = it.arguments?.getString("kind")?.takeIf { k -> k in listOf("plan", "story", "ask", "poll") } ?: "plan"
         ComposeScreen(kind, nav)

@@ -99,6 +99,10 @@ Store tokens in the Android Keystore (EncryptedSharedPreferences) or the iOS Key
 |---|---|---|---|
 | GET | `/explore?q=&category=trips\|stays\|activities\|rentals&month=YYYY-MM&cursor=&limit=20` | public | → `{ items: TripLite[], nextCursor }`. Trips: sorted by next departure. Stays/activities/rentals: public listings as TripLite with `kind` (stay/activity/rental), `unit` (night/person/day) and `webPath` (`/listings/{category}/{slug}`, opened on the web); no departures or seats |
 | GET | `/places?q=&limit=8` | public | → `{ items: { name, slug, lat, lng, detail }[] }`: suggestions for the place field (our destinations, places in live posts, then OpenStreetMap; empty q = popular) |
+| GET | `/statuses?user=` | signed in | → `{ authors: { user, items: StatusItem[], unseen, latestAt }[] }`: live 24-hour stories you can see (yours first, then unseen); `user` = one person's |
+| POST | `/statuses` `{ media: { url }[] ≤10, caption?, audience: all\|followers }` | verified contact | One story per photo (or a text story), expires in 24 h, max 10 live; photos uploaded first via `/uploads` purpose `story` |
+| DELETE | `/statuses/{id}` | yours | Removes it now |
+| POST | `/statuses/seen` `{ ids }` | signed in | Marks seen (rings, view counts) |
 | PUT | `/posts/{id}/vote` `{ choice: "a".."d" \| null }` | verified contact | One vote per person per poll (post_poll_votes, migration 122), changed in place; null takes it back. → `{ poll }`. Votes are not replies. |
 | GET | `/trips/{slug}` | public | → `TripLite & { description, includes: string[], images: Media[], departures: [{ date, seatsLeft, seatsTotal }], seats: Seat[] (next departure; faces only for signed-in viewers), rating: { avg, count }, stories: Post[] /* show_on_trip_page */, planningCount /* "14 planning Spiti", only when ≥3 */ }` |
 | GET | `/my/trips` | user | → `{ upcoming: Booking[], plans: Post[] /* organiser or approved */, requested: Post[], past: Booking[] /* includes storyPrompt: bool */ }` |

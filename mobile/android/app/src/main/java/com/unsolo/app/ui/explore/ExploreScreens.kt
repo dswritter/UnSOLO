@@ -279,6 +279,10 @@ fun ExploreScreen(nav: AppNav) {
                     }
                 }
             }
+            // Stories from travellers (24 hours), the same row as the top of Tribe.
+            if (query.isBlank()) item(key = "stories", contentType = "stories") {
+                com.unsolo.app.ui.status.StatusRail(nav, Modifier.padding(top = 10.dp), hideWhenEmpty = true, title = "Stories")
+            }
             // Plans looking for people: one row that leads with the invite card, then open plans.
             if (category == "trips" && query.isBlank()) {
                 item(key = "plans-h", contentType = "section") { SectionHeader("Plans looking for people", Modifier.padding(top = 8.dp)) }

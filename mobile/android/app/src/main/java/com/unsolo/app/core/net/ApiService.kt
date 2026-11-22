@@ -38,6 +38,10 @@ interface ApiService {
     @HTTP(method = "DELETE", path = "devices", hasBody = true) suspend fun deleteDevice(@Body body: DeviceDeleteRequest): Response<Unit>
 
     // Explore
+    @GET("statuses") suspend fun statuses(@Query("user") user: String? = null): StatusesResponse
+    @POST("statuses") suspend fun createStatus(@Body body: CreateStatusRequest): StatusesResponse
+    @DELETE("statuses/{id}") suspend fun deleteStatus(@Path("id") id: String): Response<Unit>
+    @POST("statuses/seen") suspend fun seenStatuses(@Body body: SeenStatusesRequest): Response<Unit>
     @GET("places") suspend fun places(@Query("q") q: String, @Query("limit") limit: Int = 6): PlacesResponse
     @GET("explore") suspend fun explore(
         @Query("q") q: String? = null,

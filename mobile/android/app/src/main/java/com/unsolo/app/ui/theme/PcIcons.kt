@@ -39,6 +39,7 @@ object PcIcons {
     /** users-three: the Tribe tab. */
     val UsersThree by lazy { stroke("users_three", "M14.75,11a2.75,2.75 0 1,1 -5.5,0a2.75,2.75 0 1,1 5.5,0z", "M7.5,18.5c0.8,-1.9 2.5,-3 4.5,-3s3.7,1.1 4.5,3", "M17.5,10.5a2.25,2.25 0 1,0 -1.4,-4", "M19,14.5c1.3,0.3 2.4,1.2 3,2.5", "M6.5,10.5a2.25,2.25 0 1,1 1.4,-4", "M5,14.5c-1.3,0.3 -2.4,1.2 -3,2.5") }
     val Plus by lazy { stroke("plus", "M12,5V19M5,12H19", width = 2.4f) }
+    val Trash by lazy { stroke("trash", "M4,7H20", "M9,7V4.5H15V7", "M6.5,7L7.5,20H16.5L17.5,7", "M10,11V16.5", "M14,11V16.5") }
     val PlusCircle by lazy { stroke("plus_circle", CIRCLE9, "M12,8.5V15.5M8.5,12H15.5") }
     val Ticket by lazy { stroke("ticket", "M3,7.5V9.5a2.5,2.5 0 0,1 0,5V16.5a1,1 0 0,0 1,1H20a1,1 0 0,0 1,-1V14.5a2.5,2.5 0 0,1 0,-5V7.5a1,1 0 0,0 -1,-1H4a1,1 0 0,0 -1,1Z", "M15,6.5V8M15,11V13M15,16V17.5") }
     val User by lazy { stroke("user", "M16,8a4,4 0 1,1 -8,0a4,4 0 1,1 8,0z", "M4.5,20.5c0,-4 3.4,-6.5 7.5,-6.5s7.5,2.5 7.5,6.5") }

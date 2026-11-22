@@ -165,14 +165,7 @@ fun TribeScreen(nav: AppNav) {
             PageHeader("Tribe", counts, { if (nav.requireSignIn()) nav.to(Routes.INBOX) }, { if (nav.requireSignIn()) nav.to(Routes.ACTIVITY) })
         }
         item(key = "stories", contentType = "stories") {
-            LazyRow(contentPadding = PaddingValues(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 2.dp)) {
-                item(key = "mine") {
-                    StoryRailItem(me?.user, "Your story", 1, 0, mine = true) { if (nav.requirePhone()) nav.to(Routes.compose(PostKind.STORY)) }
-                }
-                items(stories, key = { it.user.id }) { a ->
-                    StoryRailItem(a.user, a.user.firstName, a.posts.size, a.seen) { nav.to(Routes.story(a.firstUnseenId)) }
-                }
-            }
+            com.unsolo.app.ui.status.StatusRail(nav, Modifier.padding(bottom = 2.dp))
         }
         item(key = "filters", contentType = "filters") {
             TextTabs(Filters, filter, { vm.filter.value = it }, Modifier.padding(top = 8.dp, bottom = 4.dp))

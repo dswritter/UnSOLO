@@ -66,6 +66,8 @@ import java.time.ZoneOffset
 
 /** Kinds offered by the centre + tab. "poll" is an ask that opens with the poll on. */
 const val KIND_POLL = "poll"
+/** The Post sheet's "Story": a 24-hour status, not a post. */
+const val KIND_STATUS = "status"
 
 @Composable
 fun PostTypeSheet(onDismiss: () -> Unit, onPick: (String) -> Unit, onHosting: () -> Unit) {
@@ -74,8 +76,12 @@ fun PostTypeSheet(onDismiss: () -> Unit, onPick: (String) -> Unit, onHosting: ()
         SheetTitle("What are you sharing?", "Everything goes to Tribe.")
         Column(Modifier.padding(horizontal = Gutter), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                KindTile(PcIcons.Camera, "Story", "Gone in 24 hours, kept in your archive", Modifier.weight(1f)) { onPick(KIND_STATUS) }
                 KindTile(PcIcons.UsersThree, "Plan", "Find people for a trip you're planning", Modifier.weight(1f)) { onPick(PostKind.PLAN) }
-                KindTile(PcIcons.Camera, "Story", "Photos from a trip, stays on your profile", Modifier.weight(1f)) { onPick(PostKind.STORY) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                KindTile(PcIcons.Image, "Trip post", "Photos from a trip, stays on your profile", Modifier.weight(1f)) { onPick(PostKind.STORY) }
+                Spacer(Modifier.weight(1f))
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 KindTile(PcIcons.Question, "Question", "Ask travellers and hosts", Modifier.weight(1f)) { onPick(PostKind.ASK) }
