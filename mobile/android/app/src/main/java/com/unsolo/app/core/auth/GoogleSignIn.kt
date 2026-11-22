@@ -58,6 +58,7 @@ class GoogleSignIn(private val webClientId: String) {
         } catch (e: GetCredentialCancellationException) {
             GoogleResult.Cancelled
         } catch (e: GetCredentialException) {
+            android.util.Log.w("UnsoloGoogle", "Credential Manager: ${e.type}: ${e.message}")
             GoogleResult.Unavailable(e.type)
         } catch (e: Exception) {
             GoogleResult.Unavailable(e.javaClass.simpleName)

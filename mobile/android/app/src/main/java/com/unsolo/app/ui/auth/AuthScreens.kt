@@ -68,6 +68,13 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
         else -> run({ g.account.verifyEmailCode(email, code) }, done)
     }
 
+    private var lastEmailTry = ""
+    /** Typing, pasting or a keyboard suggestion that completes the 6 digits signs in straight away. */
+    fun onEmailCode(v: String, done: () -> Unit) {
+        code = v.filter(Char::isDigit).take(6)
+        if (code.length == 6 && code != lastEmailTry && !busy) { lastEmailTry = code; submitEmail(done) }
+    }
+
     // ---- Phone sign-in: POST /api/v1/auth/phone/start → challenge, then /verify with challenge + code ----
     val phoneFlow = com.unsolo.app.core.auth.PhoneSignInFlow()
     var phoneSent by mutableStateOf(false)
@@ -86,6 +93,7 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
                     phoneSent = true
                     val dev = r.value.devCode?.takeIf { com.unsolo.app.BuildConfig.DEBUG }
                     code = dev ?: ""
+                    lastTried = ""
                     info = "We sent a $SMS_OTP_LENGTH-digit code to +91 $digits." + (dev?.let { " Test code: $it (debug build)." } ?: "")
                 }
                 is ApiResult.Err -> {
@@ -114,7 +122,24 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
         }
     }
 
-    fun changeNumber() { phoneFlow.reset(); phoneSent = false; code = ""; info = null; error = null }
+    /** The code last sent for checking, so a wrong code isn't re-sent until it's edited. */
+    private var lastTried = ""
+
+    /** Any way the code gets complete (SMS consent, keyboard suggestion, paste, typing) signs in at once. */
+    fun onPhoneCode(v: String, done: () -> Unit) {
+        code = SmsOtp.filter(v)
+        if (SmsOtp.isValid(code) && code != lastTried && !busy) { lastTried = code; verifyPhone(done) }
+    }
+
+    /** A number picked from the SIM hint sends the code at once: one tap instead of typing and a button. */
+    fun onPhoneHint(raw: String) {
+        val digits = raw.filter(Char::isDigit).takeLast(10)
+        if (digits.length != 10) return
+        phone = digits
+        if (phoneOk && !phoneSent) startPhone()
+    }
+
+    fun changeNumber() { lastTried = ""; phoneFlow.reset(); phoneSent = false; code = ""; info = null; error = null }
 
     fun forgot() = run({ g.account.recover(email) }) { info = "If that email has an account, a reset link is on its way." }
     fun demo(done: () -> Unit) = run({ g.account.signInDemo() }, done)
@@ -215,7 +240,7 @@ fun AuthScreen(nav: AppNav) {
                     } else if (vm.codeSent) {
                         Spacer(Modifier.height(12.dp))
                         Label("6-digit code")
-                        BoxedInput(vm.code, { vm.code = it.filter(Char::isDigit).take(6) }, "••••••", keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
+                        BoxedInput(vm.code, { vm.onEmailCode(it, done) }, "••••••", keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
                     }
                     Messages(vm)
                     Spacer(Modifier.height(16.dp))
@@ -224,6 +249,7 @@ fun AuthScreen(nav: AppNav) {
                     PcButton(label, { vm.submitEmail(done) }, Modifier.fillMaxWidth(), enabled = ok && !vm.busy)
                 }
                 "phone" -> {
+                    PhoneNumberHint(enabled = !vm.phoneSent && vm.phone.isEmpty()) { vm.onPhoneHint(it) }
                     Label("Mobile number")
                     if (!vm.phoneSent) Row {
                         Text("+91", style = Pc.type.num, color = c.ink, modifier = Modifier.padding(top = 14.dp, end = 10.dp))
@@ -236,15 +262,15 @@ fun AuthScreen(nav: AppNav) {
                         LaunchedEffect(vm.phoneFlow.challenge) { while (true) { vm.nowMs = System.currentTimeMillis(); kotlinx.coroutines.delay(1000) } }
                         Spacer(Modifier.height(12.dp))
                         Label("$SMS_OTP_LENGTH-digit code")
-                        SmsCodeAutofill(active = true, restartKey = vm.phoneFlow.challenge) { vm.code = it; vm.verifyPhone(done) }
-                        BoxedInput(vm.code, { vm.code = SmsOtp.filter(it) }, "4-digit code", Modifier.smsOtpContentType(), keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
+                        SmsCodeAutofill(active = true, restartKey = vm.phoneFlow.challenge) { vm.onPhoneCode(it, done) }
+                        BoxedInput(vm.code, { vm.onPhoneCode(it, done) }, "4-digit code", Modifier.smsOtpContentType(), keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
                         val wait = vm.phoneFlow.resendInSec(vm.nowMs)
                         if (wait > 0) Text("Resend code in 0:%02d".format(wait), style = Pc.type.small, color = c.ink3, modifier = Modifier.padding(top = 10.dp))
                         else LinkText("Resend code", { vm.startPhone() }, style = Pc.type.smallStrong)
                     }
                     Messages(vm)
                     Spacer(Modifier.height(16.dp))
-                    PcButton(if (vm.phoneSent) "Verify" else "Send code", { if (vm.phoneSent) vm.verifyPhone(done) else vm.startPhone() }, Modifier.fillMaxWidth(),
+                    PcButton(when { vm.busy && vm.phoneSent -> "Signing you in…"; vm.busy -> "Sending code…"; vm.phoneSent -> "Verify"; else -> "Send code" }, { if (vm.phoneSent) vm.verifyPhone(done) else vm.startPhone() }, Modifier.fillMaxWidth(),
                         kind = BtnKind.Accent, enabled = !vm.busy && (if (vm.phoneSent) SmsOtp.isValid(vm.code) else vm.phoneOk))
                     Spacer(Modifier.height(8.dp))
                     Text("Phone sign-in also verifies your number, which you need to post and join plans.", style = Pc.type.small, color = c.ink2)
@@ -296,6 +322,12 @@ class PhoneViewModel(private val g: AppGraph) : ViewModel() {
         busy = false
     } }
 
+    private var lastTried = ""
+    fun onCode(v: String, done: () -> Unit) {
+        code = SmsOtp.filter(v)
+        if (SmsOtp.isValid(code) && code != lastTried && !busy) { lastTried = code; verify(done) }
+    }
+
     fun verify(done: () -> Unit) { if (busy || !SmsOtp.isValid(code)) return; busy = true; error = null; viewModelScope.launch {
         when (val r = g.account.verifyPhone(e164, code)) {
             is ApiResult.Ok -> if (r.value.verified) done() else error = "That code didn't match."
@@ -324,8 +356,8 @@ fun PhoneVerifyScreen(nav: AppNav) {
             }
             if (vm.sent) {
                 Spacer(Modifier.height(12.dp))
-                SmsCodeAutofill(active = true, restartKey = vm.sendCount) { vm.code = it; vm.verify { nav.back() } }
-                BoxedInput(vm.code, { vm.code = SmsOtp.filter(it) }, "4-digit code", Modifier.smsOtpContentType(), keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
+                SmsCodeAutofill(active = true, restartKey = vm.sendCount) { vm.onCode(it) { nav.back() } }
+                BoxedInput(vm.code, { vm.onCode(it) { nav.back() } }, "4-digit code", Modifier.smsOtpContentType(), keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
                 vm.devCode?.let { Text("Development code: $it (no SMS provider configured)", style = Pc.type.small, color = c.goldInk, modifier = Modifier.padding(top = 6.dp)) }
             }
             vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, modifier = Modifier.padding(top = 10.dp)) }

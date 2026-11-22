@@ -22,7 +22,7 @@ import com.unsolo.app.core.demo.DemoMode
 /**
  * Auto-fills the SMS code using the Google Play services SMS User Consent API: no READ_SMS permission
  * and no app hash (the DLT template text is fixed). While [active], it listens for one incoming SMS;
- * the user taps Allow, and [onCode] gets the 4-digit code. Change [restartKey] (e.g. the challenge, or a
+ * the user taps Allow, and [onCode] gets the 4-digit code (callers sign in with it straight away). Change [restartKey] (e.g. the challenge, or a
  * resend counter) to listen again: the listener times out after 5 minutes.
  *
  * Degrades quietly: demo mode, no Play services or a declined consent dialog leave manual entry working.
@@ -32,9 +32,9 @@ fun SmsCodeAutofill(active: Boolean, restartKey: Any?, onCode: (String) -> Unit)
     val ctx = LocalContext.current
     val onCodeNow by rememberUpdatedState(onCode)
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-        if (res.resultCode == Activity.RESULT_OK) {
-            SmsOtp.extract(res.data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE))?.let { onCodeNow(it) }
-        }
+        val code = if (res.resultCode == Activity.RESULT_OK) SmsOtp.extract(res.data?.getStringExtra(SmsRetriever.EXTRA_SMS_MESSAGE)) else null
+        android.util.Log.i("UnsoloSms", "consent result=${res.resultCode} code=${if (code != null) "found" else "none"}")
+        code?.let { onCodeNow(it) }
     }
     val launcherNow by rememberUpdatedState(launcher)
     DisposableEffect(active, restartKey) {

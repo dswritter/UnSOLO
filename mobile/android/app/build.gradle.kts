@@ -149,6 +149,7 @@ dependencies {
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play)
     implementation(libs.googleid)
+    implementation(libs.play.services.auth) // Phone Number Hint
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
