@@ -26,6 +26,13 @@ import com.unsolo.app.core.net.userMessage
 import com.unsolo.app.ui.components.*
 import com.unsolo.app.ui.nav.AppNav
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloat
 import com.unsolo.app.ui.theme.PcTokens
 import com.unsolo.app.ui.theme.Pc
 import com.unsolo.app.ui.theme.PcIcons
@@ -43,6 +50,12 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
     var busy by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     var info by mutableStateOf<String?>(null)
+    /** Which button is working ("google", "phone", "email"), so only that one shows a spinner. */
+    var pending by mutableStateOf<String?>(null)
+    /** Signed in: the screen shows a short check before closing. */
+    var success by mutableStateOf(false)
+    /** Bumped on a wrong code so the boxes shake. */
+    var shake by mutableIntStateOf(0)
 
     val e164: String get() = "+91" + phone.filter { it.isDigit() }.takeLast(10)
     val emailOk get() = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(email.trim())
@@ -54,7 +67,7 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
         viewModelScope.launch {
             when (val r = block()) {
                 is ApiResult.Ok -> onOk()
-                is ApiResult.Err -> error = r.message ?: r.userMessage()
+                is ApiResult.Err -> { error = r.message ?: r.userMessage(); if (codeSent && r.status in 400..499) { code = ""; lastEmailTry = ""; shake++ } }
                 ApiResult.Offline -> error = "You're offline. Check your connection."
             }
             busy = false
@@ -115,7 +128,7 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
             when (val r = g.account.verifyPhoneSignIn(challenge, digits)) {
                 // is_new: there is no first-run (name) step in the app yet; new and returning users both land back where they were.
                 is ApiResult.Ok -> done()
-                is ApiResult.Err -> error = r.message ?: r.userMessage()
+                is ApiResult.Err -> { error = r.message ?: r.userMessage(); if (r.status in 400..499) { code = ""; lastTried = ""; shake++ } }
                 ApiResult.Offline -> error = "You're offline. Check your connection."
             }
             busy = false
@@ -176,105 +189,268 @@ class AuthViewModel(private val g: AppGraph) : ViewModel() {
 fun AuthScreen(nav: AppNav) {
     val vm: AuthViewModel = viewModel { AuthViewModel(nav.graph) }
     val c = Pc.colors
-    val done = { nav.back() }
+    // Signed in: show the check for a beat, then go back to where the person was.
+    val done: () -> Unit = { vm.success = true }
+    LaunchedEffect(vm.success) { if (vm.success) { kotlinx.coroutines.delay(650); nav.back() } }
     val oauth by nav.graph.oauthResult.collectAsStateWithLifecycle()
     LaunchedEffect(oauth) {
         when (val r = oauth) {
             is ApiResult.Ok -> { nav.graph.oauthResult.value = null; done() }
-            is ApiResult.Err -> { vm.error = r.message ?: r.userMessage(); vm.busy = false; nav.graph.oauthResult.value = null }
+            is ApiResult.Err -> { vm.error = r.message ?: r.userMessage(); vm.busy = false; vm.pending = null; nav.graph.oauthResult.value = null }
             else -> Unit
         }
     }
-    Column(Modifier.fillMaxSize().background(c.paper)) {
-        DetailTopBar(when (vm.step) { "email" -> "Continue with email"; "phone" -> "Continue with phone"; else -> null }, headerActions = false, onBack = {
-            if (vm.step == "welcome") nav.back() else { vm.step = "welcome"; vm.codeSent = false; vm.changeNumber(); vm.code = ""; vm.error = null; vm.info = null }
-        })
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 16.dp)) {
-            when (vm.step) {
-                "welcome" -> {
-                    Wordmark()
-                    Spacer(Modifier.height(20.dp))
-                    Text("Meet your people before you go.", style = Pc.type.display, color = c.ink)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Browse trips and the Tribe freely. An account lets you grab a spot, post and join plans.", style = Pc.type.body, color = c.ink2)
-                    Spacer(Modifier.height(20.dp))
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        // Three travellers in, your gold seat drawing in, the rest open: take your place.
-                        SeatRing(total = 8, taken = 3, size = 144.dp, you = YouSeat.You,
-                            people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
-                            spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
-                    }
-                    Spacer(Modifier.height(28.dp))
-                    val activity = androidx.compose.ui.platform.LocalContext.current
-                    PcButton("Continue with Google", { vm.google(activity, { nav.openAuthUrl(it) }, done) }, Modifier.fillMaxWidth(), enabled = !vm.busy,
-                        leading = { androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.unsolo.app.R.drawable.ic_google), null, Modifier.size(20.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.White).padding(2.dp)) })
-                    Spacer(Modifier.height(10.dp))
-                    PcButton("Continue with phone number", { vm.step = "phone" }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, icon = PcIcons.Phone)
-                    Spacer(Modifier.height(10.dp))
-                    PcButton("Continue with email", { vm.step = "email" }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, icon = PcIcons.Mail)
-                    Messages(vm)
-                    if (DemoMode.enabled) {
-                        Spacer(Modifier.height(10.dp))
-                        PcButton("Use the demo traveller", { vm.demo(done) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, dashed = true, enabled = !vm.busy)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    PcButton("Keep browsing as a guest", done, Modifier.fillMaxWidth(), kind = BtnKind.Ghost)
-                    Spacer(Modifier.height(12.dp))
-                    Text("By continuing you agree to the Terms and the Refund policy. You must be 18 or older.", style = Pc.type.small, color = c.ink2)
+    val backToWelcome = { vm.step = "welcome"; vm.codeSent = false; vm.changeNumber(); vm.code = ""; vm.error = null; vm.info = null }
+    androidx.activity.compose.BackHandler(enabled = vm.step != "welcome" && !vm.success) { backToWelcome() }
+
+    val reduce = Pc.reduceMotion
+    Box(Modifier.fillMaxSize().background(c.paper)) {
+        Column(Modifier.fillMaxSize()) {
+            DetailTopBar(null, headerActions = false, onBack = { if (vm.step == "welcome") nav.back() else backToWelcome() })
+            androidx.compose.animation.AnimatedContent(
+                targetState = vm.step, label = "auth-step", modifier = Modifier.weight(1f),
+                transitionSpec = {
+                    val fwd = targetState != "welcome"
+                    val d = if (reduce) 0 else PcTokens.motionStandard
+                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(d)) { w -> if (fwd) w / 5 else -w / 5 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(d))) togetherWith
+                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(d)) { w -> if (fwd) -w / 5 else w / 5 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(d / 2)))
+                },
+            ) { step ->
+                when (step) {
+                    "phone" -> PhoneStep(vm, done)
+                    "email" -> EmailStep(vm, done)
+                    else -> WelcomeStep(vm, nav, done)
                 }
-                "email" -> {
-                    Segmented(listOf("password" to "Password", "code" to "Email code"), vm.emailMode, { vm.emailMode = it; vm.codeSent = false; vm.error = null }, Modifier.requiredWidth(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp))
-                    Spacer(Modifier.height(16.dp))
-                    Label("Email")
-                    BoxedInput(vm.email, { vm.email = it.take(120) }, "you@example.com", keyboardType = KeyboardType.Email)
-                    if (vm.emailMode == "password") {
-                        Spacer(Modifier.height(12.dp))
-                        Label("Password")
-                        PasswordInput(vm.password) { vm.password = it.take(72) }
-                        Spacer(Modifier.height(8.dp))
-                        Row {
-                            LinkText(if (vm.createAccount) "I have an account" else "Create an account", { vm.createAccount = !vm.createAccount }, style = Pc.type.smallStrong)
-                            Spacer(Modifier.weight(1f))
-                            if (!vm.createAccount) LinkText("Forgot password?", { vm.forgot() }, style = Pc.type.smallStrong)
+            }
+        }
+        SignedInOverlay(vm.success)
+    }
+}
+
+/** Centred column that scrolls when the keyboard leaves too little room. */
+@Composable
+private fun CenteredStep(content: @Composable ColumnScope.() -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize().imePadding()) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(min = maxHeight).verticalScroll(rememberScrollState()).padding(horizontal = Gutter, vertical = 16.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally, content = content,
+        )
+    }
+}
+
+@Composable
+private fun StepTitle(title: String, sub: (@Composable () -> Unit)? = null) {
+    Text(title, style = Pc.type.display, color = Pc.colors.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    if (sub != null) { Spacer(Modifier.height(8.dp)); sub() }
+    Spacer(Modifier.height(28.dp))
+}
+
+@Composable
+private fun WelcomeStep(vm: AuthViewModel, nav: AppNav, done: () -> Unit) {
+    val c = Pc.colors
+    val activity = androidx.compose.ui.platform.LocalContext.current
+    CenteredStep {
+        Wordmark()
+        Spacer(Modifier.height(18.dp))
+        Text("Meet your people\nbefore you go.", style = Pc.type.display, color = c.ink, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(24.dp))
+        // Three travellers in, your gold seat drawing in, the rest open: take your place.
+        SeatRing(total = 8, taken = 3, size = 136.dp, you = YouSeat.You,
+            people = listOf(UserLite("h", name = "Tent It"), UserLite("a", name = "Ananya Singh"), UserLite("r", name = "Rohan Mehra")),
+            spotsLabel = true, contentDescription = "A circle of 8 spots: 3 taken, yours, and 4 open")
+        Spacer(Modifier.height(32.dp))
+        PcButton("Continue with Google", { vm.pending = "google"; vm.google(activity, { nav.openAuthUrl(it) }, done) }, Modifier.fillMaxWidth(),
+            enabled = !vm.busy || vm.pending == "google", loading = vm.busy && vm.pending == "google",
+            leading = { androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(com.unsolo.app.R.drawable.ic_google), null, Modifier.size(20.dp).clip(androidx.compose.foundation.shape.CircleShape).background(androidx.compose.ui.graphics.Color.White).padding(2.dp)) })
+        Spacer(Modifier.height(10.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PcButton("Phone", { vm.error = null; vm.step = "phone" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Phone, enabled = !vm.busy)
+            PcButton("Email", { vm.error = null; vm.step = "email" }, Modifier.weight(1f), kind = BtnKind.Outline, icon = PcIcons.Mail, enabled = !vm.busy)
+        }
+        vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 12.dp)) }
+        if (DemoMode.enabled) {
+            Spacer(Modifier.height(10.dp))
+            PcButton("Use the demo traveller", { vm.demo(done) }, Modifier.fillMaxWidth(), kind = BtnKind.Outline, dashed = true, enabled = !vm.busy)
+        }
+        Spacer(Modifier.height(6.dp))
+        PcButton("Not now", { nav.back() }, kind = BtnKind.Ghost)
+        Spacer(Modifier.height(8.dp))
+        Text("By continuing you agree to the Terms and Refund policy. 18+ only.", style = Pc.type.small, color = c.ink3, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    }
+}
+
+@Composable
+private fun PhoneStep(vm: AuthViewModel, done: () -> Unit) {
+    val c = Pc.colors
+    val reduce = Pc.reduceMotion
+    PhoneNumberHint(enabled = !vm.phoneSent && vm.phone.isEmpty()) { vm.pending = "phone"; vm.onPhoneHint(it) }
+    CenteredStep {
+        androidx.compose.animation.AnimatedContent(vm.phoneSent, label = "phone-sent", transitionSpec = {
+            val d = if (reduce) 0 else PcTokens.motionStandard
+            (androidx.compose.animation.slideInVertically(androidx.compose.animation.core.tween(d)) { it / 6 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(d))) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(d / 2))
+        }) { sent ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                if (!sent) {
+                    StepTitle("Your mobile number") { Text("We'll text you a $SMS_OTP_LENGTH-digit code.", style = Pc.type.body, color = c.ink2) }
+                    PhoneField(vm.phone, { vm.phone = it.filter(Char::isDigit).take(10); vm.error = null }, onDone = { if (vm.phoneOk) { vm.pending = "phone"; vm.startPhone() } })
+                    Spacer(Modifier.height(20.dp))
+                    PcButton("Send code", { vm.pending = "phone"; vm.startPhone() }, Modifier.fillMaxWidth(), kind = BtnKind.Accent,
+                        enabled = vm.phoneOk, loading = vm.busy)
+                } else {
+                    StepTitle("Enter the code") {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Sent to +91 ${vm.phoneFlow.phone}", style = Pc.type.body, color = c.ink2)
+                            LinkText("  Edit", { vm.changeNumber() }, style = Pc.type.body)
                         }
-                    } else if (vm.codeSent) {
-                        Spacer(Modifier.height(12.dp))
-                        Label("6-digit code")
-                        BoxedInput(vm.code, { vm.onEmailCode(it, done) }, "••••••", keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
                     }
-                    Messages(vm)
-                    Spacer(Modifier.height(16.dp))
-                    val label = when { vm.emailMode == "password" && vm.createAccount -> "Create account"; vm.emailMode == "password" -> "Sign in"; !vm.codeSent -> "Send code"; else -> "Verify" }
-                    val ok = vm.emailOk && when { vm.emailMode == "password" -> vm.password.length >= 6; vm.codeSent -> vm.code.length == 6; else -> true }
-                    PcButton(label, { vm.submitEmail(done) }, Modifier.fillMaxWidth(), enabled = ok && !vm.busy)
+                    LaunchedEffect(vm.phoneFlow.challenge) { while (true) { vm.nowMs = System.currentTimeMillis(); kotlinx.coroutines.delay(1000) } }
+                    SmsCodeAutofill(active = true, restartKey = vm.phoneFlow.challenge) { vm.onPhoneCode(it, done) }
+                    OtpBoxes(vm.code, SMS_OTP_LENGTH, { vm.onPhoneCode(it, done) }, error = vm.error != null, shakeKey = vm.shake, enabled = !vm.busy)
+                    Spacer(Modifier.height(22.dp))
+                    CodeStatus(vm, resendIn = vm.phoneFlow.resendInSec(vm.nowMs).toInt(), onResend = { vm.startPhone() })
                 }
-                "phone" -> {
-                    PhoneNumberHint(enabled = !vm.phoneSent && vm.phone.isEmpty()) { vm.onPhoneHint(it) }
-                    Label("Mobile number")
-                    if (!vm.phoneSent) Row {
-                        Text("+91", style = Pc.type.num, color = c.ink, modifier = Modifier.padding(top = 14.dp, end = 10.dp))
-                        BoxedInput(vm.phone, { vm.phone = it.filter(Char::isDigit).take(10) }, "98XXXXXXXX", Modifier.weight(1f), keyboardType = KeyboardType.Phone, style = Pc.type.num)
-                    } else Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("+91 ${vm.phoneFlow.phone}", style = Pc.type.num, color = c.ink, modifier = Modifier.weight(1f))
-                        LinkText("Change number", { vm.changeNumber() }, style = Pc.type.smallStrong)
-                    }
-                    if (vm.phoneSent) {
-                        LaunchedEffect(vm.phoneFlow.challenge) { while (true) { vm.nowMs = System.currentTimeMillis(); kotlinx.coroutines.delay(1000) } }
-                        Spacer(Modifier.height(12.dp))
-                        Label("$SMS_OTP_LENGTH-digit code")
-                        SmsCodeAutofill(active = true, restartKey = vm.phoneFlow.challenge) { vm.onPhoneCode(it, done) }
-                        BoxedInput(vm.code, { vm.onPhoneCode(it, done) }, "4-digit code", Modifier.smsOtpContentType(), keyboardType = KeyboardType.NumberPassword, style = Pc.type.numLarge)
-                        val wait = vm.phoneFlow.resendInSec(vm.nowMs)
-                        if (wait > 0) Text("Resend code in 0:%02d".format(wait), style = Pc.type.small, color = c.ink3, modifier = Modifier.padding(top = 10.dp))
-                        else LinkText("Resend code", { vm.startPhone() }, style = Pc.type.smallStrong)
-                    }
-                    Messages(vm)
-                    Spacer(Modifier.height(16.dp))
-                    PcButton(when { vm.busy && vm.phoneSent -> "Signing you in…"; vm.busy -> "Sending code…"; vm.phoneSent -> "Verify"; else -> "Send code" }, { if (vm.phoneSent) vm.verifyPhone(done) else vm.startPhone() }, Modifier.fillMaxWidth(),
-                        kind = BtnKind.Accent, enabled = !vm.busy && (if (vm.phoneSent) SmsOtp.isValid(vm.code) else vm.phoneOk))
-                    Spacer(Modifier.height(8.dp))
-                    Text("Phone sign-in also verifies your number, which you need to post and join plans.", style = Pc.type.small, color = c.ink2)
+                if (!sent) vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 12.dp)) }
+            }
+        }
+    }
+}
+
+/** Under the code boxes, one line at a time: signing in, the error, or resend. */
+@Composable
+private fun CodeStatus(vm: AuthViewModel, resendIn: Int, onResend: (() -> Unit)?) {
+    val c = Pc.colors
+    val state = when { vm.busy || vm.success -> "busy"; vm.error != null -> "error"; else -> "idle" }
+    androidx.compose.animation.AnimatedContent(state, label = "code-status", modifier = Modifier.heightIn(min = 44.dp),
+        transitionSpec = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(PcTokens.motionFast)) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(PcTokens.motionFast)) }) { s ->
+        when (s) {
+            "busy" -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 44.dp)) {
+                androidx.compose.material3.CircularProgressIndicator(Modifier.size(16.dp), color = c.pine, strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp)); Text("Signing you in", style = Pc.type.bodyStrong, color = c.ink)
+            }
+            "error" -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(vm.error ?: "", style = Pc.type.smallStrong, color = c.red, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                if (onResend != null && resendIn <= 0) LinkText("Send a new code", onResend, style = Pc.type.smallStrong)
+            }
+            else -> if (onResend == null) Spacer(Modifier.height(44.dp))
+                else if (resendIn > 0) Text("Resend in 0:%02d".format(resendIn), style = Pc.type.small, color = c.ink3, modifier = Modifier.padding(top = 12.dp))
+                else LinkText("Resend code", onResend, style = Pc.type.smallStrong)
+        }
+    }
+}
+
+@Composable
+private fun EmailStep(vm: AuthViewModel, done: () -> Unit) {
+    val c = Pc.colors
+    CenteredStep {
+        if (vm.emailMode == "code" && vm.codeSent) {
+            StepTitle("Check your email") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(vm.email.trim(), style = Pc.type.body, color = c.ink2, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    LinkText("  Edit", { vm.codeSent = false; vm.code = ""; vm.error = null }, style = Pc.type.body)
                 }
+            }
+            OtpBoxes(vm.code, 6, { vm.onEmailCode(it, done) }, error = vm.error != null, shakeKey = vm.shake, enabled = !vm.busy)
+            Spacer(Modifier.height(22.dp))
+            CodeStatus(vm, resendIn = 0, onResend = null)
+            return@CenteredStep
+        }
+        StepTitle(if (vm.emailMode == "password" && vm.createAccount) "Create your account" else "Sign in with email")
+        Segmented(listOf("password" to "Password", "code" to "Email me a code"), vm.emailMode, { vm.emailMode = it; vm.codeSent = false; vm.error = null }, Modifier.fillMaxWidth())
+        Spacer(Modifier.height(16.dp))
+        BoxedInput(vm.email, { vm.email = it.take(120) }, "you@example.com", keyboardType = KeyboardType.Email, leadingIcon = PcIcons.Mail)
+        if (vm.emailMode == "password") {
+            Spacer(Modifier.height(10.dp))
+            PasswordInput(vm.password) { vm.password = it.take(72) }
+            Row(Modifier.fillMaxWidth()) {
+                LinkText(if (vm.createAccount) "I have an account" else "Create an account", { vm.createAccount = !vm.createAccount }, style = Pc.type.smallStrong)
+                Spacer(Modifier.weight(1f))
+                if (!vm.createAccount) LinkText("Forgot password?", { vm.forgot() }, style = Pc.type.smallStrong)
+            }
+        } else Spacer(Modifier.height(12.dp))
+        vm.info?.takeIf { vm.emailMode == "password" }?.let { Text(it, style = Pc.type.small, color = c.ink2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp)) }
+        vm.error?.let { Text(it, style = Pc.type.smallStrong, color = c.red, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp)) }
+        Spacer(Modifier.height(8.dp))
+        val label = when { vm.emailMode == "password" && vm.createAccount -> "Create account"; vm.emailMode == "password" -> "Sign in"; else -> "Send code" }
+        val ok = vm.emailOk && (vm.emailMode != "password" || vm.password.length >= 6)
+        PcButton(label, { vm.pending = "email"; vm.submitEmail(done) }, Modifier.fillMaxWidth(), enabled = ok, loading = vm.busy)
+    }
+}
+
+/** +91 and a large number field, keyboard up on arrival. */
+@Composable
+private fun PhoneField(value: String, onValue: (String) -> Unit, onDone: () -> Unit) {
+    val c = Pc.colors
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(250); runCatching { focus.requestFocus() } }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+    Row(Modifier.fillMaxWidth().height(64.dp).clip(shape).background(c.raised).border(1.5.dp, c.ink, shape).padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("+91", style = Pc.type.numLarge, color = c.ink2)
+        Box(Modifier.padding(horizontal = 14.dp).width(1.dp).height(28.dp).background(c.rule))
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (value.isEmpty()) Text("98765 43210", style = Pc.type.numLarge, color = c.ink3)
+            androidx.compose.foundation.text.BasicTextField(value, onValue, singleLine = true, textStyle = Pc.type.numLarge.copy(color = c.ink),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onDone() }),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(c.ink), modifier = Modifier.fillMaxWidth().focusRequester(focus))
+        }
+    }
+}
+
+/**
+ * One box per digit over a single hidden field (so paste, keyboard suggestions and autofill all work).
+ * Digits pop in, the next box carries the caret, and [shakeKey] changing shakes the row.
+ */
+@Composable
+private fun OtpBoxes(value: String, length: Int, onValue: (String) -> Unit, error: Boolean, shakeKey: Int, enabled: Boolean) {
+    val c = Pc.colors
+    val reduce = Pc.reduceMotion
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(250); runCatching { focus.requestFocus() } }
+    val shake = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(shakeKey) {
+        if (shakeKey > 0 && !reduce) for (x in listOf(14f, -11f, 8f, -5f, 2f, 0f)) shake.animateTo(x, androidx.compose.animation.core.tween(45))
+    }
+    val caret = androidx.compose.animation.core.rememberInfiniteTransition(label = "caret")
+    val caretAlpha by caret.animateFloat(1f, 0f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(520), androidx.compose.animation.core.RepeatMode.Reverse), label = "caret-a")
+    val boxW = if (length <= 4) 60.dp else 46.dp
+    androidx.compose.foundation.text.BasicTextField(
+        value, { onValue(it.filter(Char::isDigit).take(length)) }, enabled = enabled, singleLine = true,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+        modifier = Modifier.focusRequester(focus).smsOtpContentType(),
+        decorationBox = { _ ->
+            Row(Modifier.offset { androidx.compose.ui.unit.IntOffset(shake.value.dp.roundToPx(), 0) }, horizontalArrangement = Arrangement.spacedBy(if (length <= 4) 12.dp else 8.dp)) {
+                repeat(length) { i ->
+                    val ch = value.getOrNull(i)
+                    val active = enabled && i == value.length
+                    val shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+                    val border by androidx.compose.animation.animateColorAsState(when { error -> c.red; active -> c.ink; ch != null -> c.ink2; else -> c.rule }, label = "otp-b")
+                    Box(Modifier.size(boxW, 64.dp).clip(shape).background(if (ch != null) c.raised else c.tonal).border(if (active || error) 2.dp else 1.dp, border, shape), contentAlignment = Alignment.Center) {
+                        androidx.compose.animation.AnimatedContent(ch, label = "otp-d", transitionSpec = {
+                            (androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(0.55f, 700f), initialScale = if (reduce) 1f else 0.4f) + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(90))) togetherWith androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(60))
+                        }) { d -> if (d != null) Text(d.toString(), style = Pc.type.numLarge.copy(fontSize = 26.sp), color = c.ink) }
+                        if (active && ch == null) Box(Modifier.width(2.dp).height(26.dp).graphicsLayer { alpha = if (reduce) 1f else caretAlpha }.background(c.ink))
+                    }
+                }
+            }
+        },
+    )
+}
+
+/** "You're in": a check that pops in over the screen just before it closes. */
+@Composable
+private fun SignedInOverlay(show: Boolean) {
+    val c = Pc.colors
+    androidx.compose.animation.AnimatedVisibility(show, enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(160)), exit = androidx.compose.animation.fadeOut()) {
+        Box(Modifier.fillMaxSize().background(c.paper.copy(alpha = 0.96f)).clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
+            val reduce = Pc.reduceMotion
+            val s = remember { androidx.compose.animation.core.Animatable(if (reduce) 1f else 0.3f) }
+            LaunchedEffect(Unit) { s.animateTo(1f, androidx.compose.animation.core.spring(0.5f, 500f)) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(76.dp).graphicsLayer { scaleX = s.value; scaleY = s.value }.clip(androidx.compose.foundation.shape.CircleShape).background(c.pine), contentAlignment = Alignment.Center) {
+                    PcIcon(PcIcons.Check, null, tint = c.onPine, size = 36.dp)
+                }
+                Spacer(Modifier.height(16.dp))
+                Text("You're in", style = Pc.type.title1, color = c.ink)
             }
         }
     }

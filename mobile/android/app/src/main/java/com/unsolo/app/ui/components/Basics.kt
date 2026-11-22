@@ -232,6 +232,8 @@ fun PcButton(
     height: Dp = PcTokens.buttonTall,
     dashed: Boolean = false,
     leading: (@Composable () -> Unit)? = null,
+    /** Shows a spinner in place of the icon and ignores taps, keeping the label so the button doesn't jump. */
+    loading: Boolean = false,
 ) {
     val c = Pc.colors
     val src = remember { MutableInteractionSource() }
@@ -259,7 +261,7 @@ fun PcButton(
     Box(
         modifier
             .defaultMinSize(minHeight = PcTokens.touch)
-            .clickable(interactionSource = src, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(interactionSource = src, indication = null, enabled = enabled && !loading, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
         propagateMinConstraints = true,
     ) {
@@ -275,7 +277,8 @@ fun PcButton(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (leading != null) { leading(); Spacer(Modifier.width(10.dp)) }
+            if (loading) { androidx.compose.material3.CircularProgressIndicator(Modifier.size(if (small) 14.dp else 18.dp), color = fg, strokeWidth = 2.dp); Spacer(Modifier.width(10.dp)) }
+            else if (leading != null) { leading(); Spacer(Modifier.width(10.dp)) }
             else if (icon != null) { PcIcon(icon, null, tint = fg, size = if (small) 14.dp else 16.dp); Spacer(Modifier.width(6.dp)) }
             Text(text, style = Pc.type.button.copy(fontSize = if (small) 13.sp else 14.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
