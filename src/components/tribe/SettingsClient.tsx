@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
-import { Bell, Compass, MapPin, Phone, ShieldCheck, Ticket, UsersRound, Wifi } from 'lucide-react'
+import { Bell, Compass, MapPin, Trash2, Phone, ShieldCheck, Ticket, UsersRound, Wifi } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api/client'
 import type { Preferences } from '@/lib/tribe/preferences'
@@ -9,6 +9,8 @@ import { INTERESTS } from '@/lib/tribe/preferences'
 import { enableWebPush, webPushSupported } from '@/lib/push/client'
 import { cn } from '@/lib/utils'
 import { PhoneVerifyForm } from '@/components/auth/PhoneVerifyForm'
+import { Sheet } from './Sheet'
+import { createClient } from '@/lib/supabase/client'
 
 type Me = { gender: string | null; homeCity: string | null; phone: string | null; isPhoneVerified: boolean; genderLocked?: boolean }
 
@@ -129,6 +131,7 @@ export function SettingsClient({ initial, me }: { initial: Preferences; me: Me }
       </Section>
 
       <PhoneSection me={me} />
+      <DeleteAccountSection />
     </div>
   )
 }
@@ -137,6 +140,38 @@ function PhoneSection({ me }: { me: Me }) {
   return (
     <Section id="phone" title="Phone verification" icon={Phone} hint="Needed to host trips, and lets you sign in with an SMS code. Your number is never shown on Tribe.">
       <PhoneVerifyForm initialPhone={me.phone ?? ''} verified={me.isPhoneVerified} />
+    </Section>
+  )
+}
+
+function DeleteAccountSection() {
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function remove() {
+    setBusy(true)
+    try {
+      await apiFetch('/me', { method: 'DELETE', body: { confirm: 'DELETE' } })
+      await createClient().auth.signOut({ scope: 'local' }).catch(() => undefined)
+      try { localStorage.clear() } catch { /* ignore */ }
+      window.location.href = '/?account=deleted'
+    } catch (e) { toast.error((e as Error).message); setBusy(false) }
+  }
+  return (
+    <Section id="delete" title="Delete account" icon={Trash2} hint="Removes your profile, posts, comments, chats and sign-in. Booking and payment records are kept without your name, as the law requires.">
+      <button type="button" className="pc-btn pc-btn-danger pc-btn-sm" onClick={() => setOpen(true)}>Delete my account</button>
+      <a href="/account/delete" className="pc-link ml-3 text-sm">What gets deleted</a>
+      <Sheet open={open} onClose={() => { if (!busy) { setOpen(false); setTyped('') } }} title="Delete your account?"
+        description="This can’t be undone. Your profile, Tribe posts, comments, chats and sign-in are deleted. Bookings and payments stay in our records without your name.">
+        <label className="mt-4 block text-sm font-semibold" htmlFor="confirm-delete">Type DELETE to confirm</label>
+        <input id="confirm-delete" className="pc-input mt-1.5" autoComplete="off" autoCapitalize="characters" value={typed} onChange={(e) => setTyped(e.target.value)} />
+        <div className="fc-sheet-actions">
+          <button type="button" className="pc-btn pc-btn-danger pc-btn-block" disabled={typed.trim() !== 'DELETE' || busy} onClick={remove}>
+            {busy ? 'Deleting…' : 'Delete my account'}
+          </button>
+          <button type="button" className="pc-btn pc-btn-quiet pc-btn-block" disabled={busy} onClick={() => { setOpen(false); setTyped('') }}>Keep my account</button>
+        </div>
+      </Sheet>
     </Section>
   )
 }

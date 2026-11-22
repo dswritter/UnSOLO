@@ -367,6 +367,13 @@ data class Visits(val explore: Int = 0, val tribe: Int = 0, val trips: Int = 0)
 @Serializable
 data class LandingSuggestion(val suggest: String? = null, val visits: Visits = Visits())
 
+/** DELETE /me: the literal "DELETE" guards against stray requests. */
+@Serializable
+data class DeleteAccountRequest(val confirm: String = "DELETE")
+
+@Serializable
+data class DeleteAccountResponse(val deleted: Boolean = false, val mode: String? = null)
+
 @Serializable
 data class PhoneStartRequest(val phone: String)
 

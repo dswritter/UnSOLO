@@ -177,6 +177,7 @@ actor DemoBackend {
         switch (r.method, p.count, p.first ?? "") {
         case ("GET", 1, "config"): return DemoResult(status: 200, body: config)
         case ("GET", 1, "me"): return needAuth() ?? ok(state.me)
+        case ("DELETE", 1, "me"): return needAuth() ?? ok(["deleted": true])
         case ("PATCH", 1, "me"):
             if let e = needAuth() { return e }
             let j = r.json

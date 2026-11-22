@@ -218,6 +218,7 @@ class DemoBackend(private val context: Context) {
             p == listOf("config") -> ok(AppConfig.serializer(), config)
             p == listOf("me") && m == "GET" -> requireUser(r) ?: ok(MeResponse.serializer(), me.copy(user = me.user.copy(isPhoneVerified = phoneVerified), preferences = preferences,
                 counts = Counts(notifications.count { !it.isRead }, chats.filter { !it.isRequest }.sumOf { it.unread })))
+            p == listOf("me") && m == "DELETE" -> requireUser(r) ?: ok(DeleteAccountResponse.serializer(), DeleteAccountResponse(deleted = true, mode = "deleted"))
             p == listOf("me") && m == "PATCH" -> requireUser(r) ?: run {
                 val b = body(PatchMeRequest.serializer(), r)
                 me = me.copy(user = me.user.copy(name = b.name ?: me.user.name, bio = b.bio ?: me.user.bio, gender = b.gender ?: me.user.gender, homeCity = b.homeCity ?: me.user.homeCity))

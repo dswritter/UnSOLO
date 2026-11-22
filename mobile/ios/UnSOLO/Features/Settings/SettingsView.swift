@@ -5,6 +5,10 @@ struct SettingsView: View {
     @Environment(Router.self) private var router
     @Environment(SessionStore.self) private var session
     @State private var confirmSignOut = false
+    @State private var deleting = false
+    @State private var deleteTyped = ""
+    @State private var deleteBusy = false
+    @State private var deleteError: String?
     @State private var locationDenied = false
 
     static let interestOptions = ["Treks", "Mountains", "Beaches", "Backpacking", "Hostels", "Food", "Photography", "Spiritual",
@@ -119,6 +123,8 @@ struct SettingsView: View {
                         }
                         infoRow("ID verification", me.user.isIdVerified ? "Verified" : "Not yet · needed for women-only plans and groups of 5+")
                         Button("Sign out") { confirmSignOut = true }.buttonStyle(.pc(.outline, fullWidth: true)).padding(.top, 6)
+                        Button("Delete account", role: .destructive) { deleteTyped = ""; deleteError = nil; deleting = true }
+                            .buttonStyle(.pcLink).foregroundStyle(Pc.red).padding(.top, 4)
                     } else {
                         Button("Sign in") { router.authSheet = true }.buttonStyle(.pc(.primary, fullWidth: true))
                     }
@@ -138,6 +144,42 @@ struct SettingsView: View {
         .confirmationDialog("Sign out of UnSOLO?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await session.signOut(); router.popToRoot(router.tab) } }
         } message: { Text("This device stops getting notifications. Saved data for your account is removed.") }
+        .sheet(isPresented: $deleting) { deleteSheet.presentationDetents([.medium, .large]) }
+    }
+
+    /// Type DELETE, then the server removes the account and this device signs out.
+    private var deleteSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Delete your account?").pcFont(.title1).foregroundStyle(Pc.ink)
+            Text("This can’t be undone. Your profile, Tribe posts, comments, chats and sign-in are deleted. Bookings and payments stay in our records without your name.")
+                .pcFont(.small).foregroundStyle(Pc.ink2)
+            Text("Type DELETE to confirm").pcFont(.bodyStrong).foregroundStyle(Pc.ink)
+            TextField("DELETE", text: $deleteTyped)
+                .textInputAutocapitalization(.characters).autocorrectionDisabled()
+                .padding(12).background(RoundedRectangle(cornerRadius: 14).stroke(Pc.rule))
+            if let deleteError { Text(deleteError).pcFont(.small).foregroundStyle(Pc.red) }
+            Button(deleteBusy ? "Deleting…" : "Delete my account", role: .destructive) {
+                deleteBusy = true; deleteError = nil
+                Task {
+                    do {
+                        try await session.deleteAccount()
+                        deleting = false
+                        router.popToRoot(router.tab)
+                        app.showToast("Your account has been deleted")
+                    } catch {
+                        deleteError = error.localizedDescription
+                    }
+                    deleteBusy = false
+                }
+            }
+            .buttonStyle(.pc(.primary, fullWidth: true))
+            .disabled(deleteTyped.trimmingCharacters(in: .whitespaces) != "DELETE" || deleteBusy)
+            Button("What gets deleted") { router.safari = SafariItem(url: AppInfo.webBaseURL.appendingPathComponent("account/delete")) }
+                .buttonStyle(.pcLink)
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .interactiveDismissDisabled(deleteBusy)
     }
 
     private func group<C: View>(_ title: String, @ViewBuilder content: () -> C) -> some View {

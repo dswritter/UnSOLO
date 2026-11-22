@@ -24,6 +24,7 @@ interface ApiService {
     @GET("config") suspend fun configProbe(@Header("X-UnSOLO-Probe") probe: String = "1"): AppConfig
     @GET("me") suspend fun me(): MeResponse
     @PATCH("me") suspend fun patchMe(@Body body: PatchMeRequest): MeResponse
+    @HTTP(method = "DELETE", path = "me", hasBody = true) suspend fun deleteMe(@Body body: DeleteAccountRequest): DeleteAccountResponse
     @GET("me/preferences") suspend fun preferences(): Preferences
     @PUT("me/preferences") suspend fun putPreferences(@Body partial: kotlinx.serialization.json.JsonObject): Preferences
     @GET("me/landing-suggestion") suspend fun landingSuggestion(): LandingSuggestion

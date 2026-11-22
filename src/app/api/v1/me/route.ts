@@ -5,6 +5,7 @@ import { toUserLite, PROFILE_LITE } from '@/lib/tribe/models'
 import { loadPreferences, savePreferences } from '@/lib/tribe/preferences'
 import { countUnreadMessages } from '@/lib/tribe/chats'
 import { contactEmail, hasVerifiedEmail } from '@/lib/auth/phone-login'
+import { deleteAccount } from '@/lib/account/delete-account'
 
 async function me(req: Request) {
   const ctx = await getApiContext(req)
@@ -83,4 +84,17 @@ export const PATCH = route(async (req: Request) => {
   // Sending a location is the consent; stopping sharing (Settings) clears it again.
   if (sharingLocation) await savePreferences(ctx.db, user.id, { shareLocation: true })
   return ok(await me(req))
+})
+
+/**
+ * Delete my account. Body `{ "confirm": "DELETE" }` so a stray request can't do it.
+ * Bookings and payments stay for the records with personal details removed; see lib/account/delete-account.
+ */
+export const DELETE = route(async (req: Request) => {
+  const ctx = await getApiContext(req)
+  const user = requireUser(ctx)
+  await parseJson(req, z.object({ confirm: z.literal('DELETE', { message: 'Type DELETE to confirm' }) }))
+  const r = await deleteAccount(ctx.service(), user.id)
+  if (!r.ok) throw new ApiError(r.code === 'server_error' ? 'server_error' : 'conflict', r.error)
+  return ok({ deleted: true, mode: r.mode })
 })

@@ -50,6 +50,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import com.unsolo.app.core.net.AppJson
+import com.unsolo.app.core.net.ApiResult
+import com.unsolo.app.core.net.userMessage
 import kotlinx.serialization.json.add
 
 class ProfileViewModel(private val g: AppGraph, val username: String?) : ViewModel() {
@@ -218,6 +220,7 @@ fun SettingsScreen(nav: AppNav) {
     val local by g.settings.data.collectAsStateWithLifecycle(initialValue = null)
     val signedIn by g.account.isSignedIn.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    var deleting by remember { mutableStateOf(false) }
     val c = Pc.colors
     val prefs = me?.preferences ?: Preferences()
     val locLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -310,8 +313,12 @@ fun SettingsScreen(nav: AppNav) {
                 if (signedIn) {
                     InsetRule(start = 66.dp)
                     NavRow("Sign out", com.unsolo.app.core.auth.AccountContact.label(me?.user?.email, me?.user?.phone)?.let { "Signed in as $it" }, PcIcons.Logout, { scope.launch { g.account.signOut(g.push.currentToken()); nav.tab(Routes.EXPLORE) } }, danger = true)
+                    InsetRule(start = 66.dp)
+                    NavRow("Delete account", "Removes your profile, posts and sign-in", PcIcons.Close, { deleting = true }, danger = true)
                 }
             }
+            if (deleting) DeleteAccountSheet(onDismiss = { deleting = false }, onDelete = { g.account.deleteAccount() },
+                onDeleted = { deleting = false; nav.tab(Routes.EXPLORE) }, onLearnMore = { nav.openWeb("/account/delete") })
             Text("UnSOLO ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})" + if (DemoMode.enabled) " · demo data" else "", style = Pc.type.label, color = c.ink3, modifier = Modifier.navigationBarsPadding().padding(Gutter))
         }
     }
@@ -339,5 +346,42 @@ private fun TimeChip(value: String, presets: List<String>, onPick: (String) -> U
 private fun FlowRowChips(options: List<String>, selected: Set<String>, onToggle: (String) -> Unit) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { o -> PcChip(o, o in selected, { onToggle(o) }, solidSelected = false) }
+    }
+}
+
+
+/** Delete account: type DELETE, then the server removes the account and the app signs out. */
+@Composable
+private fun DeleteAccountSheet(onDismiss: () -> Unit, onDelete: suspend () -> ApiResult<Unit>, onDeleted: () -> Unit, onLearnMore: () -> Unit) {
+    val c = Pc.colors
+    val scope = rememberCoroutineScope()
+    var typed by rememberSaveable { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    PcSheet({ if (!busy) onDismiss() }) {
+        Column(Modifier.padding(horizontal = Gutter)) {
+            Text("Delete your account?", style = Pc.type.title1, color = c.ink)
+            Spacer(Modifier.height(6.dp))
+            Text("This can't be undone. Your profile, Tribe posts, comments, chats and sign-in are deleted. Bookings and payments stay in our records without your name.", style = Pc.type.small, color = c.ink2)
+            Spacer(Modifier.height(14.dp))
+            Text("Type DELETE to confirm", style = Pc.type.bodyStrong, color = c.ink)
+            Spacer(Modifier.height(6.dp))
+            BoxedInput(typed, { typed = it.take(10) }, "DELETE")
+            error?.let { Text(it, style = Pc.type.small, color = c.red, modifier = Modifier.padding(top = 8.dp)) }
+            Spacer(Modifier.height(14.dp))
+            PcButton(if (busy) "Deleting…" else "Delete my account", {
+                busy = true; error = null
+                scope.launch {
+                    when (val r = onDelete()) {
+                        is ApiResult.Ok -> onDeleted()
+                        is ApiResult.Err -> { error = r.userMessage(); busy = false }
+                        ApiResult.Offline -> { error = "You're offline. Connect and try again."; busy = false }
+                    }
+                }
+            }, Modifier.fillMaxWidth(), kind = BtnKind.Danger, enabled = typed.trim() == "DELETE" && !busy)
+            Spacer(Modifier.height(8.dp))
+            PcButton("What gets deleted", onLearnMore, Modifier.fillMaxWidth(), kind = BtnKind.Ghost, enabled = !busy)
+            Spacer(Modifier.height(8.dp))
+        }
     }
 }

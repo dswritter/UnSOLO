@@ -186,6 +186,14 @@ final class SessionStore: AppBound {
         await refreshMe()
     }
 
+    /// Deletes the account on the server, then clears this device (the server session is gone).
+    func deleteAccount() async throws {
+        guard let app else { return }
+        _ = try await app.api.deleteAccount()
+        UserDefaults.standard.removeObject(forKey: "push.token")
+        await signOut()
+    }
+
     func signOut() async {
         guard let app else { return }
         if let token = UserDefaults.standard.string(forKey: "push.token") {

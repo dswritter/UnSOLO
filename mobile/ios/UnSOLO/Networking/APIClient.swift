@@ -174,6 +174,10 @@ extension APIClient {
     func config() async throws -> ConfigResponse { try await get("/config", authenticated: false) }
     func me() async throws -> MeResponse { try await get("/me") }
     func patchMe(_ body: PatchMeBody) async throws -> MeResponse { try await call(.patch, "/me", body: body) }
+    struct DeleteAccountBody: Encodable, Sendable { var confirm = "DELETE" }
+    struct DeleteAccountResult: Decodable, Sendable { var deleted: Bool; var mode: String? }
+    /// Deletes the account (bookings stay for the records without personal details).
+    func deleteAccount() async throws -> DeleteAccountResult { try await call(.delete, "/me", body: DeleteAccountBody()) }
     func preferences() async throws -> Preferences { try await get("/me/preferences") }
     func putPreferences(_ patch: PreferencesPatch) async throws -> Preferences { try await call(.put, "/me/preferences", body: patch) }
     func landingSuggestion() async throws -> LandingSuggestion { try await get("/me/landing-suggestion") }

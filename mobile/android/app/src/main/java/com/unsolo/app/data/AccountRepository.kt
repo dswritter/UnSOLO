@@ -172,6 +172,13 @@ class AccountRepository(
         return r
     }
 
+    /** Deletes the account on the server, then clears everything local (the session is gone server-side). */
+    suspend fun deleteAccount(): ApiResult<Unit> = when (val r = apiCall { api.deleteMe(DeleteAccountRequest()) }) {
+        is ApiResult.Ok -> { signOut(null); ApiResult.Ok(Unit) }
+        is ApiResult.Err -> r
+        ApiResult.Offline -> ApiResult.Offline
+    }
+
     suspend fun signOut(fcmToken: String?) {
         val token = session.session?.accessToken
         if (fcmToken != null) apiUnit { api.deleteDevice(DeviceDeleteRequest(fcmToken)) }
