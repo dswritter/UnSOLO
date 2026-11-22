@@ -258,7 +258,7 @@ fun ExploreScreen(nav: AppNav) {
             if (rest.isNotEmpty()) {
                 // One list, same as web: "Next few weeks" (dates already sorted soonest first).
                 item(key = "next-weeks", contentType = "section") {
-                    if (category == "trips") SectionHeader("Next few weeks", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
+                    if (category == "trips") SectionHeader("More trips", Modifier.padding(top = 12.dp), trailing = "All departures", trailingLink = { searchSheet = true })
                     else SectionHeader("More ${categoryNoun(category)}", Modifier.padding(top = 12.dp))
                 }
                 items(rest, key = { "dep-" + it.slug }, contentType = { "departure" }) { t -> DepartureRow(t) { openTrip(nav, t) } }
@@ -372,7 +372,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 10f).clip(RoundedCornerShape(PcTokens.radiusImage))) {
             ProgressiveImage(t.image, Modifier.fillMaxSize(), t.title)
             Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(56.dp).background(Brush.verticalGradient(listOf(Color.Transparent, Color(0x47111111)))))
-            if (!t.isListing) DateChip(t.nextDeparture, Modifier.align(Alignment.TopStart).padding(10.dp))
+            if (!t.isListing && t.nextDeparture != null) DateChip(t.nextDeparture, Modifier.align(Alignment.TopStart).padding(10.dp))
             GlassButton(if (saved) PcIcons.HeartFilled else PcIcons.Heart, if (saved) "Saved" else "Save", onSave, Modifier.align(Alignment.TopEnd).padding(4.dp), tint = if (saved) c.rose else c.ink)
             if (label != null) Text(label, style = Pc.type.label.copy(fontWeight = FontWeight.Bold), color = c.ink,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).clip(CircleShape).background(c.raised.copy(alpha = 0.86f)).padding(horizontal = 10.dp, vertical = 5.dp))
@@ -392,7 +392,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
         Column(Modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp, bottom = 2.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 t.host?.let { Tag(it.name, TagKind.Verified, Modifier.weight(1f, fill = false)); Spacer(Modifier.width(10.dp)) }
-                if (!t.isListing) Text(when { ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
+                if (!t.isListing) Text(when { t.nextDeparture == null -> "Dates on request"; ring.full -> "Full"; ring.filled <= 0 -> "Be first in the circle"; else -> "${ring.filled} going" },
                     style = Pc.type.smallStrong.copy(fontSize = 12.sp), color = if (ring.full) c.full else c.ink2, modifier = Modifier.weight(1f), textAlign = TextAlign.End, maxLines = 1)
             }
             Spacer(Modifier.height(4.dp))
@@ -402,6 +402,7 @@ fun TripCard(t: TripLite, saved: Boolean, onSave: () -> Unit, onOpen: () -> Unit
                     Text("/${if (t.isListing) t.unit ?: "booking" else "person"}", style = Pc.type.small, color = c.ink2, modifier = Modifier.padding(start = 3.dp, bottom = 2.dp))
                 }
                 if (t.isListing) PcButton("View", onOpen, kind = BtnKind.Quiet, height = BtnSmall)
+                else if (t.nextDeparture == null) PcButton("View", onOpen, kind = BtnKind.Quiet, height = BtnSmall)
                 else PcButton(if (ring.full) "Full" else "Grab a spot", onTake, kind = BtnKind.Quiet, height = BtnSmall, enabled = !ring.full)
             }
         }
@@ -463,7 +464,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(t.title, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(if (t.isListing) t.place?.name ?: "" else listOfNotNull(Fmt.dowDayMonth(t.nextDeparture), Fmt.nights(t.durationDays).takeIf { t.durationDays > 0 }, t.place?.name?.substringBefore(',')).joinToString(" · "),
+                Text(if (t.isListing) t.place?.name ?: "" else listOfNotNull(Fmt.dowDayMonth(t.nextDeparture).ifEmpty { "Dates on request" }, Fmt.nights(t.durationDays).takeIf { t.durationDays > 0 }, t.place?.name?.substringBefore(',')).joinToString(" · "),
                     style = Pc.type.small, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.width(10.dp))
@@ -472,7 +473,7 @@ fun DepartureRow(t: TripLite, onClick: () -> Unit) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(MoneyFormat.rupees(t.priceFromPaise), style = Pc.type.price, color = c.ink)
                 if (t.isListing) Text("per ${t.unit ?: "booking"}", style = Pc.type.small, color = c.ink2)
-                else Text(if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full) c.full else c.ink2)
+                else if (t.nextDeparture != null) Text(if (ring.full) "Full" else "${ring.total - ring.taken} open", style = Pc.type.small, color = if (ring.full) c.full else c.ink2)
             }
         }
         Hairline()

@@ -19,7 +19,7 @@ export const GET = route(async (req: Request) => {
   const q = parseQuery(req, Q)
   const offset = decodeCursor(q.cursor)?.offset ?? 0
   const { items, hasMore } = q.category === 'trips'
-    ? await loadUpcomingTrips(ctx, { q: q.q, month: q.month, limit: q.limit, offset })
+    ? await loadUpcomingTrips(ctx, { q: q.q, month: q.month, limit: q.limit, offset, includeUndated: true })
     : await loadServiceListings(ctx, q.category, { q: q.q, limit: q.limit, offset })
   return ok({ items, nextCursor: hasMore ? encodeCursor({ offset: offset + q.limit }) : null }, { cache: ctx.user ? 'private' : 'public', req })
 })

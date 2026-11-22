@@ -8,7 +8,7 @@ type Row = Record<string, unknown>
 /** Active packages with an upcoming departure, sorted by next departure, with seat counts. */
 export async function loadUpcomingTrips(
   ctx: Pick<ApiContext, 'db' | 'service' | 'user'>,
-  opts: { q?: string; month?: string; limit?: number; offset?: number; ids?: string[] } = {},
+  opts: { q?: string; month?: string; limit?: number; offset?: number; ids?: string[]; includeUndated?: boolean } = {},
 ): Promise<{ items: TripLite[]; hasMore: boolean }> {
   let query = ctx.db.from('packages').select(PACKAGE_LITE).eq('is_active', true)
     .or('moderation_status.is.null,moderation_status.eq.approved')
@@ -20,13 +20,17 @@ export async function loadUpcomingTrips(
   const { data, error } = await query.limit(400)
   if (error) throw error
   const today = todayIST()
-  let rows = ((data ?? []) as Row[])
-    .map((r) => ({ r, next: nextDeparture(r.departure_dates) }))
-    .filter((x) => x.next && x.next >= today)
+  const all = ((data ?? []) as Row[]).map((r) => ({ r, next: nextDeparture(r.departure_dates) }))
+  let rows = all.filter((x) => x.next && x.next >= today)
   if (opts.month && /^\d{4}-\d{2}$/.test(opts.month)) {
     rows = rows.filter((x) => (x.r.departure_dates as string[]).some((d) => d.startsWith(opts.month!)))
   }
   rows.sort((a, b) => a.next!.localeCompare(b.next!))
+  // Explore also lists trips whose dates have all passed (hosts add new ones on request), after the dated ones.
+  if (opts.includeUndated && !opts.month) {
+    rows = [...rows, ...all.filter((x) => !x.next || x.next < today)
+      .sort((a, b) => String(b.r.created_at ?? '').localeCompare(String(a.r.created_at ?? ''))).map((x) => ({ r: x.r, next: null }))]
+  }
   const offset = opts.offset ?? 0, limit = opts.limit ?? 20
   const page = rows.slice(offset, offset + limit)
   const hostIds = [...new Set(page.map((x) => x.r.host_id).filter(Boolean) as string[])]
