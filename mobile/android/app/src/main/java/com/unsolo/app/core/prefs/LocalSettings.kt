@@ -61,7 +61,20 @@ class LocalSettings(private val context: Context) {
         val visits = stringPreferencesKey("tab_visits")
         val savedTrips = stringSetPreferencesKey("saved_trips")
         val seenStories = stringSetPreferencesKey("seen_stories")
+        val launchPicks = stringPreferencesKey("launch_picks")
     }
+
+    /** One entry per launch: the tab the app opened on, replaced by the first tab you switched to. */
+    suspend fun startLaunch(startTab: String) = context.dataStore.edit { p ->
+        p[K.launchPicks] = ((p[K.launchPicks]?.split(',')?.filter { it.isNotBlank() } ?: emptyList()) + startTab).takeLast(LandingPolicy.STREAK + 2).joinToString(",")
+    }
+
+    suspend fun setLaunchPick(tab: String) = context.dataStore.edit { p ->
+        val list = p[K.launchPicks]?.split(',')?.filter { it.isNotBlank() }.orEmpty()
+        if (list.isNotEmpty()) p[K.launchPicks] = (list.dropLast(1) + tab).joinToString(",")
+    }
+
+    suspend fun launchPicks(): List<String> = context.dataStore.data.first()[K.launchPicks]?.split(',')?.filter { it.isNotBlank() }.orEmpty()
 
     private val visitsSerializer = MapSerializer(Long.serializer(), MapSerializer(String.serializer(), Int.serializer()))
 
@@ -125,6 +138,21 @@ class LocalSettings(private val context: Context) {
 
 /** Pure logic for the "Start the app on Tribe?" prompt. Unit-tested in LandingPolicyTest. */
 object LandingPolicy {
+    /** Launches in a row that went to the same tab before we offer to start there. */
+    const val STREAK = 3
+
+    /**
+     * The last [STREAK] launches all went (first) to one tab that isn't the start tab → that tab.
+     * "Not now" holds the offer back for 30 days; it was shown less than a week ago → no.
+     */
+    fun streakSuggestion(picks: List<String>, currentLanding: String, dismissed: Boolean, lastShownAt: Long, now: Long): String? {
+        if (lastShownAt > 0 && now - lastShownAt < (if (dismissed) 30L * 24 * 3600_000 else COOLDOWN_MS)) return null
+        val last = picks.takeLast(STREAK)
+        if (last.size < STREAK || last.toSet().size != 1) return null
+        val tab = last.first()
+        return tab.takeIf { it != currentLanding && it in suggestable }
+    }
+
     const val WINDOW_DAYS = 14
     const val MIN_OPENS = 3
     /** Do not show the prompt again within this many ms after it was shown. */

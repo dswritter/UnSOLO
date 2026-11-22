@@ -3,7 +3,7 @@ import { getApiContext, requireVerifiedContact } from '@/lib/api/context'
 import { ApiError, ok, parseJson, parseQuery, route } from '@/lib/api/http'
 import { enforceRateLimit } from '@/lib/api/rate-limit'
 import { screenText } from '@/lib/moderation/screen'
-import { MAX_ACTIVE_STATUS, STATUS_SELECT, STATUS_TTL_MS, groupStatuses } from '@/lib/statusStories/api'
+import { MAX_ACTIVE_STATUS, STATUS_SELECT, STATUS_TTL_MS, groupStatuses, loadStatusExtras } from '@/lib/statusStories/api'
 
 type Row = Record<string, unknown>
 
@@ -28,7 +28,8 @@ export const GET = route(async (req: Request) => {
     ? await ctx.db.from('status_story_views').select('story_id').eq('viewer_id', ctx.user.id).in('story_id', ids)
     : { data: [] as Row[] }
   const seen = new Set(((views ?? []) as Row[]).map((v) => String(v.story_id)))
-  return ok({ authors: groupStatuses(rows, seen, ctx.user.id) }, { cache: 'private', req })
+  const extras = await loadStatusExtras(ctx.db, ids, ctx.user.id)
+  return ok({ authors: groupStatuses(rows, seen, ctx.user.id, extras) }, { cache: 'private', req })
 })
 
 const Body = z.object({

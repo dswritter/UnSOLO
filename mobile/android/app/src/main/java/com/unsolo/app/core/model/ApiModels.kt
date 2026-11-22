@@ -180,7 +180,25 @@ data class StatusItem(
     val createdAt: String,
     val expiresAt: String,
     val seen: Boolean = false,
+    val reactions: Map<String, Int> = emptyMap(),
+    val myReaction: String? = null,
+    val commentCount: Int = 0,
 )
+
+@Serializable
+data class StatusReactionRequest(val kind: String?)
+
+@Serializable
+data class StatusReactionResponse(val reactions: Map<String, Int> = emptyMap(), val myReaction: String? = null)
+
+@Serializable
+data class StatusComment(val id: String, val body: String, val createdAt: String = "", val author: UserLite)
+
+@Serializable
+data class StatusCommentsResponse(val items: List<StatusComment> = emptyList())
+
+@Serializable
+data class StatusCommentRequest(val body: String)
 
 @Immutable
 @Serializable
@@ -757,3 +775,16 @@ data class SupaSession(
     @SerialName("token_type") val tokenType: String = "bearer",
     val user: SupaUser? = null,
 )
+
+
+@Serializable
+data class LeaderEntry(val rank: Int? = null, val user: UserLite, val location: String? = null, val points: Int = 0, val trips: Int = 0, val reviews: Int = 0, val states: Int = 0, val monthlyTrips: Int? = null)
+
+@Serializable
+data class LeaderMe(val rank: Int? = null, val entry: LeaderEntry? = null)
+
+@Serializable
+data class LeaderboardResponse(val entries: List<LeaderEntry> = emptyList(), val monthly: List<LeaderEntry> = emptyList(), val me: LeaderMe? = null)
+
+@Serializable
+data class UserListResponse(val items: List<UserLite> = emptyList())

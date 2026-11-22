@@ -72,21 +72,23 @@ private fun LinkChip(icon: androidx.compose.ui.graphics.vector.ImageVector, text
 
 /** Trips · states · reviews · listings · points · followers · following, side by side. */
 @Composable
-fun ProfileStatsRow(p: ProfileResponse?, user: UserLite?, fallbackTrips: Int?) {
+fun ProfileStatsRow(p: ProfileResponse?, user: UserLite?, fallbackTrips: Int?, onOpen: (String) -> Unit) {
     val c = Pc.colors
     val s = p?.stats
+    // Every number opens its details: trips/states → Travel, reviews, badges, listings tabs, points → leaderboard, people lists.
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = Gutter), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        StatBox(s?.trips?.toString() ?: if (s != null) "🔒" else "${fallbackTrips ?: 0}", "trips")
-        StatBox(s?.states?.toString() ?: if (s != null) "🔒" else "0", "states")
-        StatBox("${s?.reviews ?: 0}", "reviews")
-        if ((s?.listings ?: 0) > 0) StatBox("${s!!.listings}", "listings")
-        StatBox("${s?.points ?: 0}", "points")
-        StatBox("${user?.followers ?: 0}", "followers")
-        StatBox("${user?.following ?: 0}", "following")
+        StatBox(s?.trips?.toString() ?: if (s != null) "🔒" else "${fallbackTrips ?: 0}", "trips") { onOpen("trips") }
+        StatBox(s?.states?.toString() ?: if (s != null) "🔒" else "0", "states") { onOpen("trips") }
+        StatBox("${s?.reviews ?: 0}", "reviews") { onOpen("reviews") }
+        if ((s?.listings ?: 0) > 0) StatBox("${s!!.listings}", "listings") { onOpen("listings") }
+        StatBox("${s?.points ?: 0}", "points") { onOpen("leaderboard") }
+        StatBox("${p?.badges?.earned?.size ?: 0}", "badges") { onOpen("badges") }
+        StatBox("${user?.followers ?: 0}", "followers") { onOpen("followers") }
+        StatBox("${user?.following ?: 0}", "following") { onOpen("following") }
     }
     if (s != null) {
-        // Leaderboard tier and how far to the next one.
-        Column(Modifier.padding(horizontal = Gutter, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.tonal).padding(12.dp)) {
+        // Leaderboard tier and how far to the next one; tap for the full leaderboard.
+        Column(Modifier.padding(horizontal = Gutter, vertical = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.tonal).clickable(onClickLabel = "Open the leaderboard") { onOpen("leaderboard") }.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(s.tier.name, style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
                 s.rank?.let { Text("  · #$it on the leaderboard", style = Pc.type.small, color = c.ink2) }
@@ -101,9 +103,9 @@ fun ProfileStatsRow(p: ProfileResponse?, user: UserLite?, fallbackTrips: Int?) {
 }
 
 @Composable
-private fun StatBox(value: String, label: String) {
+private fun StatBox(value: String, label: String, onClick: () -> Unit) {
     val c = Pc.colors
-    Column(Modifier.clip(RoundedCornerShape(14.dp)).border(1.dp, c.rule, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 10.dp)) {
+    Column(Modifier.clip(RoundedCornerShape(14.dp)).border(1.dp, c.rule, RoundedCornerShape(14.dp)).clickable(onClickLabel = "Open $label", onClick = onClick).padding(horizontal = 14.dp, vertical = 10.dp)) {
         Text(value, style = Pc.type.numLarge, color = c.ink)
         Text(label, style = Pc.type.small, color = c.ink2)
     }
@@ -195,6 +197,7 @@ fun TravelSection(travel: ProfileTravel?, own: Boolean, nav: AppNav) {
         }
         val visited = states.toSet()
         Text("${visited.size} of ${IndianStates.size} states explored", style = Pc.type.bodyStrong.copy(fontWeight = FontWeight.Bold), color = c.ink)
+        IndiaMap(visited, Modifier.padding(top = 10.dp).fillMaxWidth())
         FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             (IndianStates.filter { it in visited } + visited.filter { it !in IndianStates } + IndianStates.filter { it !in visited }).forEach { st ->
                 val on = st in visited

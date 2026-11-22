@@ -8,6 +8,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
@@ -170,6 +172,8 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     val item = items[idx]
     var paused by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var picker by remember { mutableStateOf(false) }
+    var commentsOpen by remember { mutableStateOf(false) }
     var progress by remember(author.user.id, idx) { mutableFloatStateOf(0f) }
     // The clock starts only once the photo is on screen (text stories start at once).
     var ready by remember(item.id) { mutableStateOf(item.type != "image" || item.media == null) }
@@ -177,8 +181,8 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
     fun next() { if (idx < items.lastIndex) idx++ else onDone() }
     fun prev() { if (idx > 0) idx-- else onBack() }
     LaunchedEffect(active, item.id) { if (active && !own) repo.markSeen(author.user.id, item.id) }
-    LaunchedEffect(active, item.id, paused, confirmDelete, ready) {
-        if (!active || paused || confirmDelete || !ready) return@LaunchedEffect
+    LaunchedEffect(active, item.id, paused, confirmDelete, ready, picker, commentsOpen) {
+        if (!active || paused || confirmDelete || !ready || picker || commentsOpen) return@LaunchedEffect
         while (progress < 1f) { kotlinx.coroutines.delay(40); progress = (progress + 40f / 5500f).coerceAtMost(1f) }
         next()
     }
@@ -223,9 +227,27 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
             }
         }
         // Actions sit at the bottom, in thumb reach.
-        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (picker) Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 78.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.7f)).padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            StatusReactions.forEach { (k, e) ->
+                Text(e, fontSize = 28.sp, modifier = Modifier.clip(CircleShape).background(if (item.myReaction == k) Color.White.copy(alpha = 0.25f) else Color.Transparent)
+                    .clickable(onClickLabel = reactionLabel(k)) { picker = false; if (nav.requirePhone()) scope.launch { repo.react(item, k) } }.padding(6.dp))
+            }
+        }
+        Row(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             StoryAction(PcIcons.Close, "Close") { nav.back() }
             Spacer(Modifier.weight(1f))
+            // Tap: "Take me there" (or take your reaction back). Hold: pick another.
+            val mine = item.myReaction
+            val total = item.reactions.values.sum()
+            Column(Modifier.clip(RoundedCornerShape(14.dp)).combinedClickableCompat(
+                onClick = { if (nav.requirePhone()) scope.launch { repo.react(item, mine ?: "wanderlust") } },
+                onLongClick = { picker = !picker },
+            ).padding(horizontal = 12.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(StatusReactions.toMap()[mine] ?: "🏔️", fontSize = 22.sp, modifier = Modifier.graphicsLayer { alpha = if (mine == null) 0.85f else 1f })
+                Text(if (total > 0) "$total" else if (mine == null) "React" else reactionLabel(mine), style = Pc.type.label, color = Color.White.copy(alpha = 0.9f))
+            }
+            StoryAction(PcIcons.Chat, if (item.commentCount > 0) "${item.commentCount}" else "Comment") { commentsOpen = true }
             if (own) {
                 StoryAction(PcIcons.Plus, "Add") { nav.to(Routes.statusNew()) }
                 StoryAction(PcIcons.Trash, "Delete") { confirmDelete = true }
@@ -242,6 +264,7 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         if (own) Text("Disappears ${expiresIn(item.expiresAt)} · saved on this phone", style = Pc.type.label, color = Color.White.copy(alpha = 0.75f),
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 64.dp))
     }
+    if (commentsOpen) StatusCommentsSheet(item, own, nav) { commentsOpen = false }
     if (confirmDelete) PcSheet({ confirmDelete = false }) {
         SheetTitle("Delete this story?")
         Text("It stops showing right away. Your copy stays in your archive on this phone.", style = Pc.type.body, color = Pc.colors.ink2, modifier = Modifier.padding(horizontal = Gutter))
@@ -258,6 +281,64 @@ private fun StatusPlayer(author: StatusAuthor, active: Boolean, own: Boolean, na
         }
     }
 }
+
+/** Story reactions: "Take me there" (a traveller's love) first. */
+val StatusReactions = listOf("wanderlust" to "🏔️", "love" to "❤️", "wow" to "😮", "haha" to "😂", "clap" to "👏", "fire" to "🔥")
+private fun reactionLabel(k: String) = when (k) { "wanderlust" -> "Take me there"; "love" -> "Love"; "wow" -> "Wow"; "haha" -> "Haha"; "clap" -> "Clap"; else -> "Fire" }
+
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.combinedClickableCompat(onClick: () -> Unit, onLongClick: () -> Unit) = this.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+
+/** Comments on a story: everyone who can see it sees them. Your own shows the reactions breakdown on top. */
+@Composable
+private fun StatusCommentsSheet(item: StatusItem, own: Boolean, nav: AppNav, onDismiss: () -> Unit) {
+    val repo = nav.graph.statuses
+    val c = Pc.colors
+    var list by remember(item.id) { mutableStateOf<List<StatusComment>?>(null) }
+    var text by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(item.id) { list = (repo.comments(item.id) as? com.unsolo.app.core.net.ApiResult.Ok)?.value?.items ?: emptyList() }
+    PcSheet(onDismiss) {
+        SheetTitle("Comments")
+        if (own && item.reactions.isNotEmpty()) Row(Modifier.padding(horizontal = Gutter, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatusReactions.forEach { (k, e) -> item.reactions[k]?.let { n -> Text("$e $n", style = Pc.type.bodyStrong, color = c.ink) } }
+        }
+        Column(Modifier.padding(horizontal = Gutter).heightIn(max = 360.dp).verticalScrollCompat(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            when {
+                list == null -> androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), color = c.ink2, strokeWidth = 2.dp)
+                list!!.isEmpty() -> Text("No comments yet. Say something kind.", style = Pc.type.body, color = c.ink2)
+                else -> list!!.forEach { cm ->
+                    Row {
+                        Avatar(cm.author, 30.dp); Spacer(Modifier.width(10.dp))
+                        Column {
+                            Row { Text(cm.author.firstName, style = Pc.type.smallStrong, color = c.ink); Text("  ${Fmt.ago(cm.createdAt)}", style = Pc.type.label, color = c.ink3) }
+                            Text(cm.body, style = Pc.type.body, color = c.ink)
+                        }
+                    }
+                }
+            }
+        }
+        Row(Modifier.padding(horizontal = Gutter, vertical = 12.dp).imePadding(), verticalAlignment = Alignment.CenterVertically) {
+            BoxedInput(text, { text = it.take(500) }, "Add a comment…", Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
+            PcButton("Send", {
+                if (!nav.requirePhone()) return@PcButton
+                sending = true
+                scope.launch {
+                    when (val r = repo.comment(item.id, text)) {
+                        is com.unsolo.app.core.net.ApiResult.Ok -> { list = (list ?: emptyList()) + r.value; text = "" }
+                        else -> nav.graph.events.emit(AppEvent.Message("Couldn't post that. Try again."))
+                    }
+                    sending = false
+                }
+            }, kind = BtnKind.Accent, height = BtnSmall, enabled = text.isNotBlank(), loading = sending)
+        }
+    }
+}
+
+@Composable
+private fun Modifier.verticalScrollCompat() = this.verticalScroll(androidx.compose.foundation.rememberScrollState())
 
 @Composable
 private fun StoryAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {

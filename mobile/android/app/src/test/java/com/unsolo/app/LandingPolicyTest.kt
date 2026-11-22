@@ -58,4 +58,16 @@ class LandingPolicyTest {
         assertNull(LandingPolicy.decide(true, "you", emptyMap(), today, Tab.EXPLORE, false, 0, 0))
         assertNull(LandingPolicy.decide(true, Tab.TRIBE, emptyMap(), today, Tab.TRIBE, false, 0, 0))
     }
+
+    @Test fun streakOfThreeLaunchesToTribeOffersTribe() {
+        val now = 10_000_000_000L
+        assertEquals("tribe", LandingPolicy.streakSuggestion(listOf("explore", "tribe", "tribe", "tribe"), "explore", false, 0, now))
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "explore", "tribe"), "explore", false, 0, now))
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe"), "explore", false, 0, now))
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "tribe", false, 0, now))
+        // Shown yesterday: wait. Dismissed 10 days ago: still waiting (30 days).
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", false, now - 86_400_000, now))
+        assertNull(LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 10 * 86_400_000L, now))
+        assertEquals("tribe", LandingPolicy.streakSuggestion(listOf("tribe", "tribe", "tribe"), "explore", true, now - 31 * 86_400_000L, now))
+    }
 }

@@ -75,6 +75,31 @@ class StatusRepository(
         }
     }
 
+    private fun patchItem(id: String, f: (StatusItem) -> StatusItem) {
+        _rail.value = _rail.value.map { a -> a.copy(items = a.items.map { if (it.id == id) f(it) else it }) }
+    }
+
+    /** Tap = your reaction moves at once; the server's counts replace the guess. Same kind again = take it back. */
+    suspend fun react(item: StatusItem, kind: String): Boolean {
+        val next = if (item.myReaction == kind) null else kind
+        patchItem(item.id) { it.copy(myReaction = next, reactions = it.reactions.toMutableMap().apply {
+            item.myReaction?.let { k -> put(k, ((get(k) ?: 1) - 1).coerceAtLeast(0)) }
+            next?.let { k -> put(k, (get(k) ?: 0) + 1) }
+        }.filterValues { it > 0 }) }
+        val r = apiCall { api.reactStatus(item.id, StatusReactionRequest(next)) }
+        if (r is ApiResult.Ok) patchItem(item.id) { it.copy(myReaction = r.value.myReaction, reactions = r.value.reactions) }
+        else patchItem(item.id) { it.copy(myReaction = item.myReaction, reactions = item.reactions) }
+        return r is ApiResult.Ok
+    }
+
+    suspend fun comments(id: String) = apiCall { api.statusComments(id) }
+
+    suspend fun comment(id: String, body: String): ApiResult<StatusComment> {
+        val r = apiCall { api.commentStatus(id, StatusCommentRequest(body.trim())) }
+        if (r is ApiResult.Ok) patchItem(id) { it.copy(commentCount = it.commentCount + 1) }
+        return r
+    }
+
     suspend fun delete(id: String): Boolean {
         val r = apiCall { api.deleteStatus(id) }
         if (r is ApiResult.Ok) _rail.value = _rail.value.mapNotNull { a -> a.copy(items = a.items.filter { it.id != id }).takeIf { it.items.isNotEmpty() } }

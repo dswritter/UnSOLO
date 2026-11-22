@@ -42,6 +42,12 @@ interface ApiService {
     @POST("statuses") suspend fun createStatus(@Body body: CreateStatusRequest): StatusesResponse
     @DELETE("statuses/{id}") suspend fun deleteStatus(@Path("id") id: String): Response<Unit>
     @POST("statuses/seen") suspend fun seenStatuses(@Body body: SeenStatusesRequest): Response<Unit>
+    @PUT("statuses/{id}/reaction") suspend fun reactStatus(@Path("id") id: String, @Body body: StatusReactionRequest): StatusReactionResponse
+    @GET("statuses/{id}/comments") suspend fun statusComments(@Path("id") id: String): StatusCommentsResponse
+    @POST("statuses/{id}/comments") suspend fun commentStatus(@Path("id") id: String, @Body body: StatusCommentRequest): StatusComment
+    @GET("leaderboard") suspend fun leaderboard(): LeaderboardResponse
+    @GET("users/{username}/followers") suspend fun followers(@Path("username") username: String): UserListResponse
+    @GET("users/{username}/following") suspend fun following(@Path("username") username: String): UserListResponse
     @GET("places") suspend fun places(@Query("q") q: String, @Query("limit") limit: Int = 6): PlacesResponse
     @GET("explore") suspend fun explore(
         @Query("q") q: String? = null,

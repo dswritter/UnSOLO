@@ -193,13 +193,32 @@ class MainViewModel(private val g: AppGraph) : ViewModel() {
      * The tab the app opens on doesn't count as a visit (it isn't a choice); every tab you switch to
      * does. Switching to a tab may then offer to start there next time.
      */
+    private var pickedThisLaunch = false
+
     fun recordTab(route: String?) = viewModelScope.launch {
         val auto = firstRoute
         firstRoute = false
         val tab = when (route) { Routes.EXPLORE -> Tab.EXPLORE; Routes.TRIBE -> Tab.TRIBE; Routes.TRIPS -> Tab.TRIPS; else -> null }
         if (tab != null && !auto) g.settings.recordVisit(tab)
         screenName(route)?.let { g.analytics.track("screen.view", it, if (auto) mapOf("auto" to true) else emptyMap()) }
-        if (tab != null && !auto && tab != g.settings.current().landingTab) { landingChecked = false; checkLanding(delayMs = 1200) }
+        // This launch counts as "went to <tab>": the start tab until you switch, then the first tab you pick.
+        if (auto) g.settings.startLaunch(tab ?: Tab.EXPLORE)
+        else if (tab != null && !pickedThisLaunch) {
+            pickedThisLaunch = true
+            g.settings.setLaunchPick(tab)
+            offerLanding()
+        }
+    }
+
+    /** Right after you switch: if the last few launches all went to this tab, offer to start there. */
+    private suspend fun offerLanding() {
+        if (landingPrompt.value != null) return
+        val prefs = g.settings.current()
+        val tab = LandingPolicy.streakSuggestion(g.settings.launchPicks(), prefs.landingTab, prefs.landingPromptDismissed, prefs.landingPromptLastShown, System.currentTimeMillis()) ?: return
+        kotlinx.coroutines.delay(900)
+        landingPrompt.value = tab
+        g.settings.setLandingShown(System.currentTimeMillis())
+        g.analytics.track("landing.prompt_shown", props = mapOf("rule" to "streak"))
     }
 
     private fun screenName(route: String?) = when (route) {
@@ -334,6 +353,11 @@ private fun androidx.navigation.NavGraphBuilder.graphRoutes(nav: AppNav) {
         com.unsolo.app.ui.status.StatusComposeScreen(nav, it.arguments?.getString("archive"))
     }
     composable(Routes.STATUS_ARCHIVE) { com.unsolo.app.ui.status.StatusArchiveScreen(nav) }
+    composable(Routes.LEADERBOARD, deepLinks = links("/leaderboard")) { com.unsolo.app.ui.profile.LeaderboardScreen(nav) }
+    composable(Routes.PEOPLE, arguments = listOf(navArgument("username") { type = NavType.StringType }, navArgument("kind") { type = NavType.StringType })) {
+        val u = it.arguments?.getString("username"); val k = it.arguments?.getString("kind")
+        if (DeepLinks.validUsername(u) && (k == "followers" || k == "following")) com.unsolo.app.ui.profile.PeopleScreen(u!!, k!!, nav) else InvalidLink(nav)
+    }
     composable(Routes.COMPOSE, arguments = listOf(navArgument("kind") { type = NavType.StringType })) {
         val kind = it.arguments?.getString("kind")?.takeIf { k -> k in listOf("plan", "story", "ask", "poll") } ?: "plan"
         ComposeScreen(kind, nav)

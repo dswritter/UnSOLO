@@ -167,7 +167,13 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 profile?.phone?.let { ph -> PhoneRow(ph, onRequest = { if (nav.requirePhone()) vm.requestPhone() }, onCall = { nav.openUrl("tel:$it") }) }
                 if (own) PhoneRequestsCard(phoneRequests) { r, ok -> vm.decide(r, ok) }
                 Spacer(Modifier.height(12.dp))
-                if (!waiting) ProfileStatsRow(profile, user, trips?.past?.size)
+                if (!waiting) ProfileStatsRow(profile, user, trips?.past?.size) { key ->
+                    when (key) {
+                        "leaderboard" -> nav.to(Routes.LEADERBOARD)
+                        "followers", "following" -> nav.to(Routes.people(username, key))
+                        else -> tab = key
+                    }
+                }
                 if (!own) ConnectionsCard(profile?.connections, profile?.travel?.mutualPlaces.orEmpty(), nav)
                 profile?.host?.let { h ->
                     if (own) PeopleRow("Reached out to you", h.reachedOut, nav)
@@ -181,7 +187,8 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                TextTabs(listOf("posts" to "Posts · ${tiles.size}", "plans" to "Plans · ${plans.size}", "trips" to "Travel", "reviews" to "Reviews", "badges" to "Badges"), tab, { tab = it })
+                TextTabs(listOf("posts" to "Posts · ${tiles.size}", "plans" to "Plans · ${plans.size}", "trips" to "Travel", "reviews" to "Reviews", "badges" to "Badges") +
+                    (if (profile?.listings.isNullOrEmpty()) emptyList() else listOf("listings" to "Listings · ${profile!!.listings.size}")), tab, { tab = it })
                 profile?.openPlan?.takeIf { tab == "posts" }?.let { p ->
                     Row(Modifier.padding(horizontal = Gutter, vertical = 10.dp).fillMaxWidth().pencilledCard().clickable { nav.to(Routes.post(p.id)) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         MiniArc(p.spotsTotal ?: p.seats.size, p.memberCount, women = p.audience == "women")
@@ -222,6 +229,9 @@ private fun ProfileBody(nav: AppNav, username: String, own: Boolean) {
                 }
             }
             "reviews" -> item(span = { GridItemSpan(3) }) { ReviewsSection(profile, nav) }
+            "listings" -> items(profile?.listings.orEmpty(), key = { "ls-" + it.slug }, span = { GridItemSpan(3) }) { t ->
+                com.unsolo.app.ui.explore.TripCard(t, false, onSave = {}, onOpen = { nav.to(Routes.trip(t.slug)) }, onTake = { nav.to(Routes.trip(t.slug)) }, modifier = Modifier.padding(horizontal = Gutter, vertical = 6.dp))
+            }
             "badges" -> item(span = { GridItemSpan(3) }) { BadgesSection(profile?.badges, own) }
             else -> if (profile?.travel != null) item(span = { GridItemSpan(3) }) { TravelSection(profile!!.travel, own, nav) } else {
                 val past = if (own) trips?.past.orEmpty() else emptyList()
